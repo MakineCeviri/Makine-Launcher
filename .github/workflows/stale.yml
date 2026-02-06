@@ -18,24 +18,35 @@ jobs:
           # Issue settings
           stale-issue-message: |
             Bu issue 30 gündür aktivite görmedi ve "stale" olarak işaretlendi.
-            7 gün içinde yanıt verilmezse otomatik olarak kapatılacak.
+            7 gün içinde yanıt verilmezse otomatik olarak kapanacak.
             Hala geçerli ise lütfen yorum yapın.
           stale-issue-label: 'stale'
           days-before-issue-stale: 30
           days-before-issue-close: 7
-          exempt-issue-labels: 'pinned,confirmed,priority: critical,priority: high'
+          close-issue-reason: 'not_planned'
+          exempt-issue-labels: >-
+            pinned,
+            confirmed,
+            priority: critical,
+            priority: high,
+            type: epic,
+            phase:2,
+            phase:3,
+            phase:4,
+            good first issue,
+            help wanted
 
           # PR settings
           stale-pr-message: |
             Bu PR 14 gündür aktivite görmedi.
-            7 gün içinde güncelleme yapılmazsa otomatik olarak kapatılacak.
+            7 gün içinde güncelleme yapılmazsa otomatik olarak kapanacak.
           stale-pr-label: 'stale'
           days-before-pr-stale: 14
           days-before-pr-close: 7
           exempt-pr-labels: 'pinned,work-in-progress'
 
           # General
-          close-issue-message: 'Aktivite olmadığı için kapatıldı.'
-          close-pr-message: 'Aktivite olmadığı için kapatıldı.'
+          close-issue-message: 'Aktivite olmadığı için kapandı.'
+          close-pr-message: 'Aktivite olmadığı için kapandı.'
           remove-stale-when-updated: true
           operations-per-run: 30
