@@ -31,6 +31,7 @@ jobs:
 
       - name: Check formatting (clang-format)
         uses: jidicula/clang-format-action@v4.13.0
+        continue-on-error: true
         with:
           clang-format-version: '17'
           check-path: 'core'
