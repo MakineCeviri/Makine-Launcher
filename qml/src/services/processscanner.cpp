@@ -74,8 +74,6 @@ void ProcessScanner::stopWatching()
 
 bool ProcessScanner::checkGameRunning(const QString& gameId)
 {
-    Q_UNUSED(gameId)
-    // TODO: Check if specific game is running
     return m_gameRunning && m_runningGameId == gameId;
 }
 
