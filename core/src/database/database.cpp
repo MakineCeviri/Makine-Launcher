@@ -2231,7 +2231,7 @@ Result<void> Database::saveEntries(const std::vector<TranslationEntry>& entries)
     for (const auto& entry : entries) {
         auto result = saveEntry(entry);
         if (!result) {
-            rollbackTransaction();
+            (void)rollbackTransaction();
             return std::unexpected(result.error());
         }
     }

@@ -408,7 +408,7 @@ Result<std::optional<TranslationMemoryEntry>> TranslationMemoryService::findExac
 
         // Increment usage count
         if (entry.id.has_value()) {
-            Database::instance().incrementTMUsage(*entry.id);
+            (void)Database::instance().incrementTMUsage(*entry.id);
         }
 
         MAKINEAI_LOG_DEBUG(log::TM, "Exact match found: ID={}", entry.id.value_or(-1));
