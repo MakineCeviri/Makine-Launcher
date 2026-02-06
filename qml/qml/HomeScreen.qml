@@ -1110,6 +1110,7 @@ Item {
 
         signal clicked()
 
+        activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: gameName
         Accessible.description: {
@@ -1119,6 +1120,8 @@ Item {
             return desc
         }
         Accessible.onPressAction: clicked()
+        Keys.onReturnPressed: clicked()
+        Keys.onSpacePressed: clicked()
 
         width: Dimensions.cardWidth
         height: Dimensions.cardHeight
@@ -1305,6 +1308,13 @@ Item {
         property int remainingCount: 0
 
         signal clicked()
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("View All") + " (+" + remainingCount + ")"
+        Accessible.onPressAction: clicked()
+        Keys.onReturnPressed: clicked()
+        Keys.onSpacePressed: clicked()
 
         width: Dimensions.cardWidth
         height: Dimensions.cardHeight
