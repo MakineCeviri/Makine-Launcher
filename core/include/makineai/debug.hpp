@@ -267,7 +267,7 @@ public:
     /**
      * @brief Dump arbitrary state with a label
      */
-    Result<fs::path> dumpState(const std::string& label, const std::string& content) {
+    [[nodiscard]] Result<fs::path> dumpState(const std::string& label, const std::string& content) {
         if (!config_.enableDumps) {
             return std::unexpected(Error(ErrorCode::NotSupported,
                 "Debug dumps are disabled"));
@@ -303,7 +303,7 @@ public:
     /**
      * @brief Dump game info
      */
-    Result<fs::path> dumpGameInfo(const GameInfo& game, const std::string& label = "") {
+    [[nodiscard]] Result<fs::path> dumpGameInfo(const GameInfo& game, const std::string& label = "") {
         std::ostringstream oss;
 
         oss << "Game Info Dump\n";
@@ -339,7 +339,7 @@ public:
     /**
      * @brief Dump pipeline context
      */
-    Result<fs::path> dumpPipelineContext(const PipelineContext& ctx) {
+    [[nodiscard]] Result<fs::path> dumpPipelineContext(const PipelineContext& ctx) {
         std::ostringstream oss;
 
         oss << "Pipeline Context Dump\n";
@@ -434,7 +434,7 @@ public:
     /**
      * @brief Save crash report to file
      */
-    Result<fs::path> saveCrashReport(const CrashReport& report) {
+    [[nodiscard]] Result<fs::path> saveCrashReport(const CrashReport& report) {
         auto txtPath = getDumpPath("crash", "txt");
         auto jsonPath = getDumpPath("crash", "json");
 
@@ -478,7 +478,7 @@ public:
     /**
      * @brief Dump current memory stats
      */
-    Result<fs::path> dumpMemoryStats() {
+    [[nodiscard]] Result<fs::path> dumpMemoryStats() {
         std::ostringstream oss;
 
         oss << "Memory Statistics\n";

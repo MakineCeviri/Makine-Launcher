@@ -156,7 +156,7 @@ public:
      * @param options Initialization options
      * @return Result indicating success or failure with details
      */
-    Result<InitResult> initialize(
+    [[nodiscard]] Result<InitResult> initialize(
         const CoreConfig& config = CoreConfig::getDefaults(),
         const InitOptions& options = {}
     );

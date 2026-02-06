@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <regex>
+#include <unordered_set>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -236,8 +237,8 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
 
 // Check if an app is a redistributable package (VC++, DirectX, etc.)
 static bool isRedistributable(const std::string& appId, const std::string& name) {
-    // Known redistributable AppIDs
-    static const std::vector<std::string> redistributableIds = {
+    // Known redistributable AppIDs (O(1) lookup)
+    static const std::unordered_set<std::string> redistributableIds = {
         "228980",  // Steamworks Common Redistributables
         "228981",  // SteamVR
         "250820",  // SteamVR Performance Test
@@ -247,9 +248,7 @@ static bool isRedistributable(const std::string& appId, const std::string& name)
         "1628350", // Steam Linux Runtime - Sniper
     };
 
-    for (const auto& id : redistributableIds) {
-        if (appId == id) return true;
-    }
+    if (redistributableIds.count(appId)) return true;
 
     // Check name patterns
     static const std::vector<std::string> redistributablePatterns = {

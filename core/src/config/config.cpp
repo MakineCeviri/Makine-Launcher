@@ -8,8 +8,9 @@
 #include "makineai/logging.hpp"
 
 #include <nlohmann/json.hpp>
-#include <fstream>
 #include <cstdlib>
+#include <fstream>
+#include <unordered_set>
 
 namespace makineai {
 
@@ -366,6 +367,16 @@ void CoreConfig::applyEnvironmentOverrides() {
 // CONFIGURATION VALIDATION
 // =============================================================================
 
+namespace {
+    constexpr uint32_t kMaxParallelScans     = 16;
+    constexpr uint32_t kMinScanTimeoutMs     = 1000;
+    constexpr uint32_t kMinDiskSpaceMB       = 100;
+    constexpr uint32_t kMaxPatchRetries      = 10;
+    constexpr int      kMinQAScore           = 0;
+    constexpr int      kMaxQAScore           = 100;
+    constexpr uint32_t kMinConnectionTimeout = 100;
+} // namespace
+
 ConfigValidationResult validateConfig(const CoreConfig& config) {
     ConfigValidationResult result;
 
@@ -374,23 +385,23 @@ ConfigValidationResult validateConfig(const CoreConfig& config) {
         result.errors.push_back("scanning.maxParallelScans must be greater than 0");
         result.valid = false;
     }
-    if (config.scanning.maxParallelScans > 16) {
+    if (config.scanning.maxParallelScans > kMaxParallelScans) {
         result.warnings.push_back("scanning.maxParallelScans > 16 may cause resource issues");
     }
-    if (config.scanning.scanTimeoutMs < 1000) {
+    if (config.scanning.scanTimeoutMs < kMinScanTimeoutMs) {
         result.warnings.push_back("scanning.scanTimeoutMs < 1000ms may cause premature timeouts");
     }
 
     // Patching validation
-    if (config.patching.minDiskSpaceMB < 100) {
+    if (config.patching.minDiskSpaceMB < kMinDiskSpaceMB) {
         result.warnings.push_back("patching.minDiskSpaceMB < 100MB may cause patch failures");
     }
-    if (config.patching.maxRetries > 10) {
+    if (config.patching.maxRetries > kMaxPatchRetries) {
         result.warnings.push_back("patching.maxRetries > 10 may cause long delays on failure");
     }
 
     // Translation validation
-    if (config.translation.minQAScore < 0 || config.translation.minQAScore > 100) {
+    if (config.translation.minQAScore < kMinQAScore || config.translation.minQAScore > kMaxQAScore) {
         result.errors.push_back("translation.minQAScore must be between 0 and 100");
         result.valid = false;
     }
@@ -408,7 +419,7 @@ ConfigValidationResult validateConfig(const CoreConfig& config) {
     }
 
     // Network validation
-    if (config.network.connectionTimeoutMs < 100) {
+    if (config.network.connectionTimeoutMs < kMinConnectionTimeout) {
         result.warnings.push_back("network.connectionTimeoutMs < 100ms may cause connection issues");
     }
     if (!config.network.verifySsl) {
@@ -416,15 +427,10 @@ ConfigValidationResult validateConfig(const CoreConfig& config) {
     }
 
     // Logging validation
-    const std::vector<std::string> validLevels = {"trace", "debug", "info", "warn", "error", "critical"};
-    bool validLevel = false;
-    for (const auto& level : validLevels) {
-        if (config.logging.level == level) {
-            validLevel = true;
-            break;
-        }
-    }
-    if (!validLevel) {
+    static const std::unordered_set<std::string> validLevels = {
+        "trace", "debug", "info", "warn", "error", "critical"
+    };
+    if (!validLevels.count(config.logging.level)) {
         result.errors.push_back("logging.level must be one of: trace, debug, info, warn, error, critical");
         result.valid = false;
     }

@@ -155,7 +155,7 @@ public:
     /**
      * @brief Clear downloaded package cache
      */
-    VoidResult clearCache();
+    [[nodiscard]] VoidResult clearCache();
 
 private:
     std::string apiUrl_;

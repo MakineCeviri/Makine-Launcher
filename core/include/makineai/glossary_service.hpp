@@ -89,7 +89,7 @@ public:
      * @param term Term to add (id will be assigned)
      * @return ID of inserted term or error
      */
-    Result<int64_t> addTerm(const GlossaryTerm& term);
+    [[nodiscard]] Result<int64_t> addTerm(const GlossaryTerm& term);
 
     /**
      * @brief Update existing term
@@ -97,7 +97,7 @@ public:
      * @param term Term with updated values (id required)
      * @return Success or error
      */
-    Result<void> updateTerm(const GlossaryTerm& term);
+    [[nodiscard]] Result<void> updateTerm(const GlossaryTerm& term);
 
     /**
      * @brief Delete term and related data
@@ -105,7 +105,7 @@ public:
      * @param termId Term ID to delete
      * @return Success or error
      */
-    Result<void> deleteTerm(int64_t termId);
+    [[nodiscard]] Result<void> deleteTerm(int64_t termId);
 
     /**
      * @brief Add alternative translation for a term
@@ -115,7 +115,7 @@ public:
      * @param context Optional usage context
      * @return Success or error
      */
-    Result<void> addAlternative(
+    [[nodiscard]] Result<void> addAlternative(
         int64_t termId,
         const std::string& alternative,
         const std::optional<std::string>& context = std::nullopt
@@ -129,7 +129,7 @@ public:
      * @param reason Optional reason
      * @return Success or error
      */
-    Result<void> addForbidden(
+    [[nodiscard]] Result<void> addForbidden(
         int64_t termId,
         const std::string& forbidden,
         const std::optional<std::string>& reason = std::nullopt
@@ -143,7 +143,7 @@ public:
      * @param forceRefresh Bypass cache
      * @return List of all terms
      */
-    Result<std::vector<GlossaryTerm>> getAllTerms(bool forceRefresh = false);
+    [[nodiscard]] Result<std::vector<GlossaryTerm>> getAllTerms(bool forceRefresh = false);
 
     /**
      * @brief Get terms by domain
@@ -153,7 +153,7 @@ public:
      * @param domain Domain filter
      * @return Filtered terms
      */
-    Result<std::vector<GlossaryTerm>> getTermsByDomain(TermDomain domain);
+    [[nodiscard]] Result<std::vector<GlossaryTerm>> getTermsByDomain(TermDomain domain);
 
     /**
      * @brief Get terms for a specific game
@@ -163,7 +163,7 @@ public:
      * @param gameId Game ID
      * @return Filtered terms
      */
-    Result<std::vector<GlossaryTerm>> getTermsForGame(const std::string& gameId);
+    [[nodiscard]] Result<std::vector<GlossaryTerm>> getTermsForGame(const std::string& gameId);
 
     /**
      * @brief Search terms by source or target text
@@ -171,7 +171,7 @@ public:
      * @param query Search query
      * @return Matching terms
      */
-    Result<std::vector<GlossaryTerm>> searchTerms(const std::string& query);
+    [[nodiscard]] Result<std::vector<GlossaryTerm>> searchTerms(const std::string& query);
 
     // ============== TEXT MATCHING ==============
 
@@ -185,7 +185,7 @@ public:
      * @param gameId Optional game filter
      * @return List of matches with positions
      */
-    Result<std::vector<GlossaryMatch>> findTermsInText(
+    [[nodiscard]] Result<std::vector<GlossaryMatch>> findTermsInText(
         const std::string& text,
         const std::optional<TermDomain>& domain = std::nullopt,
         const std::optional<std::string>& gameId = std::nullopt
@@ -199,7 +199,7 @@ public:
      * @param gameId Optional game filter
      * @return List of violations found
      */
-    Result<std::vector<ForbiddenViolation>> checkForbiddenTerms(
+    [[nodiscard]] Result<std::vector<ForbiddenViolation>> checkForbiddenTerms(
         const std::string& sourceText,
         const std::string& targetText,
         const std::optional<std::string>& gameId = std::nullopt
@@ -216,7 +216,7 @@ public:
      * @param gameId Optional game filter
      * @return Translated text
      */
-    Result<std::string> applyGlossary(
+    [[nodiscard]] Result<std::string> applyGlossary(
         const std::string& text,
         const std::optional<TermDomain>& domain = std::nullopt,
         const std::optional<std::string>& gameId = std::nullopt
@@ -231,7 +231,7 @@ public:
      *
      * @return Number of terms loaded
      */
-    Result<int> loadDefaultTerms();
+    [[nodiscard]] Result<int> loadDefaultTerms();
 
     /**
      * @brief Ensure default terms are loaded
@@ -240,7 +240,7 @@ public:
      *
      * @return Success or error
      */
-    Result<void> ensureDefaultTermsLoaded();
+    [[nodiscard]] Result<void> ensureDefaultTermsLoaded();
 
     // ============== STATISTICS ==============
 
@@ -249,7 +249,7 @@ public:
      *
      * @return Statistics or error
      */
-    Result<GlossaryStats> getStats();
+    [[nodiscard]] Result<GlossaryStats> getStats();
 
 public:
     // Destructor must be public for unique_ptr usage in Core

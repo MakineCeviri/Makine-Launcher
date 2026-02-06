@@ -471,7 +471,7 @@ public:
     /**
      * @brief Export events to JSON file
      */
-    Result<fs::path> exportToJson(const fs::path& path) const {
+    [[nodiscard]] Result<fs::path> exportToJson(const fs::path& path) const {
         try {
             std::ofstream ofs(path);
             if (!ofs.is_open()) {

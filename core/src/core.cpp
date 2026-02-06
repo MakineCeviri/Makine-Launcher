@@ -73,7 +73,8 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
                 result.healthStatus.toText());
 
             // Only fail on critical issues
-            if (result.healthStatus.availableMemoryBytes < 100 * 1024 * 1024) {  // 100 MB
+            constexpr uint64_t kMinAvailableMemory = 100ULL * 1024 * 1024;  // 100 MB
+            if (result.healthStatus.availableMemoryBytes < kMinAvailableMemory) {
                 return std::unexpected(Error(ErrorCode::Unknown,
                     "Insufficient memory: " + result.healthStatus.toText()));
             }

@@ -76,7 +76,7 @@ public:
      * @param dbPath Optional custom path (default: %LOCALAPPDATA%/MakineAI/makineai.db)
      * @return Success or error
      */
-    Result<void> initialize(const std::optional<fs::path>& dbPath = std::nullopt);
+    [[nodiscard]] Result<void> initialize(const std::optional<fs::path>& dbPath = std::nullopt);
 
     /**
      * @brief Close database connection
@@ -100,34 +100,34 @@ public:
      * @param game Game information
      * @return Success or error
      */
-    Result<void> saveGame(const GameInfo& game);
+    [[nodiscard]] Result<void> saveGame(const GameInfo& game);
 
     /**
      * @brief Get game by Steam App ID
      * @param steamAppId Steam application ID
      * @return Game info or nullopt if not found
      */
-    Result<std::optional<GameInfo>> getGameBySteamId(const std::string& steamAppId);
+    [[nodiscard]] Result<std::optional<GameInfo>> getGameBySteamId(const std::string& steamAppId);
 
     /**
      * @brief Get game by internal ID
      * @param gameId Internal game ID
      * @return Game info or nullopt if not found
      */
-    Result<std::optional<GameInfo>> getGameById(const std::string& gameId);
+    [[nodiscard]] Result<std::optional<GameInfo>> getGameById(const std::string& gameId);
 
     /**
      * @brief Get all stored games
      * @return List of games
      */
-    Result<std::vector<GameInfo>> getAllGames();
+    [[nodiscard]] Result<std::vector<GameInfo>> getAllGames();
 
     /**
      * @brief Delete a game and all related data
      * @param gameId Game ID to delete
      * @return Success or error
      */
-    Result<void> deleteGame(const std::string& gameId);
+    [[nodiscard]] Result<void> deleteGame(const std::string& gameId);
 
     // ============== TRANSLATION MEMORY OPERATIONS ==============
 
@@ -136,21 +136,21 @@ public:
      * @param entry TM entry to add
      * @return ID of inserted entry or error
      */
-    Result<int64_t> addToTranslationMemory(const TranslationMemoryEntry& entry);
+    [[nodiscard]] Result<int64_t> addToTranslationMemory(const TranslationMemoryEntry& entry);
 
     /**
      * @brief Find exact match in translation memory
      * @param sourceHash Hash of source text
      * @return TM entry or nullopt if not found
      */
-    Result<std::optional<TranslationMemoryEntry>> findExactMatch(const std::string& sourceHash);
+    [[nodiscard]] Result<std::optional<TranslationMemoryEntry>> findExactMatch(const std::string& sourceHash);
 
     /**
      * @brief Find entries by source text hash
      * @param sourceHash Hash of source text
      * @return List of matching entries
      */
-    Result<std::vector<TranslationMemoryEntry>> findByHash(const std::string& sourceHash);
+    [[nodiscard]] Result<std::vector<TranslationMemoryEntry>> findByHash(const std::string& sourceHash);
 
     /**
      * @brief Get translation memory entries for a game
@@ -158,7 +158,7 @@ public:
      * @param limit Maximum number of entries
      * @return List of TM entries
      */
-    Result<std::vector<TranslationMemoryEntry>> getEntriesForGame(
+    [[nodiscard]] Result<std::vector<TranslationMemoryEntry>> getEntriesForGame(
         const std::string& gameId,
         size_t limit = 1000
     );
@@ -167,20 +167,20 @@ public:
      * @brief Get translation memory statistics
      * @return Map with 'total' and 'verified' counts
      */
-    Result<std::pair<int64_t, int64_t>> getTranslationMemoryStats();
+    [[nodiscard]] Result<std::pair<int64_t, int64_t>> getTranslationMemoryStats();
 
     /**
      * @brief Get average quality score of TM entries
      * @return Average quality score (0.0 - 100.0)
      */
-    Result<double> getAverageQualityScore();
+    [[nodiscard]] Result<double> getAverageQualityScore();
 
     /**
      * @brief Update usage count for a TM entry
      * @param entryId TM entry ID
      * @return Success or error
      */
-    Result<void> incrementTMUsage(int64_t entryId);
+    [[nodiscard]] Result<void> incrementTMUsage(int64_t entryId);
 
     /**
      * @brief Update a translation memory entry
@@ -190,7 +190,7 @@ public:
      * @param verified Optional verified flag
      * @return Success or error
      */
-    Result<void> updateTranslationMemoryEntry(
+    [[nodiscard]] Result<void> updateTranslationMemoryEntry(
         int64_t tmId,
         const std::string& targetText,
         std::optional<int> qualityScore = std::nullopt,
@@ -202,14 +202,14 @@ public:
      * @param tmId TM entry ID
      * @return Success or error
      */
-    Result<void> deleteTranslationMemoryEntry(int64_t tmId);
+    [[nodiscard]] Result<void> deleteTranslationMemoryEntry(int64_t tmId);
 
     /**
      * @brief Get a translation memory entry by its ID
      * @param tmId TM entry ID
      * @return TM entry or error if not found
      */
-    Result<TranslationMemoryEntry> getTranslationMemoryEntryById(int64_t tmId);
+    [[nodiscard]] Result<TranslationMemoryEntry> getTranslationMemoryEntryById(int64_t tmId);
 
     // ============== N-GRAM OPERATIONS (for fuzzy matching) ==============
 
@@ -219,7 +219,7 @@ public:
      * @param ngrams List of n-grams with positions
      * @return Success or error
      */
-    Result<void> storeNgrams(int64_t tmId, const std::vector<std::pair<std::string, int>>& ngrams);
+    [[nodiscard]] Result<void> storeNgrams(int64_t tmId, const std::vector<std::pair<std::string, int>>& ngrams);
 
     /**
      * @brief Find TM entries by n-gram
@@ -227,7 +227,7 @@ public:
      * @param limit Maximum results
      * @return List of TM entry IDs
      */
-    Result<std::vector<int64_t>> findByNgram(const std::string& ngram, size_t limit = 100);
+    [[nodiscard]] Result<std::vector<int64_t>> findByNgram(const std::string& ngram, size_t limit = 100);
 
     // ============== GLOSSARY OPERATIONS ==============
 
@@ -236,21 +236,21 @@ public:
      * @param term Glossary term to add
      * @return ID of inserted term or error
      */
-    Result<int64_t> addGlossaryTerm(const GlossaryTerm& term);
+    [[nodiscard]] Result<int64_t> addGlossaryTerm(const GlossaryTerm& term);
 
     /**
      * @brief Update glossary term
      * @param term Term with updated values
      * @return Success or error
      */
-    Result<void> updateGlossaryTerm(const GlossaryTerm& term);
+    [[nodiscard]] Result<void> updateGlossaryTerm(const GlossaryTerm& term);
 
     /**
      * @brief Delete glossary term
      * @param termId Term ID to delete
      * @return Success or error
      */
-    Result<void> deleteGlossaryTerm(int64_t termId);
+    [[nodiscard]] Result<void> deleteGlossaryTerm(int64_t termId);
 
     /**
      * @brief Search glossary by source term
@@ -260,7 +260,7 @@ public:
      * @param limit Maximum results
      * @return List of matching terms
      */
-    Result<std::vector<GlossaryTerm>> searchGlossary(
+    [[nodiscard]] Result<std::vector<GlossaryTerm>> searchGlossary(
         const std::string& searchTerm,
         const std::optional<TermDomain>& domain = std::nullopt,
         const std::optional<std::string>& gameSpecific = std::nullopt,
@@ -273,7 +273,7 @@ public:
      * @param gameSpecific Optional game-specific filter
      * @return List of all terms
      */
-    Result<std::vector<GlossaryTerm>> getAllGlossaryTerms(
+    [[nodiscard]] Result<std::vector<GlossaryTerm>> getAllGlossaryTerms(
         const std::optional<TermDomain>& domain = std::nullopt,
         const std::optional<std::string>& gameSpecific = std::nullopt
     );
@@ -285,7 +285,7 @@ public:
      * @param context Optional usage context
      * @return Success or error
      */
-    Result<void> addGlossaryAlternative(
+    [[nodiscard]] Result<void> addGlossaryAlternative(
         int64_t glossaryId,
         const std::string& alternative,
         const std::optional<std::string>& context = std::nullopt
@@ -298,7 +298,7 @@ public:
      * @param reason Optional reason why it's forbidden
      * @return Success or error
      */
-    Result<void> addForbiddenTranslation(
+    [[nodiscard]] Result<void> addForbiddenTranslation(
         int64_t glossaryId,
         const std::string& forbidden,
         const std::optional<std::string>& reason = std::nullopt
@@ -311,41 +311,41 @@ public:
      * @param project Project to create
      * @return Project ID or error
      */
-    Result<std::string> createProject(const TranslationProject& project);
+    [[nodiscard]] Result<std::string> createProject(const TranslationProject& project);
 
     /**
      * @brief Get project by ID
      * @param projectId Project ID
      * @return Project or nullopt if not found
      */
-    Result<std::optional<TranslationProject>> getProject(const std::string& projectId);
+    [[nodiscard]] Result<std::optional<TranslationProject>> getProject(const std::string& projectId);
 
     /**
      * @brief Get all projects
      * @return List of all projects
      */
-    Result<std::vector<TranslationProject>> getAllProjects();
+    [[nodiscard]] Result<std::vector<TranslationProject>> getAllProjects();
 
     /**
      * @brief Get projects for a game
      * @param gameId Game ID
      * @return List of projects for the game
      */
-    Result<std::vector<TranslationProject>> getProjectsByGame(const std::string& gameId);
+    [[nodiscard]] Result<std::vector<TranslationProject>> getProjectsByGame(const std::string& gameId);
 
     /**
      * @brief Update project
      * @param project Project with updated values
      * @return Success or error
      */
-    Result<void> updateProject(const TranslationProject& project);
+    [[nodiscard]] Result<void> updateProject(const TranslationProject& project);
 
     /**
      * @brief Delete project and all entries
      * @param projectId Project ID to delete
      * @return Success or error
      */
-    Result<void> deleteProject(const std::string& projectId);
+    [[nodiscard]] Result<void> deleteProject(const std::string& projectId);
 
     // ============== TRANSLATION ENTRY OPERATIONS ==============
 
@@ -354,14 +354,14 @@ public:
      * @param entry Entry to save
      * @return Entry ID or error
      */
-    Result<int64_t> saveEntry(const TranslationEntry& entry);
+    [[nodiscard]] Result<int64_t> saveEntry(const TranslationEntry& entry);
 
     /**
      * @brief Save multiple entries in batch
      * @param entries List of entries
      * @return Success or error
      */
-    Result<void> saveEntries(const std::vector<TranslationEntry>& entries);
+    [[nodiscard]] Result<void> saveEntries(const std::vector<TranslationEntry>& entries);
 
     /**
      * @brief Get entries by project
@@ -372,7 +372,7 @@ public:
      * @param offset Skip first N entries
      * @return List of entries
      */
-    Result<std::vector<TranslationEntry>> getEntriesByProject(
+    [[nodiscard]] Result<std::vector<TranslationEntry>> getEntriesByProject(
         const std::string& projectId,
         const std::optional<EntryStatus>& status = std::nullopt,
         const std::optional<EntryCategory>& category = std::nullopt,
@@ -386,7 +386,7 @@ public:
      * @param filePath File path
      * @return List of entries for the file
      */
-    Result<std::vector<TranslationEntry>> getEntriesByFile(
+    [[nodiscard]] Result<std::vector<TranslationEntry>> getEntriesByFile(
         const std::string& projectId,
         const std::string& filePath
     );
@@ -396,7 +396,7 @@ public:
      * @param entry Entry with updated values
      * @return Success or error
      */
-    Result<void> updateEntry(const TranslationEntry& entry);
+    [[nodiscard]] Result<void> updateEntry(const TranslationEntry& entry);
 
     /**
      * @brief Update multiple entries
@@ -404,7 +404,7 @@ public:
      * @param status New status
      * @return Success or error
      */
-    Result<void> updateEntriesStatus(
+    [[nodiscard]] Result<void> updateEntriesStatus(
         const std::vector<int64_t>& entryIds,
         EntryStatus status
     );
@@ -414,20 +414,20 @@ public:
      * @param entryId Entry ID to delete
      * @return Success or error
      */
-    Result<void> deleteEntry(int64_t entryId);
+    [[nodiscard]] Result<void> deleteEntry(int64_t entryId);
 
     /**
      * @brief Get entry statistics for a project
      * @return Entry statistics
      */
-    Result<EntryStats> getEntryStats(const std::string& projectId);
+    [[nodiscard]] Result<EntryStats> getEntryStats(const std::string& projectId);
 
     /**
      * @brief Calculate and update project progress
      * @param projectId Project ID
      * @return Progress (0.0 - 1.0) or error
      */
-    Result<double> calculateAndUpdateProgress(const std::string& projectId);
+    [[nodiscard]] Result<double> calculateAndUpdateProgress(const std::string& projectId);
 
     // ============== BACKUP OPERATIONS ==============
 
@@ -436,28 +436,28 @@ public:
      * @param backup Backup record
      * @return Success or error
      */
-    Result<void> addBackupRecord(const BackupRecord& backup);
+    [[nodiscard]] Result<void> addBackupRecord(const BackupRecord& backup);
 
     /**
      * @brief Get backups for a game
      * @param gameId Game ID
      * @return List of backup records
      */
-    Result<std::vector<BackupRecord>> getBackupsByGame(const std::string& gameId);
+    [[nodiscard]] Result<std::vector<BackupRecord>> getBackupsByGame(const std::string& gameId);
 
     /**
      * @brief Get backup by ID
      * @param backupId Backup ID
      * @return Backup record or nullopt
      */
-    Result<std::optional<BackupRecord>> getBackup(const std::string& backupId);
+    [[nodiscard]] Result<std::optional<BackupRecord>> getBackup(const std::string& backupId);
 
     /**
      * @brief Mark backup as deleted
      * @param backupId Backup ID
      * @return Success or error
      */
-    Result<void> deleteBackupRecord(const std::string& backupId);
+    [[nodiscard]] Result<void> deleteBackupRecord(const std::string& backupId);
 
     // ============== PATCH HISTORY OPERATIONS ==============
 
@@ -471,7 +471,7 @@ public:
      * @param errorMessage Error message if failed
      * @return Patch record ID or error
      */
-    Result<int64_t> addPatchRecord(
+    [[nodiscard]] Result<int64_t> addPatchRecord(
         const std::string& gameId,
         const std::string& patchType,
         const std::string& status,
@@ -485,7 +485,7 @@ public:
      * @param gameId Game ID
      * @return List of patch records as maps
      */
-    Result<std::vector<std::map<std::string, std::string>>> getPatchHistory(
+    [[nodiscard]] Result<std::vector<std::map<std::string, std::string>>> getPatchHistory(
         const std::string& gameId
     );
 
@@ -494,7 +494,7 @@ public:
      * @param patchId Patch record ID
      * @return Success or error
      */
-    Result<void> markPatchReverted(int64_t patchId);
+    [[nodiscard]] Result<void> markPatchReverted(int64_t patchId);
 
     // ============== SETTINGS OPERATIONS ==============
 
@@ -504,20 +504,20 @@ public:
      * @param value Setting value
      * @return Success or error
      */
-    Result<void> setSetting(const std::string& key, const std::string& value);
+    [[nodiscard]] Result<void> setSetting(const std::string& key, const std::string& value);
 
     /**
      * @brief Get a setting value
      * @param key Setting key
      * @return Value or nullopt if not found
      */
-    Result<std::optional<std::string>> getSetting(const std::string& key);
+    [[nodiscard]] Result<std::optional<std::string>> getSetting(const std::string& key);
 
     /**
      * @brief Get all settings
      * @return Map of key-value pairs
      */
-    Result<std::map<std::string, std::string>> getAllSettings();
+    [[nodiscard]] Result<std::map<std::string, std::string>> getAllSettings();
 
     // ============== UTILITY ==============
 
@@ -526,31 +526,31 @@ public:
      * @param sql SQL statement
      * @return Success or error
      */
-    Result<void> executeRaw(const std::string& sql);
+    [[nodiscard]] Result<void> executeRaw(const std::string& sql);
 
     /**
      * @brief Begin transaction
      * @return Success or error
      */
-    Result<void> beginTransaction();
+    [[nodiscard]] Result<void> beginTransaction();
 
     /**
      * @brief Commit transaction
      * @return Success or error
      */
-    Result<void> commitTransaction();
+    [[nodiscard]] Result<void> commitTransaction();
 
     /**
      * @brief Rollback transaction
      * @return Success or error
      */
-    Result<void> rollbackTransaction();
+    [[nodiscard]] Result<void> rollbackTransaction();
 
     /**
      * @brief Vacuum database to reclaim space
      * @return Success or error
      */
-    Result<void> vacuum();
+    [[nodiscard]] Result<void> vacuum();
 
     // Destructor
     ~Database();
@@ -565,10 +565,10 @@ private:
     Database() = default;
 
     // Helper methods
-    Result<void> execute(const std::string& sql);
-    Result<Statement> prepare(const std::string& sql);
-    Result<void> createTables();
-    Result<void> migrateToV2();
+    [[nodiscard]] Result<void> execute(const std::string& sql);
+    [[nodiscard]] Result<Statement> prepare(const std::string& sql);
+    [[nodiscard]] Result<void> createTables();
+    [[nodiscard]] Result<void> migrateToV2();
 
     // Static helpers
     static int64_t now() noexcept;
