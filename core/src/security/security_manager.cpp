@@ -30,7 +30,7 @@
 // Optional: libsodium for modern cryptography
 #ifdef MAKINEAI_HAS_SODIUM
 #include <sodium.h>
-// TODO: [LIBSODIUM] Use libsodium for:
+// TODO(makineai): [LIBSODIUM] Use libsodium for:
 // - crypto_generichash (BLAKE2b) - faster than SHA256
 // - crypto_sign for Ed25519 signatures
 // - crypto_secretbox for symmetric encryption
@@ -40,7 +40,7 @@
 // Optional: mio for memory-mapped file hashing
 #ifdef MAKINEAI_HAS_MIO
 #include <mio/mmap.hpp>
-// TODO: [MIO] Use memory-mapped files for large file hashing
+// TODO(makineai): [MIO] Use memory-mapped files for large file hashing
 // Example:
 //   std::error_code ec;
 //   mio::mmap_source mmap(file.string(), ec);

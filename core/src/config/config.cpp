@@ -220,8 +220,6 @@ std::optional<std::string> getEnvVar(const char* name) {
     return std::nullopt;
 }
 
-// End helper functions
-
 // =============================================================================
 // CORECONFIG IMPLEMENTATION
 // =============================================================================

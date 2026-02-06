@@ -15,6 +15,7 @@
 #pragma once
 
 #include "features.hpp"
+#include "constants.hpp"
 #include "error.hpp"
 
 #include <cstdint>
@@ -247,7 +248,7 @@ public:
         archive_read_support_filter_all(a);
         archive_read_support_format_all(a);
 
-        if (archive_read_open_filename(a, archivePath_.string().c_str(), 10240) != ARCHIVE_OK) {
+        if (archive_read_open_filename(a, archivePath_.string().c_str(), kArchiveReadBufferSize) != ARCHIVE_OK) {
             std::string err = archive_error_string(a);
             archive_read_free(a);
             return Error(ErrorCode::FileReadError, err);
@@ -296,7 +297,7 @@ public:
         );
         archive_write_disk_set_standard_lookup(ext);
 
-        if (archive_read_open_filename(a, archivePath_.string().c_str(), 10240) != ARCHIVE_OK) {
+        if (archive_read_open_filename(a, archivePath_.string().c_str(), kArchiveReadBufferSize) != ARCHIVE_OK) {
             std::string err = archive_error_string(a);
             archive_read_free(a);
             archive_write_free(ext);
@@ -381,7 +382,7 @@ public:
             archive_read_add_passphrase(a, password->c_str());
         }
 
-        if (archive_read_open_filename(a, archivePath_.string().c_str(), 10240) != ARCHIVE_OK) {
+        if (archive_read_open_filename(a, archivePath_.string().c_str(), kArchiveReadBufferSize) != ARCHIVE_OK) {
             std::string err = archive_error_string(a);
             archive_read_free(a);
             return Error(ErrorCode::FileReadError, err);

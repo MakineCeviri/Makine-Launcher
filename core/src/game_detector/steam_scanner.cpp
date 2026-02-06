@@ -67,20 +67,25 @@ Result<std::vector<GameInfo>> SteamScanner::scan() const {
         // Scan for .acf manifest files
         try {
             for (const auto& entry : fs::directory_iterator(steamapps)) {
-                if (!entry.is_regular_file()) continue;
+                try {
+                    if (!entry.is_regular_file()) continue;
 
-                auto filename = entry.path().filename().string();
-                if (!filename.starts_with("appmanifest_") ||
-                    !filename.ends_with(".acf")) {
-                    continue;
-                }
+                    auto filename = entry.path().filename().string();
+                    if (!filename.starts_with("appmanifest_") ||
+                        !filename.ends_with(".acf")) {
+                        continue;
+                    }
 
-                auto gameResult = parseAppManifest(entry.path());
-                if (gameResult) {
-                    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found game '{}' (AppID: {})",
-                                      gameResult->name, gameResult->id.storeId);
-                    games.push_back(std::move(*gameResult));
-                    metrics().increment("steam_games_found");
+                    auto gameResult = parseAppManifest(entry.path());
+                    if (gameResult) {
+                        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found game '{}' (AppID: {})",
+                                          gameResult->name, gameResult->id.storeId);
+                        games.push_back(std::move(*gameResult));
+                        metrics().increment("steam_games_found");
+                    }
+                } catch (const std::exception& e) {
+                    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Error processing manifest {}: {}",
+                                     entry.path().string(), e.what());
                 }
             }
         } catch (const std::exception& e) {
@@ -128,14 +133,20 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
         L"Software\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
 
         if (RegQueryValueExW(hKey, L"SteamPath", nullptr, nullptr,
-            reinterpret_cast<LPBYTE>(steamPath), &pathSize) == ERROR_SUCCESS) {
+            reinterpret_cast<LPBYTE>(steamPath), &pathSize) == ERROR_SUCCESS
+            && steamPath[0] != L'\0') {
 
-            // Convert to narrow string
-            char narrowPath[MAX_PATH];
-            WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
-                narrowPath, MAX_PATH, nullptr, nullptr);
-            folders.push_back(narrowPath);
-            MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found install path via registry: {}", narrowPath);
+            // Convert to narrow string with dynamic size
+            int requiredSize = WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
+                nullptr, 0, nullptr, nullptr);
+            if (requiredSize > 0) {
+                std::string narrowPath(requiredSize, '\0');
+                WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
+                    narrowPath.data(), requiredSize, nullptr, nullptr);
+                narrowPath.resize(narrowPath.size() - 1);  // Remove null terminator
+                folders.push_back(narrowPath);
+                MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found install path via registry: {}", narrowPath);
+            }
         }
         RegCloseKey(hKey);
     }
@@ -301,29 +312,34 @@ Result<GameInfo> SteamScanner::parseAppManifest(const fs::path& acfFile) const {
             "Game directory not found: " + game.installPath.string()));
     }
 
-    // Find main executable
-    for (const auto& entry : fs::directory_iterator(game.installPath)) {
-        if (entry.is_regular_file()) {
-            auto ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            if (ext == ".exe") {
-                auto filename = entry.path().filename().string();
-                std::transform(filename.begin(), filename.end(),
-                    filename.begin(), ::tolower);
+    // Find main executable (with error handling for permission issues)
+    try {
+        for (const auto& entry : fs::directory_iterator(game.installPath)) {
+            if (entry.is_regular_file()) {
+                auto ext = entry.path().extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                if (ext == ".exe") {
+                    auto filename = entry.path().filename().string();
+                    std::transform(filename.begin(), filename.end(),
+                        filename.begin(), ::tolower);
 
-                // Skip common non-game executables
-                if (filename.find("launcher") != std::string::npos ||
-                    filename.find("crash") != std::string::npos ||
-                    filename.find("unins") != std::string::npos ||
-                    filename.find("redist") != std::string::npos ||
-                    filename.find("setup") != std::string::npos) {
-                    continue;
+                    // Skip common non-game executables
+                    if (filename.find("launcher") != std::string::npos ||
+                        filename.find("crash") != std::string::npos ||
+                        filename.find("unins") != std::string::npos ||
+                        filename.find("redist") != std::string::npos ||
+                        filename.find("setup") != std::string::npos) {
+                        continue;
+                    }
+
+                    game.executablePath = entry.path();
+                    break;
                 }
-
-                game.executablePath = entry.path();
-                break;
             }
         }
+    } catch (const std::exception& e) {
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Cannot enumerate {}: {}",
+                          game.installPath.string(), e.what());
     }
 
     // Try to get size

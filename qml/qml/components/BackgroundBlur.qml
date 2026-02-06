@@ -3,13 +3,7 @@ import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * BackgroundBlur.qml - Native Qt BackgroundBlur birebir port
- * Kaynak: ui/src/widgets/backgroundblur.cpp
- *
- * Features:
- * - Blurred background image
- * - Fade animation
- * - Gradient overlay
+ * BackgroundBlur.qml - Blurred background image with fade animation and gradient overlay
  */
 Item {
     id: root
@@ -60,7 +54,7 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 500 } }
     }
 
-    // Gradient overlay - Native Qt: bg 70%, bg 95%, bg 100%
+    // Gradient overlay: bg 70%, bg 95%, bg 100%
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {

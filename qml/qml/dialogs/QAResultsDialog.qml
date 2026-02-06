@@ -5,7 +5,6 @@ import MakineAI 1.0
 
 /**
  * QAResultsDialog.qml - QA (Kalite Kontrol) sonuçları dialog'u
- * Kaynak: archive/v0.0.8-flutter/UI/lib/services/translation/qa_service.dart
  *
  * Features:
  * - Issue listesi (Critical/Major/Warning/Info)

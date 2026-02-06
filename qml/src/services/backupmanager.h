@@ -1,6 +1,6 @@
 /**
  * @file backupmanager.h
- * @brief Backup Manager - Oyun yedekleme yönetimi
+ * @brief Game backup management
  * @copyright (c) 2026 MakineAI Team
  */
 

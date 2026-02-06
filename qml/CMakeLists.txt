@@ -232,52 +232,29 @@ qt_add_qml_module(MakineAI
         qml/dialogs/CancelConfirmationDialog.qml
 
     RESOURCES
-        # SVG icons
-        resources/icons/logo.svg
-        resources/icons/home.svg
-        resources/icons/settings.svg
-        resources/icons/close.svg
-        resources/icons/minimize.svg
-        resources/icons/maximize.svg
-        resources/icons/search.svg
-        resources/icons/check.svg
-        resources/icons/arrow_back.svg
-        resources/icons/verified.svg
-        resources/icons/stop.svg
-        resources/icons/donate.svg
+        # SVG icons (19 active)
         resources/icons/arrow_right.svg
-        resources/icons/backup.svg
-        resources/icons/folder.svg
-        resources/icons/delete.svg
-        resources/icons/info.svg
-        resources/icons/refresh.svg
-        resources/icons/hourglass.svg
-        resources/icons/flag-tr.svg
         resources/icons/box.svg
-        resources/icons/globe.svg
-        resources/icons/gamepad.svg
-        resources/icons/rocket.svg
-        resources/icons/shield.svg
-        resources/icons/clock.svg
-        resources/icons/megaphone.svg
-        resources/icons/plus.svg
-        resources/icons/star.svg
         resources/icons/chevron-right.svg
+        resources/icons/close.svg
+        resources/icons/delete.svg
+        resources/icons/discord.svg
+        resources/icons/flag-tr.svg
+        resources/icons/folder.svg
+        resources/icons/hourglass.svg
+        resources/icons/info.svg
         resources/icons/lock.svg
-        resources/icons/trash.svg
+        resources/icons/maximize.svg
+        resources/icons/minimize.svg
         resources/icons/rotate-ccw.svg
-        resources/icons/settings.svg
-        resources/icons/heart.svg
-        resources/icons/coffee.svg
         resources/icons/shield-check.svg
         resources/icons/shield-check-active.svg
-        resources/icons/pin.svg
-        resources/icons/discord.svg
-        resources/icons/gamepad-search.svg
+        resources/icons/star.svg
+        resources/icons/trash.svg
         resources/icons/window-search.svg
         # PNG images
         resources/images/logo.png
-        # Fonts (Inter - Google Fonts, Flutter style)
+        # Fonts (Inter - Google Fonts)
         resources/fonts/Inter-Regular.ttf
         resources/fonts/Inter-Medium.ttf
         resources/fonts/Inter-SemiBold.ttf

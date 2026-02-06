@@ -16,6 +16,7 @@
 #pragma once
 
 #include "makineai/types.hpp"
+#include "makineai/constants.hpp"
 #include "makineai/logging.hpp"
 
 #include <chrono>
@@ -244,7 +245,7 @@ public:
      * @param maxSize Maximum size (0 = unlimited)
      */
     explicit TTLCache(Duration defaultTTL = std::chrono::minutes(5),
-                      size_t maxSize = 10000)
+                      size_t maxSize = kDefaultCacheMaxSize)
         : defaultTTL_(defaultTTL)
         , maxSize_(maxSize)
     {}
@@ -448,7 +449,7 @@ class TranslationCache {
 public:
     explicit TranslationCache(
         std::chrono::minutes ttl = std::chrono::minutes(10),
-        size_t maxSize = 10000
+        size_t maxSize = kDefaultCacheMaxSize
     )
         : cache_(std::chrono::duration_cast<TTLCache<std::string, CacheEntry>::Duration>(ttl),
                 maxSize)
@@ -542,7 +543,7 @@ private:
     CacheManager() = default;
 
     GameInfoCache gameInfoCache_{500};
-    TranslationCache translationCache_{std::chrono::minutes(10), 10000};
+    TranslationCache translationCache_{std::chrono::minutes(10), kDefaultCacheMaxSize};
 };
 
 /**

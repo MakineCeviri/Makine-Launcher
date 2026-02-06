@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
     // Use Basic style for full customization
     QQuickStyle::setStyle("Basic");
 
-    // Load Inter font (Flutter style)
+    // Load Inter font
     int interRegular = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Regular.ttf");
     int interMedium = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Medium.ttf");
     int interSemiBold = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-SemiBold.ttf");

@@ -4,8 +4,7 @@ import QtQuick.Shapes
 import MakineAI 1.0
 
 /**
- * SplashWindow.qml - Native Qt SplashScreen birebir port
- * Kaynak: ui/src/widgets/splashscreen.cpp
+ * SplashWindow.qml - Animated splash window with logo and loading indicator
  *
  * Features:
  * - Frameless splash window (500x400)
@@ -21,11 +20,9 @@ import MakineAI 1.0
 Window {
     id: splashWindow
 
-    // Native Qt: Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::SplashScreen
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.SplashScreen
     color: "transparent"
 
-    // Native Qt: 500x400 fixed size
     width: 500
     height: 400
 
@@ -96,7 +93,7 @@ Window {
 
     // ===== ANIMATIONS =====
 
-    // Glow pulse - Native Qt: 2000ms infinite
+    // Glow pulse
     NumberAnimation {
         id: glowPulseAnimation
         target: splashWindow
@@ -107,7 +104,7 @@ Window {
         loops: Animation.Infinite
     }
 
-    // Particle animation - Native Qt: 3000ms infinite
+    // Particle animation
     NumberAnimation {
         id: particleAnimation
         target: splashWindow
@@ -127,11 +124,11 @@ Window {
         onTriggered: updateParticles()
     }
 
-    // Main sequence - Native Qt: total ~2630ms
+    // Main sequence
     SequentialAnimation {
         id: mainSequence
 
-        // Intro group (parallel) - Native Qt: 880ms
+        // Intro group (parallel)
         ParallelAnimation {
             // Logo scale 0.7 -> 1.0, 880ms, easeOutBack
             NumberAnimation {
@@ -208,12 +205,12 @@ Window {
     Rectangle {
         id: mainContent
         anchors.fill: parent
-        radius: Dimensions.radiusStandard  // Native Qt: rounded rect clip
+        radius: Dimensions.radiusStandard
         color: "#0A0A0F"
         opacity: 1.0 - fadeOut
         clip: true
 
-        // Radial gradient simulation - Native Qt: gold 6%, pink 3%
+        // Radial gradient simulation
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             y: -parent.height * 0.3
@@ -231,7 +228,7 @@ Window {
             color: Qt.rgba(1, 0.41, 0.71, 0.02)  // pink subtle
         }
 
-        // Border - Native Qt: white 12%
+        // Border
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
@@ -328,7 +325,7 @@ Window {
             height: 100
             opacity: textOpacity * (1.0 - fadeOut)
 
-            // Title "Makine Çeviri" - Flutter: fontSize 42, w900, letterSpacing -1.5
+            // Title "Makine Çeviri"
             Text {
                 id: titleText
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -340,7 +337,7 @@ Window {
                 color: "#FFD700"  // Gold
             }
 
-            // AI Badge - Native Qt: gradient gold/pink 20%, border gold 30%
+            // AI Badge
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: titleText.bottom
@@ -391,7 +388,7 @@ Window {
             opacity: textOpacity * (1.0 - fadeOut)
             visible: progress > 0
 
-            // Background track - Native Qt: white 8%
+            // Background track
             Rectangle {
                 id: progressTrack
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -430,7 +427,7 @@ Window {
                 }
             }
 
-            // Loading text - Flutter: fontSize 11, w500, letterSpacing 1.5, white 35%
+            // Loading text
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: progressTrack.bottom
@@ -452,7 +449,7 @@ Window {
             height: 50
             opacity: textOpacity * (1.0 - fadeOut)
 
-            // Version badge - Native Qt: white 4% bg, borderRadius 6
+            // Version badge
             Rectangle {
                 id: versionBadge
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -472,7 +469,7 @@ Window {
                 }
             }
 
-            // Community text - Flutter: fontSize 10, white 30%, letterSpacing 0.3
+            // Community text
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom

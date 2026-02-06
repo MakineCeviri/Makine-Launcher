@@ -5,50 +5,36 @@ import QtQuick.Window
 import MakineAI 1.0
 
 /**
- * Main.qml - Native Qt MainWindow birebir port
- * Kaynak: ui/src/mainwindow.cpp
- *
- * Yapı:
- * - TitleBar (32px)
- * - NavBar (72px)
- * - ContentStack (QStackedWidget)
+ * Main.qml - Application main window with title bar, navigation, and content stack
  */
 ApplicationWindow {
     id: window
     visible: true
 
-    // Minimum pencere boyutu - büyütünce orantılı büyür
     width: minimumWidth
     height: minimumHeight
     minimumWidth: 900
     minimumHeight: 620
 
-    // Ekran ortasında başlat
     x: (Screen.width - width) / 2
     y: (Screen.height - height) / 2
 
     title: "MakineAI"
     color: Theme.bgPrimary
 
-    // Native Qt: flags(Qt::FramelessWindowHint | Qt::Window)
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // State
     property int currentNavIndex: 0
     property bool aiActive: false
 
-    // Resize edge size
     readonly property int resizeMargin: 6
 
-    // Close from any source (Alt+F4 etc.) should quit the app
     onClosing: Qt.quit()
 
-    // Minimize to system tray (C++ SystemTrayManager handles the icon)
     function minimizeToTray() {
         window.hide()
     }
 
-    // Listen for tray icon activation from C++ SystemTrayManager
     Connections {
         target: SystemTrayManager
         function onShowWindowRequested() {
@@ -62,9 +48,7 @@ ApplicationWindow {
     }
 
     // ===== WINDOW RESIZE HANDLERS =====
-    // Delegates to OS window manager for proper multi-DPI multi-monitor support
 
-    // Right edge
     MouseArea {
         anchors.right: parent.right
         anchors.top: parent.top
@@ -77,7 +61,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.RightEdge)
     }
 
-    // Bottom edge
     MouseArea {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
@@ -90,7 +73,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.BottomEdge)
     }
 
-    // Left edge
     MouseArea {
         anchors.left: parent.left
         anchors.top: parent.top
@@ -103,7 +85,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.LeftEdge)
     }
 
-    // Top edge
     MouseArea {
         anchors.top: parent.top
         anchors.left: parent.left
@@ -116,7 +97,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.TopEdge)
     }
 
-    // Bottom-right corner
     MouseArea {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -127,7 +107,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
     }
 
-    // Bottom-left corner
     MouseArea {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
@@ -138,7 +117,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
     }
 
-    // Top-right corner
     MouseArea {
         anchors.right: parent.right
         anchors.top: parent.top
@@ -149,7 +127,6 @@ ApplicationWindow {
         onPressed: window.startSystemResize(Qt.RightEdge | Qt.TopEdge)
     }
 
-    // Top-left corner
     MouseArea {
         anchors.left: parent.left
         anchors.top: parent.top
@@ -161,7 +138,6 @@ ApplicationWindow {
     }
 
     // GPU Optimization: Disable animations when window is not visible/active
-    // Flutter'daki idle mode optimizasyonu - minimize edilince GPU = 0
     readonly property bool animationsEnabled: window.visible &&
                                               window.active &&
                                               window.visibility !== Window.Minimized &&
@@ -178,7 +154,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.titlebarHeight
             windowRef: window
-            translationMode: window.aiActive  // Show Turkish flag when AI is active
+            translationMode: window.aiActive
 
             onMinimizeClicked: window.showMinimized()
             onMaximizeClicked: {
@@ -202,7 +178,7 @@ ApplicationWindow {
             onHomeClicked: {
                 window.currentNavIndex = 0
                 contentStackContainer.navigateTo(0)
-                homeView.showHomePage()  // HomeScreen'i ana sayfaya döndür
+                homeView.showHomePage()
             }
             onProjectsClicked: {
                 window.currentNavIndex = 1
@@ -221,7 +197,7 @@ ApplicationWindow {
                     window.currentNavIndex = 0
                 }
             }
-            onDonateClicked: Qt.openUrlExternally("https://makineai.com/destekci-ol")
+            onDonateClicked: Qt.openUrlExternally(Dimensions.donatePageUrl)
         }
 
         // ===== CONTENT STACK - Simple crossfade transitions =====
@@ -231,18 +207,15 @@ ApplicationWindow {
             Layout.fillHeight: true
             clip: true
 
-            // Track page state for transitions
             property int currentIndex: 0
             property int previousIndex: 0
             property bool transitioning: false
 
-            // Visibility flags for each page (managed by navigation, not bindings)
             property bool homeVisible: true
             property bool settingsVisible: false
             property bool gameDetailVisible: false
             property bool workflowVisible: false
 
-            // Simple crossfade page transition
             function navigateTo(index) {
                 if (index === currentIndex || transitioning) return
                 transitioning = true
@@ -252,18 +225,15 @@ ApplicationWindow {
                 var incomingPage = getPage(index)
 
                 if (outgoingPage && incomingPage) {
-                    // Make incoming page visible but transparent
                     setPageVisible(index, true)
                     incomingPage.opacity = 0
 
-                    // Run crossfade
                     fadeOutAnimation.target = outgoingPage
                     fadeInAnimation.target = incomingPage
 
                     fadeOutAnimation.start()
                     fadeInAnimation.start()
 
-                    // Update index after animation completes
                     pageChangeTimer.newIndex = index
                     pageChangeTimer.start()
                 }
@@ -288,25 +258,21 @@ ApplicationWindow {
                 }
             }
 
-            // Timer to update current index after animation
             Timer {
                 id: pageChangeTimer
                 interval: 200
                 property int newIndex: 0
                 onTriggered: {
-                    // Reset old page state
                     var oldPage = contentStackContainer.getPage(contentStackContainer.previousIndex)
                     if (oldPage) {
-                        oldPage.opacity = 1.0  // Reset opacity for next time
+                        oldPage.opacity = 1.0
                     }
-                    // Hide old page
                     contentStackContainer.setPageVisible(contentStackContainer.previousIndex, false)
                     contentStackContainer.currentIndex = newIndex
                     contentStackContainer.transitioning = false
                 }
             }
 
-            // Simple fade out animation
             NumberAnimation {
                 id: fadeOutAnimation
                 property: "opacity"
@@ -316,7 +282,6 @@ ApplicationWindow {
                 easing.type: Easing.OutQuad
             }
 
-            // Simple fade in animation
             NumberAnimation {
                 id: fadeInAnimation
                 property: "opacity"
@@ -326,19 +291,16 @@ ApplicationWindow {
                 easing.type: Easing.OutQuad
             }
 
-            // Index 0: HomeView
             HomeScreen {
                 id: homeView
                 anchors.fill: parent
                 visible: contentStackContainer.homeVisible
-                animationsEnabled: window.animationsEnabled  // GPU optimization
+                animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
-                    // Navigate to game detail
                     gameDetailView.gameId = gameId
                     gameDetailView.gameName = gameName
                     gameDetailView.engine = engine
-                    // Load additional game data from service
                     var gameData = GameService.getGameById(gameId)
                     if (gameData) {
                         gameDetailView.imageUrl = gameData.headerImageUrl || ""
@@ -349,7 +311,6 @@ ApplicationWindow {
                 }
             }
 
-            // Index 1: SettingsView
             SettingsScreen {
                 id: settingsView
                 anchors.fill: parent
@@ -361,7 +322,6 @@ ApplicationWindow {
                 }
             }
 
-            // Index 2: GameDetailScreen
             GameDetailScreen {
                 id: gameDetailView
                 anchors.fill: parent
@@ -371,7 +331,6 @@ ApplicationWindow {
                     window.currentNavIndex = 0
                 }
                 onTranslateClicked: {
-                    // Navigate to workflow screen with game data
                     var gameData = GameService.getGameById(gameDetailView.gameId)
                     workflowView.gameId = gameDetailView.gameId
                     workflowView.gameName = gameDetailView.gameName
@@ -380,7 +339,6 @@ ApplicationWindow {
                     workflowView.headerImageUrl = gameDetailView.imageUrl
                     contentStackContainer.navigateTo(3)
 
-                    // Start translation process
                     TranslationService.startTranslation(
                         workflowView.gameId,
                         workflowView.gameName,
@@ -389,7 +347,6 @@ ApplicationWindow {
                 }
             }
 
-            // Index 3: TranslationWorkflowScreen
             TranslationWorkflowScreen {
                 id: workflowView
                 anchors.fill: parent
@@ -398,28 +355,22 @@ ApplicationWindow {
                     contentStackContainer.navigateTo(2)
                 }
                 onCompleted: function(gameId) {
-                    // Return to home after completion
                     contentStackContainer.navigateTo(0)
                     window.currentNavIndex = 0
                 }
                 onCancelled: function(gameId) {
-                    // Return to game detail on cancel
                     contentStackContainer.navigateTo(2)
                 }
             }
 
             // ===== BOTTOM GRADIENT SHADOW =====
-            // Flutter: Positioned bottom gradient overlay (120px height)
-            // Ekranın altında derinlik hissi veren gradient gölge
             Rectangle {
                 id: bottomGradientShadow
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 120
-                z: 10  // Kartların üstünde ama tıklamayı engellemez
-
-                // Tıklamaları geçir (sadece görsel efekt)
+                z: 10
                 enabled: false
 
                 gradient: Gradient {
@@ -430,11 +381,11 @@ ApplicationWindow {
         }
     }
 
-    // ===== TITLE BAR COMPONENT - Native Qt birebir =====
+    // ===== TITLE BAR COMPONENT =====
     component TitleBar: Rectangle {
         id: titleBarRoot
         property var windowRef
-        property bool translationMode: false  // Native Qt: setTranslationMode
+        property bool translationMode: false
         signal minimizeClicked()
         signal maximizeClicked()
         signal closeClicked()
@@ -442,7 +393,6 @@ ApplicationWindow {
 
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.7)
 
-        // Bottom border - Native Qt: QPen(QColor(255, 255, 255, 20), 1)
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
@@ -450,7 +400,6 @@ ApplicationWindow {
             color: Qt.rgba(1, 1, 1, 0.08)
         }
 
-        // Drag area - delegates to OS window manager for multi-DPI multi-monitor support
         MouseArea {
             anchors.fill: parent
             anchors.rightMargin: 160  // Leave space for buttons
@@ -473,10 +422,9 @@ ApplicationWindow {
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 12
-            anchors.rightMargin: 0  // Window buttons flush to right edge
+            anchors.rightMargin: 0
             spacing: 8
 
-            // Turkish flag when translation is active (18x18) - Canvas star version
             Rectangle {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
@@ -520,7 +468,6 @@ ApplicationWindow {
                 }
             }
 
-            // Logo (18px) - Flutter: logo.png
             Image {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
@@ -531,7 +478,6 @@ ApplicationWindow {
                 smooth: true
                 mipmap: true
 
-                // Fallback gradient if image fails to load
                 Rectangle {
                     anchors.fill: parent
                     radius: Dimensions.radiusStandard
@@ -553,7 +499,6 @@ ApplicationWindow {
                 }
             }
 
-            // Title - Native Qt: fontSize 12, weight 500
             Label {
                 text: "MakineAI"
                 font.pixelSize: 12
@@ -563,29 +508,24 @@ ApplicationWindow {
 
             Item { Layout.fillWidth: true }
 
-            // Window buttons - Flutter style with Segoe MDL2 icons
             Row {
                 spacing: 0
 
-                // System tray button - downward chevron (minimize to tray)
                 WindowButton {
                     icon: "\uE70D"
                     onClicked: titleBarRoot.trayClicked()
                 }
 
-                // Minimize button - Segoe MDL2: ChromeMinimize
                 WindowButton {
                     icon: "\uE921"
                     onClicked: titleBarRoot.minimizeClicked()
                 }
 
-                // Maximize button - Segoe MDL2: ChromeMaximize/ChromeRestore
                 WindowButton {
                     icon: windowRef.visibility === Window.Maximized ? "\uE923" : "\uE922"
                     onClicked: titleBarRoot.maximizeClicked()
                 }
 
-                // Close button - Segoe MDL2: ChromeClose
                 WindowButton {
                     icon: "\uE8BB"
                     isClose: true
@@ -595,18 +535,18 @@ ApplicationWindow {
         }
     }
 
-    // ===== WINDOW BUTTON COMPONENT - Flutter style (flat, no borders) =====
+    // ===== WINDOW BUTTON COMPONENT (flat, no borders) =====
     component WindowButton: Rectangle {
         property string icon: ""
         property bool isClose: false
         signal clicked()
 
-        width: 46   // Flutter: width 46
-        height: 32  // Flutter: height 32
+        width: 46
+        height: 32
         color: btnMouse.containsMouse
             ? (isClose ? Theme.closeButtonHover : Qt.rgba(1, 1, 1, 0.1))
             : "transparent"
-        radius: 0  // Flutter: flat, no rounded corners
+        radius: 0
 
         Behavior on color {
             ColorAnimation { duration: 150 }
@@ -615,7 +555,7 @@ ApplicationWindow {
         Label {
             anchors.centerIn: parent
             text: icon
-            font.pixelSize: 10  // Segoe MDL2 icons are smaller
+            font.pixelSize: 10
             font.family: "Segoe MDL2 Assets"
             color: btnMouse.containsMouse && isClose ? "white" : Theme.textSecondary
 
@@ -628,7 +568,7 @@ ApplicationWindow {
             id: btnMouse
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: Qt.ArrowCursor  // Windows style
+            cursorShape: Qt.ArrowCursor
             onClicked: parent.clicked()
         }
     }
@@ -645,10 +585,8 @@ ApplicationWindow {
 
         property bool aiActive: false
 
-        // Native Qt: Colors::surface 0.7 alpha
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.7)
 
-        // Bottom border
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
@@ -662,10 +600,9 @@ ApplicationWindow {
             anchors.rightMargin: 24
             spacing: 16
 
-            // Logo (38px) - Flutter LogoHomeButton
             Item {
                 id: logoContainer
-                Layout.preferredWidth: 44  // Container for circular hover
+                Layout.preferredWidth: 44
                 Layout.preferredHeight: 44
                 Layout.alignment: Qt.AlignVCenter
                 scale: logoMouse.containsMouse ? 1.05 : 1.0
@@ -674,7 +611,6 @@ ApplicationWindow {
                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                 }
 
-                // Rainbow glow - brightens on hover
                 AnimatedGradientGlow {
                     anchors.centerIn: parent
                     width: 52; height: 52
@@ -684,11 +620,10 @@ ApplicationWindow {
                     Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                 }
 
-                // Logo image with rounded corners
                 Rectangle {
                     id: logoClip
                     anchors.centerIn: parent
-                    width: Dimensions.navbarIconSizeLogo  // 38
+                    width: Dimensions.navbarIconSizeLogo
                     height: Dimensions.navbarIconSizeLogo
                     radius: Dimensions.navbarIconSizeLogo * 0.25
                     color: "transparent"
@@ -703,7 +638,6 @@ ApplicationWindow {
                         mipmap: true
                     }
 
-                    // Fallback gradient if logo fails
                     Rectangle {
                         anchors.fill: parent
                         radius: parent.radius
@@ -741,7 +675,6 @@ ApplicationWindow {
                 }
             }
 
-            // AI Toggle - Türkçe Yama butonu with rainbow gradient
             Item {
                 id: aiToggleItem
                 Layout.fillHeight: true
@@ -749,7 +682,6 @@ ApplicationWindow {
 
                 readonly property var rainbowColors: ["#FCCD66", "#F7AE76", "#EE968F", "#CC9FD8", "#90C2E6", "#77DBC8", "#80E59D", "#C8EB7C", "#D4BE77"]
 
-                // Animated phase for flowing rainbow effect
                 property real animPhase: 0
                 NumberAnimation on animPhase {
                     from: 0; to: 1
@@ -795,13 +727,11 @@ ApplicationWindow {
                     return result
                 }
 
-                // Underline width: hover = 70, default = 0
                 property real underlineWidth: aiToggleMouse.containsMouse ? 70 : 0
                 Behavior on underlineWidth {
                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                 }
 
-                // Rainbow gradient text
                 Text {
                     id: aiToggleLabel
                     anchors.centerIn: parent
@@ -811,7 +741,6 @@ ApplicationWindow {
                     font.weight: Font.DemiBold
                 }
 
-                // Animated rainbow underline
                 Item {
                     anchors.bottom: parent.bottom
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -864,7 +793,6 @@ ApplicationWindow {
                 }
             }
 
-            // Nav items
             NavItem {
                 text: "Projelerimiz"
                 selected: navBarRoot.currentIndex === 1
@@ -879,7 +807,6 @@ ApplicationWindow {
 
             Item { Layout.fillWidth: true }
 
-            // Donate button - coffee icon only
             Item {
                 id: donateItem
                 Layout.preferredWidth: 36
@@ -890,7 +817,6 @@ ApplicationWindow {
                 scale: hovered ? 1.1 : 1.0
                 Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-                // Gentle wobble animation
                 property real wobble: 0
                 SequentialAnimation on wobble {
                     loops: Animation.Infinite
@@ -900,7 +826,6 @@ ApplicationWindow {
                     NumberAnimation { from: -6; to: 0; duration: 1800; easing.type: Easing.InOutSine }
                 }
 
-                // Color animation phase for coffee gradient
                 property real colorPhase: 0
                 NumberAnimation on colorPhase {
                     from: 0; to: 1
@@ -909,7 +834,6 @@ ApplicationWindow {
                     running: window.animationsEnabled
                 }
 
-                // Coffee icon drawn with animated gradient via Canvas
                 Canvas {
                     id: coffeeCanvas
                     anchors.centerIn: parent
@@ -925,7 +849,6 @@ ApplicationWindow {
                         var ctx = getContext("2d")
                         ctx.clearRect(0, 0, width, height)
 
-                        // Rotating gradient
                         var angle = phase * Math.PI * 2
                         var cx = width / 2, cy = height / 2
                         var len = 14
@@ -944,15 +867,11 @@ ApplicationWindow {
                         ctx.lineCap = "round"
                         ctx.lineJoin = "round"
 
-                        // Scale from 24→20
                         var s = 20 / 24
-
-                        // Cup handle
                         ctx.beginPath()
                         ctx.arc(17 * s - 0.5, 12 * s, 3.2 * s, -Math.PI / 2, Math.PI / 2)
                         ctx.stroke()
 
-                        // Cup body
                         ctx.beginPath()
                         ctx.moveTo(3 * s, 8 * s)
                         ctx.lineTo(17 * s, 8 * s)
@@ -963,7 +882,6 @@ ApplicationWindow {
                         ctx.closePath()
                         ctx.stroke()
 
-                        // Steam lines
                         ctx.beginPath()
                         ctx.moveTo(6 * s, 2 * s); ctx.lineTo(6 * s, 4.5 * s)
                         ctx.moveTo(10 * s, 2 * s); ctx.lineTo(10 * s, 4.5 * s)
@@ -987,7 +905,6 @@ ApplicationWindow {
                 }
             }
 
-            // Discord button
             Item {
                 id: discordItem
                 Layout.preferredWidth: 36
@@ -998,7 +915,6 @@ ApplicationWindow {
                 scale: hovered ? 1.1 : 1.0
                 Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-                // Subtle breathing pulse
                 property real pulse: 0.7
                 SequentialAnimation on pulse {
                     loops: Animation.Infinite
@@ -1021,7 +937,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Qt.openUrlExternally("https://discord.com/invite/QDezpy4QtV")
+                    onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
                 }
 
                 ToolTip {
@@ -1039,64 +955,12 @@ ApplicationWindow {
     PerformanceMonitor {
         id: perfMonitor
         visible: window.showPerformanceMonitor
-        z: 9999  // Always on top
+        z: 9999
     }
 
-    // F3 shortcut to toggle performance monitor
     Shortcut {
         sequence: "F3"
         onActivated: window.showPerformanceMonitor = !window.showPerformanceMonitor
     }
 
-
-    // ===== NAV ITEM COMPONENT - Navigasyon butonu =====
-    component NavItem: Item {
-        id: navItemRoot
-        property string text: ""
-        property bool selected: false
-        signal clicked()
-
-        Layout.preferredWidth: navItemLabel.width + 24
-        Layout.fillHeight: true  // Navbar yüksekliğini doldur, underline alt çizgiyle hizalansın
-
-        // Underline genişliği: selected = 24, hover = 16, default = 0
-        property real underlineWidth: selected ? 24 : (navItemMouse.containsMouse ? 16 : 0)
-        Behavior on underlineWidth {
-            NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
-        }
-
-        Label {
-            id: navItemLabel
-            anchors.centerIn: parent
-            text: navItemRoot.text
-            font.pixelSize: 13
-            font.weight: navItemRoot.selected ? Font.DemiBold : Font.Medium
-            color: navItemRoot.selected ? Theme.primary
-                 : navItemMouse.containsMouse ? Theme.textPrimary
-                 : Theme.textSecondary
-
-            Behavior on color { ColorAnimation { duration: 150 } }
-        }
-
-        // Underline - navbar alt çizgisiyle aynı konumda
-        Rectangle {
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: navItemRoot.underlineWidth
-            height: 2
-            radius: 1
-            color: navItemRoot.selected
-                ? Theme.primary
-                : Theme.withAlpha(Theme.textPrimary, 0.4)
-            visible: width > 0
-        }
-
-        MouseArea {
-            id: navItemMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: navItemRoot.clicked()
-        }
-    }
 }

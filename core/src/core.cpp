@@ -43,19 +43,17 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     // Store config in ConfigManager
     ConfigManager::instance().updateConfig(config);
 
-    // Phase 1: Crypto subsystem
     if (auto cryptoResult = initializeCrypto(); !cryptoResult) {
         return std::unexpected(cryptoResult.error());
     }
 
-    // Phase 2: Logging
     if (auto logResult = initializeLogging(config, options.verboseLogging); !logResult) {
         return std::unexpected(logResult.error());
     }
 
     MAKINEAI_LOG_INFO(log::CORE, "MakineAI Core {} initializing...", version());
 
-    // Phase 3: Create directories (convert string paths to fs::path)
+    // Create required directories
     std::error_code ec;
     fs::create_directories(fs::path(config.dataDirectory), ec);
     fs::create_directories(fs::path(config.cacheDirectory), ec);
@@ -64,7 +62,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     fs::create_directories(fs::path(config.dataDirectory) / "runtime", ec);
     fs::create_directories(fs::path(config.dataDirectory) / "dumps", ec);
 
-    // Phase 4: Health check (pre-flight)
+    // Pre-flight health check
     configureHealthChecker(config);
     if (!options.skipHealthCheck) {
         MAKINEAI_LOG_DEBUG(log::CORE, "Running pre-flight health check...");
@@ -82,7 +80,6 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
         }
     }
 
-    // Phase 5: Database
     if (!options.skipDatabaseInit) {
         if (auto dbResult = initializeDatabase(config); !dbResult) {
             MAKINEAI_LOG_ERROR(log::CORE, "Database initialization failed: {}",
@@ -91,26 +88,22 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
         }
     }
 
-    // Phase 6: Core modules
     if (auto modResult = initializeModules(config); !modResult) {
         MAKINEAI_LOG_ERROR(log::CORE, "Module initialization failed: {}",
             modResult.error().message());
         return std::unexpected(modResult.error());
     }
 
-    // Phase 7: Translation services
     if (auto transResult = initializeTranslationServices(config); !transResult) {
         MAKINEAI_LOG_ERROR(log::CORE, "Translation services initialization failed: {}",
             transResult.error().message());
         return std::unexpected(transResult.error());
     }
 
-    // Phase 8: Configure audit logging
     if (options.enableAuditLog) {
         configureAuditLogger(config);
     }
 
-    // Phase 9: Configure debug dumper
     if (options.enableDebugDumps) {
         DebugConfig debugConfig;
         debugConfig.dumpDirectory = fs::path(config.dataDirectory) / "dumps";
@@ -120,20 +113,16 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
         DebugDumper::instance().configure(debugConfig);
     }
 
-    // Phase 10: Log feature availability
     logFeatureAvailability();
 
-    // Calculate duration
     auto endTime = std::chrono::steady_clock::now();
     result.initDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
         endTime - startTime);
 
-    // Record initialization metric
     if (options.enableMetrics) {
         Metrics::instance().recordDuration("core_init", result.initDuration);
     }
 
-    // Fill feature info
     result.features.hasTaskflow = Features::has_taskflow;
     result.features.hasSimdjson = Features::has_simdjson;
     result.features.hasMio = Features::has_mio;
@@ -147,7 +136,6 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
 
     initialized_.store(true, std::memory_order_release);
 
-    // Audit log
     AuditLogger::instance().logSystemEvent("core_initialized",
         "Version: " + std::string(version()) +
         ", Duration: " + std::to_string(result.initDuration.count()) + "ms");
@@ -510,7 +498,7 @@ AsyncOperationPtr<PatchResult> Core::applyTranslationAsync(
     const std::string& packageId,
     ProgressCallback progress
 ) {
-    // TODO: Implement proper async translation application
+    // TODO(makineai): Implement proper async translation application
     // For now, return a not-implemented error
     return executeAsync<PatchResult>([game, packageId]() -> Result<PatchResult> {
         return std::unexpected(Error(ErrorCode::NotImplemented,

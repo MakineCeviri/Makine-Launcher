@@ -5,7 +5,7 @@ import QtQuick.Dialogs
 import MakineAI 1.0
 
 /**
- * GameDetectorDialog.qml - Flutter game_detector_dialog.dart birebir port
+ * GameDetectorDialog.qml - Game detection configuration dialog
  */
 Popup {
     id: root

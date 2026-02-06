@@ -1,6 +1,6 @@
 /**
  * @file translationservice.h
- * @brief Translation Service - Çeviri yönetimi backend servisi
+ * @brief Translation workflow backend service
  * @copyright (c) 2026 MakineAI Team
  */
 

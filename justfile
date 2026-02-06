@@ -1,6 +1,12 @@
 # MakineAI Build System
 # Usage: just <recipe>
 # Install just: cargo install just (or winget install just)
+#
+# Presets (CMakePresets.json):
+#   dev     = MinGW, Release, UI-only (fast iteration)
+#   debug   = MinGW, Debug, UI-only
+#   release = vcpkg, Release, full core integration
+#   core    = vcpkg, Release, core library only
 
 # Default recipe - show help
 default:
@@ -22,81 +28,63 @@ setup-tests:
     vcpkg install gtest:x64-windows
 
 # ============================================================================
-# CORE LIBRARY
+# CORE LIBRARY (vcpkg, Release)
 # ============================================================================
 
-# Configure core library (debug)
-configure-core-debug:
-    cmake --preset core-debug
-
-# Configure core library (release)
-configure-core-release:
-    cmake --preset core-release
-
-# Build core library (debug)
-build-core-debug: configure-core-debug
-    cmake --build --preset core-debug
-
-# Build core library (release)
-build-core-release: configure-core-release
-    cmake --build --preset core-release
-
-# Build core (alias for release)
-core: build-core-release
+# Build core library
+core:
+    cmake --preset core
+    cmake --build --preset core
 
 # ============================================================================
 # QML APPLICATION
 # ============================================================================
 
-# Configure QML app (debug)
-configure-qml-debug:
-    cmake --preset qml-debug
+# Build QML app - fast dev (MinGW, Release, UI-only)
+dev:
+    cmake --preset dev
+    cmake --build --preset dev
 
-# Configure QML app (release)
-configure-qml-release:
-    cmake --preset qml-release
+# Build QML app - debug (MinGW, Debug, UI-only)
+debug:
+    cmake --preset debug
+    cmake --build --preset debug
 
-# Build QML app (debug)
-build-qml-debug: configure-qml-debug
-    cmake --build --preset qml-debug
-
-# Build QML app (release)
-build-qml-release: configure-qml-release
-    cmake --build --preset qml-release
-
-# Build QML (alias for release)
-qml: build-qml-release
+# Build QML app - full release (vcpkg, core integration)
+release:
+    cmake --preset release
+    cmake --build --preset release
 
 # ============================================================================
 # TESTING
 # ============================================================================
 
 # Run core tests
-test: build-core-debug
+test: core
     ctest --preset core-tests
 
 # Run tests with verbose output
-test-verbose: build-core-debug
+test-verbose: core
     ctest --preset core-tests --verbose
 
 # ============================================================================
 # ALL BUILDS
 # ============================================================================
 
-# Build everything (release)
-all: core qml
+# Build everything (core + dev)
+all: core dev
 
-# Build everything (debug)
-all-debug: build-core-debug build-qml-debug
+# Build full release (core + release)
+all-release: core release
 
 # ============================================================================
 # CLEANING
 # ============================================================================
 
-# Clean build directories
+# Clean all build directories
 clean:
     @echo "Cleaning build directories..."
-    rm -rf build/
+    rm -rf core/build/ qml/build/
 
 # Clean and rebuild
 rebuild: clean all
@@ -106,10 +94,10 @@ rebuild: clean all
 # ============================================================================
 
 # Deploy QML app with Qt dependencies
-deploy: qml
+deploy: release
     @echo "Deploying QML app..."
     mkdir -p dist
-    cp build/qml-release/MakineAI.exe dist/
+    cp qml/build/release/MakineAI.exe dist/
     windeployqt --qmldir qml/qml --release dist/MakineAI.exe
 
 # Create release archive
@@ -121,13 +109,17 @@ package: deploy
 # DEVELOPMENT
 # ============================================================================
 
+# Run the app (dev - fast)
+run: dev
+    ./qml/build/dev/MakineAI.exe
+
 # Run the app (debug)
-run: build-qml-debug
-    ./build/qml-debug/MakineAI.exe
+run-debug: debug
+    ./qml/build/debug/MakineAI.exe
 
 # Run the app (release)
-run-release: qml
-    ./build/qml-release/MakineAI.exe
+run-release: release
+    ./qml/build/release/MakineAI.exe
 
 # Format code (requires clang-format)
 format:
@@ -138,23 +130,3 @@ format:
 check-format:
     @echo "Checking code format..."
     find core qml -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
-
-# ============================================================================
-# VISUAL STUDIO
-# ============================================================================
-
-# Generate VS2022 solution for core
-vs-core:
-    cmake --preset vs2022-core
-
-# Generate VS2022 solution for QML
-vs-qml:
-    cmake --preset vs2022-qml
-
-# Open VS2022 solution (core)
-open-vs-core: vs-core
-    start build/vs2022-core/MakineAI.sln
-
-# Open VS2022 solution (QML)
-open-vs-qml: vs-qml
-    start build/vs2022-qml/MakineAI.sln

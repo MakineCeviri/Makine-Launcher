@@ -1,6 +1,6 @@
 /**
  * @file settingsmanager.h
- * @brief Settings Manager - Uygulama ayarları yönetimi
+ * @brief Application settings management
  * @copyright (c) 2026 MakineAI Team
  */
 

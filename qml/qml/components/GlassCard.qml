@@ -3,8 +3,8 @@ import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * GlassCard.qml - Flutter glassmorphism effect birebir port
- * Enhanced with real blur effect using Qt6 MultiEffect
+ * GlassCard.qml - Glassmorphism card with blur effect
+ * Uses Qt6 MultiEffect for real background blur
  *
  * Features:
  * - Real background blur (sigma 10-20)
@@ -78,7 +78,7 @@ Item {
     }
 
     // =========================================================================
-    // HOVER GLOW LAYERS - Flutter style with real blur
+    // HOVER GLOW LAYERS
     // =========================================================================
 
     // Glow source (invisible)

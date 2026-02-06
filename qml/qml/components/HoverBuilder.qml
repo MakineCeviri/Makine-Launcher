@@ -1,70 +1,54 @@
 import QtQuick
 
 /**
- * HoverBuilder.qml - Flutter hover_builder.dart birebir port
- *
- * Kaynak: archive/v0.0.8-flutter/UI/lib/widgets/hover_builder.dart
- *
- * Flutter'daki gibi hover state yonetimi icin optimize edilmis widget.
- * ValueNotifier yerine QML property binding kullaniyor.
- *
- * Kullanim:
- * HoverBuilder {
- *     id: myHoverBuilder
- *     onClicked: { console.log("Clicked!") }
- *
- *     Rectangle {
- *         color: myHoverBuilder.isHovered ? "red" : "blue"
- *         // ...
- *     }
- * }
+ * HoverBuilder.qml - Reusable hover state manager with animated transitions
  */
 Item {
     id: root
 
     // =========================================================================
-    // PUBLIC PROPERTIES - Flutter HoverBuilder birebir
+    // PUBLIC PROPERTIES
     // =========================================================================
 
-    /// Mouse hover durumu - Flutter: ValueNotifier<bool>
+    /// Mouse hover state
     readonly property bool isHovered: mouseArea.containsMouse
 
-    /// Mouse press durumu - ekstra
+    /// Mouse press state
     readonly property bool isPressed: mouseArea.pressed
 
-    /// Cursor tipi - Flutter: MouseCursor cursor
+    /// Cursor shape
     property int cursorShape: Qt.PointingHandCursor
 
-    /// Hover animasyon suresi - Flutter'da 150ms varsayilan
+    /// Hover animation duration in milliseconds
     property int hoverDuration: 150
 
-    /// Aktif mi (tiklanabilir mi)
+    /// Whether the component is enabled (clickable)
     property bool enabled: true
 
     // =========================================================================
-    // SIGNALS - Flutter VoidCallback? onTap karsiligi
+    // SIGNALS
     // =========================================================================
 
-    /// Tiklandiginda tetiklenir
+    /// Emitted when clicked
     signal clicked()
 
-    /// Sag tiklandiginda tetiklenir
+    /// Emitted when right-clicked
     signal rightClicked()
 
-    /// Cift tiklandiginda tetiklenir
+    /// Emitted when double-clicked
     signal doubleClicked()
 
-    /// Hover durumu degistiginde tetiklenir
+    /// Emitted when hover state changes
     signal hoverChanged(bool hovered)
 
-    /// Press durumu degistiginde tetiklenir
+    /// Emitted when press state changes
     signal pressChanged(bool pressed)
 
     // =========================================================================
     // INTERNAL STATE
     // =========================================================================
 
-    /// Hover animasyonu icin interpolasyon degeri (0.0 - 1.0)
+    /// Interpolation value for hover animation (0.0 - 1.0)
     property real hoverProgress: isHovered ? 1.0 : 0.0
 
     Behavior on hoverProgress {
@@ -75,7 +59,7 @@ Item {
     }
 
     // =========================================================================
-    // MOUSE AREA - Flutter MouseRegion + GestureDetector karsiligi
+    // MOUSE AREA
     // =========================================================================
 
     MouseArea {
@@ -114,8 +98,7 @@ Item {
     // =========================================================================
 
     /**
-     * Hover durumuna gore iki renk arasinda interpolasyon yapar
-     * Flutter: Color.lerp() karsiligi
+     * Interpolates between two colors based on hover state
      */
     function lerpColor(normalColor, hoverColor) {
         return Qt.rgba(
@@ -127,16 +110,14 @@ Item {
     }
 
     /**
-     * Hover durumuna gore iki deger arasinda interpolasyon yapar
-     * Flutter: lerpDouble() karsiligi
+     * Interpolates between two values based on hover state
      */
     function lerpValue(normalValue, hoverValue) {
         return normalValue + (hoverValue - normalValue) * hoverProgress
     }
 
     /**
-     * Press durumuna gore scale degeri dondurur
-     * Flutter'daki AnimatedContainer transform karsiligi
+     * Returns a scale value based on press and hover state
      */
     function getScale(normalScale, hoverScale, pressScale) {
         if (isPressed) return pressScale

@@ -1,6 +1,6 @@
 /**
  * @file processscanner.h
- * @brief Process Scanner - Çalışan oyun tespiti
+ * @brief Running game process detection
  * @copyright (c) 2026 MakineAI Team
  */
 

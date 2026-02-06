@@ -59,7 +59,7 @@ Item {
             anchors.fill: parent
             z: 10
             property real phase: cardContent.borderPhase
-            onPhaseChanged: requestPaint()
+            onPhaseChanged: if (hov) requestPaint()
             property bool hov: root.isHovered
             onHovChanged: requestPaint()
 

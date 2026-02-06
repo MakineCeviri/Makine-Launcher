@@ -36,12 +36,6 @@ jobs:
           check-path: 'core'
           fallback-style: 'file'
 
-      - name: Lint commit messages
-        uses: wagoid/commitlint-github-action@v6
-        if: github.event_name == 'pull_request'
-        with:
-          configFile: '.commitlintrc.json'
-          failOnWarnings: false
 
   # =============================================================================
   # BUILD CORE + TESTS
@@ -67,8 +61,7 @@ jobs:
           path: |
             C:/vcpkg/installed
             C:/vcpkg/packages
-            C:/vcpkg/buildtrees
-          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v3
+          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v4
           restore-keys: |
             vcpkg-win-
 
@@ -104,6 +97,7 @@ jobs:
         with:
           name: core-lib
           path: build/core/${{ env.BUILD_TYPE }}/
+          if-no-files-found: warn
           retention-days: 3
 
       - name: Upload Test Results
@@ -112,6 +106,7 @@ jobs:
         with:
           name: test-results
           path: build/core/Testing/
+          if-no-files-found: ignore
           retention-days: 7
 
   # =============================================================================
@@ -134,7 +129,7 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.1'
+          version: '6.10.1'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
@@ -147,7 +142,7 @@ jobs:
           path: |
             C:/vcpkg/installed
             C:/vcpkg/packages
-          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v3
+          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v4
           restore-keys: |
             vcpkg-win-
 
@@ -206,7 +201,7 @@ jobs:
         run: |
           cppcheck --enable=warning,style,performance,portability \
             --suppress=missingIncludeSystem \
-            --error-exitcode=0 \
+            --error-exitcode=1 \
             --xml --xml-version=2 \
             core/src core/include 2> cppcheck-report.xml
 

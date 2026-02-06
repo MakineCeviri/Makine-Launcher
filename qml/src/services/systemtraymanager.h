@@ -1,3 +1,9 @@
+/**
+ * @file systemtraymanager.h
+ * @brief System tray icon and menu management
+ * @copyright (c) 2026 MakineAI Team
+ */
+
 #pragma once
 
 #include <QObject>

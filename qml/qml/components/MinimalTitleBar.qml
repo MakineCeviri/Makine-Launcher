@@ -4,8 +4,7 @@ import QtQuick.Controls
 import MakineAI 1.0
 
 /**
- * MinimalTitleBar.qml - Flutter window_button.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/widgets/window_button.dart
+ * MinimalTitleBar.qml - Minimal window title bar with controls
  *
  * Features:
  * - 32px height
@@ -48,7 +47,7 @@ Rectangle {
         anchors.leftMargin: Dimensions.marginMD
         spacing: Dimensions.marginSM
 
-        // Turkish flag - Flutter: 18x18 when translation active
+        // Turkish flag - 18x18 when translation active
         Rectangle {
             id: flagContainer
             Layout.preferredWidth: 18
@@ -88,7 +87,7 @@ Rectangle {
             }
         }
 
-        // Title - Flutter: fontSize 12, w500
+        // Title
         Text {
             text: "MakineAI"
             font.pixelSize: 12

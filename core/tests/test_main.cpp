@@ -22,9 +22,9 @@ public:
 
         // Initialize MakineAI Core with test configuration
         makineai::CoreConfig testConfig;
-        testConfig.dataDirectory = std::filesystem::temp_directory_path() / "makineai_test_data";
-        testConfig.cacheDirectory = std::filesystem::temp_directory_path() / "makineai_test_cache";
-        testConfig.logsDirectory = std::filesystem::temp_directory_path() / "makineai_test_logs";
+        testConfig.dataDirectory = (std::filesystem::temp_directory_path() / "makineai_test_data").string();
+        testConfig.cacheDirectory = (std::filesystem::temp_directory_path() / "makineai_test_cache").string();
+        testConfig.logsDirectory = (std::filesystem::temp_directory_path() / "makineai_test_logs").string();
         testConfig.logLevel = spdlog::level::warn;
 
         // Create test directories
@@ -42,25 +42,23 @@ public:
     }
 
     void TearDown() override {
-        // Cleanup
+        // Cleanup core (this also resets its internal logger)
         auto& core = makineai::Core::instance();
         if (core.isInitialized()) {
             core.shutdown();
         }
 
-        // Flush and drop all loggers to release file handles
-        spdlog::drop_all();
-        spdlog::shutdown();
+        // Do NOT call spdlog::drop_all() / spdlog::shutdown() here.
+        // Core::shutdown() already resets its logger, and calling these
+        // causes SEGFAULT when singleton destructors try to log during
+        // static destruction after this point.
 
-        // Small delay to ensure file handles are released
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+        // Clean up temp directories
         auto tempPath = std::filesystem::temp_directory_path();
         std::error_code ec;
         std::filesystem::remove_all(tempPath / "makineai_test_data", ec);
         std::filesystem::remove_all(tempPath / "makineai_test_cache", ec);
         std::filesystem::remove_all(tempPath / "makineai_test_logs", ec);
-        // Ignore errors during cleanup
     }
 };
 

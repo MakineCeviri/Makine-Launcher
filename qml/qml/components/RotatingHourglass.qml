@@ -2,13 +2,7 @@ import QtQuick
 import MakineAI 1.0
 
 /**
- * RotatingHourglass.qml - Native Qt RotatingHourglass birebir port
- * Kaynak: ui/src/widgets/rotatinghourglass.cpp
- *
- * Features:
- * - Continuous rotation animation
- * - Configurable size and color
- * - Start/stop control
+ * RotatingHourglass.qml - Continuously rotating hourglass icon with configurable size and color
  */
 Item {
     id: root
@@ -27,10 +21,9 @@ Item {
         font.pixelSize: root.iconSize
         color: root.iconColor
 
-        // Rotation animation - Native Qt: continuous
+        // Rotation animation: continuous
         rotation: 0
 
-        // Native Qt: duration 1500ms
         RotationAnimation {
             target: hourglass
             property: "rotation"

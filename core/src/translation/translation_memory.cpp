@@ -624,7 +624,7 @@ TranslationMemoryService::findBatchMatches(
     size_t noMatchCount = 0;
 
 #ifdef MAKINEAI_HAS_TASKFLOW
-    // TODO: [TASKFLOW] Parallel batch matching for large translation files
+    // TODO(makineai): [TASKFLOW] Parallel batch matching for large translation files
     // Process multiple source texts concurrently using thread pool
     // Example:
     //   tf::Executor executor(std::thread::hardware_concurrency());
@@ -644,7 +644,7 @@ TranslationMemoryService::findBatchMatches(
 #endif
 
 #ifdef MAKINEAI_HAS_CONCURRENTQUEUE
-    // TODO: [CONCURRENTQUEUE] Producer-consumer pattern for streaming translations
+    // TODO(makineai): [CONCURRENTQUEUE] Producer-consumer pattern for streaming translations
     // Use lock-free queue for real-time translation processing
     MAKINEAI_LOG_DEBUG(log::TM, "concurrentqueue available for streaming translations");
 #endif

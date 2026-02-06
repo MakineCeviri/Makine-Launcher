@@ -12,24 +12,35 @@ Windows oyunlarını Türkçe'ye çevirmek için geliştirilmiş masaüstü uygu
 
 ### Gereksinimler
 
-- Visual Studio 2022
-- Qt 6.8+
+- Qt 6.10+ (MinGW 13.1.0 veya MSVC 2022)
 - CMake 3.25+
 - vcpkg
+- [just](https://github.com/casey/just) task runner
 
 ### Build
 
 ```bash
-# Ortam değişkenleri
-set VCPKG_ROOT=C:\vcpkg
-set Qt6_DIR=C:\Qt\6.8.1\msvc2022_64
+# Bağımlılıkları kur
+just setup
 
-# Build
+# Tümünü build et (release)
+just all
+
+# Çalıştır (debug)
+just run
+
+# Sadece core / sadece QML
+just core
+just qml
+
+# Test
+just test
+```
+
+Manuel build (cmake):
+```bash
 cmake --preset dev
-cmake --build build/dev
-
-# Çalıştır
-build/dev/MakineAI.exe
+cmake --build --preset dev
 ```
 
 ---
@@ -38,17 +49,18 @@ build/dev/MakineAI.exe
 
 ```
 MakineAI/
-├── core/           # C++ core library
-│   ├── include/    # Public headers
-│   ├── src/        # Implementation
-│   └── tests/      # Unit tests
-├── qml/            # Qt QML application
-│   ├── src/        # C++ backend
-│   ├── qml/        # QML UI
-│   └── resources/  # Assets
-├── docs/           # Documentation
-├── recipes/        # Translation templates
-└── scripts/        # Build scripts
+├── core/             # C++ core library
+│   ├── include/      # Public headers
+│   ├── src/          # Implementation
+│   └── tests/        # Unit & integration tests
+├── qml/              # Qt QML application
+│   ├── src/          # C++ backend (models, services)
+│   ├── qml/          # QML UI components & screens
+│   └── resources/    # Icons, fonts, images
+├── docs/             # Documentation (ADR, API, guides)
+├── recipes/          # Translation templates (YAML)
+├── scripts/          # Python utilities & toolchain
+└── vcpkg_installed/  # C++ dependency cache (gitignored)
 ```
 
 ---

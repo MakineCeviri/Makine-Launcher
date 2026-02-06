@@ -3,33 +3,22 @@ import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * ViewAllCard.qml - Flutter view_all_card.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/widgets/view_all_card.dart
- *
- * "Tumunu Gor" karti - animasyonlu gradient accent color
- *
- * Ozellikler:
- * - GameCard ile ayni boyut (140x200)
- * - Animasyonlu gold-olive accent color
- * - Plus icon circle
- * - Count display
- * - Hover scale ve glow
+ * ViewAllCard.qml - "View All" card with animated gradient accent
  */
 Item {
     id: root
 
     // =========================================================================
-    // PUBLIC PROPERTIES - Flutter ViewAllCard birebir
+    // PUBLIC PROPERTIES
     // =========================================================================
 
-    /// Kalan oyun sayisi
     property int remainingCount: 0
 
-    /// Animasyonlari devre disi birak
+    /// Disable animations for GPU optimization
     property bool disableAnimations: false
 
     // =========================================================================
-    // SIZE - Dimensions'dan al (GameCard ile ayni)
+    // SIZE
     // =========================================================================
 
     width: Dimensions.cardWidth
@@ -48,7 +37,7 @@ Item {
     readonly property bool isHovered: mouseArea.containsMouse
 
     // =========================================================================
-    // ANIMATION - Flutter: 2000ms repeat
+    // ANIMATION
     // =========================================================================
 
     property real _animValue: 0.0
@@ -63,7 +52,7 @@ Item {
     }
 
     // =========================================================================
-    // ACCENT COLOR - Flutter: gold (#DDC66A) → olive (#759764) lerp
+    // ACCENT COLOR
     // =========================================================================
 
     readonly property color accentColor: {
@@ -72,7 +61,7 @@ Item {
     }
 
     // =========================================================================
-    // HOVER SCALE - Flutter: 1.05
+    // HOVER SCALE
     // =========================================================================
 
     scale: isHovered ? 1.05 : 1.0
@@ -81,30 +70,28 @@ Item {
     }
 
     // =========================================================================
-    // GLOW EFFECT - Flutter: hover ? accentColor alpha 0.3, blur 8, offset (0,8)
+    // GLOW EFFECT
     // =========================================================================
 
-    // Glow source (invisible)
     Rectangle {
         id: glowSource
         anchors.fill: cardContent
-        anchors.margins: -8  // blur radius
-        anchors.topMargin: 0  // offset.y = 8, so -8+8 = 0
-        anchors.bottomMargin: -16  // -8-8 = -16
+        anchors.margins: -8
+        anchors.topMargin: 0
+        anchors.bottomMargin: -16
         radius: Dimensions.radiusStandard
         color: accentColor
         visible: false
         layer.enabled: true
     }
 
-    // Real blur glow effect - Flutter exact values
     MultiEffect {
         anchors.fill: glowSource
         source: glowSource
         blurEnabled: true
-        blur: 8 / 32  // blur 8 normalized
+        blur: 8 / 32
         blurMax: 24
-        opacity: root.isHovered ? 0.3 : 0  // Flutter: alpha 0.3
+        opacity: root.isHovered ? 0.3 : 0
         z: -1
 
         Behavior on opacity {
@@ -121,12 +108,10 @@ Item {
         anchors.fill: parent
         radius: Dimensions.radiusStandard
 
-        // Background - subtle dark bg for consistency with GameCards
         color: root.isHovered
             ? Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.85)
             : Qt.rgba(0.08, 0.08, 0.08, 0.6)
 
-        // Border - enhanced visibility
         border.color: root.isHovered
             ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.6)
             : Qt.rgba(1, 1, 1, 0.15)
@@ -144,7 +129,6 @@ Item {
             anchors.centerIn: parent
             spacing: 0
 
-            // Plus Icon Circle - Flutter: 50x50
             Rectangle {
                 id: plusCircle
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -162,7 +146,6 @@ Item {
                 Behavior on color { ColorAnimation { duration: 200 } }
                 Behavior on border.color { ColorAnimation { duration: 200 } }
 
-                // Plus icon - Flutter: Icons.add_rounded, size 28
                 Text {
                     anchors.centerIn: parent
                     text: "+"
@@ -176,10 +159,8 @@ Item {
                 }
             }
 
-            // Spacer - Flutter: SizedBox(height: 16)
             Item { width: 1; height: 16 }
 
-            // Count - Flutter: '+${count}', fontSize 24, bold
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "+" + root.remainingCount
@@ -190,10 +171,8 @@ Item {
                 Behavior on color { ColorAnimation { duration: 200 } }
             }
 
-            // Spacer - Flutter: SizedBox(height: 4)
             Item { width: 1; height: 4 }
 
-            // "daha fazla" - Flutter: fontSize 13, w500
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "daha fazla"
@@ -206,10 +185,8 @@ Item {
                 Behavior on color { ColorAnimation { duration: 200 } }
             }
 
-            // Spacer - Flutter: SizedBox(height: 12)
             Item { width: 1; height: 12 }
 
-            // "Tümünü Gör" button - Flutter: padding h12 v6, fontSize 11, w600
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: viewAllText.width + 24
@@ -230,7 +207,7 @@ Item {
                 Text {
                     id: viewAllText
                     anchors.centerIn: parent
-                    text: "T\u00FCm\u00FCn\u00FC G\u00F6r"  // Tümünü Gör
+                    text: "T\u00FCm\u00FCn\u00FC G\u00F6r"
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     color: root.isHovered ? accentColor : Theme.textSecondary

@@ -4,7 +4,6 @@ import MakineAI 1.0
 
 /**
  * TranslationProgressBar.qml - Animated progress bar with glow effects
- * Flutter equivalent: LinearProgressIndicator with custom gradient
  *
  * Features:
  * - Animated gradient (gold → olive → pastel blue)

@@ -2,12 +2,11 @@ pragma Singleton
 import QtQuick
 
 /**
- * Dimensions.qml - Flutter constants.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/core/constants.dart
+ * Dimensions.qml - Design system constants for MakineAI
  */
 QtObject {
     // =========================================================================
-    // APP INFO - Flutter AppConstants birebir
+    // APP INFO
     // =========================================================================
 
     readonly property string appName: "MakineAI"
@@ -18,15 +17,24 @@ QtObject {
     readonly property string appCopyright: "© 2026 CEDRA Interactive"
 
     // =========================================================================
-    // EXTERNAL LINKS - Flutter AppConstants birebir
+    // EXTERNAL LINKS
     // =========================================================================
 
     readonly property string discordUrl: "https://discord.com/invite/QDezpy4QtV"
     readonly property string websiteUrl: "https://makineçeviri.com/"
     readonly property string donateUrl: "https://www.patreon.com/makineceviri"
     readonly property string logoUrl: "https://makineceviri.com/assets/logo.png"
+    readonly property string feedbackUrl: "https://makineai.com/feedback"
+    readonly property string cedraDeveloperUrl: "https://cedra.dev"
+    readonly property string donatePageUrl: "https://makineai.com/destekci-ol"
+
+    // GitHub
+    readonly property string githubOwner: "jlceaser"
+    readonly property string githubRepo: "MakineAI"
+    readonly property string githubReleasesUrl: "https://api.github.com/repos/" + githubOwner + "/" + githubRepo + "/releases/latest"
+
     // =========================================================================
-    // KENAR BOŞLUKLARI (Margin)
+    // MARGINS
     // =========================================================================
 
     readonly property int marginXS: 4
@@ -34,10 +42,10 @@ QtObject {
     readonly property int marginMD: 16
     readonly property int marginLG: 24
     readonly property int marginXL: 32
-    readonly property int marginXXL: 48  // Flutter: EdgeInsets.all(48)
+    readonly property int marginXXL: 48
 
     // =========================================================================
-    // İÇ BOŞLUKLAR (Padding)
+    // PADDING
     // =========================================================================
 
     readonly property int paddingXS: 4
@@ -45,83 +53,92 @@ QtObject {
     readonly property int paddingMD: 12
     readonly property int paddingLG: 16
     readonly property int paddingXL: 24
-    readonly property int paddingXXL: 48  // Flutter: content padding
+    readonly property int paddingXXL: 48
 
     // =========================================================================
-    // KÖŞE YUVARLAKLIKLARI - TÜM UI İÇİN TUTARLI
+    // BORDER RADIUS
     // =========================================================================
 
-    // Ana standart radius - tüm kartlar, butonlar, paneller için
-    // 4px = minimal, clean look
+    // Standard radius for all cards, buttons, panels (4px = minimal, clean look)
     readonly property int radiusStandard: 4
 
-    // Eski isimler (uyumluluk için) - hepsi standart değere yönlendirildi
+    // Aliases (all point to standard for consistency)
     readonly property int radiusTiny: radiusStandard
     readonly property int radiusXS: radiusStandard
     readonly property int radiusSM: radiusStandard
     readonly property int radiusMD: radiusStandard
     readonly property int radiusLG: radiusStandard
     readonly property int radiusXL: radiusStandard
-    readonly property int radiusFull: 9999  // Tam yuvarlak için (circle)
+    readonly property int radiusFull: 9999
 
     // =========================================================================
     // NAVBAR
     // =========================================================================
 
-    readonly property int navbarHeight: 56        // Daha ince navbar
-    readonly property int navbarIconSize: 16      // Küçültülmüş icon
-    readonly property int navbarIconSizeLogo: 32  // Küçültülmüş logo
+    readonly property int navbarHeight: 56
+    readonly property int navbarIconSize: 16
+    readonly property int navbarIconSizeLogo: 32
 
     // =========================================================================
     // TITLEBAR
     // =========================================================================
 
-    readonly property int titlebarHeight: 32      // Flutter: height 32
-    readonly property int windowButtonSize: 28    // Flutter: ~28px buttons
+    readonly property int titlebarHeight: 32
+    readonly property int windowButtonSize: 28
 
     // =========================================================================
-    // OYUN KARTI
+    // GAME CARD
     // =========================================================================
 
-    readonly property int cardWidth: 140          // Android ile aynı
-    readonly property int cardHeight: 200         // Android ile aynı (140x200)
-    readonly property int cardImageHeight: 160    // Image fills card
-    readonly property int cardGap: 16             // Android ile aynı (16px sabit)
-    readonly property int cardBorderRadius: radiusStandard  // Tutarlı radius
+    readonly property int cardWidth: 140
+    readonly property int cardHeight: 200
+    readonly property int cardImageHeight: 160
+    readonly property int cardGap: 16
+    readonly property int cardBorderRadius: radiusStandard
 
     // =========================================================================
-    // ANİMASYON SÜRELERİ (ms)
+    // ANIMATION DURATIONS (ms)
     // =========================================================================
 
-    readonly property int animFast: 150           // Flutter: 150ms
-    readonly property int animNormal: 250         // Flutter: 250ms
-    readonly property int animSlow: 400           // Flutter: 400ms
-    readonly property int animGradient: 2000      // Flutter: 2000ms gradient loop
+    readonly property int animFast: 150
+    readonly property int animNormal: 250
+    readonly property int animSlow: 400
+    readonly property int animGradient: 2000
 
     // =========================================================================
-    // BLUR MİKTARLARI
+    // BLUR
     // =========================================================================
 
-    readonly property int blurLight: 10           // Flutter: sigmaX/Y 10
-    readonly property int blurMedium: 20          // Flutter: sigmaX/Y 20
-    readonly property int blurHeavy: 80           // Flutter: sigmaX/Y 80
+    readonly property int blurLight: 10
+    readonly property int blurMedium: 20
+    readonly property int blurHeavy: 80
 
     // =========================================================================
-    // FONT BOYUTLARI (Typography from colors.h)
+    // FONT SIZES
     // =========================================================================
 
-    // Flutter TextTheme sizes
-    readonly property int displayLarge: 48        // displayLarge
-    readonly property int displayMedium: 36       // displayMedium
-    readonly property int headlineLarge: 24       // headlineLarge
-    readonly property int headlineMedium: 20      // headlineMedium
-    readonly property int titleLarge: 16          // titleLarge
-    readonly property int bodyLarge: 14           // bodyLarge
-    readonly property int bodyMedium: 14          // bodyMedium
-    readonly property int bodySmall: 12           // bodySmall
-    readonly property int labelSmall: 11          // labelSmall
+    // Semantic font scale
+    readonly property int fontCaption: 10
+    readonly property int fontBody: 13
+    readonly property int fontSubtitle: 15
+    readonly property int fontTitle: 18
+    readonly property int fontHeadline: 22
+    readonly property int fontHero: 28
+    readonly property int fontBanner: 32
+    readonly property int fontSplash: 44
 
-    // Eski isimler (uyumluluk için)
+    // TextTheme sizes
+    readonly property int displayLarge: 48
+    readonly property int displayMedium: 36
+    readonly property int headlineLarge: 24
+    readonly property int headlineMedium: 20
+    readonly property int titleLarge: 16
+    readonly property int bodyLarge: 14
+    readonly property int bodyMedium: 14
+    readonly property int bodySmall: 12
+    readonly property int labelSmall: 11
+
+    // Legacy aliases
     readonly property int fontXS: 11
     readonly property int fontSM: 12
     readonly property int fontMD: 14
@@ -130,13 +147,13 @@ QtObject {
     readonly property int fontXXL: 24
     readonly property int fontDisplay: 48
 
-    // Font weights (Qt font weights)
-    readonly property int weightNormal: 50        // Font.Normal (400)
-    readonly property int weightMedium: 57        // Font.Medium (500)
-    readonly property int weightSemiBold: 63      // Font.DemiBold (600)
-    readonly property int weightBold: 75          // Font.Bold (700)
+    // Font weights
+    readonly property int weightNormal: 50
+    readonly property int weightMedium: 57
+    readonly property int weightSemiBold: 63
+    readonly property int weightBold: 75
 
-    // Letter spacing (Flutter ile birebir)
+    // Letter spacing
     readonly property real letterSpacingDisplay: -1.5
     readonly property real letterSpacingHeadline: -0.5
     readonly property real letterSpacingBody: 0.0
@@ -161,7 +178,7 @@ QtObject {
     readonly property int defaultWindowHeight: 640
 
     // =========================================================================
-    // ANIMATION DURATIONS (Flutter AppConstants)
+    // INTERACTION DURATIONS
     // =========================================================================
 
     readonly property int hoverDuration: 150
@@ -191,7 +208,7 @@ QtObject {
 
     readonly property int inputPaddingH: 16
     readonly property int inputPaddingV: 14
-    readonly property int inputBorderRadius: radiusStandard  // Tutarlı radius
+    readonly property int inputBorderRadius: radiusStandard
 
     // =========================================================================
     // SCROLLBAR DIMENSIONS
@@ -202,7 +219,7 @@ QtObject {
     readonly property int scrollbarMargin: 2
 
     // =========================================================================
-    // PROGRESS BAR DIMENSIONS (Splash screen)
+    // PROGRESS BAR DIMENSIONS
     // =========================================================================
 
     readonly property int progressBarWidth: 200

@@ -33,6 +33,7 @@
 #include "makineai/types.hpp"
 #include "makineai/error.hpp"
 #include "makineai/logging.hpp"
+#include "makineai/version.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -402,7 +403,7 @@ public:
         report.reason = reason;
         report.errorMessage = error.message();
         report.errorCode = std::to_string(static_cast<int>(error.code()));
-        report.version = "0.1.0"; // TODO: Get from build info
+        report.version = MAKINEAI_VERSION_STRING;
 
         // System info
 #ifdef _WIN32

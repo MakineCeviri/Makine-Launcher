@@ -4,11 +4,10 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * SettingsScreen.qml - Flutter settings_screen.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/screens/settings_screen.dart
+ * SettingsScreen.qml
  *
  * Yapı:
- * - 280px sidebar (Flutter birebir)
+ * - 280px sidebar
  * - Content area with 5 categories
  * - Animated toggle switches (44x24)
  * - Theme selector (Açık/Koyu)
@@ -20,7 +19,6 @@ Item {
 
     property int selectedCategory: 0
 
-    // Flutter: _categories listesi - Türkçe karakterlerle
     property var categories: [
         { name: "Genel", description: "Uygulama genel ayarlarını yapılandırın" },
         { name: "Çeviri", description: "Çeviri tercihlerini ve dil ayarlarını düzenleyin" },
@@ -39,7 +37,7 @@ Item {
     property bool useGlobalCache: SettingsManager.useGlobalCache
     property bool disableAnimations: !SettingsManager.enableAnimations
 
-    // Developer status - Flutter: _devStatus
+    // Developer status
     property string devStatus: ""
     property bool isImporting: false
 
@@ -114,7 +112,6 @@ Item {
                 height: parent.height
                 opacity: 0  // Start invisible for animation
                 x: 0
-                // Native Qt: Colors::surface 0.5 alpha
                 color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.5)
 
                 // Right border
@@ -130,7 +127,7 @@ Item {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Header with back button - Native Qt: height 72
+                    // Header with back button
                     Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Dimensions.navbarHeight
@@ -141,13 +138,12 @@ Item {
                             anchors.rightMargin: 20
                             spacing: 16
 
-                            // Back button - Flutter: 36x36, white 6% or black 4%
+                            // Back button
                             Rectangle {
                                 id: backBtn
                                 Layout.preferredWidth: 36
                                 Layout.preferredHeight: 36
                                 radius: Dimensions.radiusStandard
-                                // Flutter: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04)
                                 color: backMouse.containsMouse
                                     ? Theme.surfaceHover
                                     : Qt.rgba(1, 1, 1, 0.06)
@@ -182,7 +178,7 @@ Item {
                                 }
                             }
 
-                            // Title - Native Qt: fontSize 24, w600
+                            // Title
                             Label {
                                 text: "Ayarlar"
                                 font.pixelSize: 24
@@ -222,7 +218,7 @@ Item {
 
                     Item { Layout.fillHeight: true }
 
-                    // Version info at bottom - Flutter: AppConstants.appName + AppConstants.appVersionFull
+                    // Version info at bottom
                     Label {
                         Layout.leftMargin: 20
                         Layout.bottomMargin: 20
@@ -357,14 +353,13 @@ Item {
         }
     }
 
-    // ===== GENERAL SETTINGS - Flutter: _buildGeneralSettings =====
+    // ===== GENERAL SETTINGS =====
     Component {
         id: generalSettings
 
         ColumnLayout {
             spacing: 16
 
-            // Flutter: Theme selector card (first card)
             SettingsCard {
                 Layout.fillWidth: true
 
@@ -421,7 +416,7 @@ Item {
         }
     }
 
-    // ===== TRANSLATION SETTINGS - Flutter: _buildTranslationSettings =====
+    // ===== TRANSLATION SETTINGS =====
     Component {
         id: translationSettings
 
@@ -693,7 +688,7 @@ Item {
         }
     }
 
-    // ===== PERFORMANCE SETTINGS - Flutter: _buildPerformanceSettings =====
+    // ===== PERFORMANCE SETTINGS =====
     Component {
         id: performanceSettings
 
@@ -725,7 +720,6 @@ Item {
 
                     SettingsDivider {}
 
-                    // Flutter: 'Uygulama Animasyonları', value: !disableAnimations
                     ToggleSetting {
                         title: "Uygulama Animasyonları"
                         description: "Arayüz animasyonlarını etkinleştir"
@@ -737,7 +731,7 @@ Item {
         }
     }
 
-    // ===== ABOUT SETTINGS - Flutter: _buildAboutSettings =====
+    // ===== ABOUT SETTINGS =====
     Component {
         id: aboutSettings
 
@@ -751,7 +745,6 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    // Flutter: AppConstants.appName, AppConstants.appVersionFull
                     InfoRow { label: "Uygulama"; value: Dimensions.appName }
                     SettingsDivider {}
                     InfoRow { label: "Versiyon"; value: Dimensions.appVersionFull }
@@ -789,7 +782,7 @@ Item {
         }
     }
 
-    // ===== DEVELOPER SETTINGS - Flutter: _buildDeveloperSettings =====
+    // ===== DEVELOPER SETTINGS =====
     Component {
         id: developerSettings
 
@@ -889,7 +882,6 @@ Item {
                 }
             }
 
-            // Flutter: Status card - shown when _devStatus is not empty
             SettingsCard {
                 Layout.fillWidth: true
                 visible: devStatus !== ""
@@ -902,7 +894,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: statusText.implicitHeight + 32
 
-                        // Selectable status text - Flutter: SelectableText, monospace
+                        // Selectable status text
                         TextEdit {
                             id: statusText
                             anchors.fill: parent
@@ -921,7 +913,7 @@ Item {
         }
     }
 
-    // ===== CATEGORY ITEM COMPONENT - Flutter: _buildCategoryItem =====
+    // ===== CATEGORY ITEM COMPONENT =====
     component CategoryItem: Rectangle {
         id: catItem
         property int categoryIndex: 0
@@ -931,7 +923,6 @@ Item {
 
         height: 40
         radius: Dimensions.radiusStandard
-        // Flutter: isSelected ? Colors.white.withValues(alpha: 0.06) : Colors.transparent
         color: isSelected
             ? Qt.rgba(1, 1, 1, 0.08)
             : (catMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
@@ -953,12 +944,11 @@ Item {
             anchors.leftMargin: 8
             spacing: 12
 
-            // Selection indicator - Flutter: width 3, height 20
+            // Selection indicator
             Rectangle {
                 Layout.preferredWidth: 3
                 Layout.preferredHeight: isSelected ? 20 : 0
                 radius: 2
-                // Flutter: isSelected ? Colors.white : Colors.transparent
                 color: isSelected ? Theme.textPrimary : "transparent"
 
                 Behavior on Layout.preferredHeight {
@@ -969,7 +959,6 @@ Item {
             Label {
                 text: name
                 font.pixelSize: 14
-                // Flutter: isSelected ? FontWeight.w600 : FontWeight.w500
                 font.weight: isSelected ? Font.DemiBold : Font.Medium
                 color: isSelected ? Theme.textPrimary
                      : catMouse.containsMouse ? Theme.textPrimary
@@ -1014,7 +1003,7 @@ Item {
         color: Qt.rgba(1, 1, 1, 0.04)
     }
 
-    // ===== THEME SETTING - Flutter: _buildThemeSetting =====
+    // ===== THEME SETTING =====
     component ThemeSetting: Item {
         // Connected to SettingsManager
         property bool isDarkTheme: SettingsManager.isDarkMode
@@ -1046,7 +1035,7 @@ Item {
                 }
             }
 
-            // Flutter: Theme selector container
+            // Theme selector container
             Rectangle {
                 Layout.preferredWidth: themeRow.width + 8
                 Layout.preferredHeight: 40
@@ -1058,7 +1047,7 @@ Item {
                     anchors.centerIn: parent
                     spacing: 4
 
-                    // Light theme option - Flutter: Icons.light_mode_rounded
+                    // Light theme option
                     Rectangle {
                         id: lightThemeBtn
                         width: lightRow.width + 28
@@ -1103,7 +1092,7 @@ Item {
                         }
                     }
 
-                    // Dark theme option - Flutter: Icons.dark_mode_rounded
+                    // Dark theme option
                     Rectangle {
                         id: darkThemeBtn
                         width: darkRow.width + 28
@@ -1152,7 +1141,7 @@ Item {
         }
     }
 
-    // ===== TOGGLE SETTING - Flutter: _buildToggleSwitch (44x24) =====
+    // ===== TOGGLE SETTING =====
     component ToggleSetting: Item {
         property string title: ""
         property string description: ""
@@ -1192,13 +1181,12 @@ Item {
                 }
             }
 
-            // Animated Toggle Switch - Flutter: 44x24, radius 4
+            // Animated Toggle Switch
             Rectangle {
                 id: toggleTrack
                 Layout.preferredWidth: 44
                 Layout.preferredHeight: 24
                 radius: Dimensions.radiusStandard
-                // Flutter: value ? AppColors.primary : Colors.white.withValues(alpha: 0.1)
                 color: checked ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
 
                 // Hover glow border
@@ -1219,7 +1207,7 @@ Item {
                 Behavior on border.color { ColorAnimation { duration: 150 } }
                 Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-                // Handle - Flutter: 18x18, margin 3
+                // Handle
                 Rectangle {
                     id: toggleHandle
                     width: 18
@@ -1229,7 +1217,7 @@ Item {
                     x: checked ? parent.width - width - 3 : 3
                     anchors.verticalCenter: parent.verticalCenter
 
-                    // Handle shadow - Flutter: Colors.black.withValues(alpha: 0.1), blur 4
+                    // Handle shadow
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: -1
@@ -1314,7 +1302,7 @@ Item {
         }
     }
 
-    // ===== DISABLED SETTING - Flutter: _buildDisabledSetting =====
+    // ===== DISABLED SETTING =====
     component DisabledSetting: Item {
         property string title: ""
         property string description: ""
@@ -1342,12 +1330,10 @@ Item {
                         color: Theme.textMuted
                     }
 
-                    // Flutter: "Yakında" badge
                     Rectangle {
                         Layout.preferredWidth: yakindaLabel.width + 16
                         Layout.preferredHeight: 20
                         radius: Dimensions.radiusStandard
-                        // Flutter: Colors.white.withValues(alpha: 0.08)
                         color: Qt.rgba(1, 1, 1, 0.08)
 
                         Label {
@@ -1364,12 +1350,10 @@ Item {
                 Label {
                     text: description
                     font.pixelSize: 13
-                    // Flutter: AppColors.textMuted.withValues(alpha: 0.7)
                     color: Theme.withAlpha(Theme.textMuted, 0.7)
                 }
             }
 
-            // Flutter: Icons.lock_outline_rounded, size 20
             Label {
                 text: "🔒"  // Lock icon
                 font.pixelSize: 20
@@ -1378,7 +1362,7 @@ Item {
         }
     }
 
-    // ===== DEV BUTTON - Flutter: _buildDevButton =====
+    // ===== DEV BUTTON =====
     component DevButton: Item {
         property string title: ""
         property string subtitle: ""
@@ -1402,12 +1386,11 @@ Item {
                 anchors.rightMargin: 20
                 spacing: 16
 
-                // Icon container - Flutter: padding 10, borderRadius 8
+                // Icon container
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
                     radius: Dimensions.radiusStandard
-                    // Flutter: isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.06)
                     color: isDestructive
                          ? Theme.withAlpha(Theme.error, 0.1)
                          : Qt.rgba(1, 1, 1, 0.06)
@@ -1419,7 +1402,6 @@ Item {
                         anchors.centerIn: parent
                         text: icon
                         font.pixelSize: 18
-                        // Flutter: isDestructive ? Colors.red : Colors.white70
                         color: isDestructive ? Theme.error : Qt.rgba(1, 1, 1, 0.7)
                     }
                 }
@@ -1432,7 +1414,6 @@ Item {
                         text: title
                         font.pixelSize: 14
                         font.weight: Font.Medium
-                        // Flutter: isDestructive ? Colors.red : Colors.white
                         color: isDestructive ? Theme.error : Theme.textPrimary
                     }
 
@@ -1443,7 +1424,6 @@ Item {
                     }
                 }
 
-                // Flutter: isLoading ? CircularProgressIndicator : Icons.chevron_right_rounded
                 Item {
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
@@ -1477,13 +1457,13 @@ Item {
         }
     }
 
-    // ===== INFO ROW - Flutter: _buildInfoRow (padding: 20) =====
+    // ===== INFO ROW =====
     component InfoRow: Item {
         property string label: ""
         property string value: ""
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 60  // Flutter: padding 20 * 2 + text height
+        Layout.preferredHeight: 60
 
         RowLayout {
             anchors.fill: parent
@@ -1507,7 +1487,7 @@ Item {
         }
     }
 
-    // ===== CLICKABLE ROW - Flutter: _buildClickableRow =====
+    // ===== CLICKABLE ROW =====
     component ClickableRow: Item {
         property string title: ""
         property string subtitle: ""
@@ -1516,7 +1496,7 @@ Item {
         signal clicked()
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 80  // Flutter: padding 20 + icon 40 + padding 20
+        Layout.preferredHeight: 80
 
         Rectangle {
             anchors.fill: parent
@@ -1530,12 +1510,10 @@ Item {
                 anchors.rightMargin: 20
                 spacing: 16
 
-                // Flutter: 40x40 container, borderRadius 4
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
                     radius: Dimensions.radiusStandard
-                    // Flutter: isDark ? Colors.white.withValues(alpha: 0.06) : AppColors.primary.withValues(alpha: 0.08)
                     color: isDestructive
                          ? Theme.withAlpha(Theme.error, 0.1)
                          : Qt.rgba(1, 1, 1, 0.06)
@@ -1546,8 +1524,7 @@ Item {
                     Label {
                         anchors.centerIn: parent
                         text: icon
-                        font.pixelSize: 20  // Flutter: size 20
-                        // Flutter: isDark ? AppColors.textMuted : AppColors.primary
+                        font.pixelSize: 20
                         color: isDestructive ? Theme.error : Theme.textMuted
                     }
                 }
@@ -1570,7 +1547,6 @@ Item {
                     }
                 }
 
-                // Flutter: Icons.chevron_right_rounded, size 20
                 Label {
                     text: "›"
                     font.pixelSize: 24

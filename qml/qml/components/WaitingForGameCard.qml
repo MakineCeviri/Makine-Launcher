@@ -3,41 +3,26 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * WaitingForGameCard.qml - Native Qt WaitingForGameCard birebir port
- * Kaynak: ui/src/widgets/waitingforgamecard.cpp
- *
- * Features:
- * - 400px width, 32px padding
- * - Search icon in 64px circle
- * - "Oyun Aktif Degil" title (18px, weight 600)
- * - Hint box with platform info
- * - Full-width stop button
+ * WaitingForGameCard.qml - Idle state card when no game is detected
  */
 Rectangle {
     id: root
 
     signal stopClicked()
 
-    // Native Qt: fixedWidth 400
     implicitWidth: 400
-    implicitHeight: contentLayout.height + 64  // padding 32 top/bottom
-    radius: Dimensions.radiusXS  // 4
-
-    // Native Qt: Container decoration
-    // color: isDark ? 0xFF151515 : 0xFFF5F5F5
+    implicitHeight: contentLayout.height + 64
+    radius: Dimensions.radiusXS
     color: "#151515"
-
-    // Border - Native Qt: white 6%
     border.color: Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
 
     ColumnLayout {
         id: contentLayout
         anchors.centerIn: parent
-        width: parent.width - 64  // padding 32
+        width: parent.width - 64
         spacing: 0
 
-        // Search icon circle - Native Qt: 64x64, borderRadius 32
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 64
@@ -47,7 +32,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "\uD83D\uDD0D"  // Magnifying glass
+                text: "\uD83D\uDD0D"
                 font.pixelSize: 32
                 color: Theme.textMuted
             }
@@ -55,10 +40,9 @@ Rectangle {
 
         Item { Layout.preferredHeight: 20 }
 
-        // Title - Native Qt: "Oyun Aktif Degil" (18px, weight 600)
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Oyun Aktif Degil"
+            text: "Oyun Aktif Değil"
             font.pixelSize: 18
             font.weight: Font.DemiBold
             color: Theme.textPrimary
@@ -66,11 +50,10 @@ Rectangle {
 
         Item { Layout.preferredHeight: 12 }
 
-        // Subtitle - Native Qt: line break included
         Text {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
-            text: "Desteklenen bir oyunu baslattignizda\notomatik olarak tespit edilecektir."
+            text: "Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir."
             font.pixelSize: 13
             color: Theme.textMuted
             horizontalAlignment: Text.AlignHCenter
@@ -79,7 +62,6 @@ Rectangle {
 
         Item { Layout.preferredHeight: 24 }
 
-        // Hint box - Native Qt: white 3% bg, borderRadius 4
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
@@ -91,7 +73,7 @@ Rectangle {
                 spacing: 8
 
                 Text {
-                    text: "\u2139"  // Info icon
+                    text: "\u2139"
                     font.pixelSize: 14
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -107,7 +89,6 @@ Rectangle {
 
         Item { Layout.preferredHeight: 24 }
 
-        // Stop button - Native Qt: full width
         StopButton {
             Layout.fillWidth: true
             onClicked: root.stopClicked()

@@ -3,22 +3,13 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * NavBarItem.qml - Flutter nav_bar_item.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/widgets/nav_bar_item.dart
- *
- * Horizontal navbar icin navigation item
- *
- * Ozellikler:
- * - Icon + label
- * - Selected/hover state
- * - Animasyonlu underline
- * - Label gizlenebilir
+ * NavBarItem.qml - Navigation bar item with icon, label, and animated underline
  */
 Item {
     id: root
 
     // =========================================================================
-    // PUBLIC PROPERTIES - Flutter NavBarItem birebir
+    // PUBLIC PROPERTIES
     // =========================================================================
 
     /// Icon karakter veya emoji
@@ -27,13 +18,13 @@ Item {
     /// Label metni
     property string label: ""
 
-    /// Secili mi - Flutter: isSelected
+    /// Whether this item is selected
     property bool isSelected: false
 
-    /// Tema modu - Flutter: isDark
+    /// Dark/light theme mode
     property bool isDark: true
 
-    /// Label gosterilsin mi - Flutter: showLabel
+    /// Whether to show the label text
     property bool showLabel: true
 
     // =========================================================================
@@ -46,7 +37,7 @@ Item {
     // SIZE
     // =========================================================================
 
-    implicitWidth: contentRow.width + 24  // Flutter: horizontal padding 12 * 2
+    implicitWidth: contentRow.width + 24
     implicitHeight: contentColumn.height
 
     // =========================================================================
@@ -56,7 +47,7 @@ Item {
     readonly property bool isHovered: mouseArea.containsMouse
 
     // =========================================================================
-    // COLOR HELPERS - Flutter _getIconColor ve _getTextColor
+    // COLOR HELPERS
     // =========================================================================
 
     function getIconColor() {
@@ -80,7 +71,6 @@ Item {
         anchors.centerIn: parent
         spacing: 0
 
-        // Flutter: Padding(horizontal: 12, vertical: 8)
         Item {
             width: contentRow.width + 24
             height: contentRow.height + 16
@@ -102,13 +92,11 @@ Item {
             Row {
                 id: contentRow
                 anchors.centerIn: parent
-                spacing: root.showLabel ? 8 : 0  // Flutter: SizedBox(width: 8)
-
-                // Icon - Flutter: size 18
+                spacing: root.showLabel ? 8 : 0
                 Text {
                     id: iconItem
                     text: root.iconText
-                    font.pixelSize: 18  // Flutter: size 18
+                    font.pixelSize: 18
                     color: getIconColor()
                     anchors.verticalCenter: parent.verticalCenter
 
@@ -117,13 +105,12 @@ Item {
                     }
                 }
 
-                // Label - Flutter: fontSize 13, w500/w600
                 Text {
                     id: labelItem
                     visible: root.showLabel
                     text: root.label
-                    font.pixelSize: 13  // Flutter: fontSize 13
-                    font.weight: root.isSelected ? Font.DemiBold : Font.Medium  // Flutter: w600/w500
+                    font.pixelSize: 13
+                    font.weight: root.isSelected ? Font.DemiBold : Font.Medium
                     color: getTextColor()
                     anchors.verticalCenter: parent.verticalCenter
 
@@ -134,7 +121,7 @@ Item {
             }
         }
 
-        // Underline - Flutter: AnimatedContainer (enhanced)
+        // Animated underline indicator
         Rectangle {
             id: underline
             anchors.horizontalCenter: parent.horizontalCenter

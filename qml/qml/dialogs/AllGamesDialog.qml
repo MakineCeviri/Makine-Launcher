@@ -4,14 +4,7 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * AllGamesDialog.qml - Native Qt AllGamesDialog birebir port
- * Kaynak: ui/src/widgets/allgamesdialog.cpp
- *
- * Features:
- * - Modal dialog showing all supported games
- * - Search filter
- * - Grid layout with game cards
- * - Category filter
+ * AllGamesDialog.qml - Modal dialog showing all supported games with search and filter
  */
 Dialog {
     id: root

@@ -2,13 +2,7 @@ import QtQuick
 import MakineAI 1.0
 
 /**
- * TranslationPhaseBadge.qml - Native Qt TranslationPhaseBadge birebir port
- * Kaynak: ui/src/widgets/translationphasebadge.cpp
- *
- * Features:
- * - Different badge colors per phase
- * - Icon + text
- * - Compact size
+ * TranslationPhaseBadge.qml - Color-coded badge showing translation phase
  */
 Rectangle {
     id: root
@@ -17,10 +11,10 @@ Rectangle {
     enum Phase {
         Idle,           // Bekleniyor
         Detecting,      // Tespit ediliyor
-        Preparing,      // Hazirlaniyor
-        Translating,    // Cevriliyor
+        Preparing,      // Hazırlanıyor
+        Translating,    // Çevriliyor
         Applying,       // Uygulanıyor
-        Completed,      // Tamamlandi
+        Completed,      // Tamamlandı
         Failed          // Hata
     }
 
@@ -45,10 +39,10 @@ Rectangle {
         switch (phase) {
             case TranslationPhaseBadge.Phase.Idle: return "Bekleniyor"
             case TranslationPhaseBadge.Phase.Detecting: return "Tespit ediliyor"
-            case TranslationPhaseBadge.Phase.Preparing: return "Hazirlaniyor"
-            case TranslationPhaseBadge.Phase.Translating: return "Cevriliyor"
+            case TranslationPhaseBadge.Phase.Preparing: return "Hazırlanıyor"
+            case TranslationPhaseBadge.Phase.Translating: return "Çevriliyor"
             case TranslationPhaseBadge.Phase.Applying: return "Uygulanıyor"
-            case TranslationPhaseBadge.Phase.Completed: return "Tamamlandi"
+            case TranslationPhaseBadge.Phase.Completed: return "Tamamlandı"
             case TranslationPhaseBadge.Phase.Failed: return "Hata"
             default: return "Bilinmiyor"
         }

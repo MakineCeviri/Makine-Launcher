@@ -3,42 +3,23 @@ import QtQuick.Controls
 import MakineAI 1.0
 
 /**
- * WindowButton.qml - Flutter window_button.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/widgets/window_button.dart
- *
- * TitleBar pencere kontrol butonlari (minimize, maximize, close)
- *
- * Ozellikler:
- * - Flutter boyutlari: width 46, height 32
- * - Hover renk animasyonu
- * - isClose: true ise hover'da beyaz icon
- * - Tooltip destegi
+ * WindowButton.qml - Title bar window control button (minimize, maximize, close)
  */
 Item {
     id: root
 
     // =========================================================================
-    // PUBLIC PROPERTIES - Flutter WindowButton birebir
+    // PUBLIC PROPERTIES
     // =========================================================================
 
-    /// Icon karakter veya icon name
     property string iconText: ""
-
-    /// Hover arka plan rengi - Flutter: hoverColor
     property color hoverColor: Qt.rgba(1, 1, 1, 0.1)
-
-    /// Close button mu? - Flutter: isClose
-    /// Hover'da icon beyaz olur
     property bool isClose: false
-
-    /// Tooltip metni - Flutter: tooltip
     property string tooltip: ""
-
-    /// Tema modu - Flutter: isDark
     property bool isDark: true
 
     // =========================================================================
-    // SIZE - Flutter: width 46, height 32
+    // SIZE
     // =========================================================================
 
     width: 46
@@ -66,17 +47,15 @@ Item {
         color: root.isHovered ? root.hoverColor : "transparent"
 
         Behavior on color {
-            ColorAnimation { duration: 150 }  // Flutter: shortAnimationDuration
+            ColorAnimation { duration: 150 }
         }
 
-        // Icon - Flutter: size 16
         Text {
             anchors.centerIn: parent
             text: root.iconText
             font.pixelSize: 16
             font.family: "Segoe MDL2 Assets"  // Windows icon font
 
-            // Flutter: isHovered && isClose ? white : textSecondary
             color: {
                 if (root.isHovered && root.isClose) {
                     return "white"
@@ -104,7 +83,7 @@ Item {
     }
 
     // =========================================================================
-    // TOOLTIP - Flutter: Tooltip widget
+    // TOOLTIP
     // =========================================================================
 
     ToolTip.visible: root.tooltip.length > 0 && isHovered

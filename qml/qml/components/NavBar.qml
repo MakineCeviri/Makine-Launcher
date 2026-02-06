@@ -5,16 +5,7 @@ import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * NavBar.qml - Flutter home_screen.dart _buildTopNavBar birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/screens/home_screen.dart
- *
- * Features:
- * - 72px height with glassmorphism blur
- * - Logo button with hover animation
- * - AI Toggle with animated gradient text
- * - NavBarItem components with underline indicator
- * - Responsive layout
- * - Donate button
+ * NavBar.qml - Top navigation bar with glassmorphism and animated elements
  */
 Rectangle {
     id: root
@@ -22,7 +13,7 @@ Rectangle {
     property int currentIndex: 0
     property bool isAIActive: false
     property bool isDark: true
-    property bool animationsEnabled: true  // GPU optimization - set from parent window
+    property bool animationsEnabled: true
 
     signal navItemClicked(int index)
     signal aiToggleClicked()
@@ -30,10 +21,9 @@ Rectangle {
     signal websiteClicked()
     signal settingsClicked()
 
-    implicitHeight: Dimensions.navbarHeight  // 72
+    implicitHeight: Dimensions.navbarHeight
     color: "transparent"
 
-    // Animated gradient phase for bottom glow
     property real glowPhase: 0.0
     property int glowColorIndex: 0
 
@@ -52,7 +42,6 @@ Rectangle {
         running: root.animationsEnabled
     }
 
-    // Current animated glow color
     property color currentGlowColor: Theme.brandGradient[glowColorIndex]
     property color nextGlowColor: Theme.brandGradient[(glowColorIndex + 1) % Theme.brandGradient.length]
     property color animatedGlowColor: Qt.rgba(
@@ -62,13 +51,11 @@ Rectangle {
         1.0
     )
 
-    // Glassmorphism background - Enhanced frosted glass effect
     Rectangle {
         id: blurBackground
         anchors.fill: parent
         color: "transparent"
 
-        // Base frosted layer
         Rectangle {
             anchors.fill: parent
             color: isDark
@@ -76,7 +63,6 @@ Rectangle {
                 : Qt.rgba(Theme.lightSurface.r, Theme.lightSurface.g, Theme.lightSurface.b, 0.92)
         }
 
-        // Subtle top highlight (glass reflection)
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -85,7 +71,6 @@ Rectangle {
             color: isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.3)
         }
 
-        // Gradient overlay for depth
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -95,16 +80,15 @@ Rectangle {
             }
         }
 
-        // Bottom border - kaldırıldı, container'larla birleşik görünüm için
+        // Bottom border removed for seamless container look
     }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Dimensions.marginXL  // 24
+        anchors.leftMargin: Dimensions.marginXL
         anchors.rightMargin: Dimensions.marginXL
-        spacing: Dimensions.marginMD  // 16
+        spacing: Dimensions.marginMD
 
-        // Logo Home Button - Flutter: MakineLogoSimple(size: 38)
         LogoHomeButton {
             id: logoButton
             isSelected: root.currentIndex === 0
@@ -112,7 +96,6 @@ Rectangle {
             onClicked: root.navItemClicked(0)
         }
 
-        // AI Toggle Button - Flutter: _buildMiniAIToggle
         AIToggleButton {
             id: aiToggle
             isActive: root.isAIActive
@@ -120,9 +103,8 @@ Rectangle {
             onClicked: root.aiToggleClicked()
         }
 
-        // Projects NavBarItem - Flutter: Icons.campaign_rounded
         NavBarItem {
-            icon: "\uD83D\uDCE2"  // Megaphone emoji
+            icon: "\uD83D\uDCE2"
             label: "Projelerimiz"
             isSelected: root.currentIndex === 1
             isDark: root.isDark
@@ -130,19 +112,17 @@ Rectangle {
             onClicked: root.navItemClicked(1)
         }
 
-        // Web NavBarItem - Flutter: Icons.language_rounded
         NavBarItem {
             visible: root.width > 600
-            icon: "\uD83C\uDF10"  // Globe emoji
+            icon: "\uD83C\uDF10"
             label: "Web"
             isDark: root.isDark
             showLabel: root.width > 750
             onClicked: root.websiteClicked()
         }
 
-        // Settings NavBarItem - Flutter: Icons.settings_rounded
         NavBarItem {
-            icon: "\u2699"  // Gear emoji
+            icon: "\u2699"
             label: "Ayarlar"
             isDark: root.isDark
             showLabel: root.width > 750
@@ -151,7 +131,6 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        // Donate Button - Flutter: DonateButton
         DonateButton {
             visible: root.width > 900
             isDark: root.isDark
@@ -160,8 +139,8 @@ Rectangle {
     }
 
     // =========================================================================
-    // LogoHomeButton Component - Flutter: _LogoHomeButton
-    // Circular black hover effect like Flutter version
+    // LogoHomeButton Component
+    // Circular black hover effect
     // =========================================================================
     component LogoHomeButton: Item {
         property bool isSelected: false
@@ -172,11 +151,9 @@ Rectangle {
         Layout.preferredWidth: 50
         Layout.preferredHeight: 50
 
-        // Logo size (Flutter: size parameter, default 38)
-        readonly property real logoSize: Dimensions.navbarIconSizeLogo  // 38
-        readonly property real cornerRadius: logoSize * 0.25  // Flutter: size * 0.25
+        readonly property real logoSize: Dimensions.navbarIconSizeLogo
+        readonly property real cornerRadius: logoSize * 0.25
 
-        // Hover colors - Flutter: black.withOpacity(0.85) for dark mode
         readonly property color hoverColor: isDark
             ? Qt.rgba(0, 0, 0, 0.85)
             : Qt.rgba(0, 0, 0, 0.12)
@@ -185,13 +162,12 @@ Rectangle {
             ? Qt.rgba(0, 0, 0, 0.5)
             : Qt.rgba(0, 0, 0, 0.06)
 
-        // Circular hover background - Flutter: BoxDecoration(shape: BoxShape.circle)
         Rectangle {
             id: hoverBackground
             anchors.centerIn: parent
             width: 50
             height: 50
-            radius: 25  // Fully circular
+            radius: 25
             color: logoMouse.containsMouse
                 ? hoverColor
                 : (isSelected ? selectedColor : "transparent")
@@ -212,7 +188,6 @@ Rectangle {
                 NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
             }
 
-            // Logo container with rounded corners - Flutter: ClipRRect
             Rectangle {
                 id: logoClip
                 anchors.fill: parent
@@ -220,7 +195,6 @@ Rectangle {
                 color: "transparent"
                 clip: true
 
-                // Logo image - use same path as SplashScreen
                 Image {
                     id: logoImage
                     anchors.fill: parent
@@ -229,11 +203,10 @@ Rectangle {
                     smooth: true
                     antialiasing: true
                     mipmap: true
-                    asynchronous: false  // Ensure sync loading
+                    asynchronous: false
                     cache: true
                 }
 
-                // Fallback gradient if logo fails
                 Rectangle {
                     anchors.fill: parent
                     radius: cornerRadius
@@ -245,7 +218,6 @@ Rectangle {
                         GradientStop { position: 1.0; color: "#90D090" }
                     }
 
-                    // Center M letter as ultimate fallback
                     Text {
                         anchors.centerIn: parent
                         text: "M"
@@ -273,7 +245,7 @@ Rectangle {
     }
 
     // =========================================================================
-    // AIToggleButton Component - Flutter: _AIToggleButton
+    // AIToggleButton Component
     // Brand gradient colors for text animation
     // =========================================================================
     component AIToggleButton: Item {
@@ -285,14 +257,11 @@ Rectangle {
         Layout.preferredWidth: aiToggleContent.width
         Layout.preferredHeight: 50
 
-        // Brand gradient colors (from Theme)
         readonly property var brandColors: Theme.brandGradient
 
-        // Animated gradient phase
         property real gradientPhase: 0.0
         property int colorIndex: 0
 
-        // Color cycle timer
         Timer {
             interval: 500
             repeat: true
@@ -308,7 +277,6 @@ Rectangle {
             running: root.animationsEnabled
         }
 
-        // Animated colors from brand palette
         property color currentColor: brandColors[colorIndex]
         property color nextColor: brandColors[(colorIndex + 1) % brandColors.length]
 
@@ -334,15 +302,13 @@ Rectangle {
                 width: toggleText.width + 24
                 height: 36
 
-                // Gradient text - Flutter: ShaderMask gradient
                 Text {
                     id: toggleText
                     anchors.centerIn: parent
-                    text: isActive ? "Kapat" : "Turkce Yama"
+                    text: isActive ? "Kapat" : "Türkçe Yama"
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
 
-                    // Gradient text using layer
                     layer.enabled: true
                     layer.effect: MultiEffect {
                         colorization: 1.0
@@ -351,7 +317,6 @@ Rectangle {
                 }
             }
 
-            // Underline - Flutter: AnimatedContainer
             Rectangle {
                 id: aiUnderline
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -381,7 +346,7 @@ Rectangle {
     }
 
     // =========================================================================
-    // NavBarItem Component - Flutter: NavBarItem
+    // NavBarItem Component
     // =========================================================================
     component NavBarItem: Item {
         property string icon: ""
@@ -409,10 +374,9 @@ Rectangle {
                     anchors.centerIn: parent
                     spacing: showLabel ? 8 : 0
 
-                    // Icon
                     Text {
                         text: icon
-                        font.pixelSize: Dimensions.navbarIconSize  // 18
+                        font.pixelSize: Dimensions.navbarIconSize
                         color: {
                             if (isSelected) return Theme.primary
                             if (navItemMouse.containsMouse) {
@@ -426,7 +390,6 @@ Rectangle {
                         }
                     }
 
-                    // Label
                     Text {
                         visible: showLabel
                         text: label
@@ -447,7 +410,6 @@ Rectangle {
                 }
             }
 
-            // Underline indicator - Flutter: AnimatedContainer
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 height: 2
@@ -476,7 +438,7 @@ Rectangle {
     }
 
     // =========================================================================
-    // DonateButton Component - Flutter: DonateButton
+    // DonateButton Component
     // =========================================================================
     component DonateButton: Rectangle {
         property bool isDark: true
@@ -485,7 +447,7 @@ Rectangle {
 
         Layout.preferredWidth: donateRow.width + 24
         Layout.preferredHeight: 36
-        radius: Dimensions.radiusMD  // 8
+        radius: Dimensions.radiusMD
         color: donateMouse.containsMouse
             ? (isDark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.08))
             : (isDark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.04))
@@ -502,9 +464,8 @@ Rectangle {
             anchors.centerIn: parent
             spacing: 6
 
-            // Heart icon
             Text {
-                text: "\u2764"  // Heart
+                text: "\u2764"
                 font.pixelSize: 14
                 color: "#FF6B6B"
             }

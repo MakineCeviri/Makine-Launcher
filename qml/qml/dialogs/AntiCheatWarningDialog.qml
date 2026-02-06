@@ -5,8 +5,7 @@ import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * AntiCheatWarningDialog.qml - Anti-cheat tespit uyarı dialog'u
- * Kaynak: archive/v0.0.8-flutter/UI/lib/services/game_detector/anti_cheat_detector.dart
+ * AntiCheatWarningDialog.qml - Anti-cheat detection warning dialog
  *
  * Features:
  * - Tespit edilen anti-cheat sistemlerini listeler
@@ -52,7 +51,7 @@ Dialog {
         }
     }
 
-    // Severity colors - Flutter parity
+    // Severity colors
     readonly property color severityLow: "#FFB74D"       // Turuncu
     readonly property color severityMedium: "#FF9800"    // Koyu turuncu
     readonly property color severityHigh: "#E53935"      // Kırmızı

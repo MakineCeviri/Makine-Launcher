@@ -4,7 +4,6 @@ import MakineAI 1.0
 
 /**
  * GradientText.qml - Animated gradient text effect
- * Flutter equivalent: ShaderMask with LinearGradient
  *
  * Features:
  * - Smooth color-shifting gradient on text

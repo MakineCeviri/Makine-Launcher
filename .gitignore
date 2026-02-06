@@ -14,8 +14,11 @@ out/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
+CMakeUserPresets.json
 cmake_install.cmake
 CTestTestfile.cmake
+Testing/
+_deps/
 Makefile
 compile_commands.json
 .ninja_*
@@ -43,6 +46,8 @@ ipch/
 *.qbs.user*
 *.creator.user*
 .qmake.stash
+.qtcreator/
+.qt/
 
 # ==============================================================================
 # COMPILED & BINARY
@@ -190,6 +195,7 @@ logs/
 *.orig
 *.cache
 .cache/
+nul
 
 # ==============================================================================
 # SECRETS & CREDENTIALS
@@ -199,12 +205,17 @@ logs/
 .env.*
 !.env.example
 *.local
-secrets.*
+secrets.json
+secrets.yaml
+secrets.yml
+secrets.toml
 *.key
 *.pem
 *.p12
 *.pfx
-credentials.*
+credentials.json
+credentials.yaml
+credentials.yml
 
 # ==============================================================================
 # TEST & COVERAGE
@@ -242,23 +253,3 @@ dist/
 *.msix
 *.appx
 
-# ==============================================================================
-# EXPLICIT KEEPS (override above rules)
-# ==============================================================================
-
-# GitHub config
-!.github/
-
-# Important dotfiles
-!.gitattributes
-!.gitignore
-!.clang-format
-!.clang-tidy
-!.claudeignore
-!.pre-commit-config.yaml
-!.commitlintrc.json
-
-# CMake config files (not generated ones)
-!CMakeLists.txt
-!CMakePresets.json
-!vcpkg.json

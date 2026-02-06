@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "constants.hpp"
+
 #include <filesystem>
 #include <string>
 #include <optional>
@@ -34,7 +36,7 @@ struct ScanningConfig {
     uint32_t maxParallelScans = 4;
 
     /// Timeout for each scanner in milliseconds
-    uint32_t scanTimeoutMs = 30000;
+    uint32_t scanTimeoutMs = kDefaultTimeoutMs;
 
     /// Whether to scan Steam library
     bool scanSteam = true;
@@ -111,7 +113,7 @@ struct TranslationConfig {
     bool autoFallback = true;
 
     /// Maximum entries to load in memory at once
-    uint32_t maxEntriesInMemory = 100000;
+    uint32_t maxEntriesInMemory = kMaxDatabaseEntries;
 
     /// Source language code
     std::string sourceLanguage = "en";
@@ -152,10 +154,10 @@ struct SecurityConfig {
  */
 struct NetworkConfig {
     /// Connection timeout in milliseconds
-    uint32_t connectionTimeoutMs = 10000;
+    uint32_t connectionTimeoutMs = kShortTimeoutMs;
 
     /// Read timeout in milliseconds
-    uint32_t readTimeoutMs = 30000;
+    uint32_t readTimeoutMs = kDefaultTimeoutMs;
 
     /// Maximum download retries
     uint32_t maxDownloadRetries = 3;

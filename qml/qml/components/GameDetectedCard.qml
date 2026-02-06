@@ -3,28 +3,17 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * GameDetectedCard.qml - Native Qt GameDetectedCard birebir port
- * Kaynak: ui/src/widgets/gamedetectedcard.cpp
- *
- * Features:
- * - Game header image
- * - Game name with verified badge
- * - Translation phase badge
- * - Progress indicator
- * - Anti-cheat warning
- * - Stop button
+ * GameDetectedCard.qml - Active game card with translation progress
  */
 Rectangle {
     id: root
 
-    // Game info
     property string gameId: ""
     property string gameName: "Game Name"
     property string gameImageUrl: ""
     property string gameLogoUrl: ""
     property bool isVerified: false
 
-    // Translation state
     property int phase: TranslationPhaseBadge.Phase.Idle
     property real progress: 0.0
     property string progressMessage: ""
@@ -34,12 +23,9 @@ Rectangle {
 
     signal stopClicked()
 
-    // Native Qt: maxWidth 500
     implicitWidth: 500
-    implicitHeight: contentLayout.height + 48  // padding 24
-    radius: Dimensions.radiusXS  // 4
-
-    // Native Qt: surface 95% alpha
+    implicitHeight: contentLayout.height + 48
+    radius: Dimensions.radiusXS
     color: Theme.withAlpha(Theme.surface, 0.95)
     border.color: Qt.rgba(1, 1, 1, 0.08)
     border.width: 1
@@ -50,12 +36,10 @@ Rectangle {
         anchors.margins: 24
         spacing: 16
 
-        // Header section with game image and info
         RowLayout {
             Layout.fillWidth: true
             spacing: 16
 
-            // Game image - Native Qt: 100x60, borderRadius 4
             Rectangle {
                 Layout.preferredWidth: 100
                 Layout.preferredHeight: 60
@@ -70,7 +54,6 @@ Rectangle {
                     visible: root.gameImageUrl !== ""
                 }
 
-                // Placeholder
                 Text {
                     anchors.centerIn: parent
                     text: gameName.substring(0, 2).toUpperCase()
@@ -81,12 +64,10 @@ Rectangle {
                 }
             }
 
-            // Game info column
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 4
 
-                // Game name row
                 RowLayout {
                     spacing: 8
 
@@ -99,7 +80,6 @@ Rectangle {
                         Layout.fillWidth: true
                     }
 
-                    // Verified badge
                     Rectangle {
                         visible: root.isVerified
                         Layout.preferredWidth: 20
@@ -117,14 +97,12 @@ Rectangle {
                     }
                 }
 
-                // Translation phase badge
                 TranslationPhaseBadge {
                     phase: root.phase
                 }
             }
         }
 
-        // Progress section (visible when translating)
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: progressContent.height + 24
@@ -138,7 +116,6 @@ Rectangle {
                 anchors.margins: 12
                 spacing: 8
 
-                // Progress bar
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 4
@@ -155,7 +132,6 @@ Rectangle {
                     }
                 }
 
-                // Progress message
                 Text {
                     text: root.progressMessage || Math.round(root.progress * 100) + "%"
                     font.pixelSize: 12
@@ -164,7 +140,6 @@ Rectangle {
             }
         }
 
-        // Game running indicator
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
@@ -178,7 +153,6 @@ Rectangle {
                 anchors.centerIn: parent
                 spacing: 8
 
-                // Pulsing dot
                 Rectangle {
                     width: 8
                     height: 8
@@ -195,7 +169,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: "Oyun calisiyor"
+                    text: "Oyun çalışıyor"
                     font.pixelSize: 13
                     font.weight: Font.Medium
                     color: Theme.success
@@ -204,7 +178,6 @@ Rectangle {
             }
         }
 
-        // Anti-cheat warning
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: antiCheatContent.height + 24
@@ -224,7 +197,7 @@ Rectangle {
                     spacing: 8
 
                     Text {
-                        text: "\u26A0"  // Warning
+                        text: "\u26A0"
                         font.pixelSize: 16
                         color: Theme.warning
                     }
@@ -239,7 +212,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: root.antiCheatSummary || "Bu oyun anti-cheat sistemi kullanıyor. Ceviri bazi dosyalari etkilemeyebilir."
+                    text: root.antiCheatSummary || "Bu oyun anti-cheat sistemi kullanıyor. Çeviri bazı dosyaları etkilemeyebilir."
                     font.pixelSize: 12
                     color: Theme.textMuted
                     wrapMode: Text.WordWrap
@@ -247,7 +220,6 @@ Rectangle {
             }
         }
 
-        // Stop button
         StopButton {
             Layout.fillWidth: true
             onClicked: root.stopClicked()

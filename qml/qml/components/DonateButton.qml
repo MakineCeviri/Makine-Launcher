@@ -3,16 +3,7 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * DonateButton.qml - Flutter donate_button.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/widgets/donate_button.dart
- *
- * Animasyonlu gradient'li bagis butonu
- *
- * Ozellikler:
- * - 2000ms gold-olive renk animasyonu
- * - Sinusoidal gecis
- * - Hover glow efekti
- * - Heart icon
+ * DonateButton.qml - Animated gradient donate button with glow effect
  */
 Item {
     id: root
@@ -21,10 +12,10 @@ Item {
     // PUBLIC PROPERTIES
     // =========================================================================
 
-    /// Tema modu
+    /// Theme mode
     property bool isDark: true
 
-    /// Animasyonlari devre disi birak
+    /// Disable animations for GPU optimization
     property bool disableAnimations: false
 
     // =========================================================================
@@ -37,8 +28,8 @@ Item {
     // SIZE
     // =========================================================================
 
-    implicitWidth: contentRow.width + 24  // Flutter: horizontal padding 12 * 2
-    implicitHeight: contentRow.height + 16  // Flutter: vertical padding 8 * 2
+    implicitWidth: contentRow.width + 24
+    implicitHeight: contentRow.height + 16
 
     // =========================================================================
     // HOVER STATE
@@ -47,7 +38,7 @@ Item {
     readonly property bool isHovered: mouseArea.containsMouse
 
     // =========================================================================
-    // ANIMATION - Flutter: 2000ms repeat
+    // ANIMATION
     // =========================================================================
 
     property real _animValue: 0.0
@@ -56,13 +47,12 @@ Item {
         id: colorAnimation
         from: 0.0
         to: 1.0
-        duration: 2000  // Flutter: 2000ms
+        duration: 2000
         loops: Animation.Infinite
         running: !root.disableAnimations
     }
 
-    // Flutter: Yumusak sinusoidal gecis
-    // (1 - ((value * 2 - 1).abs())).clamp(0.0, 1.0)
+    // Smooth sinusoidal transition (0→1→0)
     readonly property real smoothValue: {
         if (root.disableAnimations) return 0.0
         var v = _animValue * 2 - 1  // -1 to 1
@@ -70,26 +60,23 @@ Item {
     }
 
     // =========================================================================
-    // COLOR INTERPOLATION - Flutter Color.lerp
+    // COLOR INTERPOLATION
     // =========================================================================
 
-    // Flutter: color1 = gold -> olive, color2 = olive -> gold
     readonly property color color1: Theme.lerpColor(Theme.gold, Theme.olive, smoothValue)
     readonly property color color2: Theme.lerpColor(Theme.olive, Theme.gold, smoothValue)
 
-    // Flutter: 0.25 + (smoothValue * 0.25)
     readonly property real glowIntensity: 0.25 + (smoothValue * 0.25)
 
     // =========================================================================
-    // GLOW - Flutter: BoxShadow
+    // GLOW
     // =========================================================================
 
-    // Glow layer - Flutter: blurRadius hover ? 20 : (10 + smoothValue * 6)
     Rectangle {
         anchors.centerIn: buttonBg
         width: buttonBg.width + (isHovered ? 40 : (20 + smoothValue * 12))
         height: buttonBg.height + (isHovered ? 40 : (20 + smoothValue * 12))
-        anchors.verticalCenterOffset: 4  // Flutter: offset(0, 4)
+        anchors.verticalCenterOffset: 4
         radius: Dimensions.radiusStandard + 10
         color: Qt.rgba(color1.r, color1.g, color1.b, isHovered ? 0.6 : glowIntensity)
         z: -1
@@ -100,13 +87,13 @@ Item {
     }
 
     // =========================================================================
-    // BUTTON BACKGROUND - Flutter: gradient, borderRadius 4
+    // BUTTON BACKGROUND
     // =========================================================================
 
     Rectangle {
         id: buttonBg
         anchors.fill: parent
-        radius: Dimensions.radiusStandard  // Flutter: borderRadius 4
+        radius: Dimensions.radiusStandard
 
         gradient: Gradient {
             orientation: Gradient.Horizontal
@@ -116,25 +103,22 @@ Item {
     }
 
     // =========================================================================
-    // CONTENT - Flutter: heart icon + text
+    // CONTENT
     // =========================================================================
 
     Row {
         id: contentRow
         anchors.centerIn: parent
-        spacing: 8  // Flutter: SizedBox(width: 8)
-
-        // Heart icon - Flutter: Icons.favorite_rounded, size 18
+        spacing: 8
         Text {
-            text: "\u2764"  // Heart symbol
+            text: "\u2764"
             font.pixelSize: 18
             color: "white"
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        // Label - Flutter: "Destekci Ol", fontSize 14, w600
         Text {
-            text: "Destekci Ol"
+            text: "Destekçi Ol"
             font.pixelSize: 14
             font.weight: Font.DemiBold
             color: "white"

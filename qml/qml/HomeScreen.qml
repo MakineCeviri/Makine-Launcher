@@ -7,13 +7,7 @@ import "dialogs"
 import "components"
 
 /**
- * HomeScreen.qml - Native Qt HomeView birebir port
- * Kaynak: ui/src/views/homeview.cpp
- *
- * Yapı:
- * - QStackedWidget: homePage, projectsPage, aiActivePage
- * - Padding: 48px all around
- * - Spacing: 48px between sections
+ * HomeScreen.qml - Main home view with game status, announcements, and projects
  */
 Item {
     id: root
@@ -21,7 +15,7 @@ Item {
     // GPU optimization - propagated from Main.qml
     property bool animationsEnabled: true
 
-    // Design Inspector ile canlı ayarlanabilir değerler
+    // Live-tunable values for Design Inspector
     property real contentMargin: 16
     property real diCardMargin: 8
     property real diCardSpacing: 8
@@ -32,7 +26,6 @@ Item {
     property real diSeparatorTopMargin: 4
     property real diSeparatorBottomMargin: 8
 
-    // Signals for navigation
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
     signal scanRequested()
 
@@ -43,9 +36,8 @@ Item {
     property string notificationMessage: ""
     property string notificationType: "info"  // info, warning, error, update
 
-    // GitHub repo info
-    readonly property string githubOwner: "jlceaser"
-    readonly property string githubRepo: "MakineAI"
+    readonly property string githubOwner: Dimensions.githubOwner
+    readonly property string githubRepo: Dimensions.githubRepo
     readonly property string currentVersion: Dimensions.appVersion.replace(/[a-zA-Z]/g, "")
 
     function checkForUpdates() {
@@ -66,17 +58,17 @@ Item {
                             notificationType = "update"
                         }
                     } catch (e) {
-                        console.log("Update check parse error:", e)
+                        DebugHelper.warn("HomeScreen", "Update check parse error: " + e)
                     }
                 }
             }
         }
 
-        var url = "https://api.github.com/repos/" + githubOwner + "/" + githubRepo + "/releases/latest"
+        var url = Dimensions.githubReleasesUrl
         xhr.open("GET", url)
         xhr.setRequestHeader("Accept", "application/vnd.github.v3+json")
         xhr.setRequestHeader("User-Agent", "MakineAI-UpdateChecker")
-        try { xhr.send() } catch (e) { console.log("Update check error:", e) }
+        try { xhr.send() } catch (e) { DebugHelper.warn("HomeScreen", "Update check error: " + e) }
     }
 
     function compareVersions(v1, v2) {
@@ -101,14 +93,10 @@ Item {
     }
 
     Component.onCompleted: {
-        // Trigger initial game scan - DISABLED for debugging
-        // TODO: Re-enable after fixing SteamScanner crash
-        // GameService.scanAllLibraries()
-        // Check for updates
+        GameService.scanAllLibraries()
         checkForUpdates()
     }
 
-    // Public functions
     function showHomePage() {
         if (!aiActive) {
             pageStack.currentIndex = 0
@@ -146,7 +134,6 @@ Item {
         }
     }
 
-    // Private state
     property bool aiActive: false
 
     // Animation trigger - increment to replay all entry animations
@@ -166,11 +153,10 @@ Item {
             Item {
                 id: homePage
 
-                // Scroll yok - tek sayfa layout
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.topMargin: root.contentMargin
-                    spacing: Dimensions.marginMD  // 16px - kompakt
+                    spacing: Dimensions.marginMD
 
                         // ===== NOTIFICATION BANNER =====
                         Rectangle {
@@ -212,7 +198,6 @@ Item {
                                 anchors.rightMargin: 12
                                 spacing: 12
 
-                                // Icon
                                 Text {
                                     text: {
                                         switch(notificationType) {
@@ -233,7 +218,6 @@ Item {
                                     }
                                 }
 
-                                // Message
                                 Text {
                                     Layout.fillWidth: true
                                     text: notificationMessage
@@ -242,7 +226,6 @@ Item {
                                     elide: Text.ElideRight
                                 }
 
-                                // Action button (for updates)
                                 Rectangle {
                                     visible: notificationType === "update" && downloadUrl
                                     width: updateBtnText.width + 16
@@ -268,7 +251,6 @@ Item {
                                     }
                                 }
 
-                                // Close button
                                 Rectangle {
                                     width: 24
                                     height: 24
@@ -293,7 +275,7 @@ Item {
                             }
                         }
 
-                        // ===== TOP ROW - İki ana kart =====
+                        // ===== TOP ROW =====
                         RowLayout {
                             id: topRowLayout
                             Layout.fillWidth: true
@@ -303,7 +285,6 @@ Item {
                             Layout.rightMargin: root.contentMargin
                             spacing: root.diTopRowGap
 
-                            // Simple fade-in animation
                             opacity: 0
                             Component.onCompleted: topRowEntryAnim.start()
 
@@ -317,7 +298,7 @@ Item {
                             }
 
                             // ============================================================
-                            // GAME STATUS CARD - Profesyonel kart tasarımı
+                            // GAME STATUS CARD
                             // ============================================================
                             Rectangle {
                                 id: gameStatusCard
@@ -334,13 +315,12 @@ Item {
                                     anchors.margins: root.diCardMargin
                                     spacing: root.diCardSpacing
 
-                                    // Header Row with Turkish Flag
                                     Row {
                                         Layout.fillWidth: true
                                         height: 44
                                         spacing: 14
 
-                                        // Turkish Flag - official geometric proportions, centered
+                                        // Turkish flag with geometric proportions
                                         Rectangle {
                                             width: 44
                                             height: 44
@@ -348,7 +328,6 @@ Item {
                                             color: "#E30A17"
                                             clip: true
 
-                                            // Outer white circle (crescent): D=22
                                             Rectangle {
                                                 x: 7; y: 11
                                                 width: 22; height: 22
@@ -356,7 +335,6 @@ Item {
                                                 color: "white"
                                             }
 
-                                            // Inner red circle (crescent cutout): D=18, +3px right
                                             Rectangle {
                                                 x: 12; y: 13
                                                 width: 18; height: 18
@@ -364,7 +342,6 @@ Item {
                                                 color: "#E30A17"
                                             }
 
-                                            // Five-pointed star: one vertex facing left, centered in crescent opening
                                             Canvas {
                                                 x: 25; y: 16
                                                 width: 12; height: 12
@@ -388,7 +365,6 @@ Item {
                                             }
                                         }
 
-                                        // Title Column
                                         Column {
                                             anchors.verticalCenter: parent.children[0].verticalCenter
                                             spacing: 3
@@ -408,7 +384,6 @@ Item {
                                         }
                                     }
 
-                                    // Content Box - fills available space
                                     Rectangle {
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
@@ -422,7 +397,6 @@ Item {
                                             anchors.centerIn: parent
                                             spacing: 10
 
-                                            // Animated three-dot waiting indicator
                                             Row {
                                                 anchors.horizontalCenter: parent.horizontalCenter
                                                 spacing: 8
@@ -475,7 +449,6 @@ Item {
                                         }
                                     }
 
-                                    // Manual Select Button - pinned to bottom
                                     Rectangle {
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: 38
@@ -524,7 +497,7 @@ Item {
                             }
 
                             // ============================================================
-                            // ANNOUNCEMENT CARD - Profesyonel kart tasarımı
+                            // ANNOUNCEMENT CARD
                             // ============================================================
                             Rectangle {
                                 id: announcementCard
@@ -540,7 +513,6 @@ Item {
                                     anchors.margins: root.diCardMargin
                                     spacing: root.diCardSpacing
 
-                                    // Header - height matches game status card header (44)
                                     Column {
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: 44
@@ -559,7 +531,6 @@ Item {
                                         }
                                     }
 
-                                    // Content Box - clickable, expands to show full announcement
                                     Rectangle {
                                         id: announcementContentBox
                                         Layout.fillWidth: true
@@ -637,7 +608,6 @@ Item {
                                         }
                                     }
 
-                                    // Security notice - clickable button to makineai.com
                                     Rectangle {
                                         id: securityBtn
                                         Layout.fillWidth: true
@@ -723,10 +693,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            // Native Qt: gamesSectionLayout->setSpacing(20)
                             spacing: root.diGamesSectionGap
 
-                            // Simple fade-in animation (no transform - fixes click issues)
                             opacity: 0
                             Component.onCompleted: gamesSectionEntryAnim.start()
 
@@ -742,11 +710,9 @@ Item {
                                 }
                             }
 
-                            // Header row
                             RowLayout {
                                 spacing: 12
 
-                                // Title - Native Qt: fontSize 20, w600
                                 Label {
                                     text: GameService.isScanning ? "Oyunlar Taraniyor..." : "Desteklenen Oyunlar"
                                     font.pixelSize: 20
@@ -756,7 +722,6 @@ Item {
 
                                 Item { Layout.fillWidth: true }
 
-                                // Scanning indicator
                                 Row {
                                     visible: GameService.isScanning
                                     spacing: 8
@@ -775,7 +740,6 @@ Item {
                                     }
                                 }
 
-                                // Badge - far right
                                 Rectangle {
                                     Layout.preferredHeight: 22
                                     Layout.preferredWidth: gamesCountLabel.width + 14
@@ -793,7 +757,6 @@ Item {
                                 }
                             }
 
-                            // Separator line - daha görünür
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 1
@@ -802,7 +765,6 @@ Item {
                                 color: Qt.rgba(1, 1, 1, 0.15)
                             }
 
-                            // Skeleton loaders during initial scan
                             Flow {
                                 id: skeletonFlow
                                 Layout.fillWidth: true
@@ -810,30 +772,28 @@ Item {
                                 visible: GameService.isScanning && GameService.gameCount === 0
 
                                 Repeater {
-                                    model: 7  // Show 7 skeleton cards during loading (matches one row)
+                                    model: 7
 
                                     GameCardSkeleton {
                                         animationsEnabled: root.animationsEnabled
-                                        animationDelay: index * 100  // Staggered shimmer
+                                        animationDelay: index * 100
                                     }
                                 }
                             }
 
-                            // Games grid - tek satır, ViewAllCard ile birlikte
                             Row {
                                 id: gamesRow
                                 Layout.alignment: Qt.AlignHCenter
                                 spacing: root.diCardGap
                                 visible: !skeletonFlow.visible
 
-                                // Calculate how many cards fit (reserve 1 slot for ViewAllCard)
                                 readonly property int availableWidth: gamesSectionLayout.width
                                 readonly property int cardTotal: Dimensions.cardWidth + root.diCardGap
                                 readonly property int maxCards: Math.max(1, Math.floor((availableWidth - Dimensions.cardWidth) / cardTotal))
 
                                 Repeater {
                                     id: gamesRepeater
-                                    model: GameService.games.slice(0, gamesRow.maxCards)  // Dinamik - sığan kadar
+                                    model: GameService.games.slice(0, gamesRow.maxCards)
 
                                     GameCard {
                                         id: gameCardDelegate
@@ -880,7 +840,6 @@ Item {
                                     }
                                 }
 
-                                // View All Card - Her zaman görünür
                                 ViewAllCard {
                                     id: viewAllCardItem
                                     remainingCount: Math.max(0, GameService.gameCount - gamesRepeater.count)
@@ -892,7 +851,6 @@ Item {
                                 }
                             }
 
-                            // Empty state when no games
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 120
@@ -908,20 +866,20 @@ Item {
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: "\uD83C\uDFAE"  // Game controller
+                                        text: "\uD83C\uDFAE"
                                         font.pixelSize: 32
                                     }
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: "Henuz oyun bulunamadi"
+                                        text: "Henüz oyun bulunamadı"
                                         font.pixelSize: 14
                                         color: Theme.textSecondary
                                     }
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: "Steam, Epic veya GOG kutuphane klasorlerinizi kontrol edin"
+                                        text: "Steam, Epic veya GOG kütüphane klasörlerinizi kontrol edin"
                                         font.pixelSize: 12
                                         color: Theme.textMuted
                                     }
@@ -929,7 +887,6 @@ Item {
                             }
                         }
 
-                    // Alt boşluk
                     Item { Layout.fillHeight: true }
                 }
             }
@@ -959,13 +916,11 @@ Item {
 
                         Item { Layout.preferredHeight: Dimensions.marginXXL }
 
-                        // Projects header
                         RowLayout {
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             spacing: 16
 
-                            // Icon container
                             Rectangle {
                                 Layout.preferredWidth: 48
                                 Layout.preferredHeight: 48
@@ -978,7 +933,7 @@ Item {
 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "\uD83D\uDE80"  // Rocket
+                                    text: "\uD83D\uDE80"
                                     font.pixelSize: 24
                                 }
                             }
@@ -994,7 +949,7 @@ Item {
                                 }
 
                                 Label {
-                                    text: "Makine Ceviri toplulugununaktif projeleri"
+                                    text: "Makine Çeviri topluluğunun aktif projeleri"
                                     font.pixelSize: 14
                                     color: Theme.textSecondary
                                 }
@@ -1003,7 +958,6 @@ Item {
                             Item { Layout.fillWidth: true }
                         }
 
-                        // CEDRA Interactive Card - Flutter: _CedraInteractiveCard with animated gradient
                         CedraInteractiveCard {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
@@ -1011,23 +965,21 @@ Item {
                             animationsEnabled: root.animationsEnabled
                         }
 
-                        // Game Projects Category
                         ProjectCategory {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             title: "Oyun Projeleri"
-                            subtitle: "CEDRA Interactive bunyesinde gelistirilen oyunlar"
+                            subtitle: "CEDRA Interactive bünyesinde geliştirilen oyunlar"
                             categoryColor: "#E53935"
                         }
 
-                        // Translation Projects Category
                         ProjectCategory {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            title: "Ceviri Projeleri"
-                            subtitle: "Topluluk tarafindan yurutulen ceviri projeleri"
+                            title: "Çeviri Projeleri"
+                            subtitle: "Topluluk tarafından yürütülen çeviri projeleri"
                             categoryColor: "#00BCD4"
                         }
 
@@ -1035,7 +987,6 @@ Item {
                     }
                 }
 
-                // Bottom gradient shadow - Flutter: 120px, transparent → black 35%
                 Rectangle {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -1062,7 +1013,6 @@ Item {
                     anchors.fill: parent
                     color: Theme.bgPrimary
 
-                    // Waiting card - Native Qt: maxWidth 400, padding 32
                     Rectangle {
                         anchors.centerIn: parent
                         width: 400
@@ -1078,7 +1028,6 @@ Item {
                             spacing: 20
                             width: parent.width - 64
 
-                            // Search icon circle
                             Rectangle {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.preferredWidth: 64
@@ -1088,25 +1037,23 @@ Item {
 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "\uD83D\uDD0D"  // Magnifying glass
+                                    text: "\uD83D\uDD0D"
                                     font.pixelSize: 28
                                 }
                             }
 
-                            // Title
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: "Oyun Aktif Degil"
+                                text: "Oyun Aktif Değil"
                                 font.pixelSize: 18
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                             }
 
-                            // Description
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.fillWidth: true
-                                text: "Desteklenen bir oyunu baslattignizda\notomatik olarak tespit edilecektir."
+                                text: "Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir."
                                 font.pixelSize: 13
                                 color: Theme.textMuted
                                 horizontalAlignment: Text.AlignHCenter
@@ -1114,7 +1061,6 @@ Item {
                                 lineHeight: 1.5
                             }
 
-                            // Supported games hint
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 40
@@ -1126,7 +1072,7 @@ Item {
                                     spacing: 8
 
                                     Label {
-                                        text: "\uD83C\uDFAE"  // Game controller
+                                        text: "\uD83C\uDFAE"
                                         font.pixelSize: 16
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -1149,9 +1095,7 @@ Item {
     // ===== GLASS CARD COMPONENT =====
     component GlassCard: Rectangle {
         radius: Dimensions.radiusStandard
-        // Native Qt: white 3% alpha
         color: Qt.rgba(1, 1, 1, 0.03)
-        // Native Qt: white 8% alpha border
         border.color: Qt.rgba(1, 1, 1, 0.08)
         border.width: 1
     }
@@ -1171,7 +1115,6 @@ Item {
 
         property bool isHovered: cardMouse.containsMouse
 
-        // Hover: lift + subtle scale
         transform: [
             Translate { y: gameCardRoot.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } } },
             Scale {
@@ -1182,7 +1125,6 @@ Item {
             }
         ]
 
-        // Main card content
         Rectangle {
             id: cardContent
             anchors.fill: parent
@@ -1190,7 +1132,6 @@ Item {
             clip: true
             color: Theme.surface
 
-            // Animated gradient border phase
             property real borderPhase: 0
             NumberAnimation on borderPhase {
                 from: 0; to: 1
@@ -1199,12 +1140,11 @@ Item {
                 running: gameCardRoot.isHovered && root.animationsEnabled
             }
 
-            // Animated rainbow gradient border
             Canvas {
                 anchors.fill: parent
                 z: 10
                 property real phase: cardContent.borderPhase
-                onPhaseChanged: requestPaint()
+                onPhaseChanged: if (hov) requestPaint()
                 property bool hov: gameCardRoot.isHovered
                 onHovChanged: requestPaint()
 
@@ -1361,7 +1301,6 @@ Item {
 
         property bool isHovered: viewAllMouse.containsMouse
 
-        // Same hover transform as GameCard
         transform: [
             Translate { y: viewAllRoot.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } } },
             Scale {
@@ -1372,7 +1311,6 @@ Item {
             }
         ]
 
-        // Animated rainbow glow behind card on hover
         AnimatedGradientGlow {
             anchors.centerIn: viewAllContent
             width: viewAllContent.width + 40
@@ -1382,14 +1320,12 @@ Item {
             z: -2
         }
 
-        // Card content
         Rectangle {
             id: viewAllContent
             anchors.fill: parent
             radius: Dimensions.cardBorderRadius
             color: "#0A0A0A"
 
-            // Animated gradient border phase
             property real borderPhase: 0
             NumberAnimation on borderPhase {
                 from: 0; to: 1
@@ -1398,11 +1334,10 @@ Item {
                 running: viewAllRoot.visible && root.animationsEnabled
             }
 
-            // Animated rainbow gradient border via Canvas
             Canvas {
                 anchors.fill: parent
                 property real phase: viewAllContent.borderPhase
-                onPhaseChanged: requestPaint()
+                onPhaseChanged: if (viewAllRoot.isHovered) requestPaint()
 
                 onPaint: {
                     var ctx = getContext("2d")
@@ -1444,18 +1379,16 @@ Item {
                     ctx.stroke()
                 }
 
-                // Repaint on hover change too
                 property bool hov: viewAllRoot.isHovered
                 onHovChanged: requestPaint()
             }
 
-            // Content - rotated sideways (number + separator + label)
             Canvas {
                 id: viewAllCanvas
                 anchors.fill: parent
 
                 property real phase: viewAllContent.borderPhase
-                onPhaseChanged: requestPaint()
+                onPhaseChanged: if (hov) requestPaint()
                 property bool hov: viewAllRoot.isHovered
                 onHovChanged: requestPaint()
                 property int count: viewAllRoot.remainingCount
@@ -1536,13 +1469,11 @@ Item {
             anchors.right: parent.right
             spacing: 0
 
-            // Header
             RowLayout {
                 Layout.fillWidth: true
                 Layout.margins: 20
                 spacing: 14
 
-                // Icon container
                 Rectangle {
                     Layout.preferredWidth: 42
                     Layout.preferredHeight: 42
@@ -1576,14 +1507,12 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            // Divider
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
                 color: Qt.rgba(1, 1, 1, 0.06)
             }
 
-            // Project cards area
             Flow {
                 Layout.fillWidth: true
                 Layout.margins: 16
@@ -1591,91 +1520,16 @@ Item {
 
                 ProjectCard {
                     title: "Cyberless: Online"
-                    description: "Cok oyunculu cyberpunk aksiyon oyunu"
-                    status: "Tamamlandi"
+                    description: "Çok oyunculu cyberpunk aksiyon oyunu"
+                    status: "Tamamlandı"
                     statusColor: "#4CAF50"
                 }
 
                 ProjectCard {
                     title: "Endurance"
-                    description: "Hayatta kalma, kaynak yonetimi, korku ve gerilim oyunu"
-                    status: "Gelistiriliyor"
+                    description: "Hayatta kalma, kaynak yönetimi, korku ve gerilim oyunu"
+                    status: "Geliştiriliyor"
                     statusColor: "#9C27B0"
-                }
-            }
-        }
-    }
-
-    // ===== PROJECT CARD COMPONENT =====
-    component ProjectCard: Rectangle {
-        property string title: ""
-        property string description: ""
-        property string status: ""
-        property color statusColor: Theme.primary
-
-        width: 280
-        height: 140
-        radius: Dimensions.radiusStandard
-        color: Qt.rgba(1, 1, 1, 0.03)
-        border.color: Qt.rgba(1, 1, 1, 0.08)
-        border.width: 1
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
-
-            // Top row
-            RowLayout {
-                spacing: 12
-
-                // Icon container
-                Rectangle {
-                    Layout.preferredWidth: 34
-                    Layout.preferredHeight: 34
-                    radius: Dimensions.radiusStandard
-                    color: Theme.withAlpha(statusColor, 0.12)
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: "\uD83C\uDFAE"
-                        font.pixelSize: 18
-                    }
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    text: title
-                    font.pixelSize: 15
-                    font.weight: Font.DemiBold
-                    color: "white"
-                }
-            }
-
-            // Description
-            Label {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                text: description
-                font.pixelSize: 13
-                color: Theme.textMuted
-                wrapMode: Text.WordWrap
-            }
-
-            // Status badge
-            Rectangle {
-                Layout.preferredHeight: 26
-                Layout.preferredWidth: statusLabel.width + 20
-                radius: Dimensions.radiusStandard
-                color: Theme.withAlpha(statusColor, 0.12)
-
-                Label {
-                    id: statusLabel
-                    anchors.centerIn: parent
-                    text: status
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    color: statusColor
                 }
             }
         }
@@ -1701,14 +1555,11 @@ Item {
         parent: Overlay.overlay
 
         onGameSelected: function(game) {
-            // User selected a game - navigate to detail screen
             if (game) {
                 root.gameSelected(game.id, game.name, game.installPath || "", game.engine || "Unknown")
             }
         }
 
-        onDialogClosed: {
-            // Dialog was closed
-        }
+        onDialogClosed: {}
     }
 }

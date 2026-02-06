@@ -3,20 +3,19 @@ import QtQuick
 import MakineAI 1.0
 
 /**
- * Theme.qml - Native Qt colors.h birebir port
- * Kaynak: ui/src/theme/colors.h
+ * Theme.qml - Application color definitions and theme system
  * Supports dark/light mode via SettingsManager.isDarkMode
  */
 QtObject {
     // =========================================================================
-    // TEMA MODU
+    // THEME MODE
     // =========================================================================
 
     /// Karanlık mod aktif mi (SettingsManager'dan okunur)
     property bool darkMode: SettingsManager.isDarkMode
 
     // =========================================================================
-    // ARKA PLAN RENKLERİ (colors.h)
+    // BACKGROUND COLORS
     // =========================================================================
 
     /// Ana arka plan - en koyu
@@ -32,19 +31,19 @@ QtObject {
     readonly property color bgGradientEnd: darkMode ? "#0F0F19" : "#F0F0F5"
 
     // =========================================================================
-    // YÜZEY RENKLERİ (Kartlar, Paneller) - Flutter AppColors birebir
+    // SURFACE COLORS (Cards, Panels)
     // =========================================================================
 
-    /// Normal yüzey - Flutter: darkSurface
+    /// Normal surface
     readonly property color surface: darkMode ? "#18181B" : lightSurface
 
-    /// Açık yüzey - Flutter: darkSurfaceLight
+    /// Light surface
     readonly property color surfaceLight: darkMode ? "#27272A" : lightSurfaceLight
 
-    /// Hover durumu
+    /// Hover state
     readonly property color surfaceHover: darkMode ? "#1F1F23" : "#E8E8EC"
 
-    /// Aktif/seçili durum - Flutter: darkSurfaceLight ile aynı
+    /// Active/selected state
     readonly property color surfaceActive: darkMode ? "#27272A" : "#E0E0E8"
 
     /// Yükseltilmiş yüzey (modal, dropdown)
@@ -117,7 +116,7 @@ QtObject {
     readonly property color textDisabled: darkMode ? "#52525B" : "#A1A1AA"
 
     // =========================================================================
-    // KENAR / AYIRICI RENKLERİ - Flutter AppTheme birebir
+    // BORDER / SEPARATOR COLORS
     // =========================================================================
 
     /// Normal kenar
@@ -129,7 +128,7 @@ QtObject {
     /// Odak kenarlığı
     readonly property color borderFocus: "#3B82F6"
 
-    /// Outlined button border - Flutter: OutlinedButton side color
+    /// Outlined button border
     readonly property color outlinedBorder: darkMode ? "#334155" : "#CBD5E1"
 
     // =========================================================================

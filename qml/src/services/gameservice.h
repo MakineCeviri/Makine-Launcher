@@ -1,6 +1,6 @@
 /**
  * @file gameservice.h
- * @brief Game Service - Oyun yönetimi backend servisi
+ * @brief Game management backend service
  * @copyright (c) 2026 MakineAI Team
  */
 

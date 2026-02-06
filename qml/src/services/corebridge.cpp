@@ -102,12 +102,12 @@ void CoreBridge::scanAllLibraries()
     emit scanStarted();
     m_detectedGames.clear();
 
-    // Add verified games from Flutter list for UI testing
+    // Add verified games for UI testing
     (void)QtConcurrent::run([this]() {
         emit scanProgress(0.1, "Onaylı oyunlar yükleniyor...");
         QThread::msleep(200);
 
-        // Verified games list from Flutter (30 games)
+        // Verified games list (30 games)
         struct VerifiedGame {
             QString steamAppId;
             QString name;
@@ -346,7 +346,7 @@ void CoreBridge::findBatchTMMatches(
 
 void CoreBridge::clearTM()
 {
-    qDebug() << "TM cleared (UI-only mode - no real data)";
+    // No-op in UI-only mode
 }
 
 QList<GlossaryTermQt> CoreBridge::getAllGlossaryTerms()
@@ -375,7 +375,7 @@ QList<GlossaryTermQt> CoreBridge::findTermsInText(const QString& text, const QSt
 
 void CoreBridge::clearGlossary()
 {
-    qDebug() << "Glossary cleared (UI-only mode - no real data)";
+    // No-op in UI-only mode
 }
 
 QAResultQt CoreBridge::performQACheck(
@@ -1051,9 +1051,7 @@ void CoreBridge::findBatchTMMatches(const QStringList& sourceTexts,
 
 void CoreBridge::clearTM()
 {
-    // Note: TranslationMemoryService doesn't have clear() method yet
-    // This is a placeholder for future implementation
-    qDebug() << "Translation Memory clear requested (not yet implemented)";
+    // TODO: Implement when TranslationMemoryService::clear() is available
 }
 
 // ========== Glossary Functions ==========
@@ -1139,9 +1137,7 @@ QList<GlossaryTermQt> CoreBridge::findTermsInText(const QString& text, const QSt
 
 void CoreBridge::clearGlossary()
 {
-    // Note: GlossaryService doesn't have clear() method yet
-    // This is a placeholder for future implementation
-    qDebug() << "Glossary clear requested (not yet implemented)";
+    // TODO: Implement when GlossaryService::clear() is available
 }
 
 // ========== QA Functions ==========

@@ -4,11 +4,10 @@ import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * GameDetailScreen.qml - Flutter game_detail_screen.dart birebir port
- * Kaynak: archive/v0.0.8-flutter/UI/lib/screens/game_detail_screen.dart
+ * GameDetailScreen.qml
  *
  * Features:
- * - Blurred background hero image (Flutter: BackdropFilter blur 30)
+ * - Blurred background hero image
  * - Cover image 280x130, borderRadius 16
  * - Steam details (description, metacritic, platforms)
  * - Recipe info with quality badges
@@ -68,7 +67,7 @@ Item {
         return "#FF9933"
     }
 
-    // Quality label helper - Flutter: _getQualityLabel
+    // Quality label helper
     function getQualityLabel(quality) {
         var lower = quality.toLowerCase()
         if (lower === "professional") return "Profesyonel"
@@ -105,7 +104,7 @@ Item {
     }
 
     // ===== FLOATING APP BAR BUTTONS =====
-    // Back button - Native Qt: 40x40, black 30%, borderRadius 8
+    // Back button
     Rectangle {
         id: backButton
         x: 16
@@ -186,7 +185,6 @@ Item {
 
         ColumnLayout {
             width: parent.width
-            // Native Qt: margins 32, top 80 for app bar
             spacing: 40
 
             Item { Layout.preferredHeight: 80 }
@@ -198,7 +196,7 @@ Item {
                 Layout.rightMargin: 32
                 spacing: 32
 
-                // Cover image - Native Qt: 280x130, borderRadius 16
+                // Cover image
                 Rectangle {
                     Layout.preferredWidth: 280
                     Layout.preferredHeight: 130
@@ -229,7 +227,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    // Verified badge - Native Qt: primary 15%, borderRadius 8
+                    // Verified badge
                     Rectangle {
                         visible: root.verified
                         Layout.preferredWidth: verifiedRow.width + 24
@@ -251,7 +249,6 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
-                            // Flutter: 'Onaylı Türkçe Çeviri'
                             Text {
                                 text: "Onaylı Türkçe Çeviri"
                                 font.pixelSize: 13
@@ -264,7 +261,7 @@ Item {
 
                     Item { Layout.preferredHeight: root.verified ? 16 : 0 }
 
-                    // Game name - Native Qt: fontSize 36, fontWeight w700, letterSpacing -0.5
+                    // Game name
                     Text {
                         Layout.fillWidth: true
                         text: root.gameName
@@ -281,7 +278,7 @@ Item {
                     RowLayout {
                         spacing: 12
 
-                        // Steam button - Native Qt: secondary style
+                        // Steam button
                         Rectangle {
                             Layout.preferredWidth: steamBtnContent.width + 48
                             Layout.preferredHeight: 48
@@ -304,7 +301,6 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
-                                // Flutter: "Steam'de Aç"
                                 Text {
                                     text: "Steam'de Aç"
                                     font.pixelSize: 14
@@ -327,7 +323,7 @@ Item {
                             }
                         }
 
-                        // Translate button - Native Qt: primary style
+                        // Translate button
                         Rectangle {
                             Layout.preferredWidth: translateBtnContent.width + 48
                             Layout.preferredHeight: 48
@@ -348,7 +344,6 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
-                                // Flutter: "Çeviriyi Başlat"
                                 Text {
                                     text: "Çeviriyi Başlat"
                                     font.pixelSize: 14
@@ -386,7 +381,7 @@ Item {
                     spacing: 12
                     visible: root.description !== ""
 
-                    // Section title - Flutter: "Hakkında"
+                    // Section title
                     Text {
                         text: "Hakkında"
                         font.pixelSize: 18
@@ -447,7 +442,6 @@ Item {
                                 anchors.margins: 20
                                 spacing: 0
 
-                                // Flutter: "Geliştirici", "Yayıncı", "Çıkış Tarihi", "Türler"
                                 InfoRow {
                                     label: "Geliştirici"
                                     value: root.developers.join(", ")
@@ -480,7 +474,6 @@ Item {
                         Layout.fillWidth: true
                         spacing: 12
 
-                        // Flutter: "Değerlendirme"
                         Text {
                             text: "Değerlendirme"
                             font.pixelSize: 18
@@ -536,7 +529,6 @@ Item {
                                             color: "white"
                                         }
 
-                                        // Flutter: "Çok Olumlu", "Karışık", "Olumsuz"
                                         Text {
                                             text: {
                                                 if (root.metacriticScore >= 75) return "Çok Olumlu"
@@ -601,7 +593,6 @@ Item {
                                         }
                                     }
 
-                                    // Flutter: 'Ücretsiz' if no price
                                     Text {
                                         text: root.price === "" ? "Ücretsiz" : root.price
                                         font.pixelSize: 16
@@ -622,7 +613,6 @@ Item {
                 Layout.rightMargin: 32
                 spacing: 12
 
-                // Flutter: "Çeviri Bilgileri"
                 Text {
                     text: "Çeviri Bilgileri"
                     font.pixelSize: 18
@@ -697,7 +687,6 @@ Item {
                             }
                         }
 
-                        // Flutter: Recipe info labels
                         InfoRow { label: "Reçete Sürümü"; value: "v" + root.recipeVersion }
                         InfoRow { label: "Metin Sayısı"; value: root.stringCount + " adet" }
                         InfoRow { label: "Kapsam"; value: root.coverage }
@@ -727,7 +716,6 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        // Flutter: "Bu oyun için henüz çeviri reçetesi bulunmuyor."
                         Text {
                             text: "Bu oyun için henüz çeviri reçetesi bulunmuyor."
                             font.pixelSize: 13
@@ -764,7 +752,6 @@ Item {
                             font.pixelSize: 18
                         }
 
-                        // Flutter: "Yedekleme Yönetimi"
                         Text {
                             text: "Yedekleme Yönetimi"
                             font.pixelSize: 16
@@ -773,7 +760,6 @@ Item {
                         }
                     }
 
-                    // Flutter description
                     Text {
                         Layout.fillWidth: true
                         text: "Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir."
@@ -806,7 +792,6 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
-                            // Flutter: Restore button label
                             Text {
                                 text: "Yedeği Geri Yükle"
                                 font.pixelSize: 13
@@ -835,7 +820,6 @@ Item {
                 spacing: 12
                 visible: root.screenshots.length > 0
 
-                // Flutter: "Ekran Görüntüleri"
                 Text {
                     text: "Ekran Görüntüleri"
                     font.pixelSize: 18

@@ -146,7 +146,7 @@ Result<std::vector<ParseResult>> AssetParser::parseDirectory(
     uint32_t total = static_cast<uint32_t>(files.size());
 
 #ifdef MAKINEAI_HAS_TASKFLOW
-    // TODO: [TASKFLOW] Parallel asset parsing for better performance
+    // TODO(makineai): [TASKFLOW] Parallel asset parsing for better performance
     // Parse multiple asset files concurrently using thread pool
     // Example:
     //   tf::Executor executor(std::thread::hardware_concurrency());

@@ -2,13 +2,7 @@ import QtQuick
 import MakineAI 1.0
 
 /**
- * CedraCard.qml - Native Qt CedraCard birebir port
- * Kaynak: ui/src/widgets/cedracard.cpp
- *
- * Features:
- * - Animated gradient glow
- * - Logo with border animation
- * - Gradient text "CEDRA Interactive"
+ * CedraCard.qml - CEDRA Interactive branding card with animated gradient
  */
 Item {
     id: root
@@ -22,15 +16,13 @@ Item {
     // Animation value (0-1) cycles every 3 seconds
     property real animValue: 0.0
 
-    // Flutter: smoothValue = (1 - ((animValue * 2 - 1).abs())).clamp(0, 1)
+    // Smooth sinusoidal transition (0→1→0)
     property real smoothValue: 1.0 - Math.abs(animValue * 2.0 - 1.0)
 
     property color color1: Theme.lerpColor(Theme.gold, Theme.brown, smoothValue)
     property color color2: Theme.lerpColor(Theme.brown, Theme.gold, smoothValue)
     property color color3: Theme.lerpColor(Theme.olive, Theme.pastelBlue, smoothValue)
 
-    // Animation - Native Qt: 3000ms loop
-    // GPU optimization: controlled by animationsEnabled
     NumberAnimation on animValue {
         from: 0.0
         to: 1.0
@@ -39,7 +31,6 @@ Item {
         running: root.animationsEnabled
     }
 
-    // Outer glow
     Rectangle {
         anchors.fill: cardRect
         anchors.margins: -(5 + smoothValue * 4)
@@ -47,7 +38,6 @@ Item {
         color: Theme.withAlpha(color1, 0.25 + smoothValue * 0.15)
     }
 
-    // Second glow
     Rectangle {
         anchors.fill: cardRect
         anchors.margins: -2
@@ -55,14 +45,12 @@ Item {
         color: Theme.withAlpha(color3, 0.1 + smoothValue * 0.08)
     }
 
-    // Main card
     Rectangle {
         id: cardRect
         anchors.fill: parent
         anchors.margins: 8
         radius: Dimensions.radiusXS
 
-        // Gradient background - Native Qt: BG1, BG2, BG3
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "#0D0D12" }
@@ -78,12 +66,10 @@ Item {
             anchors.margins: 24
             spacing: 20
 
-            // Logo container
             Item {
                 width: 56
                 height: 56
 
-                // Logo glow
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: -4
@@ -91,7 +77,6 @@ Item {
                     color: Theme.withAlpha(color1, 0.4 + smoothValue * 0.25)
                 }
 
-                // Logo background
                 Rectangle {
                     anchors.fill: parent
                     radius: Dimensions.radiusXS
@@ -99,7 +84,6 @@ Item {
                     border.color: Theme.withAlpha(color1, 0.6 + smoothValue * 0.3)
                     border.width: 2
 
-                    // Logo image placeholder
                     Text {
                         anchors.centerIn: parent
                         text: "C"
@@ -110,22 +94,19 @@ Item {
                 }
             }
 
-            // Text column
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
 
-                // Title with animated color (color1 gold<->brown animasyonu)
                 Text {
                     text: "CEDRA Interactive"
                     font.pixelSize: 22
                     font.weight: Font.Bold
-                    color: color1  // Animasyonlu renk
+                    color: color1
                 }
 
-                // Subtitle
                 Text {
-                    text: "Turk oyun gelistirme ve ceviri toplulugu."
+                    text: "Türk oyun geliştirme ve çeviri topluluğu."
                     font.pixelSize: 14
                     color: Theme.textSecondary
                 }
@@ -136,6 +117,6 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: Qt.openUrlExternally("https://cedra.dev")
+        onClicked: Qt.openUrlExternally(Dimensions.cedraDeveloperUrl)
     }
 }

@@ -2,20 +2,14 @@ import QtQuick
 import MakineAI 1.0
 
 /**
- * DiscordButton.qml - Native Qt DiscordButton birebir port
- * Kaynak: ui/src/widgets/discordbutton.cpp
- *
- * Features:
- * - Discord brand color #5865F2
- * - Pulsing glow animation
- * - Optional label text
+ * DiscordButton.qml - Discord invite button with pulsing glow animation
  */
 Rectangle {
     id: root
 
     property bool showLabel: false
     property color discordColor: "#5865F2"
-    property bool animationsEnabled: true  // GPU optimization
+    property bool animationsEnabled: true
 
     signal clicked()
 
@@ -26,22 +20,18 @@ Rectangle {
     implicitHeight: 36
     radius: Dimensions.radiusXS
 
-    // Flutter: glowOpacity = 0.15 + (pulseValue * 0.25)
     property real glowOpacity: 0.15 + (pulseValue * 0.25)
 
-    // Background color
     color: mouseArea.containsMouse ?
            Theme.withAlpha(discordColor, 0.15) :
            Theme.withAlpha(discordColor, glowOpacity * 0.5)
 
-    // Border
     border.color: Theme.withAlpha(discordColor, mouseArea.containsMouse ? 0.5 : glowOpacity)
     border.width: 1
 
     Behavior on color { ColorAnimation { duration: 150 } }
     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-    // Glow effect
     Rectangle {
         anchors.fill: parent
         anchors.margins: mouseArea.containsMouse ? -3 : -(2 + pulseValue)
@@ -52,8 +42,6 @@ Rectangle {
         z: -1
     }
 
-    // Pulse animation - Native Qt: duration 2000ms, reverse
-    // GPU optimization: controlled by animationsEnabled
     SequentialAnimation on pulseValue {
         loops: Animation.Infinite
         running: root.animationsEnabled
@@ -61,18 +49,15 @@ Rectangle {
         NumberAnimation { to: 0.0; duration: 1000; easing.type: Easing.InOutQuad }
     }
 
-    // Content
     Row {
         anchors.centerIn: parent
         spacing: 8
 
-        // Discord icon (simplified shape)
         Item {
             width: 18
             height: 18
             anchors.verticalCenter: parent.verticalCenter
 
-            // Simplified Discord logo shape
             Rectangle {
                 anchors.centerIn: parent
                 width: 14
@@ -81,7 +66,6 @@ Rectangle {
                 color: mouseArea.containsMouse ? discordColor : Theme.withAlpha(discordColor, 0.9)
             }
 
-            // Left ear
             Rectangle {
                 x: 2
                 y: 2
@@ -91,7 +75,6 @@ Rectangle {
                 color: mouseArea.containsMouse ? discordColor : Theme.withAlpha(discordColor, 0.9)
             }
 
-            // Right ear
             Rectangle {
                 x: 12
                 y: 2
@@ -102,7 +85,6 @@ Rectangle {
             }
         }
 
-        // Label text
         Text {
             visible: root.showLabel
             text: "Discord"

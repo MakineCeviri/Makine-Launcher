@@ -3,14 +3,7 @@ import QtQuick.Controls
 import MakineAI 1.0
 
 /**
- * AnimatedButton.qml - Native Qt AnimatedButton birebir port
- * Kaynak: ui/src/widgets/animatedbutton.cpp
- *
- * Features:
- * - Primary/Secondary/Ghost variants
- * - Hover scale animation
- * - Press animation
- * - Optional icon
+ * AnimatedButton.qml - Button with primary/secondary/ghost variants and hover animations
  */
 Rectangle {
     id: root
@@ -80,7 +73,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        // Text - Native Qt: fontSize 14, w600
+        // Text
         Text {
             text: root.text
             font.pixelSize: 14

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "features.hpp"
+#include "constants.hpp"
 #include "error.hpp"
 
 #include <array>
@@ -411,7 +412,7 @@ inline std::optional<Key> deriveKey(
     if (PKCS5_PBKDF2_HMAC(
             password.data(), static_cast<int>(password.size()),
             salt.data(), static_cast<int>(salt.size()),
-            100000,  // iterations
+            kPBKDF2Iterations,
             EVP_sha256(),
             static_cast<int>(key.size()),
             key.data()

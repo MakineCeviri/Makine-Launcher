@@ -13,8 +13,8 @@ import QtQuick
 QtObject {
     id: root
 
-    // Enable/disable debug mode
-    readonly property bool enabled: true
+    // Enable/disable debug mode - set to false for release builds
+    readonly property bool enabled: false
 
     // Log levels (camelCase for QML)
     readonly property int levelDebug: 0
