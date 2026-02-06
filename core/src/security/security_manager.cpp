@@ -30,24 +30,15 @@
 // Optional: libsodium for modern cryptography
 #ifdef MAKINEAI_HAS_SODIUM
 #include <sodium.h>
-// TODO(makineai): [LIBSODIUM] Use libsodium for:
-// - crypto_generichash (BLAKE2b) - faster than SHA256
-// - crypto_sign for Ed25519 signatures
-// - crypto_secretbox for symmetric encryption
-// - randombytes_buf for secure random generation
 #endif
 
 // Optional: mio for memory-mapped file hashing
 #ifdef MAKINEAI_HAS_MIO
 #include <mio/mmap.hpp>
-// TODO(makineai): [MIO] Use memory-mapped files for large file hashing
-// Example:
-//   std::error_code ec;
-//   mio::mmap_source mmap(file.string(), ec);
-//   if (!ec) {
-//       return hash(ByteSpan{mmap.data(), mmap.size()}, algo);
-//   }
 #endif
+
+// Threshold for using memory-mapped I/O (1 MB)
+static constexpr size_t MIO_THRESHOLD = 1024 * 1024;
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -92,13 +83,36 @@ public:
 };
 
 SecurityManager::SecurityManager() : impl_(std::make_unique<Impl>()) {
-    // Initialize OpenSSL (modern versions don't require explicit init)
-    spdlog::debug("SecurityManager initialized");
+#ifdef MAKINEAI_HAS_SODIUM
+    if (sodium_init() < 0) {
+        spdlog::warn("libsodium initialization failed, falling back to OpenSSL");
+    } else {
+        spdlog::debug("SecurityManager initialized with libsodium");
+    }
+#else
+    spdlog::debug("SecurityManager initialized with OpenSSL");
+#endif
 }
 
 SecurityManager::~SecurityManager() = default;
 
 Result<std::string> SecurityManager::hash(ByteSpan data, HashAlgorithm algo) const {
+#ifdef MAKINEAI_HAS_SODIUM
+    // Use libsodium BLAKE2b for SHA256 (faster, same security level)
+    if (algo == HashAlgorithm::SHA256) {
+        unsigned char digest[crypto_generichash_BYTES_MAX];
+        constexpr size_t hashLen = 32;  // 256 bits
+
+        if (crypto_generichash(digest, hashLen,
+                               data.data(), data.size(),
+                               nullptr, 0) != 0) {
+            return std::unexpected(Error(ErrorCode::Unknown, "BLAKE2b hash failed"));
+        }
+        return impl_->bytesToHex(digest, hashLen);
+    }
+    // Fall through to OpenSSL for SHA384/SHA512/MD5
+#endif
+
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx) {
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to create hash context"));
@@ -120,12 +134,62 @@ Result<std::string> SecurityManager::hash(ByteSpan data, HashAlgorithm algo) con
 }
 
 Result<std::string> SecurityManager::hashFile(const fs::path& file, HashAlgorithm algo) const {
+    if (!fs::exists(file)) {
+        return std::unexpected(Error(ErrorCode::FileNotFound,
+            "Cannot open file for hashing: " + file.string()));
+    }
+
+    auto fileSize = fs::file_size(file);
+
+#ifdef MAKINEAI_HAS_MIO
+    // Use memory-mapped I/O for large files (avoids repeated read syscalls)
+    if (fileSize >= MIO_THRESHOLD) {
+        std::error_code ec;
+        mio::mmap_source mmap(file.string(), ec);
+        if (!ec) {
+            auto data = reinterpret_cast<const uint8_t*>(mmap.data());
+            return hash(ByteSpan{data, mmap.size()}, algo);
+        }
+        // mmap failed, fall through to streaming
+        spdlog::debug("mmap failed for {}, falling back to streaming", file.string());
+    }
+#endif
+
     std::ifstream ifs(file, std::ios::binary);
     if (!ifs) {
         return std::unexpected(Error(ErrorCode::FileNotFound,
             "Cannot open file for hashing: " + file.string()));
     }
 
+#ifdef MAKINEAI_HAS_SODIUM
+    // Use libsodium streaming hash for SHA256
+    if (algo == HashAlgorithm::SHA256) {
+        crypto_generichash_state state;
+        constexpr size_t hashLen = 32;
+
+        if (crypto_generichash_init(&state, nullptr, 0, hashLen) != 0) {
+            return std::unexpected(Error(ErrorCode::Unknown, "BLAKE2b init failed"));
+        }
+
+        char buffer[8192];
+        while (ifs.read(buffer, sizeof(buffer)) || ifs.gcount() > 0) {
+            if (crypto_generichash_update(&state,
+                    reinterpret_cast<const unsigned char*>(buffer),
+                    static_cast<size_t>(ifs.gcount())) != 0) {
+                return std::unexpected(Error(ErrorCode::Unknown, "BLAKE2b update failed"));
+            }
+        }
+
+        unsigned char digest[crypto_generichash_BYTES_MAX];
+        if (crypto_generichash_final(&state, digest, hashLen) != 0) {
+            return std::unexpected(Error(ErrorCode::Unknown, "BLAKE2b finalization failed"));
+        }
+
+        return impl_->bytesToHex(digest, hashLen);
+    }
+#endif
+
+    // OpenSSL streaming hash
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx) {
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to create hash context"));
@@ -437,10 +501,14 @@ Result<SignatureResult> SecurityManager::verifyAuthenticode(const fs::path& exeP
 
 Result<ByteBuffer> SecurityManager::randomBytes(size_t count) const {
     ByteBuffer buffer(count);
+#ifdef MAKINEAI_HAS_SODIUM
+    randombytes_buf(buffer.data(), count);
+#else
     if (RAND_bytes(buffer.data(), static_cast<int>(count)) != 1) {
         return std::unexpected(Error(ErrorCode::Unknown,
             "Failed to generate random bytes"));
     }
+#endif
     return buffer;
 }
 

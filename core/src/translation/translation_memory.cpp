@@ -10,6 +10,7 @@
 #include "makineai/features.hpp"
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
+#include "makineai/parallel.hpp"
 
 #include <openssl/md5.h>
 #include <algorithm>
@@ -623,44 +624,24 @@ TranslationMemoryService::findBatchMatches(
     size_t matchCount = 0;
     size_t noMatchCount = 0;
 
-#ifdef MAKINEAI_HAS_TASKFLOW
-    // TODO(makineai): [TASKFLOW] Parallel batch matching for large translation files
-    // Process multiple source texts concurrently using thread pool
-    // Example:
-    //   tf::Executor executor(std::thread::hardware_concurrency());
-    //   tf::Taskflow taskflow;
-    //   std::mutex resultsMutex;
-    //   results.resize(sourceTexts.size());
-    //
-    //   for (size_t i = 0; i < sourceTexts.size(); ++i) {
-    //       taskflow.emplace([&, i]() {
-    //           auto match = findBestMatch(sourceTexts[i], ctx, targetLang, minScore);
-    //           results[i] = {sourceTexts[i], match ? *match : std::nullopt};
-    //       });
-    //   }
-    //   executor.run(taskflow).wait();
-    //   return results;
-    MAKINEAI_LOG_DEBUG(log::TM, "Taskflow available - parallel batch matching enabled");
-#endif
+    // Parallel batch matching (Taskflow when available, std::async fallback)
+    MAKINEAI_LOG_DEBUG(log::TM, "Batch matching using {}", parallel::backendInfo());
 
-#ifdef MAKINEAI_HAS_CONCURRENTQUEUE
-    // TODO(makineai): [CONCURRENTQUEUE] Producer-consumer pattern for streaming translations
-    // Use lock-free queue for real-time translation processing
-    MAKINEAI_LOG_DEBUG(log::TM, "concurrentqueue available for streaming translations");
-#endif
-
-    for (const auto& text : sourceTexts) {
-        auto match = findBestMatch(text, ctx, targetLang, minScore);
-        if (match) {
-            if (match->has_value()) {
-                results.emplace_back(text, *match);
-                ++matchCount;
-            } else {
-                results.emplace_back(text, std::nullopt);
-                ++noMatchCount;
+    results = parallel::map(sourceTexts,
+        [this, &ctx, &targetLang, minScore](const std::string& text)
+            -> std::pair<std::string, std::optional<TMMatch>> {
+            auto match = findBestMatch(text, ctx, targetLang, minScore);
+            if (match && match->has_value()) {
+                return {text, *match};
             }
+            return {text, std::nullopt};
+        }
+    );
+
+    for (const auto& [text, match] : results) {
+        if (match) {
+            ++matchCount;
         } else {
-            results.emplace_back(text, std::nullopt);
             ++noMatchCount;
         }
     }

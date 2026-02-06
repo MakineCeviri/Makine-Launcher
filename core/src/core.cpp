@@ -498,11 +498,69 @@ AsyncOperationPtr<PatchResult> Core::applyTranslationAsync(
     const std::string& packageId,
     ProgressCallback progress
 ) {
-    // TODO(makineai): Implement proper async translation application
-    // For now, return a not-implemented error
-    return executeAsync<PatchResult>([game, packageId]() -> Result<PatchResult> {
-        return std::unexpected(Error(ErrorCode::NotImplemented,
-            "Async translation application not yet implemented"));
+    return executeAsync<PatchResult>(
+        [this, game, packageId, progress](AsyncOperation<PatchResult>& op) -> Result<PatchResult> {
+        op.reportProgress(0.0f, "Fetching package information...", 0, 4);
+
+        if (!packageManager_) {
+            return std::unexpected(Error(ErrorCode::InvalidArgument,
+                "PackageManager not initialized"));
+        }
+        if (!patchEngine_) {
+            return std::unexpected(Error(ErrorCode::InvalidArgument,
+                "PatchEngine not initialized"));
+        }
+
+        // Step 1: Get package metadata
+        auto pkgResult = packageManager_->getPackage(packageId);
+        if (!pkgResult) {
+            return std::unexpected(pkgResult.error());
+        }
+        auto& package = *pkgResult;
+
+        if (op.cancellationRequested()) {
+            return std::unexpected(Error(ErrorCode::Cancelled, "Operation cancelled"));
+        }
+
+        // Step 2: Download package
+        op.reportProgress(0.25f, "Downloading translation package...", 1, 4);
+
+        auto downloadResult = packageManager_->download(package);
+        if (!downloadResult) {
+            return std::unexpected(downloadResult.error());
+        }
+
+        if (op.cancellationRequested()) {
+            return std::unexpected(Error(ErrorCode::Cancelled, "Operation cancelled"));
+        }
+
+        // Step 3: Verify package integrity
+        op.reportProgress(0.50f, "Verifying package integrity...", 2, 4);
+
+        auto verifyResult = packageManager_->verifyPackage(*downloadResult, package);
+        if (!verifyResult) {
+            return std::unexpected(verifyResult.error());
+        }
+
+        if (op.cancellationRequested()) {
+            return std::unexpected(Error(ErrorCode::Cancelled, "Operation cancelled"));
+        }
+
+        // Step 4: Install translation
+        op.reportProgress(0.75f, "Installing translation...", 3, 4);
+
+        auto installResult = packageManager_->install(package, game, progress);
+        if (!installResult) {
+            return std::unexpected(installResult.error());
+        }
+
+        op.reportProgress(1.0f, "Translation applied successfully", 4, 4);
+
+        Metrics::instance().increment("translations_applied");
+        MAKINEAI_LOG_INFO(log::CORE, "Translation applied: {} -> {} ({} files patched)",
+            packageId, game.name, installResult->filesPatched);
+
+        return *installResult;
     });
 }
 

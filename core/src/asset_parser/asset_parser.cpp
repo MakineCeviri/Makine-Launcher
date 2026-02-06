@@ -13,10 +13,7 @@
 
 #include <algorithm>
 
-// Optional: Taskflow for parallel asset parsing
-#ifdef MAKINEAI_HAS_TASKFLOW
-#include <taskflow/taskflow.hpp>
-#endif
+#include "makineai/parallel.hpp"
 
 // Optional: mio for memory-mapped file reading
 #ifdef MAKINEAI_HAS_MIO
@@ -141,49 +138,25 @@ Result<std::vector<ParseResult>> AssetParser::parseDirectory(
         }
     }
 
-    // Parse collected files
-    uint32_t current = 0;
+    // Parse collected files in parallel (Taskflow when available, std::async fallback)
     uint32_t total = static_cast<uint32_t>(files.size());
+    MAKINEAI_LOG_INFO(log::PARSER, "Parsing {} files using {}", total, parallel::backendInfo());
 
-#ifdef MAKINEAI_HAS_TASKFLOW
-    // TODO(makineai): [TASKFLOW] Parallel asset parsing for better performance
-    // Parse multiple asset files concurrently using thread pool
-    // Example:
-    //   tf::Executor executor(std::thread::hardware_concurrency());
-    //   tf::Taskflow taskflow;
-    //   std::mutex resultsMutex;
-    //   std::atomic<uint32_t> completed{0};
-    //
-    //   for (const auto& file : files) {
-    //       taskflow.emplace([&, file]() {
-    //           auto result = parseFile(file);
-    //           if (result) {
-    //               std::lock_guard<std::mutex> lock(resultsMutex);
-    //               results.push_back(std::move(*result));
-    //           }
-    //           if (progress) {
-    //               progress(++completed, total, "Parsing...");
-    //           }
-    //       });
-    //   }
-    //   executor.run(taskflow).wait();
-    MAKINEAI_LOG_DEBUG(log::PARSER, "Taskflow available - parallel parsing enabled");
-#endif
+    auto parseResults = parallel::map(files,
+        [this](const fs::path& file) -> Result<ParseResult> {
+            return parseFile(file);
+        },
+        progress ? parallel::ProgressTracker::Callback(
+            [&progress, total](uint32_t current, uint32_t /*t*/, const std::string&) {
+                progress(current, total, "Parsing assets...");
+            }
+        ) : parallel::ProgressTracker::Callback(nullptr)
+    );
 
-    for (const auto& file : files) {
-        if (progress) {
-            progress(current, total, "Parsing: " + file.filename().string());
-        }
-
-        auto result = parseFile(file);
+    for (auto& result : parseResults) {
         if (result) {
             results.push_back(std::move(*result));
-        } else {
-            MAKINEAI_LOG_WARN(log::PARSER, "Failed to parse {}: {}", file.string(),
-                result.error().message());
         }
-
-        ++current;
     }
 
     if (progress) {
