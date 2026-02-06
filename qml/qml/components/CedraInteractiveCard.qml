@@ -21,7 +21,7 @@ Rectangle {
     property bool animationsEnabled: true  // GPU optimization
 
     implicitHeight: 104  // padding 24 * 2 + content 56
-    radius: 4
+    radius: Dimensions.radiusStandard
 
     // Animation phase (0 to 1, cycles over 3000ms)
     property real animPhase: 0.0
@@ -133,7 +133,7 @@ Rectangle {
             id: logoContainer
             Layout.preferredWidth: 56
             Layout.preferredHeight: 56
-            radius: 4
+            radius: Dimensions.radiusStandard
             color: "#1A1A2E"
 
             // Animated border - Flutter: color1 alpha 0.6 + smoothValue * 0.3, width 2

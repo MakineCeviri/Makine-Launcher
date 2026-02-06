@@ -208,7 +208,7 @@ Window {
     Rectangle {
         id: mainContent
         anchors.fill: parent
-        radius: 16  // Native Qt: rounded rect clip
+        radius: Dimensions.radiusStandard  // Native Qt: rounded rect clip
         color: "#0A0A0F"
         opacity: 1.0 - fadeOut
         clip: true
@@ -347,7 +347,7 @@ Window {
                 anchors.topMargin: 12
                 width: badgeRow.width + 24
                 height: 24
-                radius: 12
+                radius: Dimensions.radiusStandard
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
@@ -398,7 +398,7 @@ Window {
                 anchors.top: parent.top
                 width: 200
                 height: 4
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: Qt.rgba(1, 1, 1, 0.08)
             }
 
@@ -409,7 +409,7 @@ Window {
                 anchors.topMargin: -3
                 width: 200 * progress
                 height: 10
-                radius: 5
+                radius: Dimensions.radiusStandard
                 color: Qt.rgba(1, 0.41, 0.71, 0.4)
                 visible: progress > 0.1
             }
@@ -420,7 +420,7 @@ Window {
                 anchors.top: progressTrack.top
                 width: 200 * progress
                 height: 4
-                radius: 4
+                radius: Dimensions.radiusStandard
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
@@ -459,7 +459,7 @@ Window {
                 anchors.top: parent.top
                 width: versionText.width + 20
                 height: 18
-                radius: 6
+                radius: Dimensions.radiusStandard
                 color: Qt.rgba(1, 1, 1, 0.04)
 
                 Text {

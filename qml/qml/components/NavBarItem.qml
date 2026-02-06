@@ -85,6 +85,20 @@ Item {
             width: contentRow.width + 24
             height: contentRow.height + 16
 
+            // Background highlight for active/hover state
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 2
+                radius: 6
+                color: root.isSelected
+                    ? Theme.withAlpha(Theme.primary, 0.12)
+                    : (root.isHovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
+
+                Behavior on color {
+                    ColorAnimation { duration: 150 }
+                }
+            }
+
             Row {
                 id: contentRow
                 anchors.centerIn: parent
@@ -120,30 +134,49 @@ Item {
             }
         }
 
-        // Underline - Flutter: AnimatedContainer
+        // Underline - Flutter: AnimatedContainer (enhanced)
         Rectangle {
             id: underline
             anchors.horizontalCenter: parent.horizontalCenter
 
-            // Flutter: selected ? 24 : (hovered ? 16 : 0)
-            width: root.isSelected ? 24 : (root.isHovered ? 16 : 0)
-            height: 2  // Flutter: height 2
+            // Enhanced: wider underline when selected
+            width: root.isSelected ? 32 : (root.isHovered ? 20 : 0)
+            height: root.isSelected ? 3 : 2  // Thicker when selected
 
-            // Flutter: selected ? primary : white 40%
+            // Enhanced: glow effect for selected state
             color: root.isSelected
                 ? Theme.primary
                 : (root.isDark
                     ? Qt.rgba(1, 1, 1, 0.4)
                     : Qt.rgba(0, 0, 0, 0.3))
 
-            radius: 1  // Flutter: borderRadius 1
+            radius: height / 2
 
             Behavior on width {
-                NumberAnimation { duration: 150 }  // Flutter: 150ms
+                NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+            }
+
+            Behavior on height {
+                NumberAnimation { duration: 150 }
             }
 
             Behavior on color {
                 ColorAnimation { duration: 150 }
+            }
+
+            // Subtle glow behind underline when selected
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width + 8
+                height: parent.height + 4
+                radius: height / 2
+                color: Theme.primary
+                opacity: root.isSelected ? 0.3 : 0
+                z: -1
+
+                Behavior on opacity {
+                    NumberAnimation { duration: 200 }
+                }
             }
         }
     }

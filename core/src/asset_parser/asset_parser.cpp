@@ -8,6 +8,8 @@
 #include "makineai/parsers_factory.hpp"
 #include "makineai/core.hpp"
 #include "makineai/features.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <algorithm>
 
@@ -33,7 +35,7 @@
 #include <archive_entry.h>
 #endif
 
-namespace makineai {
+namespace makineai::parsers {
 
 AssetParser::AssetParser() {
     registerBuiltinParsers();
@@ -43,7 +45,7 @@ AssetParser::~AssetParser() = default;
 
 void AssetParser::registerParser(std::unique_ptr<IAssetFormatParser> parser) {
     if (parser) {
-        logger()->debug("Registering parser: {}", parser->name());
+        MAKINEAI_LOG_DEBUG(log::PARSER, "Registering parser: {}", parser->name());
         parsers_.push_back(std::move(parser));
     }
 }
@@ -55,7 +57,7 @@ void AssetParser::registerBuiltinParsers() {
     registerParser(createBethesdaBa2Parser());
     registerParser(createGameMakerDataParser());
 
-    logger()->info("Registered {} built-in parsers", parsers_.size());
+    MAKINEAI_LOG_INFO(log::PARSER, "Registered {} built-in parsers", parsers_.size());
 }
 
 IAssetFormatParser* AssetParser::getParserForFile(const fs::path& file) const {
@@ -69,18 +71,37 @@ IAssetFormatParser* AssetParser::getParserForFile(const fs::path& file) const {
 
 Result<ParseResult> AssetParser::parseFile(const fs::path& file) const {
     if (!fs::exists(file)) {
+        MAKINEAI_LOG_ERROR(log::PARSER, "File not found: {}", file.string());
         return std::unexpected(Error(ErrorCode::FileNotFound,
             "File not found: " + file.string()));
     }
 
+    // Record file size for histogram
+    auto fileSize = fs::file_size(file);
+    Metrics::instance().recordHistogram("asset_file_sizes", static_cast<int64_t>(fileSize));
+
     auto* parser = getParserForFile(file);
     if (!parser) {
+        MAKINEAI_LOG_WARN(log::PARSER, "No parser available for: {}", file.string());
+        Metrics::instance().increment("parse_failures_unknown");
         return std::unexpected(Error(ErrorCode::GameNotSupported,
             "No parser available for: " + file.string()));
     }
 
-    logger()->debug("Parsing {} with {}", file.string(), parser->name());
-    return parser->parse(file);
+    MAKINEAI_LOG_DEBUG(log::PARSER, "Detected format: {} for {}", parser->name(), file.filename().string());
+    MAKINEAI_LOG_INFO(log::PARSER, "Parsing {} with {}", file.filename().string(), parser->name());
+
+    auto result = parser->parse(file);
+
+    if (result) {
+        MAKINEAI_LOG_INFO(log::PARSER, "Parsing complete: {} - {} strings extracted",
+            file.filename().string(), result->strings.size());
+    } else {
+        MAKINEAI_LOG_ERROR(log::PARSER, "Parsing failed: {} - {}",
+            file.filename().string(), result.error().message());
+    }
+
+    return result;
 }
 
 Result<std::vector<ParseResult>> AssetParser::parseDirectory(
@@ -146,7 +167,7 @@ Result<std::vector<ParseResult>> AssetParser::parseDirectory(
     //       });
     //   }
     //   executor.run(taskflow).wait();
-    logger()->debug("Taskflow available - parallel parsing enabled");
+    MAKINEAI_LOG_DEBUG(log::PARSER, "Taskflow available - parallel parsing enabled");
 #endif
 
     for (const auto& file : files) {
@@ -158,7 +179,7 @@ Result<std::vector<ParseResult>> AssetParser::parseDirectory(
         if (result) {
             results.push_back(std::move(*result));
         } else {
-            logger()->warn("Failed to parse {}: {}", file.string(),
+            MAKINEAI_LOG_WARN(log::PARSER, "Failed to parse {}: {}", file.string(),
                 result.error().message());
         }
 
@@ -178,12 +199,13 @@ VoidResult AssetParser::writeFile(
 ) const {
     auto* parser = getParserForFile(file);
     if (!parser) {
+        MAKINEAI_LOG_ERROR(log::PARSER, "No parser available for writing: {}", file.string());
         return std::unexpected(Error(ErrorCode::GameNotSupported,
             "No parser available for: " + file.string()));
     }
 
-    logger()->debug("Writing {} strings to {} with {}",
-        strings.size(), file.string(), parser->name());
+    MAKINEAI_LOG_INFO(log::PARSER, "Writing {} strings to {} with {}",
+        strings.size(), file.filename().string(), parser->name());
     return parser->write(file, strings);
 }
 
@@ -251,4 +273,4 @@ GameEngine AssetParser::detectEngine(const fs::path& gameDir) const {
     return GameEngine::Unknown;
 }
 
-} // namespace makineai
+} // namespace makineai::parsers

@@ -6,6 +6,8 @@
 
 #include "makineai/game_detector.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <fstream>
 #include <regex>
@@ -14,7 +16,7 @@
 #include <Windows.h>
 #endif
 
-namespace makineai {
+namespace makineai::scanners {
 
 bool SteamScanner::isAvailable() const {
 #ifdef _WIN32
@@ -23,47 +25,72 @@ bool SteamScanner::isAvailable() const {
     if (RegOpenKeyExW(HKEY_CURRENT_USER,
         L"Software\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         RegCloseKey(hKey);
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found via HKCU registry");
         return true;
     }
     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
         L"Software\\WOW6432Node\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         RegCloseKey(hKey);
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found via HKLM registry");
         return true;
     }
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Not found in registry");
 #endif
     return false;
 }
 
 Result<std::vector<GameInfo>> SteamScanner::scan() const {
+    MAKINEAI_TIMED_SCOPE(log::SCANNER, "SteamScanner::scan");
+    MAKINEAI_LOG_INFO(log::SCANNER, "Starting Steam game scan");
+
+    auto scanTimer = metrics().timer("steam_scan");
     std::vector<GameInfo> games;
 
     auto libraryResult = findLibraryFolders();
     if (!libraryResult) {
+        MAKINEAI_LOG_WARN(log::SCANNER, "Steam: Failed to find library folders: {}",
+                         libraryResult.error().message());
         return std::unexpected(libraryResult.error());
     }
+
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found {} library folders", libraryResult->size());
 
     for (const auto& libraryPath : *libraryResult) {
         fs::path steamapps = fs::path(libraryPath) / "steamapps";
         if (!fs::exists(steamapps)) {
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Steamapps not found at {}", libraryPath);
             continue;
         }
 
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Scanning library at {}", libraryPath);
+
         // Scan for .acf manifest files
-        for (const auto& entry : fs::directory_iterator(steamapps)) {
-            if (!entry.is_regular_file()) continue;
+        try {
+            for (const auto& entry : fs::directory_iterator(steamapps)) {
+                if (!entry.is_regular_file()) continue;
 
-            auto filename = entry.path().filename().string();
-            if (!filename.starts_with("appmanifest_") ||
-                !filename.ends_with(".acf")) {
-                continue;
-            }
+                auto filename = entry.path().filename().string();
+                if (!filename.starts_with("appmanifest_") ||
+                    !filename.ends_with(".acf")) {
+                    continue;
+                }
 
-            auto gameResult = parseAppManifest(entry.path());
-            if (gameResult) {
-                games.push_back(std::move(*gameResult));
+                auto gameResult = parseAppManifest(entry.path());
+                if (gameResult) {
+                    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found game '{}' (AppID: {})",
+                                      gameResult->name, gameResult->id.storeId);
+                    games.push_back(std::move(*gameResult));
+                    metrics().increment("steam_games_found");
+                }
             }
+        } catch (const std::exception& e) {
+            MAKINEAI_LOG_WARN(log::SCANNER, "Steam: Access error scanning {}: {}",
+                             steamapps.string(), e.what());
         }
     }
+
+    MAKINEAI_LOG_INFO(log::SCANNER, "Steam scan complete: {} games found", games.size());
+    metrics().gauge("steam_total_games", static_cast<double>(games.size()));
 
     return games;
 }
@@ -88,6 +115,7 @@ Result<GameInfo> SteamScanner::getGame(const std::string& appId) const {
 }
 
 Result<StringList> SteamScanner::findLibraryFolders() const {
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Searching for library folders");
     StringList folders;
 
 #ifdef _WIN32
@@ -107,6 +135,7 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
             WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
                 narrowPath, MAX_PATH, nullptr, nullptr);
             folders.push_back(narrowPath);
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found install path via registry: {}", narrowPath);
         }
         RegCloseKey(hKey);
     }
@@ -120,9 +149,11 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
             "D:\\SteamLibrary"
         };
 
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Registry path not found, trying default paths");
         for (const auto& path : defaultPaths) {
             if (fs::exists(path)) {
                 folders.push_back(path);
+                MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found at default path: {}", path);
                 break;
             }
         }
@@ -130,6 +161,7 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
 #endif
 
     if (folders.empty()) {
+        MAKINEAI_LOG_WARN(log::SCANNER, "Steam: Installation not found");
         return std::unexpected(Error(ErrorCode::GameNotFound,
             "Steam installation not found"));
     }
@@ -137,6 +169,7 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
     // Parse libraryfolders.vdf for additional library locations
     fs::path vdfPath = fs::path(folders[0]) / "steamapps" / "libraryfolders.vdf";
     if (fs::exists(vdfPath)) {
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Parsing libraryfolders.vdf");
         std::ifstream vdf(vdfPath);
         std::string line;
 
@@ -162,12 +195,16 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
                 if (std::find(folders.begin(), folders.end(), unescaped) == folders.end()) {
                     if (fs::exists(unescaped)) {
                         folders.push_back(unescaped);
+                        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found additional library: {}", unescaped);
                     }
                 }
             }
         }
+    } else {
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: libraryfolders.vdf not found at {}", vdfPath.string());
     }
 
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found {} library folders total", folders.size());
     return folders;
 }
 
@@ -219,6 +256,7 @@ static bool isRedistributable(const std::string& appId, const std::string& name)
 Result<GameInfo> SteamScanner::parseAppManifest(const fs::path& acfFile) const {
     std::ifstream file(acfFile);
     if (!file) {
+        MAKINEAI_LOG_WARN(log::SCANNER, "Steam: Cannot open manifest: {}", acfFile.string());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Cannot open manifest: " + acfFile.string()));
     }
@@ -298,4 +336,4 @@ Result<GameInfo> SteamScanner::parseAppManifest(const fs::path& acfFile) const {
     return game;
 }
 
-} // namespace makineai
+} // namespace makineai::scanners

@@ -48,7 +48,7 @@ Dialog {
 
     background: Rectangle {
         color: Theme.surface
-        radius: 8
+        radius: Dimensions.radiusStandard
         border.color: Qt.rgba(1, 1, 1, 0.1)
         border.width: 1
     }
@@ -71,7 +71,7 @@ Dialog {
                 Rectangle {
                     Layout.preferredWidth: 48
                     Layout.preferredHeight: 48
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0.0; color: Qt.rgba(Theme.gold.r, Theme.gold.g, Theme.gold.b, 0.2) }
@@ -108,7 +108,7 @@ Dialog {
                 Rectangle {
                     Layout.preferredWidth: 36
                     Layout.preferredHeight: 36
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
 
                     Text {
@@ -137,7 +137,7 @@ Dialog {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 44
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     color: Qt.rgba(1, 1, 1, 0.05)
                     border.color: searchInput.activeFocus ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
@@ -246,7 +246,7 @@ Dialog {
             background: Rectangle { color: "transparent" }
             contentItem: Rectangle {
                 implicitWidth: 8
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
             }
         }
@@ -331,7 +331,7 @@ Dialog {
                         anchors.rightMargin: 8
                         width: 22
                         height: 22
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: Theme.withAlpha(Theme.primary, 0.9)
 
                         Text {
@@ -434,7 +434,7 @@ Dialog {
 
         width: catBtnLabel.width + 24
         height: 36
-        radius: 4
+        radius: Dimensions.radiusStandard
         color: isSelected ? Theme.withAlpha(Theme.primary, 0.15) : (catBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
         border.color: isSelected ? Theme.primary : (catBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
         border.width: 1

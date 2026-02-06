@@ -1,6 +1,48 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot
+
 version: 2
+
 updates:
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Istanbul"
+    commit-message:
+      prefix: "ci(deps)"
+    labels:
+      - "dependencies"
+      - "ci"
+    reviewers:
+      - "jlceaser"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # npm (for commitlint and other JS tooling)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 3
+
+  # pip (for pre-commit hooks)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "build(deps)"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 3

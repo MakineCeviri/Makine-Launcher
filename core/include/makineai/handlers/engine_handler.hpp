@@ -10,8 +10,9 @@
 
 #pragma once
 
-#include "../types.hpp"
-#include "../error.hpp"
+#include "makineai/types.hpp"
+#include "makineai/error.hpp"
+#include "makineai/logging.hpp"
 
 #include <chrono>
 #include <functional>
@@ -86,6 +87,8 @@ struct ExtractionOptions {
     std::vector<std::string> excludeFiles;  // File filters (exclude)
     bool extractIl2CppStrings = true;       // Extract from IL2CPP metadata
     bool skipCodeStrings = true;            // Skip code-like strings
+    bool useStringClassifier = true;        // Apply StringClassifier to filter results
+    float minClassifierConfidence = 0.5f;   // Minimum confidence for translatable
 };
 
 /**
@@ -319,6 +322,296 @@ public:
 };
 
 // ============================================================================
+// HANDLER BASE CLASS
+// ============================================================================
+
+/**
+ * @brief Progress reporter for handler operations
+ *
+ * Provides a convenient way to report progress during long operations.
+ */
+class HandlerProgressReporter {
+public:
+    using Callback = std::function<void(uint32_t current, uint32_t total, std::string_view message)>;
+
+    explicit HandlerProgressReporter(uint32_t totalSteps, Callback callback = nullptr)
+        : total_(totalSteps), callback_(std::move(callback)) {}
+
+    void advance(std::string_view message = "") {
+        ++current_;
+        if (callback_) {
+            callback_(current_, total_, message);
+        }
+    }
+
+    void setStep(uint32_t step, std::string_view message = "") {
+        current_ = step;
+        if (callback_) {
+            callback_(current_, total_, message);
+        }
+    }
+
+    [[nodiscard]] uint32_t current() const noexcept { return current_; }
+    [[nodiscard]] uint32_t total() const noexcept { return total_; }
+    [[nodiscard]] double percent() const noexcept {
+        return total_ > 0 ? (static_cast<double>(current_) / total_) * 100.0 : 0.0;
+    }
+
+private:
+    uint32_t current_ = 0;
+    uint32_t total_;
+    Callback callback_;
+};
+
+/**
+ * @brief Abstract base class for engine handlers
+ *
+ * Provides default implementations and common utilities for all handlers.
+ * Concrete handlers should inherit from this instead of IEngineHandler directly.
+ *
+ * Features:
+ * - Default backup/restore implementation using file copy
+ * - Logging macros (via handlerLog methods)
+ * - File validation utilities
+ * - Progress reporting support
+ *
+ * @code
+ * class MyHandler : public EngineHandlerBase {
+ * public:
+ *     MyHandler() : EngineHandlerBase("MyEngine") {}
+ *     // Implement pure virtual methods...
+ * };
+ * @endcode
+ */
+class EngineHandlerBase : public IEngineHandler {
+public:
+    /**
+     * @brief Constructor
+     * @param name Handler/engine name for logging
+     */
+    explicit EngineHandlerBase(std::string name) : handlerName_(std::move(name)) {}
+
+    // --------------------------------------------------------------------------
+    // IEngineHandler interface with default implementations
+    // --------------------------------------------------------------------------
+
+    [[nodiscard]] std::string engineName() const override { return handlerName_; }
+
+    /**
+     * @brief Default backup implementation using file copy
+     *
+     * Creates a backup of specified files (or all translatable files) in
+     * the backup directory.
+     */
+    [[nodiscard]] Result<HandlerBackupResult> createBackup(
+        const fs::path& gameDir,
+        const std::string& backupId,
+        const std::vector<std::string>& specificFiles = {}
+    ) override;
+
+    /**
+     * @brief Default restore implementation
+     *
+     * Restores files from a previously created backup.
+     */
+    [[nodiscard]] Result<HandlerRestoreResult> restoreBackup(
+        const fs::path& gameDir,
+        const std::string& backupId
+    ) override;
+
+    /**
+     * @brief Default validation implementation
+     *
+     * Validates translations by checking:
+     * - Entry key exists in game files
+     * - Placeholder count matches
+     * - String length within limits
+     */
+    [[nodiscard]] Result<ValidationResult> validatePatch(
+        const fs::path& gameDir,
+        const std::vector<TranslationEntry>& translations
+    ) override;
+
+protected:
+    // --------------------------------------------------------------------------
+    // Logging utilities
+    // --------------------------------------------------------------------------
+
+    /// @brief Log debug message
+    void logDebug(std::string_view message) const;
+
+    /// @brief Log info message
+    void logInfo(std::string_view message) const;
+
+    /// @brief Log warning message
+    void logWarning(std::string_view message) const;
+
+    /// @brief Log error message
+    void logError(std::string_view message) const;
+
+    /// @brief Log with format string (debug level)
+    template<typename... Args>
+    void logDebugFmt(std::string_view fmt, Args&&... args) const;
+
+    /// @brief Log with format string (info level)
+    template<typename... Args>
+    void logInfoFmt(std::string_view fmt, Args&&... args) const;
+
+    // --------------------------------------------------------------------------
+    // File validation utilities
+    // --------------------------------------------------------------------------
+
+    /**
+     * @brief Validate file exists and is readable
+     * @param path File path to validate
+     * @return Error if validation fails
+     */
+    [[nodiscard]] std::optional<Error> validateFileReadable(const fs::path& path) const;
+
+    /**
+     * @brief Validate file is writable
+     * @param path File path to validate
+     * @return Error if validation fails
+     */
+    [[nodiscard]] std::optional<Error> validateFileWritable(const fs::path& path) const;
+
+    /**
+     * @brief Validate path is within game directory (security check)
+     * @param path Path to validate
+     * @param gameDir Game directory
+     * @return Error if path escapes game directory
+     */
+    [[nodiscard]] std::optional<Error> validatePathSafe(
+        const fs::path& path,
+        const fs::path& gameDir
+    ) const;
+
+    /**
+     * @brief Check if file is locked by another process
+     * @param path File path to check
+     * @return true if file appears to be locked
+     */
+    [[nodiscard]] bool isFileLocked(const fs::path& path) const;
+
+    // --------------------------------------------------------------------------
+    // Atomic file operations
+    // --------------------------------------------------------------------------
+
+    /**
+     * @brief Write file atomically (write to temp, then rename)
+     * @param path Destination path
+     * @param content Content to write
+     * @return Error if write fails
+     */
+    [[nodiscard]] std::optional<Error> writeFileAtomic(
+        const fs::path& path,
+        const ByteBuffer& content
+    ) const;
+
+    /**
+     * @brief Write file atomically (string version)
+     */
+    [[nodiscard]] std::optional<Error> writeFileAtomic(
+        const fs::path& path,
+        std::string_view content
+    ) const;
+
+    // --------------------------------------------------------------------------
+    // Progress reporting
+    // --------------------------------------------------------------------------
+
+    /**
+     * @brief Create progress reporter for an operation
+     * @param totalSteps Total number of steps
+     * @param callback Optional progress callback
+     * @return Progress reporter instance
+     */
+    [[nodiscard]] HandlerProgressReporter createProgressReporter(
+        uint32_t totalSteps,
+        HandlerProgressReporter::Callback callback = nullptr
+    ) const {
+        return HandlerProgressReporter(totalSteps, std::move(callback));
+    }
+
+    // --------------------------------------------------------------------------
+    // String utilities for handlers
+    // --------------------------------------------------------------------------
+
+    /**
+     * @brief Extract placeholders from text
+     * @param text Text to analyze
+     * @return List of placeholder infos
+     */
+    [[nodiscard]] std::vector<PlaceholderInfo> extractPlaceholders(
+        const std::string& text
+    ) const;
+
+    /**
+     * @brief Validate placeholder consistency between source and target
+     * @param source Source text
+     * @param target Target text
+     * @return List of validation issues
+     */
+    [[nodiscard]] std::vector<ValidationIssue> validatePlaceholders(
+        const std::string& source,
+        const std::string& target
+    ) const;
+
+    // --------------------------------------------------------------------------
+    // Backup management
+    // --------------------------------------------------------------------------
+
+    /**
+     * @brief Get backup directory path for a game
+     * @param gameDir Game directory
+     * @param backupId Backup identifier
+     * @return Backup directory path
+     */
+    [[nodiscard]] fs::path getBackupPath(
+        const fs::path& gameDir,
+        const std::string& backupId
+    ) const;
+
+    /**
+     * @brief List existing backups for a game
+     * @param gameDir Game directory
+     * @return List of backup IDs
+     */
+    [[nodiscard]] std::vector<std::string> listBackups(const fs::path& gameDir) const;
+
+private:
+    std::string handlerName_;
+
+    // Internal backup helpers
+    Result<void> copyFileToBackup(
+        const fs::path& source,
+        const fs::path& backupDir,
+        const fs::path& gameDir
+    );
+
+    Result<void> restoreFileFromBackup(
+        const fs::path& backupFile,
+        const fs::path& gameDir
+    );
+};
+
+// ============================================================================
+// HANDLER LOGGING MACROS
+// ============================================================================
+
+/// @brief Log debug message from handler
+#define HANDLER_LOG_DEBUG(msg) logDebug(msg)
+
+/// @brief Log info message from handler
+#define HANDLER_LOG_INFO(msg) logInfo(msg)
+
+/// @brief Log warning message from handler
+#define HANDLER_LOG_WARNING(msg) logWarning(msg)
+
+/// @brief Log error message from handler
+#define HANDLER_LOG_ERROR(msg) logError(msg)
+
+// ============================================================================
 // HANDLER UTILITIES
 // ============================================================================
 
@@ -374,6 +667,30 @@ public:
      * @brief Escape CSV field
      */
     static std::string escapeCsvField(const std::string& field);
+
+    /**
+     * @brief Apply StringClassifier to filter extraction results
+     *
+     * Filters out non-translatable strings (code, paths, identifiers, etc.)
+     *
+     * @param entries Extracted entries
+     * @param minConfidence Minimum classifier confidence (0.0 - 1.0)
+     * @return Filtered entries containing only translatable strings
+     */
+    static std::vector<TranslationEntry> filterWithClassifier(
+        const std::vector<TranslationEntry>& entries,
+        float minConfidence = 0.5f
+    );
+
+    /**
+     * @brief Get classification statistics for extraction results
+     *
+     * @param entries Extracted entries
+     * @return Statistics showing category distribution
+     */
+    static std::string getClassificationStats(
+        const std::vector<TranslationEntry>& entries
+    );
 };
 
 // ============================================================================

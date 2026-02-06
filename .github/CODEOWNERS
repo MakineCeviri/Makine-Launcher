@@ -1,0 +1,22 @@
+# MakineAI Code Owners
+# Tüm değişiklikler için onay gerekli
+
+# Default owner for everything
+* @jlceaser
+
+# Core library - kritik
+/core/ @jlceaser
+
+# QML UI
+/qml/ @jlceaser
+
+# Build configuration
+CMakePresets.json @jlceaser
+vcpkg.json @jlceaser
+
+# GitHub workflows and configs
+/.github/ @jlceaser
+
+# Documentation
+/docs/ @jlceaser
+*.md @jlceaser

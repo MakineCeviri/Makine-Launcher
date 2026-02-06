@@ -17,13 +17,16 @@
 #include "types.hpp"
 #include "error.hpp"
 
-#include <sqlite3.h>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
+
+// Forward declaration - sqlite3 is not exposed in the public API
+struct sqlite3;
+struct sqlite3_stmt;
 
 namespace makineai {
 
@@ -38,10 +41,30 @@ constexpr int DATABASE_VERSION = 2;
 constexpr const char* DATABASE_NAME = "makineai.db";
 
 /**
+ * @brief Entry statistics for a project
+ */
+struct EntryStats {
+    int64_t total = 0;
+    int64_t translated = 0;
+    int64_t verified = 0;
+    int64_t untranslated = 0;
+};
+
+/**
  * @brief SQLite database wrapper with RAII
+ *
+ * Thread-safe: All operations are protected by an internal mutex.
  */
 class Database {
 public:
+    /**
+     * @brief RAII wrapper for prepared statements
+     */
+    struct Statement {
+        sqlite3_stmt* stmt = nullptr;
+        ~Statement();
+    };
+
     /**
      * @brief Get singleton instance
      * @return Reference to the database instance
@@ -147,11 +170,46 @@ public:
     Result<std::pair<int64_t, int64_t>> getTranslationMemoryStats();
 
     /**
+     * @brief Get average quality score of TM entries
+     * @return Average quality score (0.0 - 100.0)
+     */
+    Result<double> getAverageQualityScore();
+
+    /**
      * @brief Update usage count for a TM entry
      * @param entryId TM entry ID
      * @return Success or error
      */
     Result<void> incrementTMUsage(int64_t entryId);
+
+    /**
+     * @brief Update a translation memory entry
+     * @param tmId TM entry ID
+     * @param targetText New target text
+     * @param qualityScore Optional new quality score
+     * @param verified Optional verified flag
+     * @return Success or error
+     */
+    Result<void> updateTranslationMemoryEntry(
+        int64_t tmId,
+        const std::string& targetText,
+        std::optional<int> qualityScore = std::nullopt,
+        std::optional<bool> verified = std::nullopt
+    );
+
+    /**
+     * @brief Delete a translation memory entry and its related n-grams
+     * @param tmId TM entry ID
+     * @return Success or error
+     */
+    Result<void> deleteTranslationMemoryEntry(int64_t tmId);
+
+    /**
+     * @brief Get a translation memory entry by its ID
+     * @param tmId TM entry ID
+     * @return TM entry or error if not found
+     */
+    Result<TranslationMemoryEntry> getTranslationMemoryEntryById(int64_t tmId);
 
     // ============== N-GRAM OPERATIONS (for fuzzy matching) ==============
 
@@ -360,14 +418,8 @@ public:
 
     /**
      * @brief Get entry statistics for a project
-     * @return Map with total, translated, verified, untranslated counts
+     * @return Entry statistics
      */
-    struct EntryStats {
-        int64_t total = 0;
-        int64_t translated = 0;
-        int64_t verified = 0;
-        int64_t untranslated = 0;
-    };
     Result<EntryStats> getEntryStats(const std::string& projectId);
 
     /**
@@ -500,39 +552,33 @@ public:
      */
     Result<void> vacuum();
 
-private:
-    Database() = default;
+    // Destructor
     ~Database();
+
+    // Non-copyable, non-movable (singleton)
     Database(const Database&) = delete;
     Database& operator=(const Database&) = delete;
-
-    // Create all tables
-    Result<void> createTables();
-
-    // Migration from older versions
-    Result<void> migrateToV2();
-
-    // Execute SQL with mutex protection
-    Result<void> execute(const std::string& sql);
-
-    // Prepare statement helper
-    struct Statement {
-        sqlite3_stmt* stmt = nullptr;
-        ~Statement();
-    };
-    Result<Statement> prepare(const std::string& sql);
-
-    // Current timestamp in milliseconds
-    static int64_t now() noexcept;
-
-    // Generate unique ID
-    static std::string generateId(const std::string& prefix);
+    Database(Database&&) = delete;
+    Database& operator=(Database&&) = delete;
 
 private:
+    Database() = default;
+
+    // Helper methods
+    Result<void> execute(const std::string& sql);
+    Result<Statement> prepare(const std::string& sql);
+    Result<void> createTables();
+    Result<void> migrateToV2();
+
+    // Static helpers
+    static int64_t now() noexcept;
+    static std::string generateId(const std::string& prefix);
+
+    // Private data - sqlite3 is forward-declared, not exposed
     sqlite3* db_ = nullptr;
     fs::path dbPath_;
-    std::mutex mutex_;
     bool initialized_ = false;
+    mutable std::mutex mutex_;
 };
 
 } // namespace makineai

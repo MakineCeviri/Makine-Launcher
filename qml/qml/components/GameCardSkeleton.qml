@@ -29,7 +29,7 @@ Item {
         anchors.fill: parent
         anchors.margins: -4
         anchors.bottomMargin: -8
-        radius: 8
+        radius: Dimensions.radiusStandard
         color: Qt.rgba(0, 0, 0, 0.15)
         z: -1
     }
@@ -38,7 +38,7 @@ Item {
     Rectangle {
         id: cardContainer
         anchors.fill: parent
-        radius: 4
+        radius: Dimensions.radiusStandard
         color: Theme.surfaceLight
         clip: true
 

@@ -1,0 +1,77 @@
+{
+  "header": {
+    "gameId": "hades",
+    "gameName": "Hades",
+    "steamAppId": "1145360",
+    "engine": "Supergiant Engine",
+    "engineVersion": "Custom",
+    "recipeVersion": "1.0.0",
+    "gameVersion": "1.38290",
+    "createdAt": "2026-01-20T12:00:00Z",
+    "author": "MakineAI",
+    "description": "Hades Türkçe yama reçetesi"
+  },
+  "detection": {
+    "signatureFiles": [
+      "Content/Scripts/RoomManager.lua",
+      "Content/Game/Text/en/HelpText.en.sjson",
+      "Hades.exe"
+    ],
+    "executableName": "Hades.exe"
+  },
+  "localization": {
+    "type": "custom",
+    "files": [
+      {
+        "path": "Content/Game/Text/en/*.sjson",
+        "format": "json",
+        "encoding": "utf-8"
+      },
+      {
+        "path": "Content/Game/Subtitles/en/*.sjson",
+        "format": "json",
+        "encoding": "utf-8"
+      }
+    ],
+    "encoding": "utf-8",
+    "extractionRules": [
+      {
+        "jsonPath": "$.Texts[*]",
+        "fields": ["Id", "DisplayName", "Description"],
+        "type": "json_array"
+      }
+    ]
+  },
+  "translation": {
+    "source": "official",
+    "stringCount": 48000,
+    "coverage": "100%",
+    "quality": "professional"
+  },
+  "patch": {
+    "type": "file_replace",
+    "requiresBackup": true,
+    "steps": [
+      {
+        "order": 1,
+        "action": "backup",
+        "target": "Content/Game/Text/en/*.sjson"
+      },
+      {
+        "order": 2,
+        "action": "extract",
+        "target": "Content/Game/Text/en/*.sjson"
+      },
+      {
+        "order": 3,
+        "action": "translate",
+        "target": "Content/Game/Text/en/*.sjson"
+      },
+      {
+        "order": 4,
+        "action": "validate",
+        "target": "Content/Game/Text/en/*.sjson"
+      }
+    ]
+  }
+}

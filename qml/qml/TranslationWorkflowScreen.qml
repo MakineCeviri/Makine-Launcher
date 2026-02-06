@@ -46,7 +46,7 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     color: backBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
 
                     Label {
@@ -95,7 +95,7 @@ Item {
                 Rectangle {
                     Layout.preferredHeight: 32
                     Layout.preferredWidth: statusRow.width + 24
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     color: TranslationService.phase === 6 ?
                         Theme.withAlpha(Theme.success, 0.15) :
                         TranslationService.phase === 7 ?
@@ -159,7 +159,7 @@ Item {
                             Rectangle {
                                 Layout.preferredWidth: 40
                                 Layout.preferredHeight: 40
-                                radius: 4
+                                radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.primary, 0.15)
 
                                 Label {
@@ -199,7 +199,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 60
-                            radius: 4
+                            radius: Dimensions.radiusStandard
                             color: Qt.rgba(1, 1, 1, 0.03)
                             border.color: Qt.rgba(1, 1, 1, 0.08)
                             border.width: 1
@@ -283,7 +283,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 44
-                                radius: 4
+                                radius: Dimensions.radiusStandard
                                 color: cancelBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.2) : Qt.rgba(1, 1, 1, 0.05)
                                 border.color: cancelBtnMouse.containsMouse ? Theme.error : Qt.rgba(1, 1, 1, 0.1)
                                 border.width: 1
@@ -310,7 +310,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 44
-                                radius: 4
+                                radius: Dimensions.radiusStandard
                                 visible: TranslationService.phase === 6
 
                                 gradient: Gradient {
@@ -355,7 +355,7 @@ Item {
                             Rectangle {
                                 Layout.preferredWidth: 40
                                 Layout.preferredHeight: 40
-                                radius: 4
+                                radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.accent, 0.15)
 
                                 Label {
@@ -377,7 +377,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            radius: 4
+                            radius: Dimensions.radiusStandard
                             color: Qt.rgba(0, 0, 0, 0.2)
 
                             ListView {
@@ -436,7 +436,7 @@ Item {
         property int currentPhase: 0
 
         color: Qt.rgba(1, 1, 1, 0.03)
-        radius: 8
+        radius: Dimensions.radiusStandard
         border.color: Qt.rgba(1, 1, 1, 0.08)
         border.width: 1
 
@@ -624,7 +624,7 @@ Item {
 
     // ===== GLASS CARD COMPONENT =====
     component GlassCard: Rectangle {
-        radius: 4
+        radius: Dimensions.radiusStandard
         color: Qt.rgba(1, 1, 1, 0.03)
         border.color: Qt.rgba(1, 1, 1, 0.08)
         border.width: 1
@@ -643,7 +643,7 @@ Item {
 
         background: Rectangle {
             color: Theme.surface
-            radius: 8
+            radius: Dimensions.radiusStandard
             border.color: Qt.rgba(1, 1, 1, 0.1)
             border.width: 1
         }
@@ -670,7 +670,7 @@ Item {
 
                     background: Rectangle {
                         color: parent.hovered ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         border.color: Qt.rgba(1, 1, 1, 0.1)
                         border.width: 1
                     }
@@ -694,7 +694,7 @@ Item {
 
                     background: Rectangle {
                         color: parent.hovered ? Theme.error : Theme.withAlpha(Theme.error, 0.8)
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                     }
 
                     contentItem: Label {

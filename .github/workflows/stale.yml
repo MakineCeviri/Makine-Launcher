@@ -1,0 +1,41 @@
+name: Stale Issues
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Her gece 00:00
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # Issue settings
+          stale-issue-message: |
+            Bu issue 30 gündür aktivite görmedi ve "stale" olarak işaretlendi.
+            7 gün içinde yanıt verilmezse otomatik olarak kapatılacak.
+            Hala geçerli ise lütfen yorum yapın.
+          stale-issue-label: 'stale'
+          days-before-issue-stale: 30
+          days-before-issue-close: 7
+          exempt-issue-labels: 'pinned,confirmed,priority: critical,priority: high'
+
+          # PR settings
+          stale-pr-message: |
+            Bu PR 14 gündür aktivite görmedi.
+            7 gün içinde güncelleme yapılmazsa otomatik olarak kapatılacak.
+          stale-pr-label: 'stale'
+          days-before-pr-stale: 14
+          days-before-pr-close: 7
+          exempt-pr-labels: 'pinned,work-in-progress'
+
+          # General
+          close-issue-message: 'Aktivite olmadığı için kapatıldı.'
+          close-pr-message: 'Aktivite olmadığı için kapatıldı.'
+          remove-stale-when-updated: true
+          operations-per-run: 30

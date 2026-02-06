@@ -29,11 +29,11 @@ Item {
     property bool disableAnimations: false
 
     // =========================================================================
-    // SIZE - Flutter: 140x200 (GameCard ile ayni)
+    // SIZE - Dimensions'dan al (GameCard ile ayni)
     // =========================================================================
 
-    width: 140
-    height: 200
+    width: Dimensions.cardWidth
+    height: Dimensions.cardHeight
 
     // =========================================================================
     // SIGNALS
@@ -91,7 +91,7 @@ Item {
         anchors.margins: -8  // blur radius
         anchors.topMargin: 0  // offset.y = 8, so -8+8 = 0
         anchors.bottomMargin: -16  // -8-8 = -16
-        radius: 8
+        radius: Dimensions.radiusStandard
         color: accentColor
         visible: false
         layer.enabled: true
@@ -119,18 +119,18 @@ Item {
     Rectangle {
         id: cardContent
         anchors.fill: parent
-        radius: 4
+        radius: Dimensions.radiusStandard
 
-        // Background - Flutter: hover ? darkSurface 80% : transparent
+        // Background - subtle dark bg for consistency with GameCards
         color: root.isHovered
-            ? Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.8)
-            : "transparent"
+            ? Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.85)
+            : Qt.rgba(0.08, 0.08, 0.08, 0.6)
 
-        // Border - Flutter: hover ? accentColor 60%, 2px : white 20%, 1.5px
+        // Border - enhanced visibility
         border.color: root.isHovered
             ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.6)
-            : Qt.rgba(1, 1, 1, 0.2)
-        border.width: root.isHovered ? 2 : 1.5
+            : Qt.rgba(1, 1, 1, 0.15)
+        border.width: root.isHovered ? 2 : 1
 
         Behavior on color { ColorAnimation { duration: 200 } }
         Behavior on border.color { ColorAnimation { duration: 200 } }
@@ -209,12 +209,12 @@ Item {
             // Spacer - Flutter: SizedBox(height: 12)
             Item { width: 1; height: 12 }
 
-            // "Tumunu Gor" button - Flutter: padding h12 v6, fontSize 11, w600
+            // "Tümünü Gör" button - Flutter: padding h12 v6, fontSize 11, w600
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: viewAllText.width + 24
                 height: viewAllText.height + 12
-                radius: 4
+                radius: Dimensions.radiusStandard
 
                 color: root.isHovered
                     ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.2)
@@ -230,7 +230,7 @@ Item {
                 Text {
                     id: viewAllText
                     anchors.centerIn: parent
-                    text: "Tumunu Gor"
+                    text: "T\u00FCm\u00FCn\u00FC G\u00F6r"  // Tümünü Gör
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     color: root.isHovered ? accentColor : Theme.textSecondary

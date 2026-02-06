@@ -17,11 +17,11 @@ ApplicationWindow {
     id: window
     visible: true
 
-    // En küçük çözünürlükte başlat
+    // Minimum pencere boyutu - büyütünce orantılı büyür
     width: minimumWidth
     height: minimumHeight
-    minimumWidth: 1000
-    minimumHeight: 700
+    minimumWidth: 900
+    minimumHeight: 620
 
     // Ekran ortasında başlat
     x: (Screen.width - width) / 2
@@ -191,6 +191,7 @@ ApplicationWindow {
                                               window.visibility !== Window.Hidden
 
     ColumnLayout {
+        id: mainContent
         anchors.fill: parent
         spacing: 0
 
@@ -516,7 +517,7 @@ ApplicationWindow {
                 // Fallback gradient if image fails to load
                 Rectangle {
                     anchors.fill: parent
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     visible: parent.status !== Image.Ready
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
@@ -913,6 +914,39 @@ ApplicationWindow {
     Shortcut {
         sequence: "F3"
         onActivated: window.showPerformanceMonitor = !window.showPerformanceMonitor
+    }
+
+    // ===== SCREENSHOT FEATURE (F12 to capture) =====
+    property int screenshotCounter: 1
+
+    function takeScreenshot() {
+        var num = screenshotCounter.toString()
+        while (num.length < 3) num = "0" + num
+
+        // Save to cedra folder (known writable location)
+        var filename = "C:/cedra/screenshot_" + num + ".png"
+
+        // Grab mainContent (the ColumnLayout with all UI)
+        mainContent.grabToImage(function(result) {
+            if (result) {
+                result.saveToFile(filename)
+                screenshotCounter++
+            }
+        })
+    }
+
+    // F12 shortcut to take screenshot (application-wide)
+    Shortcut {
+        sequence: "F12"
+        context: Qt.ApplicationShortcut
+        onActivated: window.takeScreenshot()
+    }
+
+    // Alternative: Ctrl+Shift+S for screenshot
+    Shortcut {
+        sequence: "Ctrl+Shift+S"
+        context: Qt.ApplicationShortcut
+        onActivated: window.takeScreenshot()
     }
 
     // ===== NAV ITEM COMPONENT - Navigasyon butonu =====

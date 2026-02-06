@@ -1,0 +1,47 @@
+# Auto-label PRs based on changed files
+
+core:
+  - changed-files:
+      - any-glob-to-any-file: 'core/**/*'
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file: 'qml/**/*'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**/*'
+          - '**/*.md'
+          - 'README*'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'vcpkg.json'
+          - 'CMakeLists.txt'
+          - '**/CMakeLists.txt'
+
+"engine: unity":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/unity*'
+          - '**/Unity*'
+
+"engine: unreal":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/unreal*'
+          - '**/Unreal*'
+
+"engine: rpgmaker":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/rpgmaker*'
+          - '**/RPGMaker*'
+
+"engine: renpy":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/renpy*'
+          - '**/RenPy*'

@@ -1,0 +1,12 @@
+{
+  "name": "makineai-test-rpgmaker",
+  "main": "index.html",
+  "js-flags": "--expose-gc",
+  "window": {
+    "title": "MakineAI Test RPG",
+    "width": 816,
+    "height": 624,
+    "position": "center",
+    "icon": "www/icon/icon.png"
+  }
+}

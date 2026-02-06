@@ -11,12 +11,25 @@
  *
  * int main() {
  *     auto& core = makineai::Core::instance();
- *     core.initialize();
+ *     auto initResult = core.initialize();
+ *     if (!initResult) {
+ *         std::cerr << initResult.error().message() << std::endl;
+ *         return 1;
+ *     }
  *
+ *     // System is healthy?
+ *     if (!core.isHealthy()) {
+ *         std::cerr << "System health check failed" << std::endl;
+ *     }
+ *
+ *     // Scan for games
  *     auto games = core.gameDetector().scanAll();
  *     for (const auto& game : games) {
  *         std::cout << game.name << std::endl;
  *     }
+ *
+ *     // Check metrics
+ *     std::cout << core.metrics().toText() << std::endl;
  * }
  * @endcode
  */
@@ -24,16 +37,29 @@
 #pragma once
 
 // Version information
-#define MAKINEAI_VERSION_MAJOR 1
-#define MAKINEAI_VERSION_MINOR 0
+#define MAKINEAI_VERSION_MAJOR 0
+#define MAKINEAI_VERSION_MINOR 1
 #define MAKINEAI_VERSION_PATCH 0
-#define MAKINEAI_VERSION_STRING "1.0.0"
+#define MAKINEAI_VERSION_STRING "0.1.0-alpha"
 
 // Core headers
 #include "types.hpp"
 #include "error.hpp"
+#include "features.hpp"
+
+// Infrastructure headers
+#include "logging.hpp"
+#include "config.hpp"
+#include "metrics.hpp"
+#include "health.hpp"
+#include "audit.hpp"
+#include "debug.hpp"
+#include "validation.hpp"
+#include "cache.hpp"
+#include "async.hpp"
 
 // Module headers
+#include "database.hpp"
 #include "asset_parser.hpp"
 #include "patch_engine.hpp"
 #include "game_detector.hpp"
@@ -41,11 +67,16 @@
 #include "runtime_manager.hpp"
 #include "security.hpp"
 #include "version_tracker.hpp"
+#include "translation_memory.hpp"
+#include "glossary_service.hpp"
+#include "qa_service.hpp"
+#include "translation_pipeline.hpp"
 
 // Third-party includes
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
 
+#include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
 
@@ -59,23 +90,41 @@ class PackageManager;
 class RuntimeManager;
 class SecurityManager;
 class VersionTracker;
+class TranslationMemory;
+class GlossaryService;
+class QAService;
+class TranslationPipeline;
 
 /**
- * @brief Configuration for MakineAI core
+ * @brief Initialization options for MakineAI core
  */
-struct CoreConfig {
-    fs::path dataDirectory;       // Where MakineAI stores its data
-    fs::path cacheDirectory;      // Cache for downloads
-    fs::path logsDirectory;       // Log files
-    std::string apiBaseUrl;       // Translation package API URL
-    std::string publicKeyPath;    // Path to public key for verification
-    spdlog::level::level_enum logLevel = spdlog::level::info;
+struct InitOptions {
+    bool skipHealthCheck = false;     // Skip initial health check
+    bool skipDatabaseInit = false;    // Don't initialize database (for testing)
+    bool enableMetrics = true;        // Enable performance metrics
+    bool enableAuditLog = true;       // Enable audit logging
+    bool enableDebugDumps = false;    // Enable debug dumps on error
+    bool verboseLogging = false;      // Enable verbose startup logging
+};
 
-    // Runtime configuration
-    bool autoUpdateRuntime = true;   // Auto-update BepInEx/XUnity
-    bool enableAnalytics = false;    // Usage analytics (opt-in)
+/**
+ * @brief Core initialization result with details
+ */
+struct InitResult {
+    bool success = false;
+    std::string message;
+    HealthStatus healthStatus;
+    std::chrono::milliseconds initDuration{0};
 
-    static CoreConfig defaultConfig();
+    // Feature availability
+    struct {
+        bool hasTaskflow = false;
+        bool hasSimdjson = false;
+        bool hasMio = false;
+        bool hasLibsodium = false;
+        bool hasBit7z = false;
+        bool hasEfsw = false;
+    } features;
 };
 
 /**
@@ -83,6 +132,16 @@ struct CoreConfig {
  *
  * Singleton class that provides access to all MakineAI functionality.
  * Thread-safe for concurrent access.
+ *
+ * Initialization order:
+ * 1. Crypto subsystem
+ * 2. Logging
+ * 3. Configuration
+ * 4. Health check
+ * 5. Database
+ * 6. Core modules
+ * 7. Translation services
+ * 8. Metrics & Audit
  */
 class Core {
 public:
@@ -97,36 +156,215 @@ public:
     Core(Core&&) = delete;
     Core& operator=(Core&&) = delete;
 
-    /**
-     * @brief Initialize the core with configuration
-     * @param config Configuration settings
-     * @return Result indicating success or failure
-     */
-    VoidResult initialize(const CoreConfig& config = CoreConfig::defaultConfig());
+    // =========================================================================
+    // Lifecycle
+    // =========================================================================
 
     /**
-     * @brief Shutdown and cleanup
+     * @brief Initialize the core with configuration
+     * @param config Configuration settings (uses ConfigManager)
+     * @param options Initialization options
+     * @return Result indicating success or failure with details
+     */
+    Result<InitResult> initialize(
+        const CoreConfig& config = CoreConfig::getDefaults(),
+        const InitOptions& options = {}
+    );
+
+    /**
+     * @brief Shutdown and cleanup all resources
+     *
+     * Shuts down modules in reverse initialization order.
+     * Safe to call multiple times.
      */
     void shutdown();
 
     /**
      * @brief Check if core is initialized
      */
-    [[nodiscard]] bool isInitialized() const noexcept { return initialized_; }
+    [[nodiscard]] bool isInitialized() const noexcept {
+        return initialized_.load(std::memory_order_acquire);
+    }
+
+    // =========================================================================
+    // Configuration & Infrastructure
+    // =========================================================================
 
     /**
-     * @brief Get current configuration
+     * @brief Get configuration manager
+     *
+     * Provides runtime configuration access and modification.
      */
-    [[nodiscard]] const CoreConfig& config() const noexcept { return config_; }
+    [[nodiscard]] ConfigManager& configManager() noexcept {
+        return ConfigManager::instance();
+    }
 
-    // Module accessors
+    /**
+     * @brief Get current configuration (shorthand)
+     */
+    [[nodiscard]] const CoreConfig& config() const noexcept;
+
+    /**
+     * @brief Get metrics collector
+     *
+     * Access performance metrics, counters, and histograms.
+     */
+    [[nodiscard]] Metrics& metrics() noexcept {
+        return Metrics::instance();
+    }
+
+    /**
+     * @brief Get health checker
+     *
+     * System health monitoring and validation.
+     */
+    [[nodiscard]] HealthChecker& healthChecker() noexcept {
+        return HealthChecker::instance();
+    }
+
+    /**
+     * @brief Quick health check
+     */
+    [[nodiscard]] bool isHealthy() const;
+
+    /**
+     * @brief Get full health status
+     */
+    [[nodiscard]] HealthStatus getHealthStatus() const;
+
+    /**
+     * @brief Get audit logger
+     *
+     * Security-critical event logging.
+     */
+    [[nodiscard]] AuditLogger& auditLogger() noexcept {
+        return AuditLogger::instance();
+    }
+
+    /**
+     * @brief Get debug dumper
+     *
+     * State dumps and crash reports.
+     */
+    [[nodiscard]] DebugDumper& debugDumper() noexcept {
+        return DebugDumper::instance();
+    }
+
+    /**
+     * @brief Get cache manager
+     *
+     * Access to LRU/TTL caches for games, translations, etc.
+     */
+    [[nodiscard]] CacheManager& caches() noexcept {
+        return CacheManager::instance();
+    }
+
+    // =========================================================================
+    // Core Modules
+    // =========================================================================
+
+    /**
+     * @brief Get database instance
+     */
+    [[nodiscard]] Database& database();
+
+    /**
+     * @brief Get asset parser
+     */
     [[nodiscard]] AssetParser& assetParser();
+
+    /**
+     * @brief Get patch engine
+     */
     [[nodiscard]] PatchEngine& patchEngine();
+
+    /**
+     * @brief Get game detector
+     */
     [[nodiscard]] GameDetector& gameDetector();
+
+    /**
+     * @brief Get package manager
+     */
     [[nodiscard]] PackageManager& packageManager();
+
+    /**
+     * @brief Get runtime manager (BepInEx/XUnity)
+     */
     [[nodiscard]] RuntimeManager& runtimeManager();
+
+    /**
+     * @brief Get security manager
+     */
     [[nodiscard]] SecurityManager& securityManager();
+
+    /**
+     * @brief Get version tracker
+     */
     [[nodiscard]] VersionTracker& versionTracker();
+
+    // =========================================================================
+    // Translation Services
+    // =========================================================================
+
+    /**
+     * @brief Get translation memory
+     */
+    [[nodiscard]] TranslationMemory& translationMemory();
+
+    /**
+     * @brief Get glossary service
+     */
+    [[nodiscard]] GlossaryService& glossaryService();
+
+    /**
+     * @brief Get QA service
+     */
+    [[nodiscard]] QAService& qaService();
+
+    /**
+     * @brief Get translation pipeline (decision engine)
+     */
+    [[nodiscard]] TranslationPipeline& translationPipeline();
+
+    // =========================================================================
+    // Async Operations
+    // =========================================================================
+
+    /**
+     * @brief Scan for games asynchronously
+     *
+     * @param progress Optional progress callback
+     * @return Async operation that resolves to game list
+     */
+    [[nodiscard]] AsyncOperation<std::vector<GameInfo>> scanGamesAsync(
+        ProgressCallback progress = nullptr
+    );
+
+    /**
+     * @brief Apply translation package asynchronously
+     *
+     * @param game Target game
+     * @param packageId Translation package ID
+     * @param progress Optional progress callback
+     * @return Async operation that resolves to patch result
+     */
+    [[nodiscard]] AsyncOperation<PatchResult> applyTranslationAsync(
+        const GameInfo& game,
+        const std::string& packageId,
+        ProgressCallback progress = nullptr
+    );
+
+    /**
+     * @brief Get background task queue
+     *
+     * Queue for background operations.
+     */
+    [[nodiscard]] AsyncQueue& taskQueue() { return taskQueue_; }
+
+    // =========================================================================
+    // Utilities
+    // =========================================================================
 
     /**
      * @brief Get MakineAI version string
@@ -140,15 +378,46 @@ public:
      */
     [[nodiscard]] std::shared_ptr<spdlog::logger> logger() const { return logger_; }
 
+    /**
+     * @brief Check feature availability
+     */
+    [[nodiscard]] static const Features& features() noexcept {
+        static Features f;
+        return f;
+    }
+
+    /**
+     * @brief Get initialization result (after initialize() called)
+     */
+    [[nodiscard]] const InitResult& initResult() const noexcept { return initResult_; }
+
+    /**
+     * @brief Register shutdown callback
+     *
+     * Callbacks are invoked in reverse registration order during shutdown.
+     */
+    void onShutdown(std::function<void()> callback);
+
 private:
     Core() = default;
     ~Core();
 
-    bool initialized_ = false;
-    CoreConfig config_;
+    // Initialization helpers
+    Result<void> initializeCrypto();
+    Result<void> initializeLogging(const CoreConfig& config, bool verbose);
+    Result<void> initializeDatabase(const CoreConfig& config);
+    Result<void> initializeModules(const CoreConfig& config);
+    Result<void> initializeTranslationServices(const CoreConfig& config);
+    void configureHealthChecker(const CoreConfig& config);
+    void configureAuditLogger(const CoreConfig& config);
+    void logFeatureAvailability();
+
+    // State
+    std::atomic<bool> initialized_{false};
+    InitResult initResult_;
     std::shared_ptr<spdlog::logger> logger_;
 
-    // Module instances
+    // Module instances (owned)
     std::unique_ptr<AssetParser> assetParser_;
     std::unique_ptr<PatchEngine> patchEngine_;
     std::unique_ptr<GameDetector> gameDetector_;
@@ -156,15 +425,65 @@ private:
     std::unique_ptr<RuntimeManager> runtimeManager_;
     std::unique_ptr<SecurityManager> securityManager_;
     std::unique_ptr<VersionTracker> versionTracker_;
+    std::unique_ptr<TranslationMemory> translationMemory_;
+    std::unique_ptr<GlossaryService> glossaryService_;
+    std::unique_ptr<QAService> qaService_;
+    std::unique_ptr<TranslationPipeline> translationPipeline_;
 
+    // Background task queue
+    AsyncQueue taskQueue_;
+
+    // Shutdown callbacks
+    std::vector<std::function<void()>> shutdownCallbacks_;
+
+    // Thread safety
     mutable std::mutex mutex_;
 };
+
+// =============================================================================
+// Convenience Functions
+// =============================================================================
 
 /**
  * @brief Quick access to logger
  */
 inline std::shared_ptr<spdlog::logger> logger() {
     return Core::instance().logger();
+}
+
+/**
+ * @brief Quick access to metrics
+ */
+inline Metrics& metrics() {
+    return Metrics::instance();
+}
+
+/**
+ * @brief Quick access to health checker
+ */
+inline HealthChecker& healthChecker() {
+    return HealthChecker::instance();
+}
+
+/**
+ * @brief Quick access to audit logger
+ */
+inline AuditLogger& auditLogger() {
+    return AuditLogger::instance();
+}
+
+/**
+ * @brief Quick access to config manager
+ */
+inline ConfigManager& configManager() {
+    return ConfigManager::instance();
+}
+
+/**
+ * @brief Quick access to caches
+ */
+inline CacheManager& caches() {
+    return CacheManager::instance();
 }
 
 } // namespace makineai

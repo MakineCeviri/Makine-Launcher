@@ -251,9 +251,12 @@ public:
      */
     Result<GlossaryStats> getStats();
 
+public:
+    // Destructor must be public for unique_ptr usage in Core
+    ~GlossaryService() = default;
+
 private:
     GlossaryService() = default;
-    ~GlossaryService() = default;
     GlossaryService(const GlossaryService&) = delete;
     GlossaryService& operator=(const GlossaryService&) = delete;
 

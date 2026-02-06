@@ -87,7 +87,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: -4
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     color: Theme.withAlpha(color1, 0.4 + smoothValue * 0.25)
                 }
 

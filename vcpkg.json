@@ -18,7 +18,6 @@
     "spdlog",
     "bit7z",
     "libarchive",
-    "minizip-ng",
     "simdjson",
     "efsw",
     "mio",
@@ -26,10 +25,8 @@
     "concurrentqueue",
     "simdutf",
     "sqlitecpp",
-    "digestpp",
     "libsodium"
   ],
-  "builtin-baseline": "2024.01.12",
   "overrides": [],
   "features": {
     "tests": {

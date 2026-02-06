@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(MakineAI
-    VERSION 1.0.0
+    VERSION 0.1.0
     DESCRIPTION "Turkish Game Translation Platform - Native Core"
     LANGUAGES CXX
 )
@@ -45,8 +45,7 @@ find_package(spdlog CONFIG REQUIRED)
 
 # Find new packages (from awesome-cpp research)
 find_package(bit7z CONFIG QUIET)           # 7-zip C++ wrapper
-find_package(LibArchive CONFIG QUIET)      # Multi-format archive
-find_package(unofficial-minizip-ng CONFIG QUIET)  # Encrypted ZIP
+find_package(LibArchive CONFIG QUIET)      # Multi-format archive (zip, tar, etc.)
 find_package(simdjson CONFIG QUIET)        # Fast JSON parsing
 find_package(efsw CONFIG QUIET)            # Filesystem watcher
 find_package(mio CONFIG QUIET)             # Memory-mapped I/O
@@ -71,6 +70,9 @@ set(MAKINEAI_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(MAKINEAI_SOURCES
     # Core
     src/core.cpp
+
+    # Config
+    src/config/config.cpp
 
     # Database
     src/database/database.cpp
@@ -107,13 +109,22 @@ set(MAKINEAI_SOURCES
     src/translation/translation_memory.cpp
     src/translation/glossary_service.cpp
     src/translation/qa_service.cpp
+    src/translation/translation_api.cpp
+    src/translation/string_classifier.cpp
 
     # Engine Handlers
+    src/handlers/engine_handler_base.cpp
     src/handlers/unity_handler.cpp
     src/handlers/unreal_handler.cpp
     src/handlers/renpy_handler.cpp
     src/handlers/rpgmaker_handler.cpp
     src/handlers/gamemaker_handler.cpp
+
+    # Translation Pipeline (Decision Engine)
+    src/translation_pipeline/translation_pipeline.cpp
+
+    # Recipe System
+    src/recipe/recipe_loader.cpp
 
     # Platform (Windows)
     src/platform/windows/registry.cpp
@@ -123,6 +134,13 @@ set(MAKINEAI_SOURCES
 # Header files (for IDE)
 set(MAKINEAI_HEADERS
     include/makineai/core.hpp
+    include/makineai/fwd.hpp
+    include/makineai/pimpl.hpp
+    include/makineai/config.hpp
+    include/makineai/logging.hpp
+    include/makineai/parallel.hpp
+    include/makineai/mio_utils.hpp
+    include/makineai/json_utils.hpp
     include/makineai/database.hpp
     include/makineai/asset_parser.hpp
     include/makineai/parsers_factory.hpp
@@ -135,8 +153,39 @@ set(MAKINEAI_HEADERS
     include/makineai/translation_memory.hpp
     include/makineai/glossary_service.hpp
     include/makineai/qa_service.hpp
+    include/makineai/translation_api.hpp
+    include/makineai/string_classifier.hpp
     include/makineai/types.hpp
     include/makineai/error.hpp
+    include/makineai/async.hpp
+    include/makineai/cache.hpp
+    include/makineai/validation.hpp
+    include/makineai/metrics.hpp
+    include/makineai/health.hpp
+    include/makineai/debug.hpp
+    include/makineai/string_pool.hpp
+    include/makineai/audit.hpp
+    include/makineai/version.hpp
+    include/makineai/memory.hpp
+    include/makineai/lazy.hpp
+    include/makineai/batch.hpp
+    include/makineai/scanner_base.hpp
+    include/makineai/sandbox.hpp
+    include/makineai/path_utils.hpp
+    include/makineai/utf_utils.hpp
+    include/makineai/sqlite_utils.hpp
+    include/makineai/file_watcher.hpp
+    include/makineai/crypto_utils.hpp
+    include/makineai/archive_utils.hpp
+    include/makineai/concurrent_queue.hpp
+
+    # Modular Type Headers (Faz 3 refactor)
+    include/makineai/types/common.hpp
+    include/makineai/types/game_types.hpp
+    include/makineai/types/patch_types.hpp
+    include/makineai/types/translation_types.hpp
+    include/makineai/types/tm_types.hpp
+    include/makineai/types/pipeline_types.hpp
 
     # Engine Handlers
     include/makineai/handlers/engine_handler.hpp
@@ -145,6 +194,12 @@ set(MAKINEAI_HEADERS
     include/makineai/handlers/renpy_handler.hpp
     include/makineai/handlers/rpgmaker_handler.hpp
     include/makineai/handlers/gamemaker_handler.hpp
+
+    # Translation Pipeline
+    include/makineai/translation_pipeline.hpp
+
+    # Recipe System
+    include/makineai/recipe_loader.hpp
 
     include/formats/unity_bundle.hpp
     include/formats/unreal_pak.hpp
@@ -187,12 +242,6 @@ if(TARGET LibArchive::LibArchive)
     target_link_libraries(makineai_core PUBLIC LibArchive::LibArchive)
     target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_LIBARCHIVE)
     message(STATUS "libarchive found - Multi-format archive support enabled")
-endif()
-
-if(TARGET unofficial::minizip-ng::minizip-ng)
-    target_link_libraries(makineai_core PUBLIC unofficial::minizip-ng::minizip-ng)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_MINIZIP)
-    message(STATUS "minizip-ng found - Encrypted ZIP support enabled")
 endif()
 
 if(TARGET simdjson::simdjson)
@@ -279,6 +328,27 @@ if(GTest_FOUND)
     include(GoogleTest)
     gtest_discover_tests(makineai_tests)
 endif()
+
+# Standalone test executables for real game testing
+add_executable(test_undertale tests/test_undertale.cpp)
+target_link_libraries(test_undertale PRIVATE makineai_core)
+target_include_directories(test_undertale PRIVATE ${MAKINEAI_INCLUDE_DIR})
+
+add_executable(test_unity tests/test_unity.cpp)
+target_link_libraries(test_unity PRIVATE makineai_core)
+target_include_directories(test_unity PRIVATE ${MAKINEAI_INCLUDE_DIR})
+
+add_executable(test_translation_api tests/test_translation_api.cpp)
+target_link_libraries(test_translation_api PRIVATE makineai_core)
+target_include_directories(test_translation_api PRIVATE ${MAKINEAI_INCLUDE_DIR})
+
+add_executable(test_game_scan tests/test_game_scan.cpp)
+target_link_libraries(test_game_scan PRIVATE makineai_core)
+target_include_directories(test_game_scan PRIVATE ${MAKINEAI_INCLUDE_DIR})
+
+add_executable(test_string_classifier tests/test_string_classifier.cpp)
+target_link_libraries(test_string_classifier PRIVATE makineai_core)
+target_include_directories(test_string_classifier PRIVATE ${MAKINEAI_INCLUDE_DIR})
 
 # Install targets
 install(TARGETS makineai_core

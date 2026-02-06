@@ -7,6 +7,8 @@
 #include "makineai/glossary_service.hpp"
 #include "makineai/database.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -48,7 +50,7 @@ Result<int64_t> GlossaryService::addTerm(const GlossaryTerm& term) {
         return std::unexpected(result.error());
     }
 
-    logger()->debug("Glossary term added: {} -> {} (ID: {})",
+    MAKINEAI_LOG_DEBUG(log::GLOSSARY, "Glossary term added: {} -> {} (ID: {})",
         term.termSource, term.termTarget, *result);
 
     return *result;
@@ -144,6 +146,9 @@ Result<std::vector<GlossaryTerm>> GlossaryService::getTermsForGame(const std::st
 }
 
 Result<std::vector<GlossaryTerm>> GlossaryService::searchTerms(const std::string& query) {
+    metrics().increment("glossary_lookups");
+    MAKINEAI_LOG_DEBUG(log::GLOSSARY, "Searching glossary for: {}", query);
+
     auto allTerms = getAllTerms();
     if (!allTerms) {
         return std::unexpected(allTerms.error());
@@ -180,6 +185,14 @@ Result<std::vector<GlossaryTerm>> GlossaryService::searchTerms(const std::string
                 break;
             }
         }
+    }
+
+    if (results.empty()) {
+        metrics().increment("glossary_misses");
+        MAKINEAI_LOG_WARN(log::GLOSSARY, "No glossary terms found for: {}", query);
+    } else {
+        metrics().increment("glossary_hits");
+        MAKINEAI_LOG_DEBUG(log::GLOSSARY, "Found {} glossary terms for: {}", results.size(), query);
     }
 
     return results;
@@ -244,6 +257,9 @@ Result<std::vector<GlossaryMatch>> GlossaryService::findTermsInText(
     const std::optional<TermDomain>& domain,
     const std::optional<std::string>& gameId
 ) {
+    metrics().increment("glossary_lookups");
+    MAKINEAI_LOG_DEBUG(log::GLOSSARY, "Finding terms in text (length: {})", text.length());
+
     auto termsResult = getAllTerms();
     if (!termsResult) {
         return std::unexpected(termsResult.error());
@@ -288,6 +304,14 @@ Result<std::vector<GlossaryMatch>> GlossaryService::findTermsInText(
         [](const GlossaryMatch& a, const GlossaryMatch& b) {
             return a.term.priority > b.term.priority;
         });
+
+    if (matches.empty()) {
+        metrics().increment("glossary_misses");
+        MAKINEAI_LOG_DEBUG(log::GLOSSARY, "No glossary matches found in text");
+    } else {
+        metrics().increment("glossary_hits");
+        MAKINEAI_LOG_DEBUG(log::GLOSSARY, "Found {} glossary matches in text", matches.size());
+    }
 
     return matches;
 }
@@ -401,6 +425,8 @@ Result<std::string> GlossaryService::applyGlossary(
 // =============================================================================
 
 Result<int> GlossaryService::loadDefaultTerms() {
+    MAKINEAI_LOG_INFO(log::GLOSSARY, "Loading default glossary terms...");
+
     auto defaultTerms = DefaultGlossary::getAllTerms();
     int loaded = 0;
 
@@ -410,11 +436,11 @@ Result<int> GlossaryService::loadDefaultTerms() {
             ++loaded;
         } else {
             // Probably already exists (UNIQUE constraint)
-            logger()->debug("Term skipped (probably exists): {}", term.termSource);
+            MAKINEAI_LOG_DEBUG(log::GLOSSARY, "Term skipped (probably exists): {}", term.termSource);
         }
     }
 
-    logger()->info("{} default glossary terms loaded", loaded);
+    MAKINEAI_LOG_INFO(log::GLOSSARY, "{} default glossary terms loaded", loaded);
     return loaded;
 }
 

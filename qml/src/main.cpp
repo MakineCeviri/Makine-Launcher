@@ -84,8 +84,25 @@ int main(int argc, char *argv[])
     // Use Basic style for full customization
     QQuickStyle::setStyle("Basic");
 
-    // Set default font
-    QFont defaultFont("Segoe UI", 10);
+    // Load Inter font (Flutter style)
+    int interRegular = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Regular.ttf");
+    int interMedium = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Medium.ttf");
+    int interSemiBold = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-SemiBold.ttf");
+    int interBold = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Bold.ttf");
+
+    // Set default font to Inter
+    QString fontFamily = "Inter";
+    if (interRegular < 0) {
+        // Fallback to Segoe UI if Inter failed to load
+        fontFamily = "Segoe UI";
+        qWarning() << "Failed to load Inter font, using Segoe UI fallback";
+    } else {
+        qDebug() << "Inter font loaded successfully";
+    }
+
+    QFont defaultFont(fontFamily, 10);
+    defaultFont.setStyleStrategy(QFont::PreferAntialias);
+    defaultFont.setHintingPreference(QFont::PreferFullHinting);
     app.setFont(defaultFont);
 
     QQmlApplicationEngine engine;

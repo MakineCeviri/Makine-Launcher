@@ -6,12 +6,14 @@
 
 #include "makineai/asset_parser.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 #include "formats/unity_bundle.hpp"
 
 #include <lz4.h>
 #include <fstream>
 
-namespace makineai {
+namespace makineai::parsers {
 
 using namespace formats;
 
@@ -51,18 +53,29 @@ public:
 
         char magic[8] = {0};
         stream.read(magic, 7);
-        return std::string_view(magic) == kUnityFSMagic ||
-               std::string_view(magic) == kUnityWebMagic ||
-               std::string_view(magic) == kUnityRawMagic;
+        bool isUnity = std::string_view(magic) == kUnityFSMagic ||
+                       std::string_view(magic) == kUnityWebMagic ||
+                       std::string_view(magic) == kUnityRawMagic;
+
+        if (isUnity) {
+            MAKINEAI_LOG_DEBUG(log::PARSER, "Unity format detected: magic={}", std::string_view(magic));
+        }
+
+        return isUnity;
     }
 
     [[nodiscard]] Result<ParseResult> parse(const fs::path& file) const override {
+        MAKINEAI_LOG_INFO(log::PARSER, "Starting Unity bundle parse: {}", file.filename().string());
+        auto timer = Metrics::instance().timer("asset_parse_unity");
+
         ParseResult result;
         result.success = false;
         result.detectedEngine = GameEngine::Unity_Mono;  // Will be refined
 
         std::ifstream stream(file, std::ios::binary);
         if (!stream) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "Cannot open Unity bundle: {}", file.string());
+            Metrics::instance().increment("parse_failures_unity");
             return std::unexpected(Error(ErrorCode::FileAccessDenied,
                 "Cannot open file: " + file.string()));
         }
@@ -70,20 +83,26 @@ public:
         // Read header
         auto headerResult = readHeader(stream);
         if (!headerResult) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "Failed to read Unity header: {}", headerResult.error().message());
+            Metrics::instance().increment("parse_failures_unity");
             return std::unexpected(headerResult.error());
         }
 
         auto& header = *headerResult;
         result.formatVersion = std::to_string(header.formatVersion);
         result.metadata["unityVersion"] = header.unityVersion;
+        MAKINEAI_LOG_DEBUG(log::PARSER, "Unity version: {}, format: {}", header.unityVersion, header.formatVersion);
 
         // Read blocks info
         auto blocksResult = readBlocksInfo(stream, header);
         if (!blocksResult) {
+            MAKINEAI_LOG_WARN(log::PARSER, "Failed to read Unity blocks info: {}", blocksResult.error().message());
+            Metrics::instance().increment("parse_failures_unity");
             return std::unexpected(blocksResult.error());
         }
 
         auto& [blocks, nodes] = *blocksResult;
+        MAKINEAI_LOG_DEBUG(log::PARSER, "Unity bundle: {} blocks, {} nodes", blocks.size(), nodes.size());
 
         // Decompress and read data
         for (const auto& node : nodes) {
@@ -99,6 +118,9 @@ public:
 
         result.success = true;
         result.message = "Parsed " + std::to_string(result.strings.size()) + " strings";
+
+        Metrics::instance().increment("assets_parsed_unity");
+        MAKINEAI_LOG_INFO(log::PARSER, "Unity bundle parse complete: {} strings", result.strings.size());
 
         return result;
     }
@@ -254,22 +276,43 @@ private:
         const UnityNode& /*node*/,
         const fs::path& /*sourcePath*/
     ) const {
-        // Full implementation would parse serialized file and extract TextAssets
-        // This is a simplified placeholder
+        /**
+         * Unity Serialized File Parsing - KNOWN LIMITATION
+         *
+         * Full implementation requires:
+         * 1. Type tree parsing (variable based on Unity version)
+         * 2. Object info table reading
+         * 3. TextAsset object identification (classId = 49)
+         * 4. String data extraction with proper encoding
+         *
+         * Unity's serialization format is complex and version-dependent.
+         * For production use, we recommend:
+         * - Using UnityHandler.extractStrings() for JSON/XML/IL2CPP extraction
+         * - Using RuntimeManager with BepInEx/XUnity for runtime translation
+         *
+         * The handler approach is preferred because:
+         * - It works with all Unity versions
+         * - It doesn't require binary bundle modification
+         * - Translations can be updated without game reinstall
+         *
+         * This parser can still identify bundle structure and metadata,
+         * which is useful for game detection and analysis.
+         */
         std::vector<StringEntry> strings;
 
-        // TODO: Implement full serialized file parsing
-        // - Read object info
-        // - Find TextAsset objects (classId = 49)
-        // - Extract text content
+        // Bundle structure is parsed - string extraction from serialized
+        // files requires the handler approach or runtime translation
+        MAKINEAI_LOG_DEBUG(log::PARSER, "Unity serialized file parsing: Use UnityHandler for string extraction");
 
         return strings;
     }
 };
 
-// Factory function for registration
-std::unique_ptr<IAssetFormatParser> createUnityBundleParser() {
-    return std::make_unique<UnityBundleParser>();
-}
+} // namespace makineai::parsers
 
+// Factory function in makineai namespace (to match parsers_factory.hpp declaration)
+namespace makineai {
+std::unique_ptr<parsers::IAssetFormatParser> createUnityBundleParser() {
+    return std::make_unique<parsers::UnityBundleParser>();
+}
 } // namespace makineai

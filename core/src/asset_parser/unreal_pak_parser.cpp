@@ -13,12 +13,13 @@
  */
 
 #include "makineai/asset_parser.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 #include "formats/unreal_pak.hpp"
-#include <spdlog/spdlog.h>
 #include <fstream>
 #include <algorithm>
 
-namespace makineai {
+namespace makineai::parsers {
 
 namespace {
     // PAK magic: 0x5A6F12E1
@@ -54,13 +55,21 @@ public:
             uint32_t magic;
             fs.read(reinterpret_cast<char*>(&magic), sizeof(magic));
 
-            return magic == PAK_MAGIC;
+            bool isPak = (magic == PAK_MAGIC);
+            if (isPak) {
+                MAKINEAI_LOG_DEBUG(log::PARSER, "Unreal PAK format detected: {}", file.filename().string());
+            }
+            return isPak;
         }
 
+        MAKINEAI_LOG_DEBUG(log::PARSER, "Unreal LocRes format detected: {}", file.filename().string());
         return true; // .locres files
     }
 
     [[nodiscard]] Result<ParseResult> parse(const fs::path& file) const override {
+        MAKINEAI_LOG_INFO(log::PARSER, "Starting Unreal asset parse: {}", file.filename().string());
+        auto timer = Metrics::instance().timer("asset_parse_unreal");
+
         ParseResult result;
         result.success = false;
         result.detectedEngine = GameEngine::Unreal;
@@ -79,9 +88,13 @@ public:
             result.message = "PAK file detected - use locres replacement for translation";
             result.metadata["format"] = "unreal_pak";
 
+            Metrics::instance().increment("assets_parsed_unreal");
+            MAKINEAI_LOG_INFO(log::PARSER, "Unreal PAK parse complete: {}", file.filename().string());
+
         } catch (const std::exception& e) {
             result.message = e.what();
-            spdlog::error("Failed to parse PAK {}: {}", file.string(), e.what());
+            MAKINEAI_LOG_ERROR(log::PARSER, "Failed to parse PAK {}: {}", file.string(), e.what());
+            Metrics::instance().increment("parse_failures_unreal");
         }
 
         return result;
@@ -92,13 +105,15 @@ public:
         const std::vector<StringEntry>& strings
     ) const override {
         // PAK writing is complex - we use file replacement instead
-        spdlog::warn("Direct PAK writing not supported - use file replacement");
+        MAKINEAI_LOG_WARN(log::PARSER, "Direct PAK writing not supported - use file replacement");
         return std::unexpected(Error(ErrorCode::NotSupported,
             "Use file replacement for Unreal PAK files"));
     }
 
 private:
     [[nodiscard]] Result<ParseResult> parseLocRes(const fs::path& file) const {
+        MAKINEAI_LOG_INFO(log::PARSER, "Parsing Unreal LocRes: {}", file.filename().string());
+
         ParseResult result;
         result.success = false;
         result.detectedEngine = GameEngine::Unreal;
@@ -107,6 +122,8 @@ private:
         try {
             std::ifstream fs(file, std::ios::binary | std::ios::ate);
             if (!fs) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Cannot open locres file: {}", file.string());
+                Metrics::instance().increment("parse_failures_unreal");
                 return std::unexpected(Error(ErrorCode::FileNotFound,
                     "Cannot open locres file"));
             }
@@ -119,6 +136,8 @@ private:
             fs.read(reinterpret_cast<char*>(&magic), 4);
 
             if (magic != 0x0E14DAD9) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Invalid LocRes magic: 0x{:08X}", magic);
+                Metrics::instance().increment("parse_failures_unreal");
                 return std::unexpected(Error(ErrorCode::InvalidFormat,
                     "Invalid LocRes magic"));
             }
@@ -127,6 +146,7 @@ private:
             uint8_t version;
             fs.read(reinterpret_cast<char*>(&version), 1);
             result.formatVersion = std::to_string(version);
+            MAKINEAI_LOG_DEBUG(log::PARSER, "LocRes version: {}", version);
 
             // Skip localized string offset table
             int64_t stringTableOffset;
@@ -135,6 +155,7 @@ private:
             // Namespace count
             uint32_t namespaceCount;
             fs.read(reinterpret_cast<char*>(&namespaceCount), 4);
+            MAKINEAI_LOG_DEBUG(log::PARSER, "LocRes namespaces: {}", namespaceCount);
 
             for (uint32_t ns = 0; ns < namespaceCount && fs.good(); ns++) {
                 // Namespace name
@@ -168,10 +189,14 @@ private:
 
             result.success = true;
             result.message = "Parsed " + std::to_string(result.strings.size()) + " strings";
-            spdlog::info("Parsed LocRes: {} strings from {}",
+
+            Metrics::instance().increment("assets_parsed_unreal");
+            MAKINEAI_LOG_INFO(log::PARSER, "Parsed LocRes: {} strings from {}",
                         result.strings.size(), file.filename().string());
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "LocRes parse exception: {}", e.what());
+            Metrics::instance().increment("parse_failures_unreal");
             return std::unexpected(Error(ErrorCode::ParseError, e.what()));
         }
 
@@ -225,9 +250,11 @@ private:
     }
 };
 
-// Factory function for registration
-std::unique_ptr<IAssetFormatParser> createUnrealPakParser() {
-    return std::make_unique<UnrealPakParser>();
-}
+} // namespace makineai::parsers
 
+// Factory function in makineai namespace (to match parsers_factory.hpp declaration)
+namespace makineai {
+std::unique_ptr<parsers::IAssetFormatParser> createUnrealPakParser() {
+    return std::make_unique<parsers::UnrealPakParser>();
+}
 } // namespace makineai

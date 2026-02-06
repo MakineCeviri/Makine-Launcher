@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord Topluluğu
+    url: https://discord.gg/makineai
+    about: Soru ve tartışmalar için Discord'a katılın
+  - name: Dokümantasyon
+    url: https://github.com/jlceaser/MakineAI/wiki
+    about: Kullanım kılavuzu ve SSS

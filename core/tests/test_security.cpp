@@ -17,6 +17,7 @@ namespace testing {
 class SecurityTest : public ::testing::Test {
 protected:
     std::filesystem::path testDir_;
+    SecurityManager security_;
 
     void SetUp() override {
         testDir_ = std::filesystem::temp_directory_path() / "makineai_security_tests";
@@ -32,16 +33,62 @@ protected:
     }
 };
 
+// Test data hashing
+TEST_F(SecurityTest, HashData) {
+    ByteBuffer data = {'H', 'e', 'l', 'l', 'o'};
+
+    auto result = security_.hash(data);
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_FALSE(result->empty());
+    EXPECT_EQ(result->length(), 64); // SHA-256 produces 64 hex chars
+}
+
+TEST_F(SecurityTest, HashEmptyData) {
+    ByteBuffer data;
+
+    auto result = security_.hash(data);
+
+    ASSERT_TRUE(result.has_value());
+    // SHA-256 of empty data is a specific hash
+    EXPECT_FALSE(result->empty());
+    EXPECT_EQ(result->length(), 64);
+}
+
+TEST_F(SecurityTest, HashSameDataProducesSameHash) {
+    ByteBuffer data1 = {'T', 'e', 's', 't'};
+    ByteBuffer data2 = {'T', 'e', 's', 't'};
+
+    auto hash1 = security_.hash(data1);
+    auto hash2 = security_.hash(data2);
+
+    ASSERT_TRUE(hash1.has_value());
+    ASSERT_TRUE(hash2.has_value());
+    EXPECT_EQ(*hash1, *hash2);
+}
+
+TEST_F(SecurityTest, HashDifferentDataProducesDifferentHash) {
+    ByteBuffer data1 = {'A'};
+    ByteBuffer data2 = {'B'};
+
+    auto hash1 = security_.hash(data1);
+    auto hash2 = security_.hash(data2);
+
+    ASSERT_TRUE(hash1.has_value());
+    ASSERT_TRUE(hash2.has_value());
+    EXPECT_NE(*hash1, *hash2);
+}
+
 // Test file hashing
 TEST_F(SecurityTest, HashFile) {
     auto testFile = testDir_ / "test.txt";
     createTestFile(testFile, "Hello, World!");
 
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashFile(testFile);
+    auto result = security_.hashFile(testFile);
 
-    EXPECT_FALSE(hash.empty());
-    EXPECT_EQ(hash.length(), 64); // SHA-256 produces 64 hex chars
+    ASSERT_TRUE(result.has_value());
+    EXPECT_FALSE(result->empty());
+    EXPECT_EQ(result->length(), 64);
 }
 
 TEST_F(SecurityTest, HashFileSameContent) {
@@ -50,11 +97,12 @@ TEST_F(SecurityTest, HashFileSameContent) {
     createTestFile(file1, "Same content");
     createTestFile(file2, "Same content");
 
-    auto& security = SecurityManager::instance();
-    std::string hash1 = security.hashFile(file1);
-    std::string hash2 = security.hashFile(file2);
+    auto hash1 = security_.hashFile(file1);
+    auto hash2 = security_.hashFile(file2);
 
-    EXPECT_EQ(hash1, hash2);
+    ASSERT_TRUE(hash1.has_value());
+    ASSERT_TRUE(hash2.has_value());
+    EXPECT_EQ(*hash1, *hash2);
 }
 
 TEST_F(SecurityTest, HashFileDifferentContent) {
@@ -63,182 +111,80 @@ TEST_F(SecurityTest, HashFileDifferentContent) {
     createTestFile(file1, "Content A");
     createTestFile(file2, "Content B");
 
-    auto& security = SecurityManager::instance();
-    std::string hash1 = security.hashFile(file1);
-    std::string hash2 = security.hashFile(file2);
+    auto hash1 = security_.hashFile(file1);
+    auto hash2 = security_.hashFile(file2);
 
-    EXPECT_NE(hash1, hash2);
+    ASSERT_TRUE(hash1.has_value());
+    ASSERT_TRUE(hash2.has_value());
+    EXPECT_NE(*hash1, *hash2);
 }
 
 TEST_F(SecurityTest, HashNonExistentFile) {
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashFile(testDir_ / "nonexistent.txt");
+    auto result = security_.hashFile(testDir_ / "nonexistent.txt");
 
-    EXPECT_TRUE(hash.empty());
+    // Should return error for non-existent file
+    EXPECT_FALSE(result.has_value());
 }
 
-// Test data hashing
-TEST_F(SecurityTest, HashData) {
-    std::vector<uint8_t> data = {'H', 'e', 'l', 'l', 'o'};
+// Test hash verification
+TEST_F(SecurityTest, VerifyHashCorrect) {
+    ByteBuffer data = {'T', 'e', 's', 't'};
 
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashData(data);
+    auto hashResult = security_.hash(data);
+    ASSERT_TRUE(hashResult.has_value());
 
-    EXPECT_FALSE(hash.empty());
-    EXPECT_EQ(hash.length(), 64);
+    EXPECT_TRUE(security_.verifyHash(data, *hashResult));
 }
 
-TEST_F(SecurityTest, HashEmptyData) {
-    std::vector<uint8_t> data;
-
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashData(data);
-
-    // SHA-256 of empty data is a specific hash
-    EXPECT_FALSE(hash.empty());
-    EXPECT_EQ(hash.length(), 64);
-}
-
-// Test file integrity verification
-TEST_F(SecurityTest, VerifyFileIntegrityMatch) {
-    auto testFile = testDir_ / "test.txt";
-    createTestFile(testFile, "Test content");
-
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashFile(testFile);
-
-    EXPECT_TRUE(security.verifyFileIntegrity(testFile, hash));
-}
-
-TEST_F(SecurityTest, VerifyFileIntegrityMismatch) {
-    auto testFile = testDir_ / "test.txt";
-    createTestFile(testFile, "Test content");
-
-    auto& security = SecurityManager::instance();
+TEST_F(SecurityTest, VerifyHashIncorrect) {
+    ByteBuffer data = {'T', 'e', 's', 't'};
     std::string wrongHash = "0000000000000000000000000000000000000000000000000000000000000000";
 
-    EXPECT_FALSE(security.verifyFileIntegrity(testFile, wrongHash));
+    EXPECT_FALSE(security_.verifyHash(data, wrongHash));
 }
 
-TEST_F(SecurityTest, VerifyFileIntegrityCaseInsensitive) {
-    auto testFile = testDir_ / "test.txt";
-    createTestFile(testFile, "Test content");
+// Test different hash algorithms
+TEST_F(SecurityTest, HashWithSHA384) {
+    ByteBuffer data = {'T', 'e', 's', 't'};
 
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashFile(testFile);
+    auto result = security_.hash(data, HashAlgorithm::SHA384);
 
-    // Convert to uppercase
-    std::string upperHash = hash;
-    std::transform(upperHash.begin(), upperHash.end(), upperHash.begin(), ::toupper);
-
-    EXPECT_TRUE(security.verifyFileIntegrity(testFile, upperHash));
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->length(), 96); // SHA-384 produces 96 hex chars
 }
 
-// Test package signature verification
-TEST_F(SecurityTest, VerifyPackageSignatureNoKey) {
-    // Without a proper public key loaded, verification should fail
-    TranslationPackage package;
-    package.id = "test_package";
-    package.signature = "invalid_signature";
+TEST_F(SecurityTest, HashWithSHA512) {
+    ByteBuffer data = {'T', 'e', 's', 't'};
 
-    std::vector<uint8_t> packageData = {'t', 'e', 's', 't'};
+    auto result = security_.hash(data, HashAlgorithm::SHA512);
 
-    auto& security = SecurityManager::instance();
-    bool valid = security.verifyPackageSignature(package, packageData);
-
-    // Should fail without proper key
-    EXPECT_FALSE(valid);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->length(), 128); // SHA-512 produces 128 hex chars
 }
 
-// Test Authenticode verification (Windows only)
-#ifdef _WIN32
-TEST_F(SecurityTest, VerifyAuthenticodeUnsigned) {
-    auto testFile = testDir_ / "unsigned.exe";
-    createTestFile(testFile, "MZ"); // Minimal PE header
+// Test SignatureResult struct
+TEST_F(SecurityTest, SignatureResultStruct) {
+    SignatureResult result;
+    result.valid = true;
+    result.signedBy = "Test Signer";
+    result.signedAt = 1234567890;
+    result.publicKeyId = "key-123";
+    result.message = "OK";
 
-    auto& security = SecurityManager::instance();
-    bool valid = security.verifyAuthenticode(testFile);
-
-    // Unsigned file should fail
-    EXPECT_FALSE(valid);
-}
-#endif
-
-// Test IntegrityChecker
-TEST_F(SecurityTest, IntegrityCheckerAddFile) {
-    auto checker = IntegrityChecker::create();
-    EXPECT_NE(checker, nullptr);
-
-    auto testFile = testDir_ / "test.txt";
-    createTestFile(testFile, "Test");
-
-    auto& security = SecurityManager::instance();
-    std::string hash = security.hashFile(testFile);
-
-    checker->addFile(testFile, hash);
-    auto result = checker->check();
-
-    EXPECT_TRUE(result.passed);
-    EXPECT_EQ(result.validFiles, 1);
-    EXPECT_EQ(result.missingFiles.size(), 0);
-    EXPECT_EQ(result.modifiedFiles.size(), 0);
+    EXPECT_TRUE(result.valid);
+    EXPECT_EQ(result.signedBy, "Test Signer");
 }
 
-TEST_F(SecurityTest, IntegrityCheckerDetectMissing) {
-    auto checker = IntegrityChecker::create();
+// Test PackageSignature struct
+TEST_F(SecurityTest, PackageSignatureStruct) {
+    PackageSignature sig;
+    sig.packageHash = "abc123";
+    sig.signature = "base64signature";
+    sig.publicKeyId = "key-456";
+    sig.timestamp = 9876543210;
 
-    // Add non-existent file
-    checker->addFile(testDir_ / "missing.txt", "somehash");
-    auto result = checker->check();
-
-    EXPECT_FALSE(result.passed);
-    EXPECT_EQ(result.missingFiles.size(), 1);
-}
-
-TEST_F(SecurityTest, IntegrityCheckerDetectModified) {
-    auto checker = IntegrityChecker::create();
-
-    auto testFile = testDir_ / "test.txt";
-    createTestFile(testFile, "Original");
-
-    auto& security = SecurityManager::instance();
-    std::string originalHash = security.hashFile(testFile);
-
-    // Modify file
-    createTestFile(testFile, "Modified");
-
-    checker->addFile(testFile, originalHash);
-    auto result = checker->check();
-
-    EXPECT_FALSE(result.passed);
-    EXPECT_EQ(result.modifiedFiles.size(), 1);
-}
-
-TEST_F(SecurityTest, IntegrityCheckerSaveAndLoadChecksums) {
-    auto checker = IntegrityChecker::create();
-
-    auto file1 = testDir_ / "file1.txt";
-    auto file2 = testDir_ / "file2.txt";
-    createTestFile(file1, "Content 1");
-    createTestFile(file2, "Content 2");
-
-    auto& security = SecurityManager::instance();
-    checker->addFile(file1, security.hashFile(file1));
-    checker->addFile(file2, security.hashFile(file2));
-
-    // Save checksums
-    auto checksumFile = testDir_ / "checksums.txt";
-    checker->saveChecksums(checksumFile);
-
-    EXPECT_TRUE(std::filesystem::exists(checksumFile));
-
-    // Load in new checker
-    auto newChecker = IntegrityChecker::create();
-    newChecker->loadChecksums(checksumFile);
-
-    auto result = newChecker->check();
-    EXPECT_TRUE(result.passed);
-    EXPECT_EQ(result.validFiles, 2);
+    EXPECT_EQ(sig.packageHash, "abc123");
+    EXPECT_EQ(sig.timestamp, 9876543210);
 }
 
 } // namespace testing

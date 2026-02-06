@@ -146,6 +146,7 @@ private:
     struct PatchBatch {
         int applied = 0;
         int skipped = 0;
+        std::vector<std::string> errors;
     };
 
     PatchBatch applyToJsonFile(

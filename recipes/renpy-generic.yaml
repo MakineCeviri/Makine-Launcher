@@ -1,0 +1,67 @@
+# MakineAI Recipe - Ren'Py Generic
+# Generic recipe for Ren'Py visual novels
+# Works with most Ren'Py games without modification
+
+metadata:
+  name: "Ren'Py Generic"
+  version: "1.0.0"
+  author: "MakineAI Team"
+  description: "Generic recipe for Ren'Py visual novels"
+  engine: "renpy"
+  engine_version: "7.x - 8.x"
+  support_level: "silver"
+  tested_games:
+    - "Doki Doki Literature Club"
+    - "Katawa Shoujo"
+  created: "2026-01-24"
+  updated: "2026-01-24"
+
+files:
+  - path: "game/**/*.rpy"
+    encoding: "utf-8"
+    format: "rpy"
+    translatable: true
+
+  - path: "game/**/*.rpyc"
+    encoding: "binary"
+    format: "binary"
+    translatable: false
+    # Note: We work with .rpy source files, not compiled .rpyc
+
+  - path: "game/tl/**/*.rpy"
+    encoding: "utf-8"
+    format: "rpy"
+    translatable: false
+    # Existing translations, skip to avoid conflicts
+
+extraction:
+  method: "script_parser"
+  patterns:
+    - '"([^"]+)"'                    # Simple strings
+    - "e \"([^\"]+)\""               # Character dialogue (e = narrator)
+    - "[a-z]+ \"([^\"]+)\""          # Any character dialogue
+    - "menu:\\s*\"([^\"]+)\""        # Menu choices
+    - "nvl\\s+\"([^\"]+)\""          # NVL mode text
+  min_length: 2
+  max_length: 5000
+
+validation:
+  max_line_length: 500
+  preserve_patterns:
+    - "\\[.*?\\]"                    # Ren'Py interpolation [var]
+    - "\\{.*?\\}"                    # Text tags {b}, {i}, etc.
+    - "%\\([^)]+\\)[sd]"             # Python format strings
+    - "%(\\w+)s"                     # Named format strings
+  forbidden_chars: []
+  allow_empty: false
+
+application:
+  method: "replace_in_place"
+  preserve_formatting: true
+  backup_original: true
+  backup_suffix: ".makineai.bak"
+
+variables:
+  script_extension: ".rpy"
+  compiled_extension: ".rpyc"
+  translation_folder: "tl/Turkish"

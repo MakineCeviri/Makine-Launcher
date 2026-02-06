@@ -1,0 +1,120 @@
+{
+  "autoplayBgm": false,
+  "autoplayBgs": false,
+  "battleback1Name": "",
+  "battleback2Name": "",
+  "bgm": {"name": "", "pan": 0, "pitch": 100, "volume": 90},
+  "bgs": {"name": "", "pan": 0, "pitch": 100, "volume": 90},
+  "disableDashing": false,
+  "displayName": "Starting Village",
+  "encounterList": [],
+  "encounterStep": 30,
+  "height": 13,
+  "note": "",
+  "parallaxLoopX": false,
+  "parallaxLoopY": false,
+  "parallaxName": "",
+  "parallaxShow": true,
+  "parallaxSx": 0,
+  "parallaxSy": 0,
+  "scrollType": 0,
+  "specifyBattleback": false,
+  "tilesetId": 1,
+  "width": 17,
+  "data": [],
+  "events": [
+    null,
+    {
+      "id": 1,
+      "name": "Village Elder",
+      "note": "",
+      "pages": [
+        {
+          "conditions": {
+            "actorId": 1,
+            "actorValid": false,
+            "itemId": 1,
+            "itemValid": false,
+            "selfSwitchCh": "A",
+            "selfSwitchValid": false,
+            "switch1Id": 1,
+            "switch1Valid": false,
+            "switch2Id": 1,
+            "switch2Valid": false,
+            "variableId": 1,
+            "variableValid": false,
+            "variableValue": 0
+          },
+          "directionFix": false,
+          "image": {
+            "tileId": 0,
+            "characterName": "People1",
+            "direction": 2,
+            "pattern": 1,
+            "characterIndex": 0
+          },
+          "list": [
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2]},
+            {"code": 401, "indent": 0, "parameters": ["Welcome to our village, young traveler."]},
+            {"code": 401, "indent": 0, "parameters": ["You have come at a troubled time."]},
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2]},
+            {"code": 401, "indent": 0, "parameters": ["A great darkness threatens our land."]},
+            {"code": 401, "indent": 0, "parameters": ["Only a brave hero can save us now."]},
+            {"code": 102, "indent": 0, "parameters": [["I will help!", "Tell me more", "Maybe later"], 1, 0, 2, 0]},
+            {"code": 402, "indent": 0, "parameters": [0, "I will help!"]},
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2]},
+            {"code": 401, "indent": 0, "parameters": ["Thank you, brave one!"]},
+            {"code": 401, "indent": 0, "parameters": ["Please take this sword."]},
+            {"code": 0, "indent": 0, "parameters": []},
+            {"code": 402, "indent": 0, "parameters": [1, "Tell me more"]},
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2]},
+            {"code": 401, "indent": 0, "parameters": ["The evil wizard has cursed our crops."]},
+            {"code": 401, "indent": 0, "parameters": ["Without food, we will perish."]},
+            {"code": 0, "indent": 0, "parameters": []},
+            {"code": 402, "indent": 0, "parameters": [2, "Maybe later"]},
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2]},
+            {"code": 401, "indent": 0, "parameters": ["I understand. Return when you are ready."]},
+            {"code": 0, "indent": 0, "parameters": []},
+            {"code": 404, "indent": 0, "parameters": []},
+            {"code": 0, "indent": 0, "parameters": []}
+          ],
+          "moveFrequency": 3,
+          "moveRoute": {
+            "list": [{"code": 0, "parameters": []}],
+            "repeat": true,
+            "skippable": false,
+            "wait": false
+          },
+          "moveSpeed": 3,
+          "moveType": 0,
+          "priorityType": 1,
+          "stepAnime": false,
+          "through": false,
+          "trigger": 0,
+          "walkAnime": true
+        }
+      ],
+      "x": 8,
+      "y": 6
+    },
+    {
+      "id": 2,
+      "name": "Merchant",
+      "note": "",
+      "pages": [
+        {
+          "conditions": {},
+          "list": [
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2]},
+            {"code": 401, "indent": 0, "parameters": ["Welcome to my shop!"]},
+            {"code": 401, "indent": 0, "parameters": ["Take a look at my wares."]},
+            {"code": 0, "indent": 0, "parameters": []}
+          ],
+          "trigger": 0
+        }
+      ],
+      "x": 12,
+      "y": 8
+    }
+  ]
+}

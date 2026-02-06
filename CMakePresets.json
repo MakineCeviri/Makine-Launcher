@@ -15,6 +15,23 @@
       }
     },
     {
+      "name": "mingw-base",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
       "name": "vcpkg-base",
       "hidden": true,
       "inherits": "base",
@@ -27,122 +44,84 @@
       }
     },
     {
-      "name": "windows-base",
-      "hidden": true,
+      "name": "dev",
+      "displayName": "Development",
+      "description": "Daily development build (MinGW, UI-only, Release)",
+      "inherits": "mingw-base",
+      "binaryDir": "${sourceDir}/qml/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINEAI_UI_ONLY": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Debug build for development (MinGW, UI-only)",
+      "inherits": "mingw-base",
+      "binaryDir": "${sourceDir}/qml/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "MAKINEAI_UI_ONLY": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Full release build with core integration (vcpkg)",
       "inherits": "vcpkg-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/qml/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}",
+        "MAKINEAI_UI_ONLY": "OFF"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
-      },
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
       }
     },
     {
-      "name": "core-debug",
-      "displayName": "Core Debug",
-      "description": "Build core library in debug mode",
-      "inherits": "windows-base",
+      "name": "core",
+      "displayName": "Core Library",
+      "description": "Build core library only (for CI/testing)",
+      "inherits": "vcpkg-base",
       "generator": "Ninja",
-      "sourceDir": "${sourceDir}/core",
-      "binaryDir": "${sourceDir}/build/core-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "BUILD_TESTING": "ON"
-      }
-    },
-    {
-      "name": "core-release",
-      "displayName": "Core Release",
-      "description": "Build core library in release mode",
-      "inherits": "windows-base",
-      "generator": "Ninja",
-      "sourceDir": "${sourceDir}/core",
-      "binaryDir": "${sourceDir}/build/core-release",
+      "binaryDir": "${sourceDir}/core/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    {
-      "name": "qml-debug",
-      "displayName": "QML Debug",
-      "description": "Build QML application in debug mode",
-      "inherits": "windows-base",
-      "generator": "Ninja",
-      "sourceDir": "${sourceDir}/qml",
-      "binaryDir": "${sourceDir}/build/qml-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}"
-      }
-    },
-    {
-      "name": "qml-release",
-      "displayName": "QML Release",
-      "description": "Build QML application in release mode",
-      "inherits": "windows-base",
-      "generator": "Ninja",
-      "sourceDir": "${sourceDir}/qml",
-      "binaryDir": "${sourceDir}/build/qml-release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}"
-      }
-    },
-    {
-      "name": "vs2022-core",
-      "displayName": "VS2022 Core",
-      "description": "Visual Studio 2022 for core library",
-      "inherits": "vcpkg-base",
-      "generator": "Visual Studio 17 2022",
-      "architecture": {
-        "value": "x64",
-        "strategy": "set"
       },
-      "sourceDir": "${sourceDir}/core",
-      "binaryDir": "${sourceDir}/build/vs2022-core"
-    },
-    {
-      "name": "vs2022-qml",
-      "displayName": "VS2022 QML",
-      "description": "Visual Studio 2022 for QML app",
-      "inherits": "vcpkg-base",
-      "generator": "Visual Studio 17 2022",
-      "architecture": {
-        "value": "x64",
-        "strategy": "set"
-      },
-      "sourceDir": "${sourceDir}/qml",
-      "binaryDir": "${sourceDir}/build/vs2022-qml",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}"
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "core-debug",
-      "configurePreset": "core-debug"
+      "name": "dev",
+      "configurePreset": "dev"
     },
     {
-      "name": "core-release",
-      "configurePreset": "core-release"
+      "name": "debug",
+      "configurePreset": "debug"
     },
     {
-      "name": "qml-debug",
-      "configurePreset": "qml-debug"
+      "name": "release",
+      "configurePreset": "release"
     },
     {
-      "name": "qml-release",
-      "configurePreset": "qml-release"
+      "name": "core",
+      "configurePreset": "core"
     }
   ],
   "testPresets": [
     {
       "name": "core-tests",
-      "configurePreset": "core-debug",
+      "configurePreset": "core",
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"

@@ -5,6 +5,9 @@
  */
 
 #include "makineai/handlers/gamemaker_handler.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -207,10 +210,37 @@ int GameMakerDataParser::applyTranslations(
         }
     }
 
-    // Write back
+    // Write back atomically
     if (appliedCount > 0) {
-        std::ofstream ofs(file, std::ios::binary);
-        ofs.write(reinterpret_cast<char*>(data.data()), data.size());
+        fs::path tempPath = file.string() + ".makineai_tmp";
+
+        {
+            std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+            if (!ofs) {
+                spdlog::error("GameMaker: Cannot create temp file for patching");
+                return 0;
+            }
+
+            ofs.write(reinterpret_cast<char*>(data.data()), data.size());
+            ofs.flush();
+
+            if (!ofs.good()) {
+                ofs.close();
+                std::error_code ec;
+                fs::remove(tempPath, ec);
+                spdlog::error("GameMaker: Write failed - possible disk full");
+                return 0;
+            }
+        } // File closed
+
+        // Atomic rename
+        std::error_code ec;
+        fs::rename(tempPath, file, ec);
+        if (ec) {
+            fs::remove(tempPath, ec);
+            spdlog::error("GameMaker: Rename failed: {}", ec.message());
+            return 0;
+        }
     }
 
     return appliedCount;
@@ -336,16 +366,19 @@ Result<ExtractionResult> GameMakerHandler::extractStrings(
     const fs::path& gameDir,
     const ExtractionOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "GameMaker: Starting string extraction from {}", gameDir.string());
+    auto timer = metrics().timer("gamemaker_extract_strings");
 
     std::vector<TranslationEntry> entries;
     std::vector<ExtractionError> errors;
     std::vector<GameFile> processedFiles;
     int totalStrings = 0;
     int skippedStrings = 0;
+    int filesProcessed = 0;
 
     // Extract from data.win
     if (dataWinPath_) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Processing data file: {}", dataWinPath_->string());
         auto batch = extractFromDataWin(*dataWinPath_, options);
 
         totalStrings += batch.total;
@@ -358,11 +391,18 @@ Result<ExtractionResult> GameMakerHandler::extractStrings(
             .type = GameFileType::Binary,
             .stringCount = static_cast<int>(batch.entries.size())
         });
+        filesProcessed++;
+
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Extracted {} strings from data file",
+            batch.entries.size());
     }
 
     // Extract from language files
     auto langFiles = findLanguageFiles(gameDir);
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Found {} language files", langFiles.size());
+
     for (const auto& langFile : langFiles) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Processing language file: {}", langFile.string());
         try {
             auto batch = extractFromLangFile(langFile, options);
 
@@ -376,7 +416,13 @@ Result<ExtractionResult> GameMakerHandler::extractStrings(
                 .type = GameFileType::Localization,
                 .stringCount = static_cast<int>(batch.entries.size())
             });
+            filesProcessed++;
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Extracted {} strings from {}",
+                batch.entries.size(), langFile.filename().string());
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "GameMaker: Language file error in {}: {}",
+                langFile.string(), e.what());
             errors.push_back(ExtractionError{
                 .file = langFile.string(),
                 .message = std::string("Language file error: ") + e.what(),
@@ -386,9 +432,15 @@ Result<ExtractionResult> GameMakerHandler::extractStrings(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("GameMaker: Extracted {} strings ({}ms)", entries.size(), duration.count());
+    // Record metrics
+    metrics().increment("gamemaker_files_processed", filesProcessed);
+    metrics().increment("gamemaker_strings_extracted", entries.size());
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "GameMaker: Extraction complete - {} strings from {} files in {}ms",
+        entries.size(), filesProcessed, duration.count());
 
     return ExtractionResult{
         .entries = entries,
@@ -660,13 +712,15 @@ Result<HandlerPatchResult> GameMakerHandler::applyTranslations(
     const std::vector<TranslationEntry>& translations,
     const PatchOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "GameMaker: Starting translation application to {}", gameDir.string());
+    auto timer = metrics().timer("gamemaker_apply_translations");
 
     std::vector<PatchedFile> patchedFiles;
     std::vector<PatchError> errors;
     std::string backupId;
     int appliedCount = 0;
     int skippedCount = 0;
+    int filesPatched = 0;
 
     // Build translation map
     std::map<std::string, std::string> translationMap;
@@ -677,8 +731,10 @@ Result<HandlerPatchResult> GameMakerHandler::applyTranslations(
     }
 
     if (translationMap.empty()) {
+        MAKINEAI_LOG_WARN(log::HANDLER, "GameMaker: No valid translations provided");
         auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
         return HandlerPatchResult{
             .success = true,
@@ -688,20 +744,25 @@ Result<HandlerPatchResult> GameMakerHandler::applyTranslations(
         };
     }
 
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: {} valid translations to apply", translationMap.size());
+
     // Create backup
     if (options.createBackup) {
         backupId = options.backupId.empty() ?
             std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) :
             options.backupId;
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Creating backup with ID: {}", backupId);
         auto backupResult = createBackup(gameDir, backupId);
         if (!backupResult || !backupResult->success) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "GameMaker: Backup creation failed");
             return std::unexpected(Error{ErrorCode::BackupFailed, "Failed to create backup"});
         }
     }
 
     // Apply to data.win
     if (dataWinPath_ && !options.dryRun) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Patching data file: {}", dataWinPath_->string());
         int applied = GameMakerDataParser::applyTranslations(
             *dataWinPath_,
             translationMap,
@@ -715,12 +776,22 @@ Result<HandlerPatchResult> GameMakerHandler::applyTranslations(
                 .changedStrings = applied,
                 .backed = !backupId.empty()
             });
+            filesPatched++;
+
+            // Audit log for data file modification
+            AuditLogger::logFileAccess(*dataWinPath_, "patch_binary",
+                true, "Applied " + std::to_string(applied) + " translations to data.win");
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Applied {} translations to data file", applied);
         }
     }
 
     // Apply to language files
     auto langFiles = findLanguageFiles(gameDir);
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Processing {} language files", langFiles.size());
+
     for (const auto& langFile : langFiles) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Patching language file: {}", langFile.string());
         try {
             int applied = patchLangFile(langFile, translationMap, options.dryRun);
             if (applied > 0) {
@@ -730,8 +801,18 @@ Result<HandlerPatchResult> GameMakerHandler::applyTranslations(
                     .changedStrings = applied,
                     .backed = true
                 });
+                filesPatched++;
+
+                // Audit log for language file modification
+                AuditLogger::logFileAccess(langFile, "patch",
+                    true, "Applied " + std::to_string(applied) + " translations");
+
+                MAKINEAI_LOG_DEBUG(log::HANDLER, "GameMaker: Applied {} translations to {}",
+                    applied, langFile.filename().string());
             }
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "GameMaker: Patch error in {}: {}",
+                langFile.string(), e.what());
             errors.push_back(PatchError{
                 .file = langFile.string(),
                 .message = std::string("Patch error: ") + e.what()
@@ -740,9 +821,15 @@ Result<HandlerPatchResult> GameMakerHandler::applyTranslations(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("GameMaker: Applied {} translations ({}ms)", appliedCount, duration.count());
+    // Record metrics
+    metrics().increment("gamemaker_files_patched", filesPatched);
+    metrics().increment("gamemaker_translations_applied", appliedCount);
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "GameMaker: Translation complete - {} applied, {} skipped in {} files ({}ms)",
+        appliedCount, skippedCount, filesPatched, duration.count());
 
     return HandlerPatchResult{
         .success = errors.empty(),
@@ -787,8 +874,35 @@ int GameMakerHandler::patchLangFile(
             fs::copy_file(file, backupPath);
         }
 
-        std::ofstream ofs(file, std::ios::binary);
-        ofs << newContent;
+        // Atomic write
+        fs::path tempPath = file.string() + ".makineai_tmp";
+
+        {
+            std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+            if (!ofs) {
+                spdlog::error("GameMaker: Cannot create temp file for YAML");
+                return 0;
+            }
+
+            ofs << newContent;
+            ofs.flush();
+
+            if (!ofs.good()) {
+                ofs.close();
+                std::error_code ec;
+                fs::remove(tempPath, ec);
+                spdlog::error("GameMaker: YAML write failed");
+                return 0;
+            }
+        }
+
+        std::error_code ec;
+        fs::rename(tempPath, file, ec);
+        if (ec) {
+            fs::remove(tempPath, ec);
+            spdlog::error("GameMaker: YAML rename failed: {}", ec.message());
+            return 0;
+        }
     }
 
     return applied;

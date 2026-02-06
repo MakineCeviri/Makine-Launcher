@@ -10,6 +10,8 @@
 
 #include "makineai/version_tracker.hpp"
 #include "makineai/security.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -53,7 +55,7 @@ public:
 
             return true;
         } catch (const std::exception& e) {
-            spdlog::error("Failed to load version database: {}", e.what());
+            MAKINEAI_LOG_ERROR(log::VERSION, "Failed to load version database: {}", e.what());
             return false;
         }
     }
@@ -85,14 +87,14 @@ public:
             ofs << j.dump(2);
             return true;
         } catch (const std::exception& e) {
-            spdlog::error("Failed to save version database: {}", e.what());
+            MAKINEAI_LOG_ERROR(log::VERSION, "Failed to save version database: {}", e.what());
             return false;
         }
     }
 };
 
 VersionTracker::VersionTracker() : db_(std::make_unique<Database>()) {
-    spdlog::debug("VersionTracker initialized");
+    MAKINEAI_LOG_DEBUG(log::VERSION, "VersionTracker initialized");
 }
 
 VersionTracker::~VersionTracker() {
@@ -107,7 +109,11 @@ void VersionTracker::setDatabasePath(const fs::path& path) {
 void VersionTracker::loadDatabase() {
     if (!dbPath_.empty()) {
         db_->load(dbPath_);
-        spdlog::info("Loaded {} version records", db_->records.size());
+        MAKINEAI_LOG_INFO(log::VERSION, "Loaded {} version records", db_->records.size());
+
+        // Update metrics for tracked versions
+        Metrics::instance().gauge("games_with_updates", 0);
+        Metrics::instance().increment("versions_tracked", static_cast<int64_t>(db_->records.size()));
     }
 }
 
@@ -140,8 +146,11 @@ VoidResult VersionTracker::recordVersion(const GameInfo& game, const std::string
         db_->records[rv.gameId] = std::move(rv);
         saveDatabase();
 
-        spdlog::info("Recorded version for {}: hash={}, patch={}",
+        MAKINEAI_LOG_INFO(log::VERSION, "Recorded version for {}: hash={}, patch={}",
                     game.name, hashResult->substr(0, 16) + "...", patchVersion);
+
+        // Increment tracked versions counter
+        Metrics::instance().increment("versions_tracked");
 
         return {};
 
@@ -175,15 +184,28 @@ Result<VersionCheckResult> VersionTracker::checkVersion(const GameInfo& game) co
     result.currentVersion = game.version;
 
     // Compare hashes
+    MAKINEAI_LOG_DEBUG(log::VERSION, "Comparing versions for {}: recorded={}, current={}",
+                game.id.storeId, result.recorded.exeHash.substr(0, 8) + "...",
+                result.currentHash.substr(0, 8) + "...");
+
     if (result.currentHash == result.recorded.exeHash) {
         result.status = VersionStatus::Unchanged;
         result.message = "Game version unchanged";
+        MAKINEAI_LOG_DEBUG(log::VERSION, "Game {} version unchanged", game.id.storeId);
     } else {
         // Game was updated - check compatibility (simplified)
         // In full implementation, would query server for compatible versions
         result.status = VersionStatus::UpdatedIncompatible;
         result.message = "Game was updated - translation may need update";
         result.translationAvailable = false;
+
+        MAKINEAI_LOG_WARN(log::VERSION, "Version mismatch for {}: expected hash {}, got {}",
+                    game.id.storeId,
+                    result.recorded.exeHash.substr(0, 16) + "...",
+                    result.currentHash.substr(0, 16) + "...");
+
+        // Increment version updates counter
+        Metrics::instance().increment("version_updates");
     }
 
     return result;
@@ -191,6 +213,7 @@ Result<VersionCheckResult> VersionTracker::checkVersion(const GameInfo& game) co
 
 Result<std::vector<VersionCheckResult>> VersionTracker::checkAll() const {
     std::vector<VersionCheckResult> results;
+    int gamesWithUpdates = 0;
 
     for (const auto& [gameId, record] : db_->records) {
         GameInfo game;
@@ -202,8 +225,17 @@ Result<std::vector<VersionCheckResult>> VersionTracker::checkAll() const {
         auto result = checkVersion(game);
         if (result) {
             results.push_back(*result);
+            if (result->status != VersionStatus::Unchanged) {
+                gamesWithUpdates++;
+            }
         }
     }
+
+    // Update gauge for games needing updates
+    Metrics::instance().gauge("games_with_updates", static_cast<double>(gamesWithUpdates));
+
+    MAKINEAI_LOG_INFO(log::VERSION, "Checked {} games, {} need updates",
+                results.size(), gamesWithUpdates);
 
     return results;
 }
@@ -241,7 +273,7 @@ VoidResult VersionTracker::updateRecord(
 
     saveDatabase();
 
-    spdlog::info("Updated version record for {}", gameId);
+    MAKINEAI_LOG_INFO(log::VERSION, "Updated version record for {}", gameId);
     return {};
 }
 
@@ -255,7 +287,7 @@ VoidResult VersionTracker::removeRecord(const std::string& gameId) {
     db_->records.erase(it);
     saveDatabase();
 
-    spdlog::info("Removed version record for {}", gameId);
+    MAKINEAI_LOG_INFO(log::VERSION, "Removed version record for {}", gameId);
     return {};
 }
 
@@ -317,7 +349,7 @@ void VersionMonitor::start(uint32_t intervalSeconds, ChangeCallback callback) {
         }
     });
 
-    spdlog::info("Version monitor started (interval: {}s)", intervalSeconds);
+    MAKINEAI_LOG_INFO(log::VERSION, "Version monitor started (interval: {}s)", intervalSeconds);
 }
 
 void VersionMonitor::stop() {
@@ -331,7 +363,7 @@ void VersionMonitor::stop() {
     }
 
     running_ = false;
-    spdlog::info("Version monitor stopped");
+    MAKINEAI_LOG_INFO(log::VERSION, "Version monitor stopped");
 }
 
 void VersionMonitor::checkNow() {
@@ -340,7 +372,7 @@ void VersionMonitor::checkNow() {
 
     for (const auto& result : *results) {
         if (result.status != VersionStatus::Unchanged) {
-            spdlog::info("Version change detected for {}: {}",
+            MAKINEAI_LOG_INFO(log::VERSION, "Version change detected for {}: {}",
                         result.recorded.gameId, result.message);
         }
     }

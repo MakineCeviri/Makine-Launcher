@@ -5,16 +5,19 @@
  */
 
 #include "makineai/handlers/rpgmaker_handler.hpp"
+#include "makineai/json_utils.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
 
 #include <fstream>
 #include <sstream>
 #include <regex>
 #include <nlohmann/json.hpp>
-#include <spdlog/spdlog.h>
 
 namespace makineai {
 
-using json = nlohmann::json;
+// Note: Using nlohmann::json directly to avoid conflict with makineai::json namespace
 
 // ========== Game Detection ==========
 
@@ -157,7 +160,7 @@ Result<std::vector<GameFile>> RpgMakerHandler::findGameFiles(const fs::path& gam
         }
     }
 
-    spdlog::debug("RPG Maker: Found {} game files", files.size());
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Found {} game files", files.size());
     return files;
 }
 
@@ -167,18 +170,21 @@ Result<ExtractionResult> RpgMakerHandler::extractStrings(
     const fs::path& gameDir,
     const ExtractionOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "RPG Maker: Starting string extraction from {}", gameDir.string());
+    auto timer = metrics().timer("rpgmaker_extract_strings");
 
     std::vector<TranslationEntry> entries;
     std::vector<ExtractionError> errors;
     std::vector<GameFile> processedFiles;
     int totalStrings = 0;
     int skippedStrings = 0;
+    int filesProcessed = 0;
 
     // VX Ace Ruby Marshal not supported in C++ version yet
     if (detectedVersion_ == RpgMakerVersion::VXAce ||
         detectedVersion_ == RpgMakerVersion::VX ||
         detectedVersion_ == RpgMakerVersion::XP) {
+        MAKINEAI_LOG_WARN(log::HANDLER, "RPG Maker: VX/VX Ace/XP Ruby Marshal format not yet supported");
         errors.push_back(ExtractionError{
             .file = gameDir.string(),
             .message = "RPG Maker VX/VX Ace/XP Ruby Marshal format not yet supported. Use MV/MZ JSON format.",
@@ -186,7 +192,7 @@ Result<ExtractionResult> RpgMakerHandler::extractStrings(
         });
 
         auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
         return ExtractionResult{
             .entries = entries,
@@ -201,8 +207,11 @@ Result<ExtractionResult> RpgMakerHandler::extractStrings(
     // MV/MZ JSON extraction
     auto gameFilesResult = findGameFiles(gameDir);
     if (!gameFilesResult) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "RPG Maker: Failed to find game files: {}", gameFilesResult.error().message());
         return std::unexpected(gameFilesResult.error());
     }
+
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Found {} potential data files", gameFilesResult->size());
 
     for (const auto& gameFile : *gameFilesResult) {
         // Skip non-JSON files
@@ -233,6 +242,8 @@ Result<ExtractionResult> RpgMakerHandler::extractStrings(
             if (excluded) continue;
         }
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Processing file: {}", gameFile.relativePath);
+
         try {
             auto batch = extractFromJsonFile(fs::path(gameFile.path), gameFile, options);
 
@@ -247,7 +258,13 @@ Result<ExtractionResult> RpgMakerHandler::extractStrings(
                 .size = gameFile.size,
                 .stringCount = static_cast<int>(batch.entries.size())
             });
+            filesProcessed++;
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Extracted {} strings from {}",
+                batch.entries.size(), gameFile.relativePath);
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "RPG Maker: JSON parse error in {}: {}",
+                gameFile.relativePath, e.what());
             errors.push_back(ExtractionError{
                 .file = gameFile.relativePath,
                 .message = std::string("JSON parse error: ") + e.what(),
@@ -257,9 +274,14 @@ Result<ExtractionResult> RpgMakerHandler::extractStrings(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("RPG Maker: Extracted {} strings ({}ms)", entries.size(), duration.count());
+    // Record metrics
+    metrics().increment("rpgmaker_files_processed", filesProcessed);
+    metrics().increment("rpgmaker_strings_extracted", entries.size());
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "RPG Maker: Extraction complete - {} strings from {} files in {}ms",
+                       entries.size(), filesProcessed, duration.count());
 
     return ExtractionResult{
         .entries = entries,
@@ -276,13 +298,25 @@ RpgMakerHandler::ExtractionBatch RpgMakerHandler::extractFromJsonFile(
     const GameFile& gameFile,
     const ExtractionOptions& options
 ) {
+    MAKINEAI_TIMED_SCOPE(log::HANDLER, "RPGMaker extractFromJsonFile");
+
     ExtractionBatch batch;
 
-    std::ifstream ifs(file, std::ios::binary);
-    if (!ifs) return batch;
+    // Use simdjson for fast parsing, then convert to nlohmann for processing
+    // This gives us fast parsing while keeping existing extraction logic
+    auto docResult = makineai::json::parseFile(file);
+    if (!docResult) {
+        MAKINEAI_LOG_WARN(log::HANDLER, "Failed to parse RPG Maker JSON {}: {}",
+                         file.string(), docResult.error().message());
+        return batch;
+    }
 
-    json data = json::parse(ifs);
+    // Convert to nlohmann::json for compatibility with existing extraction code
+    nlohmann::json data = docResult->toNlohmann();
     std::string fileName = file.filename().string();
+
+    MAKINEAI_LOG_TRACE(log::HANDLER, "Extracting strings from {} (using {})",
+                       fileName, makineai::json::backendInfo());
 
     extractFromJson(data, gameFile.relativePath, fileName, options, batch);
 
@@ -290,7 +324,7 @@ RpgMakerHandler::ExtractionBatch RpgMakerHandler::extractFromJsonFile(
 }
 
 void RpgMakerHandler::extractFromJson(
-    const json& data,
+    const nlohmann::json& data,
     const std::string& filePath,
     const std::string& fileName,
     const ExtractionOptions& options,
@@ -563,7 +597,7 @@ void RpgMakerHandler::extractFromJson(
 }
 
 void RpgMakerHandler::extractFromEventList(
-    const json& events,
+    const nlohmann::json& events,
     const std::string& filePath,
     const std::string& basePath,
     const ExtractionOptions& options,
@@ -578,7 +612,7 @@ void RpgMakerHandler::extractFromEventList(
         if (!event.is_object()) continue;
 
         int code = event.value("code", 0);
-        const auto& parameters = event.value("parameters", json::array());
+        const auto& parameters = event.value("parameters", nlohmann::json::array());
 
         // Show Text body (401)
         if (code == EventCode::ShowTextBody && !parameters.empty() && parameters[0].is_string()) {
@@ -733,7 +767,7 @@ void RpgMakerHandler::extractFromEventList(
 }
 
 void RpgMakerHandler::extractTerms(
-    const json& terms,
+    const nlohmann::json& terms,
     const std::string& filePath,
     const std::string& basePath,
     const ExtractionOptions& options,
@@ -797,13 +831,15 @@ Result<HandlerPatchResult> RpgMakerHandler::applyTranslations(
     const std::vector<TranslationEntry>& translations,
     const PatchOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "RPG Maker: Starting translation application to {}", gameDir.string());
+    auto timer = metrics().timer("rpgmaker_apply_translations");
 
     std::vector<PatchedFile> patchedFiles;
     std::vector<PatchError> errors;
     std::string backupId;
     int appliedCount = 0;
     int skippedCount = 0;
+    int filesPatched = 0;
 
     // Create backup
     if (options.createBackup) {
@@ -811,8 +847,10 @@ Result<HandlerPatchResult> RpgMakerHandler::applyTranslations(
             std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) :
             options.backupId;
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Creating backup with ID: {}", backupId);
         auto backupResult = createBackup(gameDir, backupId);
         if (!backupResult || !backupResult->success) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "RPG Maker: Backup creation failed");
             return std::unexpected(Error{ErrorCode::BackupFailed, "Failed to create backup"});
         }
     }
@@ -824,11 +862,18 @@ Result<HandlerPatchResult> RpgMakerHandler::applyTranslations(
         translationsByFile[entry.filePath].push_back(entry);
     }
 
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: {} translations grouped into {} files",
+        translations.size(), translationsByFile.size());
+
     // Apply translations
     for (const auto& [filePath, fileTranslations] : translationsByFile) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Patching file: {} ({} translations)",
+            filePath, fileTranslations.size());
+
         fs::path fullPath = gameDir / filePath;
 
         if (!fs::exists(fullPath)) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "RPG Maker: File not found: {}", filePath);
             errors.push_back(PatchError{
                 .file = filePath,
                 .message = "File not found"
@@ -848,7 +893,16 @@ Result<HandlerPatchResult> RpgMakerHandler::applyTranslations(
                 .totalStrings = static_cast<int>(fileTranslations.size()),
                 .backed = !backupId.empty()
             });
+            filesPatched++;
+
+            // Audit log for file modification
+            AuditLogger::logFileAccess(fullPath, "patch",
+                true, "Applied " + std::to_string(batch.applied) + " translations");
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "RPG Maker: Patched {} - {} applied, {} skipped",
+                filePath, batch.applied, batch.skipped);
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "RPG Maker: Patch error in {}: {}", filePath, e.what());
             errors.push_back(PatchError{
                 .file = filePath,
                 .message = std::string("Patch error: ") + e.what()
@@ -857,9 +911,15 @@ Result<HandlerPatchResult> RpgMakerHandler::applyTranslations(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("RPG Maker: Applied {} translations ({}ms)", appliedCount, duration.count());
+    // Record metrics
+    metrics().increment("rpgmaker_files_patched", filesPatched);
+    metrics().increment("rpgmaker_translations_applied", appliedCount);
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "RPG Maker: Translation complete - {} applied, {} skipped in {} files ({}ms)",
+        appliedCount, skippedCount, filesPatched, duration.count());
 
     return HandlerPatchResult{
         .success = errors.empty(),
@@ -882,7 +942,7 @@ RpgMakerHandler::PatchBatch RpgMakerHandler::applyToJsonFile(
     std::ifstream ifs(file, std::ios::binary);
     if (!ifs) return batch;
 
-    json data = json::parse(ifs);
+    nlohmann::json data = nlohmann::json::parse(ifs);
     ifs.close();
 
     for (const auto& translation : translations) {
@@ -898,17 +958,44 @@ RpgMakerHandler::PatchBatch RpgMakerHandler::applyToJsonFile(
         }
     }
 
-    // Write back
+    // Write back atomically
     if (batch.applied > 0 && !options.dryRun) {
-        std::ofstream ofs(file, std::ios::binary);
-        ofs << std::setw(2) << data;
+        fs::path tempPath = file.string() + ".makineai_tmp";
+
+        {
+            std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+            if (!ofs) {
+                batch.errors.push_back("Cannot create temp file for writing");
+                return batch;
+            }
+
+            ofs << std::setw(2) << data;
+            ofs.flush();
+
+            if (!ofs.good()) {
+                ofs.close();
+                std::error_code ec;
+                fs::remove(tempPath, ec);
+                batch.errors.push_back("Write failed - possible disk full");
+                return batch;
+            }
+        } // File closed
+
+        // Atomic rename
+        std::error_code ec;
+        fs::rename(tempPath, file, ec);
+        if (ec) {
+            fs::remove(tempPath, ec);
+            batch.errors.push_back("Rename failed: " + ec.message());
+            return batch;
+        }
     }
 
     return batch;
 }
 
 bool RpgMakerHandler::applyTranslationToJson(
-    json& data,
+    nlohmann::json& data,
     const TranslationEntry& translation
 ) {
     if (!translation.entryKey || translation.entryKey->empty()) return false;
@@ -923,7 +1010,7 @@ bool RpgMakerHandler::applyTranslationToJson(
 }
 
 bool RpgMakerHandler::applyEventTranslation(
-    json& data,
+    nlohmann::json& data,
     const TranslationEntry& translation
 ) {
     // Parse event key: basePath_event_INDEX_TYPE(_SUBINDEX)?
@@ -960,7 +1047,7 @@ bool RpgMakerHandler::applyEventTranslation(
     }
 
     // Find event list
-    json* events = findEventListAtPath(data, basePath);
+    nlohmann::json* events = findEventListAtPath(data, basePath);
     if (!events) {
         events = findEventList(data);
     }
@@ -971,7 +1058,7 @@ bool RpgMakerHandler::applyEventTranslation(
 }
 
 bool RpgMakerHandler::applyFieldTranslation(
-    json& data,
+    nlohmann::json& data,
     const TranslationEntry& translation
 ) {
     // Parse key: FileName_FIELD_ID or FileName_FIELD
@@ -1014,7 +1101,7 @@ bool RpgMakerHandler::applyFieldTranslation(
 }
 
 bool RpgMakerHandler::applyToEventList(
-    json& events,
+    nlohmann::json& events,
     int targetEventIndex,
     const std::string& eventType,
     std::optional<int> subIndex,
@@ -1100,7 +1187,7 @@ bool RpgMakerHandler::applyToEventList(
 }
 
 bool RpgMakerHandler::applyTextTranslation(
-    json& events,
+    nlohmann::json& events,
     const std::vector<size_t>& textLineIndices,
     const std::string& sourceText,
     const std::string& targetText
@@ -1158,14 +1245,14 @@ bool RpgMakerHandler::applyTextTranslation(
     return true;
 }
 
-bool RpgMakerHandler::isEventList(const json& list) {
+bool RpgMakerHandler::isEventList(const nlohmann::json& list) {
     if (!list.is_array() || list.empty()) return false;
 
     const auto& first = list[0];
     return first.is_object() && first.contains("code") && first.contains("parameters");
 }
 
-json* RpgMakerHandler::findEventListAtPath(json& data, const std::string& path) {
+nlohmann::json* RpgMakerHandler::findEventListAtPath(nlohmann::json& data, const std::string& path) {
     // Simple path - check for event list directly
     if (path.find('.') == std::string::npos && path.find('[') == std::string::npos) {
         return findEventList(data);
@@ -1173,7 +1260,7 @@ json* RpgMakerHandler::findEventListAtPath(json& data, const std::string& path) 
     return nullptr;
 }
 
-json* RpgMakerHandler::findEventList(json& data) {
+nlohmann::json* RpgMakerHandler::findEventList(nlohmann::json& data) {
     if (data.is_array()) {
         for (auto& item : data) {
             if (item.is_object() && item.contains("list") && item["list"].is_array()) {

@@ -2,18 +2,31 @@
  * @file game_detector.hpp
  * @brief Game detection from various stores and launchers
  * @copyright (c) 2026 MakineAI Team
+ *
+ * This module provides game detection capabilities:
+ * - Store-specific scanners (Steam, Epic, GOG)
+ * - Engine detection with confidence scoring
+ * - Game verification via hash
+ *
+ * Namespace: makineai::scanners
+ * (Backward compatible: also available in makineai::)
  */
 
 #pragma once
 
-#include "types.hpp"
-#include "error.hpp"
+#include "makineai/types.hpp"
+#include "makineai/error.hpp"
 
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace makineai {
+namespace scanners {
+
+// ============================================================================
+// ENGINE DETECTION TYPES
+// ============================================================================
 
 /**
  * @brief Engine detection result with confidence scoring
@@ -123,88 +136,80 @@ struct GameSignatures {
 };
 
 /**
+ * @brief Hash verification result
+ */
+struct VerificationResult {
+    bool verified = false;
+    std::string expectedHash;
+    std::string actualHash;
+    std::string version;
+    bool isKnownVersion = false;      // Version exists in our database
+    bool hasTranslation = false;      // Translation available for this version
+};
+
+// ============================================================================
+// SCANNER INTERFACE
+// ============================================================================
+
+/**
  * @brief Interface for store-specific game scanners
+ *
+ * Each scanner (Steam, Epic, GOG) implements this interface to
+ * discover games from their respective stores.
  */
 class IGameScanner {
 public:
     virtual ~IGameScanner() = default;
 
-    /**
-     * @brief Get scanner name
-     */
+    /// @brief Get scanner name
     [[nodiscard]] virtual std::string_view name() const noexcept = 0;
 
-    /**
-     * @brief Get game store type
-     */
+    /// @brief Get game store type
     [[nodiscard]] virtual GameStore storeType() const noexcept = 0;
 
-    /**
-     * @brief Check if this scanner is available on the system
-     */
+    /// @brief Check if this scanner is available on the system
     [[nodiscard]] virtual bool isAvailable() const = 0;
 
-    /**
-     * @brief Scan for installed games
-     */
+    /// @brief Scan for installed games
     [[nodiscard]] virtual Result<std::vector<GameInfo>> scan() const = 0;
 
-    /**
-     * @brief Get game info by store ID
-     */
+    /// @brief Get game info by store ID
     [[nodiscard]] virtual Result<GameInfo> getGame(const std::string& storeId) const = 0;
 };
 
-/**
- * @brief Hash verification result
- */
-struct VerificationResult {
-    bool verified;
-    std::string expectedHash;
-    std::string actualHash;
-    std::string version;
-    bool isKnownVersion;      // Version exists in our database
-    bool hasTranslation;      // Translation available for this version
-};
+// ============================================================================
+// GAME DETECTOR
+// ============================================================================
 
 /**
  * @brief Main game detector class
+ *
+ * Orchestrates game detection across multiple stores and
+ * provides engine detection with confidence scoring.
  */
 class GameDetector {
 public:
     GameDetector();
     ~GameDetector();
 
-    /**
-     * @brief Register a game scanner
-     */
+    /// @brief Register a game scanner
     void registerScanner(std::unique_ptr<IGameScanner> scanner);
 
-    /**
-     * @brief Scan all registered stores for games
-     */
+    /// @brief Scan all registered stores for games
     [[nodiscard]] Result<std::vector<GameInfo>> scanAll(
         ProgressCallback progress = nullptr
     ) const;
 
-    /**
-     * @brief Scan a specific store
-     */
+    /// @brief Scan a specific store
     [[nodiscard]] Result<std::vector<GameInfo>> scanStore(GameStore store) const;
 
-    /**
-     * @brief Detect game from a directory path
-     */
+    /// @brief Detect game from a directory path
     [[nodiscard]] Result<GameInfo> detectGame(const fs::path& gamePath) const;
 
-    /**
-     * @brief Verify game executable hash
-     */
+    /// @brief Verify game executable hash
     [[nodiscard]] Result<VerificationResult> verify(const GameInfo& game) const;
 
-    /**
-     * @brief Detect game engine from directory (simple version)
-     */
+    /// @brief Detect game engine from directory (simple version)
     [[nodiscard]] GameEngine detectEngine(const fs::path& gameDir) const;
 
     /**
@@ -231,26 +236,18 @@ public:
      */
     [[nodiscard]] GameSignatures scanForSignatures(const fs::path& gameDir) const;
 
-    /**
-     * @brief Check if game is 64-bit
-     */
+    /// @brief Check if game is 64-bit
     [[nodiscard]] Result<bool> is64Bit(const fs::path& exePath) const;
 
-    /**
-     * @brief Calculate SHA256 hash of file
-     */
+    /// @brief Calculate SHA256 hash of file
     [[nodiscard]] Result<std::string> calculateHash(const fs::path& file) const;
 
-    /**
-     * @brief Get list of available scanners
-     */
+    /// @brief Get list of available scanners
     [[nodiscard]] const std::vector<std::unique_ptr<IGameScanner>>& scanners() const {
         return scanners_;
     }
 
-    /**
-     * @brief Filter games that have translations available
-     */
+    /// @brief Filter games that have translations available
     [[nodiscard]] std::vector<GameInfo> filterWithTranslations(
         const std::vector<GameInfo>& games
     ) const;
@@ -287,14 +284,15 @@ private:
     std::string readRenpyVersion(const fs::path& gameDir) const;
 };
 
-// Forward declarations of built-in scanners
-class SteamScanner;
-class EpicScanner;
-class GOGScanner;
-class XboxScanner;
+// ============================================================================
+// BUILT-IN SCANNERS
+// ============================================================================
 
 /**
  * @brief Steam game scanner
+ *
+ * Scans Steam library folders for installed games by parsing
+ * appmanifest_*.acf files.
  */
 class SteamScanner : public IGameScanner {
 public:
@@ -311,6 +309,8 @@ private:
 
 /**
  * @brief Epic Games scanner
+ *
+ * Scans Epic Games Launcher manifests for installed games.
  */
 class EpicScanner : public IGameScanner {
 public:
@@ -326,6 +326,8 @@ private:
 
 /**
  * @brief GOG Galaxy scanner
+ *
+ * Scans GOG Galaxy database for installed games.
  */
 class GOGScanner : public IGameScanner {
 public:
@@ -338,5 +340,25 @@ public:
 private:
     [[nodiscard]] Result<fs::path> findDatabasePath() const;
 };
+
+// Forward declaration for future implementation
+class XboxScanner;
+
+} // namespace scanners
+
+// ============================================================================
+// BACKWARD COMPATIBILITY ALIASES
+// ============================================================================
+// These aliases allow existing code to use makineai::GameDetector etc.
+// without modification. New code should prefer makineai::scanners::*.
+
+using EngineDetectionResult = scanners::EngineDetectionResult;
+using GameSignatures = scanners::GameSignatures;
+using VerificationResult = scanners::VerificationResult;
+using IGameScanner = scanners::IGameScanner;
+using GameDetector = scanners::GameDetector;
+using SteamScanner = scanners::SteamScanner;
+using EpicScanner = scanners::EpicScanner;
+using GOGScanner = scanners::GOGScanner;
 
 } // namespace makineai

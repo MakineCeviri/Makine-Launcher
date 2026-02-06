@@ -48,24 +48,29 @@ QtObject {
     readonly property int paddingXXL: 48  // Flutter: content padding
 
     // =========================================================================
-    // KÖŞE YUVARLAKLIKLARI - Flutter AppConstants birebir
+    // KÖŞE YUVARLAKLIKLARI - TÜM UI İÇİN TUTARLI
     // =========================================================================
 
-    readonly property int radiusTiny: 3   // Flutter: borderRadiusTiny
-    readonly property int radiusXS: 4     // Flutter: borderRadiusSmall
-    readonly property int radiusSM: 6     // Flutter: borderRadiusMedium
-    readonly property int radiusMD: 8     // Flutter: borderRadiusLarge
-    readonly property int radiusLG: 12
-    readonly property int radiusXL: 16
-    readonly property int radiusFull: 9999
+    // Ana standart radius - tüm kartlar, butonlar, paneller için
+    // 4px = minimal, clean look
+    readonly property int radiusStandard: 4
+
+    // Eski isimler (uyumluluk için) - hepsi standart değere yönlendirildi
+    readonly property int radiusTiny: radiusStandard
+    readonly property int radiusXS: radiusStandard
+    readonly property int radiusSM: radiusStandard
+    readonly property int radiusMD: radiusStandard
+    readonly property int radiusLG: radiusStandard
+    readonly property int radiusXL: radiusStandard
+    readonly property int radiusFull: 9999  // Tam yuvarlak için (circle)
 
     // =========================================================================
     // NAVBAR
     // =========================================================================
 
-    readonly property int navbarHeight: 72        // Flutter: height 72
-    readonly property int navbarIconSize: 18      // Flutter: icon size 18
-    readonly property int navbarIconSizeLogo: 38  // Flutter: logo size 38
+    readonly property int navbarHeight: 56        // Daha ince navbar
+    readonly property int navbarIconSize: 16      // Küçültülmüş icon
+    readonly property int navbarIconSizeLogo: 32  // Küçültülmüş logo
 
     // =========================================================================
     // TITLEBAR
@@ -78,11 +83,11 @@ QtObject {
     // OYUN KARTI
     // =========================================================================
 
-    readonly property int cardWidth: 140          // Flutter: width 140
-    readonly property int cardHeight: 200         // Flutter: height 200
-    readonly property int cardImageHeight: 140    // Flutter: image fills card
-    readonly property int cardGap: 16             // Flutter: spacing 16
-    readonly property int cardBorderRadius: 4     // Flutter: borderRadius 4
+    readonly property int cardWidth: 140          // Android ile aynı
+    readonly property int cardHeight: 200         // Android ile aynı (140x200)
+    readonly property int cardImageHeight: 160    // Image fills card
+    readonly property int cardGap: 16             // Android ile aynı (16px sabit)
+    readonly property int cardBorderRadius: radiusStandard  // Tutarlı radius
 
     // =========================================================================
     // ANİMASYON SÜRELERİ (ms)
@@ -147,24 +152,13 @@ QtObject {
     readonly property int iconXL: 32
 
     // =========================================================================
-    // SPLASH SCREEN INTERVALS
-    // =========================================================================
-
-    readonly property int splashInterval1: 0
-    readonly property int splashInterval2: 400
-    readonly property int splashInterval3: 600
-    readonly property int splashInterval4: 1200
-    readonly property int splashInterval5: 2000
-    readonly property int splashTotal: 2200
-
-    // =========================================================================
-    // WINDOW SIZES (Flutter AppConstants)
+    // WINDOW SIZES
     // =========================================================================
 
     readonly property int minWindowWidth: 900
-    readonly property int minWindowHeight: 600
-    readonly property int defaultWindowWidth: 1280
-    readonly property int defaultWindowHeight: 720
+    readonly property int minWindowHeight: 620
+    readonly property int defaultWindowWidth: 1024
+    readonly property int defaultWindowHeight: 640
 
     // =========================================================================
     // ANIMATION DURATIONS (Flutter AppConstants)
@@ -197,14 +191,14 @@ QtObject {
 
     readonly property int inputPaddingH: 16
     readonly property int inputPaddingV: 14
-    readonly property int inputBorderRadius: 12
+    readonly property int inputBorderRadius: radiusStandard  // Tutarlı radius
 
     // =========================================================================
     // SCROLLBAR DIMENSIONS
     // =========================================================================
 
     readonly property int scrollbarWidth: 4
-    readonly property int scrollbarRadius: 2
+    readonly property int scrollbarRadius: radiusStandard
     readonly property int scrollbarMargin: 2
 
     // =========================================================================
@@ -213,5 +207,22 @@ QtObject {
 
     readonly property int progressBarWidth: 200
     readonly property int progressBarHeight: 4
-    readonly property int progressBarRadius: 4
+    readonly property int progressBarRadius: radiusStandard
+
+    // =========================================================================
+    // TOGGLE/SWITCH DIMENSIONS
+    // =========================================================================
+
+    readonly property int toggleWidth: 44
+    readonly property int toggleHeight: 24
+    readonly property int toggleRadius: radiusStandard
+    readonly property int toggleKnobSize: 18
+    readonly property int toggleKnobRadius: radiusStandard
+
+    // =========================================================================
+    // DIALOG DIMENSIONS
+    // =========================================================================
+
+    readonly property int dialogRadius: radiusStandard
+    readonly property int badgeRadius: radiusStandard
 }

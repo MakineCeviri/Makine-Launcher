@@ -165,6 +165,8 @@ private:
     // Atomic operation helpers
     [[nodiscard]] VoidResult executeOperation(const PatchOperation& op);
     [[nodiscard]] VoidResult rollbackOperations(
+        const fs::path& gameDir,
+        const std::string& backupId,
         const std::vector<PatchOperation>& ops,
         size_t completedCount
     );

@@ -5,6 +5,9 @@
  */
 
 #include "makineai/handlers/renpy_handler.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
 
 #include <spdlog/spdlog.h>
 #include <fstream>
@@ -99,16 +102,20 @@ Result<ExtractionResult> RenpyHandler::extractStrings(
     const fs::path& gameDir,
     const ExtractionOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "Ren'Py: Starting string extraction from {}", gameDir.string());
+    auto timer = metrics().timer("renpy_extract_strings");
 
     ExtractionResult result;
+    int filesProcessed = 0;
 
     auto filesResult = findGameFiles(gameDir);
     if (!filesResult) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Ren'Py: Failed to find game files: {}", filesResult.error().message());
         return std::unexpected(filesResult.error());
     }
 
     const auto& gameFiles = *filesResult;
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Found {} potential script files", gameFiles.size());
 
     for (const auto& gameFile : gameFiles) {
         // File filters
@@ -134,6 +141,8 @@ Result<ExtractionResult> RenpyHandler::extractStrings(
             if (excluded) continue;
         }
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Processing file: {}", gameFile.relativePath);
+
         try {
             auto batch = extractFromRpyFile(gameFile.path, gameFile, options);
 
@@ -145,8 +154,14 @@ Result<ExtractionResult> RenpyHandler::extractStrings(
             GameFile processedFile = gameFile;
             processedFile.stringCount = static_cast<int>(batch.entries.size());
             result.processedFiles.push_back(std::move(processedFile));
+            filesProcessed++;
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Extracted {} strings from {}",
+                batch.entries.size(), gameFile.relativePath);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Ren'Py: Extraction error in {}: {}",
+                gameFile.relativePath, e.what());
             result.errors.push_back({
                 gameFile.relativePath,
                 std::string("Extraction error: ") + e.what(),
@@ -156,10 +171,15 @@ Result<ExtractionResult> RenpyHandler::extractStrings(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("Ren'Py: Extracted {} strings in {}ms",
-        result.entries.size(), result.duration.count());
+    // Record metrics
+    metrics().increment("renpy_files_processed", filesProcessed);
+    metrics().increment("renpy_strings_extracted", result.entries.size());
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Ren'Py: Extraction complete - {} strings from {} files in {}ms",
+        result.entries.size(), filesProcessed, result.duration.count());
 
     return result;
 }
@@ -365,10 +385,12 @@ Result<HandlerPatchResult> RenpyHandler::applyTranslations(
     const std::vector<TranslationEntry>& translations,
     const PatchOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "Ren'Py: Starting translation application to {}", gameDir.string());
+    auto timer = metrics().timer("renpy_apply_translations");
 
     HandlerPatchResult result;
     result.success = true;
+    int filesPatched = 0;
 
     // Create backup
     if (options.createBackup) {
@@ -376,8 +398,10 @@ Result<HandlerPatchResult> RenpyHandler::applyTranslations(
             ? std::to_string(std::chrono::system_clock::now().time_since_epoch().count())
             : options.backupId;
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Creating backup with ID: {}", backupId);
         auto backupResult = createBackup(gameDir, backupId);
         if (!backupResult) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Ren'Py: Backup creation failed");
             return std::unexpected(Error{ErrorCode::IOError, "Backup creation failed"});
         }
         result.backupId = backupId;
@@ -390,10 +414,17 @@ Result<HandlerPatchResult> RenpyHandler::applyTranslations(
         translationsByFile[entry.filePath].push_back(entry);
     }
 
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: {} translations grouped into {} files",
+        translations.size(), translationsByFile.size());
+
     // Apply to each file
     for (const auto& [filePath, fileTranslations] : translationsByFile) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Patching file: {} ({} translations)",
+            filePath, fileTranslations.size());
+
         auto fullPath = gameDir / filePath;
         if (!fs::exists(fullPath)) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "Ren'Py: File not found: {}", filePath);
             result.errors.push_back({filePath, "File not found", ExtractionSeverity::Warning});
             continue;
         }
@@ -440,6 +471,10 @@ Result<HandlerPatchResult> RenpyHandler::applyTranslations(
                     ofs << lines[i];
                     if (i < lines.size() - 1) ofs << "\n";
                 }
+
+                // Audit log for file modification
+                AuditLogger::logFileAccess(fullPath, "patch",
+                    true, "Applied " + std::to_string(changedCount) + " translations");
             }
 
             result.patchedFiles.push_back({
@@ -448,8 +483,13 @@ Result<HandlerPatchResult> RenpyHandler::applyTranslations(
                 static_cast<int>(fileTranslations.size()),
                 !result.backupId.empty()
             });
+            filesPatched++;
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Patched {} - {} applied",
+                filePath, changedCount);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Ren'Py: Patch error in {}: {}", filePath, e.what());
             result.errors.push_back({
                 filePath,
                 std::string("Patch error: ") + e.what(),
@@ -459,10 +499,15 @@ Result<HandlerPatchResult> RenpyHandler::applyTranslations(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("Ren'Py: Applied {} translations in {}ms",
-        result.appliedCount, result.duration.count());
+    // Record metrics
+    metrics().increment("renpy_files_patched", filesPatched);
+    metrics().increment("renpy_translations_applied", result.appliedCount);
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Ren'Py: Translation complete - {} applied, {} skipped in {} files ({}ms)",
+        result.appliedCount, result.skippedCount, filesPatched, result.duration.count());
 
     return result;
 }

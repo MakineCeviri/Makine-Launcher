@@ -70,7 +70,7 @@ Rectangle {
 
     implicitWidth: badgeRow.width + 20
     implicitHeight: 26
-    radius: 4
+    radius: Dimensions.radiusStandard
     color: Theme.withAlpha(phaseColor, 0.15)
 
     Behavior on color { ColorAnimation { duration: 200 } }

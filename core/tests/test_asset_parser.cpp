@@ -109,7 +109,11 @@ protected:
 
 // Test format detection
 TEST_F(AssetParserTest, DetectBA2Format) {
-    auto ba2Path = testDataDir_ / "test.ba2";
+    // Bethesda detection looks for .ba2 files in the Data/ subfolder
+    auto dataDir = testDataDir_ / "Data";
+    std::filesystem::create_directories(dataDir);
+
+    auto ba2Path = dataDir / "test.ba2";
     createMockBA2(ba2Path);
 
     auto engine = parser_.detectEngine(testDataDir_);

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
 project(MakineAI VERSION 0.1.0 LANGUAGES CXX)
 
@@ -10,6 +10,7 @@ set(CMAKE_AUTORCC ON)
 
 # Option to build UI-only (without core library dependencies)
 option(MAKINEAI_UI_ONLY "Build UI shell only without core library" OFF)
+
 
 # Core library path
 set(MAKINEAI_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../core)
@@ -48,29 +49,32 @@ find_package(Qt6 REQUIRED COMPONENTS
     Network
     Svg
     Concurrent
+    Widgets
+    PrintSupport
 )
 
 qt_standard_project_setup(REQUIRES 6.5)
 
-# Core library sources (embedded) - only for full build
+# Core library - link to prebuilt static library
 if(NOT MAKINEAI_UI_ONLY)
-    set(CORE_SOURCES
-        ${MAKINEAI_CORE_DIR}/src/game_detector/game_detector.cpp
-        ${MAKINEAI_CORE_DIR}/src/game_detector/steam_scanner.cpp
-        ${MAKINEAI_CORE_DIR}/src/game_detector/epic_scanner.cpp
-        ${MAKINEAI_CORE_DIR}/src/game_detector/gog_scanner.cpp
-        ${MAKINEAI_CORE_DIR}/src/translation/translation_memory.cpp
-        ${MAKINEAI_CORE_DIR}/src/translation/glossary_service.cpp
-        ${MAKINEAI_CORE_DIR}/src/translation/qa_service.cpp
-        ${MAKINEAI_CORE_DIR}/src/handlers/unity_handler.cpp
-        ${MAKINEAI_CORE_DIR}/src/handlers/unreal_handler.cpp
-        ${MAKINEAI_CORE_DIR}/src/handlers/renpy_handler.cpp
-        ${MAKINEAI_CORE_DIR}/src/handlers/rpgmaker_handler.cpp
-        ${MAKINEAI_CORE_DIR}/src/handlers/gamemaker_handler.cpp
-        ${MAKINEAI_CORE_DIR}/src/database/database.cpp
-        ${MAKINEAI_CORE_DIR}/src/platform/windows/registry.cpp
-        ${MAKINEAI_CORE_DIR}/src/platform/windows/filesystem.cpp
+    # Search for core library in possible build directories
+    find_library(MAKINEAI_CORE_LIB
+        NAMES makineai_core
+        PATHS
+            ${MAKINEAI_CORE_DIR}/build/core
+            ${MAKINEAI_CORE_DIR}/build/release
+            ${MAKINEAI_CORE_DIR}/build_msvc
+            ${CMAKE_BINARY_DIR}/../core
+        NO_DEFAULT_PATH
     )
+
+    if(NOT MAKINEAI_CORE_LIB)
+        message(FATAL_ERROR "Core library not found. "
+                           "Build it first: cmake --preset=core && cmake --build build/core")
+    endif()
+
+    get_filename_component(MAKINEAI_CORE_LIB_DIR ${MAKINEAI_CORE_LIB} DIRECTORY)
+    set(CORE_SOURCES "")
 endif()
 
 # Backend service sources
@@ -123,12 +127,10 @@ qt_add_qml_module(MakineAI
     URI MakineAI
     VERSION 1.0
     QML_FILES
-        # Main
+        # Main Screens
         qml/Main.qml
         qml/HomeScreen.qml
         qml/SettingsScreen.qml
-        qml/SplashScreen.qml
-        qml/SplashWindow.qml
         qml/GameDetailScreen.qml
         qml/TranslationWorkflowScreen.qml
 
@@ -137,42 +139,88 @@ qt_add_qml_module(MakineAI
         qml/theme/Dimensions.qml
         qml/theme/DebugHelper.qml
 
-        # Components
+        # Settings Pages
+        qml/settings/GeneralSettings.qml
+        qml/settings/TranslationSettings.qml
+        qml/settings/ProjectsSettings.qml
+        qml/settings/PerformanceSettings.qml
+        qml/settings/AboutSettings.qml
+        qml/settings/DeveloperSettings.qml
+
+        # Components - Cards
         qml/components/GlassCard.qml
+        qml/components/CedraCard.qml
+        qml/components/CedraInteractiveCard.qml
+        qml/components/GameCard.qml
+        qml/components/GameCardSkeleton.qml
+        qml/components/GameDetectedCard.qml
+        qml/components/GameStatusCard.qml
+        qml/components/WaitingForGameCard.qml
+        qml/components/AnnouncementCard.qml
+        qml/components/ProjectCard.qml
+        qml/components/SettingsCard.qml
+        qml/components/ViewAllCard.qml
+
+        # Components - Buttons
         qml/components/StopButton.qml
         qml/components/AnimatedButton.qml
         qml/components/GradientButton.qml
+        qml/components/ActionButton.qml
+        qml/components/IconButton.qml
+        qml/components/DevButton.qml
+        qml/components/DiscordButton.qml
+        qml/components/DonateButton.qml
+        qml/components/WindowButton.qml
+
+        # Components - Navigation
+        qml/components/NavBar.qml
+        qml/components/NavBarItem.qml
+        qml/components/NavItem.qml
+        qml/components/MinimalTitleBar.qml
+        qml/components/TitleBar.qml
+
+        # Components - Visual
         qml/components/MakineLogo.qml
         qml/components/RotatingHourglass.qml
         qml/components/TranslationPhaseBadge.qml
-        qml/components/WaitingForGameCard.qml
-        qml/components/GameDetectedCard.qml
-        qml/components/AnnouncementCard.qml
-        qml/components/DiscordButton.qml
-        qml/components/CedraCard.qml
+        qml/components/TranslationProgressBar.qml
         qml/components/BackgroundBlur.qml
         qml/components/GlassPanel.qml
         qml/components/GradientText.qml
-        qml/components/MinimalTitleBar.qml
-        qml/components/NavBar.qml
-        qml/components/NavBarItem.qml
-        qml/components/CedraInteractiveCard.qml
-        qml/components/DonateButton.qml
-        qml/components/GameCard.qml
-        qml/components/HoverBuilder.qml
-        qml/components/ViewAllCard.qml
-        qml/components/WindowButton.qml
-        qml/components/TranslationProgressBar.qml
         qml/components/HoverGlow.qml
+        qml/components/HoverBuilder.qml
         qml/components/SkeletonLoader.qml
-        qml/components/GameCardSkeleton.qml
         qml/components/PerformanceMonitor.qml
+        qml/components/Badge.qml
+        qml/components/MetacriticScoreBadge.qml
+        qml/components/PhaseIndicator.qml
+        qml/components/PlatformIcons.qml
+
+        # Components - Settings UI
+        qml/components/ToggleSetting.qml
+        qml/components/ThemeSetting.qml
+        qml/components/InfoSettingWithBadge.qml
+        qml/components/DisabledSetting.qml
+        qml/components/SettingsDivider.qml
+        qml/components/ClickableRow.qml
+
+        # Components - List Items
+        qml/components/CategoryItem.qml
+        qml/components/ProjectCategory.qml
+        qml/components/BackupListItem.qml
+        qml/components/ActivityListItem.qml
+        qml/components/InfoRow.qml
+        qml/components/SectionHeader.qml
+        qml/components/EmptyStateMessage.qml
+        qml/components/CustomScrollBar.qml
+        qml/components/AppFooter.qml
 
         # Dialogs
         qml/dialogs/GameDetectorDialog.qml
         qml/dialogs/AllGamesDialog.qml
         qml/dialogs/QAResultsDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
+        qml/dialogs/CancelConfirmationDialog.qml
 
     RESOURCES
         # SVG icons
@@ -194,8 +242,31 @@ qt_add_qml_module(MakineAI
         resources/icons/delete.svg
         resources/icons/info.svg
         resources/icons/refresh.svg
+        resources/icons/hourglass.svg
+        resources/icons/flag-tr.svg
+        resources/icons/box.svg
+        resources/icons/globe.svg
+        resources/icons/gamepad.svg
+        resources/icons/rocket.svg
+        resources/icons/shield.svg
+        resources/icons/clock.svg
+        resources/icons/megaphone.svg
+        resources/icons/plus.svg
+        resources/icons/star.svg
+        resources/icons/chevron-right.svg
+        resources/icons/lock.svg
+        resources/icons/trash.svg
+        resources/icons/rotate-ccw.svg
+        resources/icons/settings.svg
+        resources/icons/heart.svg
+        resources/icons/pin.svg
         # PNG images
         resources/images/logo.png
+        # Fonts (Inter - Google Fonts, Flutter style)
+        resources/fonts/Inter-Regular.ttf
+        resources/fonts/Inter-Medium.ttf
+        resources/fonts/Inter-SemiBold.ttf
+        resources/fonts/Inter-Bold.ttf
 )
 
 # Include directories
@@ -221,10 +292,18 @@ target_link_libraries(MakineAI PRIVATE
     Qt6::Network
     Qt6::Svg
     Qt6::Concurrent
+    Qt6::Widgets
+    Qt6::PrintSupport
 )
 
 # Link core dependencies (only for full build)
 if(NOT MAKINEAI_UI_ONLY)
+    # Link to prebuilt MakineAI Core library
+    target_link_libraries(MakineAI PRIVATE
+        ${MAKINEAI_CORE_LIB}
+    )
+
+    # Link vcpkg dependencies (required by Core)
     target_link_libraries(MakineAI PRIVATE
         Boost::filesystem
         OpenSSL::SSL
@@ -262,6 +341,7 @@ if(WIN32)
         Shlwapi
         Advapi32
         User32
+        Version      # For GetFileVersionInfo APIs
     )
 endif()
 

@@ -59,7 +59,7 @@ Rectangle {
             Rectangle {
                 Layout.preferredWidth: 100
                 Layout.preferredHeight: 60
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: Theme.surfaceActive
                 clip: true
 
@@ -104,7 +104,7 @@ Rectangle {
                         visible: root.isVerified
                         Layout.preferredWidth: 20
                         Layout.preferredHeight: 20
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: Theme.withAlpha(Theme.primary, 0.9)
 
                         Text {
@@ -128,7 +128,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: progressContent.height + 24
-            radius: 4
+            radius: Dimensions.radiusStandard
             color: Qt.rgba(1, 1, 1, 0.03)
             visible: phase !== TranslationPhaseBadge.Phase.Idle && phase !== TranslationPhaseBadge.Phase.Completed
 
@@ -168,7 +168,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
-            radius: 4
+            radius: Dimensions.radiusStandard
             color: Theme.withAlpha(Theme.success, 0.1)
             border.color: Theme.withAlpha(Theme.success, 0.2)
             border.width: 1
@@ -208,7 +208,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: antiCheatContent.height + 24
-            radius: 4
+            radius: Dimensions.radiusStandard
             color: Theme.withAlpha(Theme.warning, 0.1)
             border.color: Theme.withAlpha(Theme.warning, 0.2)
             border.width: 1

@@ -349,7 +349,7 @@ Item {
                 anchors.topMargin: 8
                 width: badgeRow.width + 28
                 height: 26
-                radius: 16
+                radius: Dimensions.radiusStandard
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
@@ -402,7 +402,7 @@ Item {
                 anchors.top: parent.top
                 width: 200
                 height: 4
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: Qt.rgba(1, 1, 1, 0.08)
             }
 
@@ -421,7 +421,7 @@ Item {
                     anchors.centerIn: parent
                     width: parent.width + 8
                     height: 12
-                    radius: 6
+                    radius: Dimensions.radiusStandard
                     color: Qt.rgba(1.0, 0.41, 0.71, 0.4)
                 }
 
@@ -431,7 +431,7 @@ Item {
                     anchors.top: parent.top
                     width: progressTrack.width
                     height: 4
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0.0; color: "#FFD700" }
@@ -478,7 +478,7 @@ Item {
             anchors.top: parent.top
             width: versionText.width + 20
             height: versionText.height + 8
-            radius: 6
+            radius: Dimensions.radiusStandard
             color: Qt.rgba(1, 1, 1, 0.04)
 
             Text {

@@ -13,6 +13,7 @@
 #include <QSet>
 
 #ifndef MAKINEAI_UI_ONLY
+#include <makineai/core.hpp>
 #include <makineai/game_detector.hpp>
 #include <makineai/handlers/engine_handler.hpp>
 #include <makineai/handlers/unity_handler.hpp>
@@ -30,10 +31,38 @@ namespace makineai {
 
 CoreBridge* CoreBridge::s_instance = nullptr;
 
+#ifndef MAKINEAI_UI_ONLY
+static bool s_coreInitialized = false;
+
+// Initialize Core singleton on first use
+static void ensureCoreInitialized() {
+    if (s_coreInitialized) return;
+
+    auto& core = Core::instance();
+    if (!core.isInitialized()) {
+        qDebug() << "Initializing MakineAI Core...";
+        auto result = core.initialize();
+        if (result) {
+            qDebug() << "Core initialized successfully in" << result->initDuration.count() << "ms";
+            s_coreInitialized = true;
+        } else {
+            qWarning() << "Core initialization failed:" << QString::fromStdString(result.error().message());
+        }
+    } else {
+        s_coreInitialized = true;
+    }
+}
+#endif
+
 CoreBridge::CoreBridge(QObject *parent)
     : QObject(parent)
 {
     s_instance = this;
+
+#ifndef MAKINEAI_UI_ONLY
+    // Initialize Core on construction
+    ensureCoreInitialized();
+#endif
 }
 
 CoreBridge::~CoreBridge()
@@ -771,8 +800,10 @@ QString matchTypeToString(MatchType type) {
     }
 }
 
+} // anonymous namespace
+
 // Helper: Convert core TMMatch to Qt struct
-TMMatchQt convertTMMatch(const TMMatch& match) {
+TMMatchQt CoreBridge::convertTMMatch(const TMMatch& match) {
     TMMatchQt qt;
     qt.sourceText = QString::fromStdString(match.entry.sourceText);
     qt.targetText = QString::fromStdString(match.entry.targetText);
@@ -786,7 +817,7 @@ TMMatchQt convertTMMatch(const TMMatch& match) {
 }
 
 // Helper: Convert core GlossaryTerm to Qt struct
-GlossaryTermQt convertGlossaryTerm(const GlossaryTerm& term) {
+GlossaryTermQt CoreBridge::convertGlossaryTerm(const GlossaryTerm& term) {
     GlossaryTermQt qt;
     qt.id = term.id.value_or(0);
     qt.termSource = QString::fromStdString(term.termSource);
@@ -831,7 +862,7 @@ GlossaryTermQt convertGlossaryTerm(const GlossaryTerm& term) {
 }
 
 // Helper: Convert core QAIssue to Qt struct
-QAIssueQt convertQAIssue(const QAIssue& issue) {
+QAIssueQt CoreBridge::convertQAIssue(const QAIssue& issue) {
     QAIssueQt qt;
     qt.code = QString::fromStdString(issue.code);
     qt.message = QString::fromStdString(issue.message);
@@ -849,7 +880,7 @@ QAIssueQt convertQAIssue(const QAIssue& issue) {
 }
 
 // Helper: Convert core QAResult to Qt struct
-QAResultQt convertQAResult(const QAResult& result) {
+QAResultQt CoreBridge::convertQAResult(const QAResult& result) {
     QAResultQt qt;
     qt.score = result.score;
     qt.passed = result.passed;
@@ -861,8 +892,6 @@ QAResultQt convertQAResult(const QAResult& result) {
 
     return qt;
 }
-
-} // anonymous namespace
 
 QList<TMMatchQt> CoreBridge::findTMMatches(
     const QString& sourceText, const QString& gameId,
@@ -978,12 +1007,9 @@ void CoreBridge::findBatchTMMatches(const QStringList& sourceTexts,
 
 void CoreBridge::clearTM()
 {
-    auto result = TranslationMemoryService::clear();
-    if (!result) {
-        qWarning() << "TM clear failed:" << QString::fromStdString(result.error().message());
-    } else {
-        qDebug() << "Translation Memory cleared successfully";
-    }
+    // Note: TranslationMemoryService doesn't have clear() method yet
+    // This is a placeholder for future implementation
+    qDebug() << "Translation Memory clear requested (not yet implemented)";
 }
 
 // ========== Glossary Functions ==========
@@ -1069,13 +1095,9 @@ QList<GlossaryTermQt> CoreBridge::findTermsInText(const QString& text, const QSt
 
 void CoreBridge::clearGlossary()
 {
-    auto& glossary = GlossaryService::instance();
-    auto result = glossary.clear();
-    if (!result) {
-        qWarning() << "Glossary clear failed:" << QString::fromStdString(result.error().message());
-    } else {
-        qDebug() << "Glossary cleared successfully";
-    }
+    // Note: GlossaryService doesn't have clear() method yet
+    // This is a placeholder for future implementation
+    qDebug() << "Glossary clear requested (not yet implemented)";
 }
 
 // ========== QA Functions ==========
@@ -1145,7 +1167,8 @@ bool CoreBridge::hasTranslationPackage(const QString& gameId)
             GameInfo coreGame;
             coreGame.name = game.name.toStdString();
             coreGame.installPath = game.installPath.toStdString();
-            coreGame.steamAppId = game.steamAppId.toStdString();
+            coreGame.id.storeId = game.steamAppId.toStdString();
+            coreGame.id.store = GameStore::Steam;
 
             auto& pm = Core::instance().packageManager();
             return pm.hasTranslation(coreGame);
@@ -1163,23 +1186,21 @@ std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString&
             GameInfo coreGame;
             coreGame.name = game.name.toStdString();
             coreGame.installPath = game.installPath.toStdString();
-            coreGame.steamAppId = game.steamAppId.toStdString();
+            coreGame.id.storeId = game.steamAppId.toStdString();
+            coreGame.id.store = GameStore::Steam;
 
             auto& pm = Core::instance().packageManager();
             auto result = pm.findPackage(coreGame);
 
             if (result) {
                 TranslationPackageQt pkg;
-                pkg.id = QString::fromStdString(result->id);
+                pkg.packageId = QString::fromStdString(result->packageId);
                 pkg.gameId = QString::fromStdString(result->gameId);
+                pkg.gameName = QString::fromStdString(result->gameName);
                 pkg.version = QString::fromStdString(result->version);
-                pkg.author = QString::fromStdString(result->author);
-                pkg.quality = QString::fromStdString(result->quality);
-                pkg.stringCount = result->stringCount;
-                pkg.fileCount = result->fileCount;
-
-                // Convert coverage percentage
-                pkg.coverage = QString::number(result->coverage, 'f', 1) + "%";
+                pkg.downloadUrl = QString::fromStdString(result->downloadUrl);
+                pkg.sizeBytes = static_cast<qint64>(result->sizeBytes);
+                pkg.requiresRuntime = result->requiresRuntime;
 
                 return pkg;
             }
@@ -1205,12 +1226,13 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
         GameInfo game;
         game.installPath = gamePath.toStdString();
 
-        auto installResult = pm.install(*pkgResult, game, [this](double progress, const std::string& status) {
-            emit packageInstallProgress(progress, QString::fromStdString(status));
+        auto installResult = pm.install(*pkgResult, game, [this](uint32_t current, uint32_t total, std::string_view status) {
+            double progress = total > 0 ? static_cast<double>(current) / static_cast<double>(total) : 0.0;
+            emit packageInstallProgress(progress, QString::fromUtf8(status.data(), static_cast<int>(status.size())));
         });
 
         if (installResult) {
-            emit packageInstallCompleted(true, QString("Paket başarıyla kuruldu: %1 dosya").arg(installResult->patchedFileCount));
+            emit packageInstallCompleted(true, QString("Paket başarıyla kuruldu: %1 dosya").arg(installResult->filesPatched));
         } else {
             emit packageInstallCompleted(false, QString::fromStdString(installResult.error().message()));
         }

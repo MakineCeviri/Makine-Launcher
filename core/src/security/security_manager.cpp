@@ -13,6 +13,9 @@
 
 #include "makineai/security.hpp"
 #include "makineai/features.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/audit.hpp"
+#include "makineai/metrics.hpp"
 #include <spdlog/spdlog.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -161,8 +164,14 @@ bool SecurityManager::verifyHash(ByteSpan data, const std::string& expectedHash,
 }
 
 VoidResult SecurityManager::loadPublicKey(const fs::path& keyPath) {
+    MAKINEAI_LOG_INFO(log::SECURITY, "Loading public key from: {}", keyPath.string());
+    AuditLogger::logFileAccess(keyPath, "read_public_key");
+
     std::ifstream ifs(keyPath);
     if (!ifs) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Cannot open public key file: {}", keyPath.string());
+        AuditLogger::logFileAccess(keyPath, "read_public_key", false, "File not found");
+        metrics().increment("security.public_key_load_failures");
         return std::unexpected(Error(ErrorCode::FileNotFound,
             "Cannot open public key file: " + keyPath.string()));
     }
@@ -170,12 +179,20 @@ VoidResult SecurityManager::loadPublicKey(const fs::path& keyPath) {
     std::string pem((std::istreambuf_iterator<char>(ifs)),
                      std::istreambuf_iterator<char>());
 
-    return loadPublicKeyPEM(pem);
+    auto result = loadPublicKeyPEM(pem);
+    if (!result) {
+        AuditLogger::logFileAccess(keyPath, "read_public_key", false, result.error().message());
+    }
+    return result;
 }
 
 VoidResult SecurityManager::loadPublicKeyPEM(const std::string& pem) {
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Attempting to load public key PEM ({} bytes)", pem.size());
+
     BIO* bio = BIO_new_mem_buf(pem.data(), static_cast<int>(pem.size()));
     if (!bio) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to create BIO for public key");
+        AuditLogger::logSystemEvent("public_key_load_failed", "BIO creation failed", AuditSeverity::Warning);
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to create BIO"));
     }
 
@@ -188,22 +205,34 @@ VoidResult SecurityManager::loadPublicKeyPEM(const std::string& pem) {
     BIO_free(bio);
 
     if (!impl_->publicKey) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to parse public key PEM");
+        AuditLogger::logSystemEvent("public_key_load_failed", "PEM parse error", AuditSeverity::Critical);
+        metrics().increment("security.public_key_load_failures");
         return std::unexpected(Error(ErrorCode::SignatureInvalid,
             "Failed to parse public key PEM"));
     }
 
     publicKeyLoaded_ = true;
-    spdlog::info("Public key loaded successfully");
+    MAKINEAI_LOG_INFO(log::SECURITY, "Public key loaded successfully");
+    AuditLogger::logSystemEvent("public_key_loaded", "Public key successfully loaded", AuditSeverity::Info);
+    metrics().increment("security.public_key_loads");
     return {};
 }
 
 Result<SignatureResult> SecurityManager::verifySignature(
     ByteSpan data, const std::string& signatureBase64
 ) const {
+    // Start timing the verification operation
+    auto timer = metrics().timer("security.signature_verification");
+
     SignatureResult result{false, "", 0, "", ""};
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Verifying signature for {} bytes of data", data.size());
 
     if (!publicKeyLoaded_ || !impl_->publicKey) {
         result.message = "No public key loaded";
+        MAKINEAI_LOG_WARN(log::SECURITY, "Signature verification attempted without public key");
+        AuditLogger::logSignatureVerification("unknown", false, "No public key loaded");
+        metrics().increment("security.signature_verify_failures");
         return result;
     }
 
@@ -220,6 +249,9 @@ Result<SignatureResult> SecurityManager::verifySignature(
 
     if (sigLen <= 0) {
         result.message = "Failed to decode base64 signature";
+        MAKINEAI_LOG_WARN(log::SECURITY, "Failed to decode base64 signature");
+        AuditLogger::logSignatureVerification("unknown", false, "Base64 decode failed");
+        metrics().increment("security.signature_verify_failures");
         return result;
     }
     signature.resize(static_cast<size_t>(sigLen));
@@ -228,6 +260,9 @@ Result<SignatureResult> SecurityManager::verifySignature(
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx) {
         result.message = "Failed to create verification context";
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to create EVP_MD_CTX for verification");
+        AuditLogger::logSignatureVerification("unknown", false, "Context creation failed");
+        metrics().increment("security.signature_verify_failures");
         return result;
     }
 
@@ -242,8 +277,19 @@ Result<SignatureResult> SecurityManager::verifySignature(
 
     result.valid = verified;
     result.publicKeyId = impl_->publicKeyId;
-    if (!verified) {
+
+    // SECURITY CRITICAL: Log all verification results
+    if (verified) {
+        MAKINEAI_LOG_INFO(log::SECURITY, "Signature verification PASSED");
+        AuditLogger::logSignatureVerification(impl_->publicKeyId, true,
+            "Data size: " + std::to_string(data.size()) + " bytes");
+        metrics().increment("security.signature_verify_successes");
+    } else {
         result.message = "Signature verification failed";
+        MAKINEAI_LOG_WARN(log::SECURITY, "Signature verification FAILED");
+        AuditLogger::logSignatureVerification(impl_->publicKeyId, false,
+            "Data size: " + std::to_string(data.size()) + " bytes, verification rejected");
+        metrics().increment("security.signature_verify_failures");
     }
 
     return result;
@@ -252,25 +298,48 @@ Result<SignatureResult> SecurityManager::verifySignature(
 Result<SignatureResult> SecurityManager::verifyPackageSignature(
     const fs::path& packagePath, const PackageSignature& signature
 ) const {
+    // Start timing the package verification operation
+    auto timer = metrics().timer("security.package_verification");
+
     SignatureResult result{false, "", 0, "", ""};
+    MAKINEAI_LOG_INFO(log::SECURITY, "Verifying package signature: {}", packagePath.string());
+    AuditLogger::logFileAccess(packagePath, "verify_package_signature");
 
     // Hash the package file
     auto hashResult = hashFile(packagePath);
     if (!hashResult) {
         result.message = "Failed to hash package: " + hashResult.error().message();
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to hash package {}: {}",
+            packagePath.string(), hashResult.error().message());
+        AuditLogger::logSignatureVerification(packagePath.string(), false,
+            "Hash calculation failed: " + hashResult.error().message());
+        metrics().increment("security.package_verify_failures");
         return result;
     }
 
     // Compare hash
     if (*hashResult != signature.packageHash) {
         result.message = "Package hash mismatch";
+        MAKINEAI_LOG_WARN(log::SECURITY, "Package hash mismatch for {}: expected={}, got={}",
+            packagePath.string(), signature.packageHash, *hashResult);
+        AuditLogger::logSignatureVerification(packagePath.string(), false,
+            "Hash mismatch - possible tampering or corruption detected");
+        metrics().increment("security.package_verify_failures");
+        metrics().increment("security.hash_mismatches");
         return result;
     }
+
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Package hash verified: {}", *hashResult);
 
     // Verify signature
     ByteBuffer hashBytes(hashResult->begin(), hashResult->end());
     auto sigResult = verifySignature(hashBytes, signature.signature);
     if (!sigResult) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Signature verification error for package {}",
+            packagePath.string());
+        AuditLogger::logSignatureVerification(packagePath.string(), false,
+            "Signature verification error");
+        metrics().increment("security.package_verify_failures");
         return sigResult;
     }
 
@@ -278,11 +347,31 @@ Result<SignatureResult> SecurityManager::verifyPackageSignature(
     result.signedAt = signature.timestamp;
     result.publicKeyId = signature.publicKeyId;
 
+    // SECURITY CRITICAL: Log final package verification result
+    if (result.valid) {
+        MAKINEAI_LOG_INFO(log::SECURITY, "Package signature verification PASSED: {}",
+            packagePath.string());
+        AuditLogger::logSignatureVerification(packagePath.string(), true,
+            "Package verified, keyId=" + signature.publicKeyId);
+        metrics().increment("security.package_verify_successes");
+    } else {
+        MAKINEAI_LOG_WARN(log::SECURITY, "Package signature verification FAILED: {}",
+            packagePath.string());
+        AuditLogger::logSignatureVerification(packagePath.string(), false,
+            "Signature invalid, keyId=" + signature.publicKeyId);
+        metrics().increment("security.package_verify_failures");
+    }
+
     return result;
 }
 
 Result<SignatureResult> SecurityManager::verifyAuthenticode(const fs::path& exePath) const {
+    // Start timing the Authenticode verification
+    auto timer = metrics().timer("security.authenticode_verification");
+
     SignatureResult result{false, "", 0, "", ""};
+    MAKINEAI_LOG_INFO(log::SECURITY, "Verifying Authenticode signature: {}", exePath.string());
+    AuditLogger::logFileAccess(exePath, "verify_authenticode");
 
 #ifdef _WIN32
     std::wstring wpath = exePath.wstring();
@@ -312,19 +401,35 @@ Result<SignatureResult> SecurityManager::verifyAuthenticode(const fs::path& exeP
         switch (status) {
             case TRUST_E_NOSIGNATURE:
                 result.message = "File is not signed";
+                MAKINEAI_LOG_WARN(log::SECURITY, "Authenticode: File is not signed: {}",
+                    exePath.string());
                 break;
             case TRUST_E_EXPLICIT_DISTRUST:
                 result.message = "Signature explicitly distrusted";
+                MAKINEAI_LOG_WARN(log::SECURITY, "Authenticode: Signature explicitly distrusted: {}",
+                    exePath.string());
                 break;
             case TRUST_E_SUBJECT_NOT_TRUSTED:
                 result.message = "Subject not trusted";
+                MAKINEAI_LOG_WARN(log::SECURITY, "Authenticode: Subject not trusted: {}",
+                    exePath.string());
                 break;
             default:
                 result.message = "Verification failed: " + std::to_string(status);
+                MAKINEAI_LOG_WARN(log::SECURITY, "Authenticode verification failed with status {}: {}",
+                    status, exePath.string());
         }
+        AuditLogger::logSignatureVerification(exePath.string(), false,
+            "Authenticode: " + result.message);
+        metrics().increment("security.authenticode_verify_failures");
+    } else {
+        MAKINEAI_LOG_INFO(log::SECURITY, "Authenticode verification PASSED: {}", exePath.string());
+        AuditLogger::logSignatureVerification(exePath.string(), true, "Authenticode: Valid signature");
+        metrics().increment("security.authenticode_verify_successes");
     }
 #else
     result.message = "Authenticode verification only available on Windows";
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Authenticode verification skipped (non-Windows platform)");
 #endif
 
     return result;

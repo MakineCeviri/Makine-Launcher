@@ -6,6 +6,10 @@
 
 #include "makineai/runtime_manager.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
+#include "makineai/validation.hpp"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -47,6 +51,9 @@ UnityBackend RuntimeManager::detectBackend(const fs::path& gameDir) const {
 }
 
 Result<RuntimeStatus> RuntimeManager::checkStatus(const GameInfo& game) const {
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Checking runtime status for: {}",
+        game.name.empty() ? game.installPath.string() : game.name);
+
     RuntimeStatus status;
     status.installed = false;
     status.upToDate = false;
@@ -54,13 +61,18 @@ Result<RuntimeStatus> RuntimeManager::checkStatus(const GameInfo& game) const {
     status.installPath = game.installPath;
 
     if (status.backend == UnityBackend::Unknown) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Not a Unity game or backend not detected");
         return std::unexpected(Error(ErrorCode::EngineNotDetected,
             "Not a Unity game or backend not detected"));
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Detected backend: {}",
+        status.backend == UnityBackend::Mono ? "Mono" : "IL2CPP");
+
     // Check for BepInEx installation
     fs::path bepinexPath = game.installPath / "BepInEx";
     if (!fs::exists(bepinexPath)) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "BepInEx not installed");
         return status;  // Not installed
     }
 
@@ -76,6 +88,8 @@ Result<RuntimeStatus> RuntimeManager::checkStatus(const GameInfo& game) const {
                 auto filename = entry.path().filename().string();
                 if (filename.find("XUnity.AutoTranslator") != std::string::npos) {
                     hasXUnity = true;
+                    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Found XUnity.AutoTranslator: {}",
+                        entry.path().string());
                     break;
                 }
             }
@@ -83,6 +97,7 @@ Result<RuntimeStatus> RuntimeManager::checkStatus(const GameInfo& game) const {
     }
 
     if (!hasXUnity) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "XUnity.AutoTranslator not found - incomplete installation");
         status.installed = false;  // Incomplete installation
         return status;
     }
@@ -98,6 +113,8 @@ Result<RuntimeStatus> RuntimeManager::checkStatus(const GameInfo& game) const {
                 }
             }
         }
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Found {} translation files",
+            status.translationFiles.size());
     }
 
     // Check version (read from our marker file if present)
@@ -119,13 +136,22 @@ Result<RuntimeStatus> RuntimeManager::checkStatus(const GameInfo& game) const {
             status.installedVersion.makineaiPlugin = parseVersion(
                 versionJson.value("makineai", "0.0.0"));
 
-        } catch (...) {
+            MAKINEAI_LOG_DEBUG(log::RUNTIME, "Installed version: BepInEx {}, XUnity {}, MakineAI {}",
+                status.installedVersion.bepinex.toString(),
+                status.installedVersion.xunity.toString(),
+                status.installedVersion.makineaiPlugin.toString());
+
+        } catch (const std::exception& e) {
+            MAKINEAI_LOG_WARN(log::RUNTIME, "Failed to parse version file: {}", e.what());
             // Version file corrupted, treat as outdated
         }
     }
 
     status.bundledVersion = bundledVersion();
     status.upToDate = (status.installedVersion >= status.bundledVersion);
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Runtime status: installed={}, upToDate={}",
+        status.installed, status.upToDate);
 
     return status;
 }
@@ -134,29 +160,94 @@ VoidResult RuntimeManager::install(
     const GameInfo& game,
     ProgressCallback progress
 ) {
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Starting runtime installation for game: {}",
+        game.name.empty() ? game.installPath.string() : game.name);
+
+    // Validate game path before installation
+    auto pathValidation = validation::validateDirectory(game.installPath);
+    if (!pathValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Game path validation failed: {}",
+            pathValidation.error().message());
+        Metrics::instance().increment("runtime_install_failures");
+        return std::unexpected(pathValidation.error());
+    }
+
+    // Validate path is writable
+    auto writableValidation = validation::validateWritable(game.installPath);
+    if (!writableValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Game directory is not writable: {}",
+            game.installPath.string());
+        Metrics::instance().increment("runtime_install_failures");
+        return std::unexpected(writableValidation.error());
+    }
+
     auto backend = detectBackend(game.installPath);
     if (backend == UnityBackend::Unknown) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Cannot detect Unity backend for: {}",
+            game.installPath.string());
+        Metrics::instance().increment("runtime_install_failures");
         return std::unexpected(Error(ErrorCode::EngineNotDetected,
             "Cannot detect Unity backend"));
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Detected Unity backend: {}",
+        backend == UnityBackend::Mono ? "Mono" : "IL2CPP");
+
+    // Start timing the installation
+    auto timer = Metrics::instance().timer("runtime_install");
+
+    VoidResult result;
     if (backend == UnityBackend::Mono) {
-        return installMono(game, progress);
+        result = installMono(game, progress);
     } else {
-        return installIL2CPP(game, progress);
+        result = installIL2CPP(game, progress);
     }
+
+    if (result) {
+        Metrics::instance().increment("runtime_installs");
+        MAKINEAI_LOG_INFO(log::RUNTIME, "Runtime installation completed successfully");
+
+        // Audit log the installation
+        AuditLogger::logPatchOperation(
+            game.name.empty() ? game.installPath.string() : game.name,
+            true,
+            "runtime_install",
+            backend == UnityBackend::Mono ? "BepInEx Mono" : "BepInEx IL2CPP"
+        );
+    } else {
+        Metrics::instance().increment("runtime_install_failures");
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Runtime installation failed: {}",
+            result.error().message());
+
+        AuditLogger::logPatchOperation(
+            game.name.empty() ? game.installPath.string() : game.name,
+            false,
+            "runtime_install",
+            result.error().message()
+        );
+    }
+
+    return result;
 }
 
 VoidResult RuntimeManager::installMono(
     const GameInfo& game,
     ProgressCallback progress
 ) {
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Installing BepInEx for Unity Mono: {}",
+        game.installPath.string());
+
     if (progress) {
         progress(0, 4, "Installing BepInEx for Unity Mono...");
     }
 
     fs::path bundlePath = getMonoBundlePath();
-    if (!fs::exists(bundlePath)) {
+
+    // Validate runtime bundle exists and is a directory
+    auto bundleValidation = validation::validateDirectory(bundlePath);
+    if (!bundleValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Mono runtime bundle not found at: {}",
+            bundlePath.string());
         return std::unexpected(Error(ErrorCode::RuntimeNotFound,
             "Mono runtime bundle not found"));
     }
@@ -168,6 +259,8 @@ VoidResult RuntimeManager::installMono(
         progress(1, 4, "Copying BepInEx files...");
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Copying BepInEx folder from bundle");
+
     // Copy main BepInEx folder
     fs::path srcBepInEx = bundlePath / "BepInEx";
     fs::path dstBepInEx = game.installPath / "BepInEx";
@@ -177,22 +270,35 @@ VoidResult RuntimeManager::installMono(
         fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
 
     if (ec) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to copy BepInEx: {}", ec.message());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Failed to copy BepInEx: " + ec.message()));
     }
+
+    // Audit log the BepInEx folder creation
+    AuditLogger::logFileAccess(dstBepInEx, "create_directory", true,
+        "BepInEx runtime installation");
 
     // Copy doorstop files
     if (progress) {
         progress(2, 4, "Copying doorstop loader...");
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Copying doorstop loader files");
+
     for (const auto& entry : fs::directory_iterator(bundlePath)) {
         auto filename = entry.path().filename().string();
         if (filename == "winhttp.dll" ||
             filename == "doorstop_config.ini" ||
             filename == ".doorstop_version") {
-            fs::copy_file(entry.path(), game.installPath / filename,
+            fs::path destFile = game.installPath / filename;
+            fs::copy_file(entry.path(), destFile,
                 fs::copy_options::overwrite_existing, ec);
+
+            if (!ec) {
+                AuditLogger::logFileAccess(destFile, "write", true,
+                    "Doorstop loader file");
+            }
         }
     }
 
@@ -201,9 +307,11 @@ VoidResult RuntimeManager::installMono(
         progress(3, 4, "Configuring MakineAI Translation System...");
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Configuring XUnity.AutoTranslator");
+
     auto configResult = configureXUnity(game);
     if (!configResult) {
-        logger()->warn("XUnity configuration failed: {}",
+        MAKINEAI_LOG_WARN(log::RUNTIME, "XUnity configuration failed: {}",
             configResult.error().message());
     }
 
@@ -220,11 +328,14 @@ VoidResult RuntimeManager::installMono(
     std::ofstream versionStream(versionFile);
     versionStream << versionJson.dump(2);
 
+    AuditLogger::logFileAccess(versionFile, "write", true,
+        "MakineAI version marker");
+
     if (progress) {
         progress(4, 4, "Installation complete");
     }
 
-    logger()->info("Installed MakineAI Translation System (Mono) to {}",
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Installed MakineAI Translation System (Mono) to {}",
         game.installPath.string());
 
     return {};
@@ -234,12 +345,20 @@ VoidResult RuntimeManager::installIL2CPP(
     const GameInfo& game,
     ProgressCallback progress
 ) {
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Installing BepInEx for Unity IL2CPP: {}",
+        game.installPath.string());
+
     if (progress) {
         progress(0, 4, "Installing BepInEx for Unity IL2CPP...");
     }
 
     fs::path bundlePath = getIL2CPPBundlePath();
-    if (!fs::exists(bundlePath)) {
+
+    // Validate runtime bundle exists and is a directory
+    auto bundleValidation = validation::validateDirectory(bundlePath);
+    if (!bundleValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "IL2CPP runtime bundle not found at: {}",
+            bundlePath.string());
         return std::unexpected(Error(ErrorCode::RuntimeNotFound,
             "IL2CPP runtime bundle not found"));
     }
@@ -251,6 +370,8 @@ VoidResult RuntimeManager::installIL2CPP(
         progress(1, 4, "Copying BepInEx IL2CPP files...");
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Copying BepInEx IL2CPP folder from bundle");
+
     fs::path srcBepInEx = bundlePath / "BepInEx";
     fs::path dstBepInEx = game.installPath / "BepInEx";
 
@@ -259,9 +380,14 @@ VoidResult RuntimeManager::installIL2CPP(
         fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
 
     if (ec) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to copy BepInEx: {}", ec.message());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Failed to copy BepInEx: " + ec.message()));
     }
+
+    // Audit log the BepInEx folder creation
+    AuditLogger::logFileAccess(dstBepInEx, "create_directory", true,
+        "BepInEx IL2CPP runtime installation");
 
     // Copy .NET runtime for IL2CPP (if bundled)
     fs::path dotnetSrc = bundlePath / "dotnet";
@@ -269,9 +395,19 @@ VoidResult RuntimeManager::installIL2CPP(
         if (progress) {
             progress(2, 4, "Copying .NET runtime...");
         }
-        fs::copy(dotnetSrc, game.installPath / "dotnet",
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Copying .NET runtime for IL2CPP");
+
+        fs::path dotnetDst = game.installPath / "dotnet";
+        fs::copy(dotnetSrc, dotnetDst,
             fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+
+        if (!ec) {
+            AuditLogger::logFileAccess(dotnetDst, "create_directory", true,
+                ".NET runtime for IL2CPP");
+        }
     }
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Copying doorstop loader files for IL2CPP");
 
     // Copy doorstop
     for (const auto& entry : fs::directory_iterator(bundlePath)) {
@@ -279,8 +415,14 @@ VoidResult RuntimeManager::installIL2CPP(
         if (filename == "winhttp.dll" ||
             filename == "dobby.dll" ||
             filename == "doorstop_config.ini") {
-            fs::copy_file(entry.path(), game.installPath / filename,
+            fs::path destFile = game.installPath / filename;
+            fs::copy_file(entry.path(), destFile,
                 fs::copy_options::overwrite_existing, ec);
+
+            if (!ec) {
+                AuditLogger::logFileAccess(destFile, "write", true,
+                    "IL2CPP doorstop loader file");
+            }
         }
     }
 
@@ -289,9 +431,11 @@ VoidResult RuntimeManager::installIL2CPP(
         progress(3, 4, "Configuring MakineAI Translation System...");
     }
 
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Configuring XUnity.AutoTranslator for IL2CPP");
+
     auto configResult = configureXUnity(game);
     if (!configResult) {
-        logger()->warn("XUnity configuration failed: {}",
+        MAKINEAI_LOG_WARN(log::RUNTIME, "XUnity configuration failed: {}",
             configResult.error().message());
     }
 
@@ -308,11 +452,14 @@ VoidResult RuntimeManager::installIL2CPP(
     std::ofstream versionStream(versionFile);
     versionStream << versionJson.dump(2);
 
+    AuditLogger::logFileAccess(versionFile, "write", true,
+        "MakineAI version marker (IL2CPP)");
+
     if (progress) {
         progress(4, 4, "Installation complete");
     }
 
-    logger()->info("Installed MakineAI Translation System (IL2CPP) to {}",
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Installed MakineAI Translation System (IL2CPP) to {}",
         game.installPath.string());
 
     return {};
@@ -322,17 +469,131 @@ VoidResult RuntimeManager::update(
     const GameInfo& game,
     ProgressCallback progress
 ) {
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Updating runtime for game: {}",
+        game.name.empty() ? game.installPath.string() : game.name);
+
     // Update is same as install - will overwrite existing files
-    return install(game, progress);
+    auto result = install(game, progress);
+
+    if (result) {
+        MAKINEAI_LOG_INFO(log::RUNTIME, "Runtime update completed successfully");
+
+        AuditLogger::logPatchOperation(
+            game.name.empty() ? game.installPath.string() : game.name,
+            true,
+            "runtime_update",
+            "Updated to latest version"
+        );
+    } else {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Runtime update failed: {}",
+            result.error().message());
+    }
+
+    return result;
+}
+
+// Safe recursive delete that verifies paths are within game directory
+static VoidResult safeRemoveAll(const fs::path& targetPath, const fs::path& gameDir) {
+    std::error_code ec;
+
+    if (!fs::exists(targetPath, ec)) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Path does not exist, nothing to delete: {}",
+            targetPath.string());
+        return {}; // Nothing to delete
+    }
+
+    // SECURITY: Path traversal check
+    if (targetPath.string().find("..") != std::string::npos) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "SECURITY: Path traversal detected in: {}",
+            targetPath.string());
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Path traversal detected in target path"));
+    }
+
+    // SECURITY: Verify target is inside game directory using canonical paths
+    auto canonicalTarget = fs::weakly_canonical(targetPath, ec);
+    if (ec) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Cannot resolve canonical path: {} - {}",
+            targetPath.string(), ec.message());
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Cannot resolve canonical path: " + ec.message()));
+    }
+
+    auto canonicalGame = fs::weakly_canonical(gameDir, ec);
+    if (ec) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Cannot resolve game directory path: {} - {}",
+            gameDir.string(), ec.message());
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Cannot resolve game directory path: " + ec.message()));
+    }
+
+    // Check that target starts with game directory
+    auto targetStr = canonicalTarget.string();
+    auto gameStr = canonicalGame.string();
+    if (targetStr.length() <= gameStr.length() ||
+        targetStr.substr(0, gameStr.length()) != gameStr) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "SECURITY: Target path {} is outside game directory {}",
+            targetStr, gameStr);
+        return std::unexpected(Error(ErrorCode::SecurityViolation,
+            "Target path is outside game directory"));
+    }
+
+    // SECURITY: Check for symlinks pointing outside
+    if (fs::is_symlink(targetPath, ec)) {
+        auto linkTarget = fs::read_symlink(targetPath, ec);
+        if (!ec) {
+            auto resolvedLink = fs::weakly_canonical(targetPath.parent_path() / linkTarget, ec);
+            auto resolvedStr = resolvedLink.string();
+            if (resolvedStr.length() <= gameStr.length() ||
+                resolvedStr.substr(0, gameStr.length()) != gameStr) {
+                MAKINEAI_LOG_WARN(log::RUNTIME, "SECURITY: Skipping symlink pointing outside game directory: {}",
+                    targetPath.string());
+                return {};
+            }
+        }
+    }
+
+    // Safe to delete
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Safely removing: {}", targetPath.string());
+    fs::remove_all(targetPath, ec);
+    if (ec) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to remove {}: {}", targetPath.string(), ec.message());
+        return std::unexpected(Error(ErrorCode::FileAccessDenied,
+            "Failed to remove: " + ec.message()));
+    }
+
+    return {};
 }
 
 VoidResult RuntimeManager::uninstall(const GameInfo& game) {
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Starting runtime uninstallation for game: {}",
+        game.name.empty() ? game.installPath.string() : game.name);
+
+    // Validate game path exists
+    auto pathValidation = validation::validateDirectory(game.installPath);
+    if (!pathValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Game path validation failed: {}",
+            pathValidation.error().message());
+        return std::unexpected(Error(ErrorCode::DirectoryNotFound,
+            "Game install path not found"));
+    }
+
     std::error_code ec;
+    std::vector<std::string> errors;
 
     // Remove BepInEx folder
     fs::path bepinexPath = game.installPath / "BepInEx";
-    if (fs::exists(bepinexPath)) {
-        fs::remove_all(bepinexPath, ec);
+    if (fs::exists(bepinexPath, ec)) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Removing BepInEx folder: {}", bepinexPath.string());
+        auto result = safeRemoveAll(bepinexPath, game.installPath);
+        if (!result) {
+            errors.push_back("BepInEx: " + result.error().message());
+            MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to remove BepInEx: {}",
+                result.error().message());
+        } else {
+            AuditLogger::logFileAccess(bepinexPath, "delete", true,
+                "BepInEx folder removal during uninstall");
+        }
     }
 
     // Remove doorstop files
@@ -345,18 +606,60 @@ VoidResult RuntimeManager::uninstall(const GameInfo& game) {
 
     for (const auto& filename : doorstopFiles) {
         fs::path filePath = game.installPath / filename;
-        if (fs::exists(filePath)) {
+        if (fs::exists(filePath, ec)) {
+            MAKINEAI_LOG_DEBUG(log::RUNTIME, "Removing doorstop file: {}", filename);
             fs::remove(filePath, ec);
+            if (ec) {
+                errors.push_back(std::string(filename) + ": " + ec.message());
+                MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to remove {}: {}",
+                    filename, ec.message());
+            } else {
+                AuditLogger::logFileAccess(filePath, "delete", true,
+                    "Doorstop file removal during uninstall");
+            }
         }
     }
 
     // Remove .NET runtime folder (if present)
     fs::path dotnetPath = game.installPath / "dotnet";
-    if (fs::exists(dotnetPath)) {
-        fs::remove_all(dotnetPath, ec);
+    if (fs::exists(dotnetPath, ec)) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Removing .NET runtime folder: {}",
+            dotnetPath.string());
+        auto result = safeRemoveAll(dotnetPath, game.installPath);
+        if (!result) {
+            errors.push_back("dotnet: " + result.error().message());
+            MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to remove .NET runtime: {}",
+                result.error().message());
+        } else {
+            AuditLogger::logFileAccess(dotnetPath, "delete", true,
+                ".NET runtime folder removal during uninstall");
+        }
     }
 
-    logger()->info("Uninstalled MakineAI Translation System from {}",
+    if (!errors.empty()) {
+        MAKINEAI_LOG_WARN(log::RUNTIME, "Uninstall completed with {} errors", errors.size());
+        for (const auto& err : errors) {
+            MAKINEAI_LOG_WARN(log::RUNTIME, "  - {}", err);
+        }
+
+        // Audit log partial failure
+        AuditLogger::logPatchOperation(
+            game.name.empty() ? game.installPath.string() : game.name,
+            false,
+            "runtime_uninstall",
+            "Completed with " + std::to_string(errors.size()) + " errors"
+        );
+    } else {
+        // Audit log successful uninstall
+        AuditLogger::logPatchOperation(
+            game.name.empty() ? game.installPath.string() : game.name,
+            true,
+            "runtime_uninstall",
+            "Complete removal"
+        );
+    }
+
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Uninstalled MakineAI Translation System from {}",
         game.installPath.string());
 
     return {};
@@ -366,14 +669,42 @@ VoidResult RuntimeManager::addTranslations(
     const GameInfo& game,
     const fs::path& translationDir
 ) {
-    if (!fs::exists(translationDir)) {
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Adding translations from: {} to game: {}",
+        translationDir.string(),
+        game.name.empty() ? game.installPath.string() : game.name);
+
+    // Validate translation directory
+    auto dirValidation = validation::validateDirectory(translationDir);
+    if (!dirValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Translation directory validation failed: {}",
+            dirValidation.error().message());
         return std::unexpected(Error(ErrorCode::DirectoryNotFound,
             "Translation directory not found"));
+    }
+
+    // Validate game path
+    auto gamePathValidation = validation::validateDirectory(game.installPath);
+    if (!gamePathValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Game path validation failed: {}",
+            gamePathValidation.error().message());
+        return std::unexpected(gamePathValidation.error());
     }
 
     fs::path targetDir = game.installPath / "BepInEx" / "Translation" / "tr" / "Text";
     std::error_code ec;
     fs::create_directories(targetDir, ec);
+
+    if (ec) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to create translation directory: {}",
+            ec.message());
+        return std::unexpected(Error(ErrorCode::FileAccessDenied,
+            "Failed to create translation directory: " + ec.message()));
+    }
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Created translation target directory: {}",
+        targetDir.string());
+
+    int filesCopied = 0;
 
     // Copy translation files
     for (const auto& entry : fs::recursive_directory_iterator(translationDir)) {
@@ -388,18 +719,60 @@ VoidResult RuntimeManager::addTranslations(
         fs::create_directories(targetPath.parent_path(), ec);
         fs::copy_file(entry.path(), targetPath,
             fs::copy_options::overwrite_existing, ec);
+
+        if (!ec) {
+            ++filesCopied;
+            AuditLogger::logFileAccess(targetPath, "write", true,
+                "Translation file copy");
+        } else {
+            MAKINEAI_LOG_WARN(log::RUNTIME, "Failed to copy translation file {}: {}",
+                entry.path().string(), ec.message());
+        }
     }
 
-    logger()->info("Added translation files to {}", targetDir.string());
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Added {} translation files to {}",
+        filesCopied, targetDir.string());
+
+    // Record metrics
+    Metrics::instance().increment("translation_files_added", filesCopied);
+
     return {};
 }
 
 VoidResult RuntimeManager::removeTranslations(const GameInfo& game) {
-    fs::path translationDir = game.installPath / "BepInEx" / "Translation";
-    if (fs::exists(translationDir)) {
-        std::error_code ec;
-        fs::remove_all(translationDir, ec);
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Removing translations from game: {}",
+        game.name.empty() ? game.installPath.string() : game.name);
+
+    // Validate game path
+    auto pathValidation = validation::validateDirectory(game.installPath);
+    if (!pathValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Game path validation failed: {}",
+            pathValidation.error().message());
+        return std::unexpected(Error(ErrorCode::DirectoryNotFound,
+            "Game install path not found"));
     }
+
+    fs::path translationDir = game.installPath / "BepInEx" / "Translation";
+    std::error_code ec;
+    if (fs::exists(translationDir, ec)) {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Removing translation directory: {}",
+            translationDir.string());
+
+        auto result = safeRemoveAll(translationDir, game.installPath);
+        if (!result) {
+            MAKINEAI_LOG_ERROR(log::RUNTIME, "Failed to remove translations: {}",
+                result.error().message());
+            return result;
+        }
+
+        AuditLogger::logFileAccess(translationDir, "delete", true,
+            "Translation directory removal");
+
+        MAKINEAI_LOG_INFO(log::RUNTIME, "Translations removed successfully");
+    } else {
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "No translation directory found to remove");
+    }
+
     return {};
 }
 
@@ -415,6 +788,9 @@ VoidResult RuntimeManager::configureXUnity(
     const GameInfo& game,
     const XUnityConfig& config
 ) {
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Configuring XUnity.AutoTranslator for: {}",
+        game.installPath.string());
+
     fs::path configPath = game.installPath / "BepInEx" / "config" /
         "AutoTranslatorConfig.ini";
 
@@ -423,9 +799,18 @@ VoidResult RuntimeManager::configureXUnity(
 
     std::ofstream configFile(configPath);
     if (!configFile) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Cannot write XUnity config to: {}",
+            configPath.string());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Cannot write XUnity config"));
     }
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Writing XUnity configuration: endpoint={}, IMGUI={}, UGUI={}, NGUI={}, TMP={}",
+        config.endpoint,
+        config.enableIMGUIHooking ? "true" : "false",
+        config.enableUGUIHooking ? "true" : "false",
+        config.enableNGUIHooking ? "true" : "false",
+        config.enableTextMeshProHooking ? "true" : "false");
 
     configFile << "[Service]\n";
     configFile << "Endpoint=" << config.endpoint << "\n";
@@ -452,6 +837,12 @@ VoidResult RuntimeManager::configureXUnity(
     configFile << "; MakineAI Translation System\n";
     configFile << "; https://makineai.com\n";
 
+    // Audit log the configuration file write
+    AuditLogger::logFileAccess(configPath, "write", true,
+        "XUnity.AutoTranslator configuration");
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "XUnity configuration written successfully");
+
     return {};
 }
 
@@ -465,11 +856,17 @@ fs::path RuntimeManager::getIL2CPPBundlePath() const {
 
 // Unity analysis helper
 Result<UnityAnalysis> analyzeUnityGame(const fs::path& gameDir) {
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Analyzing Unity game at: {}", gameDir.string());
+
     UnityAnalysis analysis;
     analysis.isUnity = false;
     analysis.backend = UnityBackend::Unknown;
 
-    if (!fs::exists(gameDir)) {
+    // Validate game directory
+    auto dirValidation = validation::validateDirectory(gameDir);
+    if (!dirValidation) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Game directory validation failed: {}",
+            dirValidation.error().message());
         return std::unexpected(Error(ErrorCode::DirectoryNotFound,
             "Game directory not found"));
     }
@@ -478,6 +875,7 @@ Result<UnityAnalysis> analyzeUnityGame(const fs::path& gameDir) {
     if (fs::exists(gameDir / "GameAssembly.dll")) {
         analysis.isUnity = true;
         analysis.backend = UnityBackend::IL2CPP;
+        MAKINEAI_LOG_DEBUG(log::RUNTIME, "Detected IL2CPP backend (GameAssembly.dll found)");
     }
 
     // Find _Data folder
@@ -553,6 +951,13 @@ Result<UnityAnalysis> analyzeUnityGame(const fs::path& gameDir) {
 
     // Check for existing BepInEx
     analysis.hasExistingBepInEx = fs::exists(gameDir / "BepInEx");
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Unity analysis complete: isUnity={}, backend={}, version={}, hasExistingBepInEx={}",
+        analysis.isUnity,
+        analysis.backend == UnityBackend::Mono ? "Mono" :
+            (analysis.backend == UnityBackend::IL2CPP ? "IL2CPP" : "Unknown"),
+        analysis.unityVersion.empty() ? "unknown" : analysis.unityVersion,
+        analysis.hasExistingBepInEx);
 
     return analysis;
 }

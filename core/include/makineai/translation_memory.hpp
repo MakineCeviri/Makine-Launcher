@@ -337,4 +337,12 @@ private:
     static MatchType scoreToMatchType(double score);
 };
 
+/**
+ * @brief Type alias for Core integration
+ *
+ * TranslationMemoryService contains all static methods.
+ * This alias allows Core to use the conventional naming pattern.
+ */
+using TranslationMemory = TranslationMemoryService;
+
 } // namespace makineai

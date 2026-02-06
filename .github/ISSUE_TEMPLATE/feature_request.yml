@@ -1,0 +1,64 @@
+name: Feature Request
+description: Yeni bir özellik önerin
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Özellik öneriniz için teşekkürler!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivasyon
+      description: Bu özellik hangi problemi çözüyor?
+      placeholder: "Şu anda ... yapmak zor/imkansız çünkü..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Önerilen Çözüm
+      description: Nasıl bir çözüm hayal ediyorsunuz?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatifler
+      description: Düşündüğünüz başka çözümler var mı?
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Kategori
+      options:
+        - UI/UX
+        - Çeviri Motoru
+        - Oyun Desteği
+        - Performans
+        - Entegrasyon
+        - Diğer
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Sizce Öncelik
+      options:
+        - Düşük - İyileştirme
+        - Orta - Faydalı olur
+        - Yüksek - Çok lazım
+        - Kritik - Kullanamıyorum
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Ek Bağlam
+      description: Ekran görüntüsü, mockup veya referans ekleyin

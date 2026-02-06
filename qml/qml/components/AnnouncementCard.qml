@@ -31,7 +31,7 @@ Rectangle {
 
     // Flutter: BackdropFilter blur (10, 10), ClipRRect borderRadius 4
     implicitHeight: contentLayout.height + 48
-    radius: 4
+    radius: Dimensions.radiusStandard
     color: isDark
         ? Qt.rgba(1, 1, 1, isHovered ? 0.05 : 0.03)
         : Qt.rgba(0, 0, 0, isHovered ? 0.05 : 0.03)
@@ -73,7 +73,7 @@ Rectangle {
             Rectangle {
                 Layout.preferredWidth: 40
                 Layout.preferredHeight: 40
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: Theme.withAlpha(Theme.info, 0.15)
 
                 Text {
@@ -97,7 +97,7 @@ Rectangle {
                         visible: root.isImportant
                         Layout.preferredWidth: importantLabel.width + 16
                         Layout.preferredHeight: 20
-                        radius: 4
+                        radius: Dimensions.radiusStandard
 
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
@@ -163,7 +163,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: warningContent.height + 24
-            radius: 4
+            radius: Dimensions.radiusStandard
             color: Qt.rgba(0.898, 0.224, 0.208, 0.1)  // #E53935 10%
             border.color: Qt.rgba(0.898, 0.224, 0.208, 0.2)  // #E53935 20%
             border.width: 1

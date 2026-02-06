@@ -6,6 +6,8 @@
 
 #include "makineai/game_detector.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <sqlite3.h>
 #include <fstream>
@@ -15,26 +17,40 @@
 #include <ShlObj.h>
 #endif
 
-namespace makineai {
+namespace makineai::scanners {
 
 bool GOGScanner::isAvailable() const {
     auto dbResult = findDatabasePath();
-    return dbResult.has_value() && fs::exists(*dbResult);
+    if (dbResult.has_value() && fs::exists(*dbResult)) {
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Available at {}", dbResult->string());
+        return true;
+    }
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Not available");
+    return false;
 }
 
 Result<std::vector<GameInfo>> GOGScanner::scan() const {
+    MAKINEAI_TIMED_SCOPE(log::SCANNER, "GOGScanner::scan");
+    MAKINEAI_LOG_INFO(log::SCANNER, "Starting GOG Galaxy scan");
+
+    auto scanTimer = metrics().timer("gog_scan");
     std::vector<GameInfo> games;
 
     auto dbPathResult = findDatabasePath();
     if (!dbPathResult) {
+        MAKINEAI_LOG_WARN(log::SCANNER, "GOG: Failed to find database: {}",
+                         dbPathResult.error().message());
         return std::unexpected(dbPathResult.error());
     }
 
     fs::path dbPath = *dbPathResult;
     if (!fs::exists(dbPath)) {
+        MAKINEAI_LOG_WARN(log::SCANNER, "GOG: Database file not found: {}", dbPath.string());
         return std::unexpected(Error(ErrorCode::FileNotFound,
             "GOG Galaxy database not found"));
     }
+
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Opening database at {}", dbPath.string());
 
     // Open SQLite database
     sqlite3* db = nullptr;
@@ -42,6 +58,7 @@ Result<std::vector<GameInfo>> GOGScanner::scan() const {
         SQLITE_OPEN_READONLY, nullptr);
 
     if (rc != SQLITE_OK) {
+        MAKINEAI_LOG_WARN(log::SCANNER, "GOG: Cannot open database (SQLite error: {})", rc);
         if (db) sqlite3_close(db);
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Cannot open GOG database"));
@@ -66,6 +83,7 @@ Result<std::vector<GameInfo>> GOGScanner::scan() const {
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
 
     if (rc != SQLITE_OK) {
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Galaxy 2.0 schema not found, trying 1.x schema");
         // Try alternate query for GOG Galaxy 1.x
         const char* sql1x = R"(
             SELECT
@@ -79,6 +97,7 @@ Result<std::vector<GameInfo>> GOGScanner::scan() const {
 
         rc = sqlite3_prepare_v2(db, sql1x, -1, &stmt, nullptr);
         if (rc != SQLITE_OK) {
+            MAKINEAI_LOG_WARN(log::SCANNER, "GOG: Cannot query database (SQLite error: {})", rc);
             sqlite3_close(db);
             return std::unexpected(Error(ErrorCode::ParseError,
                 "Cannot query GOG database"));
@@ -102,36 +121,51 @@ Result<std::vector<GameInfo>> GOGScanner::scan() const {
         game.name = title;
         game.installPath = path;
 
-        if (!fs::exists(game.installPath)) continue;
-
-        // Find executable
-        for (const auto& entry : fs::directory_iterator(game.installPath)) {
-            if (!entry.is_regular_file()) continue;
-
-            auto ext = entry.path().extension().string();
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-            if (ext == ".exe") {
-                auto filename = entry.path().filename().string();
-                std::transform(filename.begin(), filename.end(),
-                    filename.begin(), ::tolower);
-
-                if (filename.find("unins") != std::string::npos ||
-                    filename.find("setup") != std::string::npos ||
-                    filename.find("redist") != std::string::npos) {
-                    continue;
-                }
-
-                game.executablePath = entry.path();
-                break;
-            }
+        if (!fs::exists(game.installPath)) {
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Game path not found for '{}': {}",
+                               title, path);
+            continue;
         }
 
+        // Find executable
+        try {
+            for (const auto& entry : fs::directory_iterator(game.installPath)) {
+                if (!entry.is_regular_file()) continue;
+
+                auto ext = entry.path().extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                if (ext == ".exe") {
+                    auto filename = entry.path().filename().string();
+                    std::transform(filename.begin(), filename.end(),
+                        filename.begin(), ::tolower);
+
+                    if (filename.find("unins") != std::string::npos ||
+                        filename.find("setup") != std::string::npos ||
+                        filename.find("redist") != std::string::npos) {
+                        continue;
+                    }
+
+                    game.executablePath = entry.path();
+                    break;
+                }
+            }
+        } catch (const std::exception& e) {
+            MAKINEAI_LOG_WARN(log::SCANNER, "GOG: Access error scanning '{}': {}",
+                              game.name, e.what());
+        }
+
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Found game '{}' (ID: {})",
+                           game.name, game.id.storeId);
         games.push_back(std::move(game));
+        metrics().increment("gog_games_found");
     }
 
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+
+    MAKINEAI_LOG_INFO(log::SCANNER, "GOG scan complete: {} games found", games.size());
+    metrics().gauge("gog_total_games", static_cast<double>(games.size()));
 
     return games;
 }
@@ -153,6 +187,8 @@ Result<GameInfo> GOGScanner::getGame(const std::string& gameId) const {
 }
 
 Result<fs::path> GOGScanner::findDatabasePath() const {
+    MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Searching for database");
+
 #ifdef _WIN32
     wchar_t* programData = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_ProgramData, 0, nullptr, &programData))) {
@@ -161,6 +197,7 @@ Result<fs::path> GOGScanner::findDatabasePath() const {
         CoTaskMemFree(programData);
 
         if (fs::exists(dbPath)) {
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Found Galaxy 2.0 database");
             return dbPath;
         }
 
@@ -168,6 +205,7 @@ Result<fs::path> GOGScanner::findDatabasePath() const {
         dbPath = fs::path(programData) / "GOG.com" / "Galaxy" /
             "storage" / "index.db";
         if (fs::exists(dbPath)) {
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Found Galaxy 1.x database");
             return dbPath;
         }
     }
@@ -175,12 +213,14 @@ Result<fs::path> GOGScanner::findDatabasePath() const {
     // Try default path
     fs::path defaultPath = "C:\\ProgramData\\GOG.com\\Galaxy\\storage\\galaxy-2.0.db";
     if (fs::exists(defaultPath)) {
+        MAKINEAI_LOG_DEBUG(log::SCANNER, "GOG: Found database at default path");
         return defaultPath;
     }
 #endif
 
+    MAKINEAI_LOG_WARN(log::SCANNER, "GOG: Database not found");
     return std::unexpected(Error(ErrorCode::GameNotFound,
         "GOG Galaxy database not found"));
 }
 
-} // namespace makineai
+} // namespace makineai::scanners

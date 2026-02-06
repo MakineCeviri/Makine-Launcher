@@ -161,7 +161,8 @@ Popup {
 
     onSearchQueryChanged: updateFilter()
 
-    Component.onCompleted: {
+    // Start scan when dialog opens, not when component is created
+    onOpened: {
         startScan()
     }
 

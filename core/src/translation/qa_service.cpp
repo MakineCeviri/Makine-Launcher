@@ -7,6 +7,8 @@
 #include "makineai/qa_service.hpp"
 #include "makineai/glossary_service.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -364,51 +366,64 @@ QAResult QAService::performFullQA(
     const std::optional<TermDomain>& domain,
     bool checkGlossaryFlag
 ) {
+    MAKINEAI_LOG_INFO(log::QA, "Starting QA check (source length: {}, target length: {})",
+        sourceText.length(), targetText.length());
+
+    auto timer = metrics().timer("qa_check_duration");
     QAResult result;
     result.score = 100;
 
     // 1. Placeholder checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running placeholder check...");
     auto phResult = checkPlaceholders(sourceText, targetText);
     result.issues.insert(result.issues.end(), phResult.issues.begin(), phResult.issues.end());
     result.score -= phResult.penalty;
 
     // 2. Escape sequence checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running escape sequence check...");
     auto escResult = checkEscapeSequences(sourceText, targetText);
     result.issues.insert(result.issues.end(), escResult.issues.begin(), escResult.issues.end());
     result.score -= escResult.penalty;
 
     // 3. Tag balance checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running tag balance check...");
     auto tagResult = checkTagBalance(targetText);
     result.issues.insert(result.issues.end(), tagResult.issues.begin(), tagResult.issues.end());
     result.score -= tagResult.penalty;
 
     // 4. Length checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running length check...");
     auto lenResult = checkLength(sourceText, targetText);
     result.issues.insert(result.issues.end(), lenResult.issues.begin(), lenResult.issues.end());
     result.score -= lenResult.penalty;
 
     // 5. Character checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running character check...");
     auto charResult = checkCharacters(targetText);
     result.issues.insert(result.issues.end(), charResult.issues.begin(), charResult.issues.end());
     result.score -= charResult.penalty;
 
     // 6. Whitespace checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running whitespace check...");
     auto wsResult = checkWhitespace(sourceText, targetText);
     result.issues.insert(result.issues.end(), wsResult.issues.begin(), wsResult.issues.end());
     result.score -= wsResult.penalty;
 
     // 7. Punctuation checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running punctuation check...");
     auto punctResult = checkPunctuation(sourceText, targetText);
     result.issues.insert(result.issues.end(), punctResult.issues.begin(), punctResult.issues.end());
     result.score -= punctResult.penalty;
 
     // 8. Case checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running case check...");
     auto caseResult = checkCase(sourceText, targetText);
     result.issues.insert(result.issues.end(), caseResult.issues.begin(), caseResult.issues.end());
     result.score -= caseResult.penalty;
 
     // 9. Glossary checks (optional)
     if (checkGlossaryFlag) {
+        MAKINEAI_LOG_DEBUG(log::QA, "Running glossary check...");
         auto glossResult = checkGlossary(sourceText, targetText, gameId, domain);
         result.issues.insert(result.issues.end(), glossResult.issues.begin(), glossResult.issues.end());
         result.score -= glossResult.penalty;
@@ -419,6 +434,26 @@ QAResult QAService::performFullQA(
     result.passed = result.score >= QA_MIN_ACCEPT_SCORE;
     result.hasCriticalIssues = std::any_of(result.issues.begin(), result.issues.end(),
         [](const QAIssue& issue) { return static_cast<int>(issue.severity) >= static_cast<int>(QASeverity::Critical); });
+
+    // Update metrics
+    if (result.passed) {
+        metrics().increment("qa_checks_passed");
+    } else {
+        metrics().increment("qa_checks_failed");
+    }
+    metrics().recordHistogram("qa_issues_per_check", static_cast<int64_t>(result.issues.size()));
+
+    // Log warnings for issues found
+    if (!result.issues.empty()) {
+        MAKINEAI_LOG_WARN(log::QA, "QA check found {} issues (score: {})",
+            result.issues.size(), result.score);
+        for (const auto& issue : result.issues) {
+            MAKINEAI_LOG_DEBUG(log::QA, "  Issue [{}]: {}", issue.code, issue.message);
+        }
+    }
+
+    MAKINEAI_LOG_INFO(log::QA, "QA check complete (score: {}, passed: {}, issues: {})",
+        result.score, result.passed, result.issues.size());
 
     return result;
 }
@@ -850,6 +885,8 @@ std::map<int64_t, QAResult> QAService::batchQA(
     const std::optional<TermDomain>& domain,
     bool checkGlossaryFlag
 ) {
+    MAKINEAI_LOG_INFO(log::QA, "Starting batch QA check for {} entries", entries.size());
+
     std::map<int64_t, QAResult> results;
 
     for (const auto& [id, texts] : entries) {
@@ -857,6 +894,7 @@ std::map<int64_t, QAResult> QAService::batchQA(
             gameId, domain, checkGlossaryFlag);
     }
 
+    MAKINEAI_LOG_INFO(log::QA, "Batch QA check complete for {} entries", entries.size());
     return results;
 }
 

@@ -80,7 +80,7 @@ Dialog {
 
     background: Rectangle {
         color: Theme.surface
-        radius: 8
+        radius: Dimensions.radiusStandard
         border.color: Qt.rgba(1, 1, 1, 0.1)
         border.width: 1
     }
@@ -142,7 +142,7 @@ Dialog {
                         visible: criticalCount > 0
                         width: criticalBadgeText.width + 12
                         height: 20
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: Qt.rgba(colorCritical.r, colorCritical.g, colorCritical.b, 0.15)
 
                         Text {
@@ -160,7 +160,7 @@ Dialog {
                         visible: majorCount > 0
                         width: majorBadgeText.width + 12
                         height: 20
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: Qt.rgba(colorMajor.r, colorMajor.g, colorMajor.b, 0.15)
 
                         Text {
@@ -178,7 +178,7 @@ Dialog {
                         visible: warningCount > 0
                         width: warningBadgeText.width + 12
                         height: 20
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: Qt.rgba(colorWarning.r, colorWarning.g, colorWarning.b, 0.15)
 
                         Text {
@@ -199,7 +199,7 @@ Dialog {
             Rectangle {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
 
                 Text {
@@ -238,7 +238,7 @@ Dialog {
             Layout.leftMargin: 24
             Layout.rightMargin: 24
             Layout.preferredHeight: 80
-            radius: 8
+            radius: Dimensions.radiusStandard
             color: Qt.rgba(colorSuccess.r, colorSuccess.g, colorSuccess.b, 0.1)
             border.color: Qt.rgba(colorSuccess.r, colorSuccess.g, colorSuccess.b, 0.2)
             border.width: 1
@@ -291,7 +291,7 @@ Dialog {
                     id: issueItem
                     width: issuesList.width
                     height: expanded ? (issueContent.height + 24) : 56
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     color: issueMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.03)
                     border.color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                           getSeverityColor(modelData.severity).g,
@@ -320,7 +320,7 @@ Dialog {
                             Rectangle {
                                 Layout.preferredWidth: 32
                                 Layout.preferredHeight: 32
-                                radius: 6
+                                radius: Dimensions.radiusStandard
                                 color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                                getSeverityColor(modelData.severity).g,
                                                getSeverityColor(modelData.severity).b, 0.15)
@@ -382,7 +382,7 @@ Dialog {
                             Rectangle {
                                 Layout.preferredWidth: 24
                                 Layout.preferredHeight: 24
-                                radius: 4
+                                radius: Dimensions.radiusStandard
                                 color: "transparent"
 
                                 Text {
@@ -399,7 +399,7 @@ Dialog {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: detailsText.implicitHeight + 16
-                            radius: 6
+                            radius: Dimensions.radiusStandard
                             color: Qt.rgba(1, 1, 1, 0.03)
                             visible: issueItem.expanded
                             opacity: issueItem.expanded ? 1 : 0
@@ -457,7 +457,7 @@ Dialog {
             Rectangle {
                 Layout.preferredWidth: ignoreBtnContent.width + 32
                 Layout.preferredHeight: 44
-                radius: 8
+                radius: Dimensions.radiusStandard
                 color: ignoreBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                 border.color: Qt.rgba(1, 1, 1, 0.2)
                 border.width: 1
@@ -495,7 +495,7 @@ Dialog {
             Rectangle {
                 Layout.preferredWidth: fixBtnContent.width + 32
                 Layout.preferredHeight: 44
-                radius: 8
+                radius: Dimensions.radiusStandard
                 color: fixBtnMouse.containsMouse
                     ? (root.issues.length > 0 ? Theme.primaryHover : Qt.rgba(colorSuccess.r, colorSuccess.g, colorSuccess.b, 0.9))
                     : (root.issues.length > 0 ? Theme.primary : colorSuccess)

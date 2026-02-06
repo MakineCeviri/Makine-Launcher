@@ -18,13 +18,14 @@
  */
 
 #include "makineai/asset_parser.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 #include "formats/gamemaker_data.hpp"
-#include <spdlog/spdlog.h>
 #include <fstream>
 #include <algorithm>
 #include <cstring>
 
-namespace makineai {
+namespace makineai::parsers {
 
 namespace {
     // IFF magic: "FORM"
@@ -71,10 +72,18 @@ public:
         uint32_t magic;
         ifs.read(reinterpret_cast<char*>(&magic), sizeof(magic));
 
-        return magic == FORM_MAGIC;
+        bool isGameMaker = (magic == FORM_MAGIC);
+        if (isGameMaker) {
+            MAKINEAI_LOG_DEBUG(log::PARSER, "GameMaker IFF/FORM format detected: {}", file.filename().string());
+        }
+
+        return isGameMaker;
     }
 
     [[nodiscard]] Result<ParseResult> parse(const fs::path& file) const override {
+        MAKINEAI_LOG_INFO(log::PARSER, "Starting GameMaker data parse: {}", file.filename().string());
+        auto timer = Metrics::instance().timer("asset_parse_gamemaker");
+
         ParseResult result;
         result.success = false;
         result.detectedEngine = GameEngine::GameMaker;
@@ -83,6 +92,8 @@ public:
         try {
             std::ifstream ifs(file, std::ios::binary | std::ios::ate);
             if (!ifs) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Cannot open GameMaker data file: {}", file.string());
+                Metrics::instance().increment("parse_failures_gamemaker");
                 return std::unexpected(Error(ErrorCode::FileNotFound,
                     "Cannot open GameMaker data file"));
             }
@@ -94,12 +105,15 @@ public:
             uint32_t formMagic, formSize;
             ifs.read(reinterpret_cast<char*>(&formMagic), 4);
             if (formMagic != FORM_MAGIC) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Invalid FORM header: 0x{:08X}", formMagic);
+                Metrics::instance().increment("parse_failures_gamemaker");
                 return std::unexpected(Error(ErrorCode::InvalidFormat,
                     "Invalid FORM header"));
             }
             ifs.read(reinterpret_cast<char*>(&formSize), 4);
 
             result.metadata["form_size"] = std::to_string(formSize);
+            MAKINEAI_LOG_DEBUG(log::PARSER, "GameMaker FORM size: {} bytes", formSize);
 
             // Parse chunks
             while (static_cast<size_t>(ifs.tellg()) < fileSize) {
@@ -125,10 +139,13 @@ public:
             result.success = true;
             result.message = "Parsed " + std::to_string(result.strings.size()) + " strings";
 
-            spdlog::info("Parsed GameMaker data: {} strings from {}",
+            Metrics::instance().increment("assets_parsed_gamemaker");
+            MAKINEAI_LOG_INFO(log::PARSER, "Parsed GameMaker data: {} strings from {}",
                         result.strings.size(), file.filename().string());
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "GameMaker parse exception: {}", e.what());
+            Metrics::instance().increment("parse_failures_gamemaker");
             return std::unexpected(Error(ErrorCode::ParseError, e.what()));
         }
 
@@ -139,12 +156,15 @@ public:
         const fs::path& file,
         const std::vector<StringEntry>& strings
     ) const override {
+        MAKINEAI_LOG_INFO(log::PARSER, "Writing GameMaker data: {} strings to {}", strings.size(), file.filename().string());
+
         try {
             // Read original file
             std::vector<uint8_t> fileData;
             {
                 std::ifstream ifs(file, std::ios::binary | std::ios::ate);
                 if (!ifs) {
+                    MAKINEAI_LOG_ERROR(log::PARSER, "Cannot open file for writing: {}", file.string());
                     return std::unexpected(Error(ErrorCode::FileNotFound,
                         "Cannot open file for writing"));
                 }
@@ -157,8 +177,19 @@ public:
 
             // Apply string modifications
             bool modified = false;
+            int modifiedCount = 0;
+            int skippedCount = 0;
+
             for (const auto& entry : strings) {
                 if (entry.offset > 0 && entry.maxLength > 0) {
+                    // CRITICAL: Bounds check before memcpy
+                    if (static_cast<size_t>(entry.offset) + entry.maxLength > fileData.size()) {
+                        MAKINEAI_LOG_WARN(log::PARSER, "String offset {} + length {} exceeds file size {}",
+                                    entry.offset, entry.maxLength, fileData.size());
+                        skippedCount++;
+                        continue;
+                    }
+
                     const auto& text = entry.translated.empty() ? entry.original : entry.translated;
 
                     if (text.length() <= entry.maxLength) {
@@ -171,32 +202,63 @@ public:
                                        entry.maxLength - text.length());
                         }
                         modified = true;
+                        modifiedCount++;
                     } else {
-                        spdlog::warn("String too long for key {}: {} > {}",
+                        MAKINEAI_LOG_WARN(log::PARSER, "String too long for key {}: {} > {}",
                                     entry.key, text.length(), entry.maxLength);
+                        skippedCount++;
                     }
                 }
             }
 
             if (!modified) {
+                MAKINEAI_LOG_WARN(log::PARSER, "No strings were modified");
                 return std::unexpected(Error(ErrorCode::InvalidArgument,
                     "No strings were modified"));
             }
 
-            // Write modified file
-            std::ofstream ofs(file, std::ios::binary);
-            if (!ofs) {
-                return std::unexpected(Error(ErrorCode::FileAccessDenied,
-                    "Cannot write to file"));
+            MAKINEAI_LOG_DEBUG(log::PARSER, "Modified {} strings, skipped {}", modifiedCount, skippedCount);
+
+            // Write modified file atomically
+            fs::path tempPath = file.string() + ".makineai_tmp";
+
+            {
+                std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+                if (!ofs) {
+                    MAKINEAI_LOG_ERROR(log::PARSER, "Cannot create temp file for writing");
+                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                        "Cannot create temp file for writing"));
+                }
+
+                ofs.write(reinterpret_cast<const char*>(fileData.data()), fileData.size());
+                ofs.flush();
+
+                if (!ofs.good()) {
+                    ofs.close();
+                    std::error_code ec;
+                    fs::remove(tempPath, ec);
+                    MAKINEAI_LOG_ERROR(log::PARSER, "Write failed - possible disk full");
+                    return std::unexpected(Error(ErrorCode::IOError,
+                        "Write failed - possible disk full"));
+                }
+            } // File closed
+
+            // Atomic rename
+            std::error_code ec;
+            fs::rename(tempPath, file, ec);
+            if (ec) {
+                fs::remove(tempPath, ec);
+                MAKINEAI_LOG_ERROR(log::PARSER, "Rename failed: {}", ec.message());
+                return std::unexpected(Error(ErrorCode::IOError,
+                    "Rename failed: " + ec.message()));
             }
 
-            ofs.write(reinterpret_cast<const char*>(fileData.data()), fileData.size());
-
-            spdlog::info("GameMaker data written successfully: {}", file.filename().string());
+            MAKINEAI_LOG_INFO(log::PARSER, "GameMaker data written successfully: {}", file.filename().string());
 
             return {};
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "GameMaker write exception: {}", e.what());
             return std::unexpected(Error(ErrorCode::Unknown, e.what()));
         }
     }
@@ -223,7 +285,7 @@ private:
                               std::to_string(buildVersion);
         result.metadata["debug_mode"] = debugMode ? "true" : "false";
 
-        spdlog::debug("GEN8: version {}", result.formatVersion);
+        MAKINEAI_LOG_DEBUG(log::PARSER, "GEN8: version {}", result.formatVersion);
     }
 
     void parseStrgChunk(std::ifstream& ifs, size_t chunkStart, uint32_t size,
@@ -235,7 +297,7 @@ private:
         result.metadata["string_count"] = std::to_string(stringCount);
 
         if (stringCount > 1000000) { // Sanity check
-            spdlog::warn("Excessive string count: {}", stringCount);
+            MAKINEAI_LOG_WARN(log::PARSER, "Excessive string count: {}", stringCount);
             return;
         }
 
@@ -275,7 +337,7 @@ private:
             }
         }
 
-        spdlog::debug("STRG: {} strings", result.strings.size());
+        MAKINEAI_LOG_DEBUG(log::PARSER, "STRG: {} strings", result.strings.size());
     }
 
     void parseLangChunk(std::ifstream& ifs, uint32_t size, ParseResult& result) const {
@@ -285,13 +347,15 @@ private:
 
         result.metadata["language_count"] = std::to_string(languageCount);
 
-        spdlog::debug("LANG: {} languages", languageCount);
+        MAKINEAI_LOG_DEBUG(log::PARSER, "LANG: {} languages", languageCount);
     }
 };
 
-// Factory function for registration
-std::unique_ptr<IAssetFormatParser> createGameMakerDataParser() {
-    return std::make_unique<GameMakerDataParser>();
-}
+} // namespace makineai::parsers
 
+// Factory function in makineai namespace (to match parsers_factory.hpp declaration)
+namespace makineai {
+std::unique_ptr<parsers::IAssetFormatParser> createGameMakerDataParser() {
+    return std::make_unique<parsers::GameMakerDataParser>();
+}
 } // namespace makineai

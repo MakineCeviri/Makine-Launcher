@@ -162,6 +162,7 @@ private:
     fs::path cacheDir_;
     fs::path installedDbPath_;
     PackageManifest manifest_;
+    std::vector<InstalledPackage> installedPackages_;  // In-memory cache
 
     [[nodiscard]] Result<ByteBuffer> httpGet(
         const std::string& url,
@@ -171,6 +172,7 @@ private:
 
     [[nodiscard]] VoidResult saveInstalledInfo(const InstalledPackage& info);
     void loadInstalledInfo();
+    void removeInstalledInfo(const std::string& gameId);
 };
 
 /**

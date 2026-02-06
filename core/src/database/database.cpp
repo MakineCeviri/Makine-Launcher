@@ -8,7 +8,8 @@
  */
 
 #include "makineai/database.hpp"
-#include <spdlog/spdlog.h>
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <chrono>
 #include <random>
@@ -247,7 +248,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         }
     }
 
-    spdlog::info("Database path: {}", dbPath_.string());
+    MAKINEAI_LOG_INFO(log::DATABASE, "Database path: {}", dbPath_.string());
 
     // Open database
     int rc = sqlite3_open(dbPath_.string().c_str(), &db_);
@@ -255,8 +256,12 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         std::string error = sqlite3_errmsg(db_);
         sqlite3_close(db_);
         db_ = nullptr;
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to open database: {}", error);
         return std::unexpected(Error{ErrorCode::IOError, "Failed to open database: " + error});
     }
+
+    // Track active connections
+    Metrics::instance().gauge("db_connections_active", 1.0);
 
     // Enable foreign keys
     char* errMsg = nullptr;
@@ -264,7 +269,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
     if (rc != SQLITE_OK) {
         std::string error = errMsg ? errMsg : "Unknown error";
         sqlite3_free(errMsg);
-        spdlog::warn("Failed to enable foreign keys: {}", error);
+        MAKINEAI_LOG_WARN(log::DATABASE, "Failed to enable foreign keys: {}", error);
     }
 
     // Set WAL mode for better concurrency
@@ -284,7 +289,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         sqlite3_finalize(stmt);
     }
 
-    spdlog::info("Database version: {} (target: {})", userVersion, DATABASE_VERSION);
+    MAKINEAI_LOG_INFO(log::DATABASE, "Database version: {} (target: {})", userVersion, DATABASE_VERSION);
 
     // Create tables if new database
     if (userVersion == 0) {
@@ -308,7 +313,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
     sqlite3_exec(db_, setVersion.c_str(), nullptr, nullptr, nullptr);
 
     initialized_ = true;
-    spdlog::info("Database initialized successfully");
+    MAKINEAI_LOG_INFO(log::DATABASE, "Database initialized successfully");
     return {};
 }
 
@@ -318,7 +323,8 @@ void Database::close() {
         sqlite3_close(db_);
         db_ = nullptr;
         initialized_ = false;
-        spdlog::info("Database closed");
+        Metrics::instance().gauge("db_connections_active", 0.0);
+        MAKINEAI_LOG_INFO(log::DATABASE, "Database closed");
     }
 }
 
@@ -333,7 +339,7 @@ fs::path Database::getPath() const noexcept {
 // ============== TABLE CREATION ==============
 
 Result<void> Database::createTables() {
-    spdlog::info("Creating database tables (v{})...", DATABASE_VERSION);
+    MAKINEAI_LOG_INFO(log::DATABASE, "Creating database tables (v{})...", DATABASE_VERSION);
 
     // Games table
     auto result = execute(R"(
@@ -590,17 +596,17 @@ Result<void> Database::createTables() {
     for (const auto& sql : indexes) {
         result = execute(sql);
         if (!result) {
-            spdlog::warn("Failed to create index: {}", sql);
+            MAKINEAI_LOG_WARN(log::DATABASE, "Failed to create index: {}", sql);
             // Continue with other indexes
         }
     }
 
-    spdlog::info("Database tables created successfully (v{})", DATABASE_VERSION);
+    MAKINEAI_LOG_INFO(log::DATABASE, "Database tables created successfully (v{})", DATABASE_VERSION);
     return {};
 }
 
 Result<void> Database::migrateToV2() {
-    spdlog::info("Migrating database to v2...");
+    MAKINEAI_LOG_INFO(log::DATABASE, "Migrating database to v2...");
 
     // v2 adds: translation_memory, tm_ngrams, tm_variants, translation_projects,
     // translation_entries, expanded glossary, backups
@@ -608,23 +614,43 @@ Result<void> Database::migrateToV2() {
     // These tables might not exist, create them
     auto result = createTables();
     if (!result) {
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Migration to v2 failed");
         return result;
     }
 
-    spdlog::info("v2 migration completed");
+    MAKINEAI_LOG_INFO(log::DATABASE, "v2 migration completed");
     return {};
 }
 
 // ============== HELPER METHODS ==============
 
 Result<void> Database::execute(const std::string& sql) {
+    auto timer = Metrics::instance().timer("db_query");
+    auto startTime = std::chrono::steady_clock::now();
+
     char* errMsg = nullptr;
     int rc = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &errMsg);
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - startTime);
+
+    // Track all queries
+    Metrics::instance().increment("db_queries_total");
+    Metrics::instance().recordHistogram("db_query_duration_ms", elapsed.count());
+
     if (rc != SQLITE_OK) {
         std::string error = errMsg ? errMsg : "Unknown error";
         sqlite3_free(errMsg);
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "SQL error: {}", error);
         return std::unexpected(Error{ErrorCode::IOError, "SQL error: " + error});
     }
+
+    // Warn about slow queries (>100ms)
+    if (elapsed.count() > 100) {
+        MAKINEAI_LOG_WARN(log::DATABASE, "Slow query detected ({}ms)", elapsed.count());
+    }
+
     return {};
 }
 
@@ -632,9 +658,13 @@ Result<Database::Statement> Database::prepare(const std::string& sql) {
     Statement stmt;
     int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt.stmt, nullptr);
     if (rc != SQLITE_OK) {
+        std::string error = sqlite3_errmsg(db_);
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to prepare statement: {}", error);
+        Metrics::instance().increment("db_query_errors");
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to prepare statement: " + std::string(sqlite3_errmsg(db_))});
+            "Failed to prepare statement: " + error});
     }
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Prepared statement");
     return stmt;
 }
 
@@ -667,6 +697,9 @@ Result<void> Database::vacuum() {
 
 Result<void> Database::saveGame(const GameInfo& game) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Saving game: {}", game.name);
 
     const char* sql = R"(
         INSERT OR REPLACE INTO games (
@@ -720,16 +753,24 @@ Result<void> Database::saveGame(const GameInfo& game) {
     sqlite3_bind_int64(stmt.stmt, 16, timestamp);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to save game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to save game: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Game saved successfully: {}", game.name);
     return {};
 }
 
 Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& steamAppId) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Looking up game by Steam ID");
 
     const char* sql = R"(
         SELECT id, steam_app_id, name, install_path, executable_path,
@@ -745,11 +786,16 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     sqlite3_bind_text(stmt.stmt, 1, steamAppId.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc == SQLITE_DONE) {
+        MAKINEAI_LOG_DEBUG(log::DATABASE, "Game not found by Steam ID");
         return std::nullopt;  // Not found
     }
 
     if (rc != SQLITE_ROW) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to query game: " + std::string(sqlite3_errmsg(db_))});
     }
@@ -768,11 +814,15 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     game.publisher = getTextColumn(stmt.stmt, 12);
     game.developer = getTextColumn(stmt.stmt, 13);
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found game: {}", game.name);
     return game;
 }
 
 Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Looking up game by ID");
 
     const char* sql = R"(
         SELECT id, steam_app_id, name, install_path, executable_path,
@@ -788,11 +838,16 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     sqlite3_bind_text(stmt.stmt, 1, gameId.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc == SQLITE_DONE) {
+        MAKINEAI_LOG_DEBUG(log::DATABASE, "Game not found by ID");
         return std::nullopt;
     }
 
     if (rc != SQLITE_ROW) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to query game: " + std::string(sqlite3_errmsg(db_))});
     }
@@ -811,11 +866,15 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     game.publisher = getTextColumn(stmt.stmt, 12);
     game.developer = getTextColumn(stmt.stmt, 13);
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found game: {}", game.name);
     return game;
 }
 
 Result<std::vector<GameInfo>> Database::getAllGames() {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting all games");
 
     const char* sql = R"(
         SELECT id, steam_app_id, name, install_path, executable_path,
@@ -848,11 +907,16 @@ Result<std::vector<GameInfo>> Database::getAllGames() {
         games.push_back(std::move(game));
     }
 
+    Metrics::instance().increment("db_queries_total");
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Retrieved {} games", games.size());
     return games;
 }
 
 Result<void> Database::deleteGame(const std::string& gameId) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Deleting game");
 
     const char* sql = "DELETE FROM games WHERE id = ?";
 
@@ -863,11 +927,16 @@ Result<void> Database::deleteGame(const std::string& gameId) {
     sqlite3_bind_text(stmt.stmt, 1, gameId.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to delete game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to delete game: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Game deleted successfully");
     return {};
 }
 
@@ -875,6 +944,9 @@ Result<void> Database::deleteGame(const std::string& gameId) {
 
 Result<int64_t> Database::addToTranslationMemory(const TranslationMemoryEntry& entry) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Adding entry to translation memory");
 
     const char* sql = R"(
         INSERT OR REPLACE INTO translation_memory (
@@ -934,16 +1006,24 @@ Result<int64_t> Database::addToTranslationMemory(const TranslationMemoryEntry& e
     sqlite3_bind_int(stmt.stmt, 15, entry.verified ? 1 : 0);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add TM entry: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to add TM entry: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "TM entry added successfully");
     return sqlite3_last_insert_rowid(db_);
 }
 
 Result<std::optional<TranslationMemoryEntry>> Database::findExactMatch(const std::string& sourceHash) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Finding exact TM match");
 
     const char* sql = R"(
         SELECT id, source_text, target_text, source_hash, source_lang, target_lang,
@@ -960,11 +1040,16 @@ Result<std::optional<TranslationMemoryEntry>> Database::findExactMatch(const std
     sqlite3_bind_text(stmt.stmt, 1, sourceHash.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc == SQLITE_DONE) {
+        MAKINEAI_LOG_DEBUG(log::DATABASE, "No exact TM match found");
         return std::nullopt;
     }
 
     if (rc != SQLITE_ROW) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query TM: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to query TM: " + std::string(sqlite3_errmsg(db_))});
     }
@@ -987,11 +1072,15 @@ Result<std::optional<TranslationMemoryEntry>> Database::findExactMatch(const std
     entry.createdBy = getTextColumn(stmt.stmt, 14);
     entry.verified = sqlite3_column_int(stmt.stmt, 15) != 0;
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found exact TM match");
     return entry;
 }
 
 Result<std::vector<TranslationMemoryEntry>> Database::findByHash(const std::string& sourceHash) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Finding TM entries by hash");
 
     const char* sql = R"(
         SELECT id, source_text, target_text, source_hash, source_lang, target_lang,
@@ -1031,12 +1120,17 @@ Result<std::vector<TranslationMemoryEntry>> Database::findByHash(const std::stri
         entries.push_back(std::move(entry));
     }
 
+    Metrics::instance().increment("db_queries_total");
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found {} TM entries by hash", entries.size());
     return entries;
 }
 
 Result<std::vector<TranslationMemoryEntry>> Database::getEntriesForGame(
     const std::string& gameId, size_t limit) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting TM entries for game");
 
     const char* sql = R"(
         SELECT id, source_text, target_text, source_hash, source_lang, target_lang,
@@ -1077,11 +1171,16 @@ Result<std::vector<TranslationMemoryEntry>> Database::getEntriesForGame(
         entries.push_back(std::move(entry));
     }
 
+    Metrics::instance().increment("db_queries_total");
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found {} TM entries for game", entries.size());
     return entries;
 }
 
 Result<std::pair<int64_t, int64_t>> Database::getTranslationMemoryStats() {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting TM stats");
 
     int64_t total = 0;
     int64_t verified = 0;
@@ -1104,11 +1203,40 @@ Result<std::pair<int64_t, int64_t>> Database::getTranslationMemoryStats() {
         }
     }
 
+    Metrics::instance().increment("db_queries_total", 2);
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "TM stats: {} total, {} verified", total, verified);
     return std::make_pair(total, verified);
+}
+
+Result<double> Database::getAverageQualityScore() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting average quality score");
+
+    const char* sql = "SELECT AVG(quality_score) FROM translation_memory WHERE quality_score > 0";
+
+    auto stmtResult = prepare(sql);
+    if (!stmtResult) return std::unexpected(stmtResult.error());
+    auto& stmt = *stmtResult;
+
+    if (sqlite3_step(stmt.stmt) == SQLITE_ROW) {
+        // AVG returns NULL if no rows, check for that
+        if (sqlite3_column_type(stmt.stmt, 0) != SQLITE_NULL) {
+            Metrics::instance().increment("db_queries_total");
+            return sqlite3_column_double(stmt.stmt, 0);
+        }
+    }
+
+    Metrics::instance().increment("db_queries_total");
+    return 0.0;  // No entries with quality scores
 }
 
 Result<void> Database::incrementTMUsage(int64_t entryId) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Incrementing TM usage");
 
     const char* sql = R"(
         UPDATE translation_memory
@@ -1124,7 +1252,11 @@ Result<void> Database::incrementTMUsage(int64_t entryId) {
     sqlite3_bind_int64(stmt.stmt, 2, entryId);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to increment TM usage: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to increment TM usage: " + std::string(sqlite3_errmsg(db_))});
     }
@@ -1132,10 +1264,179 @@ Result<void> Database::incrementTMUsage(int64_t entryId) {
     return {};
 }
 
+Result<void> Database::updateTranslationMemoryEntry(
+    int64_t tmId,
+    const std::string& targetText,
+    std::optional<int> qualityScore,
+    std::optional<bool> verified
+) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Updating TM entry");
+
+    // Build dynamic SQL based on which fields are being updated
+    std::string sql = "UPDATE translation_memory SET target_text = ?, updated_at = ?";
+
+    if (qualityScore.has_value()) {
+        sql += ", quality_score = ?";
+    }
+    if (verified.has_value()) {
+        sql += ", verified = ?";
+    }
+
+    sql += " WHERE id = ?";
+
+    auto stmtResult = prepare(sql);
+    if (!stmtResult) return std::unexpected(stmtResult.error());
+    auto& stmt = *stmtResult;
+
+    int paramIndex = 1;
+    sqlite3_bind_text(stmt.stmt, paramIndex++, targetText.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt.stmt, paramIndex++, now());
+
+    if (qualityScore.has_value()) {
+        sqlite3_bind_int(stmt.stmt, paramIndex++, *qualityScore);
+    }
+    if (verified.has_value()) {
+        sqlite3_bind_int(stmt.stmt, paramIndex++, *verified ? 1 : 0);
+    }
+
+    sqlite3_bind_int64(stmt.stmt, paramIndex, tmId);
+
+    int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
+    if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to update TM entry: {}", sqlite3_errmsg(db_));
+        return std::unexpected(Error{ErrorCode::IOError,
+            "Failed to update TM entry: " + std::string(sqlite3_errmsg(db_))});
+    }
+
+    if (sqlite3_changes(db_) == 0) {
+        MAKINEAI_LOG_WARN(log::DATABASE, "TM entry not found: {}", tmId);
+        return std::unexpected(Error{ErrorCode::NotFound,
+            "TM entry not found: " + std::to_string(tmId)});
+    }
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "TM entry updated successfully");
+    return {};
+}
+
+Result<void> Database::deleteTranslationMemoryEntry(int64_t tmId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Deleting TM entry");
+
+    // Delete n-grams first (foreign key constraint)
+    const char* deleteNgramsSql = "DELETE FROM tm_ngrams WHERE tm_id = ?";
+    auto ngramStmt = prepare(deleteNgramsSql);
+    if (ngramStmt) {
+        sqlite3_bind_int64(ngramStmt->stmt, 1, tmId);
+        sqlite3_step(ngramStmt->stmt);
+    }
+
+    // Delete variants
+    const char* deleteVariantsSql = "DELETE FROM tm_variants WHERE tm_id = ?";
+    auto variantStmt = prepare(deleteVariantsSql);
+    if (variantStmt) {
+        sqlite3_bind_int64(variantStmt->stmt, 1, tmId);
+        sqlite3_step(variantStmt->stmt);
+    }
+
+    // Delete the main entry
+    const char* deleteTmSql = "DELETE FROM translation_memory WHERE id = ?";
+    auto tmStmt = prepare(deleteTmSql);
+    if (!tmStmt) return std::unexpected(tmStmt.error());
+
+    sqlite3_bind_int64(tmStmt->stmt, 1, tmId);
+
+    int rc = sqlite3_step(tmStmt->stmt);
+    Metrics::instance().increment("db_queries_total", 3);  // ngrams, variants, and main entry
+
+    if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to delete TM entry: {}", sqlite3_errmsg(db_));
+        return std::unexpected(Error{ErrorCode::IOError,
+            "Failed to delete TM entry: " + std::string(sqlite3_errmsg(db_))});
+    }
+
+    if (sqlite3_changes(db_) == 0) {
+        MAKINEAI_LOG_WARN(log::DATABASE, "TM entry not found: {}", tmId);
+        return std::unexpected(Error{ErrorCode::NotFound,
+            "TM entry not found: " + std::to_string(tmId)});
+    }
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "TM entry deleted successfully");
+    return {};
+}
+
+Result<TranslationMemoryEntry> Database::getTranslationMemoryEntryById(int64_t tmId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting TM entry by ID");
+
+    const char* sql = R"(
+        SELECT id, source_text, target_text, source_lang, target_lang,
+               source_hash, game_id, engine_type, file_path, context,
+               quality_score, verified, usage_count, created_at, updated_at
+        FROM translation_memory WHERE id = ?
+    )";
+
+    auto stmtResult = prepare(sql);
+    if (!stmtResult) return std::unexpected(stmtResult.error());
+    auto& stmt = *stmtResult;
+
+    sqlite3_bind_int64(stmt.stmt, 1, tmId);
+
+    Metrics::instance().increment("db_queries_total");
+
+    if (sqlite3_step(stmt.stmt) != SQLITE_ROW) {
+        MAKINEAI_LOG_WARN(log::DATABASE, "TM entry not found: {}", tmId);
+        return std::unexpected(Error{ErrorCode::NotFound,
+            "TM entry not found: " + std::to_string(tmId)});
+    }
+
+    TranslationMemoryEntry entry;
+    entry.id = sqlite3_column_int64(stmt.stmt, 0);
+    entry.sourceText = reinterpret_cast<const char*>(sqlite3_column_text(stmt.stmt, 1));
+    entry.targetText = reinterpret_cast<const char*>(sqlite3_column_text(stmt.stmt, 2));
+    entry.sourceLang = reinterpret_cast<const char*>(sqlite3_column_text(stmt.stmt, 3));
+    entry.targetLang = reinterpret_cast<const char*>(sqlite3_column_text(stmt.stmt, 4));
+    entry.sourceHash = reinterpret_cast<const char*>(sqlite3_column_text(stmt.stmt, 5));
+
+    auto gameIdPtr = sqlite3_column_text(stmt.stmt, 6);
+    if (gameIdPtr) entry.gameId = reinterpret_cast<const char*>(gameIdPtr);
+
+    auto enginePtr = sqlite3_column_text(stmt.stmt, 7);
+    if (enginePtr) entry.engineType = reinterpret_cast<const char*>(enginePtr);
+
+    auto filePtr = sqlite3_column_text(stmt.stmt, 8);
+    if (filePtr) entry.filePath = reinterpret_cast<const char*>(filePtr);
+
+    auto ctxPtr = sqlite3_column_text(stmt.stmt, 9);
+    if (ctxPtr) entry.context = reinterpret_cast<const char*>(ctxPtr);
+
+    entry.qualityScore = sqlite3_column_int(stmt.stmt, 10);
+    entry.verified = sqlite3_column_int(stmt.stmt, 11) != 0;
+    entry.usageCount = sqlite3_column_int(stmt.stmt, 12);
+    entry.createdAt = sqlite3_column_int64(stmt.stmt, 13);
+    entry.updatedAt = sqlite3_column_int64(stmt.stmt, 14);
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found TM entry by ID");
+    return entry;
+}
+
 // ============== N-GRAM OPERATIONS ==============
 
 Result<void> Database::storeNgrams(int64_t tmId, const std::vector<std::pair<std::string, int>>& ngrams) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Storing {} n-grams", ngrams.size());
 
     const char* sql = "INSERT INTO tm_ngrams (tm_id, ngram, position) VALUES (?, ?, ?)";
 
@@ -1151,16 +1452,23 @@ Result<void> Database::storeNgrams(int64_t tmId, const std::vector<std::pair<std
 
         int rc = sqlite3_step(stmt.stmt);
         if (rc != SQLITE_DONE) {
+            Metrics::instance().increment("db_query_errors");
+            MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to store n-gram: {}", sqlite3_errmsg(db_));
             return std::unexpected(Error{ErrorCode::IOError,
                 "Failed to store n-gram: " + std::string(sqlite3_errmsg(db_))});
         }
     }
 
+    Metrics::instance().increment("db_queries_total", static_cast<int64_t>(ngrams.size()));
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "N-grams stored successfully");
     return {};
 }
 
 Result<std::vector<int64_t>> Database::findByNgram(const std::string& ngram, size_t limit) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Finding TM entries by n-gram");
 
     const char* sql = R"(
         SELECT DISTINCT tm_id FROM tm_ngrams
@@ -1180,6 +1488,8 @@ Result<std::vector<int64_t>> Database::findByNgram(const std::string& ngram, siz
         ids.push_back(sqlite3_column_int64(stmt.stmt, 0));
     }
 
+    Metrics::instance().increment("db_queries_total");
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found {} TM entries by n-gram", ids.size());
     return ids;
 }
 
@@ -1187,6 +1497,9 @@ Result<std::vector<int64_t>> Database::findByNgram(const std::string& ngram, siz
 
 Result<void> Database::setSetting(const std::string& key, const std::string& value) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Setting config key");
 
     const char* sql = R"(
         INSERT OR REPLACE INTO settings (key, value, updated_at)
@@ -1202,7 +1515,11 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
     sqlite3_bind_int64(stmt.stmt, 3, now());
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to set setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to set setting: " + std::string(sqlite3_errmsg(db_))});
     }
@@ -1212,6 +1529,9 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
 
 Result<std::optional<std::string>> Database::getSetting(const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting config key");
 
     const char* sql = "SELECT value FROM settings WHERE key = ? LIMIT 1";
 
@@ -1222,11 +1542,16 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
     sqlite3_bind_text(stmt.stmt, 1, key.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc == SQLITE_DONE) {
+        MAKINEAI_LOG_DEBUG(log::DATABASE, "Setting not found");
         return std::nullopt;
     }
 
     if (rc != SQLITE_ROW) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to get setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to get setting: " + std::string(sqlite3_errmsg(db_))});
     }
@@ -1236,6 +1561,9 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
 
 Result<std::map<std::string, std::string>> Database::getAllSettings() {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting all settings");
 
     const char* sql = "SELECT key, value FROM settings";
 
@@ -1251,6 +1579,8 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
         settings[key] = value;
     }
 
+    Metrics::instance().increment("db_queries_total");
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Retrieved {} settings", settings.size());
     return settings;
 }
 
@@ -1258,6 +1588,9 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
 
 Result<int64_t> Database::addGlossaryTerm(const GlossaryTerm& term) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Adding glossary term");
 
     const char* sql = R"(
         INSERT OR REPLACE INTO glossary (
@@ -1320,18 +1653,26 @@ Result<int64_t> Database::addGlossaryTerm(const GlossaryTerm& term) {
     }
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add glossary term: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to add glossary term: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Glossary term added successfully");
     return sqlite3_last_insert_rowid(db_);
 }
 
 Result<void> Database::updateGlossaryTerm(const GlossaryTerm& term) {
     if (!term.id) {
+        MAKINEAI_LOG_WARN(log::DATABASE, "Term ID is required for update");
         return std::unexpected(Error{ErrorCode::InvalidArgument, "Term ID is required for update"});
     }
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Updating glossary term");
 
     // For simplicity, delete and re-add
     auto deleteResult = deleteGlossaryTerm(*term.id);
@@ -1345,6 +1686,9 @@ Result<void> Database::updateGlossaryTerm(const GlossaryTerm& term) {
 
 Result<void> Database::deleteGlossaryTerm(int64_t termId) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Deleting glossary term");
 
     const char* sql = "DELETE FROM glossary WHERE id = ?";
 
@@ -1355,11 +1699,16 @@ Result<void> Database::deleteGlossaryTerm(int64_t termId) {
     sqlite3_bind_int64(stmt.stmt, 1, termId);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to delete glossary term: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to delete glossary term: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Glossary term deleted successfully");
     return {};
 }
 
@@ -1370,6 +1719,9 @@ Result<std::vector<GlossaryTerm>> Database::searchGlossary(
     size_t limit) {
 
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Searching glossary");
 
     std::string sql = R"(
         SELECT id, term_source, term_target, term_type, domain,
@@ -1563,6 +1915,9 @@ Result<void> Database::addForbiddenTranslation(
 
 Result<std::string> Database::createProject(const TranslationProject& project) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Creating translation project: {}", project.name);
 
     std::string projectId = project.id.empty() ? generateId("proj") : project.id;
     int64_t timestamp = now();
@@ -1601,16 +1956,24 @@ Result<std::string> Database::createProject(const TranslationProject& project) {
     }
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to create project: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to create project: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_INFO(log::DATABASE, "Translation project created: {}", project.name);
     return projectId;
 }
 
 Result<std::optional<TranslationProject>> Database::getProject(const std::string& projectId) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting translation project");
 
     const char* sql = R"(
         SELECT id, game_id, name, source_lang, target_lang,
@@ -2172,6 +2535,9 @@ Result<double> Database::calculateAndUpdateProgress(const std::string& projectId
 
 Result<void> Database::addBackupRecord(const BackupRecord& backup) {
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_INFO(log::DATABASE, "Adding backup record for game");
 
     const char* sql = R"(
         INSERT INTO backups (id, game_id, created_at, manifest, size_bytes, status)
@@ -2196,11 +2562,16 @@ Result<void> Database::addBackupRecord(const BackupRecord& backup) {
     sqlite3_bind_text(stmt.stmt, 6, "active", -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add backup record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to add backup record: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_INFO(log::DATABASE, "Backup record added successfully");
     return {};
 }
 
@@ -2317,6 +2688,10 @@ Result<int64_t> Database::addPatchRecord(
     const std::optional<std::string>& errorMessage) {
 
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_INFO(log::DATABASE, "Adding patch record: type={}, status={}, strings={}",
+                      patchType, status, stringsPatched);
 
     const char* sql = R"(
         INSERT INTO patch_history (
@@ -2349,11 +2724,16 @@ Result<int64_t> Database::addPatchRecord(
     sqlite3_bind_int64(stmt.stmt, 7, now());
 
     int rc = sqlite3_step(stmt.stmt);
+    Metrics::instance().increment("db_queries_total");
+
     if (rc != SQLITE_DONE) {
+        Metrics::instance().increment("db_query_errors");
+        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add patch record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to add patch record: " + std::string(sqlite3_errmsg(db_))});
     }
 
+    MAKINEAI_LOG_INFO(log::DATABASE, "Patch record added successfully");
     return sqlite3_last_insert_rowid(db_);
 }
 
@@ -2361,6 +2741,9 @@ Result<std::vector<std::map<std::string, std::string>>> Database::getPatchHistor
     const std::string& gameId) {
 
     std::lock_guard<std::mutex> lock(mutex_);
+    auto timer = Metrics::instance().timer("db_query");
+
+    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting patch history");
 
     const char* sql = R"(
         SELECT id, game_id, patch_type, status, backup_path,

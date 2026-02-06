@@ -90,7 +90,7 @@ Item {
         width: buttonBg.width + (isHovered ? 40 : (20 + smoothValue * 12))
         height: buttonBg.height + (isHovered ? 40 : (20 + smoothValue * 12))
         anchors.verticalCenterOffset: 4  // Flutter: offset(0, 4)
-        radius: 4 + 10
+        radius: Dimensions.radiusStandard + 10
         color: Qt.rgba(color1.r, color1.g, color1.b, isHovered ? 0.6 : glowIntensity)
         z: -1
 
@@ -106,7 +106,7 @@ Item {
     Rectangle {
         id: buttonBg
         anchors.fill: parent
-        radius: 4  // Flutter: borderRadius 4
+        radius: Dimensions.radiusStandard  // Flutter: borderRadius 4
 
         gradient: Gradient {
             orientation: Gradient.Horizontal

@@ -6,10 +6,16 @@
 
 #include "makineai/patch_engine.hpp"
 #include "makineai/core.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
+#include "makineai/health.hpp"
+#include "makineai/validation.hpp"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <chrono>
+#include <cstring>
 
 namespace makineai {
 
@@ -28,6 +34,19 @@ Result<BackupMetadata> FileBackupStorage::createBackup(
     const StringList& filesToBackup,
     const std::string& backupId
 ) {
+    // Start timing this operation
+    auto timer = Metrics::instance().timer("backup_create");
+
+    MAKINEAI_LOG_INFO(log::FILE, "Creating backup {} for {} files from {}",
+        backupId, filesToBackup.size(), gameDir.string());
+
+    // Validate input paths
+    if (!validation::isPathSafe(gameDir)) {
+        MAKINEAI_LOG_ERROR(log::FILE, "Unsafe game directory path: {}", gameDir.string());
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Game directory path contains unsafe characters"));
+    }
+
     BackupMetadata metadata;
     metadata.backupId = backupId;
     metadata.backupPath = baseDir_ / backupId;
@@ -41,39 +60,63 @@ Result<BackupMetadata> FileBackupStorage::createBackup(
     std::error_code ec;
     fs::create_directories(metadata.backupPath, ec);
     if (ec) {
+        MAKINEAI_LOG_ERROR(log::FILE, "Failed to create backup directory {}: {}",
+            metadata.backupPath.string(), ec.message());
+        AuditLogger::logFileAccess(metadata.backupPath, "create_dir", false, ec.message());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Cannot create backup directory: " + ec.message()));
     }
 
+    AuditLogger::logFileAccess(metadata.backupPath, "create_dir", true);
+
     // Copy files
+    uint32_t skippedCount = 0;
     for (const auto& relPath : filesToBackup) {
+        // Validate relative path
+        if (!validation::isPathSafe(relPath)) {
+            MAKINEAI_LOG_WARN(log::FILE, "Skipping unsafe path in backup: {}", relPath);
+            skippedCount++;
+            continue;
+        }
+
         fs::path srcPath = gameDir / relPath;
         fs::path dstPath = metadata.backupPath / relPath;
 
         if (!fs::exists(srcPath)) {
+            MAKINEAI_LOG_DEBUG(log::FILE, "Backup source does not exist: {}", srcPath.string());
             continue;
         }
 
         // Create parent directories
         fs::create_directories(dstPath.parent_path(), ec);
         if (ec) {
-            logger()->warn("Cannot create directory for: {}", relPath);
+            MAKINEAI_LOG_WARN(log::FILE, "Cannot create directory for backup: {} - {}",
+                relPath, ec.message());
             continue;
         }
 
         // Copy file
         fs::copy_file(srcPath, dstPath, fs::copy_options::overwrite_existing, ec);
         if (ec) {
-            logger()->warn("Cannot backup file: {} - {}", relPath, ec.message());
+            MAKINEAI_LOG_WARN(log::FILE, "Cannot backup file: {} - {}", relPath, ec.message());
+            AuditLogger::logFileAccess(srcPath, "backup_copy", false, ec.message());
             continue;
         }
 
+        AuditLogger::logFileAccess(srcPath, "backup_copy", true);
         metadata.files.push_back(relPath);
         metadata.fileCount++;
         metadata.sizeBytes += fs::file_size(dstPath, ec);
     }
 
+    Metrics::instance().increment("backup_files_copied", metadata.fileCount);
+    if (skippedCount > 0) {
+        MAKINEAI_LOG_WARN(log::FILE, "Skipped {} unsafe paths during backup", skippedCount);
+    }
+
     // Save metadata
+    MAKINEAI_LOG_DEBUG(log::FILE, "Saving backup metadata for {}", backupId);
+
     json metaJson;
     metaJson["backupId"] = metadata.backupId;
     metaJson["gameId"] = metadata.gameId;
@@ -84,15 +127,50 @@ Result<BackupMetadata> FileBackupStorage::createBackup(
     metaJson["fileCount"] = metadata.fileCount;
     metaJson["files"] = metadata.files;
 
-    std::ofstream metaFile(metadata.backupPath / kMetadataFile);
-    if (!metaFile) {
-        return std::unexpected(Error(ErrorCode::FileAccessDenied,
-            "Cannot write backup metadata"));
-    }
-    metaFile << metaJson.dump(2);
+    // Atomic metadata write: write to temp, then rename
+    fs::path metaPath = metadata.backupPath / kMetadataFile;
+    fs::path tempMetaPath = metaPath.string() + ".tmp";
 
-    logger()->info("Created backup {} with {} files ({} bytes)",
+    {
+        std::ofstream metaFile(tempMetaPath, std::ios::trunc);
+        if (!metaFile) {
+            MAKINEAI_LOG_ERROR(log::FILE, "Cannot create backup metadata file: {}",
+                tempMetaPath.string());
+            AuditLogger::logFileAccess(tempMetaPath, "write", false, "Cannot create file");
+            return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                "Cannot write backup metadata"));
+        }
+
+        metaFile << metaJson.dump(2);
+        metaFile.flush();
+
+        if (!metaFile.good()) {
+            metaFile.close();
+            fs::remove(tempMetaPath, ec);
+            MAKINEAI_LOG_ERROR(log::FILE, "Backup metadata write failed - possible disk full");
+            AuditLogger::logFileAccess(tempMetaPath, "write", false, "Write failed");
+            return std::unexpected(Error(ErrorCode::IOError,
+                "Backup metadata write failed - possible disk full"));
+        }
+    } // File closed here
+
+    // Atomic rename
+    fs::rename(tempMetaPath, metaPath, ec);
+    if (ec) {
+        fs::remove(tempMetaPath, ec);
+        MAKINEAI_LOG_ERROR(log::FILE, "Backup metadata rename failed: {}", ec.message());
+        AuditLogger::logFileAccess(metaPath, "rename", false, ec.message());
+        return std::unexpected(Error(ErrorCode::IOError,
+            "Backup metadata rename failed: " + ec.message()));
+    }
+
+    AuditLogger::logFileAccess(metaPath, "write", true, "Backup metadata saved");
+
+    MAKINEAI_LOG_INFO(log::FILE, "Created backup {} with {} files ({} bytes)",
         backupId, metadata.fileCount, metadata.sizeBytes);
+
+    Metrics::instance().recordHistogram("backup_size_bytes", metadata.sizeBytes);
+    Metrics::instance().increment("backups_created");
 
     return metadata;
 }
@@ -101,52 +179,147 @@ VoidResult FileBackupStorage::restoreBackup(
     const fs::path& gameDir,
     const std::string& backupId
 ) {
+    // Start timing this operation
+    auto timer = Metrics::instance().timer("backup_restore");
+
+    MAKINEAI_LOG_INFO(log::FILE, "Restoring backup {} to {}", backupId, gameDir.string());
+    AuditLogger::logPatchOperation(backupId, true, "restore_start",
+        "Restoring backup to " + gameDir.string());
+
+    // Validate game directory path
+    if (!validation::isPathSafe(gameDir)) {
+        MAKINEAI_LOG_ERROR(log::FILE, "Unsafe game directory path: {}", gameDir.string());
+        AuditLogger::logPatchOperation(backupId, false, "restore", "Unsafe path");
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Game directory path contains unsafe characters"));
+    }
+
     auto metaResult = getBackup(backupId);
     if (!metaResult) {
+        MAKINEAI_LOG_ERROR(log::FILE, "Backup not found: {}", backupId);
+        AuditLogger::logPatchOperation(backupId, false, "restore", "Backup not found");
         return std::unexpected(metaResult.error());
     }
 
     const auto& metadata = *metaResult;
     uint32_t restored = 0;
     uint32_t failed = 0;
+    std::vector<std::string> failedFiles;
 
     for (const auto& relPath : metadata.files) {
         fs::path srcPath = metadata.backupPath / relPath;
         fs::path dstPath = gameDir / relPath;
 
-        if (!fs::exists(srcPath)) {
-            logger()->warn("Backup file missing: {}", relPath);
+        // SECURITY: Path traversal check using validation
+        if (!validation::isPathSafe(relPath)) {
+            MAKINEAI_LOG_ERROR(log::SECURITY, "Path traversal detected in backup: {}", relPath);
+            AuditLogger::logFileAccess(srcPath, "restore", false, "Path traversal attempt");
             failed++;
+            failedFiles.push_back(relPath + " (path traversal)");
+            continue;
+        }
+
+        if (!fs::exists(srcPath)) {
+            MAKINEAI_LOG_ERROR(log::FILE, "Backup file missing: {}", relPath);
+            failed++;
+            failedFiles.push_back(relPath + " (missing)");
             continue;
         }
 
         std::error_code ec;
         fs::create_directories(dstPath.parent_path(), ec);
-        fs::copy_file(srcPath, dstPath, fs::copy_options::overwrite_existing, ec);
-
         if (ec) {
-            logger()->warn("Cannot restore file: {} - {}", relPath, ec.message());
+            MAKINEAI_LOG_ERROR(log::FILE, "Cannot create directory for: {} - {}",
+                relPath, ec.message());
             failed++;
-        } else {
-            restored++;
+            failedFiles.push_back(relPath + " (dir create: " + ec.message() + ")");
+            continue;
         }
+
+        // Atomic restore: copy to temp file first, then rename
+        fs::path tempPath = dstPath.string() + ".makineai_restore_tmp";
+
+        // Remove any stale temp file
+        fs::remove(tempPath, ec);
+
+        // Copy to temp
+        fs::copy_file(srcPath, tempPath, fs::copy_options::overwrite_existing, ec);
+        if (ec) {
+            MAKINEAI_LOG_ERROR(log::FILE, "Cannot copy backup file: {} - {}",
+                relPath, ec.message());
+            AuditLogger::logFileAccess(srcPath, "restore_copy", false, ec.message());
+            fs::remove(tempPath, ec);
+            failed++;
+            failedFiles.push_back(relPath + " (copy: " + ec.message() + ")");
+            continue;
+        }
+
+        // Verify copy size matches
+        auto srcSize = fs::file_size(srcPath, ec);
+        auto tmpSize = fs::file_size(tempPath, ec);
+        if (srcSize != tmpSize) {
+            MAKINEAI_LOG_ERROR(log::FILE, "Backup restore size mismatch: {} (expected {} got {})",
+                relPath, srcSize, tmpSize);
+            fs::remove(tempPath, ec);
+            failed++;
+            failedFiles.push_back(relPath + " (size mismatch)");
+            continue;
+        }
+
+        // Atomic rename
+        fs::rename(tempPath, dstPath, ec);
+        if (ec) {
+            MAKINEAI_LOG_ERROR(log::FILE, "Cannot rename restored file: {} - {}",
+                relPath, ec.message());
+            AuditLogger::logFileAccess(dstPath, "restore_rename", false, ec.message());
+            fs::remove(tempPath, ec);
+            failed++;
+            failedFiles.push_back(relPath + " (rename: " + ec.message() + ")");
+            continue;
+        }
+
+        AuditLogger::logFileAccess(dstPath, "restore", true);
+        restored++;
     }
 
-    logger()->info("Restored {} files from backup {} ({} failed)",
+    MAKINEAI_LOG_INFO(log::FILE, "Restored {} files from backup {} ({} failed)",
         restored, backupId, failed);
 
-    if (failed > 0 && restored == 0) {
-        return std::unexpected(Error(ErrorCode::RestoreFailed,
-            "Failed to restore any files from backup"));
+    Metrics::instance().increment("backup_files_restored", restored);
+
+    // CRITICAL: ANY failure means game may be corrupted
+    // We must report this so manual intervention can occur
+    if (failed > 0) {
+        std::string errorMsg = "Restore incomplete: " + std::to_string(failed) +
+            " of " + std::to_string(metadata.files.size()) + " files failed. Failed files: ";
+        for (size_t i = 0; i < failedFiles.size() && i < 5; ++i) {
+            if (i > 0) errorMsg += ", ";
+            errorMsg += failedFiles[i];
+        }
+        if (failedFiles.size() > 5) {
+            errorMsg += " (and " + std::to_string(failedFiles.size() - 5) + " more)";
+        }
+
+        MAKINEAI_LOG_ERROR(log::FILE, "Restore failed: {}", errorMsg);
+        AuditLogger::logPatchOperation(backupId, false, "restore_end", errorMsg);
+        Metrics::instance().increment("restore_failures");
+        return std::unexpected(Error(ErrorCode::RestoreFailed, errorMsg));
     }
+
+    AuditLogger::logPatchOperation(backupId, true, "restore_end",
+        "Restored " + std::to_string(restored) + " files");
+    Metrics::instance().increment("restores_completed");
 
     return {};
 }
 
 VoidResult FileBackupStorage::deleteBackup(const std::string& backupId) {
+    MAKINEAI_LOG_INFO(log::FILE, "Deleting backup: {}", backupId);
+
     fs::path backupPath = baseDir_ / backupId;
 
     if (!fs::exists(backupPath)) {
+        MAKINEAI_LOG_WARN(log::FILE, "Backup not found for deletion: {}", backupId);
         return std::unexpected(Error(ErrorCode::FileNotFound,
             "Backup not found: " + backupId));
     }
@@ -155,11 +328,16 @@ VoidResult FileBackupStorage::deleteBackup(const std::string& backupId) {
     fs::remove_all(backupPath, ec);
 
     if (ec) {
+        MAKINEAI_LOG_ERROR(log::FILE, "Cannot delete backup {}: {}", backupId, ec.message());
+        AuditLogger::logFileAccess(backupPath, "delete", false, ec.message());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
             "Cannot delete backup: " + ec.message()));
     }
 
-    logger()->info("Deleted backup: {}", backupId);
+    MAKINEAI_LOG_INFO(log::FILE, "Deleted backup: {}", backupId);
+    AuditLogger::logFileAccess(backupPath, "delete", true);
+    Metrics::instance().increment("backups_deleted");
+
     return {};
 }
 
@@ -239,6 +417,17 @@ Result<PatchResult> PatchEngine::apply(
     ProgressCallback progress,
     CancellationToken* cancel
 ) {
+    // Start timing the entire patch operation
+    auto timer = Metrics::instance().timer("patch_apply");
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Starting patch operation for game {} (version {})",
+        game.name, patchVersion);
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Patch contains {} operations", operations.size());
+
+    // Audit log the start of patching
+    AuditLogger::logPatchOperation(game.id.storeId, true, "apply_start",
+        "Starting patch with " + std::to_string(operations.size()) + " operations");
+
     PatchResult result;
     result.success = false;
     result.filesPatched = 0;
@@ -247,11 +436,79 @@ Result<PatchResult> PatchEngine::apply(
     if (operations.empty()) {
         result.success = true;
         result.message = "No operations to apply";
+        MAKINEAI_LOG_INFO(log::HANDLER, "No patch operations to apply");
         return result;
     }
 
+    // Validate game install path
+    auto pathValidation = validation::validateDirectory(game.installPath);
+    if (!pathValidation) {
+        result.message = "Invalid game install path: " + pathValidation.error().message();
+        MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
+        AuditLogger::logPatchOperation(game.id.storeId, false, "apply", result.message);
+        return result;
+    }
+
+    // HEALTH CHECK: Verify system health before patching
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Performing pre-patch health check");
+    HealthChecker::instance().setDataDirectory(game.installPath);
+    auto healthStatus = HealthChecker::instance().check();
+
+    if (!healthStatus.fileSystem.healthy) {
+        result.message = "File system health check failed: " + healthStatus.fileSystem.status;
+        MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
+        AuditLogger::logPatchOperation(game.id.storeId, false, "apply", "Health check failed");
+        return result;
+    }
+
+    // SAFETY: Check disk space before starting
+    // Calculate total size needed (backup + new files)
+    uint64_t requiredSpace = 0;
+    for (const auto& op : operations) {
+        if (op.type == PatchOperation::Type::Replace ||
+            op.type == PatchOperation::Type::Copy) {
+            if (!op.data.empty()) {
+                requiredSpace += op.data.size();
+            } else if (!op.source.empty() && fs::exists(op.source)) {
+                std::error_code ec;
+                requiredSpace += fs::file_size(op.source, ec);
+            }
+        }
+        // Add backup space (existing files that will be modified)
+        if (op.type == PatchOperation::Type::Replace ||
+            op.type == PatchOperation::Type::Modify ||
+            op.type == PatchOperation::Type::Delete) {
+            if (fs::exists(op.target)) {
+                std::error_code ec;
+                requiredSpace += fs::file_size(op.target, ec);
+            }
+        }
+    }
+
+    // Add 10% safety margin
+    requiredSpace = static_cast<uint64_t>(requiredSpace * 1.1);
+
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Patch requires approximately {} MB of disk space",
+        requiredSpace / (1024 * 1024));
+
+    // Check available space using health checker data or filesystem query
+    std::error_code spaceEc;
+    auto spaceInfo = fs::space(game.installPath, spaceEc);
+    if (!spaceEc && spaceInfo.available < requiredSpace) {
+        result.message = "Insufficient disk space. Required: " +
+            std::to_string(requiredSpace / (1024 * 1024)) + " MB, Available: " +
+            std::to_string(spaceInfo.available / (1024 * 1024)) + " MB";
+        MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
+        AuditLogger::logPatchOperation(game.id.storeId, false, "apply", result.message);
+        Metrics::instance().increment("patch_insufficient_space");
+        return result;
+    }
+
+    Metrics::instance().gauge("patch_required_space_mb", requiredSpace / (1024.0 * 1024.0));
+
     // Create backup ID
     std::string backupId = game.id.storeId + "_" + patchVersion;
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Backup ID: {}", backupId);
 
     // Collect files to backup
     StringList filesToBackup;
@@ -264,8 +521,47 @@ Result<PatchResult> PatchEngine::apply(
         }
     }
 
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Files to backup: {}", filesToBackup.size());
+
+    // SAFETY: Pre-flight file lock check
+    // Verify all target files are writable (game not running)
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Checking for locked files");
+    std::vector<std::string> lockedFiles;
+    for (const auto& op : operations) {
+        if (op.type == PatchOperation::Type::Replace ||
+            op.type == PatchOperation::Type::Modify ||
+            op.type == PatchOperation::Type::Delete) {
+            if (fs::exists(op.target)) {
+                // Try to open file for writing to check if locked
+                std::ofstream testFile(op.target, std::ios::binary | std::ios::app);
+                if (!testFile) {
+                    MAKINEAI_LOG_WARN(log::HANDLER, "File is locked: {}",
+                        op.target.filename().string());
+                    lockedFiles.push_back(op.target.filename().string());
+                }
+            }
+        }
+    }
+
+    if (!lockedFiles.empty()) {
+        result.message = "Cannot patch: " + std::to_string(lockedFiles.size()) +
+            " file(s) are locked (game may be running). Locked files: ";
+        for (size_t i = 0; i < lockedFiles.size() && i < 3; ++i) {
+            if (i > 0) result.message += ", ";
+            result.message += lockedFiles[i];
+        }
+        if (lockedFiles.size() > 3) {
+            result.message += " (and " + std::to_string(lockedFiles.size() - 3) + " more)";
+        }
+        MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
+        AuditLogger::logPatchOperation(game.id.storeId, false, "apply", "Files locked");
+        Metrics::instance().increment("patch_files_locked");
+        return result;
+    }
+
     // Create backup
     if (!filesToBackup.empty()) {
+        MAKINEAI_LOG_INFO(log::HANDLER, "Creating backup before patching");
         if (progress) {
             progress(0, static_cast<uint32_t>(operations.size()), "Creating backup...");
         }
@@ -275,22 +571,31 @@ Result<PatchResult> PatchEngine::apply(
 
         if (!backupResult) {
             result.message = "Backup failed: " + backupResult.error().message();
+            MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
+            AuditLogger::logPatchOperation(game.id.storeId, false, "apply", result.message);
             return result;
         }
 
         result.backupPath = backupResult->backupPath;
+        MAKINEAI_LOG_INFO(log::HANDLER, "Backup created at: {}", result.backupPath.string());
     }
 
     // Apply operations
+    MAKINEAI_LOG_INFO(log::HANDLER, "Applying {} patch operations", operations.size());
     size_t completedOps = 0;
     for (const auto& op : operations) {
         if (cancel && cancel->isCancelled()) {
-            // Rollback
-            auto rollbackResult = rollbackOperations(operations, completedOps);
+            MAKINEAI_LOG_WARN(log::HANDLER, "Patch operation cancelled by user, rolling back");
+            // Rollback using backup
+            auto rollbackResult = rollbackOperations(
+                game.installPath, backupId, operations, completedOps);
             if (!rollbackResult) {
-                logger()->error("Rollback failed: {}", rollbackResult.error().message());
+                MAKINEAI_LOG_ERROR(log::HANDLER, "Rollback failed: {}",
+                    rollbackResult.error().message());
             }
             result.message = "Operation cancelled, changes rolled back";
+            AuditLogger::logPatchOperation(game.id.storeId, false, "apply", "Cancelled by user");
+            Metrics::instance().increment("patch_cancelled");
             return result;
         }
 
@@ -302,23 +607,62 @@ Result<PatchResult> PatchEngine::apply(
             );
         }
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Executing operation {} of {}: {}",
+            completedOps + 1, operations.size(), op.target.filename().string());
+
         auto opResult = executeOperation(op);
         if (!opResult) {
+            // CRITICAL: Operation failed - rollback ALL completed operations immediately
+            // We cannot leave the game in a partial/broken state
+            MAKINEAI_LOG_ERROR(log::HANDLER,
+                "Patch operation failed: {} - {}. Rolling back {} completed operations.",
+                op.target.string(), opResult.error().message(), completedOps);
+
+            AuditLogger::logFileAccess(op.target, "patch", false, opResult.error().message());
+            Metrics::instance().increment("patch_operation_failures");
+
             result.filesFailed++;
-            result.errors.push_back(op.target.string() + ": " +
-                opResult.error().message());
-            logger()->warn("Patch operation failed: {} - {}",
-                op.target.string(), opResult.error().message());
-        } else {
-            result.filesPatched++;
+            result.errors.push_back(op.target.string() + ": " + opResult.error().message());
+
+            // Attempt rollback using backup
+            MAKINEAI_LOG_INFO(log::HANDLER, "Initiating rollback");
+            auto rollbackResult = rollbackOperations(
+                game.installPath, backupId, operations, completedOps);
+            if (!rollbackResult) {
+                MAKINEAI_LOG_CRITICAL(log::HANDLER,
+                    "CRITICAL: Rollback also failed: {}. Game may be corrupted!",
+                    rollbackResult.error().message());
+                result.errors.push_back("ROLLBACK FAILED: " + rollbackResult.error().message());
+                result.message = "Patch failed AND rollback failed - manual restoration required from: " +
+                    result.backupPath.string();
+                AuditLogger::logPatchOperation(game.id.storeId, false, "apply",
+                    "CRITICAL: Both patch and rollback failed");
+                Metrics::instance().increment("patch_rollback_failures");
+            } else {
+                result.message = "Patch failed, changes rolled back successfully";
+                AuditLogger::logPatchOperation(game.id.storeId, false, "apply",
+                    "Patch failed, rolled back");
+            }
+
+            result.success = false;
+            return result;
         }
 
+        AuditLogger::logFileAccess(op.target, "patch", true);
+        result.filesPatched++;
         completedOps++;
     }
 
     result.success = (result.filesFailed == 0);
     result.message = "Patched " + std::to_string(result.filesPatched) +
         " files, " + std::to_string(result.filesFailed) + " failed";
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Patch operation completed: {}", result.message);
+    AuditLogger::logPatchOperation(game.id.storeId, true, "apply_end", result.message);
+
+    // Record metrics
+    Metrics::instance().increment("patch_operations_completed");
+    Metrics::instance().recordHistogram("patch_files_count", result.filesPatched);
 
     if (progress) {
         progress(
@@ -332,66 +676,304 @@ Result<PatchResult> PatchEngine::apply(
 }
 
 VoidResult PatchEngine::executeOperation(const PatchOperation& op) {
+    // Time each operation
+    auto opTimer = Metrics::instance().timer("patch_single_operation");
+
     std::error_code ec;
+
+    // Pre-flight check: verify target path is safe using validation
+    if (!validation::isPathSafe(op.target)) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Path traversal detected in target: {}",
+            op.target.string());
+        AuditLogger::logFileAccess(op.target, "patch", false, "Path traversal blocked");
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Path traversal detected in target path"));
+    }
+
+    // Also validate source path if applicable
+    if (!op.source.empty() && !validation::isPathSafe(op.source)) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Path traversal detected in source: {}",
+            op.source.string());
+        AuditLogger::logFileAccess(op.source, "patch", false, "Path traversal blocked");
+        return std::unexpected(Error(ErrorCode::InvalidPath,
+            "Path traversal detected in source path"));
+    }
 
     switch (op.type) {
         case PatchOperation::Type::Copy:
+            MAKINEAI_LOG_DEBUG(log::FILE, "Copy operation: {} -> {}",
+                op.source.string(), op.target.string());
+
             if (!fs::exists(op.source)) {
+                MAKINEAI_LOG_ERROR(log::FILE, "Source file not found: {}", op.source.string());
                 return std::unexpected(Error(ErrorCode::FileNotFound,
-                    "Source file not found"));
+                    "Source file not found: " + op.source.string()));
             }
+
+            // Check source is readable
+            {
+                std::ifstream testRead(op.source, std::ios::binary);
+                if (!testRead) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Cannot read source file: {}",
+                        op.source.string());
+                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                        "Cannot read source file: " + op.source.string()));
+                }
+            }
+
             fs::create_directories(op.target.parent_path(), ec);
-            fs::copy_file(op.source, op.target,
-                fs::copy_options::overwrite_existing, ec);
             if (ec) {
+                MAKINEAI_LOG_ERROR(log::FILE, "Cannot create target directory: {}", ec.message());
                 return std::unexpected(Error(ErrorCode::FileAccessDenied,
-                    "Copy failed: " + ec.message()));
+                    "Cannot create target directory: " + ec.message()));
             }
+
+            // Atomic copy: copy to temp file first, then rename
+            {
+                fs::path tempPath = op.target.string() + ".makineai_tmp";
+
+                // Remove stale temp file if exists
+                fs::remove(tempPath, ec);
+
+                fs::copy_file(op.source, tempPath, fs::copy_options::overwrite_existing, ec);
+                if (ec) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Copy to temp failed: {}", ec.message());
+                    fs::remove(tempPath, ec);
+                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                        "Copy to temp failed: " + ec.message()));
+                }
+
+                // Verify copy size matches
+                auto srcSize = fs::file_size(op.source, ec);
+                auto tmpSize = fs::file_size(tempPath, ec);
+                if (srcSize != tmpSize) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Copy verification failed: size mismatch ({} vs {})",
+                        srcSize, tmpSize);
+                    fs::remove(tempPath, ec);
+                    return std::unexpected(Error(ErrorCode::ChecksumMismatch,
+                        "Copy verification failed: size mismatch"));
+                }
+
+                // Atomic rename (or copy+delete on Windows if cross-volume)
+                fs::rename(tempPath, op.target, ec);
+                if (ec) {
+                    // Fallback: copy then delete temp
+                    MAKINEAI_LOG_DEBUG(log::FILE, "Rename failed, using copy fallback");
+                    fs::copy_file(tempPath, op.target, fs::copy_options::overwrite_existing, ec);
+                    fs::remove(tempPath, ec);
+                    if (ec) {
+                        MAKINEAI_LOG_ERROR(log::FILE, "Failed to finalize copy: {}", ec.message());
+                        return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                            "Failed to finalize copy: " + ec.message()));
+                    }
+                }
+            }
+
+            Metrics::instance().increment("patch_copies_completed");
             break;
 
         case PatchOperation::Type::Replace:
+            MAKINEAI_LOG_DEBUG(log::FILE, "Replace operation: {} ({} bytes)",
+                op.target.string(), op.data.size());
+
             fs::create_directories(op.target.parent_path(), ec);
-            {
-                std::ofstream file(op.target, std::ios::binary);
-                if (!file) {
-                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
-                        "Cannot write file"));
-                }
-                file.write(reinterpret_cast<const char*>(op.data.data()),
-                    op.data.size());
+            if (ec) {
+                MAKINEAI_LOG_ERROR(log::FILE, "Cannot create target directory: {}", ec.message());
+                return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                    "Cannot create target directory: " + ec.message()));
             }
+
+            // Atomic write: write to temp file, verify, then rename
+            {
+                fs::path tempPath = op.target.string() + ".makineai_tmp";
+
+                std::ofstream file(tempPath, std::ios::binary | std::ios::trunc);
+                if (!file) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Cannot create temp file for write: {}",
+                        tempPath.string());
+                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                        "Cannot create temp file for write"));
+                }
+
+                file.write(reinterpret_cast<const char*>(op.data.data()), op.data.size());
+
+                // Explicit flush and sync
+                file.flush();
+                if (!file.good()) {
+                    file.close();
+                    fs::remove(tempPath, ec);
+                    MAKINEAI_LOG_ERROR(log::FILE, "Write flush failed - possible disk full");
+                    return std::unexpected(Error(ErrorCode::IOError,
+                        "Write flush failed - possible disk full"));
+                }
+
+                // Verify written size
+                auto writtenPos = file.tellp();
+                file.close();
+
+                if (writtenPos < 0 || static_cast<size_t>(writtenPos) != op.data.size()) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Write verification failed: expected {}, got {}",
+                        op.data.size(), static_cast<std::streamoff>(writtenPos));
+                    fs::remove(tempPath, ec);
+                    return std::unexpected(Error(ErrorCode::IOError,
+                        "Write verification failed: incomplete write"));
+                }
+
+                // Atomic rename
+                fs::rename(tempPath, op.target, ec);
+                if (ec) {
+                    MAKINEAI_LOG_DEBUG(log::FILE, "Rename failed, using copy fallback");
+                    fs::copy_file(tempPath, op.target, fs::copy_options::overwrite_existing, ec);
+                    fs::remove(tempPath, ec);
+                    if (ec) {
+                        MAKINEAI_LOG_ERROR(log::FILE, "Failed to finalize write: {}", ec.message());
+                        return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                            "Failed to finalize write: " + ec.message()));
+                    }
+                }
+            }
+
+            Metrics::instance().increment("patch_replaces_completed");
+            Metrics::instance().recordHistogram("patch_replace_bytes", op.data.size());
             break;
 
         case PatchOperation::Type::Modify:
+            MAKINEAI_LOG_DEBUG(log::FILE, "Modify operation: {} at offset {} ({} bytes)",
+                op.target.string(), op.offset, op.data.size());
+
+            // For modify, we need to be extra careful - backup first
             {
-                std::fstream file(op.target, std::ios::in | std::ios::out |
-                    std::ios::binary);
-                if (!file) {
+                // Verify file exists and is writable
+                if (!fs::exists(op.target)) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Target file not found for modification: {}",
+                        op.target.string());
+                    return std::unexpected(Error(ErrorCode::FileNotFound,
+                        "Target file not found for modification"));
+                }
+
+                // Read entire file, modify in memory, write atomically
+                std::ifstream readFile(op.target, std::ios::binary);
+                if (!readFile) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Cannot open file for modification: {}",
+                        op.target.string());
                     return std::unexpected(Error(ErrorCode::FileAccessDenied,
                         "Cannot open file for modification"));
                 }
-                file.seekp(op.offset);
-                file.write(reinterpret_cast<const char*>(op.data.data()),
-                    op.data.size());
+
+                // Read all content
+                readFile.seekg(0, std::ios::end);
+                auto fileSize = readFile.tellg();
+                readFile.seekg(0, std::ios::beg);
+
+                std::vector<char> content(static_cast<size_t>(fileSize));
+                readFile.read(content.data(), fileSize);
+                readFile.close();
+
+                MAKINEAI_LOG_DEBUG(log::FILE, "Read {} bytes for modification", static_cast<std::streamoff>(fileSize));
+
+                // Bounds check for modification
+                if (op.offset + op.data.size() > content.size()) {
+                    MAKINEAI_LOG_ERROR(log::FILE,
+                        "Modification bounds error: offset {} + size {} > file size {}",
+                        op.offset, op.data.size(), content.size());
+                    return std::unexpected(Error(ErrorCode::InvalidOffset,
+                        "Modification offset + size exceeds file bounds"));
+                }
+
+                // Apply modification in memory
+                std::memcpy(content.data() + op.offset, op.data.data(), op.data.size());
+
+                // Write atomically via temp file
+                fs::path tempPath = op.target.string() + ".makineai_tmp";
+                std::ofstream writeFile(tempPath, std::ios::binary | std::ios::trunc);
+                if (!writeFile) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Cannot create temp file for modification");
+                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                        "Cannot create temp file for modification"));
+                }
+
+                writeFile.write(content.data(), content.size());
+                writeFile.flush();
+
+                if (!writeFile.good()) {
+                    writeFile.close();
+                    fs::remove(tempPath, ec);
+                    MAKINEAI_LOG_ERROR(log::FILE, "Modification write failed");
+                    return std::unexpected(Error(ErrorCode::IOError,
+                        "Modification write failed"));
+                }
+                writeFile.close();
+
+                // Atomic rename
+                fs::rename(tempPath, op.target, ec);
+                if (ec) {
+                    MAKINEAI_LOG_DEBUG(log::FILE, "Rename failed, using copy fallback");
+                    fs::copy_file(tempPath, op.target, fs::copy_options::overwrite_existing, ec);
+                    fs::remove(tempPath, ec);
+                }
             }
+
+            Metrics::instance().increment("patch_modifications_completed");
             break;
 
         case PatchOperation::Type::Delete:
+            MAKINEAI_LOG_DEBUG(log::FILE, "Delete operation: {}", op.target.string());
+
             if (fs::exists(op.target)) {
+                // Verify it's a regular file, not a directory or symlink to system
+                if (!fs::is_regular_file(op.target)) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Delete target is not a regular file: {}",
+                        op.target.string());
+                    return std::unexpected(Error(ErrorCode::InvalidPath,
+                        "Delete target is not a regular file"));
+                }
+
                 fs::remove(op.target, ec);
                 if (ec) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Delete failed: {} - {}",
+                        op.target.string(), ec.message());
                     return std::unexpected(Error(ErrorCode::FileAccessDenied,
                         "Delete failed: " + ec.message()));
                 }
+
+                // Verify deletion
+                if (fs::exists(op.target)) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Delete verification failed: file still exists");
+                    return std::unexpected(Error(ErrorCode::IOError,
+                        "Delete verification failed: file still exists"));
+                }
+
+                MAKINEAI_LOG_DEBUG(log::FILE, "Successfully deleted: {}", op.target.string());
+            } else {
+                MAKINEAI_LOG_DEBUG(log::FILE, "Delete target does not exist (skipped): {}",
+                    op.target.string());
             }
+
+            Metrics::instance().increment("patch_deletes_completed");
             break;
 
         case PatchOperation::Type::CreateDir:
+            MAKINEAI_LOG_DEBUG(log::FILE, "CreateDir operation: {}", op.target.string());
+
             fs::create_directories(op.target, ec);
             if (ec) {
+                MAKINEAI_LOG_ERROR(log::FILE, "Cannot create directory: {} - {}",
+                    op.target.string(), ec.message());
                 return std::unexpected(Error(ErrorCode::FileAccessDenied,
                     "Cannot create directory: " + ec.message()));
             }
+
+            // Verify creation
+            if (!fs::exists(op.target) || !fs::is_directory(op.target)) {
+                MAKINEAI_LOG_ERROR(log::FILE, "Directory creation verification failed: {}",
+                    op.target.string());
+                return std::unexpected(Error(ErrorCode::IOError,
+                    "Directory creation verification failed"));
+            }
+
+            MAKINEAI_LOG_DEBUG(log::FILE, "Successfully created directory: {}",
+                op.target.string());
+            Metrics::instance().increment("patch_dirs_created");
             break;
     }
 
@@ -399,11 +981,83 @@ VoidResult PatchEngine::executeOperation(const PatchOperation& op) {
 }
 
 VoidResult PatchEngine::rollbackOperations(
-    const std::vector<PatchOperation>& /*ops*/,
-    size_t /*completedCount*/
+    const fs::path& gameDir,
+    const std::string& backupId,
+    const std::vector<PatchOperation>& ops,
+    size_t completedCount
 ) {
-    // TODO: Implement rollback using backup
-    logger()->warn("Rollback not fully implemented yet");
+    auto rollbackTimer = Metrics::instance().timer("patch_rollback");
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Rolling back {} completed operations using backup {}",
+        completedCount, backupId);
+    AuditLogger::logPatchOperation(backupId, true, "rollback_start",
+        "Rolling back " + std::to_string(completedCount) + " operations");
+
+    // First, try to restore from backup
+    if (backupStorage_->hasBackup(backupId)) {
+        MAKINEAI_LOG_INFO(log::HANDLER, "Restoring from backup: {}", backupId);
+        auto restoreResult = backupStorage_->restoreBackup(gameDir, backupId);
+        if (!restoreResult) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Backup restore failed: {}",
+                restoreResult.error().message());
+            // Continue with manual cleanup
+        } else {
+            MAKINEAI_LOG_INFO(log::HANDLER, "Successfully restored from backup");
+        }
+    } else {
+        MAKINEAI_LOG_WARN(log::HANDLER, "No backup found for rollback: {}", backupId);
+    }
+
+    // Clean up any new files that were created by Copy operations
+    std::error_code ec;
+    uint32_t cleanedFiles = 0;
+    uint32_t cleanedDirs = 0;
+
+    for (size_t i = 0; i < completedCount && i < ops.size(); ++i) {
+        const auto& op = ops[i];
+
+        if (op.type == PatchOperation::Type::Copy) {
+            // Remove the copied file if it's a new file (not in backup)
+            if (fs::exists(op.target)) {
+                // Check if this file existed before (would be in backup)
+                auto relPath = fs::relative(op.target, gameDir);
+                fs::path backupFilePath;
+
+                auto backupMeta = backupStorage_->getBackup(backupId);
+                if (backupMeta) {
+                    backupFilePath = backupMeta->backupPath / relPath;
+                }
+
+                // Only remove if this was a NEW file (not in backup)
+                if (backupFilePath.empty() || !fs::exists(backupFilePath)) {
+                    fs::remove(op.target, ec);
+                    if (!ec) {
+                        MAKINEAI_LOG_DEBUG(log::FILE, "Removed new file during rollback: {}",
+                            op.target.string());
+                        cleanedFiles++;
+                    }
+                }
+            }
+        }
+        else if (op.type == PatchOperation::Type::CreateDir) {
+            // Try to remove created directory if empty
+            if (fs::exists(op.target) && fs::is_empty(op.target)) {
+                fs::remove(op.target, ec);
+                if (!ec) {
+                    MAKINEAI_LOG_DEBUG(log::FILE, "Removed empty directory during rollback: {}",
+                        op.target.string());
+                    cleanedDirs++;
+                }
+            }
+        }
+    }
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Rollback completed: cleaned {} files, {} directories",
+        cleanedFiles, cleanedDirs);
+    AuditLogger::logPatchOperation(backupId, true, "rollback_end",
+        "Rollback completed: cleaned " + std::to_string(cleanedFiles) + " files");
+    Metrics::instance().increment("patch_rollbacks_completed");
+
     return {};
 }
 
@@ -412,8 +1066,12 @@ Result<BackupResult> PatchEngine::backup(
     const StringList& files,
     const std::string& backupId
 ) {
+    MAKINEAI_LOG_INFO(log::HANDLER, "Creating manual backup {} for {} files",
+        backupId, files.size());
+
     auto result = backupStorage_->createBackup(gameDir, files, backupId);
     if (!result) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Manual backup failed: {}", result.error().message());
         return std::unexpected(result.error());
     }
 
@@ -423,6 +1081,9 @@ Result<BackupResult> PatchEngine::backup(
     br.backupPath = result->backupPath;
     br.sizeBytes = result->sizeBytes;
     br.fileCount = result->fileCount;
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Manual backup created: {} files, {} bytes",
+        br.fileCount, br.sizeBytes);
     return br;
 }
 
@@ -430,8 +1091,11 @@ Result<RestoreResult> PatchEngine::restore(
     const fs::path& gameDir,
     const std::string& backupId
 ) {
+    MAKINEAI_LOG_INFO(log::HANDLER, "Performing manual restore from backup {}", backupId);
+
     auto result = backupStorage_->restoreBackup(gameDir, backupId);
     if (!result) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Manual restore failed: {}", result.error().message());
         return std::unexpected(result.error());
     }
 
@@ -444,6 +1108,8 @@ Result<RestoreResult> PatchEngine::restore(
         rr.filesRestored = meta->fileCount;
     }
 
+    MAKINEAI_LOG_INFO(log::HANDLER, "Manual restore completed: {} files restored",
+        rr.filesRestored);
     return rr;
 }
 
@@ -464,11 +1130,120 @@ VoidResult PatchEngine::deleteBackup(const std::string& backupId) {
 }
 
 Result<bool> PatchEngine::verifyIntegrity(
-    const fs::path& /*gameDir*/,
-    const std::string& /*backupId*/
+    const fs::path& gameDir,
+    const std::string& backupId
 ) const {
-    // TODO: Implement integrity verification
-    return true;
+    auto timer = Metrics::instance().timer("integrity_verify");
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Verifying integrity for backup {} against {}",
+        backupId, gameDir.string());
+
+    if (!backupStorage_->hasBackup(backupId)) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Backup not found for integrity check: {}", backupId);
+        return std::unexpected(Error(ErrorCode::BackupNotFound,
+            "Backup not found: " + backupId));
+    }
+
+    auto metaResult = backupStorage_->getBackup(backupId);
+    if (!metaResult) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Cannot read backup metadata: {}",
+            metaResult.error().message());
+        return std::unexpected(metaResult.error());
+    }
+
+    const auto& metadata = *metaResult;
+    uint32_t filesChecked = 0;
+    uint32_t filesMatched = 0;
+    uint32_t filesMismatched = 0;
+
+    // Compare each backed up file with current game file
+    for (const auto& relPath : metadata.files) {
+        fs::path backupFilePath = metadata.backupPath / relPath;
+        fs::path currentFilePath = gameDir / relPath;
+
+        // Check if current file exists
+        if (!fs::exists(currentFilePath)) {
+            MAKINEAI_LOG_DEBUG(log::FILE, "Integrity check: File missing in game: {}", relPath);
+            filesMismatched++;
+            continue;  // File was deleted - game is modified
+        }
+
+        // Check if backup file exists
+        if (!fs::exists(backupFilePath)) {
+            MAKINEAI_LOG_WARN(log::FILE, "Integrity check: Backup file missing: {}", relPath);
+            continue;  // Skip this file, backup is incomplete
+        }
+
+        filesChecked++;
+
+        // Compare file sizes first (fast check)
+        std::error_code ec;
+        auto currentSize = fs::file_size(currentFilePath, ec);
+        auto backupSize = fs::file_size(backupFilePath, ec);
+
+        if (currentSize != backupSize) {
+            MAKINEAI_LOG_DEBUG(log::FILE, "Integrity check: Size mismatch for {}: {} vs {}",
+                relPath, currentSize, backupSize);
+            filesMismatched++;
+            continue;  // Files are different
+        }
+
+        // Compare file contents (for thorough verification)
+        std::ifstream currentFile(currentFilePath, std::ios::binary);
+        std::ifstream backupFile(backupFilePath, std::ios::binary);
+
+        if (!currentFile || !backupFile) {
+            MAKINEAI_LOG_WARN(log::FILE, "Integrity check: Cannot read files for comparison: {}",
+                relPath);
+            continue;
+        }
+
+        // Compare in chunks
+        constexpr size_t bufferSize = 8192;
+        std::vector<char> currentBuffer(bufferSize);
+        std::vector<char> backupBuffer(bufferSize);
+        bool contentMatches = true;
+
+        while (currentFile && backupFile) {
+            currentFile.read(currentBuffer.data(), bufferSize);
+            backupFile.read(backupBuffer.data(), bufferSize);
+
+            auto currentRead = currentFile.gcount();
+            auto backupRead = backupFile.gcount();
+
+            if (currentRead != backupRead ||
+                std::memcmp(currentBuffer.data(), backupBuffer.data(), currentRead) != 0) {
+                MAKINEAI_LOG_DEBUG(log::FILE, "Integrity check: Content mismatch for {}", relPath);
+                contentMatches = false;
+                break;
+            }
+
+            if (currentFile.eof() || backupFile.eof()) break;
+        }
+
+        if (contentMatches) {
+            filesMatched++;
+        } else {
+            filesMismatched++;
+        }
+    }
+
+    bool integrityPassed = (filesMismatched == 0);
+
+    MAKINEAI_LOG_INFO(log::HANDLER,
+        "Integrity check completed: {} files checked, {} matched, {} mismatched (result: {})",
+        filesChecked, filesMatched, filesMismatched, integrityPassed ? "PASS" : "FAIL");
+
+    Metrics::instance().increment("integrity_checks_completed");
+    Metrics::instance().recordHistogram("integrity_files_checked", filesChecked);
+
+    if (integrityPassed) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Integrity check passed for backup {}", backupId);
+    } else {
+        MAKINEAI_LOG_INFO(log::HANDLER, "Integrity check failed - game files are modified");
+    }
+
+    return integrityPassed;
 }
 
 void PatchEngine::setBackupStorage(std::unique_ptr<IBackupStorage> storage) {
@@ -605,10 +1380,25 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
     const std::unordered_map<std::string, std::string>& translations,
     const BinaryPatchOptions& options
 ) {
+    auto timer = Metrics::instance().timer("binary_patch_file");
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Binary patching file {} with {} translations",
+        filePath.string(), translations.size());
+
     BinaryPatchResult result;
+
+    // Validate path
+    if (!validation::isPathSafe(filePath)) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Unsafe path for binary patching: {}",
+            filePath.string());
+        result.success = false;
+        result.error = "Unsafe file path";
+        return result;
+    }
 
     // Check file exists
     if (!fs::exists(filePath)) {
+        MAKINEAI_LOG_ERROR(log::FILE, "Binary patch target not found: {}", filePath.string());
         result.success = false;
         result.error = "File not found: " + filePath.string();
         return result;
@@ -619,13 +1409,16 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
         if (options.createBackup) {
             std::string backupPath = filePath.string() + ".makineai_backup";
             if (!fs::exists(backupPath)) {
+                MAKINEAI_LOG_DEBUG(log::FILE, "Creating backup before binary patch: {}", backupPath);
                 fs::copy_file(filePath, backupPath);
+                AuditLogger::logFileAccess(backupPath, "backup_create", true);
             }
         }
 
         // Read file into memory
         std::ifstream inFile(filePath, std::ios::binary);
         if (!inFile) {
+            MAKINEAI_LOG_ERROR(log::FILE, "Cannot open file for reading: {}", filePath.string());
             result.success = false;
             result.error = "Cannot open file for reading";
             return result;
@@ -635,6 +1428,8 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
         size_t fileSize = inFile.tellg();
         inFile.seekg(0, std::ios::beg);
 
+        MAKINEAI_LOG_DEBUG(log::FILE, "Read {} bytes for binary patching", fileSize);
+
         ByteBuffer data(fileSize);
         inFile.read(reinterpret_cast<char*>(data.data()), fileSize);
         inFile.close();
@@ -642,24 +1437,61 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
         // Apply patches
         result = patchBuffer(data, translations, options);
 
-        // Write back if any changes were made
+        // Write back atomically if any changes were made
         if (result.appliedCount > 0) {
-            std::ofstream outFile(filePath, std::ios::binary);
-            if (!outFile) {
+            MAKINEAI_LOG_DEBUG(log::FILE, "Writing {} patched translations back to file",
+                result.appliedCount);
+
+            fs::path tempPath = filePath.string() + ".makineai_tmp";
+
+            {
+                std::ofstream outFile(tempPath, std::ios::binary | std::ios::trunc);
+                if (!outFile) {
+                    MAKINEAI_LOG_ERROR(log::FILE, "Cannot create temp file for writing");
+                    result.success = false;
+                    result.error = "Cannot create temp file for writing";
+                    return result;
+                }
+
+                outFile.write(reinterpret_cast<const char*>(data.data()), data.size());
+                outFile.flush();
+
+                if (!outFile.good()) {
+                    outFile.close();
+                    std::error_code ec;
+                    fs::remove(tempPath, ec);
+                    MAKINEAI_LOG_ERROR(log::FILE, "Write failed - possible disk full");
+                    result.success = false;
+                    result.error = "Write failed - possible disk full";
+                    return result;
+                }
+            }
+
+            std::error_code ec;
+            fs::rename(tempPath, filePath, ec);
+            if (ec) {
+                MAKINEAI_LOG_ERROR(log::FILE, "Rename failed: {}", ec.message());
+                fs::remove(tempPath, ec);
                 result.success = false;
-                result.error = "Cannot open file for writing";
+                result.error = "Rename failed: " + ec.message();
                 return result;
             }
 
-            outFile.write(reinterpret_cast<const char*>(data.data()), data.size());
-            outFile.close();
-
-            logger()->info("Patched {} translations in {}", result.appliedCount, filePath.string());
+            MAKINEAI_LOG_INFO(log::HANDLER, "Binary patched {} translations in {}",
+                result.appliedCount, filePath.string());
+            AuditLogger::logFileAccess(filePath, "binary_patch", true,
+                std::to_string(result.appliedCount) + " translations applied");
+        } else {
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "No translations applied to {}", filePath.string());
         }
 
         result.success = true;
+        Metrics::instance().increment("binary_patches_applied", result.appliedCount);
+        Metrics::instance().increment("binary_patches_skipped", result.skippedCount);
     }
     catch (const std::exception& e) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Binary patch exception: {}", e.what());
+        AuditLogger::logFileAccess(filePath, "binary_patch", false, e.what());
         result.success = false;
         result.error = std::string("Patch error: ") + e.what();
     }

@@ -3,16 +3,36 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 env:
   BUILD_TYPE: Release
   VCPKG_DEFAULT_TRIPLET: x64-windows
 
 jobs:
+  # Validate tag format
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Validate tag format
+        id: version
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "::error::Invalid tag format: $TAG (expected vX.Y.Z or vX.Y.Z-suffix)"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Valid version: $VERSION"
+
   build-release:
     name: Build Release
     runs-on: windows-latest
+    needs: validate
 
     steps:
       - name: Checkout
@@ -70,15 +90,60 @@ jobs:
           windeployqt --qmldir ../qml/qml --release MakineAI.exe
 
       - name: Create Archive
+        id: archive
         run: |
-          $version = "${{ github.ref_name }}"
-          Compress-Archive -Path dist/* -DestinationPath "MakineAI-$version-win64.zip"
+          $version = "${{ needs.validate.outputs.version }}"
+          $filename = "MakineAI-$version-win64.zip"
+          Compress-Archive -Path dist/* -DestinationPath $filename
+          echo "filename=$filename" >> $env:GITHUB_OUTPUT
+
+      - name: Generate Checksums
+        run: |
+          $filename = "${{ steps.archive.outputs.filename }}"
+          $sha256 = (Get-FileHash $filename -Algorithm SHA256).Hash
+          $md5 = (Get-FileHash $filename -Algorithm MD5).Hash
+
+          # Create checksum file
+          @"
+          # MakineAI ${{ needs.validate.outputs.version }} Checksums
+
+          ## SHA256
+          ``````
+          $sha256  $filename
+          ``````
+
+          ## MD5
+          ``````
+          $md5  $filename
+          ``````
+          "@ | Out-File -FilePath "checksums.txt"
+
+          echo "sha256=$sha256" >> $env:GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: MakineAI-*.zip
+          files: |
+            ${{ steps.archive.outputs.filename }}
+            checksums.txt
           draft: true
           generate_release_notes: true
+          body: |
+            ## MakineAI ${{ needs.validate.outputs.version }}
+
+            ### Kurulum
+            1. ZIP dosyasını indirin
+            2. İstediğiniz klasöre çıkarın
+            3. `MakineAI.exe` çalıştırın
+
+            ### Gereksinimler
+            - Windows 10/11 (64-bit)
+            - Visual C++ Redistributable 2022
+
+            ### Checksums
+            Dosya bütünlüğünü doğrulamak için `checksums.txt` dosyasını kontrol edin.
+
+            ---
+            📦 Bu sürüm otomatik olarak oluşturuldu.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

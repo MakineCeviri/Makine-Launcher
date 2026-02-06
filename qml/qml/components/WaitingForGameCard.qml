@@ -83,7 +83,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
-            radius: 4
+            radius: Dimensions.radiusStandard
             color: Qt.rgba(1, 1, 1, 0.03)
 
             Row {

@@ -1,0 +1,57 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import MakineAI 1.0
+
+/**
+ * CategoryItem.qml - Kategori liste öğesi
+ */
+Rectangle {
+    id: root
+
+    property string text: ""
+    property string iconSource: ""
+    property bool isSelected: false
+
+    signal clicked()
+
+    implicitWidth: 200
+    implicitHeight: 44
+    radius: Dimensions.radiusStandard
+    color: isSelected ? Theme.withAlpha(Theme.primary, 0.15) : (mouseArea.containsMouse ? Theme.withAlpha(Theme.textMuted, 0.05) : "transparent")
+
+    Behavior on color {
+        ColorAnimation { duration: 150 }
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 12
+        anchors.rightMargin: 12
+        spacing: 10
+
+        Image {
+            source: root.iconSource
+            sourceSize: Qt.size(18, 18)
+            visible: root.iconSource !== ""
+            opacity: root.isSelected ? 1.0 : 0.6
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: root.text
+            font.pixelSize: 14
+            font.weight: root.isSelected ? Font.DemiBold : Font.Normal
+            color: root.isSelected ? Theme.primary : Theme.textSecondary
+            elide: Text.ElideRight
+        }
+    }
+
+    MouseArea {
+        id: mouseArea
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.clicked()
+    }
+}

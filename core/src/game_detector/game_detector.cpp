@@ -8,6 +8,10 @@
 #include "makineai/core.hpp"
 #include "makineai/security.hpp"
 #include "makineai/features.hpp"
+#include "makineai/parallel.hpp"
+#include "makineai/mio_utils.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -15,22 +19,12 @@
 #include <regex>
 #include <unordered_set>
 
-// Optional: Taskflow for parallel scanning
-#ifdef MAKINEAI_HAS_TASKFLOW
-#include <taskflow/taskflow.hpp>
-#endif
-
-// Optional: mio for memory-mapped file reading
-#ifdef MAKINEAI_HAS_MIO
-#include <mio/mmap.hpp>
-#endif
-
 // Optional: efsw for filesystem watching
 #ifdef MAKINEAI_HAS_EFSW
 #include <efsw/efsw.hpp>
 #endif
 
-namespace makineai {
+namespace makineai::scanners {
 
 GameDetector::GameDetector() {
     registerBuiltinScanners();
@@ -55,71 +49,106 @@ void GameDetector::registerBuiltinScanners() {
 }
 
 Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) const {
-    std::vector<GameInfo> allGames;
-    uint32_t totalScanners = static_cast<uint32_t>(scanners_.size());
+    MAKINEAI_TIMED_SCOPE(log::DETECTOR, "scanAll");
 
-#ifdef MAKINEAI_HAS_TASKFLOW
-    // TODO: [TASKFLOW] Parallel scanning implementation
-    // Use Taskflow to scan all stores concurrently for faster results
-    // Example:
-    //   tf::Executor executor;
-    //   tf::Taskflow taskflow;
-    //   std::mutex gamesMutex;
-    //   for (const auto& scanner : scanners_) {
-    //       taskflow.emplace([&, scanner=scanner.get()]() {
-    //           auto result = scanner->scan();
-    //           if (result) {
-    //               std::lock_guard<std::mutex> lock(gamesMutex);
-    //               // merge results...
-    //           }
-    //       });
-    //   }
-    //   executor.run(taskflow).wait();
-    logger()->debug("Taskflow available - parallel scanning enabled");
-#endif
+    auto scanAllTimer = metrics().timer("detector_scan_all");
+    const uint32_t totalScanners = static_cast<uint32_t>(scanners_.size());
 
-    uint32_t currentScanner = 0;
+    if (scanners_.empty()) {
+        MAKINEAI_LOG_WARN(log::DETECTOR, "No scanners registered");
+        return std::vector<GameInfo>{};
+    }
+
+    MAKINEAI_LOG_INFO(log::DETECTOR, "Starting game scan with {} scanners (backend: {})",
+                      totalScanners, parallel::backendInfo());
+    metrics().increment("scan_operations");
+
+    // Filter to available scanners first
+    std::vector<IGameScanner*> availableScanners;
+    availableScanners.reserve(scanners_.size());
+
     for (const auto& scanner : scanners_) {
+        if (scanner->isAvailable()) {
+            availableScanners.push_back(scanner.get());
+            MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanner available: {}", scanner->name());
+        } else {
+            MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanner not available: {}", scanner->name());
+        }
+    }
+
+    if (availableScanners.empty()) {
+        MAKINEAI_LOG_WARN(log::DETECTOR, "No game stores available");
+        return std::vector<GameInfo>{};
+    }
+
+    // Progress callback wrapper for parallel execution
+    auto parallelProgress = [&progress, totalScanners](uint32_t current, uint32_t /*total*/,
+                                                        const std::string& message) {
         if (progress) {
-            progress(currentScanner, totalScanners,
-                "Scanning " + std::string(scanner->name()) + "...");
+            progress(current, totalScanners, message);
         }
+    };
 
-        if (!scanner->isAvailable()) {
-            logger()->debug("Scanner {} not available", scanner->name());
-            currentScanner++;
-            continue;
-        }
+    // Scan all stores in parallel
+    auto scanResults = parallel::map(
+        availableScanners,
+        [this](IGameScanner* scanner) -> std::vector<GameInfo> {
+            MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanning: {}", scanner->name());
 
-        auto result = scanner->scan();
-        if (result) {
-            for (auto& game : *result) {
-                // Detect engine if not already set
+            auto result = scanner->scan();
+            if (!result) {
+                MAKINEAI_LOG_WARN(log::DETECTOR, "Scanner {} failed: {}",
+                                  scanner->name(), result.error().message());
+                return {};
+            }
+
+            std::vector<GameInfo> games = std::move(*result);
+
+            // Detect engine for games that don't have it set
+            for (auto& game : games) {
                 if (game.engine == GameEngine::Unknown) {
                     game.engine = detectEngine(game.installPath);
                 }
-                allGames.push_back(std::move(game));
             }
-            logger()->info("Found {} games from {}",
-                result->size(), scanner->name());
-        } else {
-            logger()->warn("Scanner {} failed: {}",
-                scanner->name(), result.error().message());
-        }
 
-        currentScanner++;
+            MAKINEAI_LOG_INFO(log::DETECTOR, "Found {} games from {}",
+                              games.size(), scanner->name());
+            return games;
+        },
+        parallelProgress
+    );
+
+    // Merge results from all scanners
+    std::vector<GameInfo> allGames;
+    size_t totalGames = 0;
+    for (const auto& games : scanResults) {
+        totalGames += games.size();
+    }
+    allGames.reserve(totalGames);
+
+    for (auto& games : scanResults) {
+        for (auto& game : games) {
+            allGames.push_back(std::move(game));
+        }
     }
 
+    // Final progress callback
     if (progress) {
         progress(totalScanners, totalScanners,
-            "Found " + std::to_string(allGames.size()) + " games");
+                 "Found " + std::to_string(allGames.size()) + " games");
     }
 
-    // Sort by name
+    // Sort by name for consistent ordering
     std::sort(allGames.begin(), allGames.end(),
-        [](const GameInfo& a, const GameInfo& b) {
-            return a.name < b.name;
-        });
+              [](const GameInfo& a, const GameInfo& b) {
+                  return a.name < b.name;
+              });
+
+    MAKINEAI_LOG_INFO(log::DETECTOR, "Scan complete: {} total games from {} stores",
+                      allGames.size(), availableScanners.size());
+
+    metrics().gauge("total_games_detected", static_cast<double>(allGames.size()));
+    metrics().gauge("active_scanners", static_cast<double>(availableScanners.size()));
 
     return allGames;
 }
@@ -214,9 +243,34 @@ Result<VerificationResult> GameDetector::verify(const GameInfo& game) const {
     result.expectedHash = game.id.exeHash;
     result.verified = (result.actualHash == result.expectedHash);
 
-    // TODO: Check against known versions database
+    // Check against package manifest for known versions
     result.isKnownVersion = false;
     result.hasTranslation = false;
+
+    if (Core::instance().isInitialized()) {
+        auto& packageManager = Core::instance().packageManager();
+        const auto& manifest = packageManager.cachedManifest();
+
+        for (const auto& pkg : manifest.packages) {
+            // Check by game ID
+            if (pkg.gameId == game.id.storeId) {
+                result.isKnownVersion = true;
+                result.hasTranslation = true;
+                break;
+            }
+
+            // Check by hash
+            for (const auto& hash : pkg.supportedGameHashes) {
+                if (hash == result.actualHash) {
+                    result.isKnownVersion = true;
+                    result.hasTranslation = true;
+                    break;
+                }
+            }
+
+            if (result.hasTranslation) break;
+        }
+    }
 
     return result;
 }
@@ -616,9 +670,43 @@ Result<std::string> GameDetector::calculateHash(const fs::path& file) const {
 std::vector<GameInfo> GameDetector::filterWithTranslations(
     const std::vector<GameInfo>& games
 ) const {
-    // TODO: Filter against package manifest
-    // For now, return all games
-    return games;
+    if (!Core::instance().isInitialized()) {
+        return games;  // Return all if not initialized
+    }
+
+    auto& packageManager = Core::instance().packageManager();
+    const auto& manifest = packageManager.cachedManifest();
+
+    if (manifest.packages.empty()) {
+        return games;  // Return all if no manifest loaded
+    }
+
+    // Build a set of game IDs and hashes that have translations
+    std::unordered_set<std::string> translatedGameIds;
+    std::unordered_set<std::string> translatedHashes;
+
+    for (const auto& pkg : manifest.packages) {
+        translatedGameIds.insert(pkg.gameId);
+        for (const auto& hash : pkg.supportedGameHashes) {
+            translatedHashes.insert(hash);
+        }
+    }
+
+    // Filter games
+    std::vector<GameInfo> filtered;
+    filtered.reserve(games.size());
+
+    for (const auto& game : games) {
+        if (translatedGameIds.count(game.id.storeId) > 0 ||
+            translatedHashes.count(game.id.exeHash) > 0) {
+            filtered.push_back(game);
+        }
+    }
+
+    logger()->debug("Filtered {} games to {} with translations",
+        games.size(), filtered.size());
+
+    return filtered;
 }
 
 // =============================================================================
@@ -1358,37 +1446,34 @@ std::string GameDetector::readUnityVersion(const fs::path& gameDir) const {
                 auto name = entry.path().filename().string();
                 std::string lowerName = name;
                 std::transform(lowerName.begin(), lowerName.end(),
-                    lowerName.begin(), ::tolower);
+                               lowerName.begin(), ::tolower);
 
                 if (lowerName.ends_with("_data")) {
                     auto ggmPath = entry.path() / "globalgamemanagers";
                     if (fs::exists(ggmPath)) {
-#ifdef MAKINEAI_HAS_MIO
-                        // TODO: [MIO] Memory-mapped file reading for large files
-                        // Use mio for zero-copy reading of Unity files
-                        // Example:
-                        //   std::error_code ec;
-                        //   mio::mmap_source mmap(ggmPath.string(), 0, 100, ec);
-                        //   if (!ec) {
-                        //       std::string content(mmap.data(), mmap.size());
-                        //       // parse version...
-                        //   }
-                        logger()->trace("mio available for memory-mapped file reading");
-#endif
-                        // Read first 100 bytes
-                        std::ifstream file(ggmPath, std::ios::binary);
-                        if (file) {
-                            std::vector<char> buffer(100);
-                            file.read(buffer.data(), 100);
+                        // Use memory-mapped I/O for efficient reading
+                        // Only read first 256 bytes where version info is located
+                        constexpr size_t READ_SIZE = 256;
 
-                            // Search for version pattern (e.g., "2021.3.14f1")
-                            std::string content(buffer.data(), buffer.size());
-                            std::regex versionRegex(R"((\d+\.\d+\.\d+[a-z]?\d*))");
-                            std::smatch match;
+                        auto mappedResult = mio_utils::mapFile(ggmPath, 0, READ_SIZE);
+                        if (!mappedResult) {
+                            MAKINEAI_LOG_TRACE(log::DETECTOR,
+                                "Failed to map globalgamemanagers: {}",
+                                mappedResult.error().message());
+                            break;
+                        }
 
-                            if (std::regex_search(content, match, versionRegex)) {
-                                return match[1].str();
-                            }
+                        auto view = mappedResult->view();
+                        std::string content(view.stringView());
+
+                        // Search for version pattern (e.g., "2021.3.14f1", "2022.1.0b3")
+                        std::regex versionRegex(R"((\d+\.\d+\.\d+[a-z]?\d*))");
+                        std::smatch match;
+
+                        if (std::regex_search(content, match, versionRegex)) {
+                            MAKINEAI_LOG_TRACE(log::DETECTOR,
+                                "Unity version detected: {}", match[1].str());
+                            return match[1].str();
                         }
                     }
                     break;
@@ -1396,8 +1481,8 @@ std::string GameDetector::readUnityVersion(const fs::path& gameDir) const {
             }
         }
     }
-    catch (const std::exception&) {
-        // Version could not be read
+    catch (const std::exception& e) {
+        MAKINEAI_LOG_TRACE(log::DETECTOR, "Failed to read Unity version: {}", e.what());
     }
     return "";
 }
@@ -1428,4 +1513,4 @@ std::string GameDetector::readRenpyVersion(const fs::path& gameDir) const {
     return "";
 }
 
-} // namespace makineai
+} // namespace makineai::scanners

@@ -13,15 +13,16 @@
  */
 
 #include "makineai/asset_parser.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 #include "formats/bethesda_ba2.hpp"
-#include <spdlog/spdlog.h>
 #include <fstream>
 #include <algorithm>
 #include <cstring>
 #include <zlib.h>
 #include <lz4.h>
 
-namespace makineai {
+namespace makineai::parsers {
 
 namespace {
     // BA2 magic: "BTDX"
@@ -60,6 +61,7 @@ public:
 
         // Accept .strings files directly
         if (ext == ".strings" || ext == ".dlstrings" || ext == ".ilstrings") {
+            MAKINEAI_LOG_DEBUG(log::PARSER, "Bethesda strings format detected: {}", file.filename().string());
             return true;
         }
 
@@ -74,10 +76,18 @@ public:
         uint32_t magic;
         ifs.read(reinterpret_cast<char*>(&magic), sizeof(magic));
 
-        return magic == BA2_MAGIC;
+        bool isBa2 = (magic == BA2_MAGIC);
+        if (isBa2) {
+            MAKINEAI_LOG_DEBUG(log::PARSER, "Bethesda BA2 format detected: {}", file.filename().string());
+        }
+
+        return isBa2;
     }
 
     [[nodiscard]] Result<ParseResult> parse(const fs::path& file) const override {
+        MAKINEAI_LOG_INFO(log::PARSER, "Starting Bethesda asset parse: {}", file.filename().string());
+        auto timer = Metrics::instance().timer("asset_parse_ba2");
+
         ParseResult result;
         result.success = false;
         result.detectedEngine = GameEngine::Bethesda;
@@ -93,6 +103,8 @@ public:
 
             std::ifstream ifs(file, std::ios::binary | std::ios::ate);
             if (!ifs) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Cannot open BA2 file: {}", file.string());
+                Metrics::instance().increment("parse_failures_ba2");
                 return std::unexpected(Error(ErrorCode::FileNotFound,
                     "Cannot open BA2 file"));
             }
@@ -106,6 +118,8 @@ public:
 
             ifs.read(reinterpret_cast<char*>(&magic), 4);
             if (magic != BA2_MAGIC) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Invalid BA2 magic: 0x{:08X}", magic);
+                Metrics::instance().increment("parse_failures_ba2");
                 return std::unexpected(Error(ErrorCode::InvalidFormat,
                     "Invalid BA2 magic"));
             }
@@ -126,10 +140,13 @@ public:
             result.success = true;
             result.message = "BA2 archive detected - check .strings files for text";
 
-            spdlog::info("Parsed BA2: version {}, type {}, {} files",
+            Metrics::instance().increment("assets_parsed_ba2");
+            MAKINEAI_LOG_INFO(log::PARSER, "Parsed BA2: version {}, type {}, {} files",
                         version, fileTypeToString(type), fileCount);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "BA2 parse exception: {}", e.what());
+            Metrics::instance().increment("parse_failures_ba2");
             return std::unexpected(Error(ErrorCode::ParseError, e.what()));
         }
 
@@ -149,13 +166,15 @@ public:
         }
 
         // BA2 archive writing is complex - use file replacement
-        spdlog::warn("Direct BA2 writing not fully supported - use file replacement");
+        MAKINEAI_LOG_WARN(log::PARSER, "Direct BA2 writing not fully supported - use file replacement");
         return std::unexpected(Error(ErrorCode::NotSupported,
             "Use file replacement for BA2 archives"));
     }
 
 private:
     [[nodiscard]] Result<ParseResult> parseStringsFile(const fs::path& file) const {
+        MAKINEAI_LOG_INFO(log::PARSER, "Parsing Bethesda strings file: {}", file.filename().string());
+
         ParseResult result;
         result.success = false;
         result.detectedEngine = GameEngine::Bethesda;
@@ -164,6 +183,8 @@ private:
         try {
             std::ifstream ifs(file, std::ios::binary | std::ios::ate);
             if (!ifs) {
+                MAKINEAI_LOG_ERROR(log::PARSER, "Cannot open strings file: {}", file.string());
+                Metrics::instance().increment("parse_failures_ba2");
                 return std::unexpected(Error(ErrorCode::FileNotFound,
                     "Cannot open strings file"));
             }
@@ -177,9 +198,13 @@ private:
             ifs.read(reinterpret_cast<char*>(&dataSize), 4);
 
             if (count > 1000000) { // Sanity check
+                MAKINEAI_LOG_ERROR(log::PARSER, "Invalid string count: {}", count);
+                Metrics::instance().increment("parse_failures_ba2");
                 return std::unexpected(Error(ErrorCode::InvalidFormat,
                     "Invalid string count"));
             }
+
+            MAKINEAI_LOG_DEBUG(log::PARSER, "Strings file: {} entries, {} bytes data", count, dataSize);
 
             // Read directory (ID + offset pairs)
             std::vector<std::pair<uint32_t, uint32_t>> directory(count);
@@ -210,10 +235,13 @@ private:
             result.success = true;
             result.message = "Parsed " + std::to_string(result.strings.size()) + " strings";
 
-            spdlog::info("Parsed strings file: {} entries from {}",
+            Metrics::instance().increment("assets_parsed_ba2");
+            MAKINEAI_LOG_INFO(log::PARSER, "Parsed strings file: {} entries from {}",
                         result.strings.size(), file.filename().string());
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::PARSER, "Strings file parse exception: {}", e.what());
+            Metrics::instance().increment("parse_failures_ba2");
             return std::unexpected(Error(ErrorCode::ParseError, e.what()));
         }
 
@@ -225,12 +253,6 @@ private:
         const std::vector<StringEntry>& strings
     ) const {
         try {
-            std::ofstream ofs(file, std::ios::binary);
-            if (!ofs) {
-                return std::unexpected(Error(ErrorCode::FileAccessDenied,
-                    "Cannot create strings file"));
-            }
-
             uint32_t count = static_cast<uint32_t>(strings.size());
 
             // Build sorted string list with IDs
@@ -258,22 +280,51 @@ private:
                 currentOffset = static_cast<uint32_t>(stringData.size());
             }
 
-            // Write header
-            uint32_t dataSize = static_cast<uint32_t>(stringData.size());
-            count = static_cast<uint32_t>(directory.size());
-            ofs.write(reinterpret_cast<const char*>(&count), 4);
-            ofs.write(reinterpret_cast<const char*>(&dataSize), 4);
+            // Atomic write
+            fs::path tempPath = file.string() + ".makineai_tmp";
 
-            // Write directory
-            for (const auto& [id, offset] : directory) {
-                ofs.write(reinterpret_cast<const char*>(&id), 4);
-                ofs.write(reinterpret_cast<const char*>(&offset), 4);
+            {
+                std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+                if (!ofs) {
+                    return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                        "Cannot create temp strings file"));
+                }
+
+                // Write header
+                uint32_t dataSize = static_cast<uint32_t>(stringData.size());
+                count = static_cast<uint32_t>(directory.size());
+                ofs.write(reinterpret_cast<const char*>(&count), 4);
+                ofs.write(reinterpret_cast<const char*>(&dataSize), 4);
+
+                // Write directory
+                for (const auto& [id, offset] : directory) {
+                    ofs.write(reinterpret_cast<const char*>(&id), 4);
+                    ofs.write(reinterpret_cast<const char*>(&offset), 4);
+                }
+
+                // Write string data
+                ofs.write(stringData.data(), stringData.size());
+                ofs.flush();
+
+                if (!ofs.good()) {
+                    ofs.close();
+                    std::error_code ec;
+                    fs::remove(tempPath, ec);
+                    return std::unexpected(Error(ErrorCode::IOError,
+                        "Strings file write failed - possible disk full"));
+                }
             }
 
-            // Write string data
-            ofs.write(stringData.data(), stringData.size());
+            // Atomic rename
+            std::error_code ec;
+            fs::rename(tempPath, file, ec);
+            if (ec) {
+                fs::remove(tempPath, ec);
+                return std::unexpected(Error(ErrorCode::IOError,
+                    "Strings file rename failed: " + ec.message()));
+            }
 
-            spdlog::info("Wrote strings file: {} entries to {}",
+            MAKINEAI_LOG_INFO(log::PARSER, "Wrote strings file: {} entries to {}",
                         count, file.filename().string());
 
             return {};
@@ -284,9 +335,11 @@ private:
     }
 };
 
-// Factory function for registration
-std::unique_ptr<IAssetFormatParser> createBethesdaBa2Parser() {
-    return std::make_unique<BethesdaBa2Parser>();
-}
+} // namespace makineai::parsers
 
+// Factory function in makineai namespace (to match parsers_factory.hpp declaration)
+namespace makineai {
+std::unique_ptr<parsers::IAssetFormatParser> createBethesdaBa2Parser() {
+    return std::make_unique<parsers::BethesdaBa2Parser>();
+}
 } // namespace makineai

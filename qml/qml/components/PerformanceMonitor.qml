@@ -39,7 +39,7 @@ Rectangle {
 
     width: showDetails ? 180 : 80
     height: showDetails ? contentColumn.height + 16 : 32
-    radius: 6
+    radius: Dimensions.radiusStandard
     color: Qt.rgba(0, 0, 0, 0.85)
     border.color: fpsColor
     border.width: 1

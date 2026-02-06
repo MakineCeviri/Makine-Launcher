@@ -9,10 +9,15 @@
 #include "makineai/handlers/renpy_handler.hpp"
 #include "makineai/handlers/rpgmaker_handler.hpp"
 #include "makineai/handlers/gamemaker_handler.hpp"
+#include "makineai/string_classifier.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
 
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <regex>
 #include <algorithm>
 #include <cstring>
@@ -258,19 +263,24 @@ Result<ExtractionResult> UnityHandler::extractStrings(
     const fs::path& gameDir,
     const ExtractionOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unity: Starting string extraction from {}", gameDir.string());
+    auto timer = metrics().timer("unity_extract_strings");
 
     ExtractionResult result;
+    int filesProcessed = 0;
 
     auto filesResult = findGameFiles(gameDir);
     if (!filesResult) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Unity: Failed to find game files: {}", filesResult.error().message());
         return std::unexpected(filesResult.error());
     }
 
     const auto& gameFiles = *filesResult;
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Found {} potential localization files", gameFiles.size());
 
     // Extract from IL2CPP metadata if available
     if (buildType_ == UnityBuildType::IL2CPP && metadataPath_ && options.extractIl2CppStrings) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Processing IL2CPP metadata: {}", metadataPath_->string());
         try {
             auto il2cppBatch = extractFromIL2Cpp(*metadataPath_, options);
             result.entries.insert(result.entries.end(),
@@ -288,8 +298,11 @@ Result<ExtractionResult> UnityHandler::extractStrings(
                 result.processedFiles.push_back(std::move(metaFile));
             }
 
-            spdlog::info("Unity IL2CPP: Extracted {} strings", il2cppBatch.entries.size());
+            MAKINEAI_LOG_INFO(log::HANDLER, "Unity IL2CPP: Extracted {} strings", il2cppBatch.entries.size());
+            metrics().increment("unity_il2cpp_strings_extracted", il2cppBatch.entries.size());
+            filesProcessed++;
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "Unity: IL2CPP metadata parse error: {}", e.what());
             result.errors.push_back({
                 "global-metadata.dat",
                 std::string("IL2CPP metadata parse error: ") + e.what(),
@@ -323,6 +336,8 @@ Result<ExtractionResult> UnityHandler::extractStrings(
             if (excluded) continue;
         }
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Processing file: {}", gameFile.relativePath);
+
         try {
             auto ext = gameFile.path.extension().string();
             if (!ext.empty() && ext[0] == '.') ext = ext.substr(1);
@@ -339,6 +354,7 @@ Result<ExtractionResult> UnityHandler::extractStrings(
             } else if (ext == "txt") {
                 batch = extractFromTxt(gameFile.path, gameFile, options);
             } else {
+                MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Skipping unsupported extension: {}", ext);
                 continue;
             }
 
@@ -350,8 +366,14 @@ Result<ExtractionResult> UnityHandler::extractStrings(
             GameFile processedFile = gameFile;
             processedFile.stringCount = static_cast<int>(batch.entries.size());
             result.processedFiles.push_back(std::move(processedFile));
+            filesProcessed++;
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Extracted {} strings from {}",
+                batch.entries.size(), gameFile.relativePath);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Unity: Extraction error in {}: {}",
+                gameFile.relativePath, e.what());
             result.errors.push_back({
                 gameFile.relativePath,
                 std::string("Extraction error: ") + e.what(),
@@ -361,10 +383,15 @@ Result<ExtractionResult> UnityHandler::extractStrings(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("Unity: Extracted {} strings in {}ms",
-        result.entries.size(), result.duration.count());
+    // Record metrics
+    metrics().increment("unity_files_processed", filesProcessed);
+    metrics().increment("unity_strings_extracted", result.entries.size());
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unity: Extraction complete - {} strings from {} files in {}ms",
+        result.entries.size(), filesProcessed, result.duration.count());
 
     return result;
 }
@@ -878,10 +905,12 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
     const std::vector<TranslationEntry>& translations,
     const PatchOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unity: Starting translation application to {}", gameDir.string());
+    auto timer = metrics().timer("unity_apply_translations");
 
     HandlerPatchResult result;
     result.success = true;
+    int filesPatched = 0;
 
     // Create backup if requested
     if (options.createBackup) {
@@ -889,8 +918,10 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
             ? std::to_string(std::chrono::system_clock::now().time_since_epoch().count())
             : options.backupId;
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Creating backup with ID: {}", backupId);
         auto backupResult = createBackup(gameDir, backupId);
         if (!backupResult) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Unity: Backup creation failed");
             return std::unexpected(Error{ErrorCode::IOError, "Backup creation failed"});
         }
         result.backupId = backupId;
@@ -903,10 +934,17 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
         translationsByFile[entry.filePath].push_back(entry);
     }
 
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: {} translations grouped into {} files",
+        translations.size(), translationsByFile.size());
+
     // Apply to each file
     for (const auto& [filePath, fileTranslations] : translationsByFile) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Patching file: {} ({} translations)",
+            filePath, fileTranslations.size());
+
         // Handle IL2CPP metadata
         if (filePath.find("global-metadata.dat") != std::string::npos) {
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Processing IL2CPP metadata patch");
             try {
                 auto batch = applyToIL2Cpp(gameDir, fileTranslations, options);
                 result.appliedCount += batch.applied;
@@ -919,12 +957,19 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
                         static_cast<int>(fileTranslations.size()),
                         !result.backupId.empty()
                     });
+                    filesPatched++;
+
+                    // Audit log for IL2CPP modification
+                    AuditLogger::logFileAccess(gameDir / filePath, "patch_il2cpp",
+                        true, "Applied " + std::to_string(batch.applied) + " translations");
                 }
 
                 for (const auto& err : batch.errors) {
+                    MAKINEAI_LOG_WARN(log::HANDLER, "Unity: IL2CPP patch warning: {}", err);
                     result.errors.push_back({filePath, err, ExtractionSeverity::Error});
                 }
             } catch (const std::exception& e) {
+                MAKINEAI_LOG_ERROR(log::HANDLER, "Unity: IL2CPP patch error: {}", e.what());
                 result.errors.push_back({
                     filePath,
                     std::string("IL2CPP patch error: ") + e.what(),
@@ -937,6 +982,7 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
         // Regular files
         auto fullPath = gameDir / filePath;
         if (!fs::exists(fullPath)) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "Unity: File not found: {}", filePath);
             result.errors.push_back({filePath, "File not found", ExtractionSeverity::Error});
             continue;
         }
@@ -957,6 +1003,7 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
             } else if (ext == "txt") {
                 batch = applyToTxt(fullPath, fileTranslations, options);
             } else {
+                MAKINEAI_LOG_WARN(log::HANDLER, "Unity: Unsupported file type for patching: {}", ext);
                 result.skippedCount += static_cast<int>(fileTranslations.size());
                 continue;
             }
@@ -970,8 +1017,17 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
                 static_cast<int>(fileTranslations.size()),
                 !result.backupId.empty()
             });
+            filesPatched++;
+
+            // Audit log for file modification
+            AuditLogger::logFileAccess(fullPath, "patch",
+                true, "Applied " + std::to_string(batch.applied) + " translations");
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Unity: Patched {} - {} applied, {} skipped",
+                filePath, batch.applied, batch.skipped);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Unity: Patch error in {}: {}", filePath, e.what());
             result.errors.push_back({
                 filePath,
                 std::string("Patch error: ") + e.what(),
@@ -981,10 +1037,15 @@ Result<HandlerPatchResult> UnityHandler::applyTranslations(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("Unity: Applied {} translations in {}ms",
-        result.appliedCount, result.duration.count());
+    // Record metrics
+    metrics().increment("unity_files_patched", filesPatched);
+    metrics().increment("unity_translations_applied", result.appliedCount);
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unity: Translation complete - {} applied, {} skipped in {} files ({}ms)",
+        result.appliedCount, result.skippedCount, filesPatched, result.duration.count());
 
     return result;
 }
@@ -1294,12 +1355,25 @@ UnityHandler::PatchBatch UnityHandler::applyToIL2Cpp(
 
     // Apply patches
     for (const auto& [offset, newText] : offsetMap) {
-        if (offset < 0 || offset >= static_cast<int64_t>(data.size())) continue;
+        // Bounds check: offset must be valid
+        if (offset < 0 || offset >= static_cast<int64_t>(data.size())) {
+            spdlog::warn("IL2CPP: Invalid offset {} (file size: {})", offset, data.size());
+            batch.skipped++;
+            continue;
+        }
 
         // Find original string length
         size_t origLen = 0;
         for (size_t i = static_cast<size_t>(offset); i < data.size() && data[i] != 0; i++) {
             origLen++;
+        }
+
+        // CRITICAL: Bounds check before memcpy
+        // Verify offset + origLen doesn't exceed buffer
+        if (static_cast<size_t>(offset) + origLen > data.size()) {
+            spdlog::warn("IL2CPP: String at offset {} extends beyond file bounds", offset);
+            batch.skipped++;
+            continue;
         }
 
         // Can only replace with same or shorter string
@@ -1314,13 +1388,56 @@ UnityHandler::PatchBatch UnityHandler::applyToIL2Cpp(
             batch.applied++;
         } else {
             batch.skipped++;
-            spdlog::debug("IL2CPP: Skipped translation at offset {} (too long)", offset);
+            spdlog::debug("IL2CPP: Skipped translation at offset {} (too long: {} > {})",
+                offset, newText.length(), origLen);
         }
     }
 
-    // Write back
-    std::ofstream ofs(metadataPath, std::ios::binary);
-    ofs.write(reinterpret_cast<const char*>(data.data()), data.size());
+    // CRITICAL: Atomic write with flush verification
+    // Write to temp file first, then rename
+    fs::path tempPath = metadataPath.string() + ".makineai_tmp";
+
+    {
+        std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+        if (!ofs) {
+            batch.errors.push_back("Failed to create temp file for IL2CPP metadata");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+
+        ofs.write(reinterpret_cast<const char*>(data.data()), data.size());
+        ofs.flush();
+
+        if (!ofs.good()) {
+            ofs.close();
+            std::error_code ec;
+            fs::remove(tempPath, ec);
+            batch.errors.push_back("IL2CPP metadata write failed - possible disk full");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+
+        // Verify written size
+        auto writtenPos = ofs.tellp();
+        if (writtenPos != static_cast<std::streampos>(data.size())) {
+            ofs.close();
+            std::error_code ec;
+            fs::remove(tempPath, ec);
+            batch.errors.push_back("IL2CPP metadata size verification failed");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+    } // File closed here
+
+    // Atomic rename
+    std::error_code ec;
+    fs::rename(tempPath, metadataPath, ec);
+    if (ec) {
+        fs::remove(tempPath, ec);
+        batch.errors.push_back("IL2CPP metadata rename failed: " + ec.message());
+        batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+        return batch;
+    }
 
     return batch;
 }
@@ -1757,6 +1874,42 @@ std::string HandlerUtils::escapeCsvField(const std::string& field) {
         return "\"" + escaped + "\"";
     }
     return field;
+}
+
+std::vector<TranslationEntry> HandlerUtils::filterWithClassifier(
+    const std::vector<TranslationEntry>& entries,
+    float minConfidence)
+{
+    StringClassifier classifier;
+    ClassifierConfig config;
+    config.minConfidence = minConfidence;
+    classifier.setConfig(config);
+
+    return classifier.filterTranslatable(entries);
+}
+
+std::string HandlerUtils::getClassificationStats(
+    const std::vector<TranslationEntry>& entries)
+{
+    StringClassifier classifier;
+    auto stats = classifier.getStats(entries);
+
+    std::ostringstream oss;
+    oss << "Classification Statistics:\n"
+        << "  Total: " << stats.total << "\n"
+        << "  Translatable: " << stats.translatable << " (" << std::fixed << std::setprecision(1) << stats.translatablePercent() << "%)\n"
+        << "  Dialogue: " << stats.dialogue << "\n"
+        << "  UI Text: " << stats.uiText << "\n"
+        << "  Item Names: " << stats.itemNames << "\n"
+        << "  Descriptions: " << stats.descriptions << "\n"
+        << "  Code: " << stats.code << "\n"
+        << "  File Paths: " << stats.filePaths << "\n"
+        << "  Identifiers: " << stats.identifiers << "\n"
+        << "  Debug: " << stats.debug << "\n"
+        << "  Garbage: " << stats.garbage << "\n"
+        << "  Unknown: " << stats.unknown;
+
+    return oss.str();
 }
 
 // ============================================================================

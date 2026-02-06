@@ -95,30 +95,7 @@ Rectangle {
             }
         }
 
-        // Bottom border
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 1
-            color: isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.1)
-        }
-
-        // Animated gradient glow line at bottom
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 1
-            height: 2
-            opacity: isDark ? 0.25 : 0.15
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: root.animatedGlowColor }
-                GradientStop { position: 0.5; color: root.nextGlowColor }
-                GradientStop { position: 1.0; color: root.animatedGlowColor }
-            }
-        }
+        // Bottom border - kaldırıldı, container'larla birleşik görünüm için
     }
 
     RowLayout {

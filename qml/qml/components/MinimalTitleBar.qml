@@ -72,7 +72,7 @@ Rectangle {
                     anchors.horizontalCenterOffset: 2
                     width: 8
                     height: 8
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     color: "#E30A17"
                 }
             }

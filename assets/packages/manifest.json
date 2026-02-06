@@ -1,0 +1,74 @@
+{
+  "version": "1.1.0",
+  "lastUpdated": "2026-01-20T14:00:00Z",
+  "description": "Resmi Turkce destegi OLMAYAN oyunlar icin recipe'ler",
+  "recipes": [
+    {
+      "steamAppId": "367520",
+      "gameName": "Hollow Knight",
+      "engine": "Unity",
+      "quality": "community",
+      "coverage": "90%",
+      "stringCount": 8500,
+      "note": "Resmi Turkce yok, topluluk yamasi mevcut"
+    },
+    {
+      "steamAppId": "504230",
+      "gameName": "Celeste",
+      "engine": "Unity",
+      "quality": "community",
+      "coverage": "0%",
+      "stringCount": 3200,
+      "note": "Resmi Turkce yok"
+    },
+    {
+      "steamAppId": "391540",
+      "gameName": "Undertale",
+      "engine": "GameMaker",
+      "quality": "community",
+      "coverage": "0%",
+      "stringCount": 15000,
+      "note": "Resmi Turkce yok"
+    },
+    {
+      "steamAppId": "1145360",
+      "gameName": "Hades",
+      "engine": "Custom",
+      "quality": "community",
+      "coverage": "0%",
+      "stringCount": 48000,
+      "note": "Resmi Turkce yok, topluluk talep ediyor"
+    }
+  ],
+  "engines": [
+    {
+      "name": "Ren'Py",
+      "supportLevel": "full",
+      "formats": ["rpy", "rpyc"]
+    },
+    {
+      "name": "RPG Maker",
+      "supportLevel": "full",
+      "formats": ["json"],
+      "versions": ["MV", "MZ", "VX Ace"]
+    },
+    {
+      "name": "Unity",
+      "supportLevel": "full",
+      "formats": ["json", "xml", "csv", "txt"],
+      "notes": "IL2CPP ve Mono destekleniyor"
+    },
+    {
+      "name": "Unreal Engine",
+      "supportLevel": "full",
+      "formats": ["int", "ini", "locres"],
+      "notes": "UE4/UE5 .locres binary format destekleniyor"
+    },
+    {
+      "name": "GameMaker",
+      "supportLevel": "partial",
+      "formats": ["json"],
+      "notes": "data.win binary format icin ek arac gerekli"
+    }
+  ]
+}

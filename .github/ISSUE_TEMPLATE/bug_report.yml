@@ -1,0 +1,87 @@
+name: Bug Report
+description: Bir hata bildirin
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hata bildirimi için teşekkürler! Lütfen aşağıdaki bilgileri doldurun.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Hata Açıklaması
+      description: Hatayı kısaca açıklayın
+      placeholder: Ne oldu?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden Oluşturma Adımları
+      description: Hatayı nasıl yeniden oluşturabiliriz?
+      placeholder: |
+        1. '...' sayfasına git
+        2. '...' butonuna tıkla
+        3. Hata oluşur
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Beklenen Davranış
+      description: Ne olmasını bekliyordunuz?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Gerçekleşen Davranış
+      description: Bunun yerine ne oldu?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: MakineAI Sürümü
+      options:
+        - v0.1.0-alpha
+        - v0.0.8 (Flutter)
+        - Kaynak koddan derleme
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: İşletim Sistemi
+      options:
+        - Windows 11
+        - Windows 10
+        - Diğer
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Loglar / Ekran Görüntüsü
+      description: Varsa hata logları veya ekran görüntüsü ekleyin
+      placeholder: Log çıktısını buraya yapıştırın...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Kontrol Listesi
+      options:
+        - label: Bu hatayı daha önce aramadım
+          required: true
+        - label: En son sürümü kullanıyorum
+          required: false

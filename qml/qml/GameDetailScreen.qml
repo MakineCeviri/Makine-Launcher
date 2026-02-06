@@ -112,7 +112,7 @@ Item {
         y: 16
         width: 40
         height: 40
-        radius: 8
+        radius: Dimensions.radiusStandard
         color: backBtnMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
         z: 100
 
@@ -141,7 +141,7 @@ Item {
         y: 16
         width: 40
         height: 40
-        radius: 8
+        radius: Dimensions.radiusStandard
         color: openNewMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
         z: 100
 
@@ -179,7 +179,7 @@ Item {
             background: Rectangle { color: "transparent" }
             contentItem: Rectangle {
                 implicitWidth: 8
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: parent.pressed ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.15)
             }
         }
@@ -202,7 +202,7 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: 280
                     Layout.preferredHeight: 130
-                    radius: 16
+                    radius: Dimensions.radiusStandard
                     color: Theme.surfaceActive
                     clip: true
 
@@ -234,7 +234,7 @@ Item {
                         visible: root.verified
                         Layout.preferredWidth: verifiedRow.width + 24
                         Layout.preferredHeight: 32
-                        radius: 8
+                        radius: Dimensions.radiusStandard
                         color: Theme.withAlpha(Theme.primary, 0.15)
                         border.color: Theme.withAlpha(Theme.primary, 0.3)
                         border.width: 1
@@ -285,7 +285,7 @@ Item {
                         Rectangle {
                             Layout.preferredWidth: steamBtnContent.width + 48
                             Layout.preferredHeight: 48
-                            radius: 8
+                            radius: Dimensions.radiusStandard
                             color: steamBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.1)
                             border.color: Qt.rgba(1, 1, 1, 0.2)
                             border.width: 1
@@ -331,7 +331,7 @@ Item {
                         Rectangle {
                             Layout.preferredWidth: translateBtnContent.width + 48
                             Layout.preferredHeight: 48
-                            radius: 8
+                            radius: Dimensions.radiusStandard
                             color: translateBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
 
                             Behavior on color { ColorAnimation { duration: 150 } }
@@ -398,7 +398,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: descriptionText.height + 40
-                        radius: 8
+                        radius: Dimensions.radiusStandard
                         color: Qt.rgba(1, 1, 1, 0.05)
                         border.color: Qt.rgba(1, 1, 1, 0.1)
                         border.width: 1
@@ -436,7 +436,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: detailsColumn.height + 40
-                            radius: 8
+                            radius: Dimensions.radiusStandard
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.color: Qt.rgba(1, 1, 1, 0.1)
                             border.width: 1
@@ -491,7 +491,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: ratingColumn.height + 40
-                            radius: 8
+                            radius: Dimensions.radiusStandard
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.color: Qt.rgba(1, 1, 1, 0.1)
                             border.width: 1
@@ -509,7 +509,7 @@ Item {
                                     Rectangle {
                                         Layout.preferredWidth: 48
                                         Layout.preferredHeight: 48
-                                        radius: 6
+                                        radius: Dimensions.radiusStandard
                                         color: {
                                             if (root.metacriticScore >= 75) return "#66CC33"
                                             if (root.metacriticScore >= 50) return "#FFCC33"
@@ -588,7 +588,7 @@ Item {
                                         visible: root.discountPercent > 0
                                         Layout.preferredWidth: discountText.width + 16
                                         Layout.preferredHeight: 24
-                                        radius: 4
+                                        radius: Dimensions.radiusStandard
                                         color: Theme.success
 
                                         Text {
@@ -634,7 +634,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: recipeContent.height + 40
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     color: Qt.rgba(1, 1, 1, 0.05)
                     border.color: Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
@@ -654,7 +654,7 @@ Item {
                             Rectangle {
                                 Layout.preferredWidth: engineBadgeRow.width + 20
                                 Layout.preferredHeight: 28
-                                radius: 6
+                                radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.primary, 0.15)
 
                                 Row {
@@ -683,7 +683,7 @@ Item {
                             Rectangle {
                                 Layout.preferredWidth: qualityBadgeText.width + 20
                                 Layout.preferredHeight: 28
-                                radius: 6
+                                radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(getQualityColor(root.qualityScore), 0.15)
 
                                 Text {
@@ -710,7 +710,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 56
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     color: Qt.rgba(1, 1, 1, 0.05)
                     border.color: Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
@@ -744,7 +744,7 @@ Item {
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
                 Layout.preferredHeight: backupContent.height + 40
-                radius: 8
+                radius: Dimensions.radiusStandard
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.color: Qt.rgba(1, 1, 1, 0.1)
                 border.width: 1
@@ -786,7 +786,7 @@ Item {
                     Rectangle {
                         Layout.preferredWidth: restoreBtnContent.width + 40
                         Layout.preferredHeight: 44
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: restoreBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
                         border.color: restoreBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
                         border.width: 1
@@ -861,7 +861,7 @@ Item {
                             Rectangle {
                                 width: 320
                                 height: 180
-                                radius: 8
+                                radius: Dimensions.radiusStandard
                                 color: Theme.surfaceActive
                                 clip: true
 

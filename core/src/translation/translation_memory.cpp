@@ -8,6 +8,8 @@
 #include "makineai/database.hpp"
 #include "makineai/core.hpp"
 #include "makineai/features.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
 
 #include <openssl/md5.h>
 #include <algorithm>
@@ -25,14 +27,6 @@
 // Optional: simdjson for fast JSON parsing
 #ifdef MAKINEAI_HAS_SIMDJSON
 #include <simdjson.h>
-#endif
-
-// Optional: digestpp for fast hashing (alternative to OpenSSL MD5)
-#ifdef MAKINEAI_HAS_DIGESTPP
-// TODO: [DIGESTPP] Replace OpenSSL MD5 with digestpp for header-only hash
-// Example:
-//   #include <digestpp.hpp>
-//   std::string hash = digestpp::md5().absorb(text).hexdigest();
 #endif
 
 // Optional: concurrentqueue for parallel batch processing
@@ -334,23 +328,28 @@ MatchType TranslationMemoryService::scoreToMatchType(double score) {
 Result<int64_t> TranslationMemoryService::addEntry(const TranslationMemoryEntry& entry) {
     auto& db = Database::instance();
 
+    MAKINEAI_LOG_DEBUG(log::TM, "Adding entry: source len={}, target len={}, lang={}",
+        entry.sourceText.length(), entry.targetText.length(), entry.targetLang);
+
     // Create entry with hash
     TranslationMemoryEntry entryWithHash = entry;
     entryWithHash.sourceHash = hashText(entry.sourceText);
 
     auto result = db.addToTranslationMemory(entryWithHash);
     if (!result) {
+        MAKINEAI_LOG_ERROR(log::TM, "Failed to add TM entry: {}", result.error().message());
         return std::unexpected(result.error());
     }
 
     // Add n-grams
     auto ngramResult = addNgrams(*result, entry.sourceText);
     if (!ngramResult) {
-        logger()->warn("Failed to add n-grams for TM entry {}: {}",
+        MAKINEAI_LOG_WARN(log::TM, "Failed to add n-grams for TM entry {}: {}",
             *result, ngramResult.error().message());
     }
 
-    logger()->debug("TM entry added: ID={}", *result);
+    MAKINEAI_LOG_DEBUG(log::TM, "TM entry added: ID={}", *result);
+    metrics().increment("tm_entries_added");
     return *result;
 }
 
@@ -373,10 +372,17 @@ Result<std::optional<TranslationMemoryEntry>> TranslationMemoryService::findExac
     const std::optional<std::string>& context,
     const std::string& targetLang
 ) {
+    auto timer = metrics().timer("tm_search");
+
+    MAKINEAI_LOG_DEBUG(log::TM, "Searching exact match for text (len={}), lang={}",
+        sourceText.length(), targetLang);
+
     std::string hash = hashText(sourceText);
 
     auto result = Database::instance().findExactMatch(hash);
     if (!result) {
+        MAKINEAI_LOG_WARN(log::TM, "Database error during exact match search: {}",
+            result.error().message());
         return std::unexpected(result.error());
     }
 
@@ -385,12 +391,17 @@ Result<std::optional<TranslationMemoryEntry>> TranslationMemoryService::findExac
 
         // Filter by target language
         if (entry.targetLang != targetLang) {
+            MAKINEAI_LOG_DEBUG(log::TM, "Exact match found but wrong language: {} vs {}",
+                entry.targetLang, targetLang);
+            metrics().increment("tm_no_matches");
             return std::nullopt;
         }
 
         // Filter by context if specified
         if (context.has_value() && entry.context.has_value() &&
             *context != *entry.context) {
+            MAKINEAI_LOG_DEBUG(log::TM, "Exact match found but context mismatch");
+            metrics().increment("tm_no_matches");
             return std::nullopt;
         }
 
@@ -399,9 +410,14 @@ Result<std::optional<TranslationMemoryEntry>> TranslationMemoryService::findExac
             Database::instance().incrementTMUsage(*entry.id);
         }
 
+        MAKINEAI_LOG_DEBUG(log::TM, "Exact match found: ID={}", entry.id.value_or(-1));
+        metrics().increment("tm_exact_matches");
+        metrics().recordHistogram("tm_match_scores", 100);
         return entry;
     }
 
+    MAKINEAI_LOG_DEBUG(log::TM, "No exact match found for hash={}", hash.substr(0, 8));
+    metrics().increment("tm_no_matches");
     return std::nullopt;
 }
 
@@ -412,6 +428,11 @@ Result<std::vector<TMMatch>> TranslationMemoryService::findFuzzyMatches(
     size_t limit,
     double minScore
 ) {
+    auto timer = metrics().timer("tm_search");
+
+    MAKINEAI_LOG_DEBUG(log::TM, "Fuzzy search: text len={}, lang={}, minScore={:.1f}, limit={}",
+        sourceText.length(), targetLang, minScore, limit);
+
     // First try exact match
     auto exactResult = findExactMatch(sourceText, ctx.context, targetLang);
     if (exactResult && exactResult->has_value()) {
@@ -419,14 +440,19 @@ Result<std::vector<TMMatch>> TranslationMemoryService::findFuzzyMatches(
         match.entry = **exactResult;
         match.similarity = 100.0;
         match.matchType = MatchType::Exact;
+        MAKINEAI_LOG_DEBUG(log::TM, "Exact match found during fuzzy search, score=100.0");
         return std::vector<TMMatch>{match};
     }
 
     // Generate n-grams for candidate retrieval
     auto sourceNgrams = generateNgrams(sourceText);
     if (sourceNgrams.empty()) {
+        MAKINEAI_LOG_WARN(log::TM, "No n-grams generated for source text");
+        metrics().increment("tm_no_matches");
         return std::vector<TMMatch>{};
     }
+
+    MAKINEAI_LOG_DEBUG(log::TM, "Generated {} n-grams for fuzzy matching", sourceNgrams.size());
 
     // Find candidate TM IDs using n-gram index
     auto& db = Database::instance();
@@ -445,6 +471,8 @@ Result<std::vector<TMMatch>> TranslationMemoryService::findFuzzyMatches(
         }
     }
 
+    MAKINEAI_LOG_DEBUG(log::TM, "Found {} candidate entries from n-gram index", candidateCounts.size());
+
     // Filter candidates with minimum n-gram matches
     std::vector<int64_t> candidateIds;
     for (const auto& [tmId, count] : candidateCounts) {
@@ -454,50 +482,75 @@ Result<std::vector<TMMatch>> TranslationMemoryService::findFuzzyMatches(
     }
 
     if (candidateIds.empty()) {
-        return std::vector<TMMatch>{};
+        MAKINEAI_LOG_DEBUG(log::TM, "No candidates passed n-gram threshold (min={})", minNgramMatches);
+        // Don't count as no_matches yet, we'll try game fallback
     }
 
-    // Get TM entries for candidates
+    // Get TM entries for candidates by ID
     std::vector<TMMatch> scoredMatches;
 
-    for (int64_t tmId : candidateIds) {
-        // Get entry by searching for it
-        auto entriesResult = db.findByHash("");  // We need to get by ID instead
-        // For now, we'll use the hash lookup approach
-        // TODO: Add getEntryById to Database
-
-        // Alternative: get entries for game and filter
-        // This is a simplified approach - in production, add proper ID lookup
-    }
-
-    // Simplified approach: get all entries and score them
-    // (In production, this should use proper indexed lookup)
-    auto allEntries = db.getEntriesForGame(
-        ctx.gameId.value_or(""), 1000);
-
-    if (!allEntries) {
-        return std::vector<TMMatch>{};
-    }
-
-    // Score candidates
+    // Score candidate entries found by n-gram matching
     MatchContext candidateCtx;
-    for (const auto& entry : *allEntries) {
+    for (int64_t tmId : candidateIds) {
+        auto entryResult = db.getTranslationMemoryEntryById(tmId);
+        if (!entryResult) continue;
+
+        const auto& entry = *entryResult;
         if (entry.targetLang != targetLang) continue;
 
         candidateCtx.context = entry.context;
         candidateCtx.gameId = entry.gameId;
         candidateCtx.engineType = entry.engineType;
-        candidateCtx.category = entry.category;
 
-        double score = calculateSimilarityScore(
-            sourceText, entry.sourceText, ctx, candidateCtx);
+        double score = calculateSimilarityScore(sourceText, entry.sourceText, ctx, candidateCtx);
 
         if (score >= minScore) {
             TMMatch match;
             match.entry = entry;
             match.similarity = score;
             match.matchType = scoreToMatchType(score);
-            scoredMatches.push_back(match);
+            scoredMatches.push_back(std::move(match));
+
+            // Record match score in histogram
+            metrics().recordHistogram("tm_match_scores", static_cast<int64_t>(score));
+        }
+    }
+
+    // If no matches from n-grams, fall back to game entries (if configured)
+    if (scoredMatches.empty() && ctx.gameId.has_value()) {
+        MAKINEAI_LOG_DEBUG(log::TM, "No n-gram matches, falling back to game entries for gameId={}",
+            *ctx.gameId);
+
+        auto allEntries = db.getEntriesForGame(*ctx.gameId, 1000);
+        if (!allEntries) {
+            MAKINEAI_LOG_WARN(log::TM, "Failed to get game entries: {}", allEntries.error().message());
+            metrics().increment("tm_no_matches");
+            return std::vector<TMMatch>{};
+        }
+
+        MAKINEAI_LOG_DEBUG(log::TM, "Searching {} game entries", allEntries->size());
+
+        for (const auto& entry : *allEntries) {
+            if (entry.targetLang != targetLang) continue;
+
+            candidateCtx.context = entry.context;
+            candidateCtx.gameId = entry.gameId;
+            candidateCtx.engineType = entry.engineType;
+            candidateCtx.category = entry.category;
+
+            double score = calculateSimilarityScore(
+                sourceText, entry.sourceText, ctx, candidateCtx);
+
+            if (score >= minScore) {
+                TMMatch match;
+                match.entry = entry;
+                match.similarity = score;
+                match.matchType = scoreToMatchType(score);
+                scoredMatches.push_back(match);
+
+                // Record match score in histogram
+                metrics().recordHistogram("tm_match_scores", static_cast<int64_t>(score));
+            }
         }
     }
 
@@ -512,6 +565,16 @@ Result<std::vector<TMMatch>> TranslationMemoryService::findFuzzyMatches(
         scoredMatches.resize(limit);
     }
 
+    // Log and record metrics based on results
+    if (scoredMatches.empty()) {
+        MAKINEAI_LOG_WARN(log::TM, "No fuzzy matches found for text (len={})", sourceText.length());
+        metrics().increment("tm_no_matches");
+    } else {
+        MAKINEAI_LOG_DEBUG(log::TM, "Found {} fuzzy matches, best score={:.1f}",
+            scoredMatches.size(), scoredMatches.front().similarity);
+        metrics().increment("tm_fuzzy_matches", static_cast<int64_t>(scoredMatches.size()));
+    }
+
     return scoredMatches;
 }
 
@@ -521,16 +584,25 @@ Result<std::optional<TMMatch>> TranslationMemoryService::findBestMatch(
     const std::string& targetLang,
     double minScore
 ) {
+    MAKINEAI_LOG_DEBUG(log::TM, "Finding best match for text (len={}), minScore={:.1f}",
+        sourceText.length(), minScore);
+
     auto matches = findFuzzyMatches(sourceText, ctx, targetLang, 1, minScore);
     if (!matches) {
+        MAKINEAI_LOG_WARN(log::TM, "Best match search failed: {}", matches.error().message());
         return std::unexpected(matches.error());
     }
 
     if (matches->empty()) {
+        MAKINEAI_LOG_DEBUG(log::TM, "No best match found above threshold {:.1f}", minScore);
         return std::nullopt;
     }
 
-    return matches->front();
+    const auto& best = matches->front();
+    MAKINEAI_LOG_DEBUG(log::TM, "Best match found: score={:.1f}, type={}",
+        best.similarity, static_cast<int>(best.matchType));
+
+    return best;
 }
 
 Result<std::vector<std::pair<std::string, std::optional<TMMatch>>>>
@@ -540,8 +612,16 @@ TranslationMemoryService::findBatchMatches(
     const std::string& targetLang,
     double minScore
 ) {
+    auto timer = metrics().timer("tm_search");
+
+    MAKINEAI_LOG_INFO(log::TM, "Batch match: {} texts, lang={}, minScore={:.1f}",
+        sourceTexts.size(), targetLang, minScore);
+
     std::vector<std::pair<std::string, std::optional<TMMatch>>> results;
     results.reserve(sourceTexts.size());
+
+    size_t matchCount = 0;
+    size_t noMatchCount = 0;
 
 #ifdef MAKINEAI_HAS_TASKFLOW
     // TODO: [TASKFLOW] Parallel batch matching for large translation files
@@ -560,23 +640,38 @@ TranslationMemoryService::findBatchMatches(
     //   }
     //   executor.run(taskflow).wait();
     //   return results;
-    logger()->debug("Taskflow available - parallel batch matching enabled");
+    MAKINEAI_LOG_DEBUG(log::TM, "Taskflow available - parallel batch matching enabled");
 #endif
 
 #ifdef MAKINEAI_HAS_CONCURRENTQUEUE
     // TODO: [CONCURRENTQUEUE] Producer-consumer pattern for streaming translations
     // Use lock-free queue for real-time translation processing
-    logger()->debug("concurrentqueue available for streaming translations");
+    MAKINEAI_LOG_DEBUG(log::TM, "concurrentqueue available for streaming translations");
 #endif
 
     for (const auto& text : sourceTexts) {
         auto match = findBestMatch(text, ctx, targetLang, minScore);
         if (match) {
-            results.emplace_back(text, *match);
+            if (match->has_value()) {
+                results.emplace_back(text, *match);
+                ++matchCount;
+            } else {
+                results.emplace_back(text, std::nullopt);
+                ++noMatchCount;
+            }
         } else {
             results.emplace_back(text, std::nullopt);
+            ++noMatchCount;
         }
     }
+
+    MAKINEAI_LOG_INFO(log::TM, "Batch complete: {}/{} matches ({:.1f}%)",
+        matchCount, sourceTexts.size(),
+        sourceTexts.empty() ? 0.0 : (100.0 * matchCount / sourceTexts.size()));
+
+    // Record batch metrics
+    metrics().gauge("tm_batch_match_rate",
+        sourceTexts.empty() ? 0.0 : (100.0 * matchCount / sourceTexts.size()));
 
     return results;
 }
@@ -587,23 +682,42 @@ Result<void> TranslationMemoryService::updateEntry(
     std::optional<int> qualityScore,
     std::optional<bool> verified
 ) {
-    // Build update through database
-    // For now, we need to add an update method to Database
-    // This is a simplified implementation
-    logger()->debug("Updating TM entry {}", tmId);
+    MAKINEAI_LOG_DEBUG(log::TM, "Updating TM entry {}: targetLen={}, quality={}, verified={}",
+        tmId, targetText.length(),
+        qualityScore.has_value() ? std::to_string(*qualityScore) : "unchanged",
+        verified.has_value() ? (*verified ? "true" : "false") : "unchanged");
 
-    // TODO: Implement proper update in Database class
+    auto& db = Database::instance();
+    auto result = db.updateTranslationMemoryEntry(tmId, targetText, qualityScore, verified);
+
+    if (!result) {
+        MAKINEAI_LOG_ERROR(log::TM, "Failed to update TM entry {}: {}", tmId, result.error().message());
+        return std::unexpected(result.error());
+    }
+
+    MAKINEAI_LOG_INFO(log::TM, "Updated TM entry {}", tmId);
+    metrics().increment("tm_entries_updated");
     return {};
 }
 
 Result<void> TranslationMemoryService::deleteEntry(int64_t tmId) {
-    // TODO: Add delete method to Database class
-    logger()->debug("Deleting TM entry {}", tmId);
+    MAKINEAI_LOG_DEBUG(log::TM, "Deleting TM entry {}", tmId);
+
+    auto& db = Database::instance();
+    auto result = db.deleteTranslationMemoryEntry(tmId);
+
+    if (!result) {
+        MAKINEAI_LOG_ERROR(log::TM, "Failed to delete TM entry {}: {}", tmId, result.error().message());
+        return std::unexpected(result.error());
+    }
+
+    MAKINEAI_LOG_INFO(log::TM, "Deleted TM entry {}", tmId);
+    metrics().increment("tm_entries_deleted");
     return {};
 }
 
 Result<void> TranslationMemoryService::clearAll() {
-    logger()->info("Clearing all TM data");
+    MAKINEAI_LOG_INFO(log::TM, "Clearing all TM data");
 
     auto& db = Database::instance();
 
@@ -613,11 +727,12 @@ Result<void> TranslationMemoryService::clearAll() {
     auto result3 = db.executeRaw("DELETE FROM translation_memory");
 
     if (!result1 || !result2 || !result3) {
+        MAKINEAI_LOG_ERROR(log::TM, "Failed to clear TM data");
         return std::unexpected(Error(ErrorCode::DatabaseError,
             "Failed to clear TM data"));
     }
 
-    logger()->info("All TM data cleared");
+    MAKINEAI_LOG_INFO(log::TM, "All TM data cleared successfully");
     return {};
 }
 
@@ -631,15 +746,30 @@ Result<std::vector<TranslationMemoryEntry>> TranslationMemoryService::getEntries
 }
 
 Result<TranslationMemoryService::TMStats> TranslationMemoryService::getStats() {
-    auto statsResult = Database::instance().getTranslationMemoryStats();
+    MAKINEAI_LOG_DEBUG(log::TM, "Retrieving TM statistics");
+
+    auto& db = Database::instance();
+
+    auto statsResult = db.getTranslationMemoryStats();
     if (!statsResult) {
+        MAKINEAI_LOG_ERROR(log::TM, "Failed to get TM stats: {}", statsResult.error().message());
         return std::unexpected(statsResult.error());
     }
+
+    auto qualityResult = db.getAverageQualityScore();
 
     TMStats stats;
     stats.totalEntries = statsResult->first;
     stats.verifiedEntries = statsResult->second;
-    stats.averageQuality = 0.0;  // TODO: Calculate from database
+    stats.averageQuality = qualityResult.value_or(0.0);
+
+    MAKINEAI_LOG_DEBUG(log::TM, "TM stats: total={}, verified={}, avgQuality={:.1f}",
+        stats.totalEntries, stats.verifiedEntries, stats.averageQuality);
+
+    // Update gauges for monitoring
+    metrics().gauge("tm_total_entries", static_cast<double>(stats.totalEntries));
+    metrics().gauge("tm_verified_entries", static_cast<double>(stats.verifiedEntries));
+    metrics().gauge("tm_average_quality", stats.averageQuality);
 
     return stats;
 }
@@ -647,18 +777,29 @@ Result<TranslationMemoryService::TMStats> TranslationMemoryService::getStats() {
 Result<int> TranslationMemoryService::importEntries(
     const std::vector<TranslationMemoryEntry>& entries
 ) {
+    MAKINEAI_LOG_INFO(log::TM, "Importing {} TM entries", entries.size());
+
     int imported = 0;
+    int failed = 0;
 
     for (const auto& entry : entries) {
         auto result = addEntry(entry);
         if (result) {
             ++imported;
         } else {
-            logger()->warn("TM import error: {}", result.error().message());
+            ++failed;
+            MAKINEAI_LOG_WARN(log::TM, "TM import error: {}", result.error().message());
         }
     }
 
-    logger()->info("Imported {} TM entries", imported);
+    MAKINEAI_LOG_INFO(log::TM, "Import complete: {}/{} entries imported ({} failed)",
+        imported, entries.size(), failed);
+
+    metrics().increment("tm_entries_imported", imported);
+    if (failed > 0) {
+        metrics().increment("tm_import_failures", failed);
+    }
+
     return imported;
 }
 

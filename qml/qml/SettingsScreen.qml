@@ -146,7 +146,7 @@ Item {
                                 id: backBtn
                                 Layout.preferredWidth: 36
                                 Layout.preferredHeight: 36
-                                radius: 4
+                                radius: Dimensions.radiusStandard
                                 // Flutter: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04)
                                 color: backMouse.containsMouse
                                     ? Theme.surfaceHover
@@ -252,7 +252,7 @@ Item {
                         background: Rectangle { color: "transparent" }
                         contentItem: Rectangle {
                             implicitWidth: 8
-                            radius: 4
+                            radius: Dimensions.radiusStandard
                             color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
                         }
                     }
@@ -488,7 +488,7 @@ Item {
                         Rectangle {
                             width: backupCountText.width + 12
                             height: 20
-                            radius: 4
+                            radius: Dimensions.radiusStandard
                             color: Theme.withAlpha(Theme.primary, 0.15)
                             visible: BackupManager.backups.length > 0
 
@@ -507,7 +507,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 80
-                        radius: 8
+                        radius: Dimensions.radiusStandard
                         color: Qt.rgba(1, 1, 1, 0.03)
                         visible: BackupManager.backups.length === 0
 
@@ -535,7 +535,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 72
-                            radius: 8
+                            radius: Dimensions.radiusStandard
                             color: backupItemMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.03)
                             border.color: Qt.rgba(1, 1, 1, 0.08)
                             border.width: 1
@@ -551,7 +551,7 @@ Item {
                                 Rectangle {
                                     Layout.preferredWidth: 48
                                     Layout.preferredHeight: 48
-                                    radius: 6
+                                    radius: Dimensions.radiusStandard
                                     color: Theme.surfaceActive
 
                                     Text {
@@ -593,7 +593,7 @@ Item {
                                 Rectangle {
                                     Layout.preferredWidth: restoreBtnContent.width + 20
                                     Layout.preferredHeight: 32
-                                    radius: 6
+                                    radius: Dimensions.radiusStandard
                                     color: restoreBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -634,7 +634,7 @@ Item {
                                 Rectangle {
                                     Layout.preferredWidth: 32
                                     Layout.preferredHeight: 32
-                                    radius: 6
+                                    radius: Dimensions.radiusStandard
                                     color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.15) : "transparent"
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -930,7 +930,7 @@ Item {
         signal clicked()
 
         height: 40
-        radius: 4
+        radius: Dimensions.radiusStandard
         // Flutter: isSelected ? Colors.white.withValues(alpha: 0.06) : Colors.transparent
         color: isSelected
             ? Qt.rgba(1, 1, 1, 0.08)
@@ -995,7 +995,7 @@ Item {
         default property alias content: cardContent.data
         implicitHeight: cardContent.implicitHeight
 
-        radius: 4
+        radius: Dimensions.radiusStandard
         color: Theme.surface
         border.color: Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
@@ -1050,7 +1050,7 @@ Item {
             Rectangle {
                 Layout.preferredWidth: themeRow.width + 8
                 Layout.preferredHeight: 40
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: Qt.rgba(1, 1, 1, 0.06)
 
                 Row {
@@ -1063,7 +1063,7 @@ Item {
                         id: lightThemeBtn
                         width: lightRow.width + 28
                         height: 32
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: !isDarkTheme ? Qt.rgba(1, 1, 1, 0.12) : (lightMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
                         border.color: !isDarkTheme ? Qt.rgba(1, 1, 1, 0.2) : (lightMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
                         border.width: 1
@@ -1108,7 +1108,7 @@ Item {
                         id: darkThemeBtn
                         width: darkRow.width + 28
                         height: 32
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: isDarkTheme ? Qt.rgba(1, 1, 1, 0.12) : (darkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
                         border.color: isDarkTheme ? Qt.rgba(1, 1, 1, 0.2) : (darkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
                         border.width: 1
@@ -1197,7 +1197,7 @@ Item {
                 id: toggleTrack
                 Layout.preferredWidth: 44
                 Layout.preferredHeight: 24
-                radius: 4
+                radius: Dimensions.radiusStandard
                 // Flutter: value ? AppColors.primary : Colors.white.withValues(alpha: 0.1)
                 color: checked ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
 
@@ -1224,7 +1224,7 @@ Item {
                     id: toggleHandle
                     width: 18
                     height: 18
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     color: "white"
                     x: checked ? parent.width - width - 3 : 3
                     anchors.verticalCenter: parent.verticalCenter
@@ -1233,7 +1233,7 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: -1
-                        radius: 5
+                        radius: Dimensions.radiusStandard
                         color: "transparent"
                         border.color: Qt.rgba(0, 0, 0, 0.15)
                         border.width: 1
@@ -1298,7 +1298,7 @@ Item {
             Rectangle {
                 Layout.preferredWidth: Math.max(badgeLabel.width + 28, 70)
                 Layout.preferredHeight: 32
-                radius: 4
+                radius: Dimensions.radiusStandard
                 color: Theme.withAlpha(Theme.primary, 0.15)
 
                 Label {
@@ -1346,7 +1346,7 @@ Item {
                     Rectangle {
                         Layout.preferredWidth: yakindaLabel.width + 16
                         Layout.preferredHeight: 20
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         // Flutter: Colors.white.withValues(alpha: 0.08)
                         color: Qt.rgba(1, 1, 1, 0.08)
 
@@ -1406,7 +1406,7 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
-                    radius: 8
+                    radius: Dimensions.radiusStandard
                     // Flutter: isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.06)
                     color: isDestructive
                          ? Theme.withAlpha(Theme.error, 0.1)
@@ -1534,7 +1534,7 @@ Item {
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
-                    radius: 4
+                    radius: Dimensions.radiusStandard
                     // Flutter: isDark ? Colors.white.withValues(alpha: 0.06) : AppColors.primary.withValues(alpha: 0.08)
                     color: isDestructive
                          ? Theme.withAlpha(Theme.error, 0.1)

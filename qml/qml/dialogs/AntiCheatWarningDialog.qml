@@ -101,7 +101,7 @@ Dialog {
 
     background: Rectangle {
         color: Theme.surface
-        radius: 12
+        radius: Dimensions.radiusStandard
         border.color: Qt.rgba(getSeverityColor(root.highestSeverity).r,
                               getSeverityColor(root.highestSeverity).g,
                               getSeverityColor(root.highestSeverity).b, 0.4)
@@ -236,7 +236,7 @@ Dialog {
                     Rectangle {
                         width: overallSeverityText.width + 16
                         height: 22
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         color: Qt.rgba(getSeverityColor(root.highestSeverity).r,
                                        getSeverityColor(root.highestSeverity).g,
                                        getSeverityColor(root.highestSeverity).b, 0.2)
@@ -259,7 +259,7 @@ Dialog {
             Rectangle {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
-                radius: 6
+                radius: Dimensions.radiusStandard
                 color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
                 border.color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : "transparent"
                 border.width: 1
@@ -318,7 +318,7 @@ Dialog {
             Layout.leftMargin: 24
             Layout.rightMargin: 24
             Layout.preferredHeight: warningText.implicitHeight + 24
-            radius: 8
+            radius: Dimensions.radiusStandard
             color: Qt.rgba(getSeverityColor(root.highestSeverity).r,
                            getSeverityColor(root.highestSeverity).g,
                            getSeverityColor(root.highestSeverity).b, 0.1)
@@ -371,7 +371,7 @@ Dialog {
                     id: systemDelegate
                     width: systemsList.width
                     height: 80
-                    radius: 10
+                    radius: Dimensions.radiusStandard
                     color: delegateMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.03)
                     border.color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                           getSeverityColor(modelData.severity).g,
@@ -430,7 +430,7 @@ Dialog {
                                 anchors.centerIn: parent
                                 width: 42
                                 height: 42
-                                radius: 10
+                                radius: Dimensions.radiusStandard
                                 color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                                getSeverityColor(modelData.severity).g,
                                                getSeverityColor(modelData.severity).b, 0.15)
@@ -466,7 +466,7 @@ Dialog {
                                 Rectangle {
                                     width: severityLabelText.width + 14
                                     height: 22
-                                    radius: 4
+                                    radius: Dimensions.radiusStandard
                                     color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                                    getSeverityColor(modelData.severity).g,
                                                    getSeverityColor(modelData.severity).b, 0.15)
@@ -544,7 +544,7 @@ Dialog {
                 id: cancelBtn
                 Layout.preferredWidth: cancelBtnContent.width + 40
                 Layout.preferredHeight: 48
-                radius: 10
+                radius: Dimensions.radiusStandard
                 color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)
                 border.color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.15)
                 border.width: 1.5
@@ -618,7 +618,7 @@ Dialog {
                     anchors.centerIn: parent
                     width: continueBtnContent.width + 40
                     height: 48
-                    radius: 10
+                    radius: Dimensions.radiusStandard
                     scale: continueBtnMouse.pressed ? 0.97 : 1.0
 
                     gradient: Gradient {

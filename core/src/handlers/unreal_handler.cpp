@@ -5,6 +5,9 @@
  */
 
 #include "makineai/handlers/unreal_handler.hpp"
+#include "makineai/logging.hpp"
+#include "makineai/metrics.hpp"
+#include "makineai/audit.hpp"
 
 #include <spdlog/spdlog.h>
 #include <fstream>
@@ -479,16 +482,20 @@ Result<ExtractionResult> UnrealHandler::extractStrings(
     const fs::path& gameDir,
     const ExtractionOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unreal: Starting string extraction from {}", gameDir.string());
+    auto timer = metrics().timer("unreal_extract_strings");
 
     ExtractionResult result;
+    int filesProcessed = 0;
 
     auto filesResult = findGameFiles(gameDir);
     if (!filesResult) {
+        MAKINEAI_LOG_ERROR(log::HANDLER, "Unreal: Failed to find game files: {}", filesResult.error().message());
         return std::unexpected(filesResult.error());
     }
 
     const auto& gameFiles = *filesResult;
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Found {} potential localization files", gameFiles.size());
 
     for (const auto& gameFile : gameFiles) {
         // File filters
@@ -514,6 +521,8 @@ Result<ExtractionResult> UnrealHandler::extractStrings(
             if (excluded) continue;
         }
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Processing file: {}", gameFile.relativePath);
+
         try {
             auto ext = gameFile.path.extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -527,6 +536,7 @@ Result<ExtractionResult> UnrealHandler::extractStrings(
             } else if (ext == ".ini" || ext == ".txt") {
                 batch = extractFromIniFile(gameFile.path, gameFile, options);
             } else {
+                MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Skipping unsupported extension: {}", ext);
                 continue;
             }
 
@@ -538,8 +548,14 @@ Result<ExtractionResult> UnrealHandler::extractStrings(
             GameFile processedFile = gameFile;
             processedFile.stringCount = static_cast<int>(batch.entries.size());
             result.processedFiles.push_back(std::move(processedFile));
+            filesProcessed++;
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Extracted {} strings from {}",
+                batch.entries.size(), gameFile.relativePath);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Unreal: Extraction error in {}: {}",
+                gameFile.relativePath, e.what());
             result.errors.push_back({
                 gameFile.relativePath,
                 std::string("Extraction error: ") + e.what(),
@@ -549,10 +565,15 @@ Result<ExtractionResult> UnrealHandler::extractStrings(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("Unreal: Extracted {} strings in {}ms",
-        result.entries.size(), result.duration.count());
+    // Record metrics
+    metrics().increment("unreal_files_processed", filesProcessed);
+    metrics().increment("unreal_strings_extracted", result.entries.size());
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unreal: Extraction complete - {} strings from {} files in {}ms",
+        result.entries.size(), filesProcessed, result.duration.count());
 
     return result;
 }
@@ -1041,10 +1062,12 @@ Result<HandlerPatchResult> UnrealHandler::applyTranslations(
     const std::vector<TranslationEntry>& translations,
     const PatchOptions& options
 ) {
-    auto startTime = std::chrono::steady_clock::now();
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unreal: Starting translation application to {}", gameDir.string());
+    auto timer = metrics().timer("unreal_apply_translations");
 
     HandlerPatchResult result;
     result.success = true;
+    int filesPatched = 0;
 
     // Create backup
     if (options.createBackup) {
@@ -1052,8 +1075,10 @@ Result<HandlerPatchResult> UnrealHandler::applyTranslations(
             ? std::to_string(std::chrono::system_clock::now().time_since_epoch().count())
             : options.backupId;
 
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Creating backup with ID: {}", backupId);
         auto backupResult = createBackup(gameDir, backupId);
         if (!backupResult) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Unreal: Backup creation failed");
             return std::unexpected(Error{ErrorCode::IOError, "Backup creation failed"});
         }
         result.backupId = backupId;
@@ -1066,10 +1091,17 @@ Result<HandlerPatchResult> UnrealHandler::applyTranslations(
         translationsByFile[entry.filePath].push_back(entry);
     }
 
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: {} translations grouped into {} files",
+        translations.size(), translationsByFile.size());
+
     // Apply to each file
     for (const auto& [filePath, fileTranslations] : translationsByFile) {
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Patching file: {} ({} translations)",
+            filePath, fileTranslations.size());
+
         auto fullPath = gameDir / filePath;
         if (!fs::exists(fullPath)) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "Unreal: File not found: {}", filePath);
             result.errors.push_back(PatchError{filePath, "File not found"});
             continue;
         }
@@ -1087,6 +1119,7 @@ Result<HandlerPatchResult> UnrealHandler::applyTranslations(
             } else if (ext == ".ini" || ext == ".txt") {
                 batch = applyToIniFile(fullPath, fileTranslations, options);
             } else {
+                MAKINEAI_LOG_WARN(log::HANDLER, "Unreal: Unsupported file type for patching: {}", ext);
                 result.skippedCount += static_cast<int>(fileTranslations.size());
                 continue;
             }
@@ -1100,8 +1133,17 @@ Result<HandlerPatchResult> UnrealHandler::applyTranslations(
                 static_cast<int>(fileTranslations.size()),
                 !result.backupId.empty()
             });
+            filesPatched++;
+
+            // Audit log for file modification
+            AuditLogger::logFileAccess(fullPath, "patch",
+                true, "Applied " + std::to_string(batch.applied) + " translations");
+
+            MAKINEAI_LOG_DEBUG(log::HANDLER, "Unreal: Patched {} - {} applied, {} skipped",
+                filePath, batch.applied, batch.skipped);
 
         } catch (const std::exception& e) {
+            MAKINEAI_LOG_ERROR(log::HANDLER, "Unreal: Patch error in {}: {}", filePath, e.what());
             result.errors.push_back({
                 filePath,
                 std::string("Patch error: ") + e.what(),
@@ -1111,10 +1153,15 @@ Result<HandlerPatchResult> UnrealHandler::applyTranslations(
     }
 
     auto endTime = std::chrono::steady_clock::now();
-    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        endTime - std::chrono::steady_clock::now() + timer.elapsed());
 
-    spdlog::info("Unreal: Applied {} translations in {}ms",
-        result.appliedCount, result.duration.count());
+    // Record metrics
+    metrics().increment("unreal_files_patched", filesPatched);
+    metrics().increment("unreal_translations_applied", result.appliedCount);
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Unreal: Translation complete - {} applied, {} skipped in {} files ({}ms)",
+        result.appliedCount, result.skippedCount, filesPatched, result.duration.count());
 
     return result;
 }
@@ -1164,11 +1211,37 @@ UnrealHandler::PatchBatch UnrealHandler::applyToLocResFile(
         }
     }
 
-    // Write back
+    // Write back atomically
     if (batch.applied > 0) {
         auto newBytes = locRes.toBytes();
-        std::ofstream ofs(file, std::ios::binary);
-        ofs.write(reinterpret_cast<const char*>(newBytes.data()), newBytes.size());
+        fs::path tempPath = file.string() + ".makineai_tmp";
+
+        {
+            std::ofstream ofs(tempPath, std::ios::binary | std::ios::trunc);
+            if (!ofs) {
+                batch.errors.push_back("Cannot create temp file");
+                return batch;
+            }
+
+            ofs.write(reinterpret_cast<const char*>(newBytes.data()), newBytes.size());
+            ofs.flush();
+
+            if (!ofs.good()) {
+                ofs.close();
+                std::error_code ec;
+                fs::remove(tempPath, ec);
+                batch.errors.push_back("Write failed - possible disk full");
+                return batch;
+            }
+        }
+
+        std::error_code ec;
+        fs::rename(tempPath, file, ec);
+        if (ec) {
+            fs::remove(tempPath, ec);
+            batch.errors.push_back("Rename failed: " + ec.message());
+            return batch;
+        }
     }
 
     batch.skipped = static_cast<int>(translations.size()) - batch.applied;
@@ -1262,14 +1335,40 @@ UnrealHandler::PatchBatch UnrealHandler::applyToIntFile(
         if (i < lines.size() - 1) newContent += "\n";
     }
 
-    // Write back
-    if (isUtf16) {
-        auto encoded = encodeUtf16Le(newContent);
-        std::ofstream ofs(file, std::ios::binary);
-        ofs.write(reinterpret_cast<const char*>(encoded.data()), encoded.size());
-    } else {
-        std::ofstream ofs(file);
-        ofs << newContent;
+    // Write back atomically
+    fs::path tempPath = file.string() + ".makineai_tmp";
+
+    {
+        std::ofstream ofs(tempPath, isUtf16 ? (std::ios::binary | std::ios::trunc) : std::ios::trunc);
+        if (!ofs) {
+            batch.errors.push_back("Cannot create temp file");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+
+        if (isUtf16) {
+            auto encoded = encodeUtf16Le(newContent);
+            ofs.write(reinterpret_cast<const char*>(encoded.data()), encoded.size());
+        } else {
+            ofs << newContent;
+        }
+        ofs.flush();
+
+        if (!ofs.good()) {
+            ofs.close();
+            std::error_code ec;
+            fs::remove(tempPath, ec);
+            batch.errors.push_back("Write failed - possible disk full");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+    }
+
+    std::error_code ec;
+    fs::rename(tempPath, file, ec);
+    if (ec) {
+        fs::remove(tempPath, ec);
+        batch.errors.push_back("Rename failed: " + ec.message());
     }
 
     batch.skipped = static_cast<int>(translations.size()) - batch.applied;
@@ -1334,11 +1433,38 @@ UnrealHandler::PatchBatch UnrealHandler::applyToIniFile(
         }
     }
 
-    // Write back
-    std::ofstream ofs(file);
-    for (size_t i = 0; i < lines.size(); i++) {
-        ofs << lines[i];
-        if (i < lines.size() - 1) ofs << "\n";
+    // Write back atomically
+    fs::path tempPath = file.string() + ".makineai_tmp";
+
+    {
+        std::ofstream ofs(tempPath, std::ios::trunc);
+        if (!ofs) {
+            batch.errors.push_back("Cannot create temp file");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+
+        for (size_t i = 0; i < lines.size(); i++) {
+            ofs << lines[i];
+            if (i < lines.size() - 1) ofs << "\n";
+        }
+        ofs.flush();
+
+        if (!ofs.good()) {
+            ofs.close();
+            std::error_code ec;
+            fs::remove(tempPath, ec);
+            batch.errors.push_back("Write failed - possible disk full");
+            batch.skipped = static_cast<int>(translations.size()) - batch.applied;
+            return batch;
+        }
+    }
+
+    std::error_code ec;
+    fs::rename(tempPath, file, ec);
+    if (ec) {
+        fs::remove(tempPath, ec);
+        batch.errors.push_back("Rename failed: " + ec.message());
     }
 
     batch.skipped = static_cast<int>(translations.size()) - batch.applied;
