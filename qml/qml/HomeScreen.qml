@@ -1110,6 +1110,16 @@ Item {
 
         signal clicked()
 
+        Accessible.role: Accessible.Button
+        Accessible.name: gameName
+        Accessible.description: {
+            var desc = gameName
+            if (verified) desc += " — " + qsTr("Verified")
+            if (translated) desc += " — " + qsTr("Turkish translation available")
+            return desc
+        }
+        Accessible.onPressAction: clicked()
+
         width: Dimensions.cardWidth
         height: Dimensions.cardHeight
 

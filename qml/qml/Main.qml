@@ -513,22 +513,26 @@ ApplicationWindow {
 
                 WindowButton {
                     icon: "\uE70D"
+                    tooltip: qsTr("Minimize to Tray")
                     onClicked: titleBarRoot.trayClicked()
                 }
 
                 WindowButton {
                     icon: "\uE921"
+                    tooltip: qsTr("Minimize")
                     onClicked: titleBarRoot.minimizeClicked()
                 }
 
                 WindowButton {
                     icon: windowRef.visibility === Window.Maximized ? "\uE923" : "\uE922"
+                    tooltip: windowRef.visibility === Window.Maximized ? qsTr("Restore") : qsTr("Maximize")
                     onClicked: titleBarRoot.maximizeClicked()
                 }
 
                 WindowButton {
                     icon: "\uE8BB"
                     isClose: true
+                    tooltip: qsTr("Close")
                     onClicked: titleBarRoot.closeClicked()
                 }
             }
@@ -539,7 +543,12 @@ ApplicationWindow {
     component WindowButton: Rectangle {
         property string icon: ""
         property bool isClose: false
+        property string tooltip: ""
         signal clicked()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: tooltip
+        Accessible.onPressAction: clicked()
 
         width: 46
         height: 32
@@ -570,6 +579,12 @@ ApplicationWindow {
             hoverEnabled: true
             cursorShape: Qt.ArrowCursor
             onClicked: parent.clicked()
+        }
+
+        ToolTip {
+            visible: btnMouse.containsMouse && tooltip !== ""
+            text: tooltip
+            delay: 500
         }
     }
 
@@ -790,6 +805,12 @@ ApplicationWindow {
                         navBarRoot.aiActive = !navBarRoot.aiActive
                         navBarRoot.aiToggleClicked(navBarRoot.aiActive)
                     }
+                }
+
+                ToolTip {
+                    visible: aiToggleMouse.containsMouse
+                    text: navBarRoot.aiActive ? qsTr("Türkçe Yamayı Kapat") : qsTr("Türkçe Yamayı Aç")
+                    delay: 500
                 }
             }
 

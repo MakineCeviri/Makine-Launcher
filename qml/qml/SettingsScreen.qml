@@ -921,18 +921,26 @@ Item {
         property bool isSelected: false
         signal clicked()
 
+        activeFocusOnTab: true
+        Keys.onReturnPressed: clicked()
+        Keys.onSpacePressed: clicked()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: name
+        Accessible.onPressAction: clicked()
+
         height: 40
         radius: Dimensions.radiusStandard
         color: isSelected
             ? Qt.rgba(1, 1, 1, 0.08)
-            : (catMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
+            : ((catMouse.containsMouse || catItem.activeFocus) ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
 
         scale: catMouse.pressed ? 0.97 : 1.0
 
-        // Hover glow border
+        // Hover/focus glow border
         border.color: isSelected
             ? Theme.withAlpha(Theme.primary, 0.4)
-            : (catMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent")
+            : ((catMouse.containsMouse || catItem.activeFocus) ? Qt.rgba(1, 1, 1, 0.15) : "transparent")
         border.width: isSelected ? 1.5 : 1
 
         Behavior on color { ColorAnimation { duration: 150 } }
@@ -1143,10 +1151,21 @@ Item {
 
     // ===== TOGGLE SETTING =====
     component ToggleSetting: Item {
+        id: toggleRoot
         property string title: ""
         property string description: ""
         property bool checked: false
         signal toggled()
+
+        activeFocusOnTab: true
+        Keys.onReturnPressed: toggled()
+        Keys.onSpacePressed: toggled()
+
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: title
+        Accessible.description: description
+        Accessible.checked: checked
+        Accessible.onToggleAction: toggled()
 
         Layout.fillWidth: true
         Layout.preferredHeight: 72
@@ -1189,8 +1208,9 @@ Item {
                 radius: Dimensions.radiusStandard
                 color: checked ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
 
-                // Hover glow border
-                border.color: toggleMouse.containsMouse
+                // Hover/focus glow border
+                property bool showGlow: toggleMouse.containsMouse || toggleRoot.activeFocus
+                border.color: showGlow
                     ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Qt.rgba(1, 1, 1, 0.3))
                     : "transparent"
                 border.width: 1.5

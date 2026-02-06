@@ -113,6 +113,8 @@ Item {
         height: 40
         radius: Dimensions.radiusStandard
         color: backBtnMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Back")
         z: 100
 
         Behavior on color { ColorAnimation { duration: 150 } }
@@ -131,6 +133,12 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: root.backClicked()
         }
+
+        ToolTip {
+            visible: backBtnMouse.containsMouse
+            text: qsTr("Back")
+            delay: 400
+        }
     }
 
     // Open in new button
@@ -142,6 +150,8 @@ Item {
         height: 40
         radius: Dimensions.radiusStandard
         color: openNewMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Open on Steam")
         z: 100
 
         Behavior on color { ColorAnimation { duration: 150 } }
@@ -164,6 +174,12 @@ Item {
                 }
                 root.steamStoreClicked()
             }
+        }
+
+        ToolTip {
+            visible: openNewMouse.containsMouse
+            text: qsTr("Open on Steam")
+            delay: 400
         }
     }
 

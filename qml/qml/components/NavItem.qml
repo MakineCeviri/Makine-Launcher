@@ -7,10 +7,18 @@ Item {
     property bool selected: false
     signal clicked()
 
+    Accessible.role: Accessible.PageTab
+    Accessible.name: text
+    Accessible.onPressAction: clicked()
+
+    activeFocusOnTab: true
     Layout.preferredWidth: navItemLabel.width + 24
     Layout.fillHeight: true
 
-    property real underlineWidth: selected ? 24 : (navItemMouse.containsMouse ? 16 : 0)
+    Keys.onReturnPressed: clicked()
+    Keys.onSpacePressed: clicked()
+
+    property real underlineWidth: selected ? 24 : (navItemMouse.containsMouse || activeFocus ? 16 : 0)
     Behavior on underlineWidth {
         NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
     }
@@ -22,7 +30,7 @@ Item {
         font.pixelSize: 13
         font.weight: navItemRoot.selected ? Font.DemiBold : Font.Medium
         color: navItemRoot.selected ? Theme.primary
-             : navItemMouse.containsMouse ? Theme.textPrimary
+             : (navItemMouse.containsMouse || navItemRoot.activeFocus) ? Theme.textPrimary
              : Theme.textSecondary
 
         Behavior on color { ColorAnimation { duration: 150 } }

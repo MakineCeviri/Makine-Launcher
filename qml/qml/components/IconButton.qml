@@ -10,6 +10,7 @@ Button {
     id: root
 
     property string iconSource: ""
+    property string tooltip: ""
     property int iconSize: 20
     property color iconColor: Theme.textSecondary
     property color hoverColor: Theme.primary
@@ -29,6 +30,10 @@ Button {
             ColorAnimation { duration: 150 }
         }
     }
+
+    ToolTip.visible: hovered && tooltip !== ""
+    ToolTip.text: tooltip
+    ToolTip.delay: 500
 
     contentItem: Item {
         Image {
