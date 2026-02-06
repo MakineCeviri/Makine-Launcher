@@ -112,7 +112,7 @@ Item {
                 height: parent.height
                 opacity: 0  // Start invisible for animation
                 x: 0
-                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.5)
+                color: Theme.withAlpha(Theme.surface, 0.5)
 
                 // Right border
                 Rectangle {
@@ -931,7 +931,7 @@ Item {
 
         // Hover glow border
         border.color: isSelected
-            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4)
+            ? Theme.withAlpha(Theme.primary, 0.4)
             : (catMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : "transparent")
         border.width: isSelected ? 1.5 : 1
 
@@ -1191,7 +1191,7 @@ Item {
 
                 // Hover glow border
                 border.color: toggleMouse.containsMouse
-                    ? (checked ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.6) : Qt.rgba(1, 1, 1, 0.3))
+                    ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Qt.rgba(1, 1, 1, 0.3))
                     : "transparent"
                 border.width: 1.5
 

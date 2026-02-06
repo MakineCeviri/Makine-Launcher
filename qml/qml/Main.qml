@@ -391,7 +391,7 @@ ApplicationWindow {
         signal closeClicked()
         signal trayClicked()
 
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.7)
+        color: Theme.withAlpha(Theme.surface, 0.7)
 
         Rectangle {
             anchors.bottom: parent.bottom
@@ -585,7 +585,7 @@ ApplicationWindow {
 
         property bool aiActive: false
 
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.7)
+        color: Theme.withAlpha(Theme.surface, 0.7)
 
         Rectangle {
             anchors.bottom: parent.bottom

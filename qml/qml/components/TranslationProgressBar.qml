@@ -181,7 +181,7 @@ Item {
             width: parent.width * 1.5
             height: parent.height * 1.5
             radius: height / 2
-            color: Qt.rgba(root.color2.r, root.color2.g, root.color2.b, 0.3)
+            color: Theme.withAlpha(root.color2, 0.3)
         }
 
         Rectangle {
@@ -189,7 +189,7 @@ Item {
             width: parent.width
             height: parent.height
             radius: height / 2
-            color: Qt.rgba(root.color2.r, root.color2.g, root.color2.b, 0.5)
+            color: Theme.withAlpha(root.color2, 0.5)
         }
 
         // Pulse animation
@@ -228,7 +228,7 @@ Item {
             anchors.margins: -4
             radius: parent.radius + 4
             color: "transparent"
-            border.color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.3)
+            border.color: Theme.withAlpha(Theme.success, 0.3)
             border.width: 3
             z: -1
         }

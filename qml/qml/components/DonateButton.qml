@@ -78,7 +78,7 @@ Item {
         height: buttonBg.height + (isHovered ? 40 : (20 + smoothValue * 12))
         anchors.verticalCenterOffset: 4
         radius: Dimensions.radiusStandard + 10
-        color: Qt.rgba(color1.r, color1.g, color1.b, isHovered ? 0.6 : glowIntensity)
+        color: Theme.withAlpha(color1, isHovered ? 0.6 : glowIntensity)
         z: -1
 
         Behavior on width { NumberAnimation { duration: 200 } }

@@ -119,7 +119,7 @@ Item {
         anchors.margins: -2
         radius: Dimensions.radiusXS + 2
         color: "transparent"
-        border.color: Qt.rgba(root.glowColor.r, root.glowColor.g, root.glowColor.b, 0.5)
+        border.color: Theme.withAlpha(root.glowColor, 0.5)
         border.width: 2
         z: -0.5
 
@@ -135,7 +135,7 @@ Item {
         anchors.margins: -8
         radius: Dimensions.radiusXS + 8
         color: "transparent"
-        border.color: Qt.rgba(root.glowColor.r, root.glowColor.g, root.glowColor.b, 0.35)
+        border.color: Theme.withAlpha(root.glowColor, 0.35)
         border.width: 3
         z: -2
 
@@ -151,7 +151,7 @@ Item {
         anchors.margins: -14
         radius: Dimensions.radiusXS + 14
         color: "transparent"
-        border.color: Qt.rgba(root.glowColor.r, root.glowColor.g, root.glowColor.b, 0.2)
+        border.color: Theme.withAlpha(root.glowColor, 0.2)
         border.width: 3
         z: -3
 

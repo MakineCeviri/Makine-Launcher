@@ -82,7 +82,7 @@ Item {
         anchors.margins: -root.glowRadius * root.currentGlow
         radius: (targetItem.radius || 0) + root.glowRadius
         color: "transparent"
-        border.color: Qt.rgba(root.glowColor.r, root.glowColor.g, root.glowColor.b,
+        border.color: Theme.withAlpha(root.glowColor,
                               root.glowOpacity * root.currentGlow)
         border.width: 3 * root.currentGlow
         z: -1
@@ -105,8 +105,7 @@ Item {
         anchors.margins: -(root.glowRadius + 6) * root.currentGlow
         radius: (targetItem.radius || 0) + root.glowRadius + 6
         color: "transparent"
-        border.color: Qt.rgba(root.secondaryGlowColor.r, root.secondaryGlowColor.g,
-                              root.secondaryGlowColor.b,
+        border.color: Theme.withAlpha(root.secondaryGlowColor,
                               root.glowOpacity * 0.5 * root.currentGlow)
         border.width: 4 * root.currentGlow
         z: -2
@@ -125,7 +124,7 @@ Item {
         anchors.fill: parent
         radius: targetItem.radius || 0
         color: "transparent"
-        border.color: Qt.rgba(root.glowColor.r, root.glowColor.g, root.glowColor.b,
+        border.color: Theme.withAlpha(root.glowColor,
                               0.5 * root.currentGlow)
         border.width: 2 * root.currentGlow
         z: 1

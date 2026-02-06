@@ -123,7 +123,7 @@ Item {
         width: logoRect.width + 12
         height: logoRect.height + 12
         radius: logoRect.radius + 6
-        color: Qt.rgba(Theme.gold.r, Theme.gold.g, Theme.gold.b, 0.25)
+        color: Theme.withAlpha(Theme.gold, 0.25)
         z: -1
     }
 

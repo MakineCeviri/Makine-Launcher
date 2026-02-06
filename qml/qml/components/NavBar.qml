@@ -59,8 +59,8 @@ Rectangle {
         Rectangle {
             anchors.fill: parent
             color: isDark
-                ? Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.88)
-                : Qt.rgba(Theme.lightSurface.r, Theme.lightSurface.g, Theme.lightSurface.b, 0.92)
+                ? Theme.withAlpha(Theme.surface, 0.88)
+                : Theme.withAlpha(Theme.lightSurface, 0.92)
         }
 
         Rectangle {

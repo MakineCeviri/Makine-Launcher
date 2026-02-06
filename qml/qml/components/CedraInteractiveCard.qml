@@ -57,7 +57,7 @@ Rectangle {
         GradientStop { position: 1.0; color: Theme.cardDarkEnd }
     }
 
-    border.color: Qt.rgba(color1.r, color1.g, color1.b, 0.5 + smoothValue * 0.3)
+    border.color: Theme.withAlpha(color1, 0.5 + smoothValue * 0.3)
     border.width: 1.5
 
     Rectangle {
@@ -114,7 +114,7 @@ Rectangle {
             radius: Dimensions.radiusStandard
             color: Theme.cardDarkStart
 
-            border.color: Qt.rgba(root.color1.r, root.color1.g, root.color1.b, 0.6 + root.smoothValue * 0.3)
+            border.color: Theme.withAlpha(root.color1, 0.6 + root.smoothValue * 0.3)
             border.width: 2
 
             Rectangle {
@@ -123,7 +123,7 @@ Rectangle {
                 radius: parent.radius + 3
                 color: "transparent"
                 border.width: 2 + root.smoothValue * 1.5
-                border.color: Qt.rgba(root.color1.r, root.color1.g, root.color1.b, 0.3 + root.smoothValue * 0.2)
+                border.color: Theme.withAlpha(root.color1, 0.3 + root.smoothValue * 0.2)
                 z: -1
             }
 

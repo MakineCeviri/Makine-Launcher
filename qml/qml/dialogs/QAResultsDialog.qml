@@ -100,7 +100,7 @@ Dialog {
                 Layout.preferredWidth: 64
                 Layout.preferredHeight: 64
                 radius: 32
-                color: Qt.rgba(scoreColor.r, scoreColor.g, scoreColor.b, 0.15)
+                color: Theme.withAlpha(scoreColor, 0.15)
                 border.color: scoreColor
                 border.width: 3
 
@@ -142,7 +142,7 @@ Dialog {
                         width: criticalBadgeText.width + 12
                         height: 20
                         radius: Dimensions.radiusStandard
-                        color: Qt.rgba(colorCritical.r, colorCritical.g, colorCritical.b, 0.15)
+                        color: Theme.withAlpha(colorCritical, 0.15)
 
                         Text {
                             id: criticalBadgeText
@@ -160,7 +160,7 @@ Dialog {
                         width: majorBadgeText.width + 12
                         height: 20
                         radius: Dimensions.radiusStandard
-                        color: Qt.rgba(colorMajor.r, colorMajor.g, colorMajor.b, 0.15)
+                        color: Theme.withAlpha(colorMajor, 0.15)
 
                         Text {
                             id: majorBadgeText
@@ -178,7 +178,7 @@ Dialog {
                         width: warningBadgeText.width + 12
                         height: 20
                         radius: Dimensions.radiusStandard
-                        color: Qt.rgba(colorWarning.r, colorWarning.g, colorWarning.b, 0.15)
+                        color: Theme.withAlpha(colorWarning, 0.15)
 
                         Text {
                             id: warningBadgeText
@@ -238,8 +238,8 @@ Dialog {
             Layout.rightMargin: 24
             Layout.preferredHeight: 80
             radius: Dimensions.radiusStandard
-            color: Qt.rgba(colorSuccess.r, colorSuccess.g, colorSuccess.b, 0.1)
-            border.color: Qt.rgba(colorSuccess.r, colorSuccess.g, colorSuccess.b, 0.2)
+            color: Theme.withAlpha(colorSuccess, 0.1)
+            border.color: Theme.withAlpha(colorSuccess, 0.2)
             border.width: 1
             visible: root.issues.length === 0
 
@@ -496,7 +496,7 @@ Dialog {
                 Layout.preferredHeight: 44
                 radius: Dimensions.radiusStandard
                 color: fixBtnMouse.containsMouse
-                    ? (root.issues.length > 0 ? Theme.primaryHover : Qt.rgba(colorSuccess.r, colorSuccess.g, colorSuccess.b, 0.9))
+                    ? (root.issues.length > 0 ? Theme.primaryHover : Theme.withAlpha(colorSuccess, 0.9))
                     : (root.issues.length > 0 ? Theme.primary : colorSuccess)
 
                 Behavior on color { ColorAnimation { duration: 150 } }

@@ -109,11 +109,11 @@ Item {
         radius: Dimensions.radiusStandard
 
         color: root.isHovered
-            ? Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.85)
+            ? Theme.withAlpha(Theme.surface, 0.85)
             : Qt.rgba(0.08, 0.08, 0.08, 0.6)
 
         border.color: root.isHovered
-            ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.6)
+            ? Theme.withAlpha(accentColor, 0.6)
             : Qt.rgba(1, 1, 1, 0.15)
         border.width: root.isHovered ? 2 : 1
 
@@ -136,7 +136,7 @@ Item {
                 height: 50
                 radius: 25
                 color: root.isHovered
-                    ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.15)
+                    ? Theme.withAlpha(accentColor, 0.15)
                     : "transparent"
                 border.color: root.isHovered
                     ? accentColor
@@ -194,10 +194,10 @@ Item {
                 radius: Dimensions.radiusStandard
 
                 color: root.isHovered
-                    ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.2)
+                    ? Theme.withAlpha(accentColor, 0.2)
                     : Qt.rgba(1, 1, 1, 0.08)
                 border.color: root.isHovered
-                    ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.4)
+                    ? Theme.withAlpha(accentColor, 0.4)
                     : Qt.rgba(1, 1, 1, 0.1)
                 border.width: 1
 

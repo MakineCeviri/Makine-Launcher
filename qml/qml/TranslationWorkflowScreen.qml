@@ -489,7 +489,7 @@ Item {
                             radius: 22
                             visible: parent.isActive
                             color: "transparent"
-                            border.color: Qt.rgba(Theme.gold.r, Theme.gold.g, Theme.gold.b, 0.3)
+                            border.color: Theme.withAlpha(Theme.gold, 0.3)
                             border.width: 3
 
                             SequentialAnimation on scale {
@@ -515,7 +515,7 @@ Item {
                             radius: 21
                             visible: parent.isCompleted || parent.isFinal
                             color: "transparent"
-                            border.color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.25)
+                            border.color: Theme.withAlpha(Theme.success, 0.25)
                             border.width: 2
                         }
 
@@ -609,7 +609,7 @@ Item {
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
                                 GradientStop { position: 0.0; color: Theme.success }
-                                GradientStop { position: 1.0; color: Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.6) }
+                                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.success, 0.6) }
                             }
 
                             Behavior on width {

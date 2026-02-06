@@ -465,13 +465,13 @@ Popup {
                         radius: root.radiusMedium
                         color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
-                            if (isSelected) return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                            if (isSelected) return Theme.withAlpha(Theme.primary, 0.15)
                             if (gameTileMouse.containsMouse) return root.isDark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.06)
                             return root.isDark ? Qt.rgba(1, 1, 1, 0.03) : Qt.rgba(0, 0, 0, 0.03)
                         }
                         border.color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
-                            if (isSelected) return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.5)
+                            if (isSelected) return Theme.withAlpha(Theme.primary, 0.5)
                             return root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
                         }
                         border.width: 1
@@ -491,7 +491,7 @@ Popup {
                                     if (src === "steam") return Qt.rgba(0.106, 0.157, 0.22, 0.3)
                                     if (src === "epic") return Qt.rgba(0.184, 0.184, 0.184, 0.3)
                                     if (src === "gog") return Qt.rgba(0.525, 0.196, 0.541, 0.3)
-                                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
+                                    return Theme.withAlpha(Theme.primary, 0.3)
                                 }
                                 clip: true
 
@@ -551,7 +551,7 @@ Popup {
                                     if (src === "steam") return Qt.rgba(0.106, 0.157, 0.22, 0.8)
                                     if (src === "epic") return Qt.rgba(0.184, 0.184, 0.184, 0.8)
                                     if (src === "gog") return Qt.rgba(0.525, 0.196, 0.541, 0.8)
-                                    if (src === "manual") return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.8)
+                                    if (src === "manual") return Theme.withAlpha(Theme.primary, 0.8)
                                     return Qt.rgba(0.5, 0.5, 0.5, 0.8)
                                 }
 

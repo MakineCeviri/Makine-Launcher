@@ -927,8 +927,8 @@ Item {
                                 radius: Dimensions.radiusStandard
                                 gradient: Gradient {
                                     orientation: Gradient.Horizontal
-                                    GradientStop { position: 0.0; color: Qt.rgba(Theme.gold.r, Theme.gold.g, Theme.gold.b, 0.2) }
-                                    GradientStop { position: 1.0; color: Qt.rgba(Theme.olive.r, Theme.olive.g, Theme.olive.b, 0.2) }
+                                    GradientStop { position: 0.0; color: Theme.withAlpha(Theme.gold, 0.2) }
+                                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.olive, 0.2) }
                                 }
 
                                 Label {
