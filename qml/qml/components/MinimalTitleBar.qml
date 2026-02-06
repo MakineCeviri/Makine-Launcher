@@ -54,7 +54,7 @@ Rectangle {
             Layout.preferredHeight: 18
             radius: 2
             visible: root.translationActive
-            color: Theme.turkishRed  // Turkish red
+            color: Theme.turkishRed
 
             // White crescent
             Rectangle {
