@@ -29,7 +29,7 @@ Item {
         font.pixelSize: 36
         font.weight: Font.Bold
         font.letterSpacing: -0.5
-        color: "#FFD700"
+        color: Theme.splashGold
     }
 
     Rectangle {
@@ -58,7 +58,7 @@ Item {
                 text: "Türkçe Yama"
                 font.pixelSize: 11
                 font.weight: Font.Medium
-                color: "#FFD700"
+                color: Theme.splashGold
                 anchors.verticalCenter: parent.verticalCenter
             }
         }

@@ -29,9 +29,9 @@ Item {
             radius: 3
             gradient: Gradient {
                 orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "#FFD700" }
-                GradientStop { position: 0.5; color: "#FF8C00" }
-                GradientStop { position: 1.0; color: "#FF69B4" }
+                GradientStop { position: 0.0; color: Theme.splashGold }
+                GradientStop { position: 0.5; color: Theme.splashOrange }
+                GradientStop { position: 1.0; color: Theme.splashPink }
             }
 
             Behavior on width { NumberAnimation { duration: 200 } }

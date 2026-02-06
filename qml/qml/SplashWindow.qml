@@ -206,7 +206,7 @@ Window {
         id: mainContent
         anchors.fill: parent
         radius: Dimensions.radiusStandard
-        color: "#0A0A0F"
+        color: Theme.splashBackground
         opacity: 1.0 - fadeOut
         clip: true
 
@@ -246,9 +246,9 @@ Window {
                 width: model.psize * 2
                 height: model.psize * 2
                 radius: model.psize
-                color: model.ptype === 0 ? "#FFD700" :  // gold
-                       model.ptype === 1 ? "#FF69B4" :  // pink
-                       "#FFFFFF"  // white
+                color: model.ptype === 0 ? Theme.splashGold :
+                       model.ptype === 1 ? Theme.splashPink :
+                       "#FFFFFF"
                 opacity: model.palpha * glowIntensity * (1.0 - fadeOut)
             }
         }
@@ -301,8 +301,8 @@ Window {
 
                 gradient: Gradient {
                     orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: "#FFD700" }
-                    GradientStop { position: 1.0; color: "#FF69B4" }
+                    GradientStop { position: 0.0; color: Theme.splashGold }
+                    GradientStop { position: 1.0; color: Theme.splashPink }
                 }
 
                 Text {
@@ -334,7 +334,7 @@ Window {
                 font.pixelSize: 42
                 font.weight: Font.Black
                 font.letterSpacing: -1.5
-                color: "#FFD700"  // Gold
+                color: Theme.splashGold
             }
 
             // AI Badge
@@ -363,7 +363,7 @@ Window {
                     Text {
                         text: "\u2728"  // Sparkle
                         font.pixelSize: 12
-                        color: "#FFD700"
+                        color: Theme.splashGold
                     }
 
                     Text {
@@ -371,7 +371,7 @@ Window {
                         font.pixelSize: 10
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.3
-                        color: "#FFD700"
+                        color: Theme.splashGold
                     }
                 }
             }
@@ -421,9 +421,9 @@ Window {
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "#FFD700" }
-                    GradientStop { position: 0.5; color: "#FF8C00" }
-                    GradientStop { position: 1.0; color: "#FF69B4" }
+                    GradientStop { position: 0.0; color: Theme.splashGold }
+                    GradientStop { position: 0.5; color: Theme.splashOrange }
+                    GradientStop { position: 1.0; color: Theme.splashPink }
                 }
             }
 
