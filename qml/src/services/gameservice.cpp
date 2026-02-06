@@ -48,19 +48,7 @@ QVariantList GameService::games() const
     m_gamesCache.reserve(m_games.count());
 
     for (const auto& game : m_games) {
-        QVariantMap map;
-        map["id"] = game.id;
-        map["name"] = game.name;
-        map["headerImageUrl"] = game.headerImageUrl;
-        map["logoImageUrl"] = game.logoImageUrl;
-        map["installPath"] = game.installPath;
-        map["steamAppId"] = game.steamAppId;
-        map["source"] = game.source;
-        map["engine"] = game.engine;
-        map["isVerified"] = game.isVerified;
-        map["isInstalled"] = game.isInstalled;
-        map["hasTranslation"] = game.hasTranslation;
-        m_gamesCache.append(map);
+        m_gamesCache.append(game.toVariantMap());
     }
 
     m_cacheValid = true;
@@ -76,15 +64,9 @@ QVariantList GameService::featuredGames() const
     m_featuredGamesCache.clear();
     m_featuredGamesCache.reserve(m_featuredIds.size());
 
-    // O(n) with O(1) contains check
     for (const auto& game : m_games) {
         if (m_featuredIds.contains(game.id)) {
-            QVariantMap map;
-            map["id"] = game.id;
-            map["name"] = game.name;
-            map["headerImageUrl"] = game.headerImageUrl;
-            map["isVerified"] = game.isVerified;
-            m_featuredGamesCache.append(map);
+            m_featuredGamesCache.append(game.toSummary());
         }
     }
     return m_featuredGamesCache;
@@ -99,15 +81,9 @@ QVariantList GameService::recentGames() const
     m_recentGamesCache.clear();
     m_recentGamesCache.reserve(m_recentIds.size());
 
-    // O(n) with O(1) contains check
     for (const auto& game : m_games) {
         if (m_recentIds.contains(game.id)) {
-            QVariantMap map;
-            map["id"] = game.id;
-            map["name"] = game.name;
-            map["headerImageUrl"] = game.headerImageUrl;
-            map["isVerified"] = game.isVerified;
-            m_recentGamesCache.append(map);
+            m_recentGamesCache.append(game.toSummary());
         }
     }
     return m_recentGamesCache;
@@ -279,24 +255,10 @@ void GameService::addManualGame(const QString& path)
 
 QVariantMap GameService::getGameById(const QString& id)
 {
-    // O(1) lookup using hash
     if (m_gameIdToIndex.contains(id)) {
         int index = m_gameIdToIndex[id];
         if (index >= 0 && index < m_games.count()) {
-            const auto& game = m_games[index];
-            QVariantMap map;
-            map["id"] = game.id;
-            map["name"] = game.name;
-            map["headerImageUrl"] = game.headerImageUrl;
-            map["logoImageUrl"] = game.logoImageUrl;
-            map["installPath"] = game.installPath;
-            map["steamAppId"] = game.steamAppId;
-            map["source"] = game.source;
-            map["engine"] = game.engine;
-            map["isVerified"] = game.isVerified;
-            map["isInstalled"] = game.isInstalled;
-            map["hasTranslation"] = game.hasTranslation;
-            return map;
+            return m_games[index].toVariantMap();
         }
     }
     return {};
@@ -324,12 +286,7 @@ QVariantList GameService::searchGames(const QString& query)
     for (const auto& game : m_games) {
         if (game.name.toLower().contains(lowerQuery) ||
             game.id.contains(query)) {
-            QVariantMap map;
-            map["id"] = game.id;
-            map["name"] = game.name;
-            map["headerImageUrl"] = game.headerImageUrl;
-            map["isVerified"] = game.isVerified;
-            result.append(map);
+            result.append(game.toSummary());
         }
     }
     return result;

@@ -41,17 +41,7 @@ QVariantList BackupManager::backups() const
 {
     QVariantList result;
     for (const auto& backup : m_backups) {
-        QVariantMap map;
-        map["id"] = backup.id;
-        map["gameId"] = backup.gameId;
-        map["gameName"] = backup.gameName;
-        map["backupPath"] = backup.backupPath;
-        map["createdAt"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
-        map["date"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
-        map["sizeBytes"] = backup.sizeBytes;
-        map["name"] = backup.gameName + " - " + backup.createdAt.toString("dd.MM.yyyy");
-        map["isValid"] = backup.isValid;
-        result.append(map);
+        result.append(backup.toVariantMap());
     }
     return result;
 }
@@ -61,17 +51,8 @@ QVariantList BackupManager::getBackupsForGame(const QString& gameId)
     QVariantList result;
     for (const auto& backup : m_backups) {
         if (backup.gameId == gameId) {
-            QVariantMap map;
-            map["id"] = backup.id;
-            map["gameId"] = backup.gameId;
-            map["gameName"] = backup.gameName;
-            map["backupPath"] = backup.backupPath;
-            map["createdAt"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
-            map["date"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
-            map["sizeBytes"] = backup.sizeBytes;
-            map["name"] = "Yedek - " + backup.createdAt.toString("dd.MM.yyyy HH:mm");
-            map["isValid"] = backup.isValid;
-            result.append(map);
+            result.append(backup.toVariantMap(
+                "Yedek - " + backup.createdAt.toString("dd.MM.yyyy HH:mm")));
         }
     }
     return result;

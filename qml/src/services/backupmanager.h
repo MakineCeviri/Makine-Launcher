@@ -10,6 +10,7 @@
 #include <QString>
 #include <QDateTime>
 #include <QVariantList>
+#include <QVariantMap>
 #include <QQmlEngine>
 
 namespace makineai {
@@ -26,6 +27,20 @@ struct BackupInfo {
     QDateTime createdAt;
     qint64 sizeBytes{0};
     bool isValid{true};
+
+    QVariantMap toVariantMap(const QString& displayName = {}) const {
+        return {
+            {"id", id}, {"gameId", gameId}, {"gameName", gameName},
+            {"backupPath", backupPath},
+            {"createdAt", createdAt.toString("dd MMM yyyy HH:mm")},
+            {"date", createdAt.toString("dd MMM yyyy HH:mm")},
+            {"sizeBytes", sizeBytes},
+            {"name", displayName.isEmpty()
+                ? gameName + " - " + createdAt.toString("dd.MM.yyyy")
+                : displayName},
+            {"isValid", isValid}
+        };
+    }
 };
 
 /**

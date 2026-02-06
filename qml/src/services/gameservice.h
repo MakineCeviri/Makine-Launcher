@@ -49,6 +49,24 @@ public:
     bool isVerified{false};
     bool isInstalled{false};
     bool hasTranslation{false};
+
+    QVariantMap toVariantMap() const {
+        return {
+            {"id", id}, {"name", name},
+            {"headerImageUrl", headerImageUrl}, {"logoImageUrl", logoImageUrl},
+            {"installPath", installPath}, {"steamAppId", steamAppId},
+            {"source", source}, {"engine", engine},
+            {"isVerified", isVerified}, {"isInstalled", isInstalled},
+            {"hasTranslation", hasTranslation}
+        };
+    }
+
+    QVariantMap toSummary() const {
+        return {
+            {"id", id}, {"name", name},
+            {"headerImageUrl", headerImageUrl}, {"isVerified", isVerified}
+        };
+    }
 };
 
 /**
