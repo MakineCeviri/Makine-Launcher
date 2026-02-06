@@ -9,19 +9,36 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ### Eklenen
 - `.editorconfig` - Editörler arası tutarlı kodlama standartları
-- `vcpkg-configuration.json` - Tekrarlanabilir bağımlılık yapıları
-- GitHub Issues ile kapsamlı roadmap takibi (#12-#20)
+- `vcpkg-configuration.json` - Tekrarlanabilir bağımlılık yapıları (baseline pinleme)
+- `.clang-tidy` - Statik analiz yapılandırması (C++23, proje-uyumlu kontroller)
+- `.github/workflows/auto-assign.yml` - Yeni issue'lar otomatik atanıyor
+- `.github/FUNDING.yml` - GitHub sponsor butonu
+- GitHub Issues ile kapsamlı roadmap takibi (#12-#28)
+- Integration test build target (`makineai_integration_tests`)
+- `justfile` yeni recipe'ler: `format`, `check-format`, `lint`, `check`, `stats`, `info`, `docs`
+- 20+ yeni GitHub label (type/scope/status/engine kategorileri)
+- Genişletilmiş PR auto-labeling kuralları
 
 ### Değiştirilen
 - `docs/ROADMAP.md` güncel durum ve issue bağlantılarıyla yenilendi
+- CI workflow: `permissions`, `concurrency`, paralel static analysis
+- CI workflow: cppcheck `--std=c++23`, `-j $(nproc)`, `--inline-suppr`
+- CodeQL workflow: concurrency group eklendi
+- Release workflow: `permissions: contents: write`, cache key v2
+- `README.md`: C++20 badge → C++23, vcpkg bağımlılık sayısı
+- `CONTRIBUTING.md`: C++20 standardı → C++23
+- `justfile`: Windows/PowerShell uyumlu komutlar (Unix `find/xargs` kaldırıldı)
+- Test CMakeLists: 7 eksik test dosyası build'e dahil edildi
+- Test yapısı: Unit ve integration testler ayrı executable'lara bölündü
+
+### Düzeltilen
+- `main.cpp`: Hardcoded log yolu (`C:/cedra/...`) → `QStandardPaths` (portabilite) (#27)
+- Flutter referans kalıntıları QML dosyalarından temizlendi
+- Gereksiz yorum ve dead code kaldırıldı
 - Core modüllerinde tüm TODO öğeleri implemente edildi
 - CI/CD pipeline'da vcpkg entegrasyonu iyileştirildi
 - CodeQL workflow vcpkg cache sorunu çözüldü
 - Release workflow `lukka/run-vcpkg` yerine built-in vcpkg kullanılıyor
-
-### Düzeltilen
-- Flutter referans kalıntıları QML dosyalarından temizlendi
-- Gereksiz yorum ve dead code kaldırıldı
 
 ---
 
