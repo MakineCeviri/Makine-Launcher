@@ -107,7 +107,7 @@ chore(ci): upgrade CodeQL action to v3
 
 ### C++
 
-- C++20 standardı
+- C++23 standardı
 - `clang-format` kullanın (proje kökündeki `.clang-format` dosyası)
 - Header'larda `#pragma once` kullanın
 - Namespace: `makineai`

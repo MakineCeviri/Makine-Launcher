@@ -13,13 +13,23 @@
 #include <QFontDatabase>
 #include <QDebug>
 #include <QFile>
+#include <QDir>
 #include <QSharedMemory>
+#include <QStandardPaths>
 #include <QTextStream>
 #include <QDateTime>
 
+// Resolve log file path using platform-appropriate location
+static QString getLogFilePath() {
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    QDir().mkpath(logDir);
+    return logDir + "/makineai_debug.log";
+}
+
 // File-based logging for debugging
 void logToFile(const QString& msg) {
-    QFile file("C:/cedra/makineai_debug.log");
+    static const QString logPath = getLogFilePath();
+    QFile file(logPath);
     if (file.open(QIODevice::Append | QIODevice::Text)) {
         QTextStream stream(&file);
         stream << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss") << " - " << msg << "\n";
@@ -120,6 +130,7 @@ int main(int argc, char *argv[])
     logToFile("=== MakineAI Starting ===");
     logToFile(QString("App version: %1").arg(app.applicationVersion()));
     logToFile(QString("Qt version: %1").arg(qVersion()));
+    logToFile(QString("Log file: %1").arg(getLogFilePath()));
 
     // Handle QML warnings (single handler)
     QObject::connect(&engine, &QQmlApplicationEngine::warnings,
