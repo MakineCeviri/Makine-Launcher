@@ -262,8 +262,10 @@ private:
                     uint32_t id = static_cast<uint32_t>(std::stoul(entry.key));
                     const auto& text = entry.translated.empty() ? entry.original : entry.translated;
                     sortedStrings.emplace_back(id, text);
-                } catch (...) {
-                    continue; // Skip invalid keys
+                } catch (const std::exception& e) {
+                    MAKINEAI_LOG_WARN(log::RESOURCE, "Skipping BA2 entry with invalid key '{}': {}",
+                                      entry.key, e.what());
+                    continue;
                 }
             }
             std::sort(sortedStrings.begin(), sortedStrings.end());

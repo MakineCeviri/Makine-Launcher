@@ -451,11 +451,15 @@ protected:
 
     /// @brief Log with format string (debug level)
     template<typename... Args>
-    void logDebugFmt(std::string_view fmt, Args&&... args) const;
+    void logDebugFmt(std::string_view fmt, Args&&... args) const {
+        logDebug(fmt::vformat(fmt, fmt::make_format_args(args...)));
+    }
 
     /// @brief Log with format string (info level)
     template<typename... Args>
-    void logInfoFmt(std::string_view fmt, Args&&... args) const;
+    void logInfoFmt(std::string_view fmt, Args&&... args) const {
+        logInfo(fmt::vformat(fmt, fmt::make_format_args(args...)));
+    }
 
     // --------------------------------------------------------------------------
     // File validation utilities
