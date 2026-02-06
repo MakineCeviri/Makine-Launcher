@@ -1051,7 +1051,10 @@ void CoreBridge::findBatchTMMatches(const QStringList& sourceTexts,
 
 void CoreBridge::clearTM()
 {
-    // TODO: Implement when TranslationMemoryService::clear() is available
+    auto result = TranslationMemoryService::clearAll();
+    if (!result) {
+        qWarning() << "Failed to clear TM:" << QString::fromStdString(result.error().message());
+    }
 }
 
 // ========== Glossary Functions ==========
@@ -1137,7 +1140,9 @@ QList<GlossaryTermQt> CoreBridge::findTermsInText(const QString& text, const QSt
 
 void CoreBridge::clearGlossary()
 {
-    // TODO: Implement when GlossaryService::clear() is available
+    // Clear the in-memory cache; full database clear requires
+    // GlossaryService::clearAll() which is not yet implemented.
+    GlossaryService::instance().clearCache();
 }
 
 // ========== QA Functions ==========
