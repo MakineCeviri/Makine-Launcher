@@ -98,28 +98,28 @@ jobs:
         id: cache-vcpkg
         uses: actions/cache@v5
         with:
-          path: |
-            C:/vcpkg/installed
-            C:/vcpkg/packages
-          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v4
-          restore-keys: |
-            vcpkg-win-
+          path: C:/vcpkg/installed
+          key: vcpkg-classic-${{ hashFiles('vcpkg.json') }}-v6
+          restore-keys: vcpkg-classic-
 
       - name: Install vcpkg dependencies
         if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+        shell: pwsh
         run: |
-          cd C:\vcpkg
-          git pull
-          .\bootstrap-vcpkg.bat
-          vcpkg integrate install
-          cd $env:GITHUB_WORKSPACE
-          vcpkg install --triplet x64-windows
+          $deps = (Get-Content vcpkg.json | ConvertFrom-Json).dependencies
+          $triplet = "x64-windows"
+          foreach ($dep in $deps) {
+            Write-Host "Installing ${dep}:${triplet}..."
+            C:/vcpkg/vcpkg install "${dep}:${triplet}" --recurse
+          }
+          C:/vcpkg/vcpkg install "gtest:${triplet}" --recurse
 
       - name: Configure Core
         run: |
           cmake -B build/core -S core `
             -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_MANIFEST_MODE=OFF `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DBUILD_TESTING=ON
 
@@ -179,12 +179,9 @@ jobs:
       - name: Cache vcpkg
         uses: actions/cache@v5
         with:
-          path: |
-            C:/vcpkg/installed
-            C:/vcpkg/packages
-          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v4
-          restore-keys: |
-            vcpkg-win-
+          path: C:/vcpkg/installed
+          key: vcpkg-classic-${{ hashFiles('vcpkg.json') }}-v6
+          restore-keys: vcpkg-classic-
 
       - name: Download Core Library
         uses: actions/download-artifact@v4
@@ -197,6 +194,8 @@ jobs:
           cmake -B build/qml -S qml `
             -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_MANIFEST_MODE=OFF `
+            -DMAKINEAI_UI_ONLY=ON `
             -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 

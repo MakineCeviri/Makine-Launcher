@@ -84,7 +84,7 @@ all-release: core release
 # Clean all build directories
 clean:
     @echo "Cleaning build directories..."
-    powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue core/build/, qml/build/"
+    powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue core/build, qml/build"
 
 # Clean and rebuild
 rebuild: clean all
@@ -181,3 +181,7 @@ docs:
     @echo "Generating documentation..."
     cd core && doxygen Doxyfile
     @echo "Documentation generated in core/docs/html/"
+
+# Pre-push quality check
+ci-check: check-format core test
+    @echo "All CI checks passed!"
