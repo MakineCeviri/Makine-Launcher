@@ -46,7 +46,7 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 #include <psapi.h>
 #include <dbghelp.h>
 #pragma comment(lib, "dbghelp.lib")
