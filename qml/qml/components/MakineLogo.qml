@@ -139,14 +139,14 @@ Item {
 
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "#E8C547" }
+            GradientStop { position: 0.0; color: Theme.logoGold }
             GradientStop { position: 0.15; color: "#DEA54B" }
-            GradientStop { position: 0.30; color: "#E8A090" }
+            GradientStop { position: 0.30; color: Theme.logoCoral }
             GradientStop { position: 0.45; color: "#B8A0C8" }
             GradientStop { position: 0.55; color: "#90B8D0" }
             GradientStop { position: 0.70; color: "#80C8B8" }
-            GradientStop { position: 0.85; color: "#90D090" }
-            GradientStop { position: 1.0; color: "#E8C547" }
+            GradientStop { position: 0.85; color: Theme.logoGreen }
+            GradientStop { position: 1.0; color: Theme.logoGold }
         }
 
         border.color: Theme.gold

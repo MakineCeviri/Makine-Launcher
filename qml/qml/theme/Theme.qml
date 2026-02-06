@@ -175,6 +175,11 @@ QtObject {
         "#90C2E6", "#77DBC8", "#80E59D", "#C8EB7C", "#D4BE77"
     ]
 
+    // Logo gradient (fallback when logo image not loaded)
+    readonly property color logoGold: "#E8C547"
+    readonly property color logoCoral: "#E8A090"
+    readonly property color logoGreen: "#90D090"
+
     // Named brand gradient colors
     readonly property color brandGold: "#FCCD66"
     readonly property color brandOrange: "#F7AE76"

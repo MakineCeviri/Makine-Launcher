@@ -213,9 +213,9 @@ Rectangle {
                     visible: logoImage.status !== Image.Ready
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: "#E8C547" }
-                        GradientStop { position: 0.5; color: "#E8A090" }
-                        GradientStop { position: 1.0; color: "#90D090" }
+                        GradientStop { position: 0.0; color: Theme.logoGold }
+                        GradientStop { position: 0.5; color: Theme.logoCoral }
+                        GradientStop { position: 1.0; color: Theme.logoGreen }
                     }
 
                     Text {
@@ -467,7 +467,7 @@ Rectangle {
             Text {
                 text: "\u2764"
                 font.pixelSize: 14
-                color: "#FF6B6B"
+                color: Theme.destructive
             }
 
             Text {
