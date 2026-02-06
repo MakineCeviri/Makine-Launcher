@@ -207,7 +207,7 @@ Item {
                     width: 22
                     height: 16
                     radius: Dimensions.badgeRadius
-                    color: "#E30A17"
+                    color: Theme.turkishRed
                     anchors.verticalCenter: parent.verticalCenter
 
                     Text {

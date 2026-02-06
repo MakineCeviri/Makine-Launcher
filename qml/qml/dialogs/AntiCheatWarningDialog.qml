@@ -54,7 +54,7 @@ Dialog {
     // Severity colors
     readonly property color severityLow: "#FFB74D"       // Turuncu
     readonly property color severityMedium: "#FF9800"    // Koyu turuncu
-    readonly property color severityHigh: "#E53935"      // Kırmızı
+    readonly property color severityHigh: Theme.destructive
     readonly property color severityCritical: "#B71C1C"  // Koyu kırmızı
 
     function getSeverityColor(severity) {

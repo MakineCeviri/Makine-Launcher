@@ -51,9 +51,9 @@ Rectangle {
 
     // FPS color based on performance
     property color fpsColor: {
-        if (currentFps >= 55) return "#4CAF50"      // Green: Good
-        if (currentFps >= 30) return "#FFC107"      // Yellow: Okay
-        return "#F44336"                             // Red: Bad
+        if (currentFps >= 55) return Theme.statusOnline
+        if (currentFps >= 30) return Theme.warning
+        return Theme.error
     }
 
     // Frame timer - measures time between frames
@@ -199,7 +199,7 @@ Rectangle {
             MetricRow {
                 label: "Frame"
                 value: root.avgFrameTime.toFixed(2) + " ms"
-                valueColor: root.avgFrameTime <= root.targetFrameTime ? "#4CAF50" : "#FFC107"
+                valueColor: root.avgFrameTime <= root.targetFrameTime ? Theme.statusOnline : Theme.warning
             }
 
             // Min/Max frame time
@@ -213,7 +213,7 @@ Rectangle {
             MetricRow {
                 label: "Dropped"
                 value: root.droppedFrames.toString()
-                valueColor: root.droppedFrames > 0 ? "#F44336" : "#4CAF50"
+                valueColor: root.droppedFrames > 0 ? Theme.error : Theme.statusOnline
             }
 
             // Frame count

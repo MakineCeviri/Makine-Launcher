@@ -13,7 +13,7 @@ Rectangle {
     implicitWidth: 400
     implicitHeight: contentLayout.height + 64
     radius: Dimensions.radiusXS
-    color: "#151515"
+    color: Theme.titlebarBg
     border.color: Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
 

@@ -50,7 +50,7 @@ Rectangle {
             Layout.preferredHeight: 18
             radius: 2
             visible: titleBarRoot.translationMode
-            color: "#E30A17"
+            color: Theme.turkishRed
 
             Rectangle {
                 anchors.centerIn: parent
@@ -66,7 +66,7 @@ Rectangle {
                     width: 8
                     height: 8
                     radius: 4
-                    color: "#E30A17"
+                    color: Theme.turkishRed
                 }
             }
         }

@@ -325,7 +325,7 @@ Item {
                                             width: 44
                                             height: 44
                                             radius: Dimensions.radiusStandard
-                                            color: "#E30A17"
+                                            color: Theme.turkishRed
                                             clip: true
 
                                             Rectangle {
@@ -339,7 +339,7 @@ Item {
                                                 x: 12; y: 13
                                                 width: 18; height: 18
                                                 radius: 9
-                                                color: "#E30A17"
+                                                color: Theme.turkishRed
                                             }
 
                                             Canvas {
@@ -971,7 +971,7 @@ Item {
                             Layout.rightMargin: root.contentMargin
                             title: "Oyun Projeleri"
                             subtitle: "CEDRA Interactive bünyesinde geliştirilen oyunlar"
-                            categoryColor: "#E53935"
+                            categoryColor: Theme.destructive
                         }
 
                         ProjectCategory {
@@ -980,7 +980,7 @@ Item {
                             Layout.rightMargin: root.contentMargin
                             title: "Çeviri Projeleri"
                             subtitle: "Topluluk tarafından yürütülen çeviri projeleri"
-                            categoryColor: "#00BCD4"
+                            categoryColor: Theme.statusCyan
                         }
 
                         Item { Layout.preferredHeight: Dimensions.marginXXL }
@@ -1018,7 +1018,7 @@ Item {
                         width: 400
                         height: waitingCardContent.height + 64
                         radius: Dimensions.radiusStandard
-                        color: "#151515"
+                        color: Theme.titlebarBg
                         border.color: Qt.rgba(1, 1, 1, 0.06)
                         border.width: 1
 
@@ -1253,7 +1253,7 @@ Item {
                     Rectangle {
                         visible: gameCardRoot.translated
                         width: 20; height: 14; radius: Dimensions.badgeRadius
-                        color: "#E30A17"; anchors.verticalCenter: parent.verticalCenter
+                        color: Theme.turkishRed; anchors.verticalCenter: parent.verticalCenter
                         Label { anchors.centerIn: parent; text: "TR"; font.pixelSize: 8; font.weight: Font.Bold; color: "white" }
                     }
                     Rectangle {
@@ -1522,14 +1522,14 @@ Item {
                     title: "Cyberless: Online"
                     description: "Çok oyunculu cyberpunk aksiyon oyunu"
                     status: "Tamamlandı"
-                    statusColor: "#4CAF50"
+                    statusColor: Theme.statusOnline
                 }
 
                 ProjectCard {
                     title: "Endurance"
                     description: "Hayatta kalma, kaynak yönetimi, korku ve gerilim oyunu"
                     status: "Geliştiriliyor"
-                    statusColor: "#9C27B0"
+                    statusColor: Theme.statusPurple
                 }
             }
         }

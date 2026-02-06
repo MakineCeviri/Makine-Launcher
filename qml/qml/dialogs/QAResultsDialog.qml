@@ -42,11 +42,11 @@ Dialog {
     y: (parent.height - height) / 2
 
     // Severity colors
-    readonly property color colorCritical: "#E53935"   // Kırmızı
-    readonly property color colorMajor: "#FF9800"      // Turuncu
-    readonly property color colorWarning: "#FFC107"    // Sarı
-    readonly property color colorInfo: "#2196F3"       // Mavi
-    readonly property color colorSuccess: "#4CAF50"    // Yeşil
+    readonly property color colorCritical: Theme.destructive
+    readonly property color colorMajor: Theme.steamOrange
+    readonly property color colorWarning: Theme.warning
+    readonly property color colorInfo: Theme.primary
+    readonly property color colorSuccess: Theme.statusOnline
 
     function getSeverityColor(severity) {
         if (severity >= 4) return colorCritical

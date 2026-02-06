@@ -154,7 +154,7 @@ Rectangle {
                 Text {
                     text: "\uD83D\uDEE1"
                     font.pixelSize: 18
-                    color: "#E53935"
+                    color: Theme.destructive
                 }
 
                 Text {
