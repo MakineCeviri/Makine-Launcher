@@ -42,15 +42,15 @@ Item {
 
             gradient: Gradient {
                 orientation: Gradient.Horizontal
-                GradientStop { position: 0.00; color: "#FCCD66" }
-                GradientStop { position: 0.12; color: "#F7AE76" }
-                GradientStop { position: 0.25; color: "#EE968F" }
-                GradientStop { position: 0.37; color: "#CC9FD8" }
-                GradientStop { position: 0.50; color: "#90C2E6" }
-                GradientStop { position: 0.62; color: "#77DBC8" }
-                GradientStop { position: 0.75; color: "#80E59D" }
-                GradientStop { position: 0.87; color: "#C8EB7C" }
-                GradientStop { position: 1.00; color: "#FCCD66" }
+                GradientStop { position: 0.00; color: Theme.brandGold }
+                GradientStop { position: 0.12; color: Theme.brandOrange }
+                GradientStop { position: 0.25; color: Theme.brandCoral }
+                GradientStop { position: 0.37; color: Theme.brandPurple }
+                GradientStop { position: 0.50; color: Theme.brandBlue }
+                GradientStop { position: 0.62; color: Theme.brandTeal }
+                GradientStop { position: 0.75; color: Theme.brandGreen }
+                GradientStop { position: 0.87; color: Theme.brandLime }
+                GradientStop { position: 1.00; color: Theme.brandGold }
             }
         }
     }

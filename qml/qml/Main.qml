@@ -680,7 +680,7 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 Layout.preferredWidth: aiToggleLabel.contentWidth + 24
 
-                readonly property var rainbowColors: ["#FCCD66", "#F7AE76", "#EE968F", "#CC9FD8", "#90C2E6", "#77DBC8", "#80E59D", "#C8EB7C", "#D4BE77"]
+                readonly property var rainbowColors: Theme.brandGradient
 
                 property real animPhase: 0
                 NumberAnimation on animPhase {
@@ -757,25 +757,25 @@ ApplicationWindow {
 
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
-                            GradientStop { position: 0.000; color: "#FCCD66" }
-                            GradientStop { position: 0.056; color: "#F7AE76" }
-                            GradientStop { position: 0.111; color: "#EE968F" }
-                            GradientStop { position: 0.167; color: "#CC9FD8" }
-                            GradientStop { position: 0.222; color: "#90C2E6" }
-                            GradientStop { position: 0.278; color: "#77DBC8" }
-                            GradientStop { position: 0.333; color: "#80E59D" }
-                            GradientStop { position: 0.389; color: "#C8EB7C" }
-                            GradientStop { position: 0.444; color: "#D4BE77" }
-                            GradientStop { position: 0.500; color: "#FCCD66" }
-                            GradientStop { position: 0.556; color: "#F7AE76" }
-                            GradientStop { position: 0.611; color: "#EE968F" }
-                            GradientStop { position: 0.667; color: "#CC9FD8" }
-                            GradientStop { position: 0.722; color: "#90C2E6" }
-                            GradientStop { position: 0.778; color: "#77DBC8" }
-                            GradientStop { position: 0.833; color: "#80E59D" }
-                            GradientStop { position: 0.889; color: "#C8EB7C" }
-                            GradientStop { position: 0.944; color: "#D4BE77" }
-                            GradientStop { position: 1.000; color: "#FCCD66" }
+                            GradientStop { position: 0.000; color: Theme.brandGold }
+                            GradientStop { position: 0.056; color: Theme.brandOrange }
+                            GradientStop { position: 0.111; color: Theme.brandCoral }
+                            GradientStop { position: 0.167; color: Theme.brandPurple }
+                            GradientStop { position: 0.222; color: Theme.brandBlue }
+                            GradientStop { position: 0.278; color: Theme.brandTeal }
+                            GradientStop { position: 0.333; color: Theme.brandGreen }
+                            GradientStop { position: 0.389; color: Theme.brandLime }
+                            GradientStop { position: 0.444; color: Theme.brandOlive }
+                            GradientStop { position: 0.500; color: Theme.brandGold }
+                            GradientStop { position: 0.556; color: Theme.brandOrange }
+                            GradientStop { position: 0.611; color: Theme.brandCoral }
+                            GradientStop { position: 0.667; color: Theme.brandPurple }
+                            GradientStop { position: 0.722; color: Theme.brandBlue }
+                            GradientStop { position: 0.778; color: Theme.brandTeal }
+                            GradientStop { position: 0.833; color: Theme.brandGreen }
+                            GradientStop { position: 0.889; color: Theme.brandLime }
+                            GradientStop { position: 0.944; color: Theme.brandOlive }
+                            GradientStop { position: 1.000; color: Theme.brandGold }
                         }
                     }
                 }
@@ -858,7 +858,7 @@ ApplicationWindow {
                         var y2 = cy - Math.sin(angle) * len
 
                         var grad = ctx.createLinearGradient(x1, y1, x2, y2)
-                        var colors = ["#FCCD66","#F7AE76","#EE968F","#CC9FD8","#90C2E6","#77DBC8","#80E59D","#C8EB7C","#FCCD66"]
+                        var colors = Theme.brandGradient
                         for (var i = 0; i < colors.length; i++)
                             grad.addColorStop(i / (colors.length - 1), colors[i])
 

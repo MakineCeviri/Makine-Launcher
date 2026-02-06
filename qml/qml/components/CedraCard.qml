@@ -55,7 +55,7 @@ Item {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "#0D0D12" }
             GradientStop { position: 0.5; color: "#10101A" }
-            GradientStop { position: 1.0; color: "#0A0A0F" }
+            GradientStop { position: 1.0; color: Theme.splashBackground }
         }
 
         border.color: Theme.withAlpha(color1, 0.5 + smoothValue * 0.3)
@@ -80,7 +80,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: Dimensions.radiusXS
-                    color: "#0A0A0F"
+                    color: Theme.splashBackground
                     border.color: Theme.withAlpha(color1, 0.6 + smoothValue * 0.3)
                     border.width: 2
 

@@ -76,7 +76,7 @@ Item {
                 var y2 = cy - Math.sin(angle) * len
 
                 var grad = ctx.createLinearGradient(x1, y1, x2, y2)
-                var colors = ["#FCCD66","#F7AE76","#EE968F","#CC9FD8","#90C2E6","#77DBC8","#80E59D","#C8EB7C","#FCCD66"]
+                var colors = Theme.brandGradient
                 for (var i = 0; i < colors.length; i++)
                     grad.addColorStop(i / (colors.length - 1), colors[i])
 
