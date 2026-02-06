@@ -1,0 +1,70 @@
+{
+  "header": {
+    "gameId": "undertale",
+    "gameName": "Undertale",
+    "steamAppId": "391540",
+    "engine": "GameMaker",
+    "engineVersion": "Studio",
+    "recipeVersion": "1.0.0",
+    "gameVersion": "1.08",
+    "createdAt": "2026-01-20T12:00:00Z",
+    "author": "MakineAI",
+    "description": "Undertale Türkçe yama reçetesi"
+  },
+  "detection": {
+    "signatureFiles": [
+      "data.win",
+      "UNDERTALE.exe"
+    ],
+    "executableName": "UNDERTALE.exe"
+  },
+  "localization": {
+    "type": "gamemaker",
+    "files": [
+      {
+        "path": "lang/*.json",
+        "format": "json",
+        "encoding": "utf-8"
+      },
+      {
+        "path": "data.win",
+        "format": "binary",
+        "encoding": "binary",
+        "note": "GameMaker data file - requires special handling"
+      }
+    ],
+    "encoding": "utf-8"
+  },
+  "translation": {
+    "source": "community",
+    "stringCount": 15000,
+    "coverage": "98%",
+    "quality": "community"
+  },
+  "patch": {
+    "type": "file_replace",
+    "requiresBackup": true,
+    "steps": [
+      {
+        "order": 1,
+        "action": "backup",
+        "target": "data.win"
+      },
+      {
+        "order": 2,
+        "action": "extract",
+        "target": "lang/*.json"
+      },
+      {
+        "order": 3,
+        "action": "translate",
+        "target": "lang/*.json"
+      },
+      {
+        "order": 4,
+        "action": "validate",
+        "target": "lang/*.json"
+      }
+    ]
+  }
+}

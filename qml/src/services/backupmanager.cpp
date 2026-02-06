@@ -1,0 +1,325 @@
+/**
+ * @file backupmanager.cpp
+ * @brief Backup Manager Implementation
+ * @copyright (c) 2026 MakineAI Team
+ */
+
+#include "backupmanager.h"
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QStandardPaths>
+#include <QUuid>
+#include <QDirIterator>
+#include <QDebug>
+#include <QtConcurrent>
+
+namespace makineai {
+
+BackupManager::BackupManager(QObject *parent)
+    : QObject(parent)
+{
+    loadBackups();
+}
+
+BackupManager::~BackupManager()
+{
+    saveBackups();
+}
+
+BackupManager* BackupManager::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
+{
+    Q_UNUSED(qmlEngine)
+    Q_UNUSED(jsEngine)
+    return new BackupManager();
+}
+
+QVariantList BackupManager::backups() const
+{
+    QVariantList result;
+    for (const auto& backup : m_backups) {
+        QVariantMap map;
+        map["id"] = backup.id;
+        map["gameId"] = backup.gameId;
+        map["gameName"] = backup.gameName;
+        map["backupPath"] = backup.backupPath;
+        map["createdAt"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
+        map["date"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
+        map["sizeBytes"] = backup.sizeBytes;
+        map["name"] = backup.gameName + " - " + backup.createdAt.toString("dd.MM.yyyy");
+        map["isValid"] = backup.isValid;
+        result.append(map);
+    }
+    return result;
+}
+
+QVariantList BackupManager::getBackupsForGame(const QString& gameId)
+{
+    QVariantList result;
+    for (const auto& backup : m_backups) {
+        if (backup.gameId == gameId) {
+            QVariantMap map;
+            map["id"] = backup.id;
+            map["gameId"] = backup.gameId;
+            map["gameName"] = backup.gameName;
+            map["backupPath"] = backup.backupPath;
+            map["createdAt"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
+            map["date"] = backup.createdAt.toString("dd MMM yyyy HH:mm");
+            map["sizeBytes"] = backup.sizeBytes;
+            map["name"] = "Yedek - " + backup.createdAt.toString("dd.MM.yyyy HH:mm");
+            map["isValid"] = backup.isValid;
+            result.append(map);
+        }
+    }
+    return result;
+}
+
+bool BackupManager::createBackup(const QString& gameId, const QString& gameName, const QString& sourcePath)
+{
+    QDir sourceDir(sourcePath);
+    if (!sourceDir.exists()) {
+        emit backupError("Kaynak klasör bulunamadı: " + sourcePath);
+        return false;
+    }
+
+    const QString backupId = generateBackupId();
+    const QString backupDir = getBackupsDirectory() + "/" + gameId + "/" + backupId;
+
+    QDir().mkpath(backupDir);
+
+    // Copy files (simplified - in production would use proper recursive copy)
+    qint64 totalSize = 0;
+
+    QDirIterator it(sourcePath, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString sourceFile = it.next();
+        const QString relativePath = sourceDir.relativeFilePath(sourceFile);
+        const QString destFile = backupDir + "/" + relativePath;
+
+        QDir().mkpath(QFileInfo(destFile).absolutePath());
+
+        if (QFile::copy(sourceFile, destFile)) {
+            totalSize += QFileInfo(destFile).size();
+        }
+    }
+
+    BackupInfo backup;
+    backup.id = backupId;
+    backup.gameId = gameId;
+    backup.gameName = gameName;
+    backup.backupPath = backupDir;
+    backup.originalPath = sourcePath;
+    backup.createdAt = QDateTime::currentDateTime();
+    backup.sizeBytes = totalSize;
+    backup.isValid = true;
+
+    m_backups.append(backup);
+    saveBackups();
+
+    emit backupsChanged();
+    emit backupCreated(gameId);
+
+    qDebug() << "Backup created:" << backupId << "for game:" << gameId;
+    return true;
+}
+
+bool BackupManager::restoreBackup(const QString& backupId, const QString& targetPath)
+{
+    auto it = std::find_if(m_backups.begin(), m_backups.end(),
+        [&backupId](const BackupInfo& b) { return b.id == backupId; });
+
+    if (it == m_backups.end()) {
+        emit backupError("Yedek bulunamadı: " + backupId);
+        return false;
+    }
+
+    if (!it->isValid) {
+        emit backupError("Yedek dosyaları bulunamadı");
+        return false;
+    }
+
+    const QString backupDir = it->backupPath;
+    const QString restoreDir = targetPath.isEmpty() ? it->originalPath : targetPath;
+    const QString gameId = it->gameId;
+
+    QDir sourceDir(backupDir);
+    if (!sourceDir.exists()) {
+        emit backupError("Yedek klasörü bulunamadı: " + backupDir);
+        return false;
+    }
+
+    // Set restoring state
+    m_isRestoring = true;
+    m_restoreStatus = "Yedek geri yükleniyor...";
+    emit isRestoringChanged();
+    emit restoreStatusChanged();
+
+    // Run restore operation async
+    (void)QtConcurrent::run([this, backupDir, restoreDir, backupId, gameId]() {
+        QDir sourceDir(backupDir);
+
+        // Count total files first
+        int totalFiles = 0;
+        QDirIterator countIt(backupDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        while (countIt.hasNext()) {
+            countIt.next();
+            totalFiles++;
+        }
+
+        // Restore files from backup to target directory
+        int restoredCount = 0;
+        QDirIterator it2(backupDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+
+        while (it2.hasNext()) {
+            const QString backupFile = it2.next();
+            const QString relativePath = sourceDir.relativeFilePath(backupFile);
+            const QString destFile = restoreDir + "/" + relativePath;
+
+            // Ensure target directory exists
+            QDir().mkpath(QFileInfo(destFile).absolutePath());
+
+            // Remove existing file if present
+            if (QFile::exists(destFile)) {
+                QFile::remove(destFile);
+            }
+
+            // Copy backup file to target
+            if (QFile::copy(backupFile, destFile)) {
+                restoredCount++;
+
+                // Update status periodically
+                if (restoredCount % 10 == 0 || restoredCount == totalFiles) {
+                    QMetaObject::invokeMethod(this, [this, restoredCount, totalFiles]() {
+                        m_restoreStatus = QString("Geri yükleniyor: %1/%2").arg(restoredCount).arg(totalFiles);
+                        emit restoreStatusChanged();
+                    }, Qt::QueuedConnection);
+                }
+            } else {
+                qWarning() << "Failed to restore file:" << destFile;
+            }
+        }
+
+        // Finish restore
+        QMetaObject::invokeMethod(this, [this, restoredCount, gameId]() {
+            m_isRestoring = false;
+            m_restoreStatus = QString("%1 dosya geri yüklendi").arg(restoredCount);
+            emit isRestoringChanged();
+            emit restoreStatusChanged();
+            emit backupRestored(gameId);
+            qDebug() << "Backup restored:" << gameId << "-" << restoredCount << "files";
+        }, Qt::QueuedConnection);
+    });
+
+    return true;
+}
+
+bool BackupManager::deleteBackup(const QString& backupId)
+{
+    auto it = std::find_if(m_backups.begin(), m_backups.end(),
+        [&backupId](const BackupInfo& b) { return b.id == backupId; });
+
+    if (it == m_backups.end()) {
+        return false;
+    }
+
+    // Delete backup directory
+    QDir backupDir(it->backupPath);
+    if (backupDir.exists()) {
+        backupDir.removeRecursively();
+    }
+
+    m_backups.erase(it);
+    saveBackups();
+
+    emit backupsChanged();
+    emit backupDeleted(backupId);
+
+    return true;
+}
+
+bool BackupManager::hasBackup(const QString& gameId)
+{
+    return std::any_of(m_backups.begin(), m_backups.end(),
+        [&gameId](const BackupInfo& b) { return b.gameId == gameId && b.isValid; });
+}
+
+QString BackupManager::getBackupPath(const QString& gameId)
+{
+    auto it = std::find_if(m_backups.begin(), m_backups.end(),
+        [&gameId](const BackupInfo& b) { return b.gameId == gameId && b.isValid; });
+
+    if (it != m_backups.end()) {
+        return it->backupPath;
+    }
+    return {};
+}
+
+void BackupManager::loadBackups()
+{
+    const QString metadataPath = getBackupsDirectory() + "/backups.json";
+    QFile file(metadataPath);
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+
+    const QByteArray data = file.readAll();
+    const QJsonDocument doc = QJsonDocument::fromJson(data);
+
+    if (!doc.isArray()) return;
+
+    for (const auto& value : doc.array()) {
+        const QJsonObject obj = value.toObject();
+        BackupInfo backup;
+        backup.id = obj["id"].toString();
+        backup.gameId = obj["gameId"].toString();
+        backup.gameName = obj["gameName"].toString();
+        backup.backupPath = obj["backupPath"].toString();
+        backup.originalPath = obj["originalPath"].toString();
+        backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
+        backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
+        backup.isValid = QDir(backup.backupPath).exists();
+        m_backups.append(backup);
+    }
+
+    emit backupsChanged();
+}
+
+void BackupManager::saveBackups()
+{
+    const QString backupsDir = getBackupsDirectory();
+    QDir().mkpath(backupsDir);
+
+    QJsonArray array;
+    for (const auto& backup : m_backups) {
+        QJsonObject obj;
+        obj["id"] = backup.id;
+        obj["gameId"] = backup.gameId;
+        obj["gameName"] = backup.gameName;
+        obj["backupPath"] = backup.backupPath;
+        obj["originalPath"] = backup.originalPath;
+        obj["createdAt"] = backup.createdAt.toString(Qt::ISODate);
+        obj["sizeBytes"] = backup.sizeBytes;
+        array.append(obj);
+    }
+
+    QFile file(backupsDir + "/backups.json");
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(array).toJson());
+    }
+}
+
+QString BackupManager::generateBackupId()
+{
+    return QUuid::createUuid().toString(QUuid::WithoutBraces).left(8);
+}
+
+QString BackupManager::getBackupsDirectory()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/backups";
+}
+
+} // namespace makineai

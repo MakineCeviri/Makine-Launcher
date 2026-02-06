@@ -1,0 +1,78 @@
+{
+  "header": {
+    "gameId": "celeste",
+    "gameName": "Celeste",
+    "steamAppId": "504230",
+    "engine": "Unity",
+    "engineVersion": "2017.3",
+    "recipeVersion": "1.0.0",
+    "gameVersion": "1.4.0.0",
+    "createdAt": "2026-01-20T12:00:00Z",
+    "author": "MakineAI",
+    "description": "Celeste Türkçe yama reçetesi"
+  },
+  "detection": {
+    "signatureFiles": [
+      "Celeste_Data/Managed/Celeste.exe.dll",
+      "Celeste_Data/resources.assets",
+      "Celeste.exe"
+    ],
+    "executableName": "Celeste.exe"
+  },
+  "localization": {
+    "type": "unity_mono",
+    "files": [
+      {
+        "path": "Content/Dialog/*.txt",
+        "format": "txt",
+        "encoding": "utf-8-bom"
+      },
+      {
+        "path": "Celeste_Data/StreamingAssets/**/*.txt",
+        "format": "txt",
+        "encoding": "utf-8"
+      }
+    ],
+    "encoding": "utf-8-bom",
+    "extractionRules": [
+      {
+        "pattern": "^([A-Z_]+)=(.+)$",
+        "sourceGroup": 1,
+        "targetGroup": 2,
+        "type": "key_value"
+      }
+    ]
+  },
+  "translation": {
+    "source": "official",
+    "stringCount": 3200,
+    "coverage": "100%",
+    "quality": "professional"
+  },
+  "patch": {
+    "type": "file_replace",
+    "requiresBackup": true,
+    "steps": [
+      {
+        "order": 1,
+        "action": "backup",
+        "target": "Content/Dialog/*.txt"
+      },
+      {
+        "order": 2,
+        "action": "extract",
+        "target": "Content/Dialog/*.txt"
+      },
+      {
+        "order": 3,
+        "action": "translate",
+        "target": "Content/Dialog/*.txt"
+      },
+      {
+        "order": 4,
+        "action": "validate",
+        "target": "Content/Dialog/*.txt"
+      }
+    ]
+  }
+}

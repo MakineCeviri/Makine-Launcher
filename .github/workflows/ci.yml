@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main]
+
+env:
+  BUILD_TYPE: Release
+  VCPKG_DEFAULT_TRIPLET: x64-windows
+
+jobs:
+  build-core:
+    name: Build Core Library
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '2024.01.12'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          cd ${{ github.workspace }}
+          vcpkg install --triplet x64-windows
+
+      - name: Configure CMake (Core)
+        run: |
+          cmake -B build/core -S core `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build Core
+        run: cmake --build build/core --config ${{ env.BUILD_TYPE }}
+
+      - name: Upload Core Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: makineai-core-${{ github.sha }}
+          path: build/core/${{ env.BUILD_TYPE }}/
+          retention-days: 7
+
+  build-tests:
+    name: Build & Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '2024.01.12'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-tests-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-tests-${{ runner.os }}-
+
+      - name: Install dependencies with tests
+        run: |
+          cd ${{ github.workspace }}
+          vcpkg install --triplet x64-windows
+          vcpkg install gtest:x64-windows
+
+      - name: Configure CMake with Tests
+        run: |
+          cmake -B build/core-tests -S core `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DBUILD_TESTING=ON
+
+      - name: Build with Tests
+        run: cmake --build build/core-tests --config ${{ env.BUILD_TYPE }}
+
+      - name: Run Tests
+        run: |
+          cd build/core-tests
+          ctest -C ${{ env.BUILD_TYPE }} --output-on-failure --verbose
+
+  build-qml:
+    name: Build QML App
+    runs-on: windows-latest
+    needs: build-core
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          modules: 'qtquick3d qtshadertools'
+          cache: true
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '2024.01.12'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          cd ${{ github.workspace }}
+          vcpkg install --triplet x64-windows
+
+      - name: Configure CMake (QML)
+        run: |
+          cmake -B build/qml -S qml `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build QML App
+        run: cmake --build build/qml --config ${{ env.BUILD_TYPE }}
+
+      - name: Upload QML Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: makineai-qml-${{ github.sha }}
+          path: build/qml/${{ env.BUILD_TYPE }}/
+          retention-days: 7

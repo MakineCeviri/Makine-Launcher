@@ -1,0 +1,243 @@
+# ============================================================================
+# MakineAI - Git Ignore Configuration
+# Qt6/QML + C++20 + vcpkg + Windows
+# ============================================================================
+
+# ============================================================================
+# BUILD OUTPUTS
+# ============================================================================
+
+# CMake build directories
+build/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake
+!Find*.cmake
+!*Config.cmake
+
+# Visual Studio
+.vs/
+x64/
+x86/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+*.vcxproj.user
+*.suo
+*.sdf
+*.opensdf
+*.ncb
+ipch/
+
+# Qt Creator
+*.pro.user*
+*.qbs.user*
+*.creator.user*
+
+# ============================================================================
+# COMPILED FILES
+# ============================================================================
+
+# Object files
+*.o
+*.obj
+*.ko
+*.elf
+
+# Libraries
+*.a
+*.lib
+*.la
+*.lo
+
+# Shared libraries
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+
+# Debug files
+*.pdb
+*.ilk
+*.exp
+*.idb
+
+# ============================================================================
+# QT SPECIFIC
+# ============================================================================
+
+# Generated files
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+*.qmlc
+*.jsc
+*_metatypes.json
+*_qmltyperegistrations.cpp
+
+# Qt autosave
+*.autosave
+*_qmlcache.qrc
+
+# Qt deploy
+*.windeployqt.log
+
+# ============================================================================
+# VCPKG
+# ============================================================================
+
+vcpkg_installed/
+vcpkg/
+
+# ============================================================================
+# IDE & EDITORS
+# ============================================================================
+
+# JetBrains (CLion, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+cmake-build-*/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim/Neovim
+*.swp
+*.swo
+*~
+.netrwhist
+Session.vim
+tags
+
+# Emacs
+*~
+\#*\#
+.#*
+*.elc
+auto-save-list
+
+# ============================================================================
+# PACKAGE MANAGERS
+# ============================================================================
+
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================================================
+# OS GENERATED
+# ============================================================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ============================================================================
+# LOGS & TEMP
+# ============================================================================
+
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.cache
+.cache/
+
+# ============================================================================
+# SECRETS & LOCAL CONFIG
+# ============================================================================
+
+.env
+.env.*
+!.env.example
+*.local
+config.local.*
+secrets.*
+*.key
+*.pem
+credentials.*
+
+# ============================================================================
+# PROJECT SPECIFIC
+# ============================================================================
+
+# Large data files (handled separately)
+translation_data/
+
+# User-specific Claude files
+.claude/todos/
+.claude/sessions/
+
+# Test outputs
+test_output/
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Documentation build
+docs/_build/
+docs/html/
+docs/latex/
+
+# Installer outputs
+installer/
+*.msi
+*.msix
+*.appx
+
+# ============================================================================
+# KEEP THESE (negations)
+# ============================================================================
+
+# Keep recipe files
+!assets/recipes/*.o7
+!assets/recipes/manifest.json
+
+# Keep important configs
+!.github/
+!.claudeignore
+!CMakeLists.txt
+!vcpkg.json

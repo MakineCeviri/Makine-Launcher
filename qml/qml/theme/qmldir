@@ -1,0 +1,4 @@
+module MakineAI.Theme
+singleton Theme 1.0 Theme.qml
+singleton Dimensions 1.0 Dimensions.qml
+singleton DebugHelper 1.0 DebugHelper.qml

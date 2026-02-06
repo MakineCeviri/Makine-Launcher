@@ -1,0 +1,24 @@
+module MakineAI.components
+
+HoverBuilder 1.0 HoverBuilder.qml
+WindowButton 1.0 WindowButton.qml
+NavBarItem 1.0 NavBarItem.qml
+DonateButton 1.0 DonateButton.qml
+GameCard 1.0 GameCard.qml
+ViewAllCard 1.0 ViewAllCard.qml
+GlassCard 1.0 GlassCard.qml
+StopButton 1.0 StopButton.qml
+AnimatedButton 1.0 AnimatedButton.qml
+GradientButton 1.0 GradientButton.qml
+MakineLogo 1.0 MakineLogo.qml
+RotatingHourglass 1.0 RotatingHourglass.qml
+TranslationPhaseBadge 1.0 TranslationPhaseBadge.qml
+WaitingForGameCard 1.0 WaitingForGameCard.qml
+GameDetectedCard 1.0 GameDetectedCard.qml
+AnnouncementCard 1.0 AnnouncementCard.qml
+DiscordButton 1.0 DiscordButton.qml
+CedraCard 1.0 CedraCard.qml
+BackgroundBlur 1.0 BackgroundBlur.qml
+MinimalTitleBar 1.0 MinimalTitleBar.qml
+NavBar 1.0 NavBar.qml
+CedraInteractiveCard 1.0 CedraInteractiveCard.qml

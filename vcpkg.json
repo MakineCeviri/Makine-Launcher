@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "makineai",
+  "version": "0.1.0",
+  "description": "Turkish game translation launcher",
+  "homepage": "https://makineai.com",
+  "license": "MIT",
+  "supports": "windows & x64",
+  "dependencies": [
+    "boost-filesystem",
+    "openssl",
+    "curl",
+    "nlohmann-json",
+    "lz4",
+    "zlib",
+    "zstd",
+    "sqlite3",
+    "spdlog",
+    "bit7z",
+    "libarchive",
+    "minizip-ng",
+    "simdjson",
+    "efsw",
+    "mio",
+    "taskflow",
+    "concurrentqueue",
+    "simdutf",
+    "sqlitecpp",
+    "digestpp",
+    "libsodium"
+  ],
+  "builtin-baseline": "2024.01.12",
+  "overrides": [],
+  "features": {
+    "tests": {
+      "description": "Build unit tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  }
+}

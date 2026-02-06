@@ -1,0 +1,756 @@
+/**
+ * @file security_manager.cpp
+ * @brief Security manager implementation
+ *
+ * Provides:
+ * - Hash calculations (SHA256, SHA384, SHA512, MD5)
+ * - RSA signature verification
+ * - Windows Authenticode verification
+ * - Secure random generation
+ *
+ * Copyright (c) 2026 MakineAI Team
+ */
+
+#include "makineai/security.hpp"
+#include "makineai/features.hpp"
+#include <spdlog/spdlog.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/err.h>
+#include <openssl/rand.h>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
+
+// Optional: libsodium for modern cryptography
+#ifdef MAKINEAI_HAS_SODIUM
+#include <sodium.h>
+// TODO: [LIBSODIUM] Use libsodium for:
+// - crypto_generichash (BLAKE2b) - faster than SHA256
+// - crypto_sign for Ed25519 signatures
+// - crypto_secretbox for symmetric encryption
+// - randombytes_buf for secure random generation
+#endif
+
+// Optional: mio for memory-mapped file hashing
+#ifdef MAKINEAI_HAS_MIO
+#include <mio/mmap.hpp>
+// TODO: [MIO] Use memory-mapped files for large file hashing
+// Example:
+//   std::error_code ec;
+//   mio::mmap_source mmap(file.string(), ec);
+//   if (!ec) {
+//       return hash(ByteSpan{mmap.data(), mmap.size()}, algo);
+//   }
+#endif
+
+#ifdef _WIN32
+#include <Windows.h>
+#include <wintrust.h>
+#include <softpub.h>
+#pragma comment(lib, "wintrust.lib")
+#pragma comment(lib, "crypt32.lib")
+#endif
+
+namespace makineai {
+
+// Private implementation class
+class SecurityManager::Impl {
+public:
+    EVP_PKEY* publicKey = nullptr;
+    std::string publicKeyId;
+
+    ~Impl() {
+        if (publicKey) {
+            EVP_PKEY_free(publicKey);
+        }
+    }
+
+    const EVP_MD* getDigest(HashAlgorithm algo) const {
+        switch (algo) {
+            case HashAlgorithm::SHA256: return EVP_sha256();
+            case HashAlgorithm::SHA384: return EVP_sha384();
+            case HashAlgorithm::SHA512: return EVP_sha512();
+            case HashAlgorithm::MD5: return EVP_md5();
+            default: return EVP_sha256();
+        }
+    }
+
+    std::string bytesToHex(const unsigned char* data, size_t len) const {
+        std::ostringstream ss;
+        ss << std::hex << std::setfill('0');
+        for (size_t i = 0; i < len; ++i) {
+            ss << std::setw(2) << static_cast<int>(data[i]);
+        }
+        return ss.str();
+    }
+};
+
+SecurityManager::SecurityManager() : impl_(std::make_unique<Impl>()) {
+    // Initialize OpenSSL (modern versions don't require explicit init)
+    spdlog::debug("SecurityManager initialized");
+}
+
+SecurityManager::~SecurityManager() = default;
+
+Result<std::string> SecurityManager::hash(ByteSpan data, HashAlgorithm algo) const {
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        return std::unexpected(Error(ErrorCode::Unknown, "Failed to create hash context"));
+    }
+
+    const EVP_MD* md = impl_->getDigest(algo);
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digestLen = 0;
+
+    if (EVP_DigestInit_ex(ctx, md, nullptr) != 1 ||
+        EVP_DigestUpdate(ctx, data.data(), data.size()) != 1 ||
+        EVP_DigestFinal_ex(ctx, digest, &digestLen) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return std::unexpected(Error(ErrorCode::Unknown, "Hash calculation failed"));
+    }
+
+    EVP_MD_CTX_free(ctx);
+    return impl_->bytesToHex(digest, digestLen);
+}
+
+Result<std::string> SecurityManager::hashFile(const fs::path& file, HashAlgorithm algo) const {
+    std::ifstream ifs(file, std::ios::binary);
+    if (!ifs) {
+        return std::unexpected(Error(ErrorCode::FileNotFound,
+            "Cannot open file for hashing: " + file.string()));
+    }
+
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        return std::unexpected(Error(ErrorCode::Unknown, "Failed to create hash context"));
+    }
+
+    const EVP_MD* md = impl_->getDigest(algo);
+    if (EVP_DigestInit_ex(ctx, md, nullptr) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return std::unexpected(Error(ErrorCode::Unknown, "Failed to init digest"));
+    }
+
+    char buffer[8192];
+    while (ifs.read(buffer, sizeof(buffer)) || ifs.gcount() > 0) {
+        if (EVP_DigestUpdate(ctx, buffer, static_cast<size_t>(ifs.gcount())) != 1) {
+            EVP_MD_CTX_free(ctx);
+            return std::unexpected(Error(ErrorCode::Unknown, "Hash update failed"));
+        }
+    }
+
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digestLen = 0;
+    if (EVP_DigestFinal_ex(ctx, digest, &digestLen) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return std::unexpected(Error(ErrorCode::Unknown, "Hash finalization failed"));
+    }
+
+    EVP_MD_CTX_free(ctx);
+    return impl_->bytesToHex(digest, digestLen);
+}
+
+bool SecurityManager::verifyHash(ByteSpan data, const std::string& expectedHash,
+                                  HashAlgorithm algo) const {
+    auto result = hash(data, algo);
+    if (!result) return false;
+    return *result == expectedHash;
+}
+
+VoidResult SecurityManager::loadPublicKey(const fs::path& keyPath) {
+    std::ifstream ifs(keyPath);
+    if (!ifs) {
+        return std::unexpected(Error(ErrorCode::FileNotFound,
+            "Cannot open public key file: " + keyPath.string()));
+    }
+
+    std::string pem((std::istreambuf_iterator<char>(ifs)),
+                     std::istreambuf_iterator<char>());
+
+    return loadPublicKeyPEM(pem);
+}
+
+VoidResult SecurityManager::loadPublicKeyPEM(const std::string& pem) {
+    BIO* bio = BIO_new_mem_buf(pem.data(), static_cast<int>(pem.size()));
+    if (!bio) {
+        return std::unexpected(Error(ErrorCode::Unknown, "Failed to create BIO"));
+    }
+
+    if (impl_->publicKey) {
+        EVP_PKEY_free(impl_->publicKey);
+        impl_->publicKey = nullptr;
+    }
+
+    impl_->publicKey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+    BIO_free(bio);
+
+    if (!impl_->publicKey) {
+        return std::unexpected(Error(ErrorCode::SignatureInvalid,
+            "Failed to parse public key PEM"));
+    }
+
+    publicKeyLoaded_ = true;
+    spdlog::info("Public key loaded successfully");
+    return {};
+}
+
+Result<SignatureResult> SecurityManager::verifySignature(
+    ByteSpan data, const std::string& signatureBase64
+) const {
+    SignatureResult result{false, "", 0, "", ""};
+
+    if (!publicKeyLoaded_ || !impl_->publicKey) {
+        result.message = "No public key loaded";
+        return result;
+    }
+
+    // Decode base64 signature
+    BIO* b64 = BIO_new(BIO_f_base64());
+    BIO* bmem = BIO_new_mem_buf(signatureBase64.data(),
+                                static_cast<int>(signatureBase64.size()));
+    bmem = BIO_push(b64, bmem);
+    BIO_set_flags(bmem, BIO_FLAGS_BASE64_NO_NL);
+
+    std::vector<unsigned char> signature(signatureBase64.size());
+    int sigLen = BIO_read(bmem, signature.data(), static_cast<int>(signature.size()));
+    BIO_free_all(bmem);
+
+    if (sigLen <= 0) {
+        result.message = "Failed to decode base64 signature";
+        return result;
+    }
+    signature.resize(static_cast<size_t>(sigLen));
+
+    // Verify signature
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        result.message = "Failed to create verification context";
+        return result;
+    }
+
+    bool verified = false;
+    if (EVP_DigestVerifyInit(ctx, nullptr, EVP_sha256(), nullptr, impl_->publicKey) == 1 &&
+        EVP_DigestVerifyUpdate(ctx, data.data(), data.size()) == 1) {
+        int verifyResult = EVP_DigestVerifyFinal(ctx, signature.data(), signature.size());
+        verified = (verifyResult == 1);
+    }
+
+    EVP_MD_CTX_free(ctx);
+
+    result.valid = verified;
+    result.publicKeyId = impl_->publicKeyId;
+    if (!verified) {
+        result.message = "Signature verification failed";
+    }
+
+    return result;
+}
+
+Result<SignatureResult> SecurityManager::verifyPackageSignature(
+    const fs::path& packagePath, const PackageSignature& signature
+) const {
+    SignatureResult result{false, "", 0, "", ""};
+
+    // Hash the package file
+    auto hashResult = hashFile(packagePath);
+    if (!hashResult) {
+        result.message = "Failed to hash package: " + hashResult.error().message();
+        return result;
+    }
+
+    // Compare hash
+    if (*hashResult != signature.packageHash) {
+        result.message = "Package hash mismatch";
+        return result;
+    }
+
+    // Verify signature
+    ByteBuffer hashBytes(hashResult->begin(), hashResult->end());
+    auto sigResult = verifySignature(hashBytes, signature.signature);
+    if (!sigResult) {
+        return sigResult;
+    }
+
+    result = *sigResult;
+    result.signedAt = signature.timestamp;
+    result.publicKeyId = signature.publicKeyId;
+
+    return result;
+}
+
+Result<SignatureResult> SecurityManager::verifyAuthenticode(const fs::path& exePath) const {
+    SignatureResult result{false, "", 0, "", ""};
+
+#ifdef _WIN32
+    std::wstring wpath = exePath.wstring();
+
+    WINTRUST_FILE_INFO fileInfo{};
+    fileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
+    fileInfo.pcwszFilePath = wpath.c_str();
+
+    GUID guidAction = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+
+    WINTRUST_DATA trustData{};
+    trustData.cbStruct = sizeof(WINTRUST_DATA);
+    trustData.dwUIChoice = WTD_UI_NONE;
+    trustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+    trustData.dwUnionChoice = WTD_CHOICE_FILE;
+    trustData.pFile = &fileInfo;
+    trustData.dwStateAction = WTD_STATEACTION_VERIFY;
+
+    LONG status = WinVerifyTrust(NULL, &guidAction, &trustData);
+
+    // Clean up
+    trustData.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(NULL, &guidAction, &trustData);
+
+    result.valid = (status == ERROR_SUCCESS);
+    if (!result.valid) {
+        switch (status) {
+            case TRUST_E_NOSIGNATURE:
+                result.message = "File is not signed";
+                break;
+            case TRUST_E_EXPLICIT_DISTRUST:
+                result.message = "Signature explicitly distrusted";
+                break;
+            case TRUST_E_SUBJECT_NOT_TRUSTED:
+                result.message = "Subject not trusted";
+                break;
+            default:
+                result.message = "Verification failed: " + std::to_string(status);
+        }
+    }
+#else
+    result.message = "Authenticode verification only available on Windows";
+#endif
+
+    return result;
+}
+
+Result<ByteBuffer> SecurityManager::randomBytes(size_t count) const {
+    ByteBuffer buffer(count);
+    if (RAND_bytes(buffer.data(), static_cast<int>(count)) != 1) {
+        return std::unexpected(Error(ErrorCode::Unknown,
+            "Failed to generate random bytes"));
+    }
+    return buffer;
+}
+
+Result<std::string> SecurityManager::randomHex(size_t bytes) const {
+    auto result = randomBytes(bytes);
+    if (!result) {
+        return std::unexpected(result.error());
+    }
+    return impl_->bytesToHex(result->data(), result->size());
+}
+
+// IntegrityChecker implementation
+
+Result<std::vector<IntegrityChecker::FileEntry>> IntegrityChecker::createManifest(
+    const fs::path& baseDir, const StringList& files
+) {
+    std::vector<FileEntry> manifest;
+    SecurityManager security;
+
+    for (const auto& relPath : files) {
+        fs::path fullPath = baseDir / relPath;
+
+        if (!fs::exists(fullPath)) {
+            spdlog::warn("File not found for manifest: {}", fullPath.string());
+            continue;
+        }
+
+        auto hashResult = security.hashFile(fullPath);
+        if (!hashResult) {
+            spdlog::warn("Failed to hash file: {}", fullPath.string());
+            continue;
+        }
+
+        FileEntry entry;
+        entry.relativePath = relPath;
+        entry.hash = *hashResult;
+        entry.size = fs::file_size(fullPath);
+        entry.modifiedTime = static_cast<uint64_t>(
+            fs::last_write_time(fullPath).time_since_epoch().count());
+
+        manifest.push_back(std::move(entry));
+    }
+
+    spdlog::info("Created manifest with {} files", manifest.size());
+    return manifest;
+}
+
+Result<bool> IntegrityChecker::verify(
+    const fs::path& baseDir,
+    const std::vector<FileEntry>& manifest,
+    StringList* modifiedFiles
+) {
+    SecurityManager security;
+    bool allValid = true;
+
+    for (const auto& entry : manifest) {
+        fs::path fullPath = baseDir / entry.relativePath;
+
+        if (!fs::exists(fullPath)) {
+            spdlog::warn("Missing file: {}", entry.relativePath.string());
+            if (modifiedFiles) {
+                modifiedFiles->push_back(entry.relativePath.string());
+            }
+            allValid = false;
+            continue;
+        }
+
+        auto hashResult = security.hashFile(fullPath);
+        if (!hashResult || *hashResult != entry.hash) {
+            spdlog::warn("Modified file: {}", entry.relativePath.string());
+            if (modifiedFiles) {
+                modifiedFiles->push_back(entry.relativePath.string());
+            }
+            allValid = false;
+        }
+    }
+
+    return allValid;
+}
+
+VoidResult IntegrityChecker::saveManifest(
+    const fs::path& path, const std::vector<FileEntry>& manifest
+) {
+    try {
+        nlohmann::json j = nlohmann::json::array();
+        for (const auto& entry : manifest) {
+            j.push_back({
+                {"path", entry.relativePath.string()},
+                {"hash", entry.hash},
+                {"size", entry.size},
+                {"modified", entry.modifiedTime}
+            });
+        }
+
+        std::ofstream ofs(path);
+        if (!ofs) {
+            return std::unexpected(Error(ErrorCode::FileAccessDenied,
+                "Cannot create manifest file"));
+        }
+        ofs << j.dump(2);
+
+        spdlog::debug("Saved manifest to: {}", path.string());
+        return {};
+
+    } catch (const std::exception& e) {
+        return std::unexpected(Error(ErrorCode::Unknown, e.what()));
+    }
+}
+
+Result<std::vector<IntegrityChecker::FileEntry>> IntegrityChecker::loadManifest(
+    const fs::path& path
+) {
+    try {
+        std::ifstream ifs(path);
+        if (!ifs) {
+            return std::unexpected(Error(ErrorCode::FileNotFound,
+                "Cannot open manifest file"));
+        }
+
+        nlohmann::json j = nlohmann::json::parse(ifs);
+        std::vector<FileEntry> manifest;
+
+        for (const auto& item : j) {
+            FileEntry entry;
+            entry.relativePath = item["path"].get<std::string>();
+            entry.hash = item["hash"].get<std::string>();
+            entry.size = item["size"].get<uint64_t>();
+            entry.modifiedTime = item["modified"].get<uint64_t>();
+            manifest.push_back(std::move(entry));
+        }
+
+        spdlog::debug("Loaded manifest with {} entries", manifest.size());
+        return manifest;
+
+    } catch (const std::exception& e) {
+        return std::unexpected(Error(ErrorCode::ParseError, e.what()));
+    }
+}
+
+// =============================================================================
+// PathValidator Implementation
+// =============================================================================
+
+bool PathValidator::hasNullBytes(const std::string& path) noexcept {
+    return path.find('\0') != std::string::npos;
+}
+
+bool PathValidator::isUncPath(const std::string& path) noexcept {
+    if (path.length() < 2) return false;
+    // Check for \\ or // at the start (UNC path)
+    return (path[0] == '\\' && path[1] == '\\') ||
+           (path[0] == '/' && path[1] == '/');
+}
+
+bool PathValidator::hasTraversal(const std::string& path) noexcept {
+    // Check for direct ..
+    if (path.find("..") != std::string::npos) {
+        return true;
+    }
+
+    // Check for URL-encoded traversal
+    std::string decoded = urlDecode(path);
+    if (decoded.find("..") != std::string::npos) {
+        return true;
+    }
+
+    return false;
+}
+
+bool PathValidator::isSafe(const std::string& path) noexcept {
+    if (path.empty()) return false;
+    if (hasNullBytes(path)) return false;
+    if (hasTraversal(path)) return false;
+    if (isUncPath(path)) return false;
+    return true;
+}
+
+std::string PathValidator::urlDecode(const std::string& str) {
+    std::string result;
+    result.reserve(str.size());
+
+    for (size_t i = 0; i < str.size(); ++i) {
+        if (str[i] == '%' && i + 2 < str.size()) {
+            // Check if next two chars are hex
+            char c1 = str[i + 1];
+            char c2 = str[i + 2];
+
+            auto hexValue = [](char c) -> int {
+                if (c >= '0' && c <= '9') return c - '0';
+                if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                return -1;
+            };
+
+            int v1 = hexValue(c1);
+            int v2 = hexValue(c2);
+
+            if (v1 >= 0 && v2 >= 0) {
+                result += static_cast<char>((v1 << 4) | v2);
+                i += 2;
+                continue;
+            }
+        }
+        result += str[i];
+    }
+
+    return result;
+}
+
+std::string PathValidator::sanitize(const std::string& path) {
+    std::string result;
+    result.reserve(path.size());
+
+    // Remove null bytes
+    for (char c : path) {
+        if (c != '\0') {
+            result += c;
+        }
+    }
+
+    // Trim leading/trailing whitespace
+    size_t start = result.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) return "";
+
+    size_t end = result.find_last_not_of(" \t\r\n");
+    result = result.substr(start, end - start + 1);
+
+    // Normalize separators
+    result = normalizeSeparators(result);
+
+    // Remove consecutive separators
+    std::string cleaned;
+    cleaned.reserve(result.size());
+    char prevChar = 0;
+    for (char c : result) {
+        bool isSep = (c == '\\' || c == '/');
+        bool prevSep = (prevChar == '\\' || prevChar == '/');
+        if (!(isSep && prevSep)) {
+            cleaned += c;
+        }
+        prevChar = c;
+    }
+
+#ifdef _WIN32
+    // Remove trailing dots (Windows special handling)
+    while (!cleaned.empty() && cleaned.back() == '.') {
+        cleaned.pop_back();
+    }
+#endif
+
+    return cleaned;
+}
+
+std::string PathValidator::normalizeSeparators(const std::string& path) {
+    std::string result = path;
+#ifdef _WIN32
+    // Convert forward slashes to backslashes on Windows
+    for (char& c : result) {
+        if (c == '/') c = '\\';
+    }
+#else
+    // Convert backslashes to forward slashes on Unix
+    for (char& c : result) {
+        if (c == '\\') c = '/';
+    }
+#endif
+    return result;
+}
+
+bool PathValidator::isUnderDirectory(const fs::path& path, const fs::path& allowedDir) {
+    try {
+        // Resolve to canonical paths (resolves symlinks and ..)
+        fs::path canonicalPath = fs::weakly_canonical(path);
+        fs::path canonicalDir = fs::weakly_canonical(allowedDir);
+
+        // Check if path starts with allowedDir
+        auto pathStr = canonicalPath.string();
+        auto dirStr = canonicalDir.string();
+
+        // Ensure directory string ends with separator for proper prefix matching
+        if (!dirStr.empty() && dirStr.back() != fs::path::preferred_separator) {
+            dirStr += fs::path::preferred_separator;
+        }
+
+        // Path should either be equal to dir or start with dir/
+        return pathStr == canonicalDir.string() ||
+               pathStr.rfind(dirStr, 0) == 0;  // starts_with
+
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+std::optional<fs::path> PathValidator::joinSafe(
+    const fs::path& base,
+    const std::string& relative
+) {
+    // Validate the relative path first
+    if (hasNullBytes(relative) || hasTraversal(relative) || isUncPath(relative)) {
+        return std::nullopt;
+    }
+
+    // Sanitize
+    std::string sanitized = sanitize(relative);
+    if (sanitized.empty()) {
+        return std::nullopt;
+    }
+
+    // Build the joined path
+    fs::path result = base / sanitized;
+
+    // Verify the result is still under base
+    if (!isUnderDirectory(result, base)) {
+        spdlog::warn("Path escape attempt: {} + {} -> {}",
+                     base.string(), relative, result.string());
+        return std::nullopt;
+    }
+
+    return result;
+}
+
+PathValidationResult PathValidator::validate(
+    const std::string& path,
+    const PathValidationOptions& options
+) {
+    PathValidationResult result;
+    result.valid = false;
+
+    // Empty path check
+    if (path.empty()) {
+        result.reason = "Empty path";
+        return result;
+    }
+
+    // Null byte check
+    if (!options.allowNullBytes && hasNullBytes(path)) {
+        result.reason = "Path contains null bytes";
+        return result;
+    }
+
+    // UNC path check
+    if (!options.allowUncPaths && isUncPath(path)) {
+        result.reason = "UNC paths not allowed";
+        return result;
+    }
+
+    // Traversal check (before and after URL decoding)
+    if (!options.allowTraversal && hasTraversal(path)) {
+        result.reason = "Path contains traversal sequences";
+        return result;
+    }
+
+    // Sanitize the path
+    std::string sanitized = sanitize(path);
+    if (sanitized.empty()) {
+        result.reason = "Path empty after sanitization";
+        return result;
+    }
+
+    // Convert to fs::path for further validation
+    fs::path fsPath(sanitized);
+
+    // Relative path check
+    if (!options.allowRelative && fsPath.is_relative()) {
+        // Try to resolve with base path
+        if (!options.basePath.empty()) {
+            fsPath = options.basePath / fsPath;
+        } else {
+            result.reason = "Relative paths not allowed";
+            return result;
+        }
+    }
+
+    // Symlink check
+    if (!options.allowSymlinks) {
+        try {
+            if (fs::exists(fsPath) && fs::is_symlink(fsPath)) {
+                result.reason = "Symlinks not allowed";
+                return result;
+            }
+        } catch (const std::exception&) {
+            // Path might not exist yet, that's OK
+        }
+    }
+
+    // Allowed directories check
+    if (!options.allowedDirs.empty()) {
+        bool allowed = false;
+        for (const auto& allowedDir : options.allowedDirs) {
+            if (isUnderDirectory(fsPath, allowedDir)) {
+                allowed = true;
+                break;
+            }
+        }
+        if (!allowed) {
+            result.reason = "Path not under allowed directories";
+            return result;
+        }
+    }
+
+    result.valid = true;
+    result.sanitizedPath = fsPath.string();
+    return result;
+}
+
+// =============================================================================
+// PathGuard Implementation
+// =============================================================================
+
+PathGuard::PathGuard(const std::string& path, const PathValidationOptions& options)
+    : result_(PathValidator::validate(path, options))
+{
+    if (result_.valid) {
+        safePath_ = fs::path(result_.sanitizedPath);
+    }
+}
+
+} // namespace makineai

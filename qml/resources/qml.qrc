@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/logo.svg</file>
+        <file>icons/home.svg</file>
+        <file>icons/settings.svg</file>
+        <file>icons/close.svg</file>
+        <file>icons/minimize.svg</file>
+        <file>icons/maximize.svg</file>
+        <file>icons/search.svg</file>
+        <file>icons/check.svg</file>
+        <file>icons/arrow_back.svg</file>
+        <file>icons/verified.svg</file>
+        <file>icons/stop.svg</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,78 @@
+{
+  "header": {
+    "gameId": "hollow_knight",
+    "gameName": "Hollow Knight",
+    "steamAppId": "367520",
+    "engine": "Unity",
+    "engineVersion": "2017.4",
+    "recipeVersion": "1.0.0",
+    "gameVersion": "1.5.78",
+    "createdAt": "2026-01-20T12:00:00Z",
+    "author": "MakineAI",
+    "description": "Hollow Knight Türkçe yama reçetesi"
+  },
+  "detection": {
+    "signatureFiles": [
+      "hollow_knight_Data/Managed/Assembly-CSharp.dll",
+      "hollow_knight_Data/resources.assets",
+      "hollow_knight.exe"
+    ],
+    "executableName": "hollow_knight.exe"
+  },
+  "localization": {
+    "type": "unity_mono",
+    "files": [
+      {
+        "path": "hollow_knight_Data/StreamingAssets/Localization/**/*.csv",
+        "format": "csv",
+        "encoding": "utf-8"
+      },
+      {
+        "path": "hollow_knight_Data/StreamingAssets/Localization/**/*.txt",
+        "format": "txt",
+        "encoding": "utf-8"
+      }
+    ],
+    "encoding": "utf-8",
+    "extractionRules": [
+      {
+        "pattern": "^([^,]+),(.+)$",
+        "sourceGroup": 1,
+        "targetGroup": 2,
+        "type": "csv_pair"
+      }
+    ]
+  },
+  "translation": {
+    "source": "community",
+    "stringCount": 8500,
+    "coverage": "90%",
+    "quality": "community"
+  },
+  "patch": {
+    "type": "file_replace",
+    "requiresBackup": true,
+    "steps": [
+      {
+        "order": 1,
+        "action": "backup",
+        "target": "hollow_knight_Data/StreamingAssets/Localization/**/*"
+      },
+      {
+        "order": 2,
+        "action": "extract",
+        "target": "hollow_knight_Data/StreamingAssets/Localization/**/*"
+      },
+      {
+        "order": 3,
+        "action": "translate",
+        "target": "hollow_knight_Data/StreamingAssets/Localization/**/*"
+      },
+      {
+        "order": 4,
+        "action": "validate",
+        "target": "hollow_knight_Data/StreamingAssets/Localization/**/*"
+      }
+    ]
+  }
+}

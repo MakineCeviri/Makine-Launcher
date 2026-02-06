@@ -1,0 +1,47 @@
+# Build artifacts
+build/
+.dart_tool/
+.pub-cache/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Flutter generated
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.fvm/flutter_sdk
+
+# Windows build ephemeral
+windows/flutter/ephemeral/
+
+# Large binaries
+*.exe
+*.dll
+*.pdb
+*.apk
+*.aab
+*.ipa
+*.iso
+*.zip
+*.rar
+*.7z
+
+# Translation data (too large for context)
+../translation_data/mc-main/
+../translation_data/*.pak
+
+# Test artifacts
+coverage/
+.test_runner/
+
+# Logs
+*.log
+logs/
+
+# Temporary
+*.tmp
+*.temp
+*.bak

@@ -1,0 +1,733 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Dialogs
+import MakineAI 1.0
+
+/**
+ * GameDetectorDialog.qml - Flutter game_detector_dialog.dart birebir port
+ */
+Popup {
+    id: root
+
+    property bool isDark: true
+    property var selectedGame: null
+    property string searchQuery: ""
+
+    // Scanning state
+    property bool isScanning: true
+    property string statusMessage: "Oyun kütüphaneleri taranıyor..."
+    property real progress: 0.0
+    property string errorMessage: ""
+
+    // Games data
+    property var installedGames: []
+    property var sources: ({})
+    property var filteredGames: []
+
+    signal gameSelected(var game)
+    signal dialogClosed()
+
+    // Radius constants
+    readonly property real radiusLarge: 4
+    readonly property real radiusMedium: 4
+    readonly property real radiusSmall: 4
+    readonly property real radiusTiny: 2
+
+    width: 600
+    height: Math.min(700, parent ? parent.height - 40 : 660)
+    x: parent ? (parent.width - width) / 2 : 0
+    y: parent ? (parent.height - height) / 2 : 0
+
+    modal: true
+    closePolicy: Popup.CloseOnEscape
+
+    // Folder dialog
+    FolderDialog {
+        id: folderDialog
+        title: "Oyun Klasörünü Seçin"
+        onAccepted: addManualFolder(selectedFolder)
+    }
+
+    // GameService connections
+    Connections {
+        target: GameService
+
+        function onIsScanningChanged() {
+            root.isScanning = GameService.isScanning
+        }
+
+        function onScanStatusChanged() {
+            root.statusMessage = GameService.scanStatus || "Taranıyor..."
+        }
+
+        function onScanProgressChanged() {
+            root.progress = GameService.scanProgress || 0
+        }
+
+        function onGamesChanged() {
+            var games = GameService.games
+            var detected = []
+            for (var i = 0; i < games.length; i++) {
+                var g = games[i]
+                detected.push({
+                    id: g.id || "",
+                    appId: g.steamAppId || g.id || "",
+                    name: g.name || "Unknown",
+                    source: g.source || "Unknown",
+                    installPath: g.installPath || "",
+                    engine: g.engine || "",
+                    headerImageUrl: g.headerImageUrl || "",
+                    isVerified: g.isVerified || false,
+                    hasTranslation: g.hasTranslation || false
+                })
+            }
+            root.installedGames = detected
+            root.filteredGames = detected
+            root.isScanning = false
+
+            var srcMap = {}
+            for (var j = 0; j < detected.length; j++) {
+                srcMap[detected[j].source] = true
+            }
+            root.sources = srcMap
+        }
+
+        function onScanCompleted(count) {
+            root.isScanning = false
+            root.statusMessage = count + " oyun bulundu"
+        }
+
+        function onScanError(error) {
+            root.isScanning = false
+            root.errorMessage = error
+        }
+    }
+
+    function startScan() {
+        root.errorMessage = ""
+        root.isScanning = true
+        root.progress = 0.1
+        root.statusMessage = "Oyun kütüphaneleri taranıyor..."
+        GameService.scanAllLibraries()
+    }
+
+    function addManualFolder(folderUrl) {
+        var folderPath = folderUrl.toString().replace("file:///", "")
+        var folderName = folderPath.split("/").pop() || folderPath.split("\\").pop()
+
+        var manualGame = {
+            id: "manual_" + Date.now(),
+            appId: "manual_" + Date.now(),
+            name: folderName,
+            source: "manual",
+            installPath: folderPath,
+            engine: "",
+            headerImageUrl: "",
+            isVerified: false,
+            hasTranslation: false
+        }
+
+        var newGames = root.installedGames.slice()
+        newGames.unshift(manualGame)
+        root.installedGames = newGames
+        root.filteredGames = newGames
+        root.selectedGame = manualGame
+
+        var srcMap = Object.assign({}, root.sources)
+        srcMap["manual"] = true
+        root.sources = srcMap
+    }
+
+    function selectGame(game) {
+        root.selectedGame = game
+    }
+
+    function updateFilter() {
+        if (!root.searchQuery || root.searchQuery.length === 0) {
+            root.filteredGames = root.installedGames
+            return
+        }
+        var query = root.searchQuery.toLowerCase()
+        var result = []
+        for (var i = 0; i < root.installedGames.length; i++) {
+            var game = root.installedGames[i]
+            if (game.name && game.name.toLowerCase().indexOf(query) >= 0) {
+                result.push(game)
+            }
+        }
+        root.filteredGames = result
+    }
+
+    onSearchQueryChanged: updateFilter()
+
+    Component.onCompleted: {
+        startScan()
+    }
+
+    background: Rectangle {
+        radius: root.radiusLarge
+        color: root.isDark
+            ? Qt.rgba(0.08, 0.08, 0.12, 0.95)
+            : Qt.rgba(0.95, 0.95, 0.97, 0.95)
+        border.color: root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
+        border.width: 1
+    }
+
+    contentItem: Column {
+        spacing: 0
+
+        // Header
+        Rectangle {
+            width: parent.width
+            height: 72
+            color: "transparent"
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 12
+
+                // Gradient icon
+                Rectangle {
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    radius: root.radiusSmall
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: Theme.splashGold }
+                        GradientStop { position: 1.0; color: Theme.pink }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "🎮"
+                        font.pixelSize: 18
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Text {
+                        text: "Oyun Kütüphanesi"
+                        font.pixelSize: 16
+                        font.weight: Font.DemiBold
+                        color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                    }
+
+                    Text {
+                        text: root.isScanning ? root.statusMessage : (root.installedGames.length + " oyun bulundu")
+                        font.pixelSize: 12
+                        color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                    }
+                }
+
+                // Close button
+                Rectangle {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    radius: root.radiusSmall
+                    color: closeBtn.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "✕"
+                        font.pixelSize: 14
+                        color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                    }
+
+                    MouseArea {
+                        id: closeBtn
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.dialogClosed()
+                            root.close()
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+            }
+        }
+
+        // Content
+        Item {
+            width: parent.width
+            height: root.height - 72 - (root.selectedGame ? 100 : 0)
+
+            // Scanning state
+            Column {
+                anchors.centerIn: parent
+                spacing: 24
+                visible: root.isScanning
+
+                Rectangle {
+                    width: 80
+                    height: 80
+                    radius: 40
+                    color: "transparent"
+                    border.color: root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
+                    border.width: 4
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 72
+                        height: 72
+                        radius: 36
+                        color: "transparent"
+                        border.color: Theme.primary
+                        border.width: 4
+                        rotation: -90
+
+                        Rectangle {
+                            width: parent.width * root.progress
+                            height: 4
+                            color: Theme.primary
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                        }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Math.round(root.progress * 100) + "%"
+                        font.pixelSize: 18
+                        font.weight: Font.DemiBold
+                        color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                    }
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: root.statusMessage
+                    font.pixelSize: 16
+                    font.weight: Font.Medium
+                    color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "Bu işlem birkaç saniye sürebilir"
+                    font.pixelSize: 13
+                    color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                }
+            }
+
+            // Games list state
+            Column {
+                anchors.fill: parent
+                visible: !root.isScanning
+
+                // Search bar
+                Item {
+                    width: parent.width
+                    height: 54
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 16
+                        anchors.topMargin: 12
+                        anchors.bottomMargin: 8
+                        spacing: 8
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 38
+                            radius: root.radiusSmall
+                            color: root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05)
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 8
+
+                                Text {
+                                    text: "🔍"
+                                    font.pixelSize: 14
+                                }
+
+                                TextInput {
+                                    id: searchInput
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                                    font.pixelSize: 13
+                                    clip: true
+                                    onTextChanged: root.searchQuery = text
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "Oyun ara..."
+                                        font.pixelSize: 13
+                                        color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                                        visible: searchInput.text.length === 0
+                                    }
+                                }
+                            }
+                        }
+
+                        // Manual add button
+                        Rectangle {
+                            Layout.preferredWidth: 38
+                            Layout.preferredHeight: 38
+                            radius: root.radiusSmall
+                            color: manualBtn.containsMouse
+                                ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
+                                : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "➕"
+                                font.pixelSize: 14
+                            }
+
+                            MouseArea {
+                                id: manualBtn
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: folderDialog.open()
+                            }
+
+                            ToolTip {
+                                visible: manualBtn.containsMouse
+                                text: "Manuel oyun ekle"
+                                delay: 500
+                            }
+                        }
+
+                        // Refresh button
+                        Rectangle {
+                            Layout.preferredWidth: 38
+                            Layout.preferredHeight: 38
+                            radius: root.radiusSmall
+                            color: refreshBtn.containsMouse
+                                ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
+                                : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "🔄"
+                                font.pixelSize: 14
+                            }
+
+                            MouseArea {
+                                id: refreshBtn
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.startScan()
+                            }
+
+                            ToolTip {
+                                visible: refreshBtn.containsMouse
+                                text: "Yeniden tara"
+                                delay: 500
+                            }
+                        }
+                    }
+                }
+
+                // Games ListView
+                ListView {
+                    id: gamesList
+                    width: parent.width
+                    height: parent.height - 54
+                    clip: true
+                    model: root.filteredGames
+                    spacing: 8
+
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
+
+                    delegate: Rectangle {
+                        width: gamesList.width - 32
+                        height: 68
+                        x: 16
+                        radius: root.radiusMedium
+                        color: {
+                            var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
+                            if (isSelected) return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                            if (gameTileMouse.containsMouse) return root.isDark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.06)
+                            return root.isDark ? Qt.rgba(1, 1, 1, 0.03) : Qt.rgba(0, 0, 0, 0.03)
+                        }
+                        border.color: {
+                            var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
+                            if (isSelected) return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.5)
+                            return root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+                        }
+                        border.width: 1
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 14
+
+                            // Game image placeholder
+                            Rectangle {
+                                Layout.preferredWidth: 100
+                                Layout.preferredHeight: 38
+                                radius: root.radiusSmall
+                                color: {
+                                    var src = modelData.source || ""
+                                    if (src === "steam") return Qt.rgba(0.106, 0.157, 0.22, 0.3)
+                                    if (src === "epic") return Qt.rgba(0.184, 0.184, 0.184, 0.3)
+                                    if (src === "gog") return Qt.rgba(0.525, 0.196, 0.541, 0.3)
+                                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
+                                }
+                                clip: true
+
+                                Image {
+                                    anchors.fill: parent
+                                    source: modelData.source === "steam" && modelData.appId
+                                        ? "https://steamcdn-a.akamaihd.net/steam/apps/" + modelData.appId + "/capsule_231x87.jpg"
+                                        : ""
+                                    fillMode: Image.PreserveAspectCrop
+                                    visible: status === Image.Ready
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: {
+                                        var src = modelData.source || ""
+                                        if (src === "steam") return "🎮"
+                                        if (src === "epic") return "🏪"
+                                        if (src === "gog") return "☁"
+                                        return "📁"
+                                    }
+                                    font.pixelSize: 18
+                                    visible: parent.children[0].status !== Image.Ready
+                                }
+                            }
+
+                            // Game info
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 4
+
+                                Text {
+                                    text: modelData.name || "Unknown"
+                                    font.pixelSize: 14
+                                    font.weight: Font.Medium
+                                    color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                                    elide: Text.ElideRight
+                                    width: parent.width
+                                }
+
+                                Text {
+                                    text: modelData.source === "steam" ? "App ID: " + modelData.appId : (modelData.installPath || "")
+                                    font.pixelSize: 11
+                                    color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                                    elide: Text.ElideMiddle
+                                    width: parent.width
+                                }
+                            }
+
+                            // Source badge
+                            Rectangle {
+                                Layout.preferredWidth: sourceBadgeText.width + 12
+                                Layout.preferredHeight: 18
+                                radius: root.radiusTiny
+                                color: {
+                                    var src = (modelData.source || "").toLowerCase()
+                                    if (src === "steam") return Qt.rgba(0.106, 0.157, 0.22, 0.8)
+                                    if (src === "epic") return Qt.rgba(0.184, 0.184, 0.184, 0.8)
+                                    if (src === "gog") return Qt.rgba(0.525, 0.196, 0.541, 0.8)
+                                    if (src === "manual") return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.8)
+                                    return Qt.rgba(0.5, 0.5, 0.5, 0.8)
+                                }
+
+                                Text {
+                                    id: sourceBadgeText
+                                    anchors.centerIn: parent
+                                    text: {
+                                        var src = (modelData.source || "").toLowerCase()
+                                        if (src === "steam") return "Steam"
+                                        if (src === "epic") return "Epic"
+                                        if (src === "gog") return "GOG"
+                                        if (src === "manual") return "Manuel"
+                                        return "Diğer"
+                                    }
+                                    font.pixelSize: 9
+                                    font.weight: Font.DemiBold
+                                    color: "white"
+                                }
+                            }
+
+                            // Selected checkmark
+                            Text {
+                                visible: root.selectedGame && root.selectedGame.id === modelData.id
+                                text: "✓"
+                                font.pixelSize: 16
+                                color: Theme.primary
+                            }
+                        }
+
+                        MouseArea {
+                            id: gameTileMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.selectGame(modelData)
+                        }
+                    }
+
+                    // Empty state
+                    Item {
+                        anchors.centerIn: parent
+                        visible: gamesList.count === 0
+                        width: parent.width
+
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 16
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "🔍"
+                                font.pixelSize: 40
+                                opacity: 0.5
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: root.searchQuery.length > 0 ? "Sonuç bulunamadı" : "Yüklü oyun bulunamadı"
+                                font.pixelSize: 16
+                                color: root.isDark ? Theme.textSecondary : Theme.lightTextSecondary
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Footer
+        Rectangle {
+            width: parent.width
+            height: 100
+            color: "transparent"
+            visible: root.selectedGame !== null
+
+            Rectangle {
+                anchors.top: parent.top
+                width: parent.width
+                height: 1
+                color: root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 16
+
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Row {
+                        spacing: 8
+
+                        Text {
+                            text: root.selectedGame ? root.selectedGame.name : ""
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                            color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                            elide: Text.ElideRight
+                            width: Math.min(implicitWidth, 300)
+                        }
+
+                        Rectangle {
+                            visible: root.selectedGame !== null
+                            width: footerSourceText.width + 12
+                            height: 18
+                            radius: root.radiusTiny
+                            color: Theme.primary
+
+                            Text {
+                                id: footerSourceText
+                                anchors.centerIn: parent
+                                text: {
+                                    if (!root.selectedGame) return ""
+                                    var src = (root.selectedGame.source || "").toLowerCase()
+                                    if (src === "steam") return "Steam"
+                                    if (src === "epic") return "Epic"
+                                    if (src === "gog") return "GOG"
+                                    if (src === "manual") return "Manuel"
+                                    return "Diğer"
+                                }
+                                font.pixelSize: 9
+                                font.weight: Font.DemiBold
+                                color: "white"
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: root.selectedGame && root.selectedGame.isVerified
+                            ? "Onaylı çeviri reçetesi mevcut"
+                            : "Deneysel çeviri modu kullanılacak"
+                        font.pixelSize: 12
+                        color: root.selectedGame && root.selectedGame.isVerified ? Theme.success : Theme.warning
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: startBtnRow.width + 48
+                    Layout.preferredHeight: 48
+                    radius: root.radiusMedium
+                    color: startBtn.containsMouse ? Theme.primaryHover : Theme.primary
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Row {
+                        id: startBtnRow
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Text {
+                            text: "🌐"
+                            font.pixelSize: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: "Çeviriyi Başlat"
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                            color: "white"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: startBtn
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (root.selectedGame) {
+                                root.gameSelected(root.selectedGame)
+                                root.close()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
