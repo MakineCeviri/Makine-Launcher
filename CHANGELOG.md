@@ -7,7 +7,21 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
-_Sonraki sürüm için değişiklikler burada listelenecek._
+### Eklenen
+- `.editorconfig` - Editörler arası tutarlı kodlama standartları
+- `vcpkg-configuration.json` - Tekrarlanabilir bağımlılık yapıları
+- GitHub Issues ile kapsamlı roadmap takibi (#12-#20)
+
+### Değiştirilen
+- `docs/ROADMAP.md` güncel durum ve issue bağlantılarıyla yenilendi
+- Core modüllerinde tüm TODO öğeleri implemente edildi
+- CI/CD pipeline'da vcpkg entegrasyonu iyileştirildi
+- CodeQL workflow vcpkg cache sorunu çözüldü
+- Release workflow `lukka/run-vcpkg` yerine built-in vcpkg kullanılıyor
+
+### Düzeltilen
+- Flutter referans kalıntıları QML dosyalarından temizlendi
+- Gereksiz yorum ve dead code kaldırıldı
 
 ---
 
@@ -35,7 +49,7 @@ _Sonraki sürüm için değişiklikler burada listelenecek._
 - **GPU Optimizasyonları** - Görünmeyen animasyonlar durduruldu
 - **Performance Monitor** - F3 ile FPS overlay
 - **30+ UI Bileşeni** - Native Qt tasarım sistemi
-- **vcpkg Entegrasyonu** - 22+ C++ bağımlılık
+- **vcpkg Entegrasyonu** - 18 C++ bağımlılık
 - **CMake Presets** - Modern build konfigürasyonu
 
 ### Değiştirilen
@@ -51,6 +65,7 @@ _Sonraki sürüm için değişiklikler burada listelenecek._
 ### Güvenlik
 - Path traversal koruması eklendi
 - Input validation güçlendirildi
+- libsodium entegrasyonu (BLAKE2b, secure random)
 
 ---
 

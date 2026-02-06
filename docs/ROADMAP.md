@@ -1,163 +1,149 @@
-# MakineAI Yol Haritasi
+# MakineAI Yol Haritası
 
-**Son Guncelleme:** 2026-02-03
-
----
-
-## Mevcut Durum
-
-- **UI:** Qt QML arayuz calisiyor (UI-only mod)
-- **Core:** C++ kutuphanesi mevcut, entegrasyon bekliyor
-- **Build:** Ayri ayri derleniyor, birlestirilmedi
+**Son Güncelleme:** 2026-02-06
 
 ---
 
-## Oncelik Sirasi
+## Genel Durum
 
-### Faz 1: UI Duzeltmeleri (AKTIF)
+```
+██████████████████░░░░░░░░░░  62%  GENEL TAMAMLANMA
+```
 
-UI'da bilinen/tespit edilecek hatalar:
-
-| # | Sorun | Dosya | Durum |
-|---|-------|-------|-------|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-
-**Notlar:**
-- UI hatalari tespit edilecek
-- Tek tek duzeltilecek
-- Her duzeltme sonrasi test
-
-### Faz 2: Core Entegrasyonu
-
-UI tamamlandiktan sonra:
-
-1. [ ] `MAKINEAI_UI_ONLY` flag'ini kaldir
-2. [ ] Core library'yi QML'e bagla
-3. [ ] Gercek oyun taramasi test et
-4. [ ] Paket yukleme sistemi test et
-
-### Faz 3: Paket Sistemi
-
-Desteklenen oyunlar icin:
-
-1. [ ] Ceviri paketi formati tanimla
-2. [ ] Paket indirme mekanizmasi
-3. [ ] Paket yukleme (dil dosyasi kopyalama)
-4. [ ] Uyumluluk kontrolu
-5. [ ] Geri alma (rollback)
-
-### Faz 4: Test ve Polish
-
-1. [ ] Gercek oyunlarla test
-2. [ ] Performans optimizasyonu
-3. [ ] Hata ayiklama
-4. [ ] Installer/deployment
+| Bölüm | Tamamlanma | Ağırlık | Durum |
+|-------|-----------|---------|-------|
+| C++ Core Library | %72 | %35 | Altyapı sağlam, parser/download eksik |
+| QML Arayüz | %75 | %25 | Görsel tamam, core entegrasyon yok |
+| Core-UI Entegrasyon | %10 | %20 | **KRİTİK DARBOĞAZ** |
+| Test & QA | %55 | %10 | 120 test var, bazı modüller eksik |
+| CI/CD & DevOps | %70 | %5 | Pipeline var, iyileştirme devam |
+| Dokümantasyon | %85 | %5 | 32 dosya, kapsamlı |
 
 ---
 
-## Calisma Modu Aciklamasi
+## Faz 1: UI Düzeltmeleri ✅ (%90 Tamamlandı)
+
+- [x] Flutter'dan Qt6/QML'e geçiş
+- [x] 80 QML dosyası, 59 bileşen
+- [x] Tema sistemi (dark/light)
+- [x] Animasyonlar ve GPU optimizasyonu
+- [x] Flutter referans temizliği
+- [ ] Küçük UI bug'lar (devam ediyor)
+
+---
+
+## Faz 2: Core Entegrasyonu 🔄 (Aktif - %10)
+
+> **Epic Issue:** [#12](https://github.com/jlceaser/MakineAI/issues/12)
+
+Bu projenin en kritik aşaması. C++ Core ile QML UI'ı birleştirmek.
+
+| # | Görev | Issue | Durum | Öncelik |
+|---|-------|-------|-------|---------|
+| 1 | Build sistemini birleştir | [#13](https://github.com/jlceaser/MakineAI/issues/13) | ❌ Başlamadı | Kritik |
+| 2 | CoreBridge gerçek implementasyon | [#14](https://github.com/jlceaser/MakineAI/issues/14) | ❌ Başlamadı | Kritik |
+| 3 | HTTP client entegrasyonu | [#15](https://github.com/jlceaser/MakineAI/issues/15) | ❌ Başlamadı | Yüksek |
+| 4 | Asset parser gerçek extraction | [#16](https://github.com/jlceaser/MakineAI/issues/16) | ❌ Başlamadı | Yüksek |
+| 5 | Oyun tarama entegrasyonu | [#17](https://github.com/jlceaser/MakineAI/issues/17) | ❌ Başlamadı | Yüksek |
+
+**Bağımlılık Sırası:** #13 → #14 → #17 → #15 → #16
+
+---
+
+## Faz 3: Paket Sistemi (%30)
+
+> **Epic Issue:** [#19](https://github.com/jlceaser/MakineAI/issues/19)
+
+| Görev | Durum |
+|-------|-------|
+| Çeviri paketi formatı tanımla | ❌ Başlamadı |
+| Paket indirme mekanizması | ❌ Başlamadı (Faz 2'ye bağlı) |
+| Paket yükleme | Kısmen yazıldı |
+| Uyumluluk kontrolü | Kısmen yazıldı |
+| Geri alma (rollback) | Patch Engine ile mevcut |
+
+---
+
+## Faz 4: Test ve Polish (%20)
+
+| Görev | Issue | Durum |
+|-------|-------|-------|
+| Eksik modül testleri | [#18](https://github.com/jlceaser/MakineAI/issues/18) | ❌ Başlamadı |
+| Gerçek oyunlarla e2e test | - | ❌ Başlamadı |
+| Performans optimizasyonu | - | ❌ Başlamadı |
+| Windows installer | [#20](https://github.com/jlceaser/MakineAI/issues/20) | ❌ Başlamadı |
+
+---
+
+## Çalışma Modu
 
 ### Mod 1: Desteklenen Oyunlar
 ```
-Kullanici oyunu secer
-    |
-    v
-Uyumluluk kontrolu
-    |
-    v
-Ceviri paketi indir (eger yoksa)
-    |
-    v
-Dil dosyalarini oyuna yukle
-    |
-    v
-Tamamlandi!
+Kullanıcı oyunu seçer → Uyumluluk kontrolü → Çeviri paketi indir → Dil dosyalarını yükle → Tamamlandı!
 ```
 
-### Mod 2: Diger Oyunlar
+### Mod 2: Topluluk Çevirileri
 ```
-Kullanici oyunu secer
-    |
-    v
-Topluluk ceviri paketi ara
-    |
-    v
-Patch uygula (manuel adimlar gerekebilir)
-    |
-    v
-Tamamlandi!
+Kullanıcı oyunu seçer → Topluluk paketi ara → Patch uygula → Tamamlandı!
 ```
 
 ---
 
-## Araclar
-
-### Gelistirme
-- Qt 6.10.1 + MinGW
-- Visual Studio 2022 (Core icin)
-- CMake + vcpkg
-
-### Yardimci
-- GitHub Copilot Pro (kod tamamlama, refactoring)
-- Claude Code (mimari kararlar, debugging)
-
----
-
-## Ileri Vizyon (v1.x+)
+## İleri Vizyon (v1.x+)
 
 ### Gaming Companion AI
 
-Oyun oynarken yaninda bir arkadas gibi AI asistan.
+Oyun oynarken yanında bir arkadaş gibi AI asistan.
 
-**Konsept:**
-```
-F12 ile ekran goruntusu al
-        |
-        v
-AI goruntuyu analiz et
-        |
-        v
-Sahneye uygun yorum yap
-        |
-        v
-Overlay ile ekranda goster
-```
+**Konsept:** F12 ile ekran görüntüsü → AI analiz → Sahneye uygun yorum → Overlay
 
-**Kisilik Sistemi:**
-- Sadece "arastirmis" degil, "yasamis" gibi konussun
-- Soguk bilgi yerine samimi deneyim paylasimi
-- Duruma gore ton degisimi (komik/duygusal/heyecanli)
-
-**Ornek Senaryolar:**
-
-| Sahne | Klasik AI | MakineAI Companion |
-|-------|-----------|-------------------|
-| Boss savas | "Bu boss'un 3 fazi var..." | "Ilk oynadigimda burda kaldim, sol taraftan dolan" |
-| Duygusal an | "Bu karakterin hikayesi..." | "Dostum... neden boyle olmali ki?" |
-| Aksiyon | "X tusuna basin" | "Wubba lubba dub dub! Hadi devam!" |
-| Panik ani | "Kacis rotasi kuzeyde" | "A-ah bu iyi fikir miydi?!" |
+**Kişilik Sistemi:**
+- Sadece "araştırmış" değil, "yaşamış" gibi konuşsun
+- Soğuk bilgi yerine samimi deneyim paylaşımı
+- Duruma göre ton değişimi (komik/duygusal/heyecanlı)
 
 **Teknik Gereksinimler:**
 - [ ] Screenshot capture (F12) - MEVCUT
 - [ ] Claude API entegrasyonu
-- [ ] Oyun tanimlama sistemi
+- [ ] Oyun tanımlama sistemi
 - [ ] Overlay mesaj UI
-- [ ] Kisilik/ton motor
+- [ ] Kişilik/ton motoru
 
-**Hedef:** v1.0 veya sonrasi
-
----
-
-## Notlar
-
-- UI once, Core sonra
-- Her adim test edilmeli
-- Kucuk commitler, sik push
-- Ileri vizyon icin altyapi simdiden hazirlanmali
+**Hedef:** v1.0 veya sonrası
 
 ---
 
-*Bu dokuman aktif olarak guncellenmektedir.*
+## Risk Matrisi
+
+| Risk | Etki | Olasılık | Öncelik |
+|------|------|----------|---------|
+| Core-UI entegrasyonu gecikmesi | Yüksek | Yüksek | **KRİTİK** |
+| Asset parser'ların stub kalması | Yüksek | Orta | Yüksek |
+| HTTP/download sisteminin olmaması | Yüksek | Yüksek | Yüksek |
+| CI pipeline kırılganlığı | Orta | Orta | Orta |
+| Test coverage boşlukları | Orta | Düşük | Düşük |
+
+---
+
+## Araçlar
+
+### Geliştirme
+- Qt 6.10.1 + MinGW 13.1.0
+- Visual Studio 2022 (Core için MSVC)
+- CMake 3.25+ + Ninja
+- vcpkg (18 bağımlılık)
+
+### DevOps
+- GitHub Actions (CI/CD)
+- CodeQL (güvenlik analizi)
+- clang-format + clang-tidy (kod kalitesi)
+- Dependabot (bağımlılık güncellemeleri)
+
+### Yardımcı
+- GitHub Copilot Pro
+- Claude Code
+
+---
+
+*Bu doküman aktif olarak güncellenmektedir.*
 *CEDRA Interactive - 2026*
