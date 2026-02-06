@@ -82,18 +82,8 @@
 
 namespace makineai {
 
-// Forward declarations
-class AssetParser;
-class PatchEngine;
-class GameDetector;
-class PackageManager;
-class RuntimeManager;
-class SecurityManager;
-class VersionTracker;
-class TranslationMemory;
-class GlossaryService;
-class QAService;
-class TranslationPipeline;
+// Note: Forward declarations removed - types are imported via 'using' aliases
+// from their respective headers (asset_parser.hpp, game_detector.hpp, etc.)
 
 /**
  * @brief Initialization options for MakineAI core
@@ -337,7 +327,7 @@ public:
      * @param progress Optional progress callback
      * @return Async operation that resolves to game list
      */
-    [[nodiscard]] AsyncOperation<std::vector<GameInfo>> scanGamesAsync(
+    [[nodiscard]] AsyncOperationPtr<std::vector<GameInfo>> scanGamesAsync(
         ProgressCallback progress = nullptr
     );
 
@@ -349,7 +339,7 @@ public:
      * @param progress Optional progress callback
      * @return Async operation that resolves to patch result
      */
-    [[nodiscard]] AsyncOperation<PatchResult> applyTranslationAsync(
+    [[nodiscard]] AsyncOperationPtr<PatchResult> applyTranslationAsync(
         const GameInfo& game,
         const std::string& packageId,
         ProgressCallback progress = nullptr
@@ -443,47 +433,15 @@ private:
 // =============================================================================
 // Convenience Functions
 // =============================================================================
+// Note: metrics(), healthChecker(), caches(), auditLogger(), configManager()
+// are already defined in their respective headers (metrics.hpp, health.hpp, etc.)
+// Only logger() is unique to core.hpp
 
 /**
  * @brief Quick access to logger
  */
 inline std::shared_ptr<spdlog::logger> logger() {
     return Core::instance().logger();
-}
-
-/**
- * @brief Quick access to metrics
- */
-inline Metrics& metrics() {
-    return Metrics::instance();
-}
-
-/**
- * @brief Quick access to health checker
- */
-inline HealthChecker& healthChecker() {
-    return HealthChecker::instance();
-}
-
-/**
- * @brief Quick access to audit logger
- */
-inline AuditLogger& auditLogger() {
-    return AuditLogger::instance();
-}
-
-/**
- * @brief Quick access to config manager
- */
-inline ConfigManager& configManager() {
-    return ConfigManager::instance();
-}
-
-/**
- * @brief Quick access to caches
- */
-inline CacheManager& caches() {
-    return CacheManager::instance();
 }
 
 } // namespace makineai

@@ -74,6 +74,7 @@ class GameService : public QObject
     Q_PROPERTY(bool isScanning READ isScanning NOTIFY isScanningChanged)
     Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanStatusChanged)
     Q_PROPERTY(qreal scanProgress READ scanProgress NOTIFY scanProgressChanged)
+    Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -90,6 +91,7 @@ public:
     bool isScanning() const { return m_isScanning; }
     QString scanStatus() const { return m_scanStatus; }
     qreal scanProgress() const { return m_scanProgress; }
+    QString lastError() const { return m_lastError; }
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
@@ -107,6 +109,7 @@ signals:
     void isScanningChanged();
     void scanStatusChanged();
     void scanProgressChanged();
+    void lastErrorChanged();
     void gameDetected(const QString& gameId);
     void scanCompleted(int count);
     void scanError(const QString& error);
@@ -131,6 +134,7 @@ private:
     bool m_isScanning{false};
     QString m_scanStatus;
     qreal m_scanProgress{0};
+    QString m_lastError;
 
     // Cache for QVariantList conversions
     mutable QVariantList m_gamesCache;

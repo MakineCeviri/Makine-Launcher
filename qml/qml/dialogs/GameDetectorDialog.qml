@@ -10,6 +10,7 @@ import MakineAI 1.0
 Popup {
     id: root
 
+    property var appWindow: null  // Required for FolderDialog on Windows
     property bool isDark: true
     property var selectedGame: null
     property string searchQuery: ""
@@ -42,10 +43,11 @@ Popup {
     modal: true
     closePolicy: Popup.CloseOnEscape
 
-    // Folder dialog
+    // Folder dialog - parentWindow required on Windows Qt6
     FolderDialog {
         id: folderDialog
         title: "Oyun Klasörünü Seçin"
+        parentWindow: root.appWindow
         onAccepted: addManualFolder(selectedFolder)
     }
 

@@ -35,21 +35,34 @@ CoreBridge* CoreBridge::s_instance = nullptr;
 static bool s_coreInitialized = false;
 
 // Initialize Core singleton on first use
-static void ensureCoreInitialized() {
-    if (s_coreInitialized) return;
+// Returns true if Core is ready to use, false otherwise
+static bool ensureCoreInitialized() {
+    if (s_coreInitialized) return true;
 
-    auto& core = Core::instance();
-    if (!core.isInitialized()) {
-        qDebug() << "Initializing MakineAI Core...";
-        auto result = core.initialize();
-        if (result) {
-            qDebug() << "Core initialized successfully in" << result->initDuration.count() << "ms";
-            s_coreInitialized = true;
+    try {
+        auto& core = Core::instance();
+        if (!core.isInitialized()) {
+            qDebug() << "Initializing MakineAI Core...";
+            auto result = core.initialize();
+            if (result) {
+                qDebug() << "Core initialized successfully in" << result->initDuration.count() << "ms";
+                s_coreInitialized = true;
+                return true;
+            } else {
+                qCritical() << "Core initialization FAILED:"
+                           << QString::fromStdString(result.error().message());
+                return false;
+            }
         } else {
-            qWarning() << "Core initialization failed:" << QString::fromStdString(result.error().message());
+            s_coreInitialized = true;
+            return true;
         }
-    } else {
-        s_coreInitialized = true;
+    } catch (const std::exception& e) {
+        qCritical() << "Core initialization threw exception:" << e.what();
+        return false;
+    } catch (...) {
+        qCritical() << "Core initialization threw unknown exception";
+        return false;
     }
 }
 #endif
@@ -101,11 +114,11 @@ void CoreBridge::scanAllLibraries()
         };
 
         QList<VerifiedGame> verifiedGames = {
-            {"2358720", "Black Myth: Wukong"},
-            {"1245620", "Elden Ring"},
             {"1174180", "Red Dead Redemption 2"},
+            {"1245620", "Elden Ring"},
             {"3159330", "Assassin's Creed Shadows"},
             {"2208920", "Assassin's Creed Valhalla"},
+            {"2358720", "Black Myth: Wukong"},
             {"3035570", "Assassin's Creed Mirage"},
             {"582160", "Assassin's Creed Origins"},
             {"812140", "Assassin's Creed Odyssey"},
@@ -146,7 +159,7 @@ void CoreBridge::scanAllLibraries()
             game.source = "steam";
             game.steamAppId = vg.steamAppId;
             game.engine = "Unity";
-            game.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/header.jpg").arg(vg.steamAppId);
+            game.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(vg.steamAppId);
             game.isVerified = true;
             game.hasTranslation = true;
             m_detectedGames.append(game);
@@ -512,67 +525,98 @@ void CoreBridge::scanGogLibrary()
 
 void CoreBridge::doScanSteam()
 {
+    // Safety guard: Ensure Core is initialized before scanning
+    if (!s_coreInitialized) {
+        qWarning() << "CoreBridge::doScanSteam - Core not initialized, skipping scan";
+        emit scanError("Core kütüphanesi başlatılamadı. Lütfen uygulamayı yeniden başlatın.");
+        return;
+    }
+
     SteamScanner scanner;
     auto result = scanner.scan();
 
-    if (result) {
-        for (const auto& game : *result) {
-            DetectedGame detected;
-            detected.id = QString::fromStdString(game.id.storeId);
-            detected.name = QString::fromStdString(game.name);
-            detected.installPath = QString::fromStdWString(game.installPath.wstring());
-            detected.source = "steam";
-            detected.steamAppId = QString::fromStdString(game.id.storeId);
+    if (!result) {
+        qWarning() << "Steam scan failed:" << QString::fromStdString(result.error().message());
+        // Don't emit error for Steam - continue silently if Steam not available
+        return;
+    }
 
-            bool ok = false;
-            int appId = detected.steamAppId.toInt(&ok);
-            if (ok && appId > 0) {
-                detected.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/header.jpg")
-                    .arg(appId);
-            }
+    for (const auto& game : *result) {
+        DetectedGame detected;
+        detected.id = QString::fromStdString(game.id.storeId);
+        detected.name = QString::fromStdString(game.name);
+        detected.installPath = QString::fromStdWString(game.installPath.wstring());
+        detected.source = "steam";
+        detected.steamAppId = QString::fromStdString(game.id.storeId);
 
-            detected.engine = detectEngine(detected.installPath);
-            m_detectedGames.append(detected);
-            emit gameDetected(detected.id, detected.name);
+        bool ok = false;
+        int appId = detected.steamAppId.toInt(&ok);
+        if (ok && appId > 0) {
+            detected.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg")
+                .arg(appId);
         }
+
+        detected.engine = detectEngine(detected.installPath);
+        m_detectedGames.append(detected);
+        emit gameDetected(detected.id, detected.name);
     }
 }
 
 void CoreBridge::doScanEpic()
 {
+    // Safety guard: Ensure Core is initialized before scanning
+    if (!s_coreInitialized) {
+        qWarning() << "CoreBridge::doScanEpic - Core not initialized, skipping scan";
+        return;
+    }
+
     EpicScanner scanner;
     auto result = scanner.scan();
 
-    if (result) {
-        for (const auto& game : *result) {
-            DetectedGame detected;
-            detected.id = QString::fromStdString(game.id.storeId);
-            detected.name = QString::fromStdString(game.name);
-            detected.installPath = QString::fromStdWString(game.installPath.wstring());
-            detected.source = "epic";
-            detected.engine = detectEngine(detected.installPath);
-            m_detectedGames.append(detected);
-            emit gameDetected(detected.id, detected.name);
-        }
+    if (!result) {
+        qWarning() << "Epic scan failed:" << QString::fromStdString(result.error().message());
+        // Silent fail for Epic - continue with other scans
+        return;
+    }
+
+    for (const auto& game : *result) {
+        DetectedGame detected;
+        detected.id = QString::fromStdString(game.id.storeId);
+        detected.name = QString::fromStdString(game.name);
+        detected.installPath = QString::fromStdWString(game.installPath.wstring());
+        detected.source = "epic";
+        detected.engine = detectEngine(detected.installPath);
+        m_detectedGames.append(detected);
+        emit gameDetected(detected.id, detected.name);
     }
 }
 
 void CoreBridge::doScanGog()
 {
+    // Safety guard: Ensure Core is initialized before scanning
+    if (!s_coreInitialized) {
+        qWarning() << "CoreBridge::doScanGog - Core not initialized, skipping scan";
+        return;
+    }
+
     GOGScanner scanner;
     auto result = scanner.scan();
 
-    if (result) {
-        for (const auto& game : *result) {
-            DetectedGame detected;
-            detected.id = QString::fromStdString(game.id.storeId);
-            detected.name = QString::fromStdString(game.name);
-            detected.installPath = QString::fromStdWString(game.installPath.wstring());
-            detected.source = "gog";
-            detected.engine = detectEngine(detected.installPath);
-            m_detectedGames.append(detected);
-            emit gameDetected(detected.id, detected.name);
-        }
+    if (!result) {
+        qWarning() << "GOG scan failed:" << QString::fromStdString(result.error().message());
+        // Silent fail for GOG - continue with other scans
+        return;
+    }
+
+    for (const auto& game : *result) {
+        DetectedGame detected;
+        detected.id = QString::fromStdString(game.id.storeId);
+        detected.name = QString::fromStdString(game.name);
+        detected.installPath = QString::fromStdWString(game.installPath.wstring());
+        detected.source = "gog";
+        detected.engine = detectEngine(detected.installPath);
+        m_detectedGames.append(detected);
+        emit gameDetected(detected.id, detected.name);
     }
 }
 

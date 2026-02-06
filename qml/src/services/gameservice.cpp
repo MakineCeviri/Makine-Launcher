@@ -22,11 +22,10 @@ GameService::GameService(QObject *parent)
     setupCoreBridge();
     loadCachedGames();
 
-    // Auto-scan disabled temporarily to debug crash
-    // TODO: Re-enable after fixing SteamScanner crash
+    // Auto-scan on first launch if no cached games
     if (m_games.isEmpty()) {
-        qDebug() << "No cached games found. Auto-scan disabled for debugging.";
-        // QTimer::singleShot(500, this, &GameService::scanAllLibraries);
+        qDebug() << "No cached games found, starting auto-scan...";
+        QTimer::singleShot(500, this, &GameService::scanAllLibraries);
     }
 }
 
@@ -143,7 +142,11 @@ void GameService::setupCoreBridge()
     connect(m_coreBridge, &CoreBridge::gameDetected,
             this, &GameService::onGameDetected);
     connect(m_coreBridge, &CoreBridge::scanError,
-            this, &GameService::scanError);
+            this, [this](const QString& error) {
+                m_lastError = error;
+                emit lastErrorChanged();
+                emit scanError(error);
+            });
 }
 
 void GameService::onScanProgress(qreal progress, const QString& status)

@@ -11,6 +11,8 @@
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
 
+#include <sqlite3.h>
+
 #include <chrono>
 #include <random>
 #include <sstream>
@@ -2462,7 +2464,7 @@ Result<void> Database::deleteEntry(int64_t entryId) {
     return {};
 }
 
-Result<Database::EntryStats> Database::getEntryStats(const std::string& projectId) {
+Result<EntryStats> Database::getEntryStats(const std::string& projectId) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     EntryStats stats;

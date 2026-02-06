@@ -40,31 +40,41 @@ ApplicationWindow {
     // Resize edge size
     readonly property int resizeMargin: 6
 
+    // Close from any source (Alt+F4 etc.) should quit the app
+    onClosing: Qt.quit()
+
+    // Minimize to system tray (C++ SystemTrayManager handles the icon)
+    function minimizeToTray() {
+        window.hide()
+    }
+
+    // Listen for tray icon activation from C++ SystemTrayManager
+    Connections {
+        target: SystemTrayManager
+        function onShowWindowRequested() {
+            window.show()
+            window.raise()
+            window.requestActivate()
+        }
+        function onQuitRequested() {
+            Qt.quit()
+        }
+    }
+
     // ===== WINDOW RESIZE HANDLERS =====
+    // Delegates to OS window manager for proper multi-DPI multi-monitor support
+
     // Right edge
     MouseArea {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
+        anchors.topMargin: window.resizeMargin * 2
+        anchors.bottomMargin: window.resizeMargin * 2
         width: window.resizeMargin
         cursorShape: Qt.SizeHorCursor
         z: 100
-
-        property real startX
-        property real startWidth
-
-        onPressed: function(mouse) {
-            startX = mouse.x
-            startWidth = window.width
-        }
-        onPositionChanged: function(mouse) {
-            if (pressed) {
-                var newWidth = startWidth + (mouse.x - startX)
-                if (newWidth >= window.minimumWidth) {
-                    window.width = newWidth
-                }
-            }
-        }
+        onPressed: window.startSystemResize(Qt.RightEdge)
     }
 
     // Bottom edge
@@ -72,25 +82,12 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.leftMargin: window.resizeMargin * 2
+        anchors.rightMargin: window.resizeMargin * 2
         height: window.resizeMargin
         cursorShape: Qt.SizeVerCursor
         z: 100
-
-        property real startY
-        property real startHeight
-
-        onPressed: function(mouse) {
-            startY = mouse.y
-            startHeight = window.height
-        }
-        onPositionChanged: function(mouse) {
-            if (pressed) {
-                var newHeight = startHeight + (mouse.y - startY)
-                if (newHeight >= window.minimumHeight) {
-                    window.height = newHeight
-                }
-            }
-        }
+        onPressed: window.startSystemResize(Qt.BottomEdge)
     }
 
     // Left edge
@@ -98,30 +95,12 @@ ApplicationWindow {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
+        anchors.topMargin: window.resizeMargin * 2
+        anchors.bottomMargin: window.resizeMargin * 2
         width: window.resizeMargin
         cursorShape: Qt.SizeHorCursor
         z: 100
-
-        property real startX
-        property real startWidth
-        property real startWinX
-
-        onPressed: function(mouse) {
-            startX = mapToGlobal(mouse.x, 0).x
-            startWidth = window.width
-            startWinX = window.x
-        }
-        onPositionChanged: function(mouse) {
-            if (pressed) {
-                var globalX = mapToGlobal(mouse.x, 0).x
-                var deltaX = globalX - startX
-                var newWidth = startWidth - deltaX
-                if (newWidth >= window.minimumWidth) {
-                    window.x = startWinX + deltaX
-                    window.width = newWidth
-                }
-            }
-        }
+        onPressed: window.startSystemResize(Qt.LeftEdge)
     }
 
     // Top edge
@@ -129,30 +108,12 @@ ApplicationWindow {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.leftMargin: window.resizeMargin * 2
+        anchors.rightMargin: window.resizeMargin * 2
         height: window.resizeMargin
         cursorShape: Qt.SizeVerCursor
         z: 100
-
-        property real startY
-        property real startHeight
-        property real startWinY
-
-        onPressed: function(mouse) {
-            startY = mapToGlobal(0, mouse.y).y
-            startHeight = window.height
-            startWinY = window.y
-        }
-        onPositionChanged: function(mouse) {
-            if (pressed) {
-                var globalY = mapToGlobal(0, mouse.y).y
-                var deltaY = globalY - startY
-                var newHeight = startHeight - deltaY
-                if (newHeight >= window.minimumHeight) {
-                    window.y = startWinY + deltaY
-                    window.height = newHeight
-                }
-            }
-        }
+        onPressed: window.startSystemResize(Qt.TopEdge)
     }
 
     // Bottom-right corner
@@ -163,24 +124,40 @@ ApplicationWindow {
         height: window.resizeMargin * 2
         cursorShape: Qt.SizeFDiagCursor
         z: 101
+        onPressed: window.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
+    }
 
-        property point startPos
-        property real startWidth
-        property real startHeight
+    // Bottom-left corner
+    MouseArea {
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        width: window.resizeMargin * 2
+        height: window.resizeMargin * 2
+        cursorShape: Qt.SizeBDiagCursor
+        z: 101
+        onPressed: window.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
+    }
 
-        onPressed: function(mouse) {
-            startPos = Qt.point(mouse.x, mouse.y)
-            startWidth = window.width
-            startHeight = window.height
-        }
-        onPositionChanged: function(mouse) {
-            if (pressed) {
-                var newWidth = startWidth + (mouse.x - startPos.x)
-                var newHeight = startHeight + (mouse.y - startPos.y)
-                if (newWidth >= window.minimumWidth) window.width = newWidth
-                if (newHeight >= window.minimumHeight) window.height = newHeight
-            }
-        }
+    // Top-right corner
+    MouseArea {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        width: window.resizeMargin * 2
+        height: window.resizeMargin * 2
+        cursorShape: Qt.SizeBDiagCursor
+        z: 101
+        onPressed: window.startSystemResize(Qt.RightEdge | Qt.TopEdge)
+    }
+
+    // Top-left corner
+    MouseArea {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        width: window.resizeMargin * 2
+        height: window.resizeMargin * 2
+        cursorShape: Qt.SizeFDiagCursor
+        z: 101
+        onPressed: window.startSystemResize(Qt.LeftEdge | Qt.TopEdge)
     }
 
     // GPU Optimization: Disable animations when window is not visible/active
@@ -211,7 +188,8 @@ ApplicationWindow {
                     window.showMaximized()
                 }
             }
-            onCloseClicked: window.close()
+            onCloseClicked: Qt.quit()
+            onTrayClicked: window.minimizeToTray()
         }
 
         // ===== NAV BAR (72px) - Native Qt NavBar =====
@@ -354,6 +332,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 visible: contentStackContainer.homeVisible
                 animationsEnabled: window.animationsEnabled  // GPU optimization
+
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     // Navigate to game detail
                     gameDetailView.gameId = gameId
@@ -428,6 +407,26 @@ ApplicationWindow {
                     contentStackContainer.navigateTo(2)
                 }
             }
+
+            // ===== BOTTOM GRADIENT SHADOW =====
+            // Flutter: Positioned bottom gradient overlay (120px height)
+            // Ekranın altında derinlik hissi veren gradient gölge
+            Rectangle {
+                id: bottomGradientShadow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 120
+                z: 10  // Kartların üstünde ama tıklamayı engellemez
+
+                // Tıklamaları geçir (sadece görsel efekt)
+                enabled: false
+
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                }
+            }
         }
     }
 
@@ -439,6 +438,7 @@ ApplicationWindow {
         signal minimizeClicked()
         signal maximizeClicked()
         signal closeClicked()
+        signal trayClicked()
 
         color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.7)
 
@@ -450,23 +450,24 @@ ApplicationWindow {
             color: Qt.rgba(1, 1, 1, 0.08)
         }
 
-        // Drag area
+        // Drag area - delegates to OS window manager for multi-DPI multi-monitor support
         MouseArea {
             anchors.fill: parent
-            anchors.rightMargin: 120  // Leave space for buttons
-            property point dragPos
+            anchors.rightMargin: 160  // Leave space for buttons
 
-            onPressed: function(mouse) {
-                dragPos = Qt.point(mouse.x, mouse.y)
-            }
-            onPositionChanged: function(mouse) {
-                if (pressed) {
-                    var delta = Qt.point(mouse.x - dragPos.x, mouse.y - dragPos.y)
-                    windowRef.x += delta.x
-                    windowRef.y += delta.y
+            property real lastPressTime: 0
+
+            onPressed: {
+                var now = Date.now()
+                if (now - lastPressTime < 300) {
+                    // Double-click detected
+                    titleBarRoot.maximizeClicked()
+                    lastPressTime = 0
+                } else {
+                    lastPressTime = now
+                    windowRef.startSystemMove()
                 }
             }
-            onDoubleClicked: titleBarRoot.maximizeClicked()
         }
 
         RowLayout {
@@ -475,30 +476,46 @@ ApplicationWindow {
             anchors.rightMargin: 0  // Window buttons flush to right edge
             spacing: 8
 
-            // Native Qt: Turkish flag when translation is active (18x18)
+            // Turkish flag when translation is active (18x18) - Canvas star version
             Rectangle {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
-                radius: 2
+                radius: Dimensions.radiusStandard
                 visible: titleBarRoot.translationMode
-                color: "#E30A17"  // Turkish flag red
+                color: "#E30A17"
+                clip: true
 
-                // White crescent (simplified)
                 Rectangle {
-                    anchors.centerIn: parent
-                    anchors.horizontalCenterOffset: -2
-                    width: 10
-                    height: 10
-                    radius: 5
+                    x: 3; y: 4.5
+                    width: 9; height: 9
+                    radius: 4.5
                     color: "white"
-
-                    Rectangle {
-                        anchors.centerIn: parent
-                        anchors.horizontalCenterOffset: 2
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: "#E30A17"
+                }
+                Rectangle {
+                    x: 5; y: 5.3
+                    width: 7.5; height: 7.5
+                    radius: 3.75
+                    color: "#E30A17"
+                }
+                Canvas {
+                    x: 9.5; y: 5
+                    width: 8; height: 8
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        var cx = 4, cy = 4
+                        var R = 3.5
+                        var r = R * 0.382
+                        ctx.beginPath()
+                        for (var i = 0; i < 5; i++) {
+                            var oa = i * 72 * Math.PI / 180
+                            var ia = (i * 72 + 36) * Math.PI / 180
+                            if (i === 0) ctx.moveTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
+                            else ctx.lineTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
+                            ctx.lineTo(cx - r * Math.cos(ia), cy - r * Math.sin(ia))
+                        }
+                        ctx.closePath()
+                        ctx.fillStyle = "white"
+                        ctx.fill()
                     }
                 }
             }
@@ -549,6 +566,12 @@ ApplicationWindow {
             // Window buttons - Flutter style with Segoe MDL2 icons
             Row {
                 spacing: 0
+
+                // System tray button - downward chevron (minimize to tray)
+                WindowButton {
+                    icon: "\uE70D"
+                    onClicked: titleBarRoot.trayClicked()
+                }
 
                 // Minimize button - Segoe MDL2: ChromeMinimize
                 WindowButton {
@@ -642,26 +665,23 @@ ApplicationWindow {
             // Logo (38px) - Flutter LogoHomeButton
             Item {
                 id: logoContainer
-                Layout.preferredWidth: 50  // Container for circular hover
-                Layout.preferredHeight: 50
+                Layout.preferredWidth: 44  // Container for circular hover
+                Layout.preferredHeight: 44
+                Layout.alignment: Qt.AlignVCenter
                 scale: logoMouse.containsMouse ? 1.05 : 1.0
 
                 Behavior on scale {
                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                 }
 
-                // Circular black hover background
-                Rectangle {
-                    id: hoverCircle
+                // Rainbow glow - brightens on hover
+                AnimatedGradientGlow {
                     anchors.centerIn: parent
-                    width: 46
-                    height: 46
-                    radius: 23  // Fully circular
-                    color: Qt.rgba(0, 0, 0, logoMouse.containsMouse ? 0.7 : 0)
-
-                    Behavior on color {
-                        ColorAnimation { duration: 150 }
-                    }
+                    width: 52; height: 52
+                    active: true
+                    animationsEnabled: window.animationsEnabled
+                    opacity: logoMouse.containsMouse ? 0.7 : 0.35
+                    Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                 }
 
                 // Logo image with rounded corners
@@ -705,6 +725,7 @@ ApplicationWindow {
                     }
                 }
 
+
                 MouseArea {
                     id: logoMouse
                     anchors.fill: parent
@@ -720,56 +741,113 @@ ApplicationWindow {
                 }
             }
 
-            // AI Toggle - Türkçe Yama butonu (NavItem ile aynı stil)
+            // AI Toggle - Türkçe Yama butonu with rainbow gradient
             Item {
                 id: aiToggleItem
-                Layout.fillHeight: true  // Navbar yüksekliğini doldur
-                Layout.preferredWidth: aiToggleLabel.width + 24
+                Layout.fillHeight: true
+                Layout.preferredWidth: aiToggleLabel.contentWidth + 24
 
-                // Gradient animasyon döngüsü (3000ms)
-                property real animPhase: 0.0
+                readonly property var rainbowColors: ["#FCCD66", "#F7AE76", "#EE968F", "#CC9FD8", "#90C2E6", "#77DBC8", "#80E59D", "#C8EB7C", "#D4BE77"]
+
+                // Animated phase for flowing rainbow effect
+                property real animPhase: 0
                 NumberAnimation on animPhase {
-                    from: 0.0
-                    to: 1.0
+                    from: 0; to: 1
                     duration: 3000
                     loops: Animation.Infinite
                     running: window.animationsEnabled
                 }
 
-                property real smoothValue: 1.0 - Math.abs(animPhase * 2.0 - 1.0)
+                function lerpHex(c1, c2, t) {
+                    var r1 = parseInt(c1.substring(1, 3), 16)
+                    var g1 = parseInt(c1.substring(3, 5), 16)
+                    var b1 = parseInt(c1.substring(5, 7), 16)
+                    var r2 = parseInt(c2.substring(1, 3), 16)
+                    var g2 = parseInt(c2.substring(3, 5), 16)
+                    var b2 = parseInt(c2.substring(5, 7), 16)
+                    var r = Math.round(r1 + (r2 - r1) * t)
+                    var g = Math.round(g1 + (g2 - g1) * t)
+                    var b = Math.round(b1 + (b2 - b1) * t)
+                    function pad(s) { return s.length < 2 ? "0" + s : s }
+                    return "#" + pad(r.toString(16)) + pad(g.toString(16)) + pad(b.toString(16))
+                }
 
-                property color gradientColor1: Theme.lerpColor(Theme.gold, Theme.olive, smoothValue)
-                property color gradientColor2: Theme.lerpColor(Theme.olive, Theme.gold, smoothValue)
+                function makeRainbowText(str, phase) {
+                    var nonSpace = []
+                    for (var i = 0; i < str.length; i++) {
+                        if (str[i] !== " ") nonSpace.push(i)
+                    }
+                    var result = ""
+                    var n = rainbowColors.length
+                    for (var j = 0; j < str.length; j++) {
+                        if (str[j] === " ") {
+                            result += " "
+                        } else {
+                            var ci = nonSpace.indexOf(j)
+                            var pos = ((ci / Math.max(1, nonSpace.length - 1)) + phase) % 1.0
+                            var scaledPos = pos * (n - 1)
+                            var idx = Math.floor(scaledPos)
+                            var frac = scaledPos - idx
+                            var c = lerpHex(rainbowColors[idx % n], rainbowColors[(idx + 1) % n], frac)
+                            result += '<span style="color:' + c + '">' + str[j] + '</span>'
+                        }
+                    }
+                    return result
+                }
 
-                // Underline genişliği: hover = 70, default = 0
+                // Underline width: hover = 70, default = 0
                 property real underlineWidth: aiToggleMouse.containsMouse ? 70 : 0
                 Behavior on underlineWidth {
                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                 }
 
-                // Gradient metin
+                // Rainbow gradient text
                 Text {
                     id: aiToggleLabel
                     anchors.centerIn: parent
-                    text: navBarRoot.aiActive ? "Kapat" : "Türkçe Yama"
+                    text: aiToggleItem.makeRainbowText(navBarRoot.aiActive ? "Kapat" : "Türkçe Yama", aiToggleItem.animPhase)
+                    textFormat: Text.RichText
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
-                    color: aiToggleItem.gradientColor1
                 }
 
-                // Underline - navbar alt çizgisiyle aynı konumda
-                Rectangle {
+                // Animated rainbow underline
+                Item {
                     anchors.bottom: parent.bottom
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: aiToggleItem.underlineWidth
                     height: 2
-                    radius: 1
+                    clip: true
                     visible: width > 0
 
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: aiToggleItem.gradientColor1 }
-                        GradientStop { position: 1.0; color: aiToggleItem.gradientColor2 }
+                    Rectangle {
+                        width: parent.width * 2
+                        height: parent.height
+                        radius: 1
+                        x: -parent.width * aiToggleItem.animPhase
+
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.000; color: "#FCCD66" }
+                            GradientStop { position: 0.056; color: "#F7AE76" }
+                            GradientStop { position: 0.111; color: "#EE968F" }
+                            GradientStop { position: 0.167; color: "#CC9FD8" }
+                            GradientStop { position: 0.222; color: "#90C2E6" }
+                            GradientStop { position: 0.278; color: "#77DBC8" }
+                            GradientStop { position: 0.333; color: "#80E59D" }
+                            GradientStop { position: 0.389; color: "#C8EB7C" }
+                            GradientStop { position: 0.444; color: "#D4BE77" }
+                            GradientStop { position: 0.500; color: "#FCCD66" }
+                            GradientStop { position: 0.556; color: "#F7AE76" }
+                            GradientStop { position: 0.611; color: "#EE968F" }
+                            GradientStop { position: 0.667; color: "#CC9FD8" }
+                            GradientStop { position: 0.722; color: "#90C2E6" }
+                            GradientStop { position: 0.778; color: "#77DBC8" }
+                            GradientStop { position: 0.833; color: "#80E59D" }
+                            GradientStop { position: 0.889; color: "#C8EB7C" }
+                            GradientStop { position: 0.944; color: "#D4BE77" }
+                            GradientStop { position: 1.000; color: "#FCCD66" }
+                        }
                     }
                 }
 
@@ -801,92 +879,96 @@ ApplicationWindow {
 
             Item { Layout.fillWidth: true }
 
-            // Donate button - Native Qt: animated gradient gold-pink birebir port
+            // Donate button - coffee icon only
             Item {
                 id: donateItem
-                Layout.preferredWidth: 130
+                Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
+                Layout.alignment: Qt.AlignVCenter
 
-                // Native Qt: 2000ms gradient animation loop
-                // GPU optimization: only run when window is active
-                property real animValue: 0.0
-                NumberAnimation on animValue {
-                    from: 0.0
-                    to: 1.0
-                    duration: 2000
+                property bool hovered: donateMouse.containsMouse
+                scale: hovered ? 1.1 : 1.0
+                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+                // Gentle wobble animation
+                property real wobble: 0
+                SequentialAnimation on wobble {
+                    loops: Animation.Infinite
+                    running: window.animationsEnabled
+                    NumberAnimation { from: 0; to: 6; duration: 1800; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 6; to: -6; duration: 3600; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: -6; to: 0; duration: 1800; easing.type: Easing.InOutSine }
+                }
+
+                // Color animation phase for coffee gradient
+                property real colorPhase: 0
+                NumberAnimation on colorPhase {
+                    from: 0; to: 1
+                    duration: 8000
                     loops: Animation.Infinite
                     running: window.animationsEnabled
                 }
 
-                // Native Qt: smoothValue = (1 - ((animValue * 2 - 1).abs())).clamp(0.0, 1.0)
-                property real smoothValue: 1.0 - Math.abs(animValue * 2.0 - 1.0)
+                // Coffee icon drawn with animated gradient via Canvas
+                Canvas {
+                    id: coffeeCanvas
+                    anchors.centerIn: parent
+                    width: 20; height: 20
+                    rotation: donateItem.wobble
+                    opacity: donateItem.hovered ? 1.0 : 0.7
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
 
-                // Native Qt: color1/color2 gold <-> olive lerp
-                property color color1: Theme.lerpColor(Theme.gold, Theme.olive, smoothValue)
-                property color color2: Theme.lerpColor(Theme.olive, Theme.gold, smoothValue)
+                    property real phase: donateItem.colorPhase
+                    onPhaseChanged: requestPaint()
 
-                // Native Qt: glowIntensity = 0.25 + (smoothValue * 0.25), hover -> 0.6
-                property real glowIntensity: donateMouse.containsMouse ? 0.6 : (0.25 + smoothValue * 0.25)
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
 
-                // Native Qt: heart pulse - 800ms, scale 1.0 -> 1.15 -> 1.0
-                // GPU optimization: only run when window is active
-                property real heartScale: 1.0
-                SequentialAnimation on heartScale {
-                    loops: Animation.Infinite
-                    running: window.animationsEnabled
-                    NumberAnimation { to: 1.15; duration: 400; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 400; easing.type: Easing.InOutSine }
-                }
+                        // Rotating gradient
+                        var angle = phase * Math.PI * 2
+                        var cx = width / 2, cy = height / 2
+                        var len = 14
+                        var x1 = cx + Math.cos(angle) * len
+                        var y1 = cy + Math.sin(angle) * len
+                        var x2 = cx - Math.cos(angle) * len
+                        var y2 = cy - Math.sin(angle) * len
 
-                // Glow/shadow - Native Qt: blurRadius hover ? 20 : (10 + smoothValue * 6)
-                Rectangle {
-                    anchors.fill: donateButton
-                    anchors.margins: donateMouse.containsMouse ? -6 : -(3 + donateItem.smoothValue * 2)
-                    anchors.topMargin: anchors.margins + 4
-                    radius: Dimensions.radiusXS + 2
-                    color: Theme.withAlpha(donateItem.color1, donateItem.glowIntensity)
-                    z: -1
-                }
+                        var grad = ctx.createLinearGradient(x1, y1, x2, y2)
+                        var colors = ["#FCCD66","#F7AE76","#EE968F","#CC9FD8","#90C2E6","#77DBC8","#80E59D","#C8EB7C","#FCCD66"]
+                        for (var i = 0; i < colors.length; i++)
+                            grad.addColorStop(i / (colors.length - 1), colors[i])
 
-                // Main button
-                Rectangle {
-                    id: donateButton
-                    anchors.fill: parent
-                    radius: Dimensions.radiusXS
+                        ctx.strokeStyle = grad
+                        ctx.lineWidth = 1.6
+                        ctx.lineCap = "round"
+                        ctx.lineJoin = "round"
 
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: donateItem.color1 }
-                        GradientStop { position: 1.0; color: donateItem.color2 }
-                    }
+                        // Scale from 24→20
+                        var s = 20 / 24
 
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 8
+                        // Cup handle
+                        ctx.beginPath()
+                        ctx.arc(17 * s - 0.5, 12 * s, 3.2 * s, -Math.PI / 2, Math.PI / 2)
+                        ctx.stroke()
 
-                        // Native Qt: Heart with pulse animation
-                        Item {
-                            width: 18
-                            height: 18
-                            anchors.verticalCenter: parent.verticalCenter
+                        // Cup body
+                        ctx.beginPath()
+                        ctx.moveTo(3 * s, 8 * s)
+                        ctx.lineTo(17 * s, 8 * s)
+                        ctx.lineTo(17 * s, 17 * s)
+                        ctx.quadraticCurveTo(17 * s, 21 * s, 13 * s, 21 * s)
+                        ctx.lineTo(7 * s, 21 * s)
+                        ctx.quadraticCurveTo(3 * s, 21 * s, 3 * s, 17 * s)
+                        ctx.closePath()
+                        ctx.stroke()
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "\u2665"
-                                font.pixelSize: 14
-                                color: "white"
-                                scale: donateItem.heartScale
-                                transformOrigin: Item.Center
-                            }
-                        }
-
-                        Label {
-                            text: "Destekçi Ol"
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            color: "white"
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
+                        // Steam lines
+                        ctx.beginPath()
+                        ctx.moveTo(6 * s, 2 * s); ctx.lineTo(6 * s, 4.5 * s)
+                        ctx.moveTo(10 * s, 2 * s); ctx.lineTo(10 * s, 4.5 * s)
+                        ctx.moveTo(14 * s, 2 * s); ctx.lineTo(14 * s, 4.5 * s)
+                        ctx.stroke()
                     }
                 }
 
@@ -896,6 +978,56 @@ ApplicationWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: navBarRoot.donateClicked()
+                }
+
+                ToolTip {
+                    visible: donateMouse.containsMouse
+                    text: "Destekçi Ol"
+                    delay: 400
+                }
+            }
+
+            // Discord button
+            Item {
+                id: discordItem
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                Layout.alignment: Qt.AlignVCenter
+
+                property bool hovered: discordMouse.containsMouse
+                scale: hovered ? 1.1 : 1.0
+                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+                // Subtle breathing pulse
+                property real pulse: 0.7
+                SequentialAnimation on pulse {
+                    loops: Animation.Infinite
+                    running: !discordItem.hovered && window.animationsEnabled
+                    NumberAnimation { from: 0.7; to: 1.0; duration: 2000; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 1.0; to: 0.7; duration: 2000; easing.type: Easing.InOutSine }
+                }
+
+                Image {
+                    id: discordIcon
+                    anchors.centerIn: parent
+                    width: 20; height: 20
+                    source: "qrc:/qt/qml/MakineAI/resources/icons/discord.svg"
+                    sourceSize: Qt.size(20, 20)
+                    opacity: discordItem.hovered ? 1.0 : discordItem.pulse
+                }
+
+                MouseArea {
+                    id: discordMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Qt.openUrlExternally("https://discord.com/invite/QDezpy4QtV")
+                }
+
+                ToolTip {
+                    visible: discordMouse.containsMouse
+                    text: "Discord"
+                    delay: 400
                 }
             }
         }
@@ -916,38 +1048,6 @@ ApplicationWindow {
         onActivated: window.showPerformanceMonitor = !window.showPerformanceMonitor
     }
 
-    // ===== SCREENSHOT FEATURE (F12 to capture) =====
-    property int screenshotCounter: 1
-
-    function takeScreenshot() {
-        var num = screenshotCounter.toString()
-        while (num.length < 3) num = "0" + num
-
-        // Save to cedra folder (known writable location)
-        var filename = "C:/cedra/screenshot_" + num + ".png"
-
-        // Grab mainContent (the ColumnLayout with all UI)
-        mainContent.grabToImage(function(result) {
-            if (result) {
-                result.saveToFile(filename)
-                screenshotCounter++
-            }
-        })
-    }
-
-    // F12 shortcut to take screenshot (application-wide)
-    Shortcut {
-        sequence: "F12"
-        context: Qt.ApplicationShortcut
-        onActivated: window.takeScreenshot()
-    }
-
-    // Alternative: Ctrl+Shift+S for screenshot
-    Shortcut {
-        sequence: "Ctrl+Shift+S"
-        context: Qt.ApplicationShortcut
-        onActivated: window.takeScreenshot()
-    }
 
     // ===== NAV ITEM COMPONENT - Navigasyon butonu =====
     component NavItem: Item {

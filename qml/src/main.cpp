@@ -4,7 +4,7 @@
  * @copyright (c) 2026 MakineAI Team
  */
 
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
@@ -37,6 +37,7 @@ void logToFile(const QString& msg) {
 #include "services/settingsmanager.h"
 #include "services/backupmanager.h"
 #include "services/processscanner.h"
+#include "services/systemtraymanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -70,7 +71,10 @@ int main(int argc, char *argv[])
         qWarning() << "Stale shared memory segment detected, continuing anyway";
     }
 
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
+
+    // Allow app to keep running when window is hidden (system tray)
+    app.setQuitOnLastWindowClosed(false);
 
     // Application metadata
     app.setApplicationName("MakineAI");
@@ -78,8 +82,8 @@ int main(int argc, char *argv[])
     app.setOrganizationName("MakineAI");
     app.setOrganizationDomain("makineai.com");
 
-    // Set application icon (use .ico for Windows)
-    app.setWindowIcon(QIcon(":/MakineAI/assets/images/app_icon.ico"));
+    // Set application icon for taskbar and window
+    app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
 
     // Use Basic style for full customization
     QQuickStyle::setStyle("Basic");
@@ -106,6 +110,12 @@ int main(int argc, char *argv[])
     app.setFont(defaultFont);
 
     QQmlApplicationEngine engine;
+
+    // System tray icon (C++ managed, exposed to QML)
+    SystemTrayManager trayManager;
+    trayManager.setIcon(app.windowIcon());
+    trayManager.show();
+    engine.rootContext()->setContextProperty("SystemTrayManager", &trayManager);
 
     logToFile("=== MakineAI Starting ===");
     logToFile(QString("App version: %1").arg(app.applicationVersion()));

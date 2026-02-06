@@ -6,6 +6,7 @@
 #include "makineai/string_classifier.hpp"
 #include <algorithm>
 #include <cctype>
+#include <iterator>
 #include <regex>
 #include <unordered_set>
 #include <spdlog/spdlog.h>

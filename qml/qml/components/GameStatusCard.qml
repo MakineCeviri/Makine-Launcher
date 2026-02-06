@@ -143,7 +143,7 @@ Rectangle {
                 spacing: Dimensions.marginSM
 
                 Image {
-                    source: "qrc:/qt/qml/MakineAI/resources/icons/plus.svg"
+                    source: "qrc:/qt/qml/MakineAI/resources/icons/window-search.svg"
                     width: 16
                     height: 16
                     sourceSize: Qt.size(16, 16)

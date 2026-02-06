@@ -61,6 +61,7 @@ if(NOT MAKINEAI_UI_ONLY)
     find_library(MAKINEAI_CORE_LIB
         NAMES makineai_core
         PATHS
+            ${MAKINEAI_CORE_DIR}/build
             ${MAKINEAI_CORE_DIR}/build/core
             ${MAKINEAI_CORE_DIR}/build/release
             ${MAKINEAI_CORE_DIR}/build_msvc
@@ -85,6 +86,7 @@ set(BACKEND_SOURCES
     src/services/backupmanager.cpp
     src/services/processscanner.cpp
     src/services/corebridge.cpp
+    src/services/systemtraymanager.cpp
 )
 
 set(BACKEND_HEADERS
@@ -94,6 +96,7 @@ set(BACKEND_HEADERS
     src/services/backupmanager.h
     src/services/processscanner.h
     src/services/corebridge.h
+    src/services/systemtraymanager.h
 )
 
 # Model sources
@@ -117,6 +120,11 @@ qt_add_executable(MakineAI
     ${MODEL_HEADERS}
     ${CORE_SOURCES}
 )
+
+# Link pre-compiled Windows icon resource
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_BINARY_DIR}/app_icon.obj")
+    target_link_libraries(MakineAI PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app_icon.obj")
+endif()
 
 # Mark singleton files BEFORE qt_add_qml_module
 set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -151,6 +159,7 @@ qt_add_qml_module(MakineAI
         qml/components/GlassCard.qml
         qml/components/CedraCard.qml
         qml/components/CedraInteractiveCard.qml
+        qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
         qml/components/GameCardSkeleton.qml
         qml/components/GameDetectedCard.qml
@@ -259,7 +268,13 @@ qt_add_qml_module(MakineAI
         resources/icons/rotate-ccw.svg
         resources/icons/settings.svg
         resources/icons/heart.svg
+        resources/icons/coffee.svg
+        resources/icons/shield-check.svg
+        resources/icons/shield-check-active.svg
         resources/icons/pin.svg
+        resources/icons/discord.svg
+        resources/icons/gamepad-search.svg
+        resources/icons/window-search.svg
         # PNG images
         resources/images/logo.png
         # Fonts (Inter - Google Fonts, Flutter style)

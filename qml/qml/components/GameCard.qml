@@ -5,12 +5,7 @@ import MakineAI 1.0
 /**
  * GameCard.qml - Oyun kartı komponenti
  *
- * Özellikler:
- * - Hover scale 1.05 + glow
- * - Yumuşak köşeler (radius 8)
- * - Birleşik TR+✓ badge
- * - Gradient overlay
- * - Hover "Detay" button
+ * Modern minimal hover: lift + border + brightness
  */
 Item {
     id: root
@@ -22,7 +17,7 @@ Item {
     property bool verified: false
     property bool translated: false
 
-    // SIZE - Dimensions'dan al
+    // SIZE
     width: Dimensions.cardWidth
     height: Dimensions.cardHeight
 
@@ -31,35 +26,85 @@ Item {
     // HOVER STATE
     readonly property bool isHovered: mouseArea.containsMouse
 
-    // HOVER SCALE
-    scale: isHovered ? 1.05 : 1.0
-    Behavior on scale {
-        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-    }
-
-    // Glow for hover - simplified single glow
-    Rectangle {
-        id: glowRect
-        anchors.fill: cardContent
-        anchors.margins: -12
-        radius: 12
-        color: Theme.primary
-        opacity: root.isHovered ? 0.15 : 0
-        z: -1
-
-        Behavior on opacity {
-            NumberAnimation { duration: 200 }
+    // Hover lift: subtle Y translate + scale
+    transform: [
+        Translate { y: root.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } } },
+        Scale {
+            origin.x: root.width / 2; origin.y: root.height / 2
+            xScale: root.isHovered ? 1.02 : 1.0; yScale: root.isHovered ? 1.02 : 1.0
+            Behavior on xScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            Behavior on yScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         }
-    }
+    ]
 
     // CARD CONTENT
     Rectangle {
         id: cardContent
         anchors.fill: parent
-        radius: 8  // Yumuşak köşeler
+        radius: Dimensions.cardBorderRadius
         color: Theme.surfaceLight
+        clip: true
 
-        // Mask item for rounded corners - must be separate and have layer.enabled
+        // Animated gradient border phase
+        property real borderPhase: 0
+        NumberAnimation on borderPhase {
+            from: 0; to: 1
+            duration: 8000
+            loops: Animation.Infinite
+            running: root.isHovered
+        }
+
+        // Animated rainbow gradient border
+        Canvas {
+            anchors.fill: parent
+            z: 10
+            property real phase: cardContent.borderPhase
+            onPhaseChanged: requestPaint()
+            property bool hov: root.isHovered
+            onHovChanged: requestPaint()
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+
+                var angle = phase * Math.PI * 2
+                var cx = width / 2, cy = height / 2
+                var len = Math.max(width, height) * 0.7
+                var x1 = cx + Math.cos(angle) * len
+                var y1 = cy + Math.sin(angle) * len
+                var x2 = cx - Math.cos(angle) * len
+                var y2 = cy - Math.sin(angle) * len
+
+                var grad = ctx.createLinearGradient(x1, y1, x2, y2)
+                var colors = ["#FCCD66","#F7AE76","#EE968F","#CC9FD8","#90C2E6","#77DBC8","#80E59D","#C8EB7C","#FCCD66"]
+                for (var i = 0; i < colors.length; i++)
+                    grad.addColorStop(i / (colors.length - 1), colors[i])
+
+                var r = Dimensions.cardBorderRadius
+                var bw = 1.5
+                var px = bw / 2, py = bw / 2
+                var w = width - bw, h = height - bw
+
+                ctx.beginPath()
+                ctx.moveTo(px + r, py)
+                ctx.lineTo(px + w - r, py)
+                ctx.arcTo(px + w, py, px + w, py + r, r)
+                ctx.lineTo(px + w, py + h - r)
+                ctx.arcTo(px + w, py + h, px + w - r, py + h, r)
+                ctx.lineTo(px + r, py + h)
+                ctx.arcTo(px, py + h, px, py + h - r, r)
+                ctx.lineTo(px, py + r)
+                ctx.arcTo(px, py, px + r, py, r)
+                ctx.closePath()
+
+                ctx.strokeStyle = grad
+                ctx.lineWidth = bw
+                ctx.globalAlpha = hov ? 0.8 : 0.0
+                ctx.stroke()
+            }
+        }
+
+        // Mask for rounded corners
         Item {
             id: imageMask
             anchors.fill: parent
@@ -68,12 +113,12 @@ Item {
 
             Rectangle {
                 anchors.fill: parent
-                radius: 8
+                radius: Dimensions.cardBorderRadius
                 color: "white"
             }
         }
 
-        // IMAGE LAYER - with rounded corners via mask
+        // Game image
         Image {
             id: gameImage
             anchors.fill: parent
@@ -81,23 +126,25 @@ Item {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
-            visible: false  // Hide original, show masked version
+            visible: false
         }
 
-        // Masked image with rounded corners
+        // Masked image
         MultiEffect {
             anchors.fill: gameImage
             source: gameImage
             maskEnabled: true
             maskSource: imageMask
             visible: gameImage.status === Image.Ready
+            brightness: root.isHovered ? 0.06 : 0
+            Behavior on brightness { NumberAnimation { duration: 250 } }
         }
 
         // Loading placeholder
         Rectangle {
             anchors.fill: parent
             visible: gameImage.status === Image.Loading
-            radius: 8
+            radius: Dimensions.cardBorderRadius
             color: Theme.surfaceLight
 
             BusyIndicator {
@@ -112,7 +159,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             visible: gameImage.status === Image.Error || root.imageUrl === ""
-            radius: 8
+            radius: Dimensions.cardBorderRadius
             color: Theme.surface
 
             Column {
@@ -129,7 +176,7 @@ Item {
             }
         }
 
-        // GRADIENT OVERLAY - daha yumuşak
+        // Bottom gradient overlay
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -138,16 +185,16 @@ Item {
             }
         }
 
-        // COMBINED BADGE (TR + ✓) - tek badge sağ üstte
+        // COMBINED BADGE (TR + ✓)
         Rectangle {
             visible: root.translated || root.verified
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: 8
-            anchors.rightMargin: 8
+            anchors.topMargin: 10
+            anchors.rightMargin: 10
             width: badgeContent.width + 10
             height: 22
-            radius: 11
+            radius: Dimensions.badgeRadius
             color: Qt.rgba(0, 0, 0, 0.75)
 
             Row {
@@ -155,13 +202,12 @@ Item {
                 anchors.centerIn: parent
                 spacing: 4
 
-                // TR badge
                 Rectangle {
                     visible: root.translated
                     width: 22
                     height: 16
-                    radius: 4
-                    color: Theme.success
+                    radius: Dimensions.badgeRadius
+                    color: "#E30A17"
                     anchors.verticalCenter: parent.verticalCenter
 
                     Text {
@@ -173,7 +219,6 @@ Item {
                     }
                 }
 
-                // Verified checkmark
                 Rectangle {
                     visible: root.verified
                     width: 16
@@ -193,12 +238,14 @@ Item {
             }
         }
 
-        // GAME NAME - 2 satıra kadar göster
+        // GAME NAME
         Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.margins: 8
+            anchors.leftMargin: 10
+            anchors.rightMargin: 10
+            anchors.bottomMargin: 10
             height: nameText.height + 2
 
             Text {
@@ -206,14 +253,13 @@ Item {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 text: root.gameName
-                font.pixelSize: 12
+                font.pixelSize: 10
                 font.weight: Font.DemiBold
                 color: "white"
                 maximumLineCount: 2
                 wrapMode: Text.WordWrap
                 elide: Text.ElideRight
 
-                // Tooltip for truncated names
                 ToolTip {
                     visible: root.isHovered && nameText.truncated
                     delay: 400
@@ -222,64 +268,10 @@ Item {
 
                     background: Rectangle {
                         color: Qt.rgba(0.1, 0.1, 0.1, 0.95)
-                        radius: 4
+                        radius: Dimensions.radiusStandard
                         border.color: Qt.rgba(1, 1, 1, 0.1)
                     }
                 }
-            }
-        }
-
-        // HOVER OVERLAY
-        Rectangle {
-            anchors.fill: parent
-            radius: 8
-            visible: root.isHovered
-            opacity: root.isHovered ? 1.0 : 0.0
-
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.rgba(1.0, 0.84, 0.0, 0.1) }
-                GradientStop { position: 1.0; color: Qt.rgba(1.0, 0.41, 0.71, 0.15) }
-            }
-
-            Behavior on opacity {
-                NumberAnimation { duration: 200 }
-            }
-
-            // "Detay" button
-            Rectangle {
-                anchors.centerIn: parent
-                width: detayText.width + 28
-                height: detayText.height + 14
-                radius: 6
-
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: Theme.splashGold }
-                    GradientStop { position: 1.0; color: Theme.pink }
-                }
-
-                Text {
-                    id: detayText
-                    anchors.centerIn: parent
-                    text: "Detay"
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                    color: "white"
-                }
-            }
-        }
-
-        // Hover border glow
-        Rectangle {
-            anchors.fill: parent
-            radius: 8
-            color: "transparent"
-            border.color: root.isHovered ? Theme.withAlpha(Theme.primary, 0.5) : "transparent"
-            border.width: 2
-
-            Behavior on border.color {
-                ColorAnimation { duration: 200 }
             }
         }
     }
