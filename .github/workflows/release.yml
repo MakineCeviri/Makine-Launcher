@@ -53,19 +53,29 @@ jobs:
           modules: 'qtquick3d qtshadertools'
           cache: true
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+      - name: Cache vcpkg
+        uses: actions/cache@v5
         with:
-          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+          path: |
+            C:/vcpkg/installed
+            C:/vcpkg/packages
+          key: vcpkg-release-${{ hashFiles('vcpkg.json') }}-v1
+          restore-keys: vcpkg-release-
 
       - name: Install dependencies
-        run: vcpkg install --triplet x64-windows
+        run: |
+          cd C:\vcpkg
+          git pull
+          .\bootstrap-vcpkg.bat
+          vcpkg integrate install
+          cd $env:GITHUB_WORKSPACE
+          vcpkg install --triplet x64-windows
 
       - name: Build Core
         run: |
           cmake -B build/core -S core `
             -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           cmake --build build/core --config ${{ env.BUILD_TYPE }} --parallel
 
@@ -73,7 +83,7 @@ jobs:
         run: |
           cmake -B build/qml -S qml `
             -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
             -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           cmake --build build/qml --config ${{ env.BUILD_TYPE }} --parallel
