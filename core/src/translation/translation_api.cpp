@@ -4,6 +4,7 @@
  */
 
 #include "makineai/translation_api.hpp"
+#include "makineai/logging.hpp"
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -539,8 +540,8 @@ std::vector<std::string> LibreTranslateAPI::getSupportedLanguages() {
                 impl_->supportedLanguages.push_back(lang["code"].get<std::string>());
             }
             impl_->languagesLoaded = true;
-        } catch (...) {
-            // Use fallback
+        } catch (const std::exception& e) {
+            MAKINEAI_LOG_WARN(log::TRANSLATION, "Failed to parse language list: {}", e.what());
         }
     }
 

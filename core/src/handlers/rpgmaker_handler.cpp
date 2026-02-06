@@ -1034,7 +1034,7 @@ bool RpgMakerHandler::applyEventTranslation(
     int eventIndex = 0;
     try {
         eventIndex = std::stoi(parts[0]);
-    } catch (...) {
+    } catch (const std::exception&) {
         return false;
     }
 
@@ -1043,7 +1043,7 @@ bool RpgMakerHandler::applyEventTranslation(
     if (parts.size() > 2) {
         try {
             subIndex = std::stoi(parts[2]);
-        } catch (...) {}
+        } catch (const std::exception&) {}
     }
 
     // Find event list
@@ -1079,7 +1079,7 @@ bool RpgMakerHandler::applyFieldTranslation(
             if (!parts.empty()) {
                 try {
                     id = std::stoi(parts.back());
-                } catch (...) {}
+                } catch (const std::exception&) {}
             }
 
             if (id >= 0 && item.contains("id") && item["id"].get<int>() == id &&

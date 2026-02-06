@@ -592,7 +592,7 @@ std::optional<Version> Version::parse(std::string_view str) {
         auto part = str.substr(pos, end - pos);
         try {
             *parts[count] = static_cast<uint32_t>(std::stoul(std::string(part)));
-        } catch (...) {
+        } catch (const std::exception&) {
             return std::nullopt;
         }
 

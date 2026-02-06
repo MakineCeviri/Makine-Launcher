@@ -334,7 +334,7 @@ void CoreConfig::applyEnvironmentOverrides() {
         try {
             scanning.scanTimeoutMs = std::stoul(*val);
             MAKINEAI_LOG_DEBUG(log::CONFIG, "Scan timeout overridden by env: {}ms", *val);
-        } catch (...) {
+        } catch (const std::exception&) {
             MAKINEAI_LOG_WARN(log::CONFIG, "Invalid MAKINEAI_SCAN_TIMEOUT value: {}", *val);
         }
     }
@@ -344,7 +344,7 @@ void CoreConfig::applyEnvironmentOverrides() {
         try {
             patching.minDiskSpaceMB = std::stoull(*val);
             MAKINEAI_LOG_DEBUG(log::CONFIG, "Min disk space overridden by env: {}MB", *val);
-        } catch (...) {
+        } catch (const std::exception&) {
             MAKINEAI_LOG_WARN(log::CONFIG, "Invalid MAKINEAI_MIN_DISK_SPACE value: {}", *val);
         }
     }

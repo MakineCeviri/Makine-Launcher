@@ -623,7 +623,7 @@ GameMakerHandler::ExtractionBatch GameMakerHandler::extractFromJson(
         };
 
         extractFromObj(data, "");
-    } catch (...) {
+    } catch (const std::exception&) {
         // Fall back to regex-based extraction
         std::regex kvPair("\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\"");
         std::sregex_iterator it(content.begin(), content.end(), kvPair);

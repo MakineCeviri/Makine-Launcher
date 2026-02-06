@@ -360,7 +360,7 @@ Result<GameInfo> SteamScanner::parseAppManifest(const fs::path& acfFile) const {
     // Try to get size
     try {
         game.sizeBytes = std::stoull(getValue("SizeOnDisk"));
-    } catch (...) {
+    } catch (const std::exception&) {
         game.sizeBytes = 0;
     }
 
