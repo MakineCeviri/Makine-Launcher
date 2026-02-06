@@ -15,6 +15,26 @@
 
 namespace makineai::platform::windows {
 
+// RAII wrapper for Windows registry key handles
+class RegKeyGuard {
+public:
+    RegKeyGuard() = default;
+    ~RegKeyGuard() { close(); }
+    RegKeyGuard(const RegKeyGuard&) = delete;
+    RegKeyGuard& operator=(const RegKeyGuard&) = delete;
+
+    HKEY* ptr() { return &key_; }
+    HKEY get() const { return key_; }
+    explicit operator bool() const { return key_ != nullptr; }
+
+    void close() {
+        if (key_) { RegCloseKey(key_); key_ = nullptr; }
+    }
+
+private:
+    HKEY key_ = nullptr;
+};
+
 /**
  * @brief Read string value from registry
  */
@@ -23,8 +43,8 @@ std::optional<std::string> readRegistryString(
     const wchar_t* subKey,
     const wchar_t* valueName
 ) {
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, &hKey);
+    RegKeyGuard hKey;
+    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, hKey.ptr());
     if (result != ERROR_SUCCESS) {
         return std::nullopt;
     }
@@ -33,9 +53,8 @@ std::optional<std::string> readRegistryString(
     DWORD bufferSize = sizeof(buffer);
     DWORD type = 0;
 
-    result = RegQueryValueExW(hKey, valueName, nullptr, &type,
+    result = RegQueryValueExW(hKey.get(), valueName, nullptr, &type,
         reinterpret_cast<LPBYTE>(buffer), &bufferSize);
-    RegCloseKey(hKey);
 
     if (result != ERROR_SUCCESS || type != REG_SZ) {
         return std::nullopt;
@@ -63,8 +82,8 @@ std::optional<uint32_t> readRegistryDword(
     const wchar_t* subKey,
     const wchar_t* valueName
 ) {
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, &hKey);
+    RegKeyGuard hKey;
+    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, hKey.ptr());
     if (result != ERROR_SUCCESS) {
         return std::nullopt;
     }
@@ -73,9 +92,8 @@ std::optional<uint32_t> readRegistryDword(
     DWORD valueSize = sizeof(value);
     DWORD type = 0;
 
-    result = RegQueryValueExW(hKey, valueName, nullptr, &type,
+    result = RegQueryValueExW(hKey.get(), valueName, nullptr, &type,
         reinterpret_cast<LPBYTE>(&value), &valueSize);
-    RegCloseKey(hKey);
 
     if (result != ERROR_SUCCESS || type != REG_DWORD) {
         return std::nullopt;
@@ -88,13 +106,8 @@ std::optional<uint32_t> readRegistryDword(
  * @brief Check if registry key exists
  */
 bool registryKeyExists(HKEY hKeyRoot, const wchar_t* subKey) {
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, &hKey);
-    if (result == ERROR_SUCCESS) {
-        RegCloseKey(hKey);
-        return true;
-    }
-    return false;
+    RegKeyGuard hKey;
+    return RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, hKey.ptr()) == ERROR_SUCCESS;
 }
 
 /**
@@ -106,8 +119,8 @@ std::vector<std::string> enumerateRegistrySubkeys(
 ) {
     std::vector<std::string> subkeys;
 
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, &hKey);
+    RegKeyGuard hKey;
+    LONG result = RegOpenKeyExW(hKeyRoot, subKey, 0, KEY_READ, hKey.ptr());
     if (result != ERROR_SUCCESS) {
         return subkeys;
     }
@@ -118,7 +131,7 @@ std::vector<std::string> enumerateRegistrySubkeys(
 
     while (true) {
         keyNameSize = sizeof(keyName) / sizeof(wchar_t);
-        result = RegEnumKeyExW(hKey, index, keyName, &keyNameSize,
+        result = RegEnumKeyExW(hKey.get(), index, keyName, &keyNameSize,
             nullptr, nullptr, nullptr, nullptr);
 
         if (result == ERROR_NO_MORE_ITEMS) {
@@ -126,7 +139,6 @@ std::vector<std::string> enumerateRegistrySubkeys(
         }
 
         if (result == ERROR_SUCCESS) {
-            // Convert to UTF-8
             int utf8Len = WideCharToMultiByte(CP_UTF8, 0, keyName, -1,
                 nullptr, 0, nullptr, nullptr);
             if (utf8Len > 0) {
@@ -140,7 +152,6 @@ std::vector<std::string> enumerateRegistrySubkeys(
         index++;
     }
 
-    RegCloseKey(hKey);
     return subkeys;
 }
 
@@ -191,19 +202,19 @@ std::optional<UninstallInfo> getUninstallInfo(const std::string& productCode) {
     std::wstring regPath = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\" + wideCode;
 
     // Try HKEY_LOCAL_MACHINE first
-    HKEY hKey;
-    LONG result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, regPath.c_str(), 0, KEY_READ, &hKey);
+    RegKeyGuard hKey;
+    LONG result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, regPath.c_str(), 0, KEY_READ, hKey.ptr());
 
     if (result != ERROR_SUCCESS) {
         // Try WOW6432Node
         regPath = L"Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\" + wideCode;
-        result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, regPath.c_str(), 0, KEY_READ, &hKey);
+        result = RegOpenKeyExW(HKEY_LOCAL_MACHINE, regPath.c_str(), 0, KEY_READ, hKey.ptr());
     }
 
     if (result != ERROR_SUCCESS) {
         // Try HKEY_CURRENT_USER
         regPath = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\" + wideCode;
-        result = RegOpenKeyExW(HKEY_CURRENT_USER, regPath.c_str(), 0, KEY_READ, &hKey);
+        result = RegOpenKeyExW(HKEY_CURRENT_USER, regPath.c_str(), 0, KEY_READ, hKey.ptr());
     }
 
     if (result != ERROR_SUCCESS) {
@@ -215,7 +226,7 @@ std::optional<UninstallInfo> getUninstallInfo(const std::string& productCode) {
         DWORD bufferSize = sizeof(buffer);
         DWORD type = 0;
 
-        if (RegQueryValueExW(hKey, name, nullptr, &type,
+        if (RegQueryValueExW(hKey.get(), name, nullptr, &type,
             reinterpret_cast<LPBYTE>(buffer), &bufferSize) == ERROR_SUCCESS &&
             type == REG_SZ) {
 
@@ -237,7 +248,6 @@ std::optional<UninstallInfo> getUninstallInfo(const std::string& productCode) {
     info.publisher = readValue(L"Publisher");
     info.displayVersion = readValue(L"DisplayVersion");
 
-    RegCloseKey(hKey);
     return info;
 }
 

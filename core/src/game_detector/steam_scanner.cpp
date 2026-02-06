@@ -18,21 +18,36 @@
 
 namespace makineai::scanners {
 
+#ifdef _WIN32
+namespace {
+// RAII wrapper for Windows registry key handles
+struct RegKeyGuard {
+    HKEY key = nullptr;
+    ~RegKeyGuard() { if (key) RegCloseKey(key); }
+    HKEY* ptr() { return &key; }
+    HKEY get() const { return key; }
+};
+} // anonymous namespace
+#endif
+
 bool SteamScanner::isAvailable() const {
 #ifdef _WIN32
     // Check registry for Steam installation
-    HKEY hKey;
-    if (RegOpenKeyExW(HKEY_CURRENT_USER,
-        L"Software\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        RegCloseKey(hKey);
-        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found via HKCU registry");
-        return true;
+    {
+        RegKeyGuard hKey;
+        if (RegOpenKeyExW(HKEY_CURRENT_USER,
+            L"Software\\Valve\\Steam", 0, KEY_READ, hKey.ptr()) == ERROR_SUCCESS) {
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found via HKCU registry");
+            return true;
+        }
     }
-    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
-        L"Software\\WOW6432Node\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        RegCloseKey(hKey);
-        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found via HKLM registry");
-        return true;
+    {
+        RegKeyGuard hKey;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+            L"Software\\WOW6432Node\\Valve\\Steam", 0, KEY_READ, hKey.ptr()) == ERROR_SUCCESS) {
+            MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found via HKLM registry");
+            return true;
+        }
     }
     MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Not found in registry");
 #endif
@@ -125,30 +140,30 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
 
 #ifdef _WIN32
     // Get Steam install path from registry
-    HKEY hKey;
-    wchar_t steamPath[MAX_PATH] = {0};
-    DWORD pathSize = sizeof(steamPath);
+    {
+        RegKeyGuard hKey;
+        wchar_t steamPath[MAX_PATH] = {0};
+        DWORD pathSize = sizeof(steamPath);
 
-    if (RegOpenKeyExW(HKEY_CURRENT_USER,
-        L"Software\\Valve\\Steam", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        if (RegOpenKeyExW(HKEY_CURRENT_USER,
+            L"Software\\Valve\\Steam", 0, KEY_READ, hKey.ptr()) == ERROR_SUCCESS) {
 
-        if (RegQueryValueExW(hKey, L"SteamPath", nullptr, nullptr,
-            reinterpret_cast<LPBYTE>(steamPath), &pathSize) == ERROR_SUCCESS
-            && steamPath[0] != L'\0') {
+            if (RegQueryValueExW(hKey.get(), L"SteamPath", nullptr, nullptr,
+                reinterpret_cast<LPBYTE>(steamPath), &pathSize) == ERROR_SUCCESS
+                && steamPath[0] != L'\0') {
 
-            // Convert to narrow string with dynamic size
-            int requiredSize = WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
-                nullptr, 0, nullptr, nullptr);
-            if (requiredSize > 0) {
-                std::string narrowPath(requiredSize, '\0');
-                WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
-                    narrowPath.data(), requiredSize, nullptr, nullptr);
-                narrowPath.resize(narrowPath.size() - 1);  // Remove null terminator
-                folders.push_back(narrowPath);
-                MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found install path via registry: {}", narrowPath);
+                int requiredSize = WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
+                    nullptr, 0, nullptr, nullptr);
+                if (requiredSize > 0) {
+                    std::string narrowPath(requiredSize, '\0');
+                    WideCharToMultiByte(CP_UTF8, 0, steamPath, -1,
+                        narrowPath.data(), requiredSize, nullptr, nullptr);
+                    narrowPath.resize(narrowPath.size() - 1);
+                    folders.push_back(narrowPath);
+                    MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found install path via registry: {}", narrowPath);
+                }
             }
         }
-        RegCloseKey(hKey);
     }
 
     if (folders.empty()) {
