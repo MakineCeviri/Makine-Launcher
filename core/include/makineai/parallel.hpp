@@ -22,6 +22,7 @@
 #include <functional>
 #include <future>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -156,21 +157,30 @@ auto map(const std::vector<T>& items, Func&& func,
     MAKINEAI_LOG_DEBUG(log::CORE, "Parallel map with Taskflow: {} items, {} threads",
                        items.size(), globalConfig.threadCount());
 
-    std::vector<ResultType> results(items.size());
+    // Use optional to avoid requiring copy/move assignment on ResultType.
+    // MSVC deletes std::expected assignment operators when nothrow move
+    // conditions aren't met. emplace() only needs the move constructor.
+    std::vector<std::optional<ResultType>> results(items.size());
     ProgressTracker tracker(static_cast<uint32_t>(items.size()), progress);
 
     tf::Taskflow taskflow;
 
     for (size_t i = 0; i < items.size(); ++i) {
         taskflow.emplace([&, idx = i]() {
-            results[idx] = func(items[idx]);
+            results[idx].emplace(func(items[idx]));
             tracker.advance();
         });
     }
 
     detail::executor().run(taskflow).wait();
 
-    return results;
+    // Unwrap optional results
+    std::vector<ResultType> unwrapped;
+    unwrapped.reserve(items.size());
+    for (auto& opt : results) {
+        unwrapped.push_back(std::move(*opt));
+    }
+    return unwrapped;
 }
 
 /**
@@ -195,16 +205,15 @@ auto flatMap(const std::vector<T>& items, Func&& func,
         return {};
     }
 
-    // Execute in parallel
-    std::vector<ResultType> partialResults(items.size());
+    // Use optional to avoid requiring assignment operators (MSVC compat)
+    std::vector<std::optional<ResultType>> partialResults(items.size());
     ProgressTracker tracker(static_cast<uint32_t>(items.size()), progress);
-    std::mutex mergeMutex;
 
     tf::Taskflow taskflow;
 
     for (size_t i = 0; i < items.size(); ++i) {
         taskflow.emplace([&, idx = i]() {
-            partialResults[idx] = func(items[idx]);
+            partialResults[idx].emplace(func(items[idx]));
             tracker.advance();
         });
     }
@@ -215,12 +224,12 @@ auto flatMap(const std::vector<T>& items, Func&& func,
     ResultType merged;
     size_t totalSize = 0;
     for (const auto& partial : partialResults) {
-        totalSize += partial.size();
+        totalSize += partial->size();
     }
     merged.reserve(totalSize);
 
     for (auto& partial : partialResults) {
-        for (auto& elem : partial) {
+        for (auto& elem : *partial) {
             merged.push_back(std::move(elem));
         }
     }
