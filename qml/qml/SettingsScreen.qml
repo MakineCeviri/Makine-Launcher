@@ -1203,9 +1203,9 @@ Item {
             // Animated Toggle Switch
             Rectangle {
                 id: toggleTrack
-                Layout.preferredWidth: 44
-                Layout.preferredHeight: 24
-                radius: Dimensions.radiusStandard
+                Layout.preferredWidth: Dimensions.toggleWidth
+                Layout.preferredHeight: Dimensions.toggleHeight
+                radius: Dimensions.toggleRadius
                 color: checked ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
 
                 // Hover/focus glow border
@@ -1230,9 +1230,9 @@ Item {
                 // Handle
                 Rectangle {
                     id: toggleHandle
-                    width: 18
-                    height: 18
-                    radius: Dimensions.radiusStandard
+                    width: Dimensions.toggleKnobSize
+                    height: Dimensions.toggleKnobSize
+                    radius: Dimensions.toggleKnobRadius
                     color: "white"
                     x: checked ? parent.width - width - 3 : 3
                     anchors.verticalCenter: parent.verticalCenter
