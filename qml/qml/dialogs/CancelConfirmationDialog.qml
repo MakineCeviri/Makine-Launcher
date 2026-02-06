@@ -17,6 +17,7 @@ Dialog {
     title: "Çeviriyi İptal Et?"
 
     modal: true
+    closePolicy: Popup.CloseOnEscape
     anchors.centerIn: parent
     width: 400
     padding: 0
