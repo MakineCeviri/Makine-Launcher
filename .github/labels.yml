@@ -1,4 +1,6 @@
+# ============================================================
 # Priority Labels
+# ============================================================
 - name: "priority: critical"
   color: "b60205"
   description: "Acil müdahale gerektiren kritik sorun"
@@ -15,57 +17,71 @@
   color: "0e8a16"
   description: "Düşük öncelikli"
 
+# ============================================================
 # Type Labels
-- name: "bug"
+# ============================================================
+- name: "type: bug"
   color: "d73a4a"
   description: "Bir şey düzgün çalışmıyor"
 
-- name: "enhancement"
+- name: "type: feature"
   color: "a2eeef"
-  description: "Yeni özellik veya iyileştirme"
+  description: "Yeni özellik"
 
-- name: "documentation"
+- name: "type: enhancement"
+  color: "84b6eb"
+  description: "Mevcut özelliğin iyileştirilmesi"
+
+- name: "type: testing"
+  color: "bfd4f2"
+  description: "Test ekleme veya iyileştirme"
+
+- name: "type: docs"
   color: "0075ca"
   description: "Dokümantasyon değişikliği"
 
-- name: "game-request"
-  color: "7057ff"
-  description: "Yeni oyun desteği talebi"
-
-- name: "question"
-  color: "d876e3"
-  description: "Soru veya yardım talebi"
-
-# Status Labels
-- name: "triage"
+- name: "type: chore"
   color: "ededed"
-  description: "İnceleme bekliyor"
+  description: "Build, CI, config güncellemesi"
 
-- name: "confirmed"
-  color: "0e8a16"
-  description: "Doğrulandı, çalışılacak"
+- name: "type: refactor"
+  color: "c5def5"
+  description: "Kod yeniden yapılandırma"
 
-- name: "wontfix"
-  color: "ffffff"
-  description: "Düzeltilmeyecek"
+- name: "type: security"
+  color: "ee0701"
+  description: "Güvenlik ile ilgili"
 
-- name: "duplicate"
-  color: "cfd3d7"
-  description: "Başka bir issue ile aynı"
-
-- name: "invalid"
-  color: "e4e669"
-  description: "Geçersiz veya yanlış"
-
-# Component Labels
-- name: "core"
+# ============================================================
+# Scope Labels
+# ============================================================
+- name: "scope: core"
   color: "1d76db"
   description: "C++ Core library"
 
-- name: "ui"
+- name: "scope: ui"
   color: "5319e7"
   description: "QML/Qt UI"
 
+- name: "scope: build"
+  color: "0366d6"
+  description: "CMake, vcpkg, build sistemi"
+
+- name: "scope: ci"
+  color: "0366d6"
+  description: "CI/CD pipeline"
+
+- name: "scope: translation"
+  color: "006b75"
+  description: "Çeviri sistemi (TM, QA, Glossary)"
+
+- name: "scope: security"
+  color: "ee0701"
+  description: "Güvenlik modülü"
+
+# ============================================================
+# Engine Labels
+# ============================================================
 - name: "engine: unity"
   color: "006b75"
   description: "Unity oyun motoru"
@@ -82,7 +98,52 @@
   color: "006b75"
   description: "Ren'Py"
 
-# PR Labels
+- name: "engine: gamemaker"
+  color: "006b75"
+  description: "GameMaker Studio"
+
+- name: "engine: bethesda"
+  color: "006b75"
+  description: "Bethesda (Creation Engine)"
+
+# ============================================================
+# Status Labels
+# ============================================================
+- name: "status: triage"
+  color: "ededed"
+  description: "İnceleme bekliyor"
+
+- name: "status: confirmed"
+  color: "0e8a16"
+  description: "Doğrulandı, çalışılacak"
+
+- name: "status: blocked"
+  color: "b60205"
+  description: "Bir bağımlılık tarafından engelleniyor"
+
+- name: "status: in-progress"
+  color: "fbca04"
+  description: "Üzerinde çalışılıyor"
+
+- name: "wontfix"
+  color: "ffffff"
+  description: "Düzeltilmeyecek"
+
+- name: "duplicate"
+  color: "cfd3d7"
+  description: "Başka bir issue ile aynı"
+
+- name: "invalid"
+  color: "e4e669"
+  description: "Geçersiz veya yanlış"
+
+- name: "stale"
+  color: "ededed"
+  description: "Uzun süredir aktivite yok"
+
+# ============================================================
+# PR Size Labels
+# ============================================================
 - name: "size/XS"
   color: "3CBF00"
   description: "< 10 satır değişiklik"
@@ -103,7 +164,9 @@
   color: "C32607"
   description: "> 500 satır"
 
+# ============================================================
 # Special Labels
+# ============================================================
 - name: "good first issue"
   color: "7057ff"
   description: "Yeni katkıcılar için uygun"
@@ -119,3 +182,23 @@
 - name: "dependencies"
   color: "0366d6"
   description: "Bağımlılık güncellemesi"
+
+- name: "game-request"
+  color: "7057ff"
+  description: "Yeni oyun desteği talebi"
+
+- name: "question"
+  color: "d876e3"
+  description: "Soru veya yardım talebi"
+
+- name: "pinned"
+  color: "006b75"
+  description: "Sabitlenmiş - stale'den muaf"
+
+- name: "work-in-progress"
+  color: "fbca04"
+  description: "Henüz tamamlanmamış"
+
+- name: "epic"
+  color: "3E4B9E"
+  description: "Büyük özellik - birden fazla issue içerir"
