@@ -145,7 +145,7 @@ Result<std::string> SecurityManager::hashFile(const fs::path& file, HashAlgorith
     // Use memory-mapped I/O for large files (avoids repeated read syscalls)
     if (fileSize >= MIO_THRESHOLD) {
         std::error_code ec;
-        mio::mmap_source mmap(file.string(), ec);
+        auto mmap = mio::make_mmap_source(file.string(), ec);
         if (!ec) {
             auto data = reinterpret_cast<const uint8_t*>(mmap.data());
             return hash(ByteSpan{data, mmap.size()}, algo);
