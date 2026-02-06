@@ -33,13 +33,24 @@ jobs:
           arch: x64
 
       - name: Cache vcpkg
+        id: cache-vcpkg
         uses: actions/cache@v5
         with:
           path: |
             C:/vcpkg/installed
             C:/vcpkg/packages
-          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v2
+          key: vcpkg-win-${{ hashFiles('vcpkg.json') }}-v4
           restore-keys: vcpkg-win-
+
+      - name: Install vcpkg dependencies
+        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+        run: |
+          cd C:\vcpkg
+          git pull
+          .\bootstrap-vcpkg.bat
+          vcpkg integrate install
+          cd $env:GITHUB_WORKSPACE
+          vcpkg install --triplet x64-windows
 
       - name: Build for Analysis
         run: |
