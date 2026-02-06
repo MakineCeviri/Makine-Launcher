@@ -123,7 +123,8 @@ VoidResult launchExecutable(const fs::path& exePath, const std::string& args) {
     sei.lpVerb = L"open";
     sei.lpFile = wideExe.c_str();
     sei.lpParameters = wideArgs.empty() ? nullptr : wideArgs.c_str();
-    sei.lpDirectory = exePath.parent_path().wstring().c_str();
+    auto wideDir = exePath.parent_path().wstring();
+    sei.lpDirectory = wideDir.c_str();
     sei.nShow = SW_SHOWNORMAL;
 
     if (!ShellExecuteExW(&sei)) {
@@ -268,7 +269,8 @@ VoidResult createShortcut(
 
     // Set target
     shellLink->SetPath(targetPath.wstring().c_str());
-    shellLink->SetWorkingDirectory(targetPath.parent_path().wstring().c_str());
+    auto wideWorkDir = targetPath.parent_path().wstring();
+    shellLink->SetWorkingDirectory(wideWorkDir.c_str());
 
     // Set description
     if (!description.empty()) {
