@@ -10,6 +10,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -37,6 +41,41 @@ jobs:
           check-path: 'core'
           fallback-style: 'file'
 
+  # =============================================================================
+  # STATIC ANALYSIS (Parallel with build - no dependency on quality)
+  # =============================================================================
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        continue-on-error: true
+        run: |
+          cppcheck --enable=warning,style,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=toomanyconfigs \
+            --inline-suppr \
+            --error-exitcode=1 \
+            --xml --xml-version=2 \
+            --std=c++23 \
+            -j $(nproc) \
+            core/src core/include 2> cppcheck-report.xml
+
+      - name: Upload Analysis Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: static-analysis
+          path: cppcheck-report.xml
+          retention-days: 14
 
   # =============================================================================
   # BUILD CORE + TESTS
@@ -168,11 +207,11 @@ jobs:
         run: |
           $exe = "build/qml/${{ env.BUILD_TYPE }}/MakineAI.exe"
           if (Test-Path $exe) {
-            Write-Host "✅ Executable built successfully"
+            Write-Host "Executable built successfully"
             $size = (Get-Item $exe).Length / 1MB
-            Write-Host "📦 Size: $([math]::Round($size, 2)) MB"
+            Write-Host "Size: $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "❌ Executable not found"
+            Write-Error "Executable not found"
             exit 1
           }
 
@@ -184,38 +223,7 @@ jobs:
           retention-days: 7
 
   # =============================================================================
-  # STATIC ANALYSIS (Parallel with build)
-  # =============================================================================
-  static-analysis:
-    name: Static Analysis
-    runs-on: ubuntu-latest
-    needs: quality
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install cppcheck
-        run: sudo apt-get install -y cppcheck
-
-      - name: Run cppcheck
-        continue-on-error: true
-        run: |
-          cppcheck --enable=warning,style,performance,portability \
-            --suppress=missingIncludeSystem \
-            --error-exitcode=1 \
-            --xml --xml-version=2 \
-            core/src core/include 2> cppcheck-report.xml
-
-      - name: Upload Analysis Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: static-analysis
-          path: cppcheck-report.xml
-          retention-days: 7
-
-  # =============================================================================
-  # STATUS CHECK
+  # STATUS CHECK (Required for branch protection)
   # =============================================================================
   status:
     name: CI Status
@@ -243,4 +251,4 @@ jobs:
             echo "::error::QML build failed"
             exit 1
           fi
-          echo "✅ All checks passed!"
+          echo "All checks passed!"

@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 env:
   BUILD_TYPE: Release
   VCPKG_DEFAULT_TRIPLET: x64-windows
@@ -27,7 +30,7 @@ jobs:
           fi
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Valid version: $VERSION"
+          echo "Valid version: $VERSION"
 
   build-release:
     name: Build Release
@@ -59,7 +62,7 @@ jobs:
           path: |
             C:/vcpkg/installed
             C:/vcpkg/packages
-          key: vcpkg-release-${{ hashFiles('vcpkg.json') }}-v1
+          key: vcpkg-release-${{ hashFiles('vcpkg.json') }}-v2
           restore-keys: vcpkg-release-
 
       - name: Install dependencies
@@ -105,12 +108,12 @@ jobs:
           echo "filename=$filename" >> $env:GITHUB_OUTPUT
 
       - name: Generate Checksums
+        id: checksums
         run: |
           $filename = "${{ steps.archive.outputs.filename }}"
           $sha256 = (Get-FileHash $filename -Algorithm SHA256).Hash
           $md5 = (Get-FileHash $filename -Algorithm MD5).Hash
 
-          # Create checksum file
           @"
           # MakineAI ${{ needs.validate.outputs.version }} Checksums
 
@@ -139,18 +142,18 @@ jobs:
             ## MakineAI ${{ needs.validate.outputs.version }}
 
             ### Kurulum
-            1. ZIP dosyasını indirin
-            2. İstediğiniz klasöre çıkarın
-            3. `MakineAI.exe` çalıştırın
+            1. ZIP dosyasini indirin
+            2. Istediginiz klasore cikarin
+            3. `MakineAI.exe` calistirin
 
             ### Gereksinimler
             - Windows 10/11 (64-bit)
             - Visual C++ Redistributable 2022
 
             ### Checksums
-            Dosya bütünlüğünü doğrulamak için `checksums.txt` dosyasını kontrol edin.
+            Dosya butunlugunu dogrulamak icin `checksums.txt` dosyasini kontrol edin.
 
             ---
-            📦 Bu sürüm otomatik olarak oluşturuldu.
+            Bu surum otomatik olarak olusturuldu.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
