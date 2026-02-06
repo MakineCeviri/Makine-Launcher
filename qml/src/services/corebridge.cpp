@@ -1192,8 +1192,9 @@ void CoreBridge::performBatchQA(const QList<QPair<QString, QString>>& entries,
             totalScore += result.score;
         }
 
-        int avgScore = results.empty() ? 100 : static_cast<int>(totalScore / results.size());
-        emit qaBatchCompleted(passed, failed, avgScore);
+        int total = static_cast<int>(results.size());
+        double avgScore = results.empty() ? 100.0 : totalScore / results.size();
+        emit qaBatchCompleted(passed, total, avgScore);
     });
 }
 
