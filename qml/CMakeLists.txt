@@ -141,6 +141,8 @@ qt_add_qml_module(MakineAI
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
         qml/TranslationWorkflowScreen.qml
+        qml/SplashScreen.qml
+        qml/SplashWindow.qml
 
         # Theme (singletons)
         qml/theme/Theme.qml
@@ -187,6 +189,10 @@ qt_add_qml_module(MakineAI
         qml/components/NavItem.qml
         qml/components/MinimalTitleBar.qml
         qml/components/TitleBar.qml
+
+        # Components - Splash
+        qml/components/SplashLogoSection.qml
+        qml/components/SplashProgressBar.qml
 
         # Components - Visual
         qml/components/MakineLogo.qml

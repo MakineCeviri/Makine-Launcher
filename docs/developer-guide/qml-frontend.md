@@ -9,7 +9,7 @@ MakineAI Qt QML arayuzunun detayli aciklamasi.
 MakineAI, modern ve performansli bir arayuz icin Qt 6 QML kullanir.
 
 **Teknolojiler:**
-- Qt 6.8+ Quick
+- Qt 6.10+ Quick
 - Qt Quick Controls
 - Custom theme system
 - Native Qt components

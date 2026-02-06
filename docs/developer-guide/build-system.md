@@ -105,17 +105,18 @@ MakineAI/
     └── CMakeLists.txt      # QML app
 ```
 
-### Root CMakeLists.txt
+### Build Presets
 
-```cmake
-cmake_minimum_required(VERSION 3.20)
-project(MakineAI VERSION 0.1.0)
+Core ve QML ayri CMake projeleri olarak build edilir (CMakePresets.json):
 
-# Core library
-add_subdirectory(core)
+```bash
+# Core library (MSVC + vcpkg)
+cmake --preset core-debug     # Configure
+cmake --build core/build      # Build
 
-# QML application
-add_subdirectory(qml)
+# QML application (MinGW + Qt)
+cmake --preset dev             # Configure
+cmake --build qml/build/dev    # Build
 ```
 
 ### Core CMakeLists.txt
@@ -240,24 +241,32 @@ just deploy
 ### GitHub Actions
 
 ```yaml
-# .github/workflows/ci.yml
+# .github/workflows/ci.yml (simplified)
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+      - name: Cache vcpkg
+        uses: actions/cache@v5
+        with:
+          path: C:/vcpkg/installed
+          key: vcpkg-classic-${{ hashFiles('vcpkg.json') }}
 
-      - name: Configure
-        run: cmake --preset release
+      - name: Install dependencies
+        run: |
+          $deps = (Get-Content vcpkg.json | ConvertFrom-Json).dependencies
+          foreach ($dep in $deps) { C:/vcpkg/vcpkg install "${dep}:x64-windows" --classic --recurse }
 
-      - name: Build
-        run: cmake --build build/release
+      - name: Configure & Build Core
+        run: |
+          cmake -B core/build -S core -G Ninja -DCMAKE_BUILD_TYPE=Release -DVCPKG_MANIFEST_MODE=OFF -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          cmake --build core/build
 
       - name: Test
-        run: ctest --test-dir build/release
+        run: ctest --test-dir core/build
 ```
 
 ---
