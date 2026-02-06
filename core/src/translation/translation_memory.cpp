@@ -627,10 +627,11 @@ TranslationMemoryService::findBatchMatches(
     // Parallel batch matching (Taskflow when available, std::async fallback)
     MAKINEAI_LOG_DEBUG(log::TM, "Batch matching using {}", parallel::backendInfo());
 
+    auto* self = this;  // MSVC C3482 workaround: avoid direct 'this' capture in template lambdas
     results = parallel::map(sourceTexts,
-        [this, &ctx, &targetLang, minScore](const std::string& text)
+        [self, &ctx, &targetLang, minScore](const std::string& text)
             -> std::pair<std::string, std::optional<TMMatch>> {
-            auto match = findBestMatch(text, ctx, targetLang, minScore);
+            auto match = self->findBestMatch(text, ctx, targetLang, minScore);
             if (match && match->has_value()) {
                 return {text, *match};
             }

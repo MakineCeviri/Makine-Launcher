@@ -90,9 +90,10 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
     };
 
     // Scan all stores in parallel
+    auto* self = this;  // MSVC C3482 workaround
     auto scanResults = parallel::map(
         availableScanners,
-        [this](IGameScanner* scanner) -> std::vector<GameInfo> {
+        [self](IGameScanner* scanner) -> std::vector<GameInfo> {
             MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanning: {}", scanner->name());
 
             auto result = scanner->scan();
@@ -107,7 +108,7 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
             // Detect engine for games that don't have it set
             for (auto& game : games) {
                 if (game.engine == GameEngine::Unknown) {
-                    game.engine = detectEngine(game.installPath);
+                    game.engine = self->detectEngine(game.installPath);
                 }
             }
 

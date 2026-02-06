@@ -142,9 +142,10 @@ Result<std::vector<ParseResult>> AssetParser::parseDirectory(
     uint32_t total = static_cast<uint32_t>(files.size());
     MAKINEAI_LOG_INFO(log::PARSER, "Parsing {} files using {}", total, parallel::backendInfo());
 
+    auto* self = this;  // MSVC C3482 workaround
     auto parseResults = parallel::map(files,
-        [this](const fs::path& file) -> Result<ParseResult> {
-            return parseFile(file);
+        [self](const fs::path& file) -> Result<ParseResult> {
+            return self->parseFile(file);
         },
         progress ? parallel::ProgressTracker::Callback(
             [&progress, total](uint32_t current, uint32_t /*t*/, const std::string&) {
