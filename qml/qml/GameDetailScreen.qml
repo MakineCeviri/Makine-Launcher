@@ -61,10 +61,10 @@ Item {
 
     // Quality color helper
     function getQualityColor(score) {
-        if (score >= 90) return "#66CC33"
-        if (score >= 75) return "#88BB44"
-        if (score >= 60) return "#FFCC33"
-        return "#FF9933"
+        if (score >= 90) return Theme.scoreExcellent
+        if (score >= 75) return Theme.scoreGood
+        if (score >= 60) return Theme.scoreFair
+        return Theme.scorePoor
     }
 
     // Quality label helper
@@ -504,9 +504,9 @@ Item {
                                         Layout.preferredHeight: 48
                                         radius: Dimensions.radiusStandard
                                         color: {
-                                            if (root.metacriticScore >= 75) return "#66CC33"
-                                            if (root.metacriticScore >= 50) return "#FFCC33"
-                                            if (root.metacriticScore > 0) return "#FF0000"
+                                            if (root.metacriticScore >= 75) return Theme.scoreExcellent
+                                            if (root.metacriticScore >= 50) return Theme.scoreFair
+                                            if (root.metacriticScore > 0) return Theme.scoreBad
                                             return Theme.textMuted
                                         }
 

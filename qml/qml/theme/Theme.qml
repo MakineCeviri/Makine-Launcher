@@ -221,6 +221,16 @@ QtObject {
     readonly property color statusCyan: "#00BCD4"
 
     // =========================================================================
+    // SCORE / QUALITY COLORS
+    // =========================================================================
+
+    readonly property color scoreExcellent: "#66CC33"
+    readonly property color scoreGood: "#88BB44"
+    readonly property color scoreFair: "#FFCC33"
+    readonly property color scorePoor: "#FF9933"
+    readonly property color scoreBad: "#FF0000"
+
+    // =========================================================================
     // SCROLLBAR COLORS
     // =========================================================================
 

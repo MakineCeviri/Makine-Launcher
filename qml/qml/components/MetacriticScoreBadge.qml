@@ -14,9 +14,9 @@ Rectangle {
     radius: Dimensions.radiusStandard
 
     color: {
-        if (root.score >= 75) return "#66CC33"
-        if (root.score >= 50) return "#FFCC33"
-        if (root.score > 0) return "#FF0000"
+        if (root.score >= 75) return Theme.scoreExcellent
+        if (root.score >= 50) return Theme.scoreFair
+        if (root.score > 0) return Theme.scoreBad
         return Theme.textMuted
     }
 

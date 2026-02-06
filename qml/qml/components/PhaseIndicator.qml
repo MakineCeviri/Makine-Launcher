@@ -61,7 +61,7 @@ Rectangle {
                             text: isCompleted ? "✓" : modelData.icon
                             font.pixelSize: 14
                             color: isCompleted || isFinal ? "white" :
-                                   isActive ? "#1a1a1a" : Theme.textMuted
+                                   isActive ? Theme.lightTextPrimary : Theme.textMuted
 
                             Behavior on color { ColorAnimation { duration: 300 } }
                         }
