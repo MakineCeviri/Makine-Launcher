@@ -72,7 +72,7 @@ jobs:
           $triplet = "x64-windows"
           foreach ($dep in $deps) {
             Write-Host "Installing ${dep}:${triplet}..."
-            C:/vcpkg/vcpkg install "${dep}:${triplet}" --recurse
+            C:/vcpkg/vcpkg install "${dep}:${triplet}" --classic --recurse
           }
 
       - name: Build Core

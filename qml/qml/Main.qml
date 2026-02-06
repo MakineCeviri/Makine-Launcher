@@ -430,7 +430,7 @@ ApplicationWindow {
                 Layout.preferredHeight: 18
                 radius: Dimensions.radiusStandard
                 visible: titleBarRoot.translationMode
-                color: "#E30A17"
+                color: Theme.turkishRed
                 clip: true
 
                 Rectangle {
@@ -443,7 +443,7 @@ ApplicationWindow {
                     x: 5; y: 5.3
                     width: 7.5; height: 7.5
                     radius: 3.75
-                    color: "#E30A17"
+                    color: Theme.turkishRed
                 }
                 Canvas {
                     x: 9.5; y: 5
@@ -544,7 +544,7 @@ ApplicationWindow {
         width: 46
         height: 32
         color: btnMouse.containsMouse
-            ? (isClose ? Theme.closeButtonHover : Qt.rgba(1, 1, 1, 0.1))
+            ? (isClose ? Theme.closeButtonHover : Theme.glassBorder)
             : "transparent"
         radius: 0
 

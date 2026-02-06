@@ -190,6 +190,7 @@ QtObject {
     // SPLASH SCREEN COLORS
     // =========================================================================
 
+    readonly property color splashBackground: "#0A0A0F"
     readonly property color splashGold: "#FFD700"
     readonly property color splashOrange: "#FF8C00"
     readonly property color splashPink: "#FF69B4"
@@ -201,6 +202,9 @@ QtObject {
 
     /// Windows close button hover
     readonly property color closeButtonHover: "#E81123"
+
+    /// Turkish flag red (translation mode indicator)
+    readonly property color turkishRed: "#E30A17"
 
     /// Titlebar background
     readonly property color titlebarBg: "#151515"

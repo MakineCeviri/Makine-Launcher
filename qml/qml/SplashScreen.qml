@@ -233,7 +233,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#0A0A0F"
+        color: Theme.splashBackground
         opacity: root.fadeOut
 
         Rectangle {
@@ -308,7 +308,7 @@ Item {
                 font.pixelSize: 36
                 font.weight: Font.Bold
                 font.letterSpacing: -0.5
-                color: "#FFD700"
+                color: Theme.splashGold
             }
 
             Rectangle {
@@ -344,7 +344,7 @@ Item {
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.3
-                        color: "#FFD700"
+                        color: Theme.splashGold
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -398,9 +398,9 @@ Item {
                     radius: Dimensions.radiusStandard
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: "#FFD700" }
-                        GradientStop { position: 0.5; color: "#FF8C00" }
-                        GradientStop { position: 1.0; color: "#FF69B4" }
+                        GradientStop { position: 0.0; color: Theme.splashGold }
+                        GradientStop { position: 0.5; color: Theme.splashOrange }
+                        GradientStop { position: 1.0; color: Theme.splashPink }
                     }
                 }
             }
