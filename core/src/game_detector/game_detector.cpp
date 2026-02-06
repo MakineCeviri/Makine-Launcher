@@ -788,9 +788,9 @@ EngineDetectionResult GameDetector::detectUnity(
 
     // Build details string
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -845,9 +845,9 @@ EngineDetectionResult GameDetector::detectUnreal(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -884,9 +884,9 @@ EngineDetectionResult GameDetector::detectBethesda(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -941,9 +941,9 @@ EngineDetectionResult GameDetector::detectRenpy(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1023,9 +1023,9 @@ EngineDetectionResult GameDetector::detectRpgMakerMvMz(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1078,9 +1078,9 @@ EngineDetectionResult GameDetector::detectRpgMakerVxAce(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1131,9 +1131,9 @@ EngineDetectionResult GameDetector::detectGodot(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1192,9 +1192,9 @@ EngineDetectionResult GameDetector::detectGameMaker(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1236,9 +1236,9 @@ EngineDetectionResult GameDetector::detectSource(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1270,9 +1270,9 @@ EngineDetectionResult GameDetector::detectCryEngine(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1347,9 +1347,9 @@ EngineDetectionResult GameDetector::detectFrostbite(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
@@ -1426,9 +1426,9 @@ EngineDetectionResult GameDetector::detectIdTech(
     }
 
     std::string detailStr;
-    for (size_t i = 0; i < details.size(); ++i) {
-        if (i > 0) detailStr += ", ";
-        detailStr += details[i];
+    for (const auto& detail : details) {
+        if (!detailStr.empty()) detailStr += ", ";
+        detailStr += detail;
     }
 
     EngineDetectionResult result;
