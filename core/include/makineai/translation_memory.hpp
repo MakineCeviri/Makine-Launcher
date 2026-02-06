@@ -169,7 +169,7 @@ public:
      * @param entry TM entry to add
      * @return ID of inserted entry or error
      */
-    static Result<int64_t> addEntry(const TranslationMemoryEntry& entry);
+    [[nodiscard]] static Result<int64_t> addEntry(const TranslationMemoryEntry& entry);
 
     /**
      * @brief Add n-grams for a TM entry
@@ -178,7 +178,7 @@ public:
      * @param sourceText Source text to generate n-grams from
      * @return Success or error
      */
-    static Result<void> addNgrams(int64_t tmId, const std::string& sourceText);
+    [[nodiscard]] static Result<void> addNgrams(int64_t tmId, const std::string& sourceText);
 
     /**
      * @brief Find exact match in translation memory
@@ -188,7 +188,7 @@ public:
      * @param targetLang Target language (default: "tr")
      * @return TM entry with 100% match score, or nullopt
      */
-    static Result<std::optional<TranslationMemoryEntry>> findExactMatch(
+    [[nodiscard]] static Result<std::optional<TranslationMemoryEntry>> findExactMatch(
         const std::string& sourceText,
         const std::optional<std::string>& context = std::nullopt,
         const std::string& targetLang = "tr"
@@ -207,7 +207,7 @@ public:
      * @param minScore Minimum similarity score (default: TM_MIN_FUZZY_SCORE)
      * @return List of TM entries with match scores
      */
-    static Result<std::vector<TMMatch>> findFuzzyMatches(
+    [[nodiscard]] static Result<std::vector<TMMatch>> findFuzzyMatches(
         const std::string& sourceText,
         const MatchContext& ctx = {},
         const std::string& targetLang = "tr",
@@ -224,7 +224,7 @@ public:
      * @param minScore Minimum score threshold
      * @return Best TM match or nullopt
      */
-    static Result<std::optional<TMMatch>> findBestMatch(
+    [[nodiscard]] static Result<std::optional<TMMatch>> findBestMatch(
         const std::string& sourceText,
         const MatchContext& ctx = {},
         const std::string& targetLang = "tr",
@@ -240,7 +240,7 @@ public:
      * @param minScore Minimum score threshold
      * @return Map of source text to best match
      */
-    static Result<std::vector<std::pair<std::string, std::optional<TMMatch>>>> findBatchMatches(
+    [[nodiscard]] static Result<std::vector<std::pair<std::string, std::optional<TMMatch>>>> findBatchMatches(
         const std::vector<std::string>& sourceTexts,
         const MatchContext& ctx = {},
         const std::string& targetLang = "tr",
@@ -256,7 +256,7 @@ public:
      * @param verified Optional verification status
      * @return Success or error
      */
-    static Result<void> updateEntry(
+    [[nodiscard]] static Result<void> updateEntry(
         int64_t tmId,
         const std::string& targetText,
         std::optional<int> qualityScore = std::nullopt,
@@ -269,14 +269,14 @@ public:
      * @param tmId Entry ID to delete
      * @return Success or error
      */
-    static Result<void> deleteEntry(int64_t tmId);
+    [[nodiscard]] static Result<void> deleteEntry(int64_t tmId);
 
     /**
      * @brief Clear all TM data
      *
      * @return Success or error
      */
-    static Result<void> clearAll();
+    [[nodiscard]] static Result<void> clearAll();
 
     /**
      * @brief Get TM entries for a specific game
@@ -287,7 +287,7 @@ public:
      * @param offset Skip first N results
      * @return List of TM entries
      */
-    static Result<std::vector<TranslationMemoryEntry>> getEntriesForGame(
+    [[nodiscard]] static Result<std::vector<TranslationMemoryEntry>> getEntriesForGame(
         const std::string& gameId,
         const std::string& targetLang = "tr",
         size_t limit = 1000,
@@ -308,7 +308,7 @@ public:
      *
      * @return TMStats or error
      */
-    static Result<TMStats> getStats();
+    [[nodiscard]] static Result<TMStats> getStats();
 
     /**
      * @brief Import TM entries from list
@@ -316,7 +316,7 @@ public:
      * @param entries List of entries to import
      * @return Number of successfully imported entries
      */
-    static Result<int> importEntries(const std::vector<TranslationMemoryEntry>& entries);
+    [[nodiscard]] static Result<int> importEntries(const std::vector<TranslationMemoryEntry>& entries);
 
     /**
      * @brief Export TM entries
@@ -325,7 +325,7 @@ public:
      * @param targetLang Target language
      * @return List of exportable entry maps
      */
-    static Result<std::vector<TranslationMemoryEntry>> exportEntries(
+    [[nodiscard]] static Result<std::vector<TranslationMemoryEntry>> exportEntries(
         const std::optional<std::string>& gameId = std::nullopt,
         const std::string& targetLang = "tr"
     );

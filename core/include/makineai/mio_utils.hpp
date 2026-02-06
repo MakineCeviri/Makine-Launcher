@@ -158,7 +158,7 @@ public:
     MappedFile() = default;
 
     /// Map entire file
-    static Result<MappedFile> open(const fs::path& path) {
+    [[nodiscard]] static Result<MappedFile> open(const fs::path& path) {
         if (!fs::exists(path)) {
             return std::unexpected(Error(ErrorCode::FileNotFound,
                 "File not found: " + path.string()));
@@ -183,7 +183,7 @@ public:
     }
 
     /// Map portion of file
-    static Result<MappedFile> open(const fs::path& path, size_t offset, size_t length) {
+    [[nodiscard]] static Result<MappedFile> open(const fs::path& path, size_t offset, size_t length) {
         if (!fs::exists(path)) {
             return std::unexpected(Error(ErrorCode::FileNotFound,
                 "File not found: " + path.string()));
@@ -243,7 +243,7 @@ public:
     MappedFile() = default;
 
     /// Load entire file into memory
-    static Result<MappedFile> open(const fs::path& path) {
+    [[nodiscard]] static Result<MappedFile> open(const fs::path& path) {
         if (!fs::exists(path)) {
             return std::unexpected(Error(ErrorCode::FileNotFound,
                 "File not found: " + path.string()));
@@ -274,7 +274,7 @@ public:
     }
 
     /// Load portion of file into memory
-    static Result<MappedFile> open(const fs::path& path, size_t offset, size_t length) {
+    [[nodiscard]] static Result<MappedFile> open(const fs::path& path, size_t offset, size_t length) {
         if (!fs::exists(path)) {
             return std::unexpected(Error(ErrorCode::FileNotFound,
                 "File not found: " + path.string()));

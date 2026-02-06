@@ -170,10 +170,10 @@ public:
     JsonDocument() = default;
 
     /// Parse JSON from string
-    static Result<JsonDocument> parse(std::string_view jsonStr);
+    [[nodiscard]] static Result<JsonDocument> parse(std::string_view jsonStr);
 
     /// Parse JSON from file
-    static Result<JsonDocument> parseFile(const fs::path& path);
+    [[nodiscard]] static Result<JsonDocument> parseFile(const fs::path& path);
 
     /// Get root value
     [[nodiscard]] JsonValue root() const;

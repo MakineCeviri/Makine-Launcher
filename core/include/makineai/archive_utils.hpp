@@ -185,7 +185,7 @@ public:
     /**
      * @brief List all entries in the archive
      */
-    virtual Result<std::vector<ArchiveEntry>> list() = 0;
+    [[nodiscard]] virtual Result<std::vector<ArchiveEntry>> list() = 0;
 
     /**
      * @brief Extract entire archive to directory
@@ -194,7 +194,7 @@ public:
      * @param password Optional password for encrypted archives
      * @param progress Optional progress callback
      */
-    virtual Result<void> extractAll(
+    [[nodiscard]] virtual Result<void> extractAll(
         const fs::path& destDir,
         const std::optional<std::string>& password = std::nullopt,
         ProgressCallback progress = nullptr
@@ -207,7 +207,7 @@ public:
      * @param destPath Destination file path
      * @param password Optional password
      */
-    virtual Result<void> extractFile(
+    [[nodiscard]] virtual Result<void> extractFile(
         const std::string& entryPath,
         const fs::path& destPath,
         const std::optional<std::string>& password = std::nullopt
@@ -216,7 +216,7 @@ public:
     /**
      * @brief Extract file to memory
      */
-    virtual Result<std::vector<uint8_t>> extractToMemory(
+    [[nodiscard]] virtual Result<std::vector<uint8_t>> extractToMemory(
         const std::string& entryPath,
         const std::optional<std::string>& password = std::nullopt
     ) = 0;
@@ -243,7 +243,7 @@ public:
     explicit LibArchiveExtractor(fs::path archivePath)
         : archivePath_(std::move(archivePath)) {}
 
-    Result<std::vector<ArchiveEntry>> list() override {
+    [[nodiscard]] Result<std::vector<ArchiveEntry>> list() override {
         struct archive* a = archive_read_new();
         archive_read_support_filter_all(a);
         archive_read_support_format_all(a);
@@ -274,7 +274,7 @@ public:
         return entries;
     }
 
-    Result<void> extractAll(
+    [[nodiscard]] Result<void> extractAll(
         const fs::path& destDir,
         const std::optional<std::string>& password,
         ProgressCallback progress
@@ -347,7 +347,7 @@ public:
         return {};
     }
 
-    Result<void> extractFile(
+    [[nodiscard]] Result<void> extractFile(
         const std::string& entryPath,
         const fs::path& destPath,
         const std::optional<std::string>& password
@@ -370,7 +370,7 @@ public:
         return {};
     }
 
-    Result<std::vector<uint8_t>> extractToMemory(
+    [[nodiscard]] Result<std::vector<uint8_t>> extractToMemory(
         const std::string& entryPath,
         const std::optional<std::string>& password
     ) override {
@@ -452,7 +452,7 @@ public:
         );
     }
 
-    Result<std::vector<ArchiveEntry>> list() override {
+    [[nodiscard]] Result<std::vector<ArchiveEntry>> list() override {
         try {
             bit7z::BitArchiveReader reader(*lib_, archivePath_.wstring());
 
@@ -472,7 +472,7 @@ public:
         }
     }
 
-    Result<void> extractAll(
+    [[nodiscard]] Result<void> extractAll(
         const fs::path& destDir,
         const std::optional<std::string>& password,
         ProgressCallback progress
@@ -497,7 +497,7 @@ public:
         }
     }
 
-    Result<void> extractFile(
+    [[nodiscard]] Result<void> extractFile(
         const std::string& entryPath,
         const fs::path& destPath,
         const std::optional<std::string>& password
@@ -519,7 +519,7 @@ public:
         }
     }
 
-    Result<std::vector<uint8_t>> extractToMemory(
+    [[nodiscard]] Result<std::vector<uint8_t>> extractToMemory(
         const std::string& entryPath,
         const std::optional<std::string>& password
     ) override {
