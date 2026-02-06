@@ -263,7 +263,7 @@ private:
                     const auto& text = entry.translated.empty() ? entry.original : entry.translated;
                     sortedStrings.emplace_back(id, text);
                 } catch (const std::exception& e) {
-                    MAKINEAI_LOG_WARN(log::RESOURCE, "Skipping BA2 entry with invalid key '{}': {}",
+                    MAKINEAI_LOG_WARN(log::PARSER, "Skipping BA2 entry with invalid key '{}': {}",
                                       entry.key, e.what());
                     continue;
                 }
