@@ -25,6 +25,17 @@ Item {
     signal clicked()
 
     // =========================================================================
+    // ACCESSIBILITY
+    // =========================================================================
+
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTr("Donate")
+    Accessible.onPressAction: clicked()
+    Keys.onReturnPressed: clicked()
+    Keys.onSpacePressed: clicked()
+
+    // =========================================================================
     // SIZE
     // =========================================================================
 

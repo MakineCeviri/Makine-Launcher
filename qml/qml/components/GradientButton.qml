@@ -19,6 +19,13 @@ Rectangle {
     implicitHeight: 48
     radius: Dimensions.radiusXS  // 4
 
+    activeFocusOnTab: enabled
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.onPressAction: if (enabled) clicked()
+    Keys.onReturnPressed: if (enabled) clicked()
+    Keys.onSpacePressed: if (enabled) clicked()
+
     // 2000ms infinite animation loop
     property real animValue: 0.0
     NumberAnimation on animValue {
@@ -92,6 +99,17 @@ Rectangle {
             color: "white"
             anchors.verticalCenter: parent.verticalCenter
         }
+    }
+
+    // Focus indicator
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: parent.radius + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.gold, 0.6)
+        border.width: root.activeFocus ? 2 : 0
+        visible: root.activeFocus
     }
 
     MouseArea {

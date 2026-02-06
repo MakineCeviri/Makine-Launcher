@@ -14,9 +14,17 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: 72
-    color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+    color: (mouseArea.containsMouse || activeFocus) ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
     radius: Dimensions.radiusStandard
     enabled: !root.isLoading
+
+    activeFocusOnTab: enabled
+    Accessible.role: Accessible.Button
+    Accessible.name: title
+    Accessible.description: subtitle
+    Accessible.onPressAction: clicked()
+    Keys.onReturnPressed: clicked()
+    Keys.onSpacePressed: clicked()
 
     Behavior on color { ColorAnimation { duration: 150 } }
 

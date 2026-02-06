@@ -14,6 +14,13 @@ Rectangle {
     implicitHeight: 44
     radius: Dimensions.radiusXS  // 4
 
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTr("Stop")
+    Accessible.onPressAction: clicked()
+    Keys.onReturnPressed: clicked()
+    Keys.onSpacePressed: clicked()
+
     // hoverProgress animation (200ms)
     property real hoverProgress: 0.0
     Behavior on hoverProgress {

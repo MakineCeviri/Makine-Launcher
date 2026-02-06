@@ -20,6 +20,13 @@ Rectangle {
     implicitHeight: 36
     radius: Dimensions.radiusXS
 
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTr("Discord")
+    Accessible.onPressAction: clicked()
+    Keys.onReturnPressed: clicked()
+    Keys.onSpacePressed: clicked()
+
     property real glowOpacity: 0.15 + (pulseValue * 0.25)
 
     color: mouseArea.containsMouse ?

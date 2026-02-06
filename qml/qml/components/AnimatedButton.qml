@@ -20,6 +20,13 @@ Rectangle {
     implicitHeight: 44
     radius: Dimensions.radiusMD  // 8
 
+    activeFocusOnTab: enabled
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.onPressAction: if (enabled) clicked()
+    Keys.onReturnPressed: if (enabled) clicked()
+    Keys.onSpacePressed: if (enabled) clicked()
+
     // Colors based on variant
     color: {
         if (!enabled) return Qt.rgba(1, 1, 1, 0.05)
@@ -85,6 +92,17 @@ Rectangle {
             }
             anchors.verticalCenter: parent.verticalCenter
         }
+    }
+
+    // Focus indicator
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: parent.radius + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: root.activeFocus ? 2 : 0
+        visible: root.activeFocus
     }
 
     MouseArea {
