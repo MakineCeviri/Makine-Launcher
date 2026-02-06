@@ -3,8 +3,10 @@
 #
 # Test structure:
 # - Unit tests: Fast, isolated tests for individual components
-# - Integration tests: Full workflow tests (in integration/ subdirectory)
+# - Integration tests: Full workflow tests requiring game data/fixtures
+# - Benchmarks: Performance tests (in benchmark/ subdirectory)
 # - Mocks: Test doubles for external dependencies (in mocks/ directory)
+# - Fuzz: Fuzz testing targets (in fuzz/ subdirectory)
 #
 cmake_minimum_required(VERSION 3.28)
 
@@ -15,7 +17,6 @@ find_package(GTest CONFIG REQUIRED)
 # UNIT TESTS
 # =============================================================================
 
-# Test executable
 add_executable(makineai_tests
     test_main.cpp
     test_game_detector.cpp
@@ -23,6 +24,8 @@ add_executable(makineai_tests
     test_patch_engine.cpp
     test_security.cpp
     test_version_tracker.cpp
+    test_string_classifier.cpp
+    test_translation_api.cpp
 )
 
 target_link_libraries(makineai_tests PRIVATE
@@ -51,12 +54,46 @@ gtest_discover_tests(makineai_tests
 )
 
 # =============================================================================
-# INTEGRATION TESTS
+# INTEGRATION TESTS (game-specific, may require fixtures)
 # =============================================================================
 
-# Add integration tests subdirectory
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/CMakeLists.txt")
-    add_subdirectory(integration)
+add_executable(makineai_integration_tests
+    test_main.cpp
+    test_game_scan.cpp
+    test_real_scan.cpp
+    test_disco_elysium.cpp
+    test_undertale.cpp
+    test_unity.cpp
+)
+
+target_link_libraries(makineai_integration_tests PRIVATE
+    makineai_core
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+)
+
+target_include_directories(makineai_integration_tests PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/mocks
+)
+
+target_compile_definitions(makineai_integration_tests PRIVATE
+    MAKINEAI_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+    MAKINEAI_TEST_TEMP_DIR="${CMAKE_CURRENT_BINARY_DIR}/temp"
+)
+
+gtest_discover_tests(makineai_integration_tests
+    TEST_PREFIX "integration."
+    PROPERTIES LABELS "integration"
+)
+
+# =============================================================================
+# BENCHMARKS
+# =============================================================================
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/CMakeLists.txt")
+    add_subdirectory(benchmark)
 endif()
 
 # =============================================================================
@@ -71,13 +108,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_data")
     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/test_data" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 
-# Copy fixtures if needed (for portable testing)
-# Note: Fixtures are used in-place by default via MAKINEAI_TEST_FIXTURES_DIR
-# Uncomment to copy:
-# if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
-#     file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
-# endif()
-
 # =============================================================================
 # CUSTOM TARGETS
 # =============================================================================
@@ -85,7 +115,7 @@ endif()
 # Run all tests
 add_custom_target(run_all_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS makineai_tests
+    DEPENDS makineai_tests makineai_integration_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running all tests"
 )
@@ -101,6 +131,7 @@ add_custom_target(run_unit_tests
 # Run integration tests only
 add_custom_target(run_integration_tests
     COMMAND ${CMAKE_CTEST_COMMAND} -L integration --output-on-failure
+    DEPENDS makineai_integration_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running integration tests"
 )
