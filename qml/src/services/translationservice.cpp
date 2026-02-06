@@ -7,6 +7,7 @@
 #include "translationservice.h"
 #include <QDebug>
 #include <QThread>
+#include <QtConcurrent>
 
 namespace makineai {
 
@@ -43,7 +44,7 @@ void TranslationService::setupCoreBridge()
                 setPhase(TranslationPhase::Error);
                 setProgress(0, error);
                 emit translationError(m_activeGameId, error);
-                m_isActive = false;
+                m_isActive.store(false, std::memory_order_relaxed);
                 emit isActiveChanged();
             });
 
@@ -57,14 +58,14 @@ void TranslationService::setupCoreBridge()
                 setPhase(TranslationPhase::Error);
                 setProgress(0, error);
                 emit translationError(m_activeGameId, error);
-                m_isActive = false;
+                m_isActive.store(false, std::memory_order_relaxed);
                 emit isActiveChanged();
             });
 }
 
 void TranslationService::startTranslation(const QString& gameId, const QString& gameName, const QString& installPath)
 {
-    if (m_isActive) {
+    if (m_isActive.load(std::memory_order_relaxed)) {
         qWarning() << "Translation already in progress";
         return;
     }
@@ -72,8 +73,8 @@ void TranslationService::startTranslation(const QString& gameId, const QString& 
     m_activeGameId = gameId;
     m_activeGameName = gameName;
     m_activeInstallPath = installPath;
-    m_isActive = true;
-    m_isPaused = false;
+    m_isActive.store(true, std::memory_order_relaxed);
+    m_isPaused.store(false, std::memory_order_relaxed);
 
     emit activeGameChanged();
     emit isActiveChanged();
@@ -84,7 +85,7 @@ void TranslationService::startTranslation(const QString& gameId, const QString& 
         setPhase(TranslationPhase::Error);
         setProgress(0, "Sistem hatası: Core bağlantısı yok");
         emit translationError(gameId, "Core bağlantısı kurulamadı");
-        m_isActive = false;
+        m_isActive.store(false, std::memory_order_relaxed);
         emit isActiveChanged();
         return;
     }
@@ -100,7 +101,7 @@ void TranslationService::startTranslation(const QString& gameId, const QString& 
         setPhase(TranslationPhase::Error);
         setProgress(0, "Oyun motoru tespit edilemedi");
         emit translationError(gameId, "Desteklenmeyen oyun motoru");
-        m_isActive = false;
+        m_isActive.store(false, std::memory_order_relaxed);
         emit isActiveChanged();
         return;
     }
@@ -131,108 +132,97 @@ void TranslationService::onExtractionCompleted(int count)
         setPhase(TranslationPhase::Error);
         setProgress(0, "Çevrilecek metin bulunamadı");
         emit translationError(m_activeGameId, "Oyunda çevrilecek metin bulunamadı");
-        m_isActive = false;
+        m_isActive.store(false, std::memory_order_relaxed);
         emit isActiveChanged();
         return;
     }
 
-    // Phase 3: Matching translations (from Translation Memory)
+    // Launch matching and QA on worker thread to keep UI responsive
     setPhase(TranslationPhase::Matching);
     setProgress(0, "Çeviriler eşleştiriliyor...");
 
-    // Get extracted strings and apply translations from TM
+    (void)QtConcurrent::run([this, count]() {
+        runMatchingAndQA(count);
+    });
+}
+
+void TranslationService::runMatchingAndQA(int /*extractedCount*/)
+{
+    // --- Phase 3: Matching translations (TM) --- (runs on worker thread)
     auto extractedStrings = m_coreBridge->extractedStrings();
     QList<TranslationEntryQt> translatedStrings;
 
     int matched = 0;
     int total = extractedStrings.count();
-    const double MIN_TM_SCORE = 70.0;  // Minimum fuzzy match score
+    const double MIN_TM_SCORE = 70.0;
 
     for (int i = 0; i < total; ++i) {
-        // Check for pause state
-        while (m_isPaused && m_isActive) {
-            QThread::msleep(100);  // Wait 100ms while paused
+        // Cooperative pause: yield while paused
+        while (m_isPaused.load(std::memory_order_relaxed) &&
+               m_isActive.load(std::memory_order_relaxed)) {
+            QThread::msleep(50);
         }
-
-        // Check if stopped during pause
-        if (!m_isActive) {
-            return;
-        }
+        if (!m_isActive.load(std::memory_order_relaxed)) return;
 
         auto& entry = extractedStrings[i];
 
         if (!entry.sourceText.isEmpty()) {
-            // Query Translation Memory for matching translation
             auto tmMatch = m_coreBridge->findBestTMMatch(
-                entry.sourceText,
-                m_activeGameId,
-                MIN_TM_SCORE
-            );
+                entry.sourceText, m_activeGameId, MIN_TM_SCORE);
 
             if (tmMatch.has_value()) {
-                // Found a TM match - use it
                 entry.targetText = tmMatch->targetText;
                 entry.qaScore = tmMatch->qualityScore;
                 matched++;
 
-                // Emit signal for UI to display match
-                emit tmMatchFound(entry.sourceText, entry.targetText, tmMatch->similarity);
+                QMetaObject::invokeMethod(this, [this, src = entry.sourceText,
+                        tgt = tmMatch->targetText, sim = tmMatch->similarity]() {
+                    emit tmMatchFound(src, tgt, sim);
+                }, Qt::QueuedConnection);
             } else {
-                // No TM match - apply glossary terms if any
-                QString glossaryApplied = m_coreBridge->applyGlossary(entry.sourceText, m_activeGameId);
-                if (glossaryApplied != entry.sourceText) {
-                    // Glossary terms were applied
-                    entry.targetText = glossaryApplied;
-                } else {
-                    // No translation available - keep source (will need manual translation)
-                    entry.targetText = entry.sourceText;
-                }
+                QString glossaryApplied = m_coreBridge->applyGlossary(
+                    entry.sourceText, m_activeGameId);
+                entry.targetText = (glossaryApplied != entry.sourceText)
+                    ? glossaryApplied : entry.sourceText;
             }
-
             translatedStrings.append(entry);
         }
 
-        // Update progress every 10 entries or at milestones
         if (i % 10 == 0 || i == total - 1) {
-            qreal progress = static_cast<qreal>(i + 1) / total;
-            setProgress(progress, QString("Eşleştiriliyor: %1/%2 (%3 bulundu)")
-                .arg(i + 1).arg(total).arg(matched));
+            const qreal prog = static_cast<qreal>(i + 1) / total;
+            const int m = matched;
+            QMetaObject::invokeMethod(this, [this, prog, i, total, m]() {
+                setProgress(prog, QString("Eşleştiriliyor: %1/%2 (%3 bulundu)")
+                    .arg(i + 1).arg(total).arg(m));
+            }, Qt::QueuedConnection);
         }
     }
 
     qDebug() << "TM Matching completed:" << matched << "/" << total << "translations found";
-    emit matchingCompleted(matched, total);
+    QMetaObject::invokeMethod(this, [this, matched, total]() {
+        emit matchingCompleted(matched, total);
+        setPhase(TranslationPhase::Reviewing);
+        setProgress(0, "Kalite kontrolü yapılıyor...");
+    }, Qt::QueuedConnection);
 
-    // Phase 4: Reviewing (QA check)
-    setPhase(TranslationPhase::Reviewing);
-    setProgress(0, "Kalite kontrolü yapılıyor...");
-
+    // --- Phase 4: QA check --- (still on worker thread)
     int passed = 0;
     int failed = 0;
     int qaTotal = translatedStrings.count();
-    QVariantList qaIssues;  // Issue detayları listesi
+    QVariantList qaIssues;
 
     for (int i = 0; i < qaTotal; ++i) {
-        // Check for pause state
-        while (m_isPaused && m_isActive) {
-            QThread::msleep(100);  // Wait 100ms while paused
+        while (m_isPaused.load(std::memory_order_relaxed) &&
+               m_isActive.load(std::memory_order_relaxed)) {
+            QThread::msleep(50);
         }
-
-        // Check if stopped during pause
-        if (!m_isActive) {
-            return;
-        }
+        if (!m_isActive.load(std::memory_order_relaxed)) return;
 
         auto& entry = translatedStrings[i];
 
         if (!entry.targetText.isEmpty() && entry.targetText != entry.sourceText) {
-            // Run QA check on translated entries
             auto qaResult = m_coreBridge->performQACheck(
-                entry.sourceText,
-                entry.targetText,
-                m_activeGameId,
-                true  // checkGlossary
-            );
+                entry.sourceText, entry.targetText, m_activeGameId, true);
 
             entry.qaScore = qaResult.score;
             entry.hasIssues = !qaResult.passed;
@@ -241,41 +231,32 @@ void TranslationService::onExtractionCompleted(int count)
                 passed++;
             } else {
                 failed++;
-
-                // Issue detayını listeye ekle
                 QVariantMap issue;
                 issue["sourceText"] = entry.sourceText;
                 issue["targetText"] = entry.targetText;
                 issue["score"] = qaResult.score;
-                issue["severity"] = qaResult.score < 30 ? "critical" : (qaResult.score < 60 ? "warning" : "info");
+                issue["severity"] = qaResult.score < 30 ? "critical"
+                    : (qaResult.score < 60 ? "warning" : "info");
                 qaIssues.append(issue);
-
-                qDebug() << "QA failed for:" << entry.sourceText.left(30)
-                         << "score:" << qaResult.score;
             }
         } else {
-            // Untranslated entries pass QA by default
             passed++;
         }
 
-        // Update progress
         if (i % 20 == 0 || i == qaTotal - 1) {
-            qreal progress = static_cast<qreal>(i + 1) / qaTotal;
-            setProgress(progress, QString("Kontrol ediliyor: %1/%2").arg(i + 1).arg(qaTotal));
+            const qreal prog = static_cast<qreal>(i + 1) / qaTotal;
+            QMetaObject::invokeMethod(this, [this, prog, i, qaTotal]() {
+                setProgress(prog, QString("Kontrol ediliyor: %1/%2")
+                    .arg(i + 1).arg(qaTotal));
+            }, Qt::QueuedConnection);
         }
     }
 
     int avgScore = qaTotal > 0 ? (passed * 100) / qaTotal : 100;
-    qDebug() << "QA completed: passed=" << passed << "failed=" << failed << "avgScore=" << avgScore << "issues:" << qaIssues.count();
-    emit qaCompleted(passed, failed, avgScore, qaIssues);
+    qDebug() << "QA completed: passed=" << passed << "failed=" << failed
+             << "avgScore=" << avgScore << "issues:" << qaIssues.count();
 
-    setProgress(1.0, QString("Kalite kontrolü tamamlandı (Skor: %1)").arg(avgScore));
-
-    // Phase 5: Patching
-    setPhase(TranslationPhase::Applying);
-    setProgress(0, "Çeviriler uygulanıyor...");
-
-    // Filter out entries with critical QA issues (score < 50)
+    // Filter approved translations
     QList<TranslationEntryQt> approvedTranslations;
     for (const auto& entry : translatedStrings) {
         if (entry.qaScore >= 50) {
@@ -283,10 +264,19 @@ void TranslationService::onExtractionCompleted(int count)
         }
     }
 
-    qDebug() << "Applying" << approvedTranslations.count() << "approved translations";
+    // Switch to main thread for phase transitions and patching
+    QMetaObject::invokeMethod(this, [this, passed, failed, avgScore, qaIssues,
+            approvedTranslations = std::move(approvedTranslations)]() {
+        emit qaCompleted(passed, failed, avgScore, qaIssues);
+        setProgress(1.0, QString("Kalite kontrolü tamamlandı (Skor: %1)").arg(avgScore));
 
-    // Apply translations using CoreBridge
-    m_coreBridge->applyTranslations(m_activeInstallPath, m_activeEngine, approvedTranslations);
+        // Phase 5: Patching
+        setPhase(TranslationPhase::Applying);
+        setProgress(0, "Çeviriler uygulanıyor...");
+
+        qDebug() << "Applying" << approvedTranslations.count() << "approved translations";
+        m_coreBridge->applyTranslations(m_activeInstallPath, m_activeEngine, approvedTranslations);
+    }, Qt::QueuedConnection);
 }
 
 void TranslationService::onPatchProgress(qreal progress, const QString& status)
@@ -306,22 +296,22 @@ void TranslationService::onPatchCompleted(int count)
 
     emit translationCompleted(m_activeGameId);
 
-    // Keep active for a moment then reset
-    m_isActive = false;
+    m_isActive.store(false, std::memory_order_relaxed);
     emit isActiveChanged();
 }
 
 void TranslationService::stopTranslation()
 {
-    if (!m_isActive) return;
+    if (!m_isActive.load(std::memory_order_relaxed)) return;
 
-    m_isActive = false;
-    m_isPaused = false;
+    m_isActive.store(false, std::memory_order_relaxed);
+    m_isPaused.store(false, std::memory_order_relaxed);
     m_phase = TranslationPhase::Idle;
     m_progress = 0;
     m_statusMessage.clear();
 
     emit isActiveChanged();
+    emit isPausedChanged();
     emit phaseChanged();
     emit progressChanged();
     emit statusMessageChanged();
@@ -329,17 +319,18 @@ void TranslationService::stopTranslation()
 
 void TranslationService::pauseTranslation()
 {
-    if (!m_isActive || m_isPaused) return;
-    m_isPaused = true;
+    if (!m_isActive.load(std::memory_order_relaxed) ||
+         m_isPaused.load(std::memory_order_relaxed)) return;
+    m_isPaused.store(true, std::memory_order_relaxed);
     setProgress(m_progress, m_statusMessage + " (Duraklatıldı)");
     emit isPausedChanged();
 }
 
 void TranslationService::resumeTranslation()
 {
-    if (!m_isActive || !m_isPaused) return;
-    m_isPaused = false;
-    // Remove "(Duraklatıldı)" suffix if present
+    if (!m_isActive.load(std::memory_order_relaxed) ||
+        !m_isPaused.load(std::memory_order_relaxed)) return;
+    m_isPaused.store(false, std::memory_order_relaxed);
     QString msg = m_statusMessage;
     if (msg.endsWith(" (Duraklatıldı)")) {
         msg = msg.left(msg.length() - 15);

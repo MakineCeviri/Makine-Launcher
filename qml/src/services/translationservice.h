@@ -10,6 +10,8 @@
 #include <QString>
 #include <QQmlEngine>
 
+#include <atomic>
+
 #include "corebridge.h"
 #include "../makineai_metatypes.h"
 
@@ -46,8 +48,8 @@ public:
     static TranslationService* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
     // Properties
-    bool isActive() const { return m_isActive; }
-    bool isPaused() const { return m_isPaused; }
+    bool isActive() const { return m_isActive.load(std::memory_order_relaxed); }
+    bool isPaused() const { return m_isPaused.load(std::memory_order_relaxed); }
     bool isProcessing() const { return static_cast<int>(m_phase) >= 1 && static_cast<int>(m_phase) <= 5; }
     int phase() const { return static_cast<int>(m_phase); }
     qreal progress() const { return m_progress; }
@@ -85,8 +87,10 @@ private:
     void onPatchProgress(qreal progress, const QString& status);
     void onPatchCompleted(int count);
 
+    void runMatchingAndQA(int extractedCount);
+
     CoreBridge* m_coreBridge{nullptr};
-    bool m_isActive{false};
+    std::atomic<bool> m_isActive{false};
     TranslationPhase m_phase{TranslationPhase::Idle};
     qreal m_progress{0};
     QString m_statusMessage;
@@ -94,7 +98,7 @@ private:
     QString m_activeGameName;
     QString m_activeInstallPath;
     QString m_activeEngine;
-    bool m_isPaused{false};
+    std::atomic<bool> m_isPaused{false};
 };
 
 } // namespace makineai
