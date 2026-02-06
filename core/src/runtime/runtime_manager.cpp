@@ -905,7 +905,7 @@ Result<UnityAnalysis> analyzeUnityGame(const fs::path& gameDir) {
                     char buffer[256] = {0};
                     file.read(buffer, 255);
                     // Look for version pattern like "2019.4.1f1" or "5.6.3p1"
-                    for (int i = 0; i < 200; ++i) {
+                    for (int i = 0; i < 253; ++i) {
                         if (std::isdigit(buffer[i]) && buffer[i+1] == '.' &&
                             std::isdigit(buffer[i+2])) {
                             analysis.unityVersion = "";
@@ -938,6 +938,7 @@ Result<UnityAnalysis> analyzeUnityGame(const fs::path& gameDir) {
                     if (dosHeader[0] == 'M' && dosHeader[1] == 'Z') {
                         uint32_t peOffset;
                         std::memcpy(&peOffset, &dosHeader[60], 4);
+                        if (peOffset > 0x10000) break;  // Sanity check
                         file.seekg(peOffset + 4);  // Skip PE signature
                         uint16_t machine;
                         file.read(reinterpret_cast<char*>(&machine), 2);

@@ -639,6 +639,10 @@ Result<bool> GameDetector::is64Bit(const fs::path& exePath) const {
     // Get PE header offset
     uint32_t peOffset;
     std::memcpy(&peOffset, &dosHeader[60], 4);
+    if (peOffset > 0x10000) {
+        return std::unexpected(Error(ErrorCode::InvalidFormat,
+            "PE offset too large, possibly corrupt file"));
+    }
 
     // Seek to PE header
     file.seekg(peOffset);
