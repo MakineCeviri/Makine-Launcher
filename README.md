@@ -7,7 +7,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue?style=flat-square)](https://github.com/jlceaser/MakineAI/releases)
 [![License](https://img.shields.io/github/license/jlceaser/MakineAI?style=flat-square)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/jlceaser/MakineAI/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/jlceaser/MakineAI/actions)
-[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus)](https://en.cppreference.com/w/cpp/20)
+[![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?style=flat-square&logo=cplusplus)](https://en.cppreference.com/w/cpp/23)
 [![Qt6](https://img.shields.io/badge/Qt-6.10-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
 [![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows)](https://github.com/jlceaser/MakineAI)
 
@@ -62,6 +62,15 @@ cmake --preset dev
 cmake --build --preset dev
 ```
 
+### Preset'ler
+
+| Preset | Derleyici | Mod | Açıklama |
+|--------|----------|-----|----------|
+| `dev` | MinGW | UI-only | Hızlı geliştirme |
+| `debug` | MinGW | UI-only | Debug build |
+| `release` | MSVC/vcpkg | Full | Core entegrasyon |
+| `core` | MSVC/vcpkg | Core only | Kütüphane build |
+
 ---
 
 ## Desteklenen Oyun Motorları
@@ -80,11 +89,11 @@ cmake --build --preset dev
 ## Teknoloji
 
 | Katman | Teknoloji |
-|--------|-----------|
-| Core | C++20, Boost, OpenSSL, SQLite, spdlog |
-| UI | Qt 6 QML, Quick Controls |
-| Build | CMake, vcpkg, Ninja |
-| CI | GitHub Actions, CodeQL |
+|--------|----------|
+| Core | C++23, Boost, OpenSSL, curl, SQLite, spdlog, libsodium |
+| UI | Qt 6.10 QML, Quick Controls |
+| Build | CMake 3.25+, vcpkg (18 bağımlılık), Ninja |
+| CI | GitHub Actions, CodeQL, clang-tidy, cppcheck |
 
 ---
 
@@ -93,14 +102,14 @@ cmake --build --preset dev
 ```
 MakineAI/
 ├── core/             # C++ core library
-│   ├── include/      # Public headers
-│   ├── src/          # Implementation
-│   └── tests/        # Unit & integration tests
+│   ├── include/      # Public headers (40+ dosya)
+│   ├── src/          # Implementation (~26K satır)
+│   └── tests/        # Unit, integration, fuzz, benchmark
 ├── qml/              # Qt QML application
 │   ├── src/          # C++ backend (models, services)
-│   ├── qml/          # QML UI components & screens
+│   ├── qml/          # QML UI components (80 dosya)
 │   └── resources/    # Icons, fonts, images
-├── docs/             # Documentation (ADR, API, guides)
+├── docs/             # Documentation (32 dosya)
 ├── recipes/          # Translation templates (YAML)
 └── scripts/          # Python utilities & toolchain
 ```
