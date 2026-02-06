@@ -248,7 +248,7 @@ Window {
                 radius: model.psize
                 color: model.ptype === 0 ? Theme.splashGold :
                        model.ptype === 1 ? Theme.splashPink :
-                       "#FFFFFF"
+                       "white"
                 opacity: model.palpha * glowIntensity * (1.0 - fadeOut)
             }
         }

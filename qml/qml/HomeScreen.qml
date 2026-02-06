@@ -210,9 +210,9 @@ Item {
                                     font.pixelSize: 16
                                     color: {
                                         switch(notificationType) {
-                                            case "update": return "#4DA6FF"
-                                            case "warning": return "#FFB347"
-                                            case "error": return "#FF6B6B"
+                                            case "update": return Theme.notificationUpdate
+                                            case "warning": return Theme.notificationWarning
+                                            case "error": return Theme.notificationError
                                             default: return Theme.textSecondary
                                         }
                                     }
@@ -239,7 +239,7 @@ Item {
                                         text: "İndir"
                                         font.pixelSize: 12
                                         font.weight: Font.Medium
-                                        color: "#4DA6FF"
+                                        color: Theme.notificationUpdate
                                     }
 
                                     MouseArea {
@@ -1324,7 +1324,7 @@ Item {
             id: viewAllContent
             anchors.fill: parent
             radius: Dimensions.cardBorderRadius
-            color: "#0A0A0A"
+            color: Theme.bgPrimary
 
             property real borderPhase: 0
             NumberAnimation on borderPhase {

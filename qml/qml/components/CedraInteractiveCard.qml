@@ -52,9 +52,9 @@ Rectangle {
 
     gradient: Gradient {
         orientation: Gradient.Horizontal
-        GradientStop { position: 0.0; color: "#1A1A2E" }
-        GradientStop { position: 0.5; color: "#12121F" }
-        GradientStop { position: 1.0; color: "#0A0A14" }
+        GradientStop { position: 0.0; color: Theme.cardDarkStart }
+        GradientStop { position: 0.5; color: Theme.cardDarkMid }
+        GradientStop { position: 1.0; color: Theme.cardDarkEnd }
     }
 
     border.color: Qt.rgba(color1.r, color1.g, color1.b, 0.5 + smoothValue * 0.3)
@@ -112,7 +112,7 @@ Rectangle {
             Layout.preferredWidth: 56
             Layout.preferredHeight: 56
             radius: Dimensions.radiusStandard
-            color: "#1A1A2E"
+            color: Theme.cardDarkStart
 
             border.color: Qt.rgba(root.color1.r, root.color1.g, root.color1.b, 0.6 + root.smoothValue * 0.3)
             border.width: 2

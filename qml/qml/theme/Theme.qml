@@ -191,6 +191,12 @@ QtObject {
     readonly property color brandLime: "#C8EB7C"
     readonly property color brandOlive: "#D4BE77"
 
+    // Logo gradient transition colors (MakineLogo.qml multi-stop gradient)
+    readonly property color logoAmber: "#DEA54B"
+    readonly property color logoLavender: "#B8A0C8"
+    readonly property color logoSky: "#90B8D0"
+    readonly property color logoTeal: "#80C8B8"
+
     // =========================================================================
     // SPLASH SCREEN COLORS
     // =========================================================================
@@ -217,6 +223,9 @@ QtObject {
     /// Steam orange (for warnings)
     readonly property color steamOrange: "#FF9800"
 
+    /// Discord brand color
+    readonly property color discordColor: "#5865F2"
+
     /// Destructive red
     readonly property color destructive: "#E53935"
 
@@ -224,6 +233,32 @@ QtObject {
     readonly property color statusOnline: "#4CAF50"
     readonly property color statusPurple: "#9C27B0"
     readonly property color statusCyan: "#00BCD4"
+
+    // =========================================================================
+    // NOTIFICATION COLORS
+    // =========================================================================
+
+    readonly property color notificationUpdate: "#4DA6FF"
+    readonly property color notificationWarning: "#FFB347"
+    readonly property color notificationError: "#FF6B6B"
+
+    // =========================================================================
+    // SEVERITY COLORS (AntiCheat warnings)
+    // =========================================================================
+
+    readonly property color severityLow: "#FFB74D"
+    readonly property color severityMedium: "#FF9800"
+    readonly property color severityCritical: "#B71C1C"
+
+    // =========================================================================
+    // CARD DARK GRADIENT (CedraCard, CedraInteractiveCard backgrounds)
+    // =========================================================================
+
+    readonly property color cardDarkStart: "#1A1A2E"
+    readonly property color cardDarkMid: "#12121F"
+    readonly property color cardDarkEnd: "#0A0A14"
+    readonly property color cardDarkerStart: "#0D0D12"
+    readonly property color cardDarkerMid: "#10101A"
 
     // =========================================================================
     // SCORE / QUALITY COLORS

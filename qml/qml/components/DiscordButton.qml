@@ -8,7 +8,7 @@ Rectangle {
     id: root
 
     property bool showLabel: false
-    property color discordColor: "#5865F2"
+    property color discordColor: Theme.discordColor
     property bool animationsEnabled: true
 
     signal clicked()

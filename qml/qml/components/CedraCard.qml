@@ -53,8 +53,8 @@ Item {
 
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "#0D0D12" }
-            GradientStop { position: 0.5; color: "#10101A" }
+            GradientStop { position: 0.0; color: Theme.cardDarkerStart }
+            GradientStop { position: 0.5; color: Theme.cardDarkerMid }
             GradientStop { position: 1.0; color: Theme.splashBackground }
         }
 

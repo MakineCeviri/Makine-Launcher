@@ -140,11 +140,11 @@ Item {
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: Theme.logoGold }
-            GradientStop { position: 0.15; color: "#DEA54B" }
+            GradientStop { position: 0.15; color: Theme.logoAmber }
             GradientStop { position: 0.30; color: Theme.logoCoral }
-            GradientStop { position: 0.45; color: "#B8A0C8" }
-            GradientStop { position: 0.55; color: "#90B8D0" }
-            GradientStop { position: 0.70; color: "#80C8B8" }
+            GradientStop { position: 0.45; color: Theme.logoLavender }
+            GradientStop { position: 0.55; color: Theme.logoSky }
+            GradientStop { position: 0.70; color: Theme.logoTeal }
             GradientStop { position: 0.85; color: Theme.logoGreen }
             GradientStop { position: 1.0; color: Theme.logoGold }
         }
