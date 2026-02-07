@@ -237,6 +237,9 @@ Popup {
                     scale: closeBtn.pressed ? 0.9 : 1.0
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Close")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: { root.dialogClosed(); root.close() }
+                    Keys.onSpacePressed: { root.dialogClosed(); root.close() }
 
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -426,6 +429,9 @@ Popup {
                             radius: root.radiusSmall
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Add game manually")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: folderDialog.open()
+                            Keys.onSpacePressed: folderDialog.open()
                             color: manualBtn.containsMouse
                                 ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
@@ -462,6 +468,9 @@ Popup {
                             radius: root.radiusSmall
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Refresh game list")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: root.startScan()
+                            Keys.onSpacePressed: root.startScan()
                             color: refreshBtn.containsMouse
                                 ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
@@ -755,6 +764,9 @@ Popup {
                     scale: startBtn.pressed ? 0.96 : 1.0
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Start translation")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: { if (root.selectedGame) { root.gameSelected(root.selectedGame); root.close() } }
+                    Keys.onSpacePressed: { if (root.selectedGame) { root.gameSelected(root.selectedGame); root.close() } }
 
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }

@@ -548,6 +548,9 @@ Dialog {
                 radius: Dimensions.radiusStandard
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Cancel")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { root.cancelled(); root.close() }
+                Keys.onSpacePressed: { root.cancelled(); root.close() }
                 color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)
                 border.color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.15)
                 border.width: 1.5
@@ -624,6 +627,9 @@ Dialog {
                     radius: Dimensions.radiusStandard
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Continue anyway")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: { root.continueAnyway(); root.close() }
+                    Keys.onSpacePressed: { root.continueAnyway(); root.close() }
                     scale: continueBtnMouse.pressed ? 0.97 : 1.0
 
                     gradient: Gradient {

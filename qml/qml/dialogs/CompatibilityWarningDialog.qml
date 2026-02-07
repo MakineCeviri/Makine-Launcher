@@ -124,6 +124,9 @@ Dialog {
                 border.width: 1
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Yedeği Geri Yükle")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { root.restoreBackup(); root.close() }
+                Keys.onSpacePressed: { root.restoreBackup(); root.close() }
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -154,6 +157,9 @@ Dialog {
                 radius: Dimensions.radiusStandard
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Yine de Devam Et")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { root.proceedAnyway(); root.close() }
+                Keys.onSpacePressed: { root.proceedAnyway(); root.close() }
                 color: proceedMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.warning, 0.12)
 
                 Behavior on color { ColorAnimation { duration: 150 } }

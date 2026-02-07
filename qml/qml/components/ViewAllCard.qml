@@ -224,6 +224,20 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: qsTr("View all games")
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
+
+    // Focus indicator
+    Rectangle {
+        anchors.fill: cardContent
+        anchors.margins: -2
+        radius: cardContent.radius + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: 2
+        visible: root.activeFocus
+    }
 
     MouseArea {
         id: mouseArea

@@ -145,6 +145,9 @@ Dialog {
                     border.width: 1
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Batch mode")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: { batchMode = !batchMode; if (!batchMode) deselectAll() }
+                    Keys.onSpacePressed: { batchMode = !batchMode; if (!batchMode) deselectAll() }
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -188,6 +191,9 @@ Dialog {
                     color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Close")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: root.close()
+                    Keys.onSpacePressed: root.close()
 
                     Text {
                         anchors.centerIn: parent
@@ -641,6 +647,11 @@ Dialog {
                 Layout.preferredHeight: 30
                 radius: Dimensions.radiusStandard
                 color: selectAllMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Select all")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: selectAllFiltered()
+                Keys.onSpacePressed: selectAllFiltered()
 
                 Text {
                     id: selectAllLabel
@@ -667,6 +678,11 @@ Dialog {
                 Layout.preferredHeight: 30
                 radius: Dimensions.radiusStandard
                 color: deselectMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Deselect all")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: deselectAll()
+                Keys.onSpacePressed: deselectAll()
 
                 Text {
                     id: deselectLabel
@@ -695,6 +711,11 @@ Dialog {
                        ? (installBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary)
                        : Qt.rgba(1, 1, 1, 0.06)
                 opacity: selectedCount > 0 ? 1.0 : 0.5
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Install translations")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { if (selectedCount > 0) startBatchInstall() }
+                Keys.onSpacePressed: { if (selectedCount > 0) startBatchInstall() }
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -728,6 +749,9 @@ Dialog {
 
         Accessible.role: Accessible.Button
         Accessible.name: text
+        activeFocusOnTab: true
+        Keys.onReturnPressed: clicked()
+        Keys.onSpacePressed: clicked()
 
         width: catBtnLabel.width + 24
         height: 36

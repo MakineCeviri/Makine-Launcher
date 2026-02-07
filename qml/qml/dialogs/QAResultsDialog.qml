@@ -532,6 +532,9 @@ Dialog {
                 visible: root.issues.length > 0
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Ignore and continue")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { root.ignoreAndContinue(); root.close() }
+                Keys.onSpacePressed: { root.ignoreAndContinue(); root.close() }
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -568,6 +571,9 @@ Dialog {
                 radius: Dimensions.radiusStandard
                 Accessible.role: Accessible.Button
                 Accessible.name: root.issues.length > 0 ? qsTr("Fix issues") : qsTr("OK")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { if (root.issues.length > 0) root.fixIssues(); root.close() }
+                Keys.onSpacePressed: { if (root.issues.length > 0) root.fixIssues(); root.close() }
                 color: fixBtnMouse.containsMouse
                     ? (root.issues.length > 0 ? Theme.primaryHover : Theme.withAlpha(colorSuccess, 0.9))
                     : (root.issues.length > 0 ? Theme.primary : colorSuccess)
