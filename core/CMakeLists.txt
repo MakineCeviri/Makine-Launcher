@@ -126,6 +126,7 @@ set(MAKINEAI_SOURCES
     src/handlers/renpy_handler.cpp
     src/handlers/rpgmaker_handler.cpp
     src/handlers/gamemaker_handler.cpp
+    src/handlers/godot_handler.cpp
 
     # Translation Pipeline (Decision Engine)
     src/translation_pipeline/translation_pipeline.cpp
@@ -203,6 +204,7 @@ set(MAKINEAI_HEADERS
     include/makineai/handlers/renpy_handler.hpp
     include/makineai/handlers/rpgmaker_handler.hpp
     include/makineai/handlers/gamemaker_handler.hpp
+    include/makineai/handlers/godot_handler.hpp
 
     # Translation Pipeline
     include/makineai/translation_pipeline.hpp

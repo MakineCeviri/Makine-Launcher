@@ -9,6 +9,7 @@
 #include "makineai/handlers/renpy_handler.hpp"
 #include "makineai/handlers/rpgmaker_handler.hpp"
 #include "makineai/handlers/gamemaker_handler.hpp"
+#include "makineai/handlers/godot_handler.hpp"
 #include "makineai/string_classifier.hpp"
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
@@ -1928,6 +1929,7 @@ EngineHandlerFactory::EngineHandlerFactory() {
     registerHandler(std::make_unique<UnrealHandler>());
     registerHandler(std::make_unique<RenpyHandler>());
     registerHandler(std::make_unique<GameMakerHandler>());
+    registerHandler(std::make_unique<GodotHandler>());
 }
 
 void EngineHandlerFactory::registerHandler(std::unique_ptr<IEngineHandler> handler) {
