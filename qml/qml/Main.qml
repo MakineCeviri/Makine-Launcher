@@ -29,7 +29,14 @@ ApplicationWindow {
 
     readonly property int resizeMargin: 6
 
-    onClosing: Qt.quit()
+    onClosing: function(close) {
+        if (SettingsManager.minimizeToTray) {
+            close.accepted = false
+            window.minimizeToTray()
+        } else {
+            Qt.quit()
+        }
+    }
 
     function minimizeToTray() {
         window.hide()
@@ -41,6 +48,13 @@ ApplicationWindow {
             window.show()
             window.raise()
             window.requestActivate()
+        }
+        function onSettingsRequested() {
+            window.show()
+            window.raise()
+            window.requestActivate()
+            window.currentNavIndex = 2
+            contentStackContainer.navigateTo(1)
         }
         function onQuitRequested() {
             Qt.quit()
@@ -164,7 +178,13 @@ ApplicationWindow {
                     window.showMaximized()
                 }
             }
-            onCloseClicked: Qt.quit()
+            onCloseClicked: {
+                if (SettingsManager.minimizeToTray) {
+                    window.minimizeToTray()
+                } else {
+                    Qt.quit()
+                }
+            }
             onTrayClicked: window.minimizeToTray()
         }
 
