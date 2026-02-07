@@ -310,6 +310,9 @@ Item {
         color: backBtnMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Back")
+        activeFocusOnTab: true
+        Keys.onReturnPressed: root.backClicked()
+        Keys.onSpacePressed: root.backClicked()
         z: 100
 
         Behavior on color { ColorAnimation { duration: 150 } }
@@ -347,6 +350,9 @@ Item {
         color: openNewMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Open on Steam")
+        activeFocusOnTab: true
+        Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
+        Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
         z: 100
 
         Behavior on color { ColorAnimation { duration: 150 } }
@@ -500,6 +506,11 @@ Item {
                             color: steamBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.1)
                             border.color: Qt.rgba(1, 1, 1, 0.2)
                             border.width: 1
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Open on Steam")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
+                            Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -543,6 +554,11 @@ Item {
                             Layout.preferredHeight: 48
                             radius: Dimensions.radiusStandard
                             color: translateBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Start translation")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: root.translateClicked()
+                            Keys.onSpacePressed: root.translateClicked()
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -629,6 +645,9 @@ Item {
                         color: retryMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.15) : Theme.withAlpha(Theme.primary, 0.08)
                         Accessible.role: Accessible.Button
                         Accessible.name: qsTr("Tekrar Dene")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) }
+                        Keys.onSpacePressed: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) }
 
                         Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -1551,6 +1570,11 @@ Item {
                                 color: runtimeBtnMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.2) : Theme.withAlpha(Theme.primary, 0.12)
                                 visible: !runtimeInstalled || !runtimeUpToDate
                                 opacity: isInstallingRuntime ? 0.6 : 1
+                                Accessible.role: Accessible.Button
+                                Accessible.name: runtimeInstalled ? qsTr("Update runtime") : qsTr("Install BepInEx")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.installRuntime(root.gameId) } }
+                                Keys.onSpacePressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.installRuntime(root.gameId) } }
 
                                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -1590,6 +1614,11 @@ Item {
                                 border.width: 1
                                 visible: runtimeInstalled
                                 opacity: isInstallingRuntime ? 0.6 : 1
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("Uninstall runtime")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.uninstallRuntime(root.gameId) } }
+                                Keys.onSpacePressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.uninstallRuntime(root.gameId) } }
 
                                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -1783,6 +1812,9 @@ Item {
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Restore latest backup")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: { var latest = BackupManager.getLatestBackup(root.gameId); if (latest && latest.id) BackupManager.restoreBackup(latest.id) }
+                                    Keys.onSpacePressed: { var latest = BackupManager.getLatestBackup(root.gameId); if (latest && latest.id) BackupManager.restoreBackup(latest.id) }
 
                                     Row {
                                         id: restoreBtnContent
@@ -1832,6 +1864,9 @@ Item {
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Delete all backups")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: { var backups = BackupManager.getBackupsForGame(root.gameId); for (var i = 0; i < backups.length; i++) BackupManager.deleteBackup(backups[i].id) }
+                                    Keys.onSpacePressed: { var backups = BackupManager.getBackupsForGame(root.gameId); for (var i = 0; i < backups.length; i++) BackupManager.deleteBackup(backups[i].id) }
 
                                     Row {
                                         id: deleteBtnContent
