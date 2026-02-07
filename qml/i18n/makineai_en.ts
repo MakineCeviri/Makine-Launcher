@@ -190,6 +190,11 @@
         <source>ÖNEMLİ</source>
         <translation>IMPORTANT</translation>
     </message>
+    <message>
+        <location filename="../qml/components/AnnouncementCard.qml" line="99"/>
+        <source>Duyuru</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>AntiCheatWarningDialog</name>
@@ -266,14 +271,19 @@
 <context>
     <name>BackupListItem</name>
     <message>
-        <location filename="../qml/components/BackupListItem.qml" line="51"/>
+        <location filename="../qml/components/BackupListItem.qml" line="54"/>
         <source>Bilinmeyen Oyun</source>
         <translation>Unknown Game</translation>
     </message>
     <message>
-        <location filename="../qml/components/BackupListItem.qml" line="78"/>
+        <location filename="../qml/components/BackupListItem.qml" line="81"/>
         <source>Geri Al</source>
         <translation>Restore</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/BackupListItem.qml" line="118"/>
+        <source>Delete backup</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -2716,6 +2726,11 @@ Are you sure?</translation>
         <location filename="../qml/components/ViewAllCard.qml" line="210"/>
         <source>Tümünü Gör</source>
         <translation>View All</translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ViewAllCard.qml" line="226"/>
+        <source>View all games</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
