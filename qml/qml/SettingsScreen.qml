@@ -413,6 +413,35 @@ Item {
                     }
                 }
             }
+
+            // Planned features
+            SettingsCard {
+                Layout.fillWidth: true
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    DisabledSetting {
+                        title: qsTr("İndirme Dizini")
+                        description: qsTr("Çeviri paketlerinin indirileceği konum")
+                    }
+
+                    SettingsDivider {}
+
+                    DisabledSetting {
+                        title: qsTr("Önbellek Yönetimi")
+                        description: qsTr("Önbellek boyutunu görüntüle ve temizle")
+                    }
+
+                    SettingsDivider {}
+
+                    DisabledSetting {
+                        title: qsTr("Proxy Ayarları")
+                        description: qsTr("Ağ bağlantısı için proxy yapılandırması")
+                    }
+                }
+            }
         }
     }
 
@@ -738,6 +767,7 @@ Item {
         ColumnLayout {
             spacing: 16
 
+            // App info card
             SettingsCard {
                 Layout.fillWidth: true
 
@@ -752,9 +782,14 @@ Item {
                     InfoRow { label: qsTr("Geliştirici"); value: qsTr("MakineAI Ekibi") }
                     SettingsDivider {}
                     InfoRow { label: qsTr("Lisans"); value: qsTr("Özel Lisans") }
+                    SettingsDivider {}
+                    InfoRow { label: qsTr("Platform"); value: Qt.platform.os }
+                    SettingsDivider {}
+                    InfoRow { label: "Qt"; value: "6.10.1" }
                 }
             }
 
+            // Community links card
             SettingsCard {
                 Layout.fillWidth: true
 
@@ -772,10 +807,86 @@ Item {
                     SettingsDivider {}
 
                     ClickableRow {
+                        title: "GitHub"
+                        subtitle: qsTr("Kaynak kodu, hata bildirimi ve katkılar")
+                        icon: "\uD83D\uDD17"  // 🔗
+                        onClicked: Qt.openUrlExternally("https://github.com/jlceaser/MakineAI")
+                    }
+
+                    SettingsDivider {}
+
+                    ClickableRow {
                         title: qsTr("Geri Bildirim")
                         subtitle: qsTr("Hata bildirimi ve öneriler için web sitemizi ziyaret edin")
                         icon: "\uD83D\uDCE7"  // 📧
                         onClicked: Qt.openUrlExternally("https://makineai.com/feedback")
+                    }
+                }
+            }
+
+            // Open source licenses card
+            SettingsCard {
+                Layout.fillWidth: true
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    // Section header
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 48
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+
+                            Label {
+                                text: qsTr("Açık Kaynak Lisanslar")
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                color: Theme.textPrimary
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Label {
+                                text: "6"
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
+                                color: Theme.textMuted
+                            }
+                        }
+                    }
+
+                    SettingsDivider {}
+
+                    Repeater {
+                        model: [
+                            { name: "Qt Framework", license: "LGPL v3", url: "https://www.qt.io/licensing" },
+                            { name: "Boost", license: "BSL-1.0", url: "https://www.boost.org/LICENSE_1_0.txt" },
+                            { name: "OpenSSL", license: "Apache-2.0", url: "https://www.openssl.org/source/license.html" },
+                            { name: "spdlog", license: "MIT", url: "https://github.com/gabime/spdlog/blob/v1.x/LICENSE" },
+                            { name: "nlohmann/json", license: "MIT", url: "https://github.com/nlohmann/json/blob/develop/LICENSE.MIT" },
+                            { name: "Inter Font", license: "OFL-1.1", url: "https://github.com/rsms/inter/blob/master/LICENSE.txt" }
+                        ]
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            ClickableRow {
+                                title: modelData.name
+                                subtitle: modelData.license
+                                icon: "\uD83D\uDCC4"  // 📄
+                                onClicked: Qt.openUrlExternally(modelData.url)
+                            }
+
+                            SettingsDivider {
+                                visible: index < 5
+                            }
+                        }
                     }
                 }
             }
