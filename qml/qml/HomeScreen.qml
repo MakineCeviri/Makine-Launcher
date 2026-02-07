@@ -268,6 +268,17 @@ Item {
                                         color: Theme.notificationUpdate
                                     }
 
+                                    // Focus indicator
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        anchors.margins: -1
+                                        radius: parent.radius + 1
+                                        color: "transparent"
+                                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                        border.width: 2
+                                        visible: parent.activeFocus
+                                    }
+
                                     MouseArea {
                                         id: updateBtnMouse
                                         anchors.fill: parent
@@ -293,6 +304,17 @@ Item {
                                         text: "✕"
                                         font.pixelSize: 12
                                         color: Theme.textMuted
+                                    }
+
+                                    // Focus indicator
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        anchors.margins: -1
+                                        radius: parent.radius + 1
+                                        color: "transparent"
+                                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                        border.width: 2
+                                        visible: parent.activeFocus
                                     }
 
                                     MouseArea {
@@ -522,6 +544,17 @@ Item {
                                             }
                                         }
 
+                                        // Focus indicator
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            anchors.margins: -1
+                                            radius: parent.radius + 1
+                                            color: "transparent"
+                                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                            border.width: 2
+                                            visible: parent.activeFocus
+                                        }
+
                                         MouseArea {
                                             id: manualBtnMouse
                                             anchors.fill: parent
@@ -641,6 +674,17 @@ Item {
                                             }
                                         }
 
+                                        // Focus indicator
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            anchors.margins: -1
+                                            radius: parent.radius + 1
+                                            color: "transparent"
+                                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                            border.width: 2
+                                            visible: announcementContentBox.activeFocus
+                                        }
+
                                         MouseArea {
                                             id: announcementContentMouse
                                             anchors.fill: parent
@@ -720,6 +764,17 @@ Item {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 Behavior on color { ColorAnimation { duration: 150 } }
                                             }
+                                        }
+
+                                        // Focus indicator
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            anchors.margins: -1
+                                            radius: securityBtn.radius + 1
+                                            color: "transparent"
+                                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                            border.width: 2
+                                            visible: securityBtn.activeFocus
                                         }
 
                                         MouseArea {

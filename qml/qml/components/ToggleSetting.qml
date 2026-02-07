@@ -24,6 +24,17 @@ Rectangle {
 
     Behavior on color { ColorAnimation { duration: 150 } }
 
+    // Focus indicator
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -1
+        radius: root.radius + 1
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: 2
+        visible: root.activeFocus
+    }
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent

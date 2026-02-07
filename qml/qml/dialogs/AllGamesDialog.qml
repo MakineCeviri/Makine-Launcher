@@ -171,6 +171,17 @@ Dialog {
                         }
                     }
 
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
+                    }
+
                     MouseArea {
                         id: batchToggleMouse
                         anchors.fill: parent
@@ -200,6 +211,17 @@ Dialog {
                         text: "\u00D7"
                         font.pixelSize: 24
                         color: Theme.textMuted
+                    }
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
                     }
 
                     MouseArea {
@@ -664,6 +686,17 @@ Dialog {
                     color: Theme.textSecondary
                 }
 
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
+                }
+
                 MouseArea {
                     id: selectAllMouse
                     anchors.fill: parent
@@ -693,6 +726,17 @@ Dialog {
                     font.pixelSize: 12
                     font.weight: Font.Medium
                     color: Theme.textSecondary
+                }
+
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
                 }
 
                 MouseArea {
@@ -728,6 +772,17 @@ Dialog {
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                     color: selectedCount > 0 ? "white" : Theme.textMuted
+                }
+
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
                 }
 
                 MouseArea {

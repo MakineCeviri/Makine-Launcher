@@ -61,6 +61,17 @@ Item {
                         color: backBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                     }
 
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
+                    }
+
                     MouseArea {
                         id: backBtnMouse
                         anchors.fill: parent
@@ -307,6 +318,17 @@ Item {
                                     color: cancelBtnMouse.containsMouse ? Theme.error : Theme.textSecondary
                                 }
 
+                                // Focus indicator
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -1
+                                    radius: parent.radius + 1
+                                    color: "transparent"
+                                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                    border.width: 2
+                                    visible: parent.activeFocus
+                                }
+
                                 MouseArea {
                                     id: cancelBtnMouse
                                     anchors.fill: parent
@@ -337,6 +359,17 @@ Item {
                                     font.pixelSize: 14
                                     font.weight: Font.Medium
                                     color: retryBtnMouse.containsMouse ? Theme.warning : Theme.textSecondary
+                                }
+
+                                // Focus indicator
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -1
+                                    radius: parent.radius + 1
+                                    color: "transparent"
+                                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                    border.width: 2
+                                    visible: parent.activeFocus
                                 }
 
                                 MouseArea {
@@ -374,6 +407,17 @@ Item {
                                     color: Theme.textSecondary
                                 }
 
+                                // Focus indicator
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -1
+                                    radius: parent.radius + 1
+                                    color: "transparent"
+                                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                    border.width: 2
+                                    visible: parent.activeFocus
+                                }
+
                                 MouseArea {
                                     id: errorBackMouse
                                     anchors.fill: parent
@@ -407,6 +451,17 @@ Item {
                                     font.pixelSize: 14
                                     font.weight: Font.DemiBold
                                     color: "white"
+                                }
+
+                                // Focus indicator
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -2
+                                    radius: parent.radius + 2
+                                    color: "transparent"
+                                    border.color: Theme.withAlpha(Theme.gold, 0.6)
+                                    border.width: 2
+                                    visible: parent.activeFocus
                                 }
 
                                 MouseArea {
