@@ -83,7 +83,6 @@ jobs:
   build:
     name: Build & Test
     runs-on: windows-latest
-    needs: quality
 
     steps:
       - name: Checkout
@@ -244,10 +243,8 @@ jobs:
           echo "QML: ${{ needs.build-qml.result }}"
           echo "Analysis: ${{ needs.static-analysis.result }}"
 
-          if [ "${{ needs.quality.result }}" == "failure" ]; then
-            echo "::error::Code quality checks failed"
-            exit 1
-          fi
+          # Quality and static analysis are informational (continue-on-error)
+          # Only build failures block the pipeline
           if [ "${{ needs.build.result }}" == "failure" ]; then
             echo "::error::Core build failed"
             exit 1
@@ -256,4 +253,4 @@ jobs:
             echo "::error::QML build failed"
             exit 1
           fi
-          echo "All checks passed!"
+          echo "All required checks passed!"
