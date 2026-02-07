@@ -48,6 +48,8 @@ Item {
                     height: 28
                     radius: Dimensions.radiusStandard
                     color: !SettingsManager.isDarkMode ? Theme.primary : "transparent"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Açık")
 
                     Text {
                         anchors.centerIn: parent
@@ -69,6 +71,8 @@ Item {
                     height: 28
                     radius: Dimensions.radiusStandard
                     color: SettingsManager.isDarkMode ? Theme.primary : "transparent"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Koyu")
 
                     Text {
                         anchors.centerIn: parent

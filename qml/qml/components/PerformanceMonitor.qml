@@ -131,6 +131,9 @@ Rectangle {
         maxFrameTime = 0
     }
 
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTr("Performance Monitor")
+
     // Click to toggle details
     MouseArea {
         anchors.fill: parent

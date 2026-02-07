@@ -122,6 +122,8 @@ Rectangle {
                 Layout.preferredWidth: actionBtnLabel.width + 16
                 Layout.preferredHeight: 24
                 radius: Dimensions.badgeRadius
+                Accessible.role: Accessible.Button
+                Accessible.name: BatchOperationService.isRunning ? qsTr("İptal") : qsTr("Temizle")
                 color: actionBtnMouse.containsMouse
                        ? (BatchOperationService.isRunning
                           ? Theme.withAlpha(Theme.destructive, 0.2)

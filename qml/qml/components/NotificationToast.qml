@@ -21,6 +21,9 @@ Item {
     signal clicked()
     signal dismissed()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.title
+
     anchors.right: parent ? parent.right : undefined
     anchors.top: parent ? parent.top : undefined
     anchors.rightMargin: 16

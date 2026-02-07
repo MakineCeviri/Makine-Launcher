@@ -82,6 +82,8 @@ Popup {
                     color: markAllMouse.containsMouse
                         ? Theme.withAlpha(Theme.primary, 0.1) : "transparent"
                     visible: root.model && root.model.count > 0
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Tümünü oku")
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -140,6 +142,8 @@ Popup {
                     height: delegateLayout.implicitHeight + 20
                     color: delegateMouse.containsMouse
                         ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: delegateRoot.title
 
                     required property int index
                     required property string title
@@ -302,6 +306,8 @@ Popup {
             Layout.fillWidth: true
             Layout.preferredHeight: notificationList.count > 0 ? 40 : 0
             visible: notificationList.count > 0
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("Tümünü temizle")
 
             // Top border
             Rectangle {

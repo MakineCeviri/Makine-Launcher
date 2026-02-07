@@ -33,6 +33,12 @@ Item {
 
     signal clicked()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.label
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
+
     // =========================================================================
     // SIZE
     // =========================================================================
