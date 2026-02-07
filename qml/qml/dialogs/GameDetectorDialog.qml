@@ -60,7 +60,7 @@ Popup {
         }
 
         function onScanStatusChanged() {
-            root.statusMessage = GameService.scanStatus || "Taranıyor..."
+            root.statusMessage = GameService.scanStatus || qsTr("Taranıyor...")
         }
 
         function onScanProgressChanged() {

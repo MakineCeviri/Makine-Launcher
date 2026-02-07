@@ -917,6 +917,11 @@ oyun klasörünü sürükleyin.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../qml/dialogs/GameDetectorDialog.qml" line="63"/>
+        <source>Taranıyor...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/dialogs/GameDetectorDialog.qml" line="218"/>
         <source>Oyun Kütüphanesi</source>
         <translation type="unfinished"></translation>
@@ -1895,6 +1900,21 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../qml/dialogs/QAResultsDialog.qml" line="136"/>
+        <source>%1/%2 sorun gösteriliyor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/QAResultsDialog.qml" line="137"/>
+        <source>%1 sorun tespit edildi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/QAResultsDialog.qml" line="138"/>
+        <source>Sorun tespit edilmedi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../qml/dialogs/QAResultsDialog.qml" line="163"/>
         <source>Tümü</source>
         <translation type="unfinished"></translation>
@@ -1942,6 +1962,21 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
     <message>
         <location filename="../qml/dialogs/QAResultsDialog.qml" line="353"/>
         <source>Harika! Hiçbir sorun tespit edilmedi.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/QAResultsDialog.qml" line="508"/>
+        <source>Kod: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/QAResultsDialog.qml" line="509"/>
+        <source>Açıklama: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/QAResultsDialog.qml" line="510"/>
+        <source>Ceza Puanı: -%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -133,9 +133,9 @@ Dialog {
                 Text {
                     text: root.issues.length > 0
                         ? (root.activeSeverityFilter > 0
-                            ? root.filteredIssues.length + "/" + root.issues.length + " sorun gösteriliyor"
-                            : root.issues.length + " sorun tespit edildi")
-                        : "Sorun tespit edilmedi"
+                            ? qsTr("%1/%2 sorun gösteriliyor").arg(root.filteredIssues.length).arg(root.issues.length)
+                            : qsTr("%1 sorun tespit edildi").arg(root.issues.length))
+                        : qsTr("Sorun tespit edilmedi")
                     font.pixelSize: 13
                     color: Theme.textMuted
                 }
@@ -505,9 +505,9 @@ Dialog {
                                 id: detailsText
                                 anchors.fill: parent
                                 anchors.margins: 8
-                                text: "Kod: " + modelData.code + "\n" +
-                                      "Açıklama: " + modelData.message + "\n" +
-                                      "Ceza Puanı: -" + modelData.penaltyPoints
+                                text: qsTr("Kod: %1").arg(modelData.code) + "\n" +
+                                      qsTr("Açıklama: %1").arg(modelData.message) + "\n" +
+                                      qsTr("Ceza Puanı: -%1").arg(modelData.penaltyPoints)
                                 font.pixelSize: 12
                                 color: Theme.textSecondary
                                 wrapMode: Text.WordWrap
