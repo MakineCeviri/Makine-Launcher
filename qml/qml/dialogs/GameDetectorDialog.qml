@@ -47,7 +47,7 @@ Popup {
     FolderDialog {
         id: folderDialog
         title: qsTr("Oyun Klasörünü Seçin")
-        parentWindow: root.appWindow
+        parentWindow: root.appWindow || ApplicationWindow.window
         onAccepted: addManualFolder(selectedFolder)
     }
 
