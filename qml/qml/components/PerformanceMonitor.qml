@@ -118,7 +118,7 @@ Rectangle {
         avgFrameTime = sum / frameTimes.length
         minFrameTime = min
         maxFrameTime = max
-        currentFps = 1000 / avgFrameTime
+        currentFps = avgFrameTime > 0 ? 1000 / avgFrameTime : 0
     }
 
     function reset() {

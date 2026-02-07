@@ -547,6 +547,7 @@ Popup {
                                 clip: true
 
                                 Image {
+                                    id: gameThumbImage
                                     anchors.fill: parent
                                     source: modelData.source === "steam" && modelData.appId
                                         ? "https://steamcdn-a.akamaihd.net/steam/apps/" + modelData.appId + "/capsule_231x87.jpg"
@@ -565,7 +566,7 @@ Popup {
                                         return "📁"
                                     }
                                     font.pixelSize: 18
-                                    visible: parent.children[0].status !== Image.Ready
+                                    visible: gameThumbImage.status !== Image.Ready
                                 }
                             }
 

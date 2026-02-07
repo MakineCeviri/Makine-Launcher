@@ -343,6 +343,7 @@ Item {
 
                                         // Turkish flag with geometric proportions
                                         Rectangle {
+                                            id: turkishFlagIcon
                                             width: 44
                                             height: 44
                                             radius: Dimensions.radiusStandard
@@ -387,7 +388,7 @@ Item {
                                         }
 
                                         Column {
-                                            anchors.verticalCenter: parent.children[0].verticalCenter
+                                            anchors.verticalCenter: turkishFlagIcon.verticalCenter
                                             spacing: 3
 
                                             Label {
