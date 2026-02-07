@@ -234,8 +234,12 @@ Popup {
                     Layout.preferredHeight: 36
                     radius: root.radiusSmall
                     color: closeBtn.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    scale: closeBtn.pressed ? 0.9 : 1.0
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Close")
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                     Text {
                         anchors.centerIn: parent
@@ -268,7 +272,7 @@ Popup {
         // Content
         Item {
             width: parent.width
-            height: root.height - 72 - (root.selectedGame ? 100 : 0)
+            height: root.height - 72 - footerRect.height
 
             // Scanning state
             Column {
@@ -397,6 +401,10 @@ Popup {
                             color: manualBtn.containsMouse
                                 ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
+                            scale: manualBtn.pressed ? 0.92 : 1.0
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
 
                             Text {
                                 anchors.centerIn: parent
@@ -429,6 +437,10 @@ Popup {
                             color: refreshBtn.containsMouse
                                 ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
+                            scale: refreshBtn.pressed ? 0.92 : 1.0
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
 
                             Text {
                                 anchors.centerIn: parent
@@ -483,6 +495,9 @@ Popup {
                             return root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
                         }
                         border.width: 1
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
 
                         RowLayout {
                             anchors.fill: parent
@@ -627,12 +642,18 @@ Popup {
             }
         }
 
-        // Footer
+        // Footer (animated slide-up)
         Rectangle {
+            id: footerRect
             width: parent.width
-            height: 100
+            height: root.selectedGame !== null ? 100 : 0
             color: "transparent"
-            visible: root.selectedGame !== null
+            clip: true
+            visible: height > 0
+
+            Behavior on height {
+                NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+            }
 
             Rectangle {
                 anchors.top: parent.top
@@ -702,10 +723,12 @@ Popup {
                     Layout.preferredHeight: 48
                     radius: root.radiusMedium
                     color: startBtn.containsMouse ? Theme.primaryHover : Theme.primary
+                    scale: startBtn.pressed ? 0.96 : 1.0
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Start translation")
 
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                     Row {
                         id: startBtnRow

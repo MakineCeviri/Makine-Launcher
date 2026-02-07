@@ -130,15 +130,28 @@ Item {
             visible: false
         }
 
-        // Masked image
+        // Masked image with fade-in on load
         MultiEffect {
+            id: maskedImage
             anchors.fill: gameImage
             source: gameImage
             maskEnabled: true
             maskSource: imageMask
             visible: gameImage.status === Image.Ready
             brightness: root.isHovered ? 0.06 : 0
+            opacity: 0
+
             Behavior on brightness { NumberAnimation { duration: 250 } }
+
+            // Fade in when image loads
+            states: State {
+                name: "loaded"
+                when: gameImage.status === Image.Ready
+                PropertyChanges { target: maskedImage; opacity: 1 }
+            }
+            transitions: Transition {
+                NumberAnimation { property: "opacity"; duration: 300; easing.type: Easing.OutCubic }
+            }
         }
 
         // Loading placeholder
@@ -263,7 +276,7 @@ Item {
 
                 ToolTip {
                     visible: root.isHovered && nameText.truncated
-                    delay: 400
+                    delay: 250
                     text: root.gameName
                     font.pixelSize: 12
 

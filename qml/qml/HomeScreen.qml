@@ -89,7 +89,24 @@ Item {
     }
 
     function hideNotification() {
-        notificationMessage = ""
+        notificationDismissAnim.start()
+    }
+
+    SequentialAnimation {
+        id: notificationDismissAnim
+        NumberAnimation {
+            target: notificationBanner
+            property: "opacity"
+            to: 0
+            duration: 200
+            easing.type: Easing.OutCubic
+        }
+        ScriptAction {
+            script: {
+                notificationMessage = ""
+                notificationBanner.opacity = 1
+            }
+        }
     }
 
     Component.onCompleted: {
@@ -232,6 +249,10 @@ Item {
                                     height: 28
                                     radius: Dimensions.radiusStandard
                                     color: updateBtnMouse.containsMouse ? Qt.rgba(0.2, 0.6, 1, 0.3) : Qt.rgba(0.2, 0.6, 1, 0.2)
+                                    scale: updateBtnMouse.pressed ? 0.94 : 1.0
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                                     Text {
                                         id: updateBtnText
