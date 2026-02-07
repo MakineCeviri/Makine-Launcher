@@ -125,6 +125,16 @@ void SettingsManager::setIsDarkMode(bool value)
     }
 }
 
+void SettingsManager::setOnboardingCompleted(bool value)
+{
+    if (m_onboardingCompleted != value) {
+        m_onboardingCompleted = value;
+        m_settings.setValue("general/onboardingCompleted", value);
+        emit onboardingCompletedChanged();
+        emit settingsChanged();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     setAutoDetectGames(true);
@@ -160,6 +170,7 @@ void SettingsManager::loadSettings()
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
+    m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
 }
 
 void SettingsManager::saveSettings()
@@ -173,6 +184,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("performance/enableAnimations", m_enableAnimations);
     m_settings.setValue("translation/language", m_translationLanguage);
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
+    m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
     m_settings.sync();
 }
 

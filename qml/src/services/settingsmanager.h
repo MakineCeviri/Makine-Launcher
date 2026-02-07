@@ -45,6 +45,9 @@ class SettingsManager : public QObject
     // Theme settings
     Q_PROPERTY(bool isDarkMode READ isDarkMode WRITE setIsDarkMode NOTIFY isDarkModeChanged)
 
+    // Onboarding
+    Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted WRITE setOnboardingCompleted NOTIFY onboardingCompletedChanged)
+
 public:
     explicit SettingsManager(QObject *parent = nullptr);
     ~SettingsManager() override;
@@ -82,6 +85,10 @@ public:
     bool isDarkMode() const { return m_isDarkMode; }
     void setIsDarkMode(bool value);
 
+    // Onboarding
+    bool onboardingCompleted() const { return m_onboardingCompleted; }
+    void setOnboardingCompleted(bool value);
+
     // Q_INVOKABLE methods
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
@@ -96,6 +103,7 @@ signals:
     void enableAnimationsChanged();
     void translationLanguageChanged();
     void isDarkModeChanged();
+    void onboardingCompletedChanged();
     void settingsChanged();
 
 private:
@@ -121,6 +129,9 @@ private:
 
     // Theme
     bool m_isDarkMode{true};
+
+    // Onboarding
+    bool m_onboardingCompleted{false};
 };
 
 } // namespace makineai

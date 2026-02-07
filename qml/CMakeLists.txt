@@ -150,6 +150,7 @@ qt_add_qml_module(MakineAI
         qml/TranslationWorkflowScreen.qml
         qml/SplashScreen.qml
         qml/SplashWindow.qml
+        qml/OnboardingWizard.qml
 
         # Theme (singletons)
         qml/theme/Theme.qml

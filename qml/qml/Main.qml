@@ -461,6 +461,20 @@ ApplicationWindow {
         }
     }
 
+    // ===== ONBOARDING WIZARD OVERLAY =====
+    OnboardingWizard {
+        id: onboardingWizard
+        anchors.fill: parent
+        z: 50
+        visible: !SettingsManager.onboardingCompleted
+        onCompleted: {
+            // Trigger initial game scan if not already done
+            if (GameService.gameCount === 0) {
+                GameService.scanAllLibraries()
+            }
+        }
+    }
+
     // ===== TITLE BAR COMPONENT =====
     component TitleBar: Rectangle {
         id: titleBarRoot
