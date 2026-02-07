@@ -424,7 +424,7 @@ QAResult QAService::performFullQA(
 
     // 9. Turkish character checks
     MAKINEAI_LOG_DEBUG(log::QA, "Running Turkish character check...");
-    auto trResult = checkTurkishCharacters(targetText);
+    auto trResult = checkTurkishCharacters(sourceText, targetText);
     result.issues.insert(result.issues.end(), trResult.issues.begin(), trResult.issues.end());
     result.score -= trResult.penalty;
 
@@ -886,58 +886,154 @@ QAService::CheckResult QAService::checkGlossary(
     return result;
 }
 
-QAService::CheckResult QAService::checkTurkishCharacters(const std::string& target) {
+QAService::CheckResult QAService::checkTurkishCharacters(
+    const std::string& source,
+    const std::string& target
+) {
     CheckResult result;
 
-    // Turkish-specific characters (UTF-8 byte sequences)
-    static const std::string_view turkishChars[] = {
-        "\xC3\xA7",  // ç
-        "\xC3\xB6",  // ö
-        "\xC3\xBC",  // ü
-        "\xC4\x9F",  // ğ
-        "\xC4\xB1",  // ı
-        "\xC5\x9F",  // ş
-        "\xC3\x87",  // Ç
-        "\xC3\x96",  // Ö
-        "\xC3\x9C",  // Ü
-        "\xC4\x9E",  // Ğ
-        "\xC4\xB0",  // İ
-        "\xC5\x9E",  // Ş
+    if (target.empty()) return result;
+
+    // Turkish-specific character UTF-8 byte sequences
+    struct TurkishChar {
+        std::string_view utf8;
+        const char* name;
+        bool fontRisk;  // true if commonly missing in game fonts
     };
 
-    // Check for UTF-8 mojibake (double-encoded Turkish characters)
-    // Pattern: UTF-8 bytes read as Latin-1 then re-encoded to UTF-8
-    // e.g. ç (C3 A7) becomes Ã§ (C3 83 C2 A7)
-    static const std::string_view mojibakePatterns[] = {
-        "\xC3\x83\xC2\xA7",  // ç → Ã§
-        "\xC3\x83\xC2\xB6",  // ö → Ã¶
-        "\xC3\x83\xC2\xBC",  // ü → Ã¼
+    static const TurkishChar turkishChars[] = {
+        // Lowercase
+        {"\xC3\xA7", "ç", false},   // U+00E7 - in Latin-1/CP1252
+        {"\xC3\xB6", "ö", false},   // U+00F6 - in Latin-1/CP1252
+        {"\xC3\xBC", "ü", false},   // U+00FC - in Latin-1/CP1252
+        {"\xC4\x9F", "ğ", true},    // U+011F - NOT in CP1252
+        {"\xC4\xB1", "ı", true},    // U+0131 - NOT in CP1252
+        {"\xC5\x9F", "ş", true},    // U+015F - NOT in CP1252
+        // Uppercase
+        {"\xC3\x87", "Ç", false},   // U+00C7 - in Latin-1/CP1252
+        {"\xC3\x96", "Ö", false},   // U+00D6 - in Latin-1/CP1252
+        {"\xC3\x9C", "Ü", false},   // U+00DC - in Latin-1/CP1252
+        {"\xC4\x9E", "Ğ", true},    // U+011E - NOT in CP1252
+        {"\xC4\xB0", "İ", true},    // U+0130 - NOT in CP1252
+        {"\xC5\x9E", "Ş", true},    // U+015E - NOT in CP1252
     };
 
-    for (const auto& pattern : mojibakePatterns) {
-        if (target.find(pattern) != std::string::npos) {
+    // =========================================================================
+    // 1. Mojibake detection (double-encoded UTF-8 via Latin-1/CP1252)
+    //    UTF-8 bytes read as Latin-1 then re-encoded to UTF-8 produces
+    //    4-byte sequences from original 2-byte chars.
+    // =========================================================================
+    static const struct {
+        std::string_view pattern;
+        const char* originalChar;
+    } mojibakePatterns[] = {
+        // Original byte → Latin-1 char → UTF-8 re-encoding
+        // Lowercase
+        {"\xC3\x83\xC2\xA7", "ç"},   // C3 A7 → Ã§ → C3 83 C2 A7
+        {"\xC3\x83\xC2\xB6", "ö"},   // C3 B6 → Ã¶ → C3 83 C2 B6
+        {"\xC3\x83\xC2\xBC", "ü"},   // C3 BC → Ã¼ → C3 83 C2 BC
+        {"\xC3\x84\xC2\x9F", "ğ"},   // C4 9F → Ä\x9F → C3 84 C2 9F
+        {"\xC3\x84\xC2\xB1", "ı"},   // C4 B1 → Ä± → C3 84 C2 B1
+        {"\xC3\x85\xC2\x9F", "ş"},   // C5 9F → Å\x9F → C3 85 C2 9F
+        // Uppercase
+        {"\xC3\x83\xC2\x87", "Ç"},   // C3 87 → Ã\x87 → C3 83 C2 87
+        {"\xC3\x83\xC2\x96", "Ö"},   // C3 96 → Ã\x96 → C3 83 C2 96
+        {"\xC3\x83\xC2\x9C", "Ü"},   // C3 9C → Ã\x9C → C3 83 C2 9C
+        {"\xC3\x84\xC2\x9E", "Ğ"},   // C4 9E → Ä\x9E → C3 84 C2 9E
+        {"\xC3\x84\xC2\xB0", "İ"},   // C4 B0 → Ä° → C3 84 C2 B0
+        {"\xC3\x85\xC2\x9E", "Ş"},   // C5 9E → Å\x9E → C3 85 C2 9E
+    };
+
+    for (const auto& moji : mojibakePatterns) {
+        if (target.find(moji.pattern) != std::string::npos) {
             result.issues.push_back(QAIssue{
                 "CHAR_TR_MOJIBAKE",
-                "Turkish character encoding error (mojibake) detected",
-                QASeverity::Major,
-                10
+                std::string("Double-encoded Turkish character detected: ") + moji.originalChar,
+                QASeverity::Critical,
+                15
             });
-            result.penalty += 10;
-            break;
+            result.penalty += 15;
+            break;  // one mojibake issue is enough to flag the whole entry
         }
     }
 
-    // For texts longer than 30 bytes, warn if no Turkish-specific characters found
-    if (target.length() > 30) {
-        bool hasTurkishChar = false;
-        for (const auto& ch : turkishChars) {
-            if (target.find(ch) != std::string::npos) {
-                hasTurkishChar = true;
-                break;
+    // =========================================================================
+    // 2. Replacement character detection (U+FFFD = EF BF BD)
+    //    Appears when a decoder encounters invalid/unmappable bytes.
+    // =========================================================================
+    static const std::string_view replacementChar = "\xEF\xBF\xBD";  // U+FFFD
+    if (target.find(replacementChar) != std::string::npos) {
+        result.issues.push_back(QAIssue{
+            "CHAR_TR_REPLACEMENT",
+            "Unicode replacement character (U+FFFD) found - encoding failure",
+            QASeverity::Critical,
+            20
+        });
+        result.penalty += 20;
+    }
+
+    // =========================================================================
+    // 3. Inventory: which Turkish chars are present in the translation
+    // =========================================================================
+    bool hasAnyTurkish = false;
+    bool hasRiskChar = false;
+    std::string riskCharsFound;
+
+    for (const auto& ch : turkishChars) {
+        if (target.find(ch.utf8) != std::string::npos) {
+            hasAnyTurkish = true;
+            if (ch.fontRisk) {
+                hasRiskChar = true;
+                if (!riskCharsFound.empty()) riskCharsFound += ", ";
+                riskCharsFound += ch.name;
             }
         }
+    }
 
-        if (!hasTurkishChar) {
+    // =========================================================================
+    // 4. Font risk warning for characters outside CP1252/Latin-1
+    //    İ, ı, ğ, Ğ, ş, Ş are NOT in CP1252 and commonly missing in game fonts.
+    //    This is informational — helps the UI show font compatibility warnings.
+    // =========================================================================
+    if (hasRiskChar) {
+        result.issues.push_back(QAIssue{
+            "CHAR_TR_FONT_RISK",
+            "Uses characters that may be missing in game fonts: " + riskCharsFound,
+            QASeverity::Info,
+            0  // no penalty — just informational for font analysis
+        });
+    }
+
+    // =========================================================================
+    // 5. Missing Turkish characters in longer translations
+    //    Count approximate codepoints (not bytes) for threshold.
+    // =========================================================================
+    size_t approxCodepoints = 0;
+    for (size_t i = 0; i < target.size(); ++i) {
+        auto byte = static_cast<unsigned char>(target[i]);
+        // Count leading bytes only (skip continuation bytes 10xxxxxx)
+        if ((byte & 0xC0) != 0x80) {
+            ++approxCodepoints;
+        }
+    }
+
+    if (!hasAnyTurkish && approxCodepoints > 20) {
+        // Stronger warning if source is clearly English (has common English words)
+        bool sourceIsEnglish = !source.empty() &&
+            std::all_of(source.begin(), source.end(), [](unsigned char c) {
+                return c < 0x80 || c == '\n' || c == '\r' || c == '\t';
+            });
+
+        if (sourceIsEnglish) {
+            result.issues.push_back(QAIssue{
+                "CHAR_TR_MISSING",
+                "No Turkish characters in translation (" +
+                    std::to_string(approxCodepoints) + " chars) - may be untranslated",
+                QASeverity::Warning,
+                5
+            });
+            result.penalty += 5;
+        } else {
             result.issues.push_back(QAIssue{
                 "CHAR_TR_MISSING",
                 "No Turkish-specific characters found in translation",
@@ -945,6 +1041,38 @@ QAService::CheckResult QAService::checkTurkishCharacters(const std::string& targ
                 2
             });
             result.penalty += 2;
+        }
+    }
+
+    // =========================================================================
+    // 6. İ/ı confusion detection (Turkish dotted-I problem)
+    //    Many tools use ASCII toupper('i')='I' / tolower('I')='i'
+    //    but Turkish requires: toupper('i')='İ', toupper('ı')='I',
+    //                          tolower('İ')='i', tolower('I')='ı'
+    //
+    //    Detect: target has Turkish chars (confirming it's Turkish) but also
+    //    has suspicious I/i patterns suggesting wrong case mapping.
+    // =========================================================================
+    if (hasAnyTurkish) {
+        // Check for ASCII 'I' in lowercase Turkish word context
+        // e.g., "bIlmek" instead of "bilmek" or "bılmek"
+        // Pattern: lowercase Turkish letter + 'I' + lowercase letter
+        for (size_t i = 1; i + 1 < target.size(); ++i) {
+            if (target[i] == 'I') {
+                auto prev = static_cast<unsigned char>(target[i - 1]);
+                auto next = static_cast<unsigned char>(target[i + 1]);
+                // ASCII lowercase letters surrounding 'I' → suspicious
+                if (prev >= 'a' && prev <= 'z' && next >= 'a' && next <= 'z') {
+                    result.issues.push_back(QAIssue{
+                        "CHAR_TR_DOTTED_I",
+                        "Suspicious 'I' in lowercase context - should be 'ı' or 'i'?",
+                        QASeverity::Warning,
+                        5
+                    });
+                    result.penalty += 5;
+                    break;
+                }
+            }
         }
     }
 

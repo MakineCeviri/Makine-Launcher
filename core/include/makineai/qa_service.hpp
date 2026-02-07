@@ -269,7 +269,10 @@ private:
         const std::optional<TermDomain>& domain
     );
 
-    static CheckResult checkTurkishCharacters(const std::string& target);
+    static CheckResult checkTurkishCharacters(
+        const std::string& source,
+        const std::string& target
+    );
 };
 
 } // namespace makineai
