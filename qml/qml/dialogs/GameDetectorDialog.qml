@@ -234,6 +234,8 @@ Popup {
                     Layout.preferredHeight: 36
                     radius: root.radiusSmall
                     color: closeBtn.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Close")
 
                     Text {
                         anchors.centerIn: parent
@@ -370,6 +372,8 @@ Popup {
                                     color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
                                     font.pixelSize: 13
                                     clip: true
+                                    Accessible.role: Accessible.EditableText
+                                    Accessible.name: qsTr("Search games")
                                     onTextChanged: root.searchQuery = text
 
                                     Text {
@@ -388,6 +392,8 @@ Popup {
                             Layout.preferredWidth: 38
                             Layout.preferredHeight: 38
                             radius: root.radiusSmall
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Add game manually")
                             color: manualBtn.containsMouse
                                 ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
@@ -418,6 +424,8 @@ Popup {
                             Layout.preferredWidth: 38
                             Layout.preferredHeight: 38
                             radius: root.radiusSmall
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Refresh game list")
                             color: refreshBtn.containsMouse
                                 ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
@@ -694,6 +702,8 @@ Popup {
                     Layout.preferredHeight: 48
                     radius: root.radiusMedium
                     color: startBtn.containsMouse ? Theme.primaryHover : Theme.primary
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Start translation")
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 

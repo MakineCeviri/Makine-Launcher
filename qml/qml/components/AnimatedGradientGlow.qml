@@ -10,6 +10,7 @@ import MakineAI 1.0
  */
 Item {
     id: root
+    Accessible.ignored: true
 
     property bool active: false
     property bool animationsEnabled: true

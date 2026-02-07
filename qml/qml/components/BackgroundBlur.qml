@@ -7,6 +7,7 @@ import MakineAI 1.0
  */
 Item {
     id: root
+    Accessible.ignored: true
 
     property string imageSource: ""
     property real blurRadius: 30

@@ -103,6 +103,8 @@ Dialog {
                     Layout.preferredHeight: 36
                     radius: Dimensions.radiusStandard
                     color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Close")
 
                     Text {
                         anchors.centerIn: parent
@@ -156,6 +158,8 @@ Dialog {
                             color: Theme.textPrimary
                             clip: true
                             selectByMouse: true
+                            Accessible.role: Accessible.EditableText
+                            Accessible.name: qsTr("Search games")
                             onTextChanged: root.searchText = text
 
                             Text {
@@ -263,6 +267,8 @@ Dialog {
                     radius: Dimensions.cardBorderRadius
                     color: Theme.surface
                     clip: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData.name || "Unknown"
 
                     scale: cardMouse.containsMouse ? 1.05 : 1.0
                     transformOrigin: Item.Center
@@ -424,6 +430,9 @@ Dialog {
         property string category: ""
         property bool isSelected: false
         signal clicked()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: text
 
         width: catBtnLabel.width + 24
         height: 36

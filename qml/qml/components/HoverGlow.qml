@@ -25,6 +25,7 @@ import MakineAI 1.0
  */
 Item {
     id: root
+    Accessible.ignored: true
 
     // Target item to apply hover effects to
     property Item targetItem: parent

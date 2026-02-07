@@ -25,6 +25,7 @@ import MakineAI 1.0
  */
 Rectangle {
     id: root
+    Accessible.ignored: true
 
     // Shape configuration
     property int skeletonRadius: 4

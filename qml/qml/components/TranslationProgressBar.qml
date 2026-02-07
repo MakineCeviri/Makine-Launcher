@@ -21,6 +21,9 @@ Item {
     property int animationDuration: 3000
     property real barHeight: 12
 
+    Accessible.role: Accessible.ProgressBar
+    Accessible.name: indeterminate ? qsTr("Loading") : qsTr("Progress %1%").arg(Math.round(value * 100))
+
     implicitHeight: barHeight + 20  // Extra space for glow
 
     // Animation phase for gradient cycling

@@ -267,6 +267,8 @@ Dialog {
                 Layout.preferredHeight: 32
                 radius: Dimensions.radiusStandard
                 color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Close")
 
                 Text {
                     anchors.centerIn: parent
@@ -528,6 +530,8 @@ Dialog {
                 border.color: Qt.rgba(1, 1, 1, 0.2)
                 border.width: 1
                 visible: root.issues.length > 0
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Ignore and continue")
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -562,6 +566,8 @@ Dialog {
                 Layout.preferredWidth: fixBtnContent.width + 32
                 Layout.preferredHeight: 44
                 radius: Dimensions.radiusStandard
+                Accessible.role: Accessible.Button
+                Accessible.name: root.issues.length > 0 ? qsTr("Fix issues") : qsTr("OK")
                 color: fixBtnMouse.containsMouse
                     ? (root.issues.length > 0 ? Theme.primaryHover : Theme.withAlpha(colorSuccess, 0.9))
                     : (root.issues.length > 0 ? Theme.primary : colorSuccess)

@@ -262,6 +262,8 @@ Dialog {
                 color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
                 border.color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : "transparent"
                 border.width: 1
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Close")
 
                 Behavior on color { ColorAnimation { duration: 150 } }
                 Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -544,6 +546,8 @@ Dialog {
                 Layout.preferredWidth: cancelBtnContent.width + 40
                 Layout.preferredHeight: 48
                 radius: Dimensions.radiusStandard
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Cancel")
                 color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)
                 border.color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.15)
                 border.width: 1.5
@@ -618,6 +622,8 @@ Dialog {
                     width: continueBtnContent.width + 40
                     height: 48
                     radius: Dimensions.radiusStandard
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Continue anyway")
                     scale: continueBtnMouse.pressed ? 0.97 : 1.0
 
                     gradient: Gradient {

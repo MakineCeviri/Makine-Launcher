@@ -9,6 +9,9 @@ Item {
     property real progressValue: 0.0 // Value from 0.0 to 1.0
     property string statusText: ""
 
+    Accessible.role: Accessible.ProgressBar
+    Accessible.name: statusText || qsTr("Loading %1%").arg(Math.round(progressValue * 100))
+
     width: 200
     height: 50
 
