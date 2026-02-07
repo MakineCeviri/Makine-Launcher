@@ -81,6 +81,16 @@ Item {
             width: contentRow.width + 24
             height: contentRow.height + 16
 
+            // Focus indicator
+            Rectangle {
+                anchors.fill: parent
+                radius: 6
+                color: "transparent"
+                border.color: Theme.withAlpha(Theme.primary, 0.6)
+                border.width: 2
+                visible: root.activeFocus && !root.isSelected
+            }
+
             // Background highlight for active/hover state
             Rectangle {
                 anchors.fill: parent

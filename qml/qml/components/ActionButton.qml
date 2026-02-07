@@ -18,6 +18,8 @@ Button {
     implicitWidth: contentLayout.implicitWidth + 48
     implicitHeight: contentLayout.implicitHeight + 16
 
+    opacity: enabled ? 1.0 : 0.5
+
     background: Rectangle {
         radius: Dimensions.radiusStandard
         color: root.pressed ? Qt.darker(root.buttonHoverColor, 1.1) :

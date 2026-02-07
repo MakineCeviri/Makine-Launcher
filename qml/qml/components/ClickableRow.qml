@@ -33,6 +33,17 @@ Item {
     implicitHeight: 80
     implicitWidth: 200
 
+    // Focus indicator
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: Dimensions.radiusStandard + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: 2
+        visible: root.activeFocus
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Dimensions.radiusStandard

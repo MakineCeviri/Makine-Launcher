@@ -120,6 +120,17 @@ Item {
     Keys.onReturnPressed: Qt.openUrlExternally(Dimensions.cedraDeveloperUrl)
     Keys.onSpacePressed: Qt.openUrlExternally(Dimensions.cedraDeveloperUrl)
 
+    // Focus indicator
+    Rectangle {
+        anchors.fill: cardRect
+        anchors.margins: -2
+        radius: cardRect.radius + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: 2
+        visible: root.activeFocus
+    }
+
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor

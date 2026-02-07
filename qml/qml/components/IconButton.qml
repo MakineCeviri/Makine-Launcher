@@ -24,6 +24,8 @@ Button {
     implicitWidth: 36
     implicitHeight: 36
 
+    opacity: enabled ? 1.0 : 0.5
+
     background: Rectangle {
         radius: root.radius
         color: root.hovered ? root.hoverBackgroundColor : root.backgroundColor

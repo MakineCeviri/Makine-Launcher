@@ -137,6 +137,7 @@ Rectangle {
     // Click to toggle details
     MouseArea {
         anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
         onClicked: root.showDetails = !root.showDetails
         onDoubleClicked: root.reset()
     }

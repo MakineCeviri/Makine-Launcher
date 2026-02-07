@@ -63,6 +63,17 @@ Rectangle {
         }
     }
 
+    // Focus indicator
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: parent.radius + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.error, 0.6)
+        border.width: 2
+        visible: root.activeFocus
+    }
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent

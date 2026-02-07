@@ -296,6 +296,18 @@ Item {
         }
     }
 
+    // Focus indicator
+    Rectangle {
+        anchors.fill: cardContent
+        anchors.margins: -2
+        radius: cardContent.radius + 2
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: 2
+        visible: root.activeFocus
+        z: 1
+    }
+
     // MOUSE AREA
     MouseArea {
         id: mouseArea
