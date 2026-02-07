@@ -96,7 +96,7 @@ Rectangle {
                     }
 
                     Text {
-                        text: "Duyuru"
+                        text: qsTr("Duyuru")
                         font.pixelSize: 12
                         color: isDark ? Theme.textMuted : Theme.lightTextMuted
                     }
