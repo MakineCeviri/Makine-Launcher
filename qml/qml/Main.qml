@@ -1207,7 +1207,7 @@ ApplicationWindow {
                         var grad = ctx.createLinearGradient(x1, y1, x2, y2)
                         var colors = Theme.brandGradient
                         for (var i = 0; i < colors.length; i++)
-                            grad.addColorStop(i / (colors.length - 1), colors[i])
+                            grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
 
                         ctx.strokeStyle = grad
                         ctx.lineWidth = 1.6

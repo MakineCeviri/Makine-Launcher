@@ -1257,7 +1257,7 @@ Item {
                     var grad = ctx.createLinearGradient(x1, y1, x2, y2)
                     var colors = Theme.brandGradient
                     for (var i = 0; i < colors.length; i++)
-                        grad.addColorStop(i / (colors.length - 1), colors[i])
+                        grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
 
                     var r = Dimensions.cardBorderRadius
                     var bw = 1.5
@@ -1456,7 +1456,7 @@ Item {
                     var grad = ctx.createLinearGradient(x1, y1, x2, y2)
                     var colors = Theme.brandGradient
                     for (var i = 0; i < colors.length; i++)
-                        grad.addColorStop(i / (colors.length - 1), colors[i])
+                        grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
 
                     var r = Dimensions.cardBorderRadius
                     var bw = 1.5
@@ -1509,7 +1509,7 @@ Item {
 
                     var numGrad = ctx.createLinearGradient(x1, 0, x2, 0);
                     for (var i = 0; i < colors.length; i++)
-                        numGrad.addColorStop(i / (colors.length - 1), colors[i]);
+                        numGrad.addColorStop(i / Math.max(1, colors.length - 1), colors[i]);
 
                     // Sideways "+N" number - centered
                     ctx.save();
