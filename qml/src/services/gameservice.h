@@ -174,6 +174,13 @@ public:
      */
     Q_INVOKABLE QVariantMap checkCompatibility(const QString& gameId);
 
+    /**
+     * @brief Analyze fonts in a game directory for Turkish character support
+     * @return Map with: hasFontAnalysis, totalFonts, turkishSupportCount,
+     *         missingChars, summary, fonts (list of font details)
+     */
+    Q_INVOKABLE QVariantMap analyzeFonts(const QString& gameId);
+
 signals:
     void gamesChanged();
     void isScanningChanged();

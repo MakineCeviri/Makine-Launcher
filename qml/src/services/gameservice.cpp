@@ -811,4 +811,20 @@ QVariantMap GameService::checkCompatibility(const QString& gameId)
     };
 }
 
+QVariantMap GameService::analyzeFonts(const QString& gameId)
+{
+    Q_UNUSED(gameId)
+
+    // Delegate to CoreBridge → FontManager when core is integrated
+    // For now, return empty analysis (no font data available yet)
+    return {
+        {"hasFontAnalysis", false},
+        {"totalFonts", 0},
+        {"turkishSupportCount", 0},
+        {"missingChars", QStringList()},
+        {"summary", tr("Font analysis requires core integration")},
+        {"fonts", QVariantList()}
+    };
+}
+
 } // namespace makineai

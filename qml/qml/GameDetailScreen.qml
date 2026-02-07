@@ -57,6 +57,14 @@ Item {
     // Loading state
     property bool isLoadingSteamDetails: false
 
+    // Font analysis
+    property bool hasFontAnalysis: false
+    property int totalFonts: 0
+    property int turkishSupportCount: 0
+    property var missingChars: []
+    property string fontSummary: ""
+    property var fontsList: []
+
     // Compatibility tracking
     property string compatibilityLevel: "unknown"  // compatible, partial, incompatible, unknown
     property int integrityPercent: 100
@@ -94,6 +102,12 @@ Item {
         coverage = ""
         fileCount = 0
         author = ""
+        hasFontAnalysis = false
+        totalFonts = 0
+        turkishSupportCount = 0
+        missingChars = []
+        fontSummary = ""
+        fontsList = []
         compatibilityLevel = "unknown"
         integrityPercent = 100
         modifiedCount = 0
@@ -143,6 +157,17 @@ Item {
         if (recipe && recipe.hasRecipe) {
             hasRecipe = true
             recipeVersion = recipe.version || ""
+        }
+
+        // Analyze fonts for Turkish character support
+        var fontResult = GameService.analyzeFonts(gameId)
+        if (fontResult && fontResult.hasFontAnalysis) {
+            hasFontAnalysis = true
+            totalFonts = fontResult.totalFonts || 0
+            turkishSupportCount = fontResult.turkishSupportCount || 0
+            missingChars = fontResult.missingChars || []
+            fontSummary = fontResult.summary || ""
+            fontsList = fontResult.fonts || []
         }
 
         // Check translation compatibility
@@ -879,6 +904,207 @@ Item {
                             font.pixelSize: 13
                             color: Theme.textMuted
                             anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+            }
+
+            // ===== FONT SUPPORT SECTION =====
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 32
+                Layout.rightMargin: 32
+                spacing: 12
+                visible: root.hasFontAnalysis
+
+                Text {
+                    text: qsTr("Yazı Tipi Desteği")
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    color: "white"
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: fontContent.height + 32
+                    radius: Dimensions.radiusStandard
+                    color: {
+                        if (totalFonts === 0) return Qt.rgba(1, 1, 1, 0.03)
+                        if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.06)
+                        if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.06)
+                        return Theme.withAlpha(Theme.destructive, 0.06)
+                    }
+                    border.color: {
+                        if (totalFonts === 0) return Qt.rgba(1, 1, 1, 0.08)
+                        if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.3)
+                        if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.3)
+                        return Theme.withAlpha(Theme.destructive, 0.3)
+                    }
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: fontContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 16
+                        spacing: 12
+
+                        // Summary row
+                        RowLayout {
+                            spacing: 10
+
+                            Rectangle {
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                radius: 14
+                                color: {
+                                    if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.15)
+                                    if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.15)
+                                    return Theme.withAlpha(Theme.destructive, 0.15)
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "A"
+                                    font.pixelSize: 14
+                                    font.weight: Font.Bold
+                                    color: {
+                                        if (turkishSupportCount === totalFonts) return Theme.success
+                                        if (turkishSupportCount > 0) return Theme.warning
+                                        return Theme.destructive
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                spacing: 2
+
+                                Text {
+                                    text: {
+                                        if (turkishSupportCount === totalFonts)
+                                            return qsTr("Türkçe Karakter Desteği Tam")
+                                        if (turkishSupportCount > 0)
+                                            return qsTr("Kısmi Türkçe Karakter Desteği")
+                                        return qsTr("Türkçe Karakter Desteği Yok")
+                                    }
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                    color: {
+                                        if (turkishSupportCount === totalFonts) return Theme.success
+                                        if (turkishSupportCount > 0) return Theme.warning
+                                        return Theme.destructive
+                                    }
+                                }
+
+                                Text {
+                                    text: turkishSupportCount + "/" + totalFonts + " " + qsTr("yazı tipi Türkçe karakterleri destekliyor")
+                                    font.pixelSize: 11
+                                    color: Theme.textSecondary
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            // Font count badge
+                            Rectangle {
+                                Layout.preferredWidth: fontCountLabel.width + 16
+                                Layout.preferredHeight: 24
+                                radius: Dimensions.badgeRadius
+                                color: Qt.rgba(1, 1, 1, 0.06)
+
+                                Text {
+                                    id: fontCountLabel
+                                    anchors.centerIn: parent
+                                    text: totalFonts + " " + qsTr("font")
+                                    font.pixelSize: 11
+                                    font.weight: Font.Medium
+                                    color: Theme.textMuted
+                                }
+                            }
+                        }
+
+                        // Missing chars display
+                        RowLayout {
+                            spacing: 6
+                            visible: missingChars.length > 0
+
+                            Text {
+                                text: qsTr("Eksik karakterler:")
+                                font.pixelSize: 11
+                                color: Theme.textMuted
+                            }
+
+                            Repeater {
+                                model: missingChars.slice(0, 12)
+
+                                Rectangle {
+                                    required property var modelData
+                                    width: 24
+                                    height: 24
+                                    radius: 4
+                                    color: Theme.withAlpha(Theme.destructive, 0.1)
+                                    border.color: Theme.withAlpha(Theme.destructive, 0.2)
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                        color: Theme.destructive
+                                    }
+                                }
+                            }
+                        }
+
+                        // Font list (max 3 shown)
+                        Repeater {
+                            model: fontsList.slice(0, 3)
+
+                            RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Text {
+                                    text: modelData.family || modelData.name || ""
+                                    font.pixelSize: 12
+                                    color: Theme.textPrimary
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Rectangle {
+                                    visible: (modelData.format || "") !== ""
+                                    Layout.preferredWidth: fmtLabel.width + 10
+                                    Layout.preferredHeight: 18
+                                    radius: Dimensions.badgeRadius
+                                    color: Qt.rgba(1, 1, 1, 0.06)
+
+                                    Text {
+                                        id: fmtLabel
+                                        anchors.centerIn: parent
+                                        text: modelData.format || ""
+                                        font.pixelSize: 9
+                                        color: Theme.textMuted
+                                    }
+                                }
+
+                                Text {
+                                    text: modelData.turkishSupport ? "\u2713" : "\u2717"
+                                    font.pixelSize: 12
+                                    color: modelData.turkishSupport ? Theme.success : Theme.destructive
+                                }
+                            }
+                        }
+
+                        // "N more fonts" indicator
+                        Text {
+                            visible: fontsList.length > 3
+                            text: "+" + (fontsList.length - 3) + " " + qsTr("daha fazla yazı tipi")
+                            font.pixelSize: 11
+                            color: Theme.textMuted
                         }
                     }
                 }
