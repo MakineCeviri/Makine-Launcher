@@ -499,8 +499,8 @@ Rectangle {
                         radius: Dimensions.radiusStandard
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: parent.parent.hovered ? "#2563EB" : Theme.primary }
-                            GradientStop { position: 1.0; color: parent.parent.hovered ? "#0891B2" : Theme.accent }
+                            GradientStop { position: 0.0; color: parent.parent.hovered ? Theme.primaryHover : Theme.primary }
+                            GradientStop { position: 1.0; color: parent.parent.hovered ? Theme.accentHover : Theme.accent }
                         }
                     }
 

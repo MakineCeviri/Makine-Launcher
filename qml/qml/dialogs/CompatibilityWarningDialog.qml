@@ -122,6 +122,8 @@ Dialog {
                 color: restoreMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
                 border.color: Qt.rgba(1, 1, 1, 0.12)
                 border.width: 1
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Yedeği Geri Yükle")
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -150,6 +152,8 @@ Dialog {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
                 radius: Dimensions.radiusStandard
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Yine de Devam Et")
                 color: proceedMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.warning, 0.12)
 
                 Behavior on color { ColorAnimation { duration: 150 } }
