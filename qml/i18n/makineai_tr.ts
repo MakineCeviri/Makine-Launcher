@@ -1164,198 +1164,247 @@ oyun klasörünü sürükleyin.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="260"/>
+        <location filename="../qml/HomeScreen.qml" line="254"/>
+        <source>Download update</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="265"/>
         <source>İndir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="395"/>
+        <location filename="../qml/HomeScreen.qml" line="286"/>
+        <source>Close notification</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="405"/>
         <source>Türkçe Yama</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="402"/>
+        <location filename="../qml/HomeScreen.qml" line="412"/>
         <source>Oyun çeviri durumu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="459"/>
+        <location filename="../qml/HomeScreen.qml" line="469"/>
         <source>Oyun Bekleniyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="467"/>
+        <location filename="../qml/HomeScreen.qml" line="477"/>
         <source>Desteklenen bir oyun çalıştırın veya manuel seçin</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="502"/>
+        <location filename="../qml/HomeScreen.qml" line="494"/>
+        <source>Select game manually</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="517"/>
         <source>Manuel Oyun Seç</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="544"/>
+        <location filename="../qml/HomeScreen.qml" line="559"/>
         <source>Duyurular</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="550"/>
+        <location filename="../qml/HomeScreen.qml" line="565"/>
         <source>Son güncelleme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="592"/>
+        <location filename="../qml/HomeScreen.qml" line="587"/>
+        <source>Collapse announcement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="587"/>
+        <source>Expand announcement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="612"/>
         <source>Desteklenmeyen Oyunlar Hakkında</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="613"/>
+        <location filename="../qml/HomeScreen.qml" line="622"/>
+        <source>Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.
+
+MakineAI, her oyun için en iyi çeviri deneyimini sunmayı hedefler. Ancak bazı oyunlar, kullandıkları özel metin sistemleri veya şifreleme yöntemleri nedeniyle henüz tam olarak desteklenememektedir.
+
+Desteklenmeyen bir oyunda çeviri başlattığınızda:
+• Bazı metinler eksik veya hatalı görünebilir
+• Oyun performansında düşüş yaşanabilir
+• Nadir durumlarda oyun kararsız hale gelebilir
+
+Bu tür sorunlarla karşılaşırsanız, orijinal dil dosyalarını geri yüklemek için yedekleme özelliğini kullanabilirsiniz. Destek ekibimize bildirdiğiniz oyunlar öncelikli olarak değerlendirilecektir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="623"/>
+        <source>Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="633"/>
         <source>Kapat</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="613"/>
+        <location filename="../qml/HomeScreen.qml" line="633"/>
         <source>Devamını oku →</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="674"/>
+        <location filename="../qml/HomeScreen.qml" line="666"/>
+        <source>Visit makineai.com</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/HomeScreen.qml" line="699"/>
         <source>Güvenliğiniz için yalnızca</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="692"/>
+        <location filename="../qml/HomeScreen.qml" line="717"/>
         <source>üzerinden indirin</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="747"/>
+        <location filename="../qml/HomeScreen.qml" line="772"/>
         <source>Oyunlar Taranıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="747"/>
+        <location filename="../qml/HomeScreen.qml" line="772"/>
         <source>Desteklenen Oyunlar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="766"/>
+        <location filename="../qml/HomeScreen.qml" line="791"/>
         <source>Taranıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="782"/>
+        <location filename="../qml/HomeScreen.qml" line="807"/>
         <source>oyun</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="799"/>
+        <location filename="../qml/HomeScreen.qml" line="824"/>
         <source>çevrildi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="813"/>
+        <location filename="../qml/HomeScreen.qml" line="838"/>
         <source>Rescan libraries</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="835"/>
+        <location filename="../qml/HomeScreen.qml" line="863"/>
         <source>Kütüphaneleri yeniden tara</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="956"/>
+        <location filename="../qml/HomeScreen.qml" line="984"/>
         <source>Henüz oyun bulunamadı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="963"/>
+        <location filename="../qml/HomeScreen.qml" line="991"/>
         <source>Steam, Epic veya GOG kütüphane klasörlerinizi kontrol edin</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1026"/>
+        <location filename="../qml/HomeScreen.qml" line="1054"/>
         <source>Projelerimiz</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1033"/>
+        <location filename="../qml/HomeScreen.qml" line="1061"/>
         <source>Makine Çeviri topluluğunun aktif projeleri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1053"/>
+        <location filename="../qml/HomeScreen.qml" line="1081"/>
         <source>Oyun Projeleri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1054"/>
+        <location filename="../qml/HomeScreen.qml" line="1082"/>
         <source>MakineAI bünyesinde geliştirilen oyunlar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1062"/>
+        <location filename="../qml/HomeScreen.qml" line="1090"/>
         <source>Çeviri Projeleri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1063"/>
+        <location filename="../qml/HomeScreen.qml" line="1091"/>
         <source>Topluluk tarafından yürütülen çeviri projeleri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1128"/>
+        <location filename="../qml/HomeScreen.qml" line="1156"/>
         <source>Oyun Aktif Değil</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1137"/>
+        <location filename="../qml/HomeScreen.qml" line="1165"/>
         <source>Desteklenen bir oyunu başlattığınızda
 otomatik olarak tespit edilecektir.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1162"/>
+        <location filename="../qml/HomeScreen.qml" line="1190"/>
         <source>desteklenen oyun</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1199"/>
+        <location filename="../qml/HomeScreen.qml" line="1227"/>
         <source>Verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1200"/>
+        <location filename="../qml/HomeScreen.qml" line="1228"/>
         <source>Turkish translation available</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1396"/>
+        <location filename="../qml/HomeScreen.qml" line="1424"/>
         <source>View All</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1540"/>
+        <location filename="../qml/HomeScreen.qml" line="1568"/>
         <source>Tümünü Gör</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1625"/>
+        <location filename="../qml/HomeScreen.qml" line="1653"/>
         <source>Çok oyunculu cyberpunk aksiyon oyunu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1626"/>
+        <location filename="../qml/HomeScreen.qml" line="1654"/>
         <source>Tamamlandı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1632"/>
+        <location filename="../qml/HomeScreen.qml" line="1660"/>
         <source>Hayatta kalma, kaynak yönetimi, korku ve gerilim oyunu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/HomeScreen.qml" line="1633"/>
+        <location filename="../qml/HomeScreen.qml" line="1661"/>
         <source>Geliştiriliyor</source>
         <translation type="unfinished"></translation>
     </message>

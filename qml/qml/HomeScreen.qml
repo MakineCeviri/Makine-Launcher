@@ -250,6 +250,11 @@ Item {
                                     radius: Dimensions.radiusStandard
                                     color: updateBtnMouse.containsMouse ? Qt.rgba(0.2, 0.6, 1, 0.3) : Qt.rgba(0.2, 0.6, 1, 0.2)
                                     scale: updateBtnMouse.pressed ? 0.94 : 1.0
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Download update")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: Qt.openUrlExternally(downloadUrl)
+                                    Keys.onSpacePressed: Qt.openUrlExternally(downloadUrl)
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
                                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -277,6 +282,11 @@ Item {
                                     height: 24
                                     radius: 12
                                     color: closeBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Close notification")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: hideNotification()
+                                    Keys.onSpacePressed: hideNotification()
 
                                     Text {
                                         anchors.centerIn: parent
@@ -480,6 +490,11 @@ Item {
                                             : Qt.rgba(1, 1, 1, 0.05)
                                         border.color: Qt.rgba(1, 1, 1, 0.08)
                                         border.width: 1
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: qsTr("Select game manually")
+                                        activeFocusOnTab: true
+                                        Keys.onReturnPressed: gameDetectorDialog.open()
+                                        Keys.onSpacePressed: gameDetectorDialog.open()
 
                                         Behavior on color {
                                             ColorAnimation { duration: 150 }
@@ -568,6 +583,11 @@ Item {
                                         border.width: 1
 
                                         property bool expanded: false
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: expanded ? qsTr("Collapse announcement") : qsTr("Expand announcement")
+                                        activeFocusOnTab: true
+                                        Keys.onReturnPressed: expanded = !expanded
+                                        Keys.onSpacePressed: expanded = !expanded
 
                                         Behavior on color { ColorAnimation { duration: 150 } }
                                         Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -599,8 +619,8 @@ Item {
                                                 Label {
                                                     width: parent.width
                                                     text: announcementContentBox.expanded
-                                                        ? "Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.\n\nMakineAI, her oyun için en iyi çeviri deneyimini sunmayı hedefler. Ancak bazı oyunlar, kullandıkları özel metin sistemleri veya şifreleme yöntemleri nedeniyle henüz tam olarak desteklenememektedir.\n\nDesteklenmeyen bir oyunda çeviri başlattığınızda:\n• Bazı metinler eksik veya hatalı görünebilir\n• Oyun performansında düşüş yaşanabilir\n• Nadir durumlarda oyun kararsız hale gelebilir\n\nBu tür sorunlarla karşılaşırsanız, orijinal dil dosyalarını geri yüklemek için yedekleme özelliğini kullanabilirsiniz. Destek ekibimize bildirdiğiniz oyunlar öncelikli olarak değerlendirilecektir."
-                                                        : "Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir."
+                                                        ? qsTr("Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.\n\nMakineAI, her oyun için en iyi çeviri deneyimini sunmayı hedefler. Ancak bazı oyunlar, kullandıkları özel metin sistemleri veya şifreleme yöntemleri nedeniyle henüz tam olarak desteklenememektedir.\n\nDesteklenmeyen bir oyunda çeviri başlattığınızda:\n• Bazı metinler eksik veya hatalı görünebilir\n• Oyun performansında düşüş yaşanabilir\n• Nadir durumlarda oyun kararsız hale gelebilir\n\nBu tür sorunlarla karşılaşırsanız, orijinal dil dosyalarını geri yüklemek için yedekleme özelliğini kullanabilirsiniz. Destek ekibimize bildirdiğiniz oyunlar öncelikli olarak değerlendirilecektir.")
+                                                        : qsTr("Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.")
                                                     font.pixelSize: 11
                                                     color: Theme.textSecondary
                                                     wrapMode: Text.WordWrap
@@ -642,6 +662,11 @@ Item {
                                             ? Qt.rgba(1, 1, 1, 0.15)
                                             : Qt.rgba(1, 1, 1, 0.08)
                                         border.width: 1
+                                        Accessible.role: Accessible.Link
+                                        Accessible.name: qsTr("Visit makineai.com")
+                                        activeFocusOnTab: true
+                                        Keys.onReturnPressed: Qt.openUrlExternally("https://makineai.com")
+                                        Keys.onSpacePressed: Qt.openUrlExternally("https://makineai.com")
 
                                         Behavior on color { ColorAnimation { duration: 150 } }
                                         Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -811,6 +836,9 @@ Item {
                                     color: rescanMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Rescan libraries")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: GameService.scanAllLibraries()
+                                    Keys.onSpacePressed: GameService.scanAllLibraries()
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
