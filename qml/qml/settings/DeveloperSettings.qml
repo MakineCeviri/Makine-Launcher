@@ -26,7 +26,7 @@ ColumnLayout {
             spacing: 0
 
             DevButton {
-                title: "Test Verisi Aktar"
+                title: qsTr("Test Verisi Aktar")
                 subtitle: qsTr("Translation Memory'ye 30 test çevirisi ekle")
                 icon: "qrc:/qt/qml/MakineAI/resources/icons/info.svg"
                 isLoading: root.isImporting
@@ -83,7 +83,7 @@ ColumnLayout {
             SettingsDivider {}
 
             DevButton {
-                title: "TM'yi Temizle"
+                title: qsTr("TM'yi Temizle")
                 subtitle: qsTr("Tüm Translation Memory verilerini sil")
                 icon: "qrc:/qt/qml/MakineAI/resources/icons/delete.svg"
                 isDestructive: true
@@ -100,9 +100,9 @@ ColumnLayout {
                 icon: "qrc:/qt/qml/MakineAI/resources/icons/info.svg"
                 onClicked: {
                     var terms = CoreBridge.getAllGlossaryTerms()
-                    root.devStatus = "TM/Glossary İstatistikleri:\n" +
-                               "Glossary Terimleri: " + terms.length + "\n" +
-                               "Durum: Aktif"
+                    root.devStatus = qsTr("TM/Glossary İstatistikleri:") + "\n" +
+                               qsTr("Glossary Terimleri: %1").arg(terms.length) + "\n" +
+                               qsTr("Durum: Aktif")
                 }
             }
         }

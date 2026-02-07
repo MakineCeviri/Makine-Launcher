@@ -379,8 +379,8 @@ Item {
                     spacing: 0
 
                     ToggleSetting {
-                        title: "Otomatik Oyun Tespiti"
-                        description: "Oyunları otomatik olarak tespit et"
+                        title: qsTr("Otomatik Oyun Tespiti")
+                        description: qsTr("Oyunları otomatik olarak tespit et")
                         checked: autoDetectGames
                         onToggled: autoDetectGames = !autoDetectGames
                     }
@@ -388,8 +388,8 @@ Item {
                     SettingsDivider {}
 
                     ToggleSetting {
-                        title: "Windows ile Başlat"
-                        description: "Bilgisayar açıldığında otomatik başlat"
+                        title: qsTr("Windows ile Başlat")
+                        description: qsTr("Bilgisayar açıldığında otomatik başlat")
                         checked: startWithWindows
                         onToggled: startWithWindows = !startWithWindows
                     }
@@ -397,8 +397,8 @@ Item {
                     SettingsDivider {}
 
                     ToggleSetting {
-                        title: "Sistem Tepsisine Küçült"
-                        description: "Kapatıldığında arka planda çalışır"
+                        title: qsTr("Sistem Tepsisine Küçült")
+                        description: qsTr("Kapatıldığında arka planda çalışır")
                         checked: minimizeToTray
                         onToggled: minimizeToTray = !minimizeToTray
                     }
@@ -406,8 +406,8 @@ Item {
                     SettingsDivider {}
 
                     ToggleSetting {
-                        title: "Bildirimler"
-                        description: "Oyun tespit edildiğinde bildirim göster"
+                        title: qsTr("Bildirimler")
+                        description: qsTr("Oyun tespit edildiğinde bildirim göster")
                         checked: showNotifications
                         onToggled: showNotifications = !showNotifications
                     }
@@ -431,9 +431,9 @@ Item {
                     spacing: 0
 
                     InfoSettingWithBadge {
-                        title: "Çeviri Dili"
-                        description: "Oyunların çevrileceği dil"
-                        badgeText: "Türkçe"
+                        title: qsTr("Çeviri Dili")
+                        description: qsTr("Oyunların çevrileceği dil")
+                        badgeText: qsTr("Türkçe")
                     }
                 }
             }
@@ -446,8 +446,8 @@ Item {
                     spacing: 0
 
                     DisabledSetting {
-                        title: "Çeviri Kalitesi"
-                        description: "Bu özellik gelecek güncellemelerde eklenecektir"
+                        title: qsTr("Çeviri Kalitesi")
+                        description: qsTr("Bu özellik gelecek güncellemelerde eklenecektir")
                     }
                 }
             }
@@ -474,7 +474,7 @@ Item {
                         spacing: 8
 
                         Text {
-                            text: "Yedekler"
+                            text: qsTr("Yedekler")
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
                             color: Theme.textPrimary
@@ -516,7 +516,7 @@ Item {
                             }
 
                             Text {
-                                text: "Henüz yedeklenmiş oyun yok"
+                                text: qsTr("Henüz yedeklenmiş oyun yok")
                                 font.pixelSize: 14
                                 color: Theme.textMuted
                             }
@@ -564,7 +564,7 @@ Item {
                                     spacing: 2
 
                                     Text {
-                                        text: modelData.gameName || "Bilinmeyen Oyun"
+                                        text: modelData.gameName || qsTr("Bilinmeyen Oyun")
                                         font.pixelSize: 14
                                         font.weight: Font.Medium
                                         color: Theme.textPrimary
@@ -606,7 +606,7 @@ Item {
                                         }
 
                                         Text {
-                                            text: "Geri Al"
+                                            text: qsTr("Geri Al")
                                             font.pixelSize: 12
                                             font.weight: Font.Medium
                                             color: "white"
@@ -679,7 +679,7 @@ Item {
                     }
 
                     Text {
-                        text: BackupManager.restoreStatus || "Geri yükleniyor..."
+                        text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
                         font.pixelSize: 14
                         color: Theme.textPrimary
                     }
@@ -703,8 +703,8 @@ Item {
                     spacing: 0
 
                     ToggleSetting {
-                        title: "Donanım Hızlandırma"
-                        description: "GPU kullanarak daha hızlı çeviri"
+                        title: qsTr("Donanım Hızlandırma")
+                        description: qsTr("GPU kullanarak daha hızlı çeviri")
                         checked: hardwareAcceleration
                         onToggled: hardwareAcceleration = !hardwareAcceleration
                     }
@@ -712,8 +712,8 @@ Item {
                     SettingsDivider {}
 
                     ToggleSetting {
-                        title: "Global Önbellek"
-                        description: "Çevirileri tüm oyunlar için paylaş"
+                        title: qsTr("Global Önbellek")
+                        description: qsTr("Çevirileri tüm oyunlar için paylaş")
                         checked: useGlobalCache
                         onToggled: useGlobalCache = !useGlobalCache
                     }
@@ -721,8 +721,8 @@ Item {
                     SettingsDivider {}
 
                     ToggleSetting {
-                        title: "Uygulama Animasyonları"
-                        description: "Arayüz animasyonlarını etkinleştir"
+                        title: qsTr("Uygulama Animasyonları")
+                        description: qsTr("Arayüz animasyonlarını etkinleştir")
                         checked: !disableAnimations
                         onToggled: disableAnimations = !disableAnimations
                     }
@@ -745,13 +745,13 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    InfoRow { label: "Uygulama"; value: Dimensions.appName }
+                    InfoRow { label: qsTr("Uygulama"); value: Dimensions.appName }
                     SettingsDivider {}
-                    InfoRow { label: "Versiyon"; value: Dimensions.appVersionFull }
+                    InfoRow { label: qsTr("Versiyon"); value: Dimensions.appVersionFull }
                     SettingsDivider {}
-                    InfoRow { label: "Geliştirici"; value: "MakineAI Ekibi" }
+                    InfoRow { label: qsTr("Geliştirici"); value: qsTr("MakineAI Ekibi") }
                     SettingsDivider {}
-                    InfoRow { label: "Lisans"; value: "Özel Lisans" }
+                    InfoRow { label: qsTr("Lisans"); value: qsTr("Özel Lisans") }
                 }
             }
 
@@ -763,8 +763,8 @@ Item {
                     spacing: 0
 
                     ClickableRow {
-                        title: "Discord Desteği"
-                        subtitle: "Topluluk ve yardım için Discord sunucumuza katılın"
+                        title: qsTr("Discord Desteği")
+                        subtitle: qsTr("Topluluk ve yardım için Discord sunucumuza katılın")
                         icon: "\uD83D\uDCAC"  // 💬
                         onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
                     }
@@ -772,8 +772,8 @@ Item {
                     SettingsDivider {}
 
                     ClickableRow {
-                        title: "Geri Bildirim"
-                        subtitle: "Hata bildirimi ve öneriler için web sitemizi ziyaret edin"
+                        title: qsTr("Geri Bildirim")
+                        subtitle: qsTr("Hata bildirimi ve öneriler için web sitemizi ziyaret edin")
                         icon: "\uD83D\uDCE7"  // 📧
                         onClicked: Qt.openUrlExternally("https://makineai.com/feedback")
                     }
@@ -797,13 +797,13 @@ Item {
                     spacing: 0
 
                     DevButton {
-                        title: "Test Verisi Aktar"
-                        subtitle: "Translation Memory'ye 30 test çevirisi ekle"
+                        title: qsTr("Test Verisi Aktar")
+                        subtitle: qsTr("Translation Memory'ye 30 test çevirisi ekle")
                         icon: "⬆"  // Upload icon
                         isLoading: isImporting
                         onClicked: {
                             isImporting = true
-                            devStatus = "Test verisi aktarılıyor..."
+                            devStatus = qsTr("Test verisi aktarılıyor...")
 
                             // Add sample TM entries
                             var testData = [
@@ -848,35 +848,33 @@ Item {
                             }
 
                             isImporting = false
-                            devStatus = "✓ " + added + " çeviri eklendi!"
+                            devStatus = qsTr("%1 çeviri eklendi!").arg(added)
                         }
                     }
 
                     SettingsDivider {}
 
                     DevButton {
-                        title: "TM'yi Temizle"
-                        subtitle: "Tüm Translation Memory verilerini sil"
+                        title: qsTr("TM'yi Temizle")
+                        subtitle: qsTr("Tüm Translation Memory verilerini sil")
                         icon: "🗑"  // Delete icon
                         isDestructive: true
                         onClicked: {
-                            // Note: This would need a clearTM function in CoreBridge
-                            devStatus = "⚠ Bu özellik henüz aktif değil"
+                            devStatus = qsTr("Bu özellik henüz aktif değil")
                         }
                     }
 
                     SettingsDivider {}
 
                     DevButton {
-                        title: "TM İstatistikleri"
-                        subtitle: "Translation Memory durumunu göster"
+                        title: qsTr("TM İstatistikleri")
+                        subtitle: qsTr("Translation Memory durumunu göster")
                         icon: "📊"  // Analytics icon
                         onClicked: {
-                            // Get glossary terms count as proxy
                             var terms = CoreBridge.getAllGlossaryTerms()
-                            devStatus = "📊 TM/Glossary İstatistikleri:\n" +
-                                       "Glossary Terimleri: " + terms.length + "\n" +
-                                       "Durum: Aktif"
+                            devStatus = qsTr("TM/Glossary İstatistikleri:") + "\n" +
+                                       qsTr("Glossary Terimleri: %1").arg(terms.length) + "\n" +
+                                       qsTr("Durum: Aktif")
                         }
                     }
                 }
@@ -1030,14 +1028,14 @@ Item {
                 spacing: 4
 
                 Label {
-                    text: "Tema"
+                    text: qsTr("Tema")
                     font.pixelSize: 14
                     font.weight: Font.Medium
                     color: Theme.textPrimary
                 }
 
                 Label {
-                    text: "Uygulama görünümünü seç"
+                    text: qsTr("Uygulama görünümünü seç")
                     font.pixelSize: 13
                     color: Theme.textMuted
                 }
@@ -1083,7 +1081,7 @@ Item {
                             }
 
                             Label {
-                                text: "Açık"
+                                text: qsTr("Açık")
                                 font.pixelSize: 13
                                 font.weight: !isDarkTheme ? Font.DemiBold : Font.Medium
                                 color: !isDarkTheme ? Theme.textPrimary : (lightMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
@@ -1128,7 +1126,7 @@ Item {
                             }
 
                             Label {
-                                text: "Koyu"
+                                text: qsTr("Koyu")
                                 font.pixelSize: 13
                                 font.weight: isDarkTheme ? Font.DemiBold : Font.Medium
                                 color: isDarkTheme ? Theme.textPrimary : Theme.textMuted

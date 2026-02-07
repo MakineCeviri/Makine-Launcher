@@ -79,7 +79,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: "Steam, Epic Games, GOG desteklenir"
+                    text: qsTr("Steam, Epic Games, GOG desteklenir")
                     font.pixelSize: 12
                     color: Theme.textMuted
                     anchors.verticalCenter: parent.verticalCenter

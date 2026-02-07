@@ -921,6 +921,202 @@ Are you sure?</translation>
         <source>Yakında</source>
         <translation>Coming Soon</translation>
     </message>
+    <message>
+        <source>Otomatik Oyun Tespiti</source>
+        <translation>Auto Game Detection</translation>
+    </message>
+    <message>
+        <source>Oyunları otomatik olarak tespit et</source>
+        <translation>Automatically detect games</translation>
+    </message>
+    <message>
+        <source>Windows ile Başlat</source>
+        <translation>Start with Windows</translation>
+    </message>
+    <message>
+        <source>Bilgisayar açıldığında otomatik başlat</source>
+        <translation>Start automatically when computer boots</translation>
+    </message>
+    <message>
+        <source>Sistem Tepsisine Küçült</source>
+        <translation>Minimize to Tray</translation>
+    </message>
+    <message>
+        <source>Kapatıldığında arka planda çalışır</source>
+        <translation>Runs in background when closed</translation>
+    </message>
+    <message>
+        <source>Bildirimler</source>
+        <translation>Notifications</translation>
+    </message>
+    <message>
+        <source>Oyun tespit edildiğinde bildirim göster</source>
+        <translation>Show notification when game detected</translation>
+    </message>
+    <message>
+        <source>Çeviri Dili</source>
+        <translation>Translation Language</translation>
+    </message>
+    <message>
+        <source>Oyunların çevrileceği dil</source>
+        <translation>Language games will be translated to</translation>
+    </message>
+    <message>
+        <source>Türkçe</source>
+        <translation>Turkish</translation>
+    </message>
+    <message>
+        <source>Çeviri Kalitesi</source>
+        <translation>Translation Quality</translation>
+    </message>
+    <message>
+        <source>Bu özellik gelecek güncellemelerde eklenecektir</source>
+        <translation>This feature will be added in future updates</translation>
+    </message>
+    <message>
+        <source>Yedekler</source>
+        <translation>Backups</translation>
+    </message>
+    <message>
+        <source>Henüz yedeklenmiş oyun yok</source>
+        <translation>No games backed up yet</translation>
+    </message>
+    <message>
+        <source>Bilinmeyen Oyun</source>
+        <translation>Unknown Game</translation>
+    </message>
+    <message>
+        <source>Geri Al</source>
+        <translation>Restore</translation>
+    </message>
+    <message>
+        <source>Geri yükleniyor...</source>
+        <translation>Restoring...</translation>
+    </message>
+    <message>
+        <source>Donanım Hızlandırma</source>
+        <translation>Hardware Acceleration</translation>
+    </message>
+    <message>
+        <source>GPU kullanarak daha hızlı çeviri</source>
+        <translation>Faster translation using GPU</translation>
+    </message>
+    <message>
+        <source>Global Önbellek</source>
+        <translation>Global Cache</translation>
+    </message>
+    <message>
+        <source>Çevirileri tüm oyunlar için paylaş</source>
+        <translation>Share translations across all games</translation>
+    </message>
+    <message>
+        <source>Uygulama Animasyonları</source>
+        <translation>App Animations</translation>
+    </message>
+    <message>
+        <source>Arayüz animasyonlarını etkinleştir</source>
+        <translation>Enable interface animations</translation>
+    </message>
+    <message>
+        <source>Uygulama</source>
+        <translation>Application</translation>
+    </message>
+    <message>
+        <source>Versiyon</source>
+        <translation>Version</translation>
+    </message>
+    <message>
+        <source>MakineAI Ekibi</source>
+        <translation>MakineAI Team</translation>
+    </message>
+    <message>
+        <source>Özel Lisans</source>
+        <translation>Proprietary License</translation>
+    </message>
+    <message>
+        <source>Lisans</source>
+        <translation>License</translation>
+    </message>
+    <message>
+        <source>Discord Desteği</source>
+        <translation>Discord Support</translation>
+    </message>
+    <message>
+        <source>Topluluk ve yardım için Discord sunucumuza katılın</source>
+        <translation>Join our Discord server for community and help</translation>
+    </message>
+    <message>
+        <source>Geri Bildirim</source>
+        <translation>Feedback</translation>
+    </message>
+    <message>
+        <source>Hata bildirimi ve öneriler için web sitemizi ziyaret edin</source>
+        <translation>Visit our website for bug reports and suggestions</translation>
+    </message>
+    <message>
+        <source>Test Verisi Aktar</source>
+        <translation>Import Test Data</translation>
+    </message>
+    <message>
+        <source>Translation Memory&apos;ye 30 test çevirisi ekle</source>
+        <translation>Add 30 test translations to Translation Memory</translation>
+    </message>
+    <message>
+        <source>Test verisi aktarılıyor...</source>
+        <translation>Importing test data...</translation>
+    </message>
+    <message>
+        <source>%1 çeviri eklendi!</source>
+        <translation>%1 translations added!</translation>
+    </message>
+    <message>
+        <source>TM&apos;yi Temizle</source>
+        <translation>Clear TM</translation>
+    </message>
+    <message>
+        <source>Tüm Translation Memory verilerini sil</source>
+        <translation>Delete all Translation Memory data</translation>
+    </message>
+    <message>
+        <source>Bu özellik henüz aktif değil</source>
+        <translation>This feature is not yet active</translation>
+    </message>
+    <message>
+        <source>TM İstatistikleri</source>
+        <translation>TM Statistics</translation>
+    </message>
+    <message>
+        <source>Translation Memory durumunu göster</source>
+        <translation>Show Translation Memory status</translation>
+    </message>
+    <message>
+        <source>TM/Glossary İstatistikleri:</source>
+        <translation>TM/Glossary Statistics:</translation>
+    </message>
+    <message>
+        <source>Glossary Terimleri: %1</source>
+        <translation>Glossary Terms: %1</translation>
+    </message>
+    <message>
+        <source>Durum: Aktif</source>
+        <translation>Status: Active</translation>
+    </message>
+    <message>
+        <source>Tema</source>
+        <translation>Theme</translation>
+    </message>
+    <message>
+        <source>Uygulama görünümünü seç</source>
+        <translation>Choose application appearance</translation>
+    </message>
+    <message>
+        <source>Açık</source>
+        <translation>Light</translation>
+    </message>
+    <message>
+        <source>Koyu</source>
+        <translation>Dark</translation>
+    </message>
 </context>
 <context>
     <name>QAResultsDialog</name>
@@ -1239,6 +1435,10 @@ otomatik olarak tespit edilecektir.</source>
         <translation>When you launch a supported game,
 it will be automatically detected.</translation>
     </message>
+    <message>
+        <source>Steam, Epic Games, GOG desteklenir</source>
+        <translation>Steam, Epic Games, GOG supported</translation>
+    </message>
 </context>
 <context>
     <name>TranslationProgressBar</name>
@@ -1289,6 +1489,10 @@ it will be automatically detected.</translation>
 <context>
     <name>ThemeSetting</name>
     <message>
+        <source>Tema</source>
+        <translation>Theme</translation>
+    </message>
+    <message>
         <source>Uygulama görünümünü seç</source>
         <translation>Choose application appearance</translation>
     </message>
@@ -1296,12 +1500,20 @@ it will be automatically detected.</translation>
         <source>Açık</source>
         <translation>Light</translation>
     </message>
+    <message>
+        <source>Koyu</source>
+        <translation>Dark</translation>
+    </message>
 </context>
 <context>
     <name>StopButton</name>
     <message>
         <source>Stop</source>
         <translation>Stop</translation>
+    </message>
+    <message>
+        <source>Kapat</source>
+        <translation>Close</translation>
     </message>
 </context>
 <context>
@@ -1350,6 +1562,14 @@ it will be automatically detected.</translation>
     <message>
         <source>Ana Menü</source>
         <translation>Main Menu</translation>
+    </message>
+    <message>
+        <source>Projelerimiz</source>
+        <translation>Our Projects</translation>
+    </message>
+    <message>
+        <source>Ayarlar</source>
+        <translation>Settings</translation>
     </message>
     <message>
         <source>Kapat</source>
@@ -1547,6 +1767,10 @@ it will be automatically detected.</translation>
 <context>
     <name>ProjectsSettings</name>
     <message>
+        <source>Yedekler</source>
+        <translation>Backups</translation>
+    </message>
+    <message>
         <source>Henüz yedeklenmiş oyun yok</source>
         <translation>No backed up games yet</translation>
     </message>
@@ -1585,6 +1809,10 @@ it will be automatically detected.</translation>
 <context>
     <name>DeveloperSettings</name>
     <message>
+        <source>Test Verisi Aktar</source>
+        <translation>Import Test Data</translation>
+    </message>
+    <message>
         <source>Translation Memory&apos;ye 30 test çevirisi ekle</source>
         <translation>Add 30 test translations to Translation Memory</translation>
     </message>
@@ -1595,6 +1823,10 @@ it will be automatically detected.</translation>
     <message>
         <source>çeviri eklendi!</source>
         <translation>translations added!</translation>
+    </message>
+    <message>
+        <source>TM&apos;yi Temizle</source>
+        <translation>Clear TM</translation>
     </message>
     <message>
         <source>Tüm Translation Memory verilerini sil</source>
@@ -1611,6 +1843,18 @@ it will be automatically detected.</translation>
     <message>
         <source>Translation Memory durumunu göster</source>
         <translation>Show Translation Memory status</translation>
+    </message>
+    <message>
+        <source>TM/Glossary İstatistikleri:</source>
+        <translation>TM/Glossary Statistics:</translation>
+    </message>
+    <message>
+        <source>Glossary Terimleri: %1</source>
+        <translation>Glossary Terms: %1</translation>
+    </message>
+    <message>
+        <source>Durum: Aktif</source>
+        <translation>Status: Active</translation>
     </message>
 </context>
 <context>
@@ -1666,6 +1910,28 @@ it will be automatically detected.</translation>
     <message>
         <source>Açık Kaynak Lisanslar</source>
         <translation>Open Source Licenses</translation>
+    </message>
+</context>
+<context>
+    <name>ViewAllCard</name>
+    <message>
+        <source>daha fazla</source>
+        <translation>more</translation>
+    </message>
+    <message>
+        <source>Tümünü Gör</source>
+        <translation>View All</translation>
+    </message>
+</context>
+<context>
+    <name>BackupListItem</name>
+    <message>
+        <source>Bilinmeyen Oyun</source>
+        <translation>Unknown Game</translation>
+    </message>
+    <message>
+        <source>Geri Al</source>
+        <translation>Restore</translation>
     </message>
 </context>
 </TS>

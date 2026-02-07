@@ -918,7 +918,7 @@ ApplicationWindow {
 
                 ToolTip {
                     visible: logoMouse.containsMouse
-                    text: "Ana Menü"
+                    text: qsTr("Ana Menü")
                     delay: 500
                 }
             }
@@ -1048,13 +1048,13 @@ ApplicationWindow {
             }
 
             NavItem {
-                text: "Projelerimiz"
+                text: qsTr("Projelerimiz")
                 selected: navBarRoot.currentIndex === 1
                 onClicked: navBarRoot.projectsClicked()
             }
 
             NavItem {
-                text: "Ayarlar"
+                text: qsTr("Ayarlar")
                 selected: navBarRoot.currentIndex === 2
                 onClicked: navBarRoot.settingsClicked()
             }

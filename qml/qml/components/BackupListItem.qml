@@ -48,7 +48,7 @@ Rectangle {
             spacing: 2
 
             Text {
-                text: root.modelData.gameName || "Bilinmeyen Oyun"
+                text: root.modelData.gameName || qsTr("Bilinmeyen Oyun")
                 font.pixelSize: 14
                 font.weight: Font.Medium
                 color: Theme.textPrimary
@@ -75,7 +75,7 @@ Rectangle {
             // Restore button
             Button {
                 id: restoreBtn
-                text: "Geri Al"
+                text: qsTr("Geri Al")
                 Layout.preferredHeight: 32
 
                 contentItem: RowLayout {

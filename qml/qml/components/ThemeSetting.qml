@@ -19,7 +19,7 @@ Item {
             spacing: 4
 
             Text {
-                text: "Tema"
+                text: qsTr("Tema")
                 font.pixelSize: 14
                 font.weight: Font.Medium
                 color: Theme.textPrimary
@@ -72,7 +72,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Koyu"
+                        text: qsTr("Koyu")
                         font.pixelSize: 12
                         font.weight: SettingsManager.isDarkMode ? Font.Medium : Font.Normal
                         color: SettingsManager.isDarkMode ? "white" : Theme.textSecondary

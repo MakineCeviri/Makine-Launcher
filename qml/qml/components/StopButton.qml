@@ -55,7 +55,7 @@ Rectangle {
 
         // Text
         Text {
-            text: "Kapat"
+            text: qsTr("Kapat")
             font.pixelSize: 14
             font.weight: Font.Medium
             color: root.contentColor

@@ -175,7 +175,7 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "daha fazla"
+                text: qsTr("daha fazla")
                 font.pixelSize: 13
                 font.weight: Font.Medium
                 color: root.isHovered
@@ -207,7 +207,7 @@ Item {
                 Text {
                     id: viewAllText
                     anchors.centerIn: parent
-                    text: "T\u00FCm\u00FCn\u00FC G\u00F6r"
+                    text: qsTr("Tümünü Gör")
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     color: root.isHovered ? accentColor : Theme.textSecondary

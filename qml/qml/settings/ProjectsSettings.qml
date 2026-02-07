@@ -25,7 +25,7 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
-                    text: "Yedekler"
+                    text: qsTr("Yedekler")
                     font.pixelSize: 16
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
