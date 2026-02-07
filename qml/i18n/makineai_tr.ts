@@ -184,34 +184,6 @@
     </message>
 </context>
 <context>
-    <name>AnnouncementCard</name>
-    <message>
-        <location filename="../qml/components/AnnouncementCard.qml" line="12"/>
-        <source>Desteklenmeyen Oyunlar Hakkında</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/AnnouncementCard.qml" line="13"/>
-        <source>MakineAI, resmi olarak desteklenen oyunlar dışında kullanıldığında beklendiği gibi çalışmayabilir. Desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/AnnouncementCard.qml" line="15"/>
-        <source>Uygulamayı yalnızca resmi web sitemiz makineai.com üzerinden indirdiğinizden emin olun. Başka kaynaklardan indirilen sürümler güvenlik riski taşıyabilir.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/AnnouncementCard.qml" line="91"/>
-        <source>ÖNEMLİ</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/AnnouncementCard.qml" line="99"/>
-        <source>Duyuru</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>AntiCheatWarningDialog</name>
     <message>
         <location filename="../qml/dialogs/AntiCheatWarningDialog.qml" line="29"/>
@@ -276,14 +248,6 @@
     </message>
 </context>
 <context>
-    <name>AppFooter</name>
-    <message>
-        <location filename="../qml/components/AppFooter.qml" line="34"/>
-        <source>Makine Çeviri Topluluğu</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>BackupListItem</name>
     <message>
         <location filename="../qml/components/BackupListItem.qml" line="54"/>
@@ -333,30 +297,6 @@
         <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="143"/>
         <source>Temizle</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>CancelConfirmationDialog</name>
-    <message>
-        <location filename="../qml/dialogs/CancelConfirmationDialog.qml" line="17"/>
-        <source>Çeviriyi İptal Et?</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/dialogs/CancelConfirmationDialog.qml" line="77"/>
-        <source>Devam eden çeviri işlemi iptal edilecek.
-Emin misiniz?</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/dialogs/CancelConfirmationDialog.qml" line="102"/>
-        <source>Vazgeç</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/dialogs/CancelConfirmationDialog.qml" line="108"/>
-        <source>İptal Et</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -502,14 +442,6 @@ Emin misiniz?</source>
     <message>
         <location filename="../qml/components/DisabledSetting.qml" line="47"/>
         <source>Yakında</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>DiscordButton</name>
-    <message>
-        <location filename="../qml/components/DiscordButton.qml" line="25"/>
-        <source>Discord</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -957,24 +889,6 @@ oyun klasörünü sürükleyin.</source>
     </message>
 </context>
 <context>
-    <name>GameDetectedCard</name>
-    <message>
-        <location filename="../qml/components/GameDetectedCard.qml" line="172"/>
-        <source>Oyun çalışıyor</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameDetectedCard.qml" line="206"/>
-        <source>Anti-Cheat Tespit Edildi</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameDetectedCard.qml" line="215"/>
-        <source>Bu oyun anti-cheat sistemi kullanıyor. Çeviri bazı dosyaları etkilemeyebilir.</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>GameDetectorDialog</name>
     <message>
         <location filename="../qml/dialogs/GameDetectorDialog.qml" line="20"/>
@@ -1066,39 +980,6 @@ oyun klasörünü sürükleyin.</source>
     <message>
         <location filename="../qml/dialogs/GameDetectorDialog.qml" line="786"/>
         <source>Çeviriyi Başlat</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>GameStatusCard</name>
-    <message>
-        <location filename="../qml/components/GameStatusCard.qml" line="42"/>
-        <source>Türkçe Yama</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameStatusCard.qml" line="50"/>
-        <source>Oyun çeviri durumu</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameStatusCard.qml" line="79"/>
-        <source>Bekleniyor</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameStatusCard.qml" line="122"/>
-        <source>Oyun Bekleniyor</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameStatusCard.qml" line="130"/>
-        <source>Desteklenen bir oyun çalıştırın veya manuel seçin</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/GameStatusCard.qml" line="154"/>
-        <source>Manuel Oyun Seç</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1608,87 +1489,6 @@ otomatik olarak tespit edilecektir.</source>
     <message>
         <location filename="../qml/Main.qml" line="1279"/>
         <source>Destekçi Ol</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>MinimalTitleBar</name>
-    <message>
-        <location filename="../qml/components/MinimalTitleBar.qml" line="104"/>
-        <source>Gizli simgelere küçült</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/MinimalTitleBar.qml" line="113"/>
-        <source>Küçült</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/MinimalTitleBar.qml" line="126"/>
-        <source>Geri Yükle</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/MinimalTitleBar.qml" line="126"/>
-        <source>Ekranı Kapla</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/MinimalTitleBar.qml" line="135"/>
-        <source>Kapat</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>NavBar</name>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="108"/>
-        <source>Projelerimiz</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="126"/>
-        <source>Ayarlar</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="152"/>
-        <source>Home</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="245"/>
-        <source>Ana Menü</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="261"/>
-        <source>AI Active</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="261"/>
-        <source>AI Inactive</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="314"/>
-        <source>Kapat</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="314"/>
-        <source>Türkçe Yama</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="455"/>
-        <source>Support Us</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/NavBar.qml" line="483"/>
-        <source>Destek Ol</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2514,22 +2314,6 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
     </message>
 </context>
 <context>
-    <name>SplashLogoSection</name>
-    <message>
-        <location filename="../qml/components/SplashLogoSection.qml" line="58"/>
-        <source>Türkçe Yama</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>SplashProgressBar</name>
-    <message>
-        <location filename="../qml/components/SplashProgressBar.qml" line="13"/>
-        <source>Loading %1%</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>SplashScreen</name>
     <message>
         <location filename="../qml/SplashScreen.qml" line="15"/>
@@ -2951,25 +2735,6 @@ Emin misiniz?</source>
     <message>
         <location filename="../qml/components/ViewAllCard.qml" line="226"/>
         <source>View all games</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>WaitingForGameCard</name>
-    <message>
-        <location filename="../qml/components/WaitingForGameCard.qml" line="45"/>
-        <source>Oyun Aktif Değil</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/WaitingForGameCard.qml" line="56"/>
-        <source>Desteklenen bir oyunu başlattığınızda
-otomatik olarak tespit edilecektir.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../qml/components/WaitingForGameCard.qml" line="82"/>
-        <source>Steam, Epic Games, GOG desteklenir</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

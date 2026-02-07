@@ -174,30 +174,20 @@ qt_add_qml_module(MakineAI
         qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
         qml/components/GameCardSkeleton.qml
-        qml/components/GameDetectedCard.qml
-        qml/components/GameStatusCard.qml
-        qml/components/WaitingForGameCard.qml
-        qml/components/AnnouncementCard.qml
         qml/components/ProjectCard.qml
         qml/components/SettingsCard.qml
         qml/components/ViewAllCard.qml
 
         # Components - Buttons
         qml/components/StopButton.qml
-        qml/components/AnimatedButton.qml
         qml/components/GradientButton.qml
-        qml/components/ActionButton.qml
-        qml/components/IconButton.qml
         qml/components/DevButton.qml
-        qml/components/DiscordButton.qml
         qml/components/DonateButton.qml
         qml/components/WindowButton.qml
 
         # Components - Navigation
-        qml/components/NavBar.qml
         qml/components/NavBarItem.qml
         qml/components/NavItem.qml
-        qml/components/MinimalTitleBar.qml
         qml/components/TitleBar.qml
 
         # Components - Notifications
@@ -208,26 +198,15 @@ qt_add_qml_module(MakineAI
         # Components - Drag & Drop
         qml/components/DropZoneOverlay.qml
 
-        # Components - Splash
-        qml/components/SplashLogoSection.qml
-        qml/components/SplashProgressBar.qml
-
         # Components - Visual
         qml/components/MakineLogo.qml
-        qml/components/RotatingHourglass.qml
         qml/components/TranslationPhaseBadge.qml
         qml/components/TranslationProgressBar.qml
-        qml/components/BackgroundBlur.qml
-        qml/components/GlassPanel.qml
         qml/components/GradientText.qml
-        qml/components/HoverGlow.qml
-        qml/components/HoverBuilder.qml
         qml/components/SkeletonLoader.qml
         qml/components/PerformanceMonitor.qml
         qml/components/Badge.qml
-        qml/components/MetacriticScoreBadge.qml
         qml/components/PhaseIndicator.qml
-        qml/components/PlatformIcons.qml
 
         # Components - Settings UI
         qml/components/ToggleSetting.qml
@@ -241,12 +220,8 @@ qt_add_qml_module(MakineAI
         qml/components/CategoryItem.qml
         qml/components/ProjectCategory.qml
         qml/components/BackupListItem.qml
-        qml/components/ActivityListItem.qml
         qml/components/InfoRow.qml
-        qml/components/SectionHeader.qml
         qml/components/EmptyStateMessage.qml
-        qml/components/CustomScrollBar.qml
-        qml/components/AppFooter.qml
         qml/components/BatchOperationsPanel.qml
 
         # Dialogs
@@ -254,7 +229,6 @@ qt_add_qml_module(MakineAI
         qml/dialogs/AllGamesDialog.qml
         qml/dialogs/QAResultsDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
-        qml/dialogs/CancelConfirmationDialog.qml
         qml/dialogs/CompatibilityWarningDialog.qml
 
     RESOURCES
