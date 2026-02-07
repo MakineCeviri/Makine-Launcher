@@ -15,8 +15,8 @@ option(MAKINEAI_UI_ONLY "Build UI shell only without core library" OFF)
 # Core library path
 set(MAKINEAI_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../core)
 
-# vcpkg integration (auto-detect toolchain) - only for full build
-if(NOT MAKINEAI_UI_ONLY)
+# vcpkg integration - only needed for standalone builds (not super-build)
+if(NOT MAKINEAI_UI_ONLY AND NOT TARGET makineai_core)
     if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             CACHE STRING "Vcpkg toolchain file")
@@ -27,7 +27,7 @@ if(NOT MAKINEAI_UI_ONLY)
         set(VCPKG_TARGET_TRIPLET "x64-mingw-dynamic" CACHE STRING "")
     endif()
 
-    # Find core dependencies
+    # Find core dependencies (for standalone linking)
     find_package(Boost REQUIRED COMPONENTS filesystem)
     find_package(OpenSSL REQUIRED)
     find_package(CURL REQUIRED)
@@ -55,26 +55,31 @@ find_package(Qt6 REQUIRED COMPONENTS
 
 qt_standard_project_setup(REQUIRES 6.5)
 
-# Core library - link to prebuilt static library
+# Core library linkage
 if(NOT MAKINEAI_UI_ONLY)
-    # Search for core library in possible build directories
-    find_library(MAKINEAI_CORE_LIB
-        NAMES makineai_core
-        PATHS
-            ${MAKINEAI_CORE_DIR}/build
-            ${MAKINEAI_CORE_DIR}/build/core
-            ${MAKINEAI_CORE_DIR}/build/release
-            ${MAKINEAI_CORE_DIR}/build_msvc
-            ${CMAKE_BINARY_DIR}/../core
-        NO_DEFAULT_PATH
-    )
+    if(TARGET makineai_core)
+        # Super-build: core target available from parent project
+        message(STATUS "MakineAI: using makineai_core target from super-build")
+    else()
+        # Standalone: find prebuilt core library
+        find_library(MAKINEAI_CORE_LIB
+            NAMES makineai_core
+            PATHS
+                ${MAKINEAI_CORE_DIR}/build
+                ${MAKINEAI_CORE_DIR}/build/core
+                ${MAKINEAI_CORE_DIR}/build/release
+                ${MAKINEAI_CORE_DIR}/build_msvc
+                ${CMAKE_BINARY_DIR}/../core
+            NO_DEFAULT_PATH
+        )
 
-    if(NOT MAKINEAI_CORE_LIB)
-        message(FATAL_ERROR "Core library not found. "
-                           "Build it first: cmake --preset=core && cmake --build build/core")
+        if(NOT MAKINEAI_CORE_LIB)
+            message(FATAL_ERROR "Core library not found. "
+                "Build it first or use super-build: cmake --preset release")
+        endif()
+
+        get_filename_component(MAKINEAI_CORE_LIB_DIR ${MAKINEAI_CORE_LIB} DIRECTORY)
     endif()
-
-    get_filename_component(MAKINEAI_CORE_LIB_DIR ${MAKINEAI_CORE_LIB} DIRECTORY)
     set(CORE_SOURCES "")
 endif()
 
@@ -274,10 +279,12 @@ target_include_directories(MakineAI PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/models
 )
 
-if(NOT MAKINEAI_UI_ONLY)
+if(NOT MAKINEAI_UI_ONLY AND NOT TARGET makineai_core)
+    # Standalone: explicit include path needed
     target_include_directories(MakineAI PRIVATE
         ${MAKINEAI_CORE_DIR}/include
     )
+    # Super-build: includes inherited from makineai_core target (PUBLIC)
 endif()
 
 # Link Qt libraries (always required)
@@ -296,24 +303,27 @@ target_link_libraries(MakineAI PRIVATE
 
 # Link core dependencies (only for full build)
 if(NOT MAKINEAI_UI_ONLY)
-    # Link to prebuilt MakineAI Core library
-    target_link_libraries(MakineAI PRIVATE
-        ${MAKINEAI_CORE_LIB}
-    )
-
-    # Link vcpkg dependencies (required by Core)
-    target_link_libraries(MakineAI PRIVATE
-        Boost::filesystem
-        OpenSSL::SSL
-        OpenSSL::Crypto
-        CURL::libcurl
-        nlohmann_json::nlohmann_json
-        lz4::lz4
-        ZLIB::ZLIB
-        $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
-        unofficial::sqlite3::sqlite3
-        spdlog::spdlog
-    )
+    if(TARGET makineai_core)
+        # Super-build: link directly (transitive dependencies handled automatically)
+        target_link_libraries(MakineAI PRIVATE makineai_core)
+    else()
+        # Standalone: link prebuilt library + explicit dependencies
+        target_link_libraries(MakineAI PRIVATE
+            ${MAKINEAI_CORE_LIB}
+        )
+        target_link_libraries(MakineAI PRIVATE
+            Boost::filesystem
+            OpenSSL::SSL
+            OpenSSL::Crypto
+            CURL::libcurl
+            nlohmann_json::nlohmann_json
+            lz4::lz4
+            ZLIB::ZLIB
+            $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+            unofficial::sqlite3::sqlite3
+            spdlog::spdlog
+        )
+    endif()
 else()
     # Define MAKINEAI_UI_ONLY macro for stub implementations
     target_compile_definitions(MakineAI PRIVATE MAKINEAI_UI_ONLY)

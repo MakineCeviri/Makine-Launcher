@@ -67,11 +67,11 @@
     },
     {
       "name": "release",
-      "displayName": "Release",
-      "description": "Full release build with core integration (vcpkg)",
+      "displayName": "Release (Super-Build)",
+      "description": "Full release: Core + QML in single pipeline (vcpkg)",
       "inherits": "vcpkg-base",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/qml/build/release",
+      "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}",
@@ -91,7 +91,8 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/core/build",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINEAI_CORE_ONLY": "ON"
       },
       "condition": {
         "type": "equals",

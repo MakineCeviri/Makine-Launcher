@@ -50,7 +50,7 @@ debug:
     cmake --preset debug
     cmake --build --preset debug
 
-# Build QML app - full release (vcpkg, core integration)
+# Build full release - super-build (Core + QML in single pipeline)
 release:
     cmake --preset release
     cmake --build --preset release
@@ -74,8 +74,8 @@ test-verbose: core
 # Build everything (core + dev)
 all: core dev
 
-# Build full release (core + release)
-all-release: core release
+# Build full release (super-build handles both core + qml)
+all-release: release
 
 # ============================================================================
 # CLEANING
@@ -84,7 +84,7 @@ all-release: core release
 # Clean all build directories
 clean:
     @echo "Cleaning build directories..."
-    powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue core/build, qml/build"
+    powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build, core/build, qml/build"
 
 # Clean and rebuild
 rebuild: clean all
@@ -97,7 +97,7 @@ rebuild: clean all
 deploy: release
     @echo "Deploying QML app..."
     powershell -Command "New-Item -ItemType Directory -Force -Path dist | Out-Null"
-    powershell -Command "Copy-Item qml/build/release/MakineAI.exe dist/"
+    powershell -Command "Copy-Item build/release/MakineAI.exe dist/"
     windeployqt --qmldir qml/qml --release dist/MakineAI.exe
 
 # Create release archive
@@ -119,7 +119,7 @@ run-debug: debug
 
 # Run the app (release)
 run-release: release
-    ./qml/build/release/MakineAI.exe
+    ./build/release/MakineAI.exe
 
 # ============================================================================
 # CODE QUALITY
