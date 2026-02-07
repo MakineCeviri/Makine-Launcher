@@ -28,6 +28,7 @@ add_executable(makineai_tests
     test_translation_api.cpp
     test_qa_service.cpp
     test_translation_memory.cpp
+    test_config.cpp
 )
 
 target_link_libraries(makineai_tests PRIVATE
