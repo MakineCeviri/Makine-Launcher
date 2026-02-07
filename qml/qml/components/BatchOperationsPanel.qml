@@ -124,6 +124,9 @@ Rectangle {
                 radius: Dimensions.badgeRadius
                 Accessible.role: Accessible.Button
                 Accessible.name: BatchOperationService.isRunning ? qsTr("İptal") : qsTr("Temizle")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { if (BatchOperationService.isRunning) BatchOperationService.cancel(); else BatchOperationService.clearResults() }
+                Keys.onSpacePressed: { if (BatchOperationService.isRunning) BatchOperationService.cancel(); else BatchOperationService.clearResults() }
                 color: actionBtnMouse.containsMouse
                        ? (BatchOperationService.isRunning
                           ? Theme.withAlpha(Theme.destructive, 0.2)

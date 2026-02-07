@@ -15,6 +15,9 @@ Item {
 
     implicitWidth: 36
     implicitHeight: 36
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
 
     // Bell icon
     Image {

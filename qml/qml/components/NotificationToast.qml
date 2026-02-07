@@ -23,6 +23,9 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: root.title
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
 
     anchors.right: parent ? parent.right : undefined
     anchors.top: parent ? parent.top : undefined

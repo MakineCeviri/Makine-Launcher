@@ -48,8 +48,11 @@ Item {
                     height: 28
                     radius: Dimensions.radiusStandard
                     color: !SettingsManager.isDarkMode ? Theme.primary : "transparent"
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Açık")
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: qsTr("Light theme")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: SettingsManager.isDarkMode = false
+                    Keys.onSpacePressed: SettingsManager.isDarkMode = false
 
                     Text {
                         anchors.centerIn: parent
@@ -71,8 +74,11 @@ Item {
                     height: 28
                     radius: Dimensions.radiusStandard
                     color: SettingsManager.isDarkMode ? Theme.primary : "transparent"
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Koyu")
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: qsTr("Dark theme")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: SettingsManager.isDarkMode = true
+                    Keys.onSpacePressed: SettingsManager.isDarkMode = true
 
                     Text {
                         anchors.centerIn: parent

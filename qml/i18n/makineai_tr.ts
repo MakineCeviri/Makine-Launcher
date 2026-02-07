@@ -325,13 +325,13 @@
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
-        <location filename="../qml/components/BatchOperationsPanel.qml" line="140"/>
+        <location filename="../qml/components/BatchOperationsPanel.qml" line="143"/>
         <source>İptal</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
-        <location filename="../qml/components/BatchOperationsPanel.qml" line="140"/>
+        <location filename="../qml/components/BatchOperationsPanel.qml" line="143"/>
         <source>Temizle</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1687,17 +1687,17 @@ otomatik olarak tespit edilecektir.</source>
 <context>
     <name>NotificationBell</name>
     <message>
-        <location filename="../qml/components/NotificationBell.qml" line="93"/>
+        <location filename="../qml/components/NotificationBell.qml" line="96"/>
         <source>%1 yeni bildirim</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/components/NotificationBell.qml" line="94"/>
+        <location filename="../qml/components/NotificationBell.qml" line="97"/>
         <source>Bildirimler</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/components/NotificationBell.qml" line="99"/>
+        <location filename="../qml/components/NotificationBell.qml" line="102"/>
         <source>Notifications</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2609,13 +2609,21 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
     </message>
     <message>
         <location filename="../qml/components/ThemeSetting.qml" line="52"/>
-        <location filename="../qml/components/ThemeSetting.qml" line="56"/>
+        <source>Light theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ThemeSetting.qml" line="59"/>
         <source>Açık</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/components/ThemeSetting.qml" line="75"/>
-        <location filename="../qml/components/ThemeSetting.qml" line="79"/>
+        <location filename="../qml/components/ThemeSetting.qml" line="78"/>
+        <source>Dark theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/ThemeSetting.qml" line="85"/>
         <source>Koyu</source>
         <translation type="unfinished"></translation>
     </message>
