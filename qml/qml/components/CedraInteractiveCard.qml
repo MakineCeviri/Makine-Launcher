@@ -26,29 +26,13 @@ Rectangle {
         running: root.visible && root.animationsEnabled
     }
 
-    // Smooth sinusoidal transition
-    property real smoothValue: 1 - Math.abs(animPhase * 2 - 1)
+    // Smooth sinusoidal transition (0→1→0)
+    readonly property real smoothValue: 1.0 - Math.abs(animPhase * 2.0 - 1.0)
 
-    // gold <-> brown
-    property color color1: Qt.rgba(
-        Theme.gold.r * (1 - smoothValue) + Theme.brown.r * smoothValue,
-        Theme.gold.g * (1 - smoothValue) + Theme.brown.g * smoothValue,
-        Theme.gold.b * (1 - smoothValue) + Theme.brown.b * smoothValue,
-        1
-    )
-    property color color2: Qt.rgba(
-        Theme.brown.r * (1 - smoothValue) + Theme.gold.r * smoothValue,
-        Theme.brown.g * (1 - smoothValue) + Theme.gold.g * smoothValue,
-        Theme.brown.b * (1 - smoothValue) + Theme.gold.b * smoothValue,
-        1
-    )
-    // olive <-> pastel blue
-    property color color3: Qt.rgba(
-        Theme.olive.r * (1 - smoothValue) + Theme.pastelBlue.r * smoothValue,
-        Theme.olive.g * (1 - smoothValue) + Theme.pastelBlue.g * smoothValue,
-        Theme.olive.b * (1 - smoothValue) + Theme.pastelBlue.b * smoothValue,
-        1
-    )
+    // Animated color pairs using Theme.lerpColor (same as CedraCard)
+    readonly property color color1: Theme.lerpColor(Theme.gold, Theme.brown, smoothValue)
+    readonly property color color2: Theme.lerpColor(Theme.brown, Theme.gold, smoothValue)
+    readonly property color color3: Theme.lerpColor(Theme.olive, Theme.pastelBlue, smoothValue)
 
     gradient: Gradient {
         orientation: Gradient.Horizontal

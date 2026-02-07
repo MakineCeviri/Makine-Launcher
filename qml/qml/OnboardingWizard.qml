@@ -67,7 +67,7 @@ Rectangle {
             anchors.right: parent.right
             height: parent.height * 0.4
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.03) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.03) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }
@@ -102,6 +102,9 @@ Rectangle {
 
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Skip onboarding")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: root.skip()
+                Keys.onSpacePressed: root.skip()
             }
         }
 
@@ -271,6 +274,9 @@ Rectangle {
 
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Start library scan")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: { root.isScanning = true; GameService.scanAllLibraries() }
+                    Keys.onSpacePressed: { root.isScanning = true; GameService.scanAllLibraries() }
                 }
 
                 Item { Layout.fillHeight: true }
@@ -508,6 +514,9 @@ Rectangle {
 
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Start using MakineAI")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: root.nextStep()
+                    Keys.onSpacePressed: root.nextStep()
                 }
 
                 Item { Layout.fillHeight: true }
@@ -541,6 +550,9 @@ Rectangle {
 
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Go back")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: root.previousStep()
+                Keys.onSpacePressed: root.previousStep()
             }
 
             Item { Layout.fillWidth: true }
@@ -593,6 +605,9 @@ Rectangle {
 
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Continue to next step")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: root.nextStep()
+                Keys.onSpacePressed: root.nextStep()
             }
         }
 

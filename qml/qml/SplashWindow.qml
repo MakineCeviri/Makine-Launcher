@@ -462,7 +462,7 @@ Window {
                 Text {
                     id: versionText
                     anchors.centerIn: parent
-                    text: "v0.1.0-alpha"
+                    text: Dimensions.appVersionFull
                     font.pixelSize: 8
                     font.weight: Font.Medium
                     color: Qt.rgba(1, 1, 1, 0.45)
