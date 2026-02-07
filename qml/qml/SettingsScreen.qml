@@ -160,6 +160,12 @@ Item {
                                 Behavior on border.color { ColorAnimation { duration: 150 } }
                                 Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
 
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("Back")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: root.back()
+                                Keys.onSpacePressed: root.back()
+
                                 Label {
                                     anchors.centerIn: parent
                                     text: "\u2190"  // Left arrow
@@ -622,6 +628,12 @@ Item {
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Restore backup")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: BackupManager.restoreBackup(modelData.id, modelData.originalPath)
+                                    Keys.onSpacePressed: BackupManager.restoreBackup(modelData.id, modelData.originalPath)
+
                                     Row {
                                         id: restoreBtnContent
                                         anchors.centerIn: parent
@@ -662,6 +674,12 @@ Item {
                                     color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.15) : "transparent"
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Delete backup")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: BackupManager.deleteBackup(modelData.id)
+                                    Keys.onSpacePressed: BackupManager.deleteBackup(modelData.id)
 
                                     Text {
                                         anchors.centerIn: parent
@@ -1179,6 +1197,12 @@ Item {
                         Behavior on border.color { ColorAnimation { duration: 150 } }
                         Behavior on scale { NumberAnimation { duration: 100 } }
 
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: qsTr("Light theme")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: SettingsManager.isDarkMode = false
+                        Keys.onSpacePressed: SettingsManager.isDarkMode = false
+
                         Row {
                             id: lightRow
                             anchors.centerIn: parent
@@ -1223,6 +1247,12 @@ Item {
                         Behavior on color { ColorAnimation { duration: 150 } }
                         Behavior on border.color { ColorAnimation { duration: 150 } }
                         Behavior on scale { NumberAnimation { duration: 100 } }
+
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: qsTr("Dark theme")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: SettingsManager.isDarkMode = true
+                        Keys.onSpacePressed: SettingsManager.isDarkMode = true
 
                         Row {
                             id: darkRow
@@ -1502,6 +1532,12 @@ Item {
 
         Layout.fillWidth: true
         Layout.preferredHeight: 72
+
+        Accessible.role: Accessible.Button
+        Accessible.name: title
+        activeFocusOnTab: true
+        Keys.onReturnPressed: { if (!isLoading) clicked() }
+        Keys.onSpacePressed: { if (!isLoading) clicked() }
 
         Rectangle {
             anchors.fill: parent

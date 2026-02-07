@@ -2135,7 +2135,7 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
     </message>
     <message>
         <location filename="../qml/SettingsScreen.qml" line="28"/>
-        <location filename="../qml/SettingsScreen.qml" line="782"/>
+        <location filename="../qml/SettingsScreen.qml" line="800"/>
         <source>Geliştirici</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2145,302 +2145,327 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="183"/>
+        <location filename="../qml/SettingsScreen.qml" line="164"/>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/SettingsScreen.qml" line="189"/>
         <source>Ayarlar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="382"/>
+        <location filename="../qml/SettingsScreen.qml" line="388"/>
         <source>Otomatik Oyun Tespiti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="383"/>
+        <location filename="../qml/SettingsScreen.qml" line="389"/>
         <source>Oyunları otomatik olarak tespit et</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="391"/>
+        <location filename="../qml/SettingsScreen.qml" line="397"/>
         <source>Windows ile Başlat</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="392"/>
+        <location filename="../qml/SettingsScreen.qml" line="398"/>
         <source>Bilgisayar açıldığında otomatik başlat</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="400"/>
+        <location filename="../qml/SettingsScreen.qml" line="406"/>
         <source>Sistem Tepsisine Küçült</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="401"/>
+        <location filename="../qml/SettingsScreen.qml" line="407"/>
         <source>Kapatıldığında arka planda çalışır</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="409"/>
+        <location filename="../qml/SettingsScreen.qml" line="415"/>
         <source>Bildirimler</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="410"/>
+        <location filename="../qml/SettingsScreen.qml" line="416"/>
         <source>Oyun tespit edildiğinde bildirim göster</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="426"/>
+        <location filename="../qml/SettingsScreen.qml" line="432"/>
         <source>İndirme Dizini</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="427"/>
+        <location filename="../qml/SettingsScreen.qml" line="433"/>
         <source>Çeviri paketlerinin indirileceği konum</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="433"/>
+        <location filename="../qml/SettingsScreen.qml" line="439"/>
         <source>Önbellek Yönetimi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="434"/>
+        <location filename="../qml/SettingsScreen.qml" line="440"/>
         <source>Önbellek boyutunu görüntüle ve temizle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="440"/>
+        <location filename="../qml/SettingsScreen.qml" line="446"/>
         <source>Proxy Ayarları</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="441"/>
+        <location filename="../qml/SettingsScreen.qml" line="447"/>
         <source>Ağ bağlantısı için proxy yapılandırması</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="463"/>
+        <location filename="../qml/SettingsScreen.qml" line="469"/>
         <source>Çeviri Dili</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="464"/>
+        <location filename="../qml/SettingsScreen.qml" line="470"/>
         <source>Oyunların çevrileceği dil</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="465"/>
+        <location filename="../qml/SettingsScreen.qml" line="471"/>
         <source>Türkçe</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="478"/>
+        <location filename="../qml/SettingsScreen.qml" line="484"/>
         <source>Çeviri Kalitesi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="479"/>
+        <location filename="../qml/SettingsScreen.qml" line="485"/>
         <source>Bu özellik gelecek güncellemelerde eklenecektir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="506"/>
+        <location filename="../qml/SettingsScreen.qml" line="512"/>
         <source>Yedekler</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="548"/>
+        <location filename="../qml/SettingsScreen.qml" line="554"/>
         <source>Henüz yedeklenmiş oyun yok</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="596"/>
+        <location filename="../qml/SettingsScreen.qml" line="602"/>
         <source>Bilinmeyen Oyun</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="638"/>
+        <location filename="../qml/SettingsScreen.qml" line="632"/>
+        <source>Restore backup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/SettingsScreen.qml" line="650"/>
         <source>Geri Al</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="711"/>
+        <location filename="../qml/SettingsScreen.qml" line="679"/>
+        <source>Delete backup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/SettingsScreen.qml" line="729"/>
         <source>Geri yükleniyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="735"/>
+        <location filename="../qml/SettingsScreen.qml" line="753"/>
         <source>Donanım Hızlandırma</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="736"/>
+        <location filename="../qml/SettingsScreen.qml" line="754"/>
         <source>GPU kullanarak daha hızlı çeviri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="744"/>
+        <location filename="../qml/SettingsScreen.qml" line="762"/>
         <source>Global Önbellek</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="745"/>
+        <location filename="../qml/SettingsScreen.qml" line="763"/>
         <source>Çevirileri tüm oyunlar için paylaş</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="753"/>
+        <location filename="../qml/SettingsScreen.qml" line="771"/>
         <source>Uygulama Animasyonları</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="754"/>
+        <location filename="../qml/SettingsScreen.qml" line="772"/>
         <source>Arayüz animasyonlarını etkinleştir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="778"/>
+        <location filename="../qml/SettingsScreen.qml" line="796"/>
         <source>Uygulama</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="780"/>
+        <location filename="../qml/SettingsScreen.qml" line="798"/>
         <source>Versiyon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="782"/>
+        <location filename="../qml/SettingsScreen.qml" line="800"/>
         <source>MakineAI Ekibi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="784"/>
+        <location filename="../qml/SettingsScreen.qml" line="802"/>
         <source>Lisans</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="784"/>
+        <location filename="../qml/SettingsScreen.qml" line="802"/>
         <source>Özel Lisans</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="786"/>
+        <location filename="../qml/SettingsScreen.qml" line="804"/>
         <source>Platform</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="801"/>
+        <location filename="../qml/SettingsScreen.qml" line="819"/>
         <source>Discord Desteği</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="802"/>
+        <location filename="../qml/SettingsScreen.qml" line="820"/>
         <source>Topluluk ve yardım için Discord sunucumuza katılın</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="811"/>
+        <location filename="../qml/SettingsScreen.qml" line="829"/>
         <source>Kaynak kodu, hata bildirimi ve katkılar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="819"/>
+        <location filename="../qml/SettingsScreen.qml" line="837"/>
         <source>Geri Bildirim</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="820"/>
+        <location filename="../qml/SettingsScreen.qml" line="838"/>
         <source>Hata bildirimi ve öneriler için web sitemizi ziyaret edin</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="846"/>
+        <location filename="../qml/SettingsScreen.qml" line="864"/>
         <source>Açık Kaynak Lisanslar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="911"/>
+        <location filename="../qml/SettingsScreen.qml" line="929"/>
         <source>Test Verisi Aktar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="912"/>
+        <location filename="../qml/SettingsScreen.qml" line="930"/>
         <source>Translation Memory&apos;ye 30 test çevirisi ekle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="917"/>
+        <location filename="../qml/SettingsScreen.qml" line="935"/>
         <source>Test verisi aktarılıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="962"/>
+        <location filename="../qml/SettingsScreen.qml" line="980"/>
         <source>%1 çeviri eklendi!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="969"/>
+        <location filename="../qml/SettingsScreen.qml" line="987"/>
         <source>TM&apos;yi Temizle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="970"/>
+        <location filename="../qml/SettingsScreen.qml" line="988"/>
         <source>Tüm Translation Memory verilerini sil</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="974"/>
+        <location filename="../qml/SettingsScreen.qml" line="992"/>
         <source>Bu özellik henüz aktif değil</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="981"/>
+        <location filename="../qml/SettingsScreen.qml" line="999"/>
         <source>TM İstatistikleri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="982"/>
+        <location filename="../qml/SettingsScreen.qml" line="1000"/>
         <source>Translation Memory durumunu göster</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="986"/>
+        <location filename="../qml/SettingsScreen.qml" line="1004"/>
         <source>TM/Glossary İstatistikleri:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="987"/>
+        <location filename="../qml/SettingsScreen.qml" line="1005"/>
         <source>Glossary Terimleri: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="988"/>
+        <location filename="../qml/SettingsScreen.qml" line="1006"/>
         <source>Durum: Aktif</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1142"/>
+        <location filename="../qml/SettingsScreen.qml" line="1160"/>
         <source>Tema</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1149"/>
+        <location filename="../qml/SettingsScreen.qml" line="1167"/>
         <source>Uygulama görünümünü seç</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1195"/>
+        <location filename="../qml/SettingsScreen.qml" line="1201"/>
+        <source>Light theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/SettingsScreen.qml" line="1219"/>
         <source>Açık</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1240"/>
+        <location filename="../qml/SettingsScreen.qml" line="1252"/>
+        <source>Dark theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/SettingsScreen.qml" line="1270"/>
         <source>Koyu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1471"/>
+        <location filename="../qml/SettingsScreen.qml" line="1501"/>
         <source>Yakında</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2652,208 +2677,210 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="83"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="86"/>
         <source>Oyun Adı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="90"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="93"/>
         <source>motoru</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="176"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="179"/>
         <source>İlerleme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="269"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="791"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="272"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="806"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Hazır</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="294"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="298"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="764"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="297"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="304"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="779"/>
         <source>İptal Et</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="323"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="327"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="329"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="336"/>
         <source>Tekrar Dene</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="339"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="331"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="332"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="348"/>
         <source>Çeviri yeniden başlatılıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="355"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="359"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="364"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="371"/>
         <source>Geri Dön</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="381"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="391"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="393"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="406"/>
         <source>Tamam</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="436"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="451"/>
         <source>Aktivite</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="453"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="468"/>
         <source>Henüz aktivite yok</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="530"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="545"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Tespit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="531"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="546"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Çıkarma</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="532"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="547"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Eşleştirme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="533"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="548"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>İnceleme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="534"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="549"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Uygulama</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="535"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="550"/>
         <source>Bitti</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="714"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="729"/>
         <source>Çeviriyi İptal Et?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="731"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="746"/>
         <source>Devam eden çeviri işlemi iptal edilecek.
 Emin misiniz?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="744"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="759"/>
         <source>Vazgeç</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="792"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="807"/>
         <source>Tespit Ediliyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="793"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="808"/>
         <source>Çıkarılıyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="794"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="809"/>
         <source>Eşleştiriliyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="795"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="810"/>
         <source>İnceleniyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="796"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="811"/>
         <source>Uygulanıyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="797"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="812"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Tamamlandı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="798"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="813"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Hata</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="799"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="814"/>
         <source>Bilinmiyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="826"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="841"/>
         <source>QA sorunları yoksayıldı, devam ediliyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="845"/>
         <source>QA sorunları inceleniyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="840"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="855"/>
         <source>Aşama: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="850"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="865"/>
         <source>Çeviri başarıyla tamamlandı!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="869"/>
         <source>Hata: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="858"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="873"/>
         <source>QA tamamlandı: %1 geçti, %2 başarısız (Skor: %3)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="876"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="891"/>
         <source>Bilinmeyen sorun</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="893"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="895"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="908"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="910"/>
         <source>TM eşleşme (%%1): %2...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="900"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="915"/>
         <source>Eşleştirme tamamlandı: %1/%2 çeviri bulundu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="907"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="922"/>
         <source>Çeviri başlatılıyor: %1</source>
         <translation type="unfinished"></translation>
     </message>

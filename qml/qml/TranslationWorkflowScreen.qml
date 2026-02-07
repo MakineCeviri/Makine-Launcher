@@ -50,6 +50,9 @@ Item {
                     color: backBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Geri")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: { if (TranslationService.isActive) cancelConfirmDialog.open(); else root.backClicked() }
+                    Keys.onSpacePressed: { if (TranslationService.isActive) cancelConfirmDialog.open(); else root.backClicked() }
 
                     Label {
                         anchors.centerIn: parent
@@ -292,6 +295,9 @@ Item {
                                 visible: TranslationService.isProcessing
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("İptal Et")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: TranslationService.stopTranslation()
+                                Keys.onSpacePressed: TranslationService.stopTranslation()
 
                                 Label {
                                     anchors.centerIn: parent
@@ -321,6 +327,9 @@ Item {
                                 border.width: 1
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("Tekrar Dene")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: { addActivity(qsTr("Çeviri yeniden başlatılıyor..."), "info"); TranslationService.startTranslation(root.gameId, root.gameName, root.gamePath) }
+                                Keys.onSpacePressed: { addActivity(qsTr("Çeviri yeniden başlatılıyor..."), "info"); TranslationService.startTranslation(root.gameId, root.gameName, root.gamePath) }
 
                                 Label {
                                     anchors.centerIn: parent
@@ -353,6 +362,9 @@ Item {
                                 border.width: 1
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("Geri Dön")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: root.backClicked()
+                                Keys.onSpacePressed: root.backClicked()
 
                                 Label {
                                     anchors.centerIn: parent
@@ -379,6 +391,9 @@ Item {
                                 visible: TranslationService.phase === 6
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("Tamam")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: root.completed(root.gameId)
+                                Keys.onSpacePressed: root.completed(root.gameId)
 
                                 gradient: Gradient {
                                     orientation: Gradient.Horizontal
