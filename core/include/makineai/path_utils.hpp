@@ -19,7 +19,6 @@
 #include <cctype>
 #include <filesystem>
 #include <optional>
-#include <regex>
 #include <string>
 #include <string_view>
 #include <unordered_set>

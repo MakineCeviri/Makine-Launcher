@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <regex>
 #include <string>
 #include <string_view>
 
@@ -365,8 +364,10 @@ namespace makineai::validation {
             "Game ID is too long (max 256 characters)"));
     }
 
-    static const std::regex pattern(R"(^[a-zA-Z0-9_\-:]+$)");
-    if (!std::regex_match(id, pattern)) {
+    auto isValidChar = [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == ':';
+    };
+    if (!std::all_of(id.begin(), id.end(), isValidChar)) {
         return std::unexpected(Error(ErrorCode::InvalidArgument,
             "Game ID contains invalid characters")
             .withDetail("valid_chars", "alphanumeric, underscore, hyphen, colon"));
@@ -387,8 +388,10 @@ namespace makineai::validation {
             "Package ID cannot be empty"));
     }
 
-    static const std::regex pattern(R"(^[a-zA-Z0-9_\-:\.]+$)");
-    if (!std::regex_match(id, pattern)) {
+    auto isValidChar = [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == ':' || c == '.';
+    };
+    if (!std::all_of(id.begin(), id.end(), isValidChar)) {
         return std::unexpected(Error(ErrorCode::InvalidArgument,
             "Package ID contains invalid characters"));
     }
@@ -409,13 +412,38 @@ namespace makineai::validation {
             "URL cannot be empty"));
     }
 
-    // Basic URL pattern
-    static const std::regex pattern(
-        R"(^https?://[a-zA-Z0-9\-\.]+(\:[0-9]+)?(/[^\s]*)?$)",
-        std::regex::icase
-    );
+    // Basic URL validation without <regex>
+    bool isHttps = (url.rfind("https://", 0) == 0);
+    bool isHttp = (url.rfind("http://", 0) == 0);
+    if (!isHttps && !isHttp) {
+        return std::unexpected(Error(ErrorCode::InvalidArgument,
+            "Invalid URL format")
+            .withDetail("url", url));
+    }
 
-    if (!std::regex_match(url, pattern)) {
+    // Check host part exists and contains only valid chars
+    size_t hostStart = isHttps ? 8 : 7;
+    if (hostStart >= url.size()) {
+        return std::unexpected(Error(ErrorCode::InvalidArgument,
+            "Invalid URL format")
+            .withDetail("url", url));
+    }
+
+    // Find end of host (before port or path)
+    size_t hostEnd = url.find_first_of(":/?#", hostStart);
+    if (hostEnd == std::string::npos) hostEnd = url.size();
+
+    std::string_view host(url.data() + hostStart, hostEnd - hostStart);
+    if (host.empty()) {
+        return std::unexpected(Error(ErrorCode::InvalidArgument,
+            "Invalid URL format")
+            .withDetail("url", url));
+    }
+
+    auto isHostChar = [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '.';
+    };
+    if (!std::all_of(host.begin(), host.end(), isHostChar)) {
         return std::unexpected(Error(ErrorCode::InvalidArgument,
             "Invalid URL format")
             .withDetail("url", url));
@@ -463,8 +491,10 @@ namespace makineai::validation {
             .withDetail("actual_length", std::to_string(hash.length())));
     }
 
-    static const std::regex pattern(R"(^[a-fA-F0-9]{64}$)");
-    if (!std::regex_match(hash, pattern)) {
+    auto isHexChar = [](char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    };
+    if (!std::all_of(hash.begin(), hash.end(), isHexChar)) {
         return std::unexpected(Error(ErrorCode::InvalidArgument,
             "SHA-256 hash contains invalid characters"));
     }

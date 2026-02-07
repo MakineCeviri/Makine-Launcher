@@ -20,7 +20,6 @@
 #include "types.hpp"
 #include "error.hpp"
 
-#include <regex>
 #include <string>
 #include <vector>
 #include <map>

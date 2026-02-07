@@ -14,7 +14,6 @@
 
 #include <string>
 #include <vector>
-#include <regex>
 #include <unordered_set>
 #include <optional>
 #include <memory>

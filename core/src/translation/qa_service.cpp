@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <regex>
 #include <unordered_set>
 #include <stack>
 

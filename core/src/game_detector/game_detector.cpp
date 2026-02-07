@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <fstream>
 #include <cstring>
-#include <regex>
 #include <unordered_set>
 
 // Optional: efsw for filesystem watching
@@ -1472,13 +1471,38 @@ std::string GameDetector::readUnityVersion(const fs::path& gameDir) const {
                         std::string content(view.stringView());
 
                         // Search for version pattern (e.g., "2021.3.14f1", "2022.1.0b3")
-                        std::regex versionRegex(R"((\d+\.\d+\.\d+[a-z]?\d*))");
-                        std::smatch match;
+                        // Manual scan — avoids <regex> header overhead
+                        for (size_t i = 0; i < content.size(); ++i) {
+                            char c = content[i];
+                            if (c < '0' || c > '9') continue;
 
-                        if (std::regex_search(content, match, versionRegex)) {
-                            MAKINEAI_LOG_TRACE(log::DETECTOR,
-                                "Unity version detected: {}", match[1].str());
-                            return match[1].str();
+                            // Try to parse digits.digits.digits[letter][digits]
+                            size_t start = i;
+                            // First number
+                            while (i < content.size() && content[i] >= '0' && content[i] <= '9') ++i;
+                            if (i >= content.size() || content[i] != '.') continue;
+                            ++i; // skip '.'
+                            // Second number
+                            if (i >= content.size() || content[i] < '0' || content[i] > '9') continue;
+                            while (i < content.size() && content[i] >= '0' && content[i] <= '9') ++i;
+                            if (i >= content.size() || content[i] != '.') continue;
+                            ++i; // skip '.'
+                            // Third number
+                            if (i >= content.size() || content[i] < '0' || content[i] > '9') continue;
+                            while (i < content.size() && content[i] >= '0' && content[i] <= '9') ++i;
+                            // Optional letter suffix (f1, b3, etc.)
+                            if (i < content.size() && content[i] >= 'a' && content[i] <= 'z') {
+                                ++i;
+                                while (i < content.size() && content[i] >= '0' && content[i] <= '9') ++i;
+                            }
+
+                            std::string ver = content.substr(start, i - start);
+                            // Sanity: Unity versions start with year >= 3
+                            if (ver.size() >= 5) {
+                                MAKINEAI_LOG_TRACE(log::DETECTOR,
+                                    "Unity version detected: {}", ver);
+                                return ver;
+                            }
                         }
                     }
                     break;
@@ -1502,12 +1526,28 @@ std::string GameDetector::readRenpyVersion(const fs::path& gameDir) const {
                                    std::istreambuf_iterator<char>());
 
                 // Search for version_tuple = (major, minor, patch)
-                std::regex versionRegex(
-                    R"(version_tuple\s*=\s*\((\d+),\s*(\d+),\s*(\d+))");
-                std::smatch match;
+                // Manual parse — avoids <regex> header overhead
+                auto tuplePos = content.find("version_tuple");
+                if (tuplePos != std::string::npos) {
+                    auto parenPos = content.find('(', tuplePos);
+                    if (parenPos != std::string::npos) {
+                        // Extract three comma-separated numbers
+                        auto extractNum = [&](size_t& pos) -> std::string {
+                            while (pos < content.size() && (content[pos] < '0' || content[pos] > '9')) ++pos;
+                            size_t numStart = pos;
+                            while (pos < content.size() && content[pos] >= '0' && content[pos] <= '9') ++pos;
+                            return content.substr(numStart, pos - numStart);
+                        };
 
-                if (std::regex_search(content, match, versionRegex)) {
-                    return match[1].str() + "." + match[2].str() + "." + match[3].str();
+                        size_t pos = parenPos + 1;
+                        std::string major = extractNum(pos);
+                        std::string minor = extractNum(pos);
+                        std::string patch = extractNum(pos);
+
+                        if (!major.empty() && !minor.empty() && !patch.empty()) {
+                            return major + "." + minor + "." + patch;
+                        }
+                    }
                 }
             }
         }

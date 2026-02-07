@@ -18,7 +18,6 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <regex>
 #include <string>
 #include <vector>
 
