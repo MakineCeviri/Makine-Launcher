@@ -43,6 +43,6 @@ Güvenlik açığı bildiren katkıcılar burada listelenecektir.
 
 ---
 
-Teknik güvenlik detayları için: [docs/SECURITY.md](../docs/SECURITY.md)
+Teknik güvenlik detayları için: [Güvenlik Modeli](../docs/security/security-model.md)
 
 Sorumlu açıklama için teşekkür ederiz!

@@ -80,7 +80,15 @@ public:
 
     // Signature verification
     /**
-     * @brief Load public key for verification
+     * @brief Load embedded public key (compiled into binary)
+     *
+     * This is the primary key loading method for production builds.
+     * The key is embedded at compile time for tamper resistance.
+     */
+    [[nodiscard]] VoidResult loadEmbeddedKey();
+
+    /**
+     * @brief Load public key for verification (external file)
      */
     [[nodiscard]] VoidResult loadPublicKey(const fs::path& keyPath);
 

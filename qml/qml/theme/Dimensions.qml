@@ -14,7 +14,7 @@ QtObject {
     readonly property string appVersionFull: "v0.1.0alpha"
     readonly property string appBuildNumber: "1"
     readonly property string appDescription: "Türkçe Yama Launcher"
-    readonly property string appCopyright: "© 2026 CEDRA Interactive"
+    readonly property string appCopyright: "© 2026 MakineAI"
 
     // =========================================================================
     // EXTERNAL LINKS

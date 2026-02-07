@@ -276,15 +276,29 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         runtimeManager_ = std::make_unique<RuntimeManager>();
         runtimeManager_->setBundleDirectory(fs::path(config.dataDirectory) / "runtime");
 
-        // Security Manager
+        // Security Manager — load embedded key first, fall back to external
         securityManager_ = std::make_unique<SecurityManager>();
-        if (!config.publicKeyPath.empty() && fs::exists(config.publicKeyPath)) {
-            auto result = securityManager_->loadPublicKey(config.publicKeyPath);
-            if (!result) {
-                MAKINEAI_LOG_WARN(log::CORE, "Failed to load public key: {}",
-                    result.error().message());
-                AuditLogger::instance().logSystemEvent("public_key_load_failed",
-                    result.error().message());
+        {
+            auto embeddedResult = securityManager_->loadEmbeddedKey();
+            if (!embeddedResult) {
+                MAKINEAI_LOG_DEBUG(log::CORE, "Embedded key not available: {}",
+                    embeddedResult.error().message());
+
+                // Fall back to external key file if configured
+                if (!config.publicKeyPath.empty() && fs::exists(config.publicKeyPath)) {
+                    auto fileResult = securityManager_->loadPublicKey(config.publicKeyPath);
+                    if (!fileResult) {
+                        MAKINEAI_LOG_WARN(log::CORE, "Failed to load public key: {}",
+                            fileResult.error().message());
+                        AuditLogger::instance().logSystemEvent("public_key_load_failed",
+                            fileResult.error().message());
+                    }
+                } else {
+                    MAKINEAI_LOG_WARN(log::CORE,
+                        "No public key available — package signature verification will fail");
+                }
+            } else {
+                MAKINEAI_LOG_INFO(log::CORE, "Embedded public key loaded successfully");
             }
         }
 

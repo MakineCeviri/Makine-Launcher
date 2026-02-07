@@ -5,7 +5,7 @@
 **Windows oyunlarını Türkçe'ye çeviren masaüstü uygulaması**
 
 [![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue?style=flat-square)](https://github.com/jlceaser/MakineAI/releases)
-[![License](https://img.shields.io/github/license/jlceaser/MakineAI?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-red?style=flat-square)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/jlceaser/MakineAI/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/jlceaser/MakineAI/actions)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?style=flat-square&logo=cplusplus)](https://en.cppreference.com/w/cpp/23)
 [![Qt6](https://img.shields.io/badge/Qt-6.10-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
@@ -24,7 +24,7 @@ Oyun motorunu otomatik tanır, uygun çeviri yöntemini uygular.
 - **Tek tıkla çeviri** — Oyunu seç, "Çevir" de, oyna
 - **Kütüphane tarama** — Steam, Epic Games, GOG Galaxy otomatik taranır
 - **Native Windows UI** — Qt 6 QML ile hızlı, hafif arayüz
-- **Açık kaynak** — MIT lisansı, topluluğun katkılarına açık
+- **Güvenli dağıtım** — İmzalı paketler, şifreli çeviri verileri
 
 > **Not:** Proje alpha aşamasındadır. UI çalışır durumda, core entegrasyonu devam etmektedir.
 
@@ -127,16 +127,10 @@ MakineAI/
 
 ---
 
-## Katkıda Bulunma
-
-Katkıda bulunmak ister misiniz? [CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun.
-
-Yeni başlayanlar için `good first issue` etiketli issue'lara göz atın.
-
----
-
 ## Lisans
 
-MIT License — detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Proprietary License — MakineAI. Tüm hakları saklıdır.
 
-*CEDRA Interactive — 2026*
+Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+
+*MakineAI — 2026*

@@ -146,4 +146,4 @@ Oyun oynarken yanında bir arkadaş gibi AI asistan.
 ---
 
 *Bu doküman aktif olarak güncellenmektedir.*
-*CEDRA Interactive - 2026*
+*MakineAI - 2026*

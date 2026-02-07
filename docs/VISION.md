@@ -134,5 +134,5 @@ Bu vizyon tamamlandiginda, uygulama BITMISTIR.
 
 ---
 
-*CEDRA Interactive - 2026*
+*MakineAI - 2026*
 *Bu dokuman ASLA silinmemelidir.*

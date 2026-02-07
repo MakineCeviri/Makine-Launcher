@@ -71,6 +71,7 @@ enum class ErrorCode {
     ChecksumMismatch = 501,
     CertificateError = 502,
     TamperingDetected = 503,
+    SignatureRequired = 504,
 
     // Parse errors (600-699)
     ParseError = 600,
@@ -151,6 +152,7 @@ constexpr std::string_view errorMessage(ErrorCode code) noexcept {
         case ErrorCode::ChecksumMismatch:   return "Checksum mismatch";
         case ErrorCode::CertificateError:   return "Certificate error";
         case ErrorCode::TamperingDetected:  return "Tampering detected";
+        case ErrorCode::SignatureRequired:  return "Signature required";
 
         case ErrorCode::ParseError:         return "Parse error";
         case ErrorCode::InvalidFormat:      return "Invalid format";
@@ -806,6 +808,7 @@ inline std::vector<ErrorSuggestion> getSuggestions(ErrorCode code) {
             break;
 
         case ErrorCode::SignatureInvalid:
+        case ErrorCode::SignatureRequired:
         case ErrorCode::ChecksumMismatch:
             suggestions.push_back({
                 "Download the package again",

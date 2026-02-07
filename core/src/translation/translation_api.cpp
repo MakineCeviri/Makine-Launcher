@@ -541,7 +541,7 @@ std::vector<std::string> LibreTranslateAPI::getSupportedLanguages() {
             }
             impl_->languagesLoaded = true;
         } catch (const std::exception& e) {
-            MAKINEAI_LOG_WARN(log::TRANSLATION, "Failed to parse language list: {}", e.what());
+            MAKINEAI_LOG_WARN(log::NETWORK, "Failed to parse language list: {}", e.what());
         }
     }
 

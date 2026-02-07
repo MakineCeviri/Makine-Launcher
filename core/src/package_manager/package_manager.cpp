@@ -670,33 +670,49 @@ VoidResult PackageManager::verifyPackage(
 
     MAKINEAI_LOG_DEBUG(log::SECURITY, "Checksum verified: {}", package.sha256);
 
-    // Verify signature if public key is loaded
-    if (security.hasPublicKey() && !package.signature.empty()) {
-        MAKINEAI_LOG_DEBUG(log::SECURITY, "Verifying package signature");
-
-        // Read package for signature verification
-        std::ifstream file(packagePath, std::ios::binary);
-        if (!file) {
-            MAKINEAI_LOG_ERROR(log::SECURITY, "Cannot read package file for signature verification");
-            return std::unexpected(Error(ErrorCode::FileAccessDenied,
-                "Cannot read package file"));
-        }
-
-        ByteBuffer data((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
-
-        auto sigResult = security.verifySignature(data, package.signature);
-        if (!sigResult || !sigResult->valid) {
-            MAKINEAI_LOG_ERROR(log::SECURITY, "Package signature invalid for: {}", package.packageId);
-            AuditLogger::logSignatureVerification(package.packageId, false, "Invalid signature");
-            return std::unexpected(Error(ErrorCode::SignatureInvalid,
-                "Package signature invalid"));
-        }
-
-        MAKINEAI_LOG_DEBUG(log::SECURITY, "Package signature verified");
-    } else if (!security.hasPublicKey()) {
-        MAKINEAI_LOG_WARN(log::SECURITY, "No public key loaded, skipping signature verification");
+    // MANDATORY: Verify package signature
+    // Signature verification is required for all packages in production.
+    if (!security.hasPublicKey()) {
+        MAKINEAI_LOG_ERROR(log::SECURITY,
+            "No public key loaded — cannot verify package signature for: {}",
+            package.packageId);
+        AuditLogger::logSignatureVerification(package.packageId, false,
+            "No public key loaded — signature verification impossible");
+        return std::unexpected(Error(ErrorCode::SignatureRequired,
+            "Package signature verification requires a loaded public key"));
     }
+
+    if (package.signature.empty()) {
+        MAKINEAI_LOG_ERROR(log::SECURITY,
+            "Package has no signature: {}", package.packageId);
+        AuditLogger::logSignatureVerification(package.packageId, false,
+            "Package missing signature — rejected");
+        return std::unexpected(Error(ErrorCode::SignatureRequired,
+            "Package must have a valid signature"));
+    }
+
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Verifying package signature");
+
+    // Read package for signature verification
+    std::ifstream file(packagePath, std::ios::binary);
+    if (!file) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Cannot read package file for signature verification");
+        return std::unexpected(Error(ErrorCode::FileAccessDenied,
+            "Cannot read package file"));
+    }
+
+    ByteBuffer data((std::istreambuf_iterator<char>(file)),
+                    std::istreambuf_iterator<char>());
+
+    auto sigResult = security.verifySignature(data, package.signature);
+    if (!sigResult || !sigResult->valid) {
+        MAKINEAI_LOG_ERROR(log::SECURITY, "Package signature invalid for: {}", package.packageId);
+        AuditLogger::logSignatureVerification(package.packageId, false, "Invalid signature");
+        return std::unexpected(Error(ErrorCode::SignatureInvalid,
+            "Package signature invalid"));
+    }
+
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Package signature verified");
 
     MAKINEAI_LOG_INFO(log::SECURITY, "Package verification successful: {}", package.packageId);
     return {};

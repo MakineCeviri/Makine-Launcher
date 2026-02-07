@@ -970,7 +970,7 @@ Item {
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             title: "Oyun Projeleri"
-                            subtitle: "CEDRA Interactive bünyesinde geliştirilen oyunlar"
+                            subtitle: "MakineAI bünyesinde geliştirilen oyunlar"
                             categoryColor: Theme.destructive
                         }
 

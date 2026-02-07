@@ -11,7 +11,7 @@ Bu kilavuz MakineAI gelistirme ortaminin kurulumunu anlatmaktadir.
 | Yazilim | Surum | Indirme |
 |---------|-------|---------|
 | Visual Studio 2022 | 17.8+ | [visualstudio.microsoft.com](https://visualstudio.microsoft.com/) |
-| Qt | 6.8.1+ | [qt.io](https://www.qt.io/download) |
+| Qt | 6.10+ | [qt.io](https://www.qt.io/download) |
 | CMake | 3.25+ | [cmake.org](https://cmake.org/download/) |
 | vcpkg | Latest | [github.com/microsoft/vcpkg](https://github.com/microsoft/vcpkg) |
 | Git | 2.40+ | [git-scm.com](https://git-scm.com/) |

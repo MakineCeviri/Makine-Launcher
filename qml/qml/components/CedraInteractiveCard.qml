@@ -4,7 +4,7 @@ import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * CedraInteractiveCard.qml - Premium CEDRA branding card with animated glow effects
+ * CedraInteractiveCard.qml - Premium MakineAI branding card with animated glow effects
  */
 Rectangle {
     id: root
@@ -142,7 +142,7 @@ Rectangle {
 
             GradientText {
                 id: titleText
-                text: "CEDRA Interactive"
+                text: "MakineAI"
                 pixelSize: 22
                 fontWeight: Font.Bold
                 animationsEnabled: root.animationsEnabled

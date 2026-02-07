@@ -1,27 +1,27 @@
-# Guvenlik Modeli
+# Güvenlik Modeli
 
-MakineAI guvenlik mimarisi ve politikalari.
+MakineAI güvenlik mimarisi ve politikaları.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
-MakineAI, kullanici verilerini ve sistemini korumak icin katmanli guvenlik modeli kullanir.
+MakineAI, kullanıcı verilerini ve sistemini korumak için katmanlı güvenlik modeli kullanır.
 
-### Temel Ilkeler
+### Temel İlkeler
 
 1. **Minimum Yetki** - Sadece gerekli izinler istenir
-2. **Veri Guvenligi** - Kullanici verileri korunur
-3. **Dogrulama** - Tum paketler dogrulanir
-4. **Seffaflik** - Islemler loglanir
+2. **Veri Güvenliği** - Kullanıcı verileri korunur
+3. **Doğrulama** - Tüm paketler zorunlu olarak imza doğrulamasından geçer
+4. **Şeffaflık** - İşlemler loglanır
 
 ---
 
-## Dosya Guvenligi
+## Dosya Güvenliği
 
 ### Yedekleme
 
-Her patch isleminden once otomatik yedekleme:
+Her patch işleminden önce otomatik yedekleme:
 
 ```
 [Oyun]/MakineAI_Backups/
@@ -31,75 +31,98 @@ Her patch isleminden once otomatik yedekleme:
     └── checksum.sha256
 ```
 
-### Dosya Izinleri
+### Dosya İzinleri
 
-MakineAI sadece su klasorlere yazar:
-- Oyun kurulum klasoru (patch icin)
+MakineAI sadece şu klasörlere yazar:
+- Oyun kurulum klasörü (patch için)
 - `%APPDATA%/MakineAI/` (ayarlar)
 - `%LOCALAPPDATA%/MakineAI/` (cache, logs)
 
 ### Rollback
 
-Herhangi bir sorundan tek tikla geri donme:
-- Yedekten otomatik geri yukleme
-- Dosya butunlugu dogrulama
-- Islem loglama
+Herhangi bir sorundan tek tıkla geri dönme:
+- Yedekten otomatik geri yükleme
+- Dosya bütünlüğü doğrulama
+- İşlem loglama
 
 ---
 
-## Paket Guvenligi
+## Paket Güvenliği
 
-### Imza Dogrulama
+### İmza Doğrulama (Zorunlu)
 
-Tum ceviri paketleri imzalanir:
+Tüm çeviri paketleri imzalanır ve doğrulanır:
 
 ```
-Paket Yapisi:
+Paket Yapısı:
 ├── manifest.json
 ├── translations/
-├── signature.sig      # RSA-2048 imza
+├── signature.sig      # Ed25519 imza
 └── checksum.sha256    # Dosya hashleri
 ```
 
-### Dogrulama Sureci
+### Doğrulama Süreci
 
 ```
-Paket Indir
-    |
-    v
+Paket İndir
+    │
+    ▼
 SHA-256 Hash Kontrol
-    |
-    v
-RSA-2048 Imza Dogrula
-    |
-    v
+    │
+    ▼
+Ed25519 İmza Doğrula (zorunlu)
+    │
+    ▼
 Manifest Kontrol
-    |
-    v
-Kuruluma Izin Ver
+    │
+    ▼
+Kuruluma İzin Ver
 ```
 
-### Guvenli Indirme
+**Not:** İmza doğrulaması zorunludur. Geçerli imzası olmayan paketler reddedilir.
+
+### Güvenli İndirme
 
 - HTTPS zorunlu
-- Certificate pinning
-- Timeout ve retry politikalari
+- Certificate pinning (MakineAI API endpointleri)
+- Timeout ve retry politikaları
+
+---
+
+## Kriptografi
+
+### Kullanılan Algoritmalar
+
+| Amaç | Algoritma |
+|------|-----------|
+| Paket imzalama | Ed25519 |
+| Hash doğrulama | SHA-256, BLAKE2b |
+| Veri şifreleme | AES-256-GCM, XChaCha20-Poly1305 |
+| Anahtar türetme | Argon2id |
+| Yerel veri koruma | Windows DPAPI |
+
+### Anahtar Yönetimi
+
+- Public key uygulama binary'sine gömülüdür (compile-time)
+- Credential'lar Windows Credential Manager'da saklanır
+- Yerel veritabanı DPAPI ile şifrelenir
 
 ---
 
 ## Audit Logging
 
-### Loglanan Islemler
+### Loglanan İşlemler
 
-| Islem | Detaylar |
+| İşlem | Detaylar |
 |-------|----------|
 | Paket indirme | Paket ID, kaynak, boyut |
-| Patch uygulama | Oyun ID, dosyalar, sonuc |
+| Patch uygulama | Oyun ID, dosyalar, sonuç |
 | Geri alma | Yedek ID, dosyalar |
-| Ayar degisikligi | Anahtar, eski/yeni deger |
+| Ayar değişikliği | Anahtar, eski/yeni değer |
+| İmza doğrulama | Paket ID, sonuç |
 | Hata | Tip, mesaj, stack trace |
 
-### Log Formati
+### Log Formatı
 
 ```json
 {
@@ -119,47 +142,47 @@ Kuruluma Izin Ver
 ```
 %LOCALAPPDATA%/MakineAI/logs/
 ├── makineai.log        # Ana log
-├── audit.log           # Guvenlik logu
+├── audit.log           # Güvenlik logu
 └── error.log           # Hata logu
 ```
 
 ---
 
-## Veri Gizliligi
+## Veri Gizliliği
 
 ### Toplanan Veriler
 
-**Minimum veri politikasi:**
+**Minimum veri politikası:**
 
-| Veri | Toplaniyor mu | Amac |
+| Veri | Toplanıyor mu | Amaç |
 |------|---------------|------|
-| Oyun kutuphanesi | Hayir | - |
-| Kisisel bilgiler | Hayir | - |
-| Kullanim istatistikleri | Opsiyonel | Iyilestirme |
-| Hata raporlari | Opsiyonel | Bug fix |
+| Oyun kütüphanesi | Hayır | - |
+| Kişisel bilgiler | Hayır | - |
+| Kullanım istatistikleri | Opsiyonel | İyileştirme |
+| Hata raporları | Opsiyonel | Bug fix |
 
 ### Veri Depolama
 
 Yerel veriler:
-- SQLite veritabani (sifrelenmis)
-- Ayar dosyalari (JSON)
-- Cache dosyalari
+- SQLite veritabanı (DPAPI ile şifrelenmiş)
+- Ayar dosyaları (JSON)
+- Cache dosyaları
 
 ### Veri Silme
 
-Kaldirma sirasinda:
-- Tum MakineAI verileri silinir
-- Oyun yedekleri kullaniciya birakilir
+Kaldırma sırasında:
+- Tüm MakineAI verileri silinir
+- Oyun yedekleri kullanıcıya bırakılır
 
 ---
 
 ## Sandbox Modeli
 
-### Izole Islemler
+### İzole İşlemler
 
-Riskli islemler izole ortamda:
-- Arsiv cikarma
-- Script calistirma
+Riskli işlemler izole ortamda:
+- Arşiv çıkarma
+- Script çalıştırma
 - Dosya parse
 
 ### Kaynak Limitleri
@@ -167,74 +190,74 @@ Riskli islemler izole ortamda:
 | Kaynak | Limit |
 |--------|-------|
 | RAM | 500 MB max |
-| CPU | Dusuk oncelik |
+| CPU | Düşük öncelik |
 | Disk | Cache limiti |
 | Network | Rate limiting |
 
 ---
 
-## Anti-Cheat Uyumlulugu
+## Anti-Cheat Uyumluluğu
 
 ### Tespit Edilen Sistemler
 
 | Sistem | Tespit | Aksiyon |
 |--------|--------|---------|
-| EasyAntiCheat | Evet | Uyari goster |
-| BattlEye | Evet | Uyari goster |
+| EasyAntiCheat | Evet | Uyarı göster |
+| BattlEye | Evet | Uyarı göster |
 | Vanguard | Evet | Engelle |
-| PunkBuster | Evet | Uyari goster |
+| PunkBuster | Evet | Uyarı göster |
 
-### Kullanici Uyarisi
+### Kullanıcı Uyarısı
 
-Anti-cheat tespit edildiginde:
+Anti-cheat tespit edildiğinde:
 ```
-! UYARI: Bu oyunda anti-cheat sistemi tespit edildi.
-  Online modda ceviri kullanmak hesabinizin
-  yasaklanmasina neden olabilir.
+⚠ UYARI: Bu oyunda anti-cheat sistemi tespit edildi.
+  Online modda çeviri kullanmak hesabınızın
+  yasaklanmasına neden olabilir.
 
-  [Yine de devam et] [Iptal]
+  [Yine de devam et] [İptal]
 ```
 
 ---
 
 ## Zafiyet Raporlama
 
-### Guvenlik Acigi Bildirimi
+### Güvenlik Açığı Bildirimi
 
-Bir guvenlik acigi buldunuz mu?
+Bir güvenlik açığı buldunuz mu?
 
 1. **Email:** security@makineai.com
-2. **Konu:** [SECURITY] Kisa aciklama
-3. **Icerik:**
-   - Aciklamanin detayi
-   - Tekrar etme adimlari
+2. **Konu:** [SECURITY] Kısa açıklama
+3. **İçerik:**
+   - Açıklamanın detayı
+   - Tekrar etme adımları
    - Potansiyel etki
 
-### Sorunlu Ifsa Politikasi
+### Sorumlu İfşa Politikası
 
-- Bildirimi aldiktan sonra 48 saat icinde onay
-- 90 gun icinde duzeltme hedefi
-- Duzeltme sonrasi koordineli aciklama
+- Bildirimi aldıktan sonra 48 saat içinde onay
+- 90 gün içinde düzeltme hedefi
+- Düzeltme sonrası koordineli açıklama
 
 ---
 
-## Guvenlik Kontrol Listesi
+## Güvenlik Kontrol Listesi
 
-### Kurulum Oncesi
+### Kurulum Öncesi
 
 - [ ] Resmi kaynaktan indirildi mi?
-- [ ] Dosya hash'i dogrulandi mi?
-- [ ] Antivirus tarandi mi?
+- [ ] Dosya hash'i doğrulandı mı?
+- [ ] Antivirüs tarandı mı?
 
-### Kullanim Sirasinda
+### Kullanım Sırasında
 
 - [ ] Yedekleme aktif mi?
-- [ ] Audit log acik mi?
-- [ ] Anti-cheat uyarilari kontrol edildi mi?
+- [ ] Audit log açık mı?
+- [ ] Anti-cheat uyarıları kontrol edildi mi?
 
-### Kaldirma Sirasinda
+### Kaldırma Sırasında
 
-- [ ] Yedekler korunacak mi?
+- [ ] Yedekler korunacak mı?
 - [ ] Veriler silinecek mi?
 
 ---

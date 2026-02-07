@@ -101,6 +101,7 @@ set(MAKINEAI_SOURCES
 
     # Security
     src/security/security_manager.cpp
+    src/security/credential_store.cpp
 
     # Version Tracker
     src/version_tracker/version_tracker.cpp
@@ -183,6 +184,7 @@ set(MAKINEAI_HEADERS
     include/makineai/crypto_utils.hpp
     include/makineai/archive_utils.hpp
     include/makineai/concurrent_queue.hpp
+    include/makineai/credential_store.hpp
 
     # Modular Type Headers (Faz 3 refactor)
     include/makineai/types/common.hpp
@@ -303,6 +305,8 @@ if(WIN32)
     target_link_libraries(makineai_core PUBLIC
         Shlwapi
         Advapi32
+        Crypt32
+        Wintrust
         User32
     )
 endif()

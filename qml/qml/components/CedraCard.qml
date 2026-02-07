@@ -2,7 +2,7 @@ import QtQuick
 import MakineAI 1.0
 
 /**
- * CedraCard.qml - CEDRA Interactive branding card with animated gradient
+ * CedraCard.qml - MakineAI branding card with animated gradient
  */
 Item {
     id: root
@@ -99,7 +99,7 @@ Item {
                 spacing: 8
 
                 Text {
-                    text: "CEDRA Interactive"
+                    text: "MakineAI"
                     font.pixelSize: 22
                     font.weight: Font.Bold
                     color: color1

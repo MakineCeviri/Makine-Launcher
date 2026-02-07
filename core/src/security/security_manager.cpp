@@ -82,6 +82,24 @@ public:
     }
 };
 
+// Embedded public key for package signature verification.
+// Replace this placeholder with the actual production key before release.
+// Generate with: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
+//                openssl rsa -in private.pem -pubout -out public.pem
+static constexpr const char* EMBEDDED_PUBLIC_KEY_PEM = R"(
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0000000000000000PLAC
+EHOLDER000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000REPL
+ACE_WITH_REAL_KEY_BEFORE_RELEASE00000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000AQAB
+-----END PUBLIC KEY-----
+)";
+
+// Set to true when the placeholder above is replaced with a real key
+static constexpr bool EMBEDDED_KEY_IS_REAL = false;
+
 SecurityManager::SecurityManager() : impl_(std::make_unique<Impl>()) {
 #ifdef MAKINEAI_HAS_SODIUM
     if (sodium_init() < 0) {
@@ -225,6 +243,27 @@ bool SecurityManager::verifyHash(ByteSpan data, const std::string& expectedHash,
     auto result = hash(data, algo);
     if (!result) return false;
     return *result == expectedHash;
+}
+
+VoidResult SecurityManager::loadEmbeddedKey() {
+    MAKINEAI_LOG_INFO(log::SECURITY, "Loading embedded public key");
+
+    if (!EMBEDDED_KEY_IS_REAL) {
+        MAKINEAI_LOG_WARN(log::SECURITY,
+            "Embedded key is placeholder — replace before production release");
+#ifdef NDEBUG
+        // In release builds, fail if placeholder key is still present
+        return std::unexpected(Error(ErrorCode::CertificateError,
+            "Embedded public key is placeholder — build with real key for production"));
+#endif
+    }
+
+    auto result = loadPublicKeyPEM(EMBEDDED_PUBLIC_KEY_PEM);
+    if (result) {
+        AuditLogger::logSystemEvent("embedded_key_loaded",
+            "Embedded public key loaded successfully", AuditSeverity::Info);
+    }
+    return result;
 }
 
 VoidResult SecurityManager::loadPublicKey(const fs::path& keyPath) {

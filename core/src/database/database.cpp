@@ -21,9 +21,108 @@
 #ifdef _WIN32
 #include <ShlObj.h>
 #include <Windows.h>
+#include <wincrypt.h>
+#pragma comment(lib, "crypt32.lib")
 #endif
 
 namespace makineai {
+
+// ============== DPAPI FILE ENCRYPTION ==============
+
+#ifdef _WIN32
+namespace {
+
+// Get path for encrypted database file
+fs::path getEncryptedPath(const fs::path& dbPath) {
+    return fs::path(dbPath.string() + ".enc");
+}
+
+// Encrypt a file using Windows DPAPI (user-specific)
+bool dpapiEncryptFile(const fs::path& plainPath, const fs::path& encPath) {
+    // Read plaintext file
+    std::ifstream ifs(plainPath, std::ios::binary);
+    if (!ifs) return false;
+
+    std::vector<char> plainData((std::istreambuf_iterator<char>(ifs)),
+                                 std::istreambuf_iterator<char>());
+    ifs.close();
+
+    if (plainData.empty()) return false;
+
+    DATA_BLOB input{};
+    input.cbData = static_cast<DWORD>(plainData.size());
+    input.pbData = reinterpret_cast<BYTE*>(plainData.data());
+
+    DATA_BLOB output{};
+
+    // CryptProtectData — encrypts data using the current user's credentials
+    // Flag 0 = user-specific encryption (only current user can decrypt)
+    if (!CryptProtectData(&input, L"MakineAI Database",
+                          nullptr, nullptr, nullptr,
+                          0, &output)) {
+        SecureZeroMemory(plainData.data(), plainData.size());
+        return false;
+    }
+
+    // Write encrypted data
+    std::ofstream ofs(encPath, std::ios::binary);
+    if (!ofs) {
+        LocalFree(output.pbData);
+        return false;
+    }
+
+    ofs.write(reinterpret_cast<const char*>(output.pbData), output.cbData);
+    ofs.close();
+    LocalFree(output.pbData);
+
+    // Securely clear plaintext from memory
+    SecureZeroMemory(plainData.data(), plainData.size());
+
+    return true;
+}
+
+// Decrypt a DPAPI-encrypted file
+bool dpapiDecryptFile(const fs::path& encPath, const fs::path& plainPath) {
+    // Read encrypted file
+    std::ifstream ifs(encPath, std::ios::binary);
+    if (!ifs) return false;
+
+    std::vector<char> encData((std::istreambuf_iterator<char>(ifs)),
+                               std::istreambuf_iterator<char>());
+    ifs.close();
+
+    if (encData.empty()) return false;
+
+    DATA_BLOB input{};
+    input.cbData = static_cast<DWORD>(encData.size());
+    input.pbData = reinterpret_cast<BYTE*>(encData.data());
+
+    DATA_BLOB output{};
+
+    if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
+                            0, &output)) {
+        return false;
+    }
+
+    // Write decrypted data
+    std::ofstream ofs(plainPath, std::ios::binary);
+    if (!ofs) {
+        SecureZeroMemory(output.pbData, output.cbData);
+        LocalFree(output.pbData);
+        return false;
+    }
+
+    ofs.write(reinterpret_cast<const char*>(output.pbData), output.cbData);
+    ofs.close();
+
+    SecureZeroMemory(output.pbData, output.cbData);
+    LocalFree(output.pbData);
+
+    return true;
+}
+
+} // anonymous namespace
+#endif // _WIN32
 
 // ============== HELPER FUNCTIONS ==============
 
@@ -252,6 +351,20 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
 
     MAKINEAI_LOG_INFO(log::DATABASE, "Database path: {}", dbPath_.string());
 
+#ifdef _WIN32
+    // If encrypted database exists but plaintext doesn't, decrypt first
+    auto encPath = getEncryptedPath(dbPath_);
+    if (fs::exists(encPath) && !fs::exists(dbPath_)) {
+        MAKINEAI_LOG_INFO(log::DATABASE, "Decrypting database from: {}", encPath.string());
+        if (!dpapiDecryptFile(encPath, dbPath_)) {
+            MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to decrypt database — DPAPI error");
+            return std::unexpected(Error{ErrorCode::IOError,
+                "Failed to decrypt database. The database may have been created by a different user."});
+        }
+        MAKINEAI_LOG_INFO(log::DATABASE, "Database decrypted successfully");
+    }
+#endif
+
     // Open database
     int rc = sqlite3_open(dbPath_.string().c_str(), &db_);
     if (rc != SQLITE_OK) {
@@ -326,6 +439,26 @@ void Database::close() {
         db_ = nullptr;
         initialized_ = false;
         Metrics::instance().gauge("db_connections_active", 0.0);
+
+#ifdef _WIN32
+        // Encrypt database file after closing
+        if (!dbPath_.empty() && fs::exists(dbPath_)) {
+            auto encPath = getEncryptedPath(dbPath_);
+            if (dpapiEncryptFile(dbPath_, encPath)) {
+                // Remove plaintext file after successful encryption
+                std::error_code ec;
+                fs::remove(dbPath_, ec);
+                // Also remove WAL and SHM journal files
+                fs::remove(fs::path(dbPath_.string() + "-wal"), ec);
+                fs::remove(fs::path(dbPath_.string() + "-shm"), ec);
+                MAKINEAI_LOG_INFO(log::DATABASE, "Database encrypted and plaintext removed");
+            } else {
+                MAKINEAI_LOG_WARN(log::DATABASE,
+                    "Failed to encrypt database — plaintext file remains on disk");
+            }
+        }
+#endif
+
         MAKINEAI_LOG_INFO(log::DATABASE, "Database closed");
     }
 }

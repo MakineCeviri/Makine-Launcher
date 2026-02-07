@@ -94,4 +94,4 @@ Her motor icin detayli teknik bilgi:
 
 ---
 
-*MakineAI v0.1.0-alpha - CEDRA Interactive*
+*MakineAI v0.1.0-alpha*
