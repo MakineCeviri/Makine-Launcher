@@ -23,6 +23,12 @@ Item {
 
     signal clicked()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.gameName
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
+
     // HOVER STATE
     readonly property bool isHovered: mouseArea.containsMouse
 

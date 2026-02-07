@@ -234,7 +234,7 @@ Rectangle {
             // Help text
             Text {
                 Layout.fillWidth: true
-                text: "Click: toggle • Dbl: reset"
+                text: qsTr("Click: toggle • Dbl: reset")
                 font.pixelSize: 9
                 color: Theme.textMuted
                 horizontalAlignment: Text.AlignHCenter

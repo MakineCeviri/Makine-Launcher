@@ -10,6 +10,13 @@ Rectangle {
     property bool checked: false
     signal toggled()
 
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: root.title
+    Accessible.checked: root.checked
+    activeFocusOnTab: true
+    Keys.onReturnPressed: { root.checked = !root.checked; root.toggled() }
+    Keys.onSpacePressed: { root.checked = !root.checked; root.toggled() }
+
     Layout.fillWidth: true
     Layout.preferredHeight: 72
     color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"

@@ -114,6 +114,12 @@ Item {
         }
     }
 
+    Accessible.role: Accessible.Button
+    Accessible.name: "MakineAI"
+    activeFocusOnTab: true
+    Keys.onReturnPressed: Qt.openUrlExternally(Dimensions.cedraDeveloperUrl)
+    Keys.onSpacePressed: Qt.openUrlExternally(Dimensions.cedraDeveloperUrl)
+
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor

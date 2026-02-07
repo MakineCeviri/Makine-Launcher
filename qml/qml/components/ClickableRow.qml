@@ -25,6 +25,9 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: root.title
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
 
     Layout.fillWidth: true
     implicitHeight: 80

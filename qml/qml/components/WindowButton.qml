@@ -31,6 +31,9 @@ Item {
 
     signal clicked()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.tooltip
+
     // =========================================================================
     // HOVER STATE
     // =========================================================================

@@ -15,6 +15,12 @@ Rectangle {
 
     signal clicked()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.text
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
+
     implicitWidth: 200
     implicitHeight: 44
     radius: Dimensions.radiusStandard

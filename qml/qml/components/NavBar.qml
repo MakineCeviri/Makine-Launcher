@@ -148,6 +148,9 @@ Rectangle {
 
         signal clicked()
 
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Home")
+
         Layout.preferredWidth: 50
         Layout.preferredHeight: 50
 
@@ -253,6 +256,9 @@ Rectangle {
         property bool isDark: true
 
         signal clicked()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: isActive ? qsTr("AI Active") : qsTr("AI Inactive")
 
         Layout.preferredWidth: aiToggleContent.width
         Layout.preferredHeight: 50
@@ -444,6 +450,9 @@ Rectangle {
         property bool isDark: true
 
         signal clicked()
+
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Support Us")
 
         Layout.preferredWidth: donateRow.width + 24
         Layout.preferredHeight: 36

@@ -62,7 +62,7 @@ Item {
             text: root.unreadCount > 99 ? "99+" : root.unreadCount.toString()
             font.pixelSize: 9
             font.weight: Font.Bold
-            color: "#FFFFFF"
+            color: "white"
         }
     }
 
