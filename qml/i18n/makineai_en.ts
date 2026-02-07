@@ -752,6 +752,66 @@ Are you sure?</translation>
         <source>Bilinmiyor</source>
         <translation>Unknown</translation>
     </message>
+    <message>
+        <source>Geri</source>
+        <translation>Back</translation>
+    </message>
+    <message>
+        <source>motoru</source>
+        <translation>engine</translation>
+    </message>
+    <message>
+        <source>Tekrar Dene</source>
+        <translation>Retry</translation>
+    </message>
+    <message>
+        <source>Geri Dön</source>
+        <translation>Go Back</translation>
+    </message>
+    <message>
+        <source>Çeviri yeniden başlatılıyor...</source>
+        <translation>Restarting translation...</translation>
+    </message>
+    <message>
+        <source>Aşama: %1</source>
+        <translation>Phase: %1</translation>
+    </message>
+    <message>
+        <source>Çeviri başarıyla tamamlandı!</source>
+        <translation>Translation completed successfully!</translation>
+    </message>
+    <message>
+        <source>Hata: %1</source>
+        <translation>Error: %1</translation>
+    </message>
+    <message>
+        <source>QA tamamlandı: %1 geçti, %2 başarısız (Skor: %3)</source>
+        <translation>QA completed: %1 passed, %2 failed (Score: %3)</translation>
+    </message>
+    <message>
+        <source>Bilinmeyen sorun</source>
+        <translation>Unknown issue</translation>
+    </message>
+    <message>
+        <source>QA sorunları yoksayıldı, devam ediliyor...</source>
+        <translation>QA issues ignored, continuing...</translation>
+    </message>
+    <message>
+        <source>QA sorunları inceleniyor...</source>
+        <translation>Reviewing QA issues...</translation>
+    </message>
+    <message>
+        <source>TM eşleşme (%%1): %2...</source>
+        <translation>TM match (%%1): %2...</translation>
+    </message>
+    <message>
+        <source>Eşleştirme tamamlandı: %1/%2 çeviri bulundu</source>
+        <translation>Matching completed: %1/%2 translations found</translation>
+    </message>
+    <message>
+        <source>Çeviri başlatılıyor: %1</source>
+        <translation>Starting translation: %1</translation>
+    </message>
 </context>
 <context>
     <name>SplashScreen</name>

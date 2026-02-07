@@ -42,12 +42,14 @@ Item {
                 Layout.fillWidth: true
                 spacing: 16
 
-                // Geri butonu
+                // Back button
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
                     radius: Dimensions.radiusStandard
                     color: backBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Geri")
 
                     Label {
                         anchors.centerIn: parent
@@ -85,7 +87,7 @@ Item {
                     }
 
                     Label {
-                        text: root.gameEngine + " motoru"
+                        text: root.gameEngine + " " + qsTr("motoru")
                         font.pixelSize: 13
                         color: Theme.textMuted
                     }
@@ -279,7 +281,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: 12
 
-                            // Iptal butonu
+                            // Cancel button (visible during processing)
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 44
@@ -288,6 +290,8 @@ Item {
                                 border.color: cancelBtnMouse.containsMouse ? Theme.error : Qt.rgba(1, 1, 1, 0.1)
                                 border.width: 1
                                 visible: TranslationService.isProcessing
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("İptal Et")
 
                                 Label {
                                     anchors.centerIn: parent
@@ -306,12 +310,75 @@ Item {
                                 }
                             }
 
-                            // Bitir butonu (tamamlandiysa)
+                            // Retry button (visible on error)
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 44
+                                radius: Dimensions.radiusStandard
+                                visible: TranslationService.phase === 7
+                                color: retryBtnMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Qt.rgba(1, 1, 1, 0.05)
+                                border.color: retryBtnMouse.containsMouse ? Theme.warning : Qt.rgba(1, 1, 1, 0.1)
+                                border.width: 1
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("Tekrar Dene")
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: qsTr("Tekrar Dene")
+                                    font.pixelSize: 14
+                                    font.weight: Font.Medium
+                                    color: retryBtnMouse.containsMouse ? Theme.warning : Theme.textSecondary
+                                }
+
+                                MouseArea {
+                                    id: retryBtnMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        addActivity(qsTr("Çeviri yeniden başlatılıyor..."), "info")
+                                        TranslationService.startTranslation(root.gameId, root.gameName, root.gamePath)
+                                    }
+                                }
+                            }
+
+                            // Back button (visible on error)
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 44
+                                radius: Dimensions.radiusStandard
+                                visible: TranslationService.phase === 7
+                                color: errorBackMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
+                                border.color: Qt.rgba(1, 1, 1, 0.1)
+                                border.width: 1
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("Geri Dön")
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: qsTr("Geri Dön")
+                                    font.pixelSize: 14
+                                    font.weight: Font.Medium
+                                    color: Theme.textSecondary
+                                }
+
+                                MouseArea {
+                                    id: errorBackMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.backClicked()
+                                }
+                            }
+
+                            // Complete button (visible when done)
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 44
                                 radius: Dimensions.radiusStandard
                                 visible: TranslationService.phase === 6
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("Tamam")
 
                                 gradient: Gradient {
                                     orientation: Gradient.Horizontal
@@ -747,11 +814,11 @@ Item {
         parent: Overlay.overlay
 
         onIgnoreAndContinue: {
-            addActivity("QA sorunları yoksayıldı, devam ediliyor...", "warning")
+            addActivity(qsTr("QA sorunları yoksayıldı, devam ediliyor..."), "warning")
         }
 
         onFixIssues: {
-            addActivity("QA sorunları inceleniyor...", "info")
+            addActivity(qsTr("QA sorunları inceleniyor..."), "info")
         }
     }
 
@@ -760,8 +827,8 @@ Item {
         target: TranslationService
 
         function onPhaseChanged() {
-            var phaseNames = ["Hazır", "Tespit", "Çıkarma", "Eşleştirme", "İnceleme", "Uygulama", "Tamamlandı", "Hata"]
-            addActivity("Aşama: " + phaseNames[TranslationService.phase], "info")
+            var phaseNames = [qsTr("Hazır"), qsTr("Tespit"), qsTr("Çıkarma"), qsTr("Eşleştirme"), qsTr("İnceleme"), qsTr("Uygulama"), qsTr("Tamamlandı"), qsTr("Hata")]
+            addActivity(qsTr("Aşama: %1").arg(phaseNames[TranslationService.phase]), "info")
         }
 
         function onStatusMessageChanged() {
@@ -771,15 +838,15 @@ Item {
         }
 
         function onTranslationCompleted(gameId) {
-            addActivity("Çeviri başarıyla tamamlandı!", "success")
+            addActivity(qsTr("Çeviri başarıyla tamamlandı!"), "success")
         }
 
         function onTranslationError(gameId, error) {
-            addActivity("Hata: " + error, "error")
+            addActivity(qsTr("Hata: %1").arg(error), "error")
         }
 
         function onQaCompleted(passed, failed, avgScore, issues) {
-            addActivity("QA tamamlandı: " + passed + " geçti, " + failed + " başarısız (Skor: " + avgScore + ")",
+            addActivity(qsTr("QA tamamlandı: %1 geçti, %2 başarısız (Skor: %3)").arg(passed).arg(failed).arg(avgScore),
                        failed > 0 ? "warning" : "success")
 
             // Show dialog if there are issues
@@ -797,7 +864,7 @@ Item {
                         code: issue.code || "QA_UNKNOWN",
                         message: issue.message || (issue.sourceText
                             ? issue.sourceText.substring(0, 50) + (issue.sourceText.length > 50 ? "..." : "")
-                            : "Unknown issue"),
+                            : qsTr("Bilinmeyen sorun")),
                         severity: severityMap[issue.severity] || 1,
                         penaltyPoints: issue.penaltyPoints || 0
                     }
@@ -814,21 +881,21 @@ Item {
         function onTmMatchFound(source, target, similarity) {
             var percent = Math.round(similarity * 100)
             if (percent >= 90) {
-                addActivity("TM eşleşme (%100): " + source.substring(0, 30) + "...", "success")
+                addActivity(qsTr("TM eşleşme (%%1): %2...").arg(100).arg(source.substring(0, 30)), "success")
             } else if (percent >= 70) {
-                addActivity("TM eşleşme (%" + percent + "): " + source.substring(0, 30) + "...", "info")
+                addActivity(qsTr("TM eşleşme (%%1): %2...").arg(percent).arg(source.substring(0, 30)), "info")
             }
         }
 
         function onMatchingCompleted(matched, total) {
-            addActivity("Eşleştirme tamamlandı: " + matched + "/" + total + " çeviri bulundu", "success")
+            addActivity(qsTr("Eşleştirme tamamlandı: %1/%2 çeviri bulundu").arg(matched).arg(total), "success")
         }
     }
 
     // Start translation when screen loads (if game info is provided)
     Component.onCompleted: {
         if (root.gameId && root.gamePath && root.gameEngine) {
-            addActivity("Çeviri başlatılıyor: " + root.gameName, "info")
+            addActivity(qsTr("Çeviri başlatılıyor: %1").arg(root.gameName), "info")
             TranslationService.startTranslation(root.gameId, root.gameName, root.gamePath)
         }
     }
