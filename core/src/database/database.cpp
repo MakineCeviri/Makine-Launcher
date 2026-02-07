@@ -14,6 +14,7 @@
 #include <sqlite3.h>
 
 #include <chrono>
+#include <fstream>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -43,8 +44,8 @@ bool dpapiEncryptFile(const fs::path& plainPath, const fs::path& encPath) {
     std::ifstream ifs(plainPath, std::ios::binary);
     if (!ifs) return false;
 
-    std::vector<char> plainData((std::istreambuf_iterator<char>(ifs)),
-                                 std::istreambuf_iterator<char>());
+    std::vector<char> plainData(std::istreambuf_iterator<char>{ifs},
+                                 std::istreambuf_iterator<char>{});
     ifs.close();
 
     if (plainData.empty()) return false;
@@ -87,8 +88,8 @@ bool dpapiDecryptFile(const fs::path& encPath, const fs::path& plainPath) {
     std::ifstream ifs(encPath, std::ios::binary);
     if (!ifs) return false;
 
-    std::vector<char> encData((std::istreambuf_iterator<char>(ifs)),
-                               std::istreambuf_iterator<char>());
+    std::vector<char> encData(std::istreambuf_iterator<char>{ifs},
+                               std::istreambuf_iterator<char>{});
     ifs.close();
 
     if (encData.empty()) return false;
