@@ -28,12 +28,19 @@ Dialog {
     property int warningCount: issues.filter(i => i.severity === 2).length
     property int infoCount: issues.filter(i => i.severity === 1).length
 
+    // Severity filter (0 = show all, 1-4 = specific severity)
+    property int activeSeverityFilter: 0
+    property var filteredIssues: activeSeverityFilter === 0
+        ? issues
+        : issues.filter(i => i.severity === activeSeverityFilter)
+
     signal ignoreAndContinue()
     signal fixIssues()
 
     title: "Kalite Kontrol Sonuçları"
     modal: true
     closePolicy: Popup.CloseOnEscape
+    onOpened: activeSeverityFilter = 0
     width: 550
     height: Math.min(550, contentColumn.implicitHeight + 250)
 
@@ -125,16 +132,46 @@ Dialog {
 
                 Text {
                     text: root.issues.length > 0
-                        ? root.issues.length + " sorun tespit edildi"
+                        ? (root.activeSeverityFilter > 0
+                            ? root.filteredIssues.length + "/" + root.issues.length + " sorun gösteriliyor"
+                            : root.issues.length + " sorun tespit edildi")
                         : "Sorun tespit edilmedi"
                     font.pixelSize: 13
                     color: Theme.textMuted
                 }
 
-                // Issue summary badges
+                // Issue summary badges (clickable for filtering)
                 RowLayout {
                     spacing: 8
                     visible: root.issues.length > 0
+
+                    // "All" badge
+                    Rectangle {
+                        visible: root.issues.length > 1
+                        width: allBadgeText.width + 12
+                        height: 20
+                        radius: Dimensions.radiusStandard
+                        color: root.activeSeverityFilter === 0
+                            ? Theme.withAlpha(Theme.primary, 0.3)
+                            : Theme.withAlpha(Theme.primary, 0.1)
+                        border.color: root.activeSeverityFilter === 0 ? Theme.primary : "transparent"
+                        border.width: root.activeSeverityFilter === 0 ? 1 : 0
+
+                        Text {
+                            id: allBadgeText
+                            anchors.centerIn: parent
+                            text: "Tümü"
+                            font.pixelSize: 10
+                            font.weight: Font.Medium
+                            color: Theme.primary
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.activeSeverityFilter = 0
+                        }
+                    }
 
                     // Critical badge
                     Rectangle {
@@ -142,7 +179,11 @@ Dialog {
                         width: criticalBadgeText.width + 12
                         height: 20
                         radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(colorCritical, 0.15)
+                        color: root.activeSeverityFilter === 4
+                            ? Theme.withAlpha(colorCritical, 0.3)
+                            : Theme.withAlpha(colorCritical, 0.15)
+                        border.color: root.activeSeverityFilter === 4 ? colorCritical : "transparent"
+                        border.width: root.activeSeverityFilter === 4 ? 1 : 0
 
                         Text {
                             id: criticalBadgeText
@@ -152,6 +193,12 @@ Dialog {
                             font.weight: Font.Medium
                             color: colorCritical
                         }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.activeSeverityFilter = root.activeSeverityFilter === 4 ? 0 : 4
+                        }
                     }
 
                     // Major badge
@@ -160,7 +207,11 @@ Dialog {
                         width: majorBadgeText.width + 12
                         height: 20
                         radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(colorMajor, 0.15)
+                        color: root.activeSeverityFilter === 3
+                            ? Theme.withAlpha(colorMajor, 0.3)
+                            : Theme.withAlpha(colorMajor, 0.15)
+                        border.color: root.activeSeverityFilter === 3 ? colorMajor : "transparent"
+                        border.width: root.activeSeverityFilter === 3 ? 1 : 0
 
                         Text {
                             id: majorBadgeText
@@ -170,6 +221,12 @@ Dialog {
                             font.weight: Font.Medium
                             color: colorMajor
                         }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.activeSeverityFilter = root.activeSeverityFilter === 3 ? 0 : 3
+                        }
                     }
 
                     // Warning badge
@@ -178,7 +235,11 @@ Dialog {
                         width: warningBadgeText.width + 12
                         height: 20
                         radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(colorWarning, 0.15)
+                        color: root.activeSeverityFilter === 2
+                            ? Theme.withAlpha(colorWarning, 0.3)
+                            : Theme.withAlpha(colorWarning, 0.15)
+                        border.color: root.activeSeverityFilter === 2 ? colorWarning : "transparent"
+                        border.width: root.activeSeverityFilter === 2 ? 1 : 0
 
                         Text {
                             id: warningBadgeText
@@ -187,6 +248,12 @@ Dialog {
                             font.pixelSize: 10
                             font.weight: Font.Medium
                             color: colorWarning
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.activeSeverityFilter = root.activeSeverityFilter === 2 ? 0 : 2
                         }
                     }
                 }
@@ -283,7 +350,7 @@ Dialog {
 
             ListView {
                 id: issuesList
-                model: root.issues
+                model: root.filteredIssues
                 spacing: 8
 
                 delegate: Rectangle {
