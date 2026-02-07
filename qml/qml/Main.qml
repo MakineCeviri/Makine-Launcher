@@ -290,6 +290,12 @@ ApplicationWindow {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: integrityBanner.visible = false
                     }
+
+                    ToolTip {
+                        visible: dismissMouse.containsMouse
+                        text: qsTr("Kapat")
+                        delay: 500
+                    }
                 }
             }
 

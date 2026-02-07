@@ -264,6 +264,11 @@
         <source>Delete backup</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../qml/components/BackupListItem.qml" line="136"/>
+        <source>Yedeği sil</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>BatchOperationsPanel</name>
@@ -1342,152 +1347,153 @@ otomatik olarak tespit edilecektir.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="297"/>
+        <location filename="../qml/Main.qml" line="303"/>
         <source>Security warning: binary integrity check failed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="598"/>
+        <location filename="../qml/Main.qml" line="604"/>
         <source>Güncelleme Mevcut</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="599"/>
+        <location filename="../qml/Main.qml" line="605"/>
         <source>Yeni sürüm mevcut: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="611"/>
+        <location filename="../qml/Main.qml" line="617"/>
         <source>Paket Hazır: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="612"/>
+        <location filename="../qml/Main.qml" line="618"/>
         <source>Oyun: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="618"/>
+        <location filename="../qml/Main.qml" line="624"/>
         <source>Paket Hatası</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="626"/>
+        <location filename="../qml/Main.qml" line="632"/>
         <source>Oyun Eklendi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="672"/>
+        <location filename="../qml/Main.qml" line="678"/>
         <source>Çeviri Paketi Algılandı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="673"/>
+        <location filename="../qml/Main.qml" line="679"/>
         <source>Paket yükleme hazırlanıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="678"/>
+        <location filename="../qml/Main.qml" line="684"/>
         <source>Arşiv Algılandı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="679"/>
+        <location filename="../qml/Main.qml" line="685"/>
         <source>Arşiv içeriği analiz ediliyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="684"/>
+        <location filename="../qml/Main.qml" line="690"/>
         <source>Klasör Algılandı</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="685"/>
+        <location filename="../qml/Main.qml" line="691"/>
         <source>Oyun klasörü algılanıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="841"/>
+        <location filename="../qml/Main.qml" line="847"/>
         <source>Minimize to Tray</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="847"/>
+        <location filename="../qml/Main.qml" line="853"/>
         <source>Minimize</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="853"/>
+        <location filename="../qml/Main.qml" line="859"/>
         <source>Restore</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="853"/>
+        <location filename="../qml/Main.qml" line="859"/>
         <source>Maximize</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="860"/>
+        <location filename="../qml/Main.qml" line="866"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="954"/>
+        <location filename="../qml/Main.qml" line="960"/>
         <source>Home</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1022"/>
+        <location filename="../qml/Main.qml" line="1028"/>
         <source>Ana Menü</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1032"/>
+        <location filename="../qml/Main.qml" line="1038"/>
         <source>AI Active</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1032"/>
+        <location filename="../qml/Main.qml" line="1038"/>
         <source>AI Inactive</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1092"/>
+        <location filename="../qml/Main.qml" line="296"/>
+        <location filename="../qml/Main.qml" line="1098"/>
         <source>Kapat</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1092"/>
+        <location filename="../qml/Main.qml" line="1098"/>
         <source>Türkçe Yama</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1151"/>
+        <location filename="../qml/Main.qml" line="1157"/>
         <source>Türkçe Yamayı Kapat</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1151"/>
+        <location filename="../qml/Main.qml" line="1157"/>
         <source>Türkçe Yamayı Aç</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1157"/>
+        <location filename="../qml/Main.qml" line="1163"/>
         <source>Projelerimiz</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1163"/>
+        <location filename="../qml/Main.qml" line="1169"/>
         <source>Ayarlar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1187"/>
+        <location filename="../qml/Main.qml" line="1193"/>
         <source>Support Us</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1279"/>
+        <location filename="../qml/Main.qml" line="1285"/>
         <source>Destekçi Ol</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1978,7 +1984,7 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
     </message>
     <message>
         <location filename="../qml/SettingsScreen.qml" line="28"/>
-        <location filename="../qml/SettingsScreen.qml" line="800"/>
+        <location filename="../qml/SettingsScreen.qml" line="806"/>
         <source>Geliştirici</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2123,192 +2129,197 @@ Ana ekrandan bir oyun seç ve Türkçe çevirisini yükle!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="729"/>
+        <location filename="../qml/SettingsScreen.qml" line="702"/>
+        <source>Yedeği sil</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/SettingsScreen.qml" line="735"/>
         <source>Geri yükleniyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="753"/>
+        <location filename="../qml/SettingsScreen.qml" line="759"/>
         <source>Donanım Hızlandırma</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="754"/>
+        <location filename="../qml/SettingsScreen.qml" line="760"/>
         <source>GPU kullanarak daha hızlı çeviri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="762"/>
+        <location filename="../qml/SettingsScreen.qml" line="768"/>
         <source>Global Önbellek</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="763"/>
+        <location filename="../qml/SettingsScreen.qml" line="769"/>
         <source>Çevirileri tüm oyunlar için paylaş</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="771"/>
+        <location filename="../qml/SettingsScreen.qml" line="777"/>
         <source>Uygulama Animasyonları</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="772"/>
+        <location filename="../qml/SettingsScreen.qml" line="778"/>
         <source>Arayüz animasyonlarını etkinleştir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="796"/>
+        <location filename="../qml/SettingsScreen.qml" line="802"/>
         <source>Uygulama</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="798"/>
+        <location filename="../qml/SettingsScreen.qml" line="804"/>
         <source>Versiyon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="800"/>
+        <location filename="../qml/SettingsScreen.qml" line="806"/>
         <source>MakineAI Ekibi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="802"/>
+        <location filename="../qml/SettingsScreen.qml" line="808"/>
         <source>Lisans</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="802"/>
+        <location filename="../qml/SettingsScreen.qml" line="808"/>
         <source>Özel Lisans</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="804"/>
+        <location filename="../qml/SettingsScreen.qml" line="810"/>
         <source>Platform</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="819"/>
+        <location filename="../qml/SettingsScreen.qml" line="825"/>
         <source>Discord Desteği</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="820"/>
+        <location filename="../qml/SettingsScreen.qml" line="826"/>
         <source>Topluluk ve yardım için Discord sunucumuza katılın</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="829"/>
+        <location filename="../qml/SettingsScreen.qml" line="835"/>
         <source>Kaynak kodu, hata bildirimi ve katkılar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="837"/>
+        <location filename="../qml/SettingsScreen.qml" line="843"/>
         <source>Geri Bildirim</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="838"/>
+        <location filename="../qml/SettingsScreen.qml" line="844"/>
         <source>Hata bildirimi ve öneriler için web sitemizi ziyaret edin</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="864"/>
+        <location filename="../qml/SettingsScreen.qml" line="870"/>
         <source>Açık Kaynak Lisanslar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="929"/>
+        <location filename="../qml/SettingsScreen.qml" line="935"/>
         <source>Test Verisi Aktar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="930"/>
+        <location filename="../qml/SettingsScreen.qml" line="936"/>
         <source>Translation Memory&apos;ye 30 test çevirisi ekle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="935"/>
+        <location filename="../qml/SettingsScreen.qml" line="941"/>
         <source>Test verisi aktarılıyor...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="980"/>
+        <location filename="../qml/SettingsScreen.qml" line="986"/>
         <source>%1 çeviri eklendi!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="987"/>
+        <location filename="../qml/SettingsScreen.qml" line="993"/>
         <source>TM&apos;yi Temizle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="988"/>
+        <location filename="../qml/SettingsScreen.qml" line="994"/>
         <source>Tüm Translation Memory verilerini sil</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="992"/>
+        <location filename="../qml/SettingsScreen.qml" line="998"/>
         <source>Bu özellik henüz aktif değil</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="999"/>
+        <location filename="../qml/SettingsScreen.qml" line="1005"/>
         <source>TM İstatistikleri</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1000"/>
+        <location filename="../qml/SettingsScreen.qml" line="1006"/>
         <source>Translation Memory durumunu göster</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1004"/>
+        <location filename="../qml/SettingsScreen.qml" line="1010"/>
         <source>TM/Glossary İstatistikleri:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1005"/>
+        <location filename="../qml/SettingsScreen.qml" line="1011"/>
         <source>Glossary Terimleri: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1006"/>
+        <location filename="../qml/SettingsScreen.qml" line="1012"/>
         <source>Durum: Aktif</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1160"/>
+        <location filename="../qml/SettingsScreen.qml" line="1166"/>
         <source>Tema</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1167"/>
+        <location filename="../qml/SettingsScreen.qml" line="1173"/>
         <source>Uygulama görünümünü seç</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1201"/>
+        <location filename="../qml/SettingsScreen.qml" line="1207"/>
         <source>Light theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1219"/>
+        <location filename="../qml/SettingsScreen.qml" line="1225"/>
         <source>Açık</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1252"/>
+        <location filename="../qml/SettingsScreen.qml" line="1258"/>
         <source>Dark theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1270"/>
+        <location filename="../qml/SettingsScreen.qml" line="1276"/>
         <source>Koyu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1501"/>
+        <location filename="../qml/SettingsScreen.qml" line="1507"/>
         <source>Yakında</source>
         <translation type="unfinished"></translation>
     </message>

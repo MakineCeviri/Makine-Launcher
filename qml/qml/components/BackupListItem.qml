@@ -131,6 +131,10 @@ Rectangle {
                 onClicked: {
                     BackupManager.deleteBackup(root.modelData.id)
                 }
+
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Yedeği sil")
+                ToolTip.delay: 500
             }
         }
     }

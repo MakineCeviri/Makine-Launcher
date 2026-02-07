@@ -696,6 +696,12 @@ Item {
                                             BackupManager.deleteBackup(modelData.id)
                                         }
                                     }
+
+                                    ToolTip {
+                                        visible: deleteBtnMouse.containsMouse
+                                        text: qsTr("Yedeği sil")
+                                        delay: 500
+                                    }
                                 }
                             }
 
