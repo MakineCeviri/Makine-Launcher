@@ -210,6 +210,48 @@ Select a game from the main screen and install its Turkish translation!</transla
         <source>Destekçi Ol</source>
         <translation>Become a Supporter</translation>
     </message>
+    <message>
+        <source>Güncelleme Mevcut</source>
+        <translation>Update Available</translation>
+    </message>
+</context>
+<context>
+    <name>NotificationBell</name>
+    <message>
+        <source>%1 yeni bildirim</source>
+        <translation>%1 new notifications</translation>
+    </message>
+    <message>
+        <source>Bildirimler</source>
+        <translation>Notifications</translation>
+    </message>
+    <message>
+        <source>Notifications</source>
+        <translation>Notifications</translation>
+    </message>
+</context>
+<context>
+    <name>NotificationPanel</name>
+    <message>
+        <source>Bildirimler</source>
+        <translation>Notifications</translation>
+    </message>
+    <message>
+        <source>Tümünü oku</source>
+        <translation>Mark all read</translation>
+    </message>
+    <message>
+        <source>Bildirim yok</source>
+        <translation>No notifications</translation>
+    </message>
+    <message>
+        <source>Yeni çeviriler ve güncellemeler burada görünecek</source>
+        <translation>New translations and updates will appear here</translation>
+    </message>
+    <message>
+        <source>Tümünü temizle</source>
+        <translation>Clear all</translation>
+    </message>
 </context>
 <context>
     <name>HomeScreen</name>

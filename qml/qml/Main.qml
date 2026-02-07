@@ -26,6 +26,46 @@ ApplicationWindow {
 
     property int currentNavIndex: 0
     property bool aiActive: false
+    property bool notificationPanelOpen: false
+
+    // Notification model with unread tracking
+    property QtObject notificationModel: QtObject {
+        property int unreadCount: 0
+
+        property ListModel items: ListModel {
+            id: notificationListModel
+        }
+
+        function addNotification(title, message, type) {
+            items.insert(0, {
+                "title": title,
+                "message": message,
+                "type": type || "info",
+                "time": Qt.formatTime(new Date(), "HH:mm"),
+                "read": false
+            })
+            unreadCount++
+        }
+
+        function markAllAsRead() {
+            for (var i = 0; i < items.count; i++) {
+                items.setProperty(i, "read", true)
+            }
+            unreadCount = 0
+        }
+
+        function markAsRead(index) {
+            if (index >= 0 && index < items.count && !items.get(index).read) {
+                items.setProperty(index, "read", true)
+                unreadCount = Math.max(0, unreadCount - 1)
+            }
+        }
+
+        function clear() {
+            items.clear()
+            unreadCount = 0
+        }
+    }
 
     readonly property int resizeMargin: 6
 
@@ -276,6 +316,16 @@ ApplicationWindow {
                 }
             }
             onDonateClicked: Qt.openUrlExternally(Dimensions.donatePageUrl)
+            onNotificationClicked: {
+                window.notificationPanelOpen = !window.notificationPanelOpen
+                notificationPanel.x = navBar.width - notificationPanel.width - 80
+                notificationPanel.y = navBar.y + navBar.height + 4
+                if (window.notificationPanelOpen) {
+                    notificationPanel.open()
+                } else {
+                    notificationPanel.close()
+                }
+            }
         }
 
         // ===== CONTENT STACK - Simple crossfade transitions =====
@@ -457,6 +507,61 @@ ApplicationWindow {
                     GradientStop { position: 0.0; color: "transparent" }
                     GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
                 }
+            }
+        }
+    }
+
+    // ===== NOTIFICATION PANEL =====
+    NotificationPanel {
+        id: notificationPanel
+        parent: Overlay.overlay
+        model: window.notificationModel.items
+        z: 60
+
+        onClosed: window.notificationPanelOpen = false
+        onNotificationClicked: function(index) {
+            window.notificationModel.markAsRead(index)
+        }
+        onMarkAllRead: window.notificationModel.markAllAsRead()
+        onClearAll: {
+            window.notificationModel.clear()
+            notificationPanel.close()
+        }
+    }
+
+    // ===== NOTIFICATION TOAST =====
+    NotificationToast {
+        id: notificationToast
+        parent: Overlay.overlay
+        z: 200
+
+        onClicked: {
+            notificationToast.dismiss()
+            if (!window.notificationPanelOpen) {
+                window.notificationPanelOpen = true
+                notificationPanel.x = window.width - notificationPanel.width - 80
+                notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
+                notificationPanel.open()
+            }
+        }
+    }
+
+    // Convenience function to show notifications from anywhere
+    function showNotification(title, message, type) {
+        window.notificationModel.addNotification(title, message, type)
+        notificationToast.show(title, message, type, 5000)
+    }
+
+    // Wire up existing update notification from HomeScreen
+    Connections {
+        target: homeView
+        function onUpdateAvailableChanged() {
+            if (homeView.updateAvailable) {
+                window.showNotification(
+                    qsTr("Güncelleme Mevcut"),
+                    qsTr("Yeni sürüm mevcut: ") + homeView.latestVersion,
+                    "update"
+                )
             }
         }
     }
@@ -691,6 +796,7 @@ ApplicationWindow {
         signal settingsClicked()
         signal donateClicked()
         signal aiToggleClicked(bool active)
+        signal notificationClicked()
 
         property bool aiActive: false
 
@@ -921,6 +1027,17 @@ ApplicationWindow {
             }
 
             Item { Layout.fillWidth: true }
+
+            // Notification bell
+            NotificationBell {
+                id: navNotificationBell
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                Layout.alignment: Qt.AlignVCenter
+                unreadCount: window.notificationModel.unreadCount
+                panelOpen: window.notificationPanelOpen
+                onClicked: navBarRoot.notificationClicked()
+            }
 
             Item {
                 id: donateItem

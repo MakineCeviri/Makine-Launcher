@@ -1,0 +1,335 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Effects
+import MakineAI 1.0
+
+/**
+ * NotificationPanel.qml - Dropdown notification panel
+ *
+ * Shows notification list with categories, read/unread state,
+ * and actions. Anchors below the bell icon in NavBar.
+ */
+Popup {
+    id: root
+
+    property alias model: notificationList.model
+
+    signal notificationClicked(int index)
+    signal markAllRead()
+    signal clearAll()
+
+    width: 360
+    height: Math.min(contentHeight, 480)
+    padding: 0
+    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    readonly property real contentHeight: headerItem.height + listContainer.implicitHeight + footerItem.height + 2
+
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150 }
+        NumberAnimation { property: "y"; from: root.y - 8; to: root.y; duration: 150; easing.type: Easing.OutCubic }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 100 }
+    }
+
+    background: Rectangle {
+        color: Theme.surface
+        radius: Dimensions.radiusLG
+        border.color: Qt.rgba(1, 1, 1, 0.08)
+        border.width: 1
+
+        // Drop shadow
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Qt.rgba(0, 0, 0, 0.4)
+            shadowBlur: 1.0
+            shadowVerticalOffset: 8
+            shadowHorizontalOffset: 0
+        }
+    }
+
+    contentItem: ColumnLayout {
+        spacing: 0
+
+        // Header
+        Item {
+            id: headerItem
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                anchors.rightMargin: 12
+
+                Text {
+                    text: qsTr("Bildirimler")
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                }
+
+                Item { Layout.fillWidth: true }
+
+                // Mark all read button
+                Rectangle {
+                    Layout.preferredHeight: 28
+                    Layout.preferredWidth: markAllText.implicitWidth + 16
+                    radius: Dimensions.radiusXS
+                    color: markAllMouse.containsMouse
+                        ? Theme.withAlpha(Theme.primary, 0.1) : "transparent"
+                    visible: root.model && root.model.count > 0
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        id: markAllText
+                        anchors.centerIn: parent
+                        text: qsTr("Tümünü oku")
+                        font.pixelSize: 11
+                        font.weight: Font.Medium
+                        color: Theme.primary
+                    }
+
+                    MouseArea {
+                        id: markAllMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.markAllRead()
+                    }
+                }
+            }
+
+            // Bottom border
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.06)
+            }
+        }
+
+        // Notification list
+        Item {
+            id: listContainer
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 80
+            implicitHeight: notificationList.count > 0
+                ? Math.min(notificationList.contentHeight, 360) : 120
+
+            ListView {
+                id: notificationList
+                anchors.fill: parent
+                clip: true
+                spacing: 0
+                boundsBehavior: Flickable.StopAtBounds
+
+                ScrollBar.vertical: ScrollBar {
+                    policy: notificationList.contentHeight > notificationList.height
+                        ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                }
+
+                delegate: Rectangle {
+                    id: delegateRoot
+                    width: notificationList.width
+                    height: delegateLayout.implicitHeight + 20
+                    color: delegateMouse.containsMouse
+                        ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
+
+                    required property int index
+                    required property string title
+                    required property string message
+                    required property string time
+                    required property string type
+                    required property bool read
+
+                    Behavior on color { ColorAnimation { duration: 100 } }
+
+                    RowLayout {
+                        id: delegateLayout
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 16
+                        anchors.topMargin: 10
+                        anchors.bottomMargin: 10
+                        spacing: 12
+
+                        // Type indicator
+                        Rectangle {
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
+                            Layout.alignment: Qt.AlignTop
+                            radius: 8
+                            color: {
+                                switch(delegateRoot.type) {
+                                    case "update": return Theme.withAlpha(Theme.notificationUpdate, 0.15)
+                                    case "warning": return Theme.withAlpha(Theme.notificationWarning, 0.15)
+                                    case "error": return Theme.withAlpha(Theme.notificationError, 0.15)
+                                    case "success": return Theme.withAlpha(Theme.success, 0.15)
+                                    default: return Theme.withAlpha(Theme.primary, 0.15)
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                font.pixelSize: 14
+                                text: {
+                                    switch(delegateRoot.type) {
+                                        case "update": return "\u2B06" // up arrow
+                                        case "warning": return "\u26A0" // warning
+                                        case "error": return "\u2716" // cross
+                                        case "success": return "\u2714" // check
+                                        case "translation": return "\uD83C\uDF0D" // globe
+                                        default: return "\u2139" // info
+                                    }
+                                }
+                            }
+                        }
+
+                        // Content
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: delegateRoot.title
+                                    font.pixelSize: 12
+                                    font.weight: delegateRoot.read ? Font.Normal : Font.DemiBold
+                                    color: delegateRoot.read ? Theme.textSecondary : Theme.textPrimary
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 1
+                                }
+
+                                // Unread dot
+                                Rectangle {
+                                    visible: !delegateRoot.read
+                                    Layout.preferredWidth: 6
+                                    Layout.preferredHeight: 6
+                                    Layout.alignment: Qt.AlignVCenter
+                                    radius: 3
+                                    color: Theme.primary
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: delegateRoot.message
+                                font.pixelSize: 11
+                                color: Theme.textMuted
+                                wrapMode: Text.WordWrap
+                                maximumLineCount: 2
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: delegateRoot.time
+                                font.pixelSize: 10
+                                color: Theme.textMuted
+                                opacity: 0.7
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: delegateMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.notificationClicked(delegateRoot.index)
+                    }
+
+                    // Bottom separator
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 16
+                        height: 1
+                        color: Qt.rgba(1, 1, 1, 0.04)
+                        visible: delegateRoot.index < notificationList.count - 1
+                    }
+                }
+
+                // Empty state
+                Item {
+                    anchors.fill: parent
+                    visible: notificationList.count === 0
+
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "\uD83D\uDD14" // bell emoji
+                            font.pixelSize: 28
+                            opacity: 0.5
+                        }
+
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: qsTr("Bildirim yok")
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                            color: Theme.textSecondary
+                        }
+
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: qsTr("Yeni çeviriler ve güncellemeler burada görünecek")
+                            font.pixelSize: 11
+                            color: Theme.textMuted
+                        }
+                    }
+                }
+            }
+        }
+
+        // Footer
+        Item {
+            id: footerItem
+            Layout.fillWidth: true
+            Layout.preferredHeight: notificationList.count > 0 ? 40 : 0
+            visible: notificationList.count > 0
+
+            // Top border
+            Rectangle {
+                anchors.top: parent.top
+                width: parent.width
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.06)
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: qsTr("Tümünü temizle")
+                font.pixelSize: 11
+                font.weight: Font.Medium
+                color: clearMouse.containsMouse ? Theme.error : Theme.textMuted
+                opacity: clearMouse.containsMouse ? 1.0 : 0.7
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on opacity { NumberAnimation { duration: 150 } }
+            }
+
+            MouseArea {
+                id: clearMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.clearAll()
+            }
+        }
+    }
+}

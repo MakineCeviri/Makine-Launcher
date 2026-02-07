@@ -198,6 +198,11 @@ qt_add_qml_module(MakineAI
         qml/components/MinimalTitleBar.qml
         qml/components/TitleBar.qml
 
+        # Components - Notifications
+        qml/components/NotificationBell.qml
+        qml/components/NotificationPanel.qml
+        qml/components/NotificationToast.qml
+
         # Components - Splash
         qml/components/SplashLogoSection.qml
         qml/components/SplashProgressBar.qml
@@ -248,7 +253,9 @@ qt_add_qml_module(MakineAI
     RESOURCES
         # SVG icons (19 active)
         resources/icons/arrow_right.svg
+        resources/icons/bell.svg
         resources/icons/box.svg
+        resources/icons/check-circle.svg
         resources/icons/chevron-right.svg
         resources/icons/close.svg
         resources/icons/delete.svg
