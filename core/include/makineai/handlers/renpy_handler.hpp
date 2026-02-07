@@ -4,7 +4,8 @@
  * @copyright (c) 2026 MakineAI Team
  *
  * Supports:
- * - .rpy script files
+ * - .rpy script files (loose and inside .rpa archives)
+ * - .rpa archive extraction (RPA-2.0, RPA-3.0)
  * - Dialogue extraction
  * - Character definitions
  * - Menu choices
@@ -33,7 +34,7 @@ public:
     }
 
     [[nodiscard]] std::vector<std::string> supportedExtensions() const override {
-        return {"rpy"};
+        return {"rpy", "rpa"};
     }
 
     [[nodiscard]] bool canHandleGame(const fs::path& gameDir) override;
@@ -77,9 +78,26 @@ private:
         int skipped = 0;
     };
 
+    // RPA archive helpers
+    struct RpaExtractedFile {
+        std::string relativePath;
+        std::string content;
+    };
+
+    std::vector<fs::path> findRpaArchives(const fs::path& gameDir);
+    Result<std::vector<RpaExtractedFile>> extractRpyFromRpa(const fs::path& rpaPath);
+
+    // Extract from a loose .rpy file on disk
     ExtractionBatch extractFromRpyFile(
         const fs::path& file,
         const GameFile& gameFile,
+        const ExtractionOptions& options
+    );
+
+    // Extract from in-memory .rpy content (shared logic)
+    ExtractionBatch extractFromRpyContent(
+        const std::string& content,
+        const std::string& relativePath,
         const ExtractionOptions& options
     );
 

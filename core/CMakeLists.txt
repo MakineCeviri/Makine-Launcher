@@ -112,6 +112,10 @@ set(MAKINEAI_SOURCES
     src/translation/translation_api.cpp
     src/translation/string_classifier.cpp
 
+    # Formats (archive parsers)
+    src/formats/pickle_reader.cpp
+    src/formats/rpa_archive.cpp
+
     # Engine Handlers
     src/handlers/engine_handler_base.cpp
     src/handlers/unity_handler.cpp
@@ -206,6 +210,7 @@ set(MAKINEAI_HEADERS
     include/formats/unreal_pak.hpp
     include/formats/bethesda_ba2.hpp
     include/formats/gamemaker_data.hpp
+    include/formats/renpy_rpa.hpp
 )
 
 # Static library (for linking with FFI)
@@ -315,6 +320,7 @@ if(GTest_FOUND)
         tests/test_game_detector.cpp
         tests/test_security.cpp
         tests/test_version_tracker.cpp
+        tests/test_rpa_parser.cpp
     )
 
     target_link_libraries(makineai_tests PRIVATE

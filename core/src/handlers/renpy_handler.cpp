@@ -8,6 +8,7 @@
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
 #include "makineai/audit.hpp"
+#include "formats/renpy_rpa.hpp"
 
 #include <spdlog/spdlog.h>
 #include <fstream>
@@ -70,6 +71,9 @@ bool RenpyHandler::canHandleGame(const fs::path& gameDir) {
 Result<std::vector<GameFile>> RenpyHandler::findGameFiles(const fs::path& gameDir) {
     std::vector<GameFile> files;
 
+    // Discover loose .rpy files and .rpa archives
+    std::vector<fs::path> rpaFiles;
+
     for (const auto& entry : fs::recursive_directory_iterator(gameDir)) {
         if (!entry.is_regular_file()) continue;
 
@@ -87,10 +91,50 @@ Result<std::vector<GameFile>> RenpyHandler::findGameFiles(const fs::path& gameDi
             gf.size = entry.file_size();
             gf.encoding = "utf-8";
             files.push_back(std::move(gf));
+        } else if (ext == ".rpa") {
+            rpaFiles.push_back(entry.path());
         }
     }
 
-    spdlog::debug("Ren'Py: Found {} script files", files.size());
+    // Discover .rpy files inside .rpa archives
+    for (const auto& rpaPath : rpaFiles) {
+        auto archiveResult = formats::parseRpaArchive(rpaPath);
+        if (!archiveResult) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "Ren'Py: Failed to parse RPA: {}: {}",
+                rpaPath.string(), archiveResult.error().message());
+            continue;
+        }
+
+        auto rpaRelative = fs::relative(rpaPath, gameDir).string();
+        std::replace(rpaRelative.begin(), rpaRelative.end(), '\\', '/');
+
+        auto rpyEntries = archiveResult->findByExtension("rpy");
+        for (const auto* rpyEntry : rpyEntries) {
+            // Check if a loose .rpy already covers this path (loose takes precedence)
+            bool alreadyCovered = false;
+            for (const auto& existing : files) {
+                if (existing.relativePath == rpyEntry->path) {
+                    alreadyCovered = true;
+                    break;
+                }
+            }
+            if (alreadyCovered) continue;
+
+            GameFile gf;
+            gf.path = rpaPath; // The .rpa file is the physical path
+            gf.relativePath = rpyEntry->path;
+            gf.type = GameFileType::Script;
+            gf.size = rpyEntry->dataLength;
+            gf.encoding = "utf-8";
+            // Store RPA source info in metadata-like fashion via the path
+            files.push_back(std::move(gf));
+        }
+
+        MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Found {} .rpy entries in RPA: {}",
+            rpyEntries.size(), rpaRelative);
+    }
+
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Found {} script files total", files.size());
     return files;
 }
 
@@ -116,6 +160,9 @@ Result<ExtractionResult> RenpyHandler::extractStrings(
 
     const auto& gameFiles = *filesResult;
     MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Found {} potential script files", gameFiles.size());
+
+    // Collect RPA archives for batch extraction
+    std::unordered_map<std::string, std::vector<RpaExtractedFile>> rpaCache;
 
     for (const auto& gameFile : gameFiles) {
         // File filters
@@ -144,7 +191,38 @@ Result<ExtractionResult> RenpyHandler::extractStrings(
         MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Processing file: {}", gameFile.relativePath);
 
         try {
-            auto batch = extractFromRpyFile(gameFile.path, gameFile, options);
+            ExtractionBatch batch;
+
+            // Determine if file is inside an RPA archive or a loose file
+            auto pathExt = gameFile.path.extension().string();
+            std::transform(pathExt.begin(), pathExt.end(), pathExt.begin(), ::tolower);
+
+            if (pathExt == ".rpa") {
+                // Extract from RPA archive (cached per archive)
+                auto rpaKey = gameFile.path.string();
+                if (rpaCache.find(rpaKey) == rpaCache.end()) {
+                    auto extracted = extractRpyFromRpa(gameFile.path);
+                    if (extracted) {
+                        rpaCache[rpaKey] = std::move(*extracted);
+                    } else {
+                        MAKINEAI_LOG_WARN(log::HANDLER, "Ren'Py: Failed to extract from RPA: {}",
+                            extracted.error().message());
+                        rpaCache[rpaKey] = {};
+                    }
+                }
+
+                // Find the matching content from the cache
+                for (const auto& rpyFile : rpaCache[rpaKey]) {
+                    if (rpyFile.relativePath == gameFile.relativePath) {
+                        batch = extractFromRpyContent(rpyFile.content,
+                            gameFile.relativePath, options);
+                        break;
+                    }
+                }
+            } else {
+                // Loose file on disk
+                batch = extractFromRpyFile(gameFile.path, gameFile, options);
+            }
 
             result.entries.insert(result.entries.end(),
                 batch.entries.begin(), batch.entries.end());
@@ -189,12 +267,24 @@ RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyFile(
     const GameFile& gameFile,
     const ExtractionOptions& options
 ) {
-    ExtractionBatch batch;
-
     std::ifstream ifs(file);
     if (!ifs) {
         throw std::runtime_error("Cannot open file");
     }
+
+    std::string content((std::istreambuf_iterator<char>(ifs)),
+                         std::istreambuf_iterator<char>());
+
+    return extractFromRpyContent(content, gameFile.relativePath, options);
+}
+
+RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyContent(
+    const std::string& content,
+    const std::string& relativePath,
+    const ExtractionOptions& options
+) {
+    ExtractionBatch batch;
+    std::istringstream iss(content);
 
     // Patterns
     std::regex dialoguePattern(R"(^(\s*)([a-zA-Z_][a-zA-Z0-9_]*\s+)?("[^"]*"|'[^']*')(\s*#.*)?$)");
@@ -209,7 +299,7 @@ RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyFile(
     int menuIndent = 0;
     int lineNumber = 0;
 
-    while (std::getline(ifs, line)) {
+    while (std::getline(iss, line)) {
         lineNumber++;
 
         // Label detection
@@ -247,7 +337,7 @@ RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyFile(
 
             if (isValidString(displayName, options)) {
                 TranslationEntry entry;
-                entry.filePath = gameFile.relativePath;
+                entry.filePath = relativePath;
                 entry.entryKey = "char_" + charName;
                 entry.sourceText = displayName;
                 entry.context = "Character name: " + charName;
@@ -267,7 +357,7 @@ RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyFile(
 
                 if (isValidString(choiceText, options)) {
                     TranslationEntry entry;
-                    entry.filePath = gameFile.relativePath;
+                    entry.filePath = relativePath;
                     entry.entryKey = "menu_" + (currentLabel.empty() ? "unknown" : currentLabel) +
                                      "_" + std::to_string(lineNumber);
                     entry.sourceText = choiceText;
@@ -294,7 +384,7 @@ RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyFile(
 
             if (isValidString(text, options)) {
                 TranslationEntry entry;
-                entry.filePath = gameFile.relativePath;
+                entry.filePath = relativePath;
                 entry.entryKey = (currentLabel.empty() ? "script" : currentLabel) +
                                  "_" + std::to_string(lineNumber);
                 entry.sourceText = text;
@@ -321,6 +411,54 @@ RenpyHandler::ExtractionBatch RenpyHandler::extractFromRpyFile(
     }
 
     return batch;
+}
+
+// ============================================================================
+// RPA ARCHIVE HELPERS
+// ============================================================================
+
+std::vector<fs::path> RenpyHandler::findRpaArchives(const fs::path& gameDir) {
+    std::vector<fs::path> archives;
+    for (const auto& entry : fs::recursive_directory_iterator(gameDir)) {
+        if (!entry.is_regular_file()) continue;
+        auto ext = entry.path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (ext == ".rpa") {
+            archives.push_back(entry.path());
+        }
+    }
+    return archives;
+}
+
+Result<std::vector<RenpyHandler::RpaExtractedFile>> RenpyHandler::extractRpyFromRpa(
+    const fs::path& rpaPath
+) {
+    MAKINEAI_LOG_DEBUG(log::HANDLER, "Ren'Py: Extracting .rpy files from RPA: {}", rpaPath.string());
+
+    auto archiveResult = formats::parseRpaArchive(rpaPath);
+    if (!archiveResult) {
+        return std::unexpected(archiveResult.error());
+    }
+
+    std::vector<RpaExtractedFile> result;
+    auto rpyEntries = archiveResult->findByExtension("rpy");
+
+    for (const auto* entry : rpyEntries) {
+        auto dataResult = formats::extractRpaEntry(rpaPath, *entry);
+        if (!dataResult) {
+            MAKINEAI_LOG_WARN(log::HANDLER, "Ren'Py: Failed to extract {}: {}",
+                entry->path, dataResult.error().message());
+            continue;
+        }
+
+        RpaExtractedFile file;
+        file.relativePath = entry->path;
+        file.content.assign(dataResult->begin(), dataResult->end());
+        result.push_back(std::move(file));
+    }
+
+    MAKINEAI_LOG_INFO(log::HANDLER, "Ren'Py: Extracted {} .rpy files from RPA", result.size());
+    return result;
 }
 
 std::string RenpyHandler::extractQuotedString(const std::string& quoted) {
