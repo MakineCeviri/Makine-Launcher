@@ -251,6 +251,17 @@ Popup {
                         color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                     }
 
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
+                    }
+
                     MouseArea {
                         id: closeBtn
                         anchors.fill: parent
@@ -446,6 +457,17 @@ Popup {
                                 font.pixelSize: 14
                             }
 
+                            // Focus indicator
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -1
+                                radius: parent.radius + 1
+                                color: "transparent"
+                                border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                border.width: 2
+                                visible: parent.activeFocus
+                            }
+
                             MouseArea {
                                 id: manualBtn
                                 anchors.fill: parent
@@ -483,6 +505,17 @@ Popup {
                                 anchors.centerIn: parent
                                 text: "🔄"
                                 font.pixelSize: 14
+                            }
+
+                            // Focus indicator
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -1
+                                radius: parent.radius + 1
+                                color: "transparent"
+                                border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                border.width: 2
+                                visible: parent.activeFocus
                             }
 
                             MouseArea {
@@ -789,6 +822,17 @@ Popup {
                             color: "white"
                             anchors.verticalCenter: parent.verticalCenter
                         }
+                    }
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -2
+                        radius: parent.radius + 2
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.gold, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
                     }
 
                     MouseArea {

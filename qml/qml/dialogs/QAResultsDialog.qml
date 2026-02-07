@@ -177,6 +177,17 @@ Dialog {
                         activeFocusOnTab: true
                         Keys.onReturnPressed: root.activeSeverityFilter = 0
                         Keys.onSpacePressed: root.activeSeverityFilter = 0
+
+                        // Focus indicator
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -1
+                            radius: parent.radius + 1
+                            color: "transparent"
+                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                            border.width: 2
+                            visible: parent.activeFocus
+                        }
                     }
 
                     // Critical badge
@@ -211,6 +222,17 @@ Dialog {
                         activeFocusOnTab: true
                         Keys.onReturnPressed: root.activeSeverityFilter = root.activeSeverityFilter === 4 ? 0 : 4
                         Keys.onSpacePressed: root.activeSeverityFilter = root.activeSeverityFilter === 4 ? 0 : 4
+
+                        // Focus indicator
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -1
+                            radius: parent.radius + 1
+                            color: "transparent"
+                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                            border.width: 2
+                            visible: parent.activeFocus
+                        }
                     }
 
                     // Major badge
@@ -245,6 +267,17 @@ Dialog {
                         activeFocusOnTab: true
                         Keys.onReturnPressed: root.activeSeverityFilter = root.activeSeverityFilter === 3 ? 0 : 3
                         Keys.onSpacePressed: root.activeSeverityFilter = root.activeSeverityFilter === 3 ? 0 : 3
+
+                        // Focus indicator
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -1
+                            radius: parent.radius + 1
+                            color: "transparent"
+                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                            border.width: 2
+                            visible: parent.activeFocus
+                        }
                     }
 
                     // Warning badge
@@ -279,6 +312,17 @@ Dialog {
                         activeFocusOnTab: true
                         Keys.onReturnPressed: root.activeSeverityFilter = root.activeSeverityFilter === 2 ? 0 : 2
                         Keys.onSpacePressed: root.activeSeverityFilter = root.activeSeverityFilter === 2 ? 0 : 2
+
+                        // Focus indicator
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -1
+                            radius: parent.radius + 1
+                            color: "transparent"
+                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                            border.width: 2
+                            visible: parent.activeFocus
+                        }
                     }
                 }
             }
@@ -302,6 +346,17 @@ Dialog {
                     text: "\u00D7"
                     font.pixelSize: 20
                     color: Theme.textMuted
+                }
+
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
                 }
 
                 MouseArea {
@@ -579,6 +634,17 @@ Dialog {
                     }
                 }
 
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
+                }
+
                 MouseArea {
                     id: ignoreBtnMouse
                     anchors.fill: parent
@@ -626,6 +692,17 @@ Dialog {
                         color: "white"
                         anchors.verticalCenter: parent.verticalCenter
                     }
+                }
+
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -2
+                    radius: parent.radius + 2
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.gold, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
                 }
 
                 MouseArea {

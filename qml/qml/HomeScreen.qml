@@ -905,6 +905,17 @@ Item {
                                         Behavior on color { ColorAnimation { duration: 150 } }
                                     }
 
+                                    // Focus indicator
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        anchors.margins: -1
+                                        radius: parent.radius + 1
+                                        color: "transparent"
+                                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                        border.width: 2
+                                        visible: parent.activeFocus
+                                    }
+
                                     MouseArea {
                                         id: rescanMouse
                                         anchors.fill: parent
@@ -1624,6 +1635,18 @@ Item {
                     ctx.fillText(label, Math.round(cx), lineY + 6);
                 }
             }
+        }
+
+        // Focus indicator
+        Rectangle {
+            anchors.fill: viewAllContent
+            anchors.margins: -2
+            radius: viewAllContent.radius + 2
+            color: "transparent"
+            border.color: Theme.withAlpha(Theme.primary, 0.6)
+            border.width: 2
+            visible: viewAllRoot.activeFocus
+            z: 1
         }
 
         MouseArea {

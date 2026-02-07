@@ -278,6 +278,17 @@ Dialog {
                     color: closeDialogMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
                 }
 
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
+                }
+
                 MouseArea {
                     id: closeDialogMouse
                     anchors.fill: parent
@@ -588,6 +599,17 @@ Dialog {
                     }
                 }
 
+                // Focus indicator
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -1
+                    radius: parent.radius + 1
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.primary, 0.6)
+                    border.width: 2
+                    visible: parent.activeFocus
+                }
+
                 MouseArea {
                     id: cancelBtnMouse
                     anchors.fill: parent
@@ -685,6 +707,17 @@ Dialog {
                             color: "white"
                             anchors.verticalCenter: parent.verticalCenter
                         }
+                    }
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -2
+                        radius: parent.radius + 2
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.warning, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
                     }
 
                     MouseArea {
