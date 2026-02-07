@@ -391,6 +391,22 @@ or game folder here.</translation>
         <translation>games</translation>
     </message>
     <message>
+        <source>çevrildi</source>
+        <translation>translated</translation>
+    </message>
+    <message>
+        <source>Rescan libraries</source>
+        <translation>Rescan libraries</translation>
+    </message>
+    <message>
+        <source>Kütüphaneleri yeniden tara</source>
+        <translation>Rescan libraries</translation>
+    </message>
+    <message>
+        <source>Son güncelleme</source>
+        <translation>Latest update</translation>
+    </message>
+    <message>
         <source>Henüz oyun bulunamadı</source>
         <translation>No games found yet</translation>
     </message>

@@ -525,7 +525,7 @@ Item {
                                             color: Theme.textPrimary
                                         }
                                         Label {
-                                            text: "18 Ocak 2026"
+                                            text: qsTr("Son güncelleme")
                                             font.pixelSize: 11
                                             color: Theme.textMuted
                                         }
@@ -753,6 +753,57 @@ Item {
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
                                         color: Theme.primary
+                                    }
+                                }
+
+                                Rectangle {
+                                    visible: GameService.patchedGamesCount > 0
+                                    Layout.preferredHeight: 22
+                                    Layout.preferredWidth: patchedLabel.width + 14
+                                    radius: Dimensions.badgeRadius
+                                    color: Theme.withAlpha(Theme.success, 0.12)
+
+                                    Label {
+                                        id: patchedLabel
+                                        anchors.centerIn: parent
+                                        text: GameService.patchedGamesCount + " " + qsTr("çevrildi")
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                        color: Theme.success
+                                    }
+                                }
+
+                                Rectangle {
+                                    visible: !GameService.isScanning
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 22
+                                    radius: Dimensions.badgeRadius
+                                    color: rescanMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Rescan libraries")
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "\u21BB"
+                                        font.pixelSize: 13
+                                        color: rescanMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                    }
+
+                                    MouseArea {
+                                        id: rescanMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: GameService.scanAllLibraries()
+                                    }
+
+                                    ToolTip {
+                                        visible: rescanMouse.containsMouse
+                                        text: qsTr("Kütüphaneleri yeniden tara")
+                                        delay: 400
                                     }
                                 }
                             }
