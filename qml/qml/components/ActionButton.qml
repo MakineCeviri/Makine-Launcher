@@ -14,6 +14,7 @@ Button {
     property color buttonIconColor: "white"
 
     text: buttonText
+    activeFocusOnTab: true
     implicitWidth: contentLayout.implicitWidth + 48
     implicitHeight: contentLayout.implicitHeight + 16
 

@@ -19,6 +19,8 @@ Button {
     property color hoverBackgroundColor: Theme.withAlpha(Theme.primary, 0.1)
     property int radius: Dimensions.radiusStandard
 
+    activeFocusOnTab: true
+    Accessible.name: tooltip
     implicitWidth: 36
     implicitHeight: 36
 

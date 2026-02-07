@@ -24,6 +24,9 @@ Rectangle {
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 
+    Accessible.role: Accessible.ListItem
+    Accessible.name: root.model.message || ""
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent

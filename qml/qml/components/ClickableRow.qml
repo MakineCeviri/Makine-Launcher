@@ -23,6 +23,9 @@ Item {
 
     signal clicked()
 
+    Accessible.role: Accessible.Button
+    Accessible.name: root.title
+
     Layout.fillWidth: true
     implicitHeight: 80
     implicitWidth: 200

@@ -222,6 +222,9 @@ Item {
     // MOUSE AREA
     // =========================================================================
 
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTr("View all games")
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent

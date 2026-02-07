@@ -14,6 +14,9 @@ Rectangle {
 
     Behavior on color { ColorAnimation { duration: 150 } }
 
+    Accessible.role: Accessible.ListItem
+    Accessible.name: root.modelData.gameName || ""
+
     MouseArea {
         id: mouseArea
         anchors.fill: parent
@@ -77,6 +80,7 @@ Rectangle {
                 id: restoreBtn
                 text: qsTr("Geri Al")
                 Layout.preferredHeight: 32
+                activeFocusOnTab: true
 
                 contentItem: RowLayout {
                     spacing: 6
@@ -110,6 +114,8 @@ Rectangle {
                 id: deleteBtn
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
+                activeFocusOnTab: true
+                Accessible.name: qsTr("Delete backup")
 
                 contentItem: Image {
                     source: "qrc:/qt/qml/MakineAI/resources/icons/trash.svg"
