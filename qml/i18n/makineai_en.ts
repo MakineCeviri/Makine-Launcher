@@ -309,12 +309,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/components/BatchOperationsPanel.qml" line="138"/>
+        <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
+        <location filename="../qml/components/BatchOperationsPanel.qml" line="140"/>
         <source>İptal</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/components/BatchOperationsPanel.qml" line="138"/>
+        <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
+        <location filename="../qml/components/BatchOperationsPanel.qml" line="140"/>
         <source>Temizle</source>
         <translation type="unfinished">Clear</translation>
     </message>
@@ -1561,22 +1563,24 @@ it will be automatically detected.</translation>
         <translation>Notifications</translation>
     </message>
     <message>
-        <location filename="../qml/components/NotificationPanel.qml" line="91"/>
+        <location filename="../qml/components/NotificationPanel.qml" line="86"/>
+        <location filename="../qml/components/NotificationPanel.qml" line="93"/>
         <source>Tümünü oku</source>
         <translation>Mark all read</translation>
     </message>
     <message>
-        <location filename="../qml/components/NotificationPanel.qml" line="282"/>
+        <location filename="../qml/components/NotificationPanel.qml" line="286"/>
         <source>Bildirim yok</source>
         <translation>No notifications</translation>
     </message>
     <message>
-        <location filename="../qml/components/NotificationPanel.qml" line="290"/>
+        <location filename="../qml/components/NotificationPanel.qml" line="294"/>
         <source>Yeni çeviriler ve güncellemeler burada görünecek</source>
         <translation>New translations and updates will appear here</translation>
     </message>
     <message>
-        <location filename="../qml/components/NotificationPanel.qml" line="316"/>
+        <location filename="../qml/components/NotificationPanel.qml" line="310"/>
+        <location filename="../qml/components/NotificationPanel.qml" line="322"/>
         <source>Tümünü temizle</source>
         <translation>Clear all</translation>
     </message>
@@ -1792,7 +1796,12 @@ Select a game from the main screen and install its Turkish translation!</transla
 <context>
     <name>PerformanceMonitor</name>
     <message>
-        <location filename="../qml/components/PerformanceMonitor.qml" line="237"/>
+        <location filename="../qml/components/PerformanceMonitor.qml" line="135"/>
+        <source>Performance Monitor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/PerformanceMonitor.qml" line="240"/>
         <source>Click: toggle • Dbl: reset</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2431,12 +2440,14 @@ Select a game from the main screen and install its Turkish translation!</transla
         <translation>Choose application appearance</translation>
     </message>
     <message>
-        <location filename="../qml/components/ThemeSetting.qml" line="54"/>
+        <location filename="../qml/components/ThemeSetting.qml" line="52"/>
+        <location filename="../qml/components/ThemeSetting.qml" line="56"/>
         <source>Açık</source>
         <translation>Light</translation>
     </message>
     <message>
         <location filename="../qml/components/ThemeSetting.qml" line="75"/>
+        <location filename="../qml/components/ThemeSetting.qml" line="79"/>
         <source>Koyu</source>
         <translation>Dark</translation>
     </message>
