@@ -145,4 +145,129 @@ ColumnLayout {
             }
         }
     }
+
+    // Cache management
+    Rectangle {
+        Layout.fillWidth: true
+        color: Theme.surface
+        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.width: 1
+        radius: Dimensions.radiusStandard
+        implicitHeight: cacheColumn.implicitHeight + 16
+
+        ColumnLayout {
+            id: cacheColumn
+            anchors.fill: parent
+            anchors.margins: 8
+            spacing: 0
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                Layout.leftMargin: 8
+                Layout.rightMargin: 8
+                spacing: 12
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        text: qsTr("Önbellek Yönetimi")
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
+                    }
+                    Text {
+                        text: qsTr("Oyun verisi ve Steam detay önbelleğini temizle")
+                        font.pixelSize: 11
+                        color: Theme.textMuted
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: clearCacheBtnText.width + 24
+                    Layout.preferredHeight: 32
+                    radius: Dimensions.radiusSmall
+                    color: clearCacheMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
+                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    border.width: 1
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        id: clearCacheBtnText
+                        anchors.centerIn: parent
+                        text: qsTr("Temizle")
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                        color: Theme.textSecondary
+                    }
+
+                    MouseArea {
+                        id: clearCacheMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: SettingsManager.clearCache()
+                    }
+                }
+            }
+
+            SettingsDivider {}
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                Layout.leftMargin: 8
+                Layout.rightMargin: 8
+                spacing: 12
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        text: qsTr("Varsayılana Sıfırla")
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
+                    }
+                    Text {
+                        text: qsTr("Tüm ayarları fabrika değerlerine döndür")
+                        font.pixelSize: 11
+                        color: Theme.textMuted
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: resetBtnText.width + 24
+                    Layout.preferredHeight: 32
+                    radius: Dimensions.radiusSmall
+                    color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.15) : Qt.rgba(1, 1, 1, 0.05)
+                    border.color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.3) : Qt.rgba(1, 1, 1, 0.1)
+                    border.width: 1
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        id: resetBtnText
+                        anchors.centerIn: parent
+                        text: qsTr("Sıfırla")
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                        color: resetMouse.containsMouse ? Theme.destructive : Theme.textSecondary
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+
+                    MouseArea {
+                        id: resetMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: SettingsManager.resetToDefaults()
+                    }
+                }
+            }
+        }
+    }
 }

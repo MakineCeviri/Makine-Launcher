@@ -1436,6 +1436,30 @@ it will be automatically detected.</translation>
         <source>Oyun tespit edildiğinde bildirim göster</source>
         <translation>Show notification when a game is detected</translation>
     </message>
+    <message>
+        <source>Önbellek Yönetimi</source>
+        <translation>Cache Management</translation>
+    </message>
+    <message>
+        <source>Oyun verisi ve Steam detay önbelleğini temizle</source>
+        <translation>Clear game data and Steam details cache</translation>
+    </message>
+    <message>
+        <source>Temizle</source>
+        <translation>Clear</translation>
+    </message>
+    <message>
+        <source>Varsayılana Sıfırla</source>
+        <translation>Reset to Defaults</translation>
+    </message>
+    <message>
+        <source>Tüm ayarları fabrika değerlerine döndür</source>
+        <translation>Restore all settings to factory defaults</translation>
+    </message>
+    <message>
+        <source>Sıfırla</source>
+        <translation>Reset</translation>
+    </message>
 </context>
 <context>
     <name>TranslationSettings</name>
@@ -1532,12 +1556,32 @@ it will be automatically detected.</translation>
 <context>
     <name>AboutSettings</name>
     <message>
+        <source>Uygulama</source>
+        <translation>Application</translation>
+    </message>
+    <message>
+        <source>Versiyon</source>
+        <translation>Version</translation>
+    </message>
+    <message>
+        <source>Geliştirici</source>
+        <translation>Developer</translation>
+    </message>
+    <message>
         <source>Makine Çeviri</source>
         <translation>Makine Translation</translation>
     </message>
     <message>
+        <source>Lisans</source>
+        <translation>License</translation>
+    </message>
+    <message>
         <source>Ücretsiz Lisans</source>
         <translation>Free License</translation>
+    </message>
+    <message>
+        <source>Platform</source>
+        <translation>Platform</translation>
     </message>
     <message>
         <source>Discord Desteği</source>
@@ -1548,8 +1592,20 @@ it will be automatically detected.</translation>
         <translation>Join our Discord server for community and support.</translation>
     </message>
     <message>
+        <source>Kaynak kodu, hata bildirimi ve katkılar</source>
+        <translation>Source code, bug reports, and contributions</translation>
+    </message>
+    <message>
+        <source>Geri Bildirim</source>
+        <translation>Feedback</translation>
+    </message>
+    <message>
         <source>Hata bildirimi ve öneriler için web sitemizi ziyaret edin.</source>
         <translation>Visit our website for bug reports and suggestions.</translation>
+    </message>
+    <message>
+        <source>Açık Kaynak Lisanslar</source>
+        <translation>Open Source Licenses</translation>
     </message>
 </context>
 </TS>
