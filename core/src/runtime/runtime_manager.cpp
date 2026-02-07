@@ -193,6 +193,15 @@ VoidResult RuntimeManager::install(
     MAKINEAI_LOG_DEBUG(log::RUNTIME, "Detected Unity backend: {}",
         backend == UnityBackend::Mono ? "Mono" : "IL2CPP");
 
+    // Validate bundle before installation
+    auto bundleCheck = validateBundle(backend);
+    if (!bundleCheck) {
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "Bundle validation failed: {}",
+            bundleCheck.error().message());
+        Metrics::instance().increment("runtime_install_failures");
+        return bundleCheck;
+    }
+
     // Start timing the installation
     auto timer = Metrics::instance().timer("runtime_install");
 
@@ -777,6 +786,46 @@ VoidResult RuntimeManager::removeTranslations(const GameInfo& game) {
 }
 
 RuntimeVersion RuntimeManager::bundledVersion() const {
+    // Try reading from bundle manifest
+    auto manifestPath = bundleDir_ / "bundle_manifest.json";
+    if (fs::exists(manifestPath)) {
+        try {
+            std::ifstream ifs(manifestPath);
+            if (ifs) {
+                auto manifest = nlohmann::json::parse(ifs);
+                RuntimeVersion version;
+                if (manifest.contains("bepinex")) {
+                    auto& bep = manifest["bepinex"];
+                    version.bepinex = {
+                        bep.value("major", 5),
+                        bep.value("minor", 4),
+                        bep.value("patch", 23)
+                    };
+                }
+                if (manifest.contains("xunity")) {
+                    auto& xu = manifest["xunity"];
+                    version.xunity = {
+                        xu.value("major", 5),
+                        xu.value("minor", 3),
+                        xu.value("patch", 0)
+                    };
+                }
+                if (manifest.contains("makineai_plugin")) {
+                    auto& mp = manifest["makineai_plugin"];
+                    version.makineaiPlugin = {
+                        mp.value("major", 1),
+                        mp.value("minor", 0),
+                        mp.value("patch", 0)
+                    };
+                }
+                return version;
+            }
+        } catch (const std::exception& e) {
+            MAKINEAI_LOG_WARN(log::RUNTIME, "Failed to read bundle manifest: {}", e.what());
+        }
+    }
+
+    // Fallback to hardcoded defaults
     RuntimeVersion version;
     version.bepinex = {5, 4, 23};       // BepInEx 5.4.23
     version.xunity = {5, 3, 0};         // XUnity.AutoTranslator 5.3.0
@@ -961,6 +1010,119 @@ Result<UnityAnalysis> analyzeUnityGame(const fs::path& gameDir) {
         analysis.hasExistingBepInEx);
 
     return analysis;
+}
+
+// ============================================================================
+// BUNDLE VALIDATION
+// ============================================================================
+
+VoidResult RuntimeManager::validateBundle(UnityBackend backend) const {
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Validating bundle for backend: {}",
+        backend == UnityBackend::Mono ? "Mono" : "IL2CPP");
+
+    if (bundleDir_.empty()) {
+        return std::unexpected(Error(ErrorCode::InvalidArgument,
+            "Bundle directory not set. Call setBundleDirectory() first."));
+    }
+
+    if (!fs::exists(bundleDir_)) {
+        return std::unexpected(Error(ErrorCode::DirectoryNotFound,
+            "Bundle directory does not exist: " + bundleDir_.string()));
+    }
+
+    auto bundlePath = (backend == UnityBackend::Mono)
+        ? getMonoBundlePath()
+        : getIL2CPPBundlePath();
+
+    if (!fs::exists(bundlePath)) {
+        return std::unexpected(Error(ErrorCode::DirectoryNotFound,
+            "Bundle not found for backend: " + bundlePath.string()));
+    }
+
+    // Check required files
+    StringList missing;
+
+    // BepInEx core directory
+    auto corePath = bundlePath / "BepInEx" / "core";
+    if (!fs::exists(corePath)) {
+        missing.push_back("BepInEx/core/");
+    }
+
+    // Doorstop loader
+    if (!fs::exists(bundlePath / "winhttp.dll")) {
+        missing.push_back("winhttp.dll");
+    }
+
+    if (!fs::exists(bundlePath / "doorstop_config.ini")) {
+        missing.push_back("doorstop_config.ini");
+    }
+
+    // IL2CPP-specific: dobby.dll
+    if (backend == UnityBackend::IL2CPP) {
+        if (!fs::exists(bundlePath / "dobby.dll")) {
+            missing.push_back("dobby.dll (IL2CPP)");
+        }
+    }
+
+    if (!missing.empty()) {
+        std::string msg = "Missing bundle files:";
+        for (const auto& f : missing) {
+            msg += " " + f;
+        }
+        MAKINEAI_LOG_ERROR(log::RUNTIME, "{}", msg);
+        return std::unexpected(Error(ErrorCode::FileNotFound, msg));
+    }
+
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "Bundle validation passed");
+    return {};
+}
+
+// ============================================================================
+// GITHUB RELEASE FETCH
+// ============================================================================
+
+Result<RuntimeManager::ReleaseInfo> RuntimeManager::fetchLatestRelease(
+    UnityBackend backend
+) const {
+    // BepInEx GitHub repos:
+    //   Mono: BepInEx/BepInEx (5.x branch)
+    //   IL2CPP: BepInEx/BepInEx (6.x/bleeding-edge)
+    const std::string owner = "BepInEx";
+    const std::string repo = "BepInEx";
+
+    // API URL for latest release
+    std::string apiUrl = "https://api.github.com/repos/" + owner + "/" + repo
+        + "/releases/latest";
+
+    // Platform-specific asset patterns
+    std::string assetPattern;
+    if (backend == UnityBackend::Mono) {
+        assetPattern = "BepInEx_win_x64";  // BepInEx 5.x pattern
+    } else {
+        assetPattern = "BepInEx-Unity.IL2CPP-win-x64";  // BepInEx 6.x pattern
+    }
+
+    MAKINEAI_LOG_INFO(log::RUNTIME, "Fetching latest BepInEx release from GitHub...");
+    MAKINEAI_LOG_DEBUG(log::RUNTIME, "API URL: {}, asset pattern: {}", apiUrl, assetPattern);
+
+    // Note: The actual HTTP request should be performed by the caller
+    // using Downloader or a CURL-based HTTP client. This method provides
+    // the URL and asset pattern for the download.
+    //
+    // The full download flow is:
+    // 1. GET apiUrl -> parse JSON response
+    // 2. Find asset matching assetPattern in response.assets[]
+    // 3. Download asset.browser_download_url
+    // 4. Extract ZIP to bundle directory
+    //
+    // For now, return the API URL and pattern so callers can implement
+    // the download with whatever HTTP client they have available.
+
+    ReleaseInfo info;
+    info.downloadUrl = apiUrl;
+    info.assetName = assetPattern;
+
+    return info;
 }
 
 } // namespace makineai

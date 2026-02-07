@@ -153,6 +153,37 @@ public:
         const XUnityConfig& config = XUnityConfig{}
     );
 
+    /**
+     * @brief Validate that bundle directory has all required files
+     *
+     * Checks for BepInEx core DLLs, doorstop files, and XUnity plugin
+     * for the specified backend type.
+     *
+     * @param backend Mono or IL2CPP
+     * @return Error listing missing files if validation fails
+     */
+    [[nodiscard]] VoidResult validateBundle(UnityBackend backend) const;
+
+    /**
+     * @brief GitHub release info for BepInEx
+     */
+    struct ReleaseInfo {
+        std::string tagName;
+        std::string downloadUrl;
+        std::string assetName;
+        uint64_t size = 0;
+    };
+
+    /**
+     * @brief Fetch latest BepInEx release info from GitHub
+     *
+     * Queries GitHub Releases API for the latest stable release.
+     *
+     * @param backend Mono (BepInEx 5.x) or IL2CPP (BepInEx 6.x)
+     * @return Release info with download URL
+     */
+    [[nodiscard]] Result<ReleaseInfo> fetchLatestRelease(UnityBackend backend) const;
+
 private:
     fs::path bundleDir_;
 
