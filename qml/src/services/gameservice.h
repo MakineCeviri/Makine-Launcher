@@ -15,6 +15,9 @@
 #include <QVariantMap>
 #include <QQmlEngine>
 #include <QFileInfo>
+#include <QDateTime>
+
+class QNetworkAccessManager;
 
 #include "corebridge.h"
 
@@ -70,6 +73,32 @@ public:
 };
 
 /**
+ * @brief Steam store details for a game
+ */
+struct SteamDetails {
+    QString description;
+    QStringList developers;
+    QStringList publishers;
+    QString releaseDate;
+    QStringList genres;
+    int metacriticScore{0};
+    bool hasWindows{true};
+    bool hasMac{false};
+    bool hasLinux{false};
+    QString price;
+    int discountPercent{0};
+    QStringList screenshots;
+    QString backgroundUrl;
+    QDateTime fetchedAt;
+
+    static constexpr int TTL_HOURS = 24;
+
+    bool isExpired() const {
+        return fetchedAt.isNull() || fetchedAt.secsTo(QDateTime::currentDateTime()) > TTL_HOURS * 3600;
+    }
+};
+
+/**
  * @brief Game Service - Manages game data and detection
  *
  * Provides:
@@ -93,6 +122,7 @@ class GameService : public QObject
     Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanStatusChanged)
     Q_PROPERTY(qreal scanProgress READ scanProgress NOTIFY scanProgressChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    Q_PROPERTY(bool isFetchingSteamDetails READ isFetchingSteamDetails NOTIFY isFetchingSteamDetailsChanged)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -110,6 +140,7 @@ public:
     QString scanStatus() const { return m_scanStatus; }
     qreal scanProgress() const { return m_scanProgress; }
     QString lastError() const { return m_lastError; }
+    bool isFetchingSteamDetails() const { return !m_pendingFetches.isEmpty(); }
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
@@ -120,6 +151,9 @@ public:
     Q_INVOKABLE QVariantMap getGameById(const QString& id);
     Q_INVOKABLE bool hasRecipe(const QString& gameId);
     Q_INVOKABLE void refreshGameMetadata(const QString& gameId);
+    Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
+    Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
+    Q_INVOKABLE QVariantMap getRecipeInfo(const QString& gameId);
     Q_INVOKABLE QVariantList searchGames(const QString& query);
 
 signals:
@@ -131,6 +165,9 @@ signals:
     void gameDetected(const QString& gameId);
     void scanCompleted(int count);
     void scanError(const QString& error);
+    void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
+    void steamDetailsFetchError(const QString& steamAppId, const QString& error);
+    void isFetchingSteamDetailsChanged();
 
 private:
     void loadCachedGames();
@@ -144,11 +181,19 @@ private:
     void rebuildCache();
     bool isValidGamePath(const QString& path) const;
 
+    void parseSteamApiResponse(const QString& steamAppId, const QByteArray& data);
+    QVariantMap steamDetailsToVariantMap(const SteamDetails& details) const;
+    void loadSteamDetailsCache();
+    void saveSteamDetailsCache();
+
     CoreBridge* m_coreBridge{nullptr};
+    QNetworkAccessManager* m_networkManager{nullptr};
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;  // O(1) lookup by ID
     QSet<QString> m_featuredIds;          // O(1) contains check
     QSet<QString> m_recentIds;            // O(1) contains check
+    QHash<QString, SteamDetails> m_steamDetailsCache;
+    QSet<QString> m_pendingFetches;
     bool m_isScanning{false};
     QString m_scanStatus;
     qreal m_scanProgress{0};

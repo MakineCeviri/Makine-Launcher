@@ -13,14 +13,19 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QDebug>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 
 namespace makineai {
 
 GameService::GameService(QObject *parent)
     : QObject(parent)
+    , m_networkManager(new QNetworkAccessManager(this))
 {
     setupCoreBridge();
     loadCachedGames();
+    loadSteamDetailsCache();
 
     // Auto-scan on first launch if no cached games
     if (m_games.isEmpty()) {
@@ -274,8 +279,172 @@ bool GameService::hasRecipe(const QString& gameId)
 
 void GameService::refreshGameMetadata(const QString& gameId)
 {
-    // TODO: Fetch metadata from Steam API
-    Q_UNUSED(gameId)
+    if (m_gameIdToIndex.contains(gameId)) {
+        int idx = m_gameIdToIndex[gameId];
+        if (idx >= 0 && idx < m_games.count()) {
+            const QString& appId = m_games[idx].steamAppId;
+            if (!appId.isEmpty()) {
+                fetchSteamDetails(appId);
+            }
+        }
+    }
+}
+
+void GameService::fetchSteamDetails(const QString& steamAppId)
+{
+    if (steamAppId.isEmpty()) return;
+
+    // Prevent duplicate requests
+    if (m_pendingFetches.contains(steamAppId)) return;
+
+    // Check cache (not expired)
+    if (m_steamDetailsCache.contains(steamAppId) && !m_steamDetailsCache[steamAppId].isExpired()) {
+        emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(m_steamDetailsCache[steamAppId]));
+        return;
+    }
+
+    m_pendingFetches.insert(steamAppId);
+    emit isFetchingSteamDetailsChanged();
+
+    QUrl url(QStringLiteral("https://store.steampowered.com/api/appdetails?appids=%1&l=turkish").arg(steamAppId));
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::UserAgentHeader, "MakineAI/0.1");
+
+    QNetworkReply* reply = m_networkManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, steamAppId]() {
+        reply->deleteLater();
+        m_pendingFetches.remove(steamAppId);
+        emit isFetchingSteamDetailsChanged();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "Steam API error for" << steamAppId << ":" << reply->errorString();
+            emit steamDetailsFetchError(steamAppId, reply->errorString());
+            return;
+        }
+
+        parseSteamApiResponse(steamAppId, reply->readAll());
+    });
+}
+
+void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteArray& data)
+{
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "Steam API JSON parse error:" << parseError.errorString();
+        emit steamDetailsFetchError(steamAppId, parseError.errorString());
+        return;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonObject appObj = root.value(steamAppId).toObject();
+
+    if (!appObj.value("success").toBool()) {
+        emit steamDetailsFetchError(steamAppId, QStringLiteral("Steam API returned success=false"));
+        return;
+    }
+
+    const QJsonObject appData = appObj.value("data").toObject();
+
+    SteamDetails details;
+    details.description = appData.value("short_description").toString();
+    details.releaseDate = appData.value("release_date").toObject().value("date").toString();
+
+    // Developers & publishers
+    for (const auto& dev : appData.value("developers").toArray())
+        details.developers.append(dev.toString());
+    for (const auto& pub : appData.value("publishers").toArray())
+        details.publishers.append(pub.toString());
+
+    // Genres
+    for (const auto& genre : appData.value("genres").toArray())
+        details.genres.append(genre.toObject().value("description").toString());
+
+    // Metacritic
+    const QJsonObject metacritic = appData.value("metacritic").toObject();
+    details.metacriticScore = metacritic.value("score").toInt(0);
+
+    // Platforms
+    const QJsonObject platforms = appData.value("platforms").toObject();
+    details.hasWindows = platforms.value("windows").toBool(true);
+    details.hasMac = platforms.value("mac").toBool(false);
+    details.hasLinux = platforms.value("linux").toBool(false);
+
+    // Price
+    if (appData.value("is_free").toBool()) {
+        details.price = QStringLiteral("Ücretsiz");
+    } else {
+        const QJsonObject priceObj = appData.value("price_overview").toObject();
+        details.price = priceObj.value("final_formatted").toString();
+        details.discountPercent = priceObj.value("discount_percent").toInt(0);
+    }
+
+    // Screenshots
+    for (const auto& ss : appData.value("screenshots").toArray()) {
+        const QString thumbUrl = ss.toObject().value("path_thumbnail").toString();
+        if (!thumbUrl.isEmpty())
+            details.screenshots.append(thumbUrl);
+    }
+
+    // Background
+    details.backgroundUrl = appData.value("background").toString();
+    details.fetchedAt = QDateTime::currentDateTime();
+
+    // Cache and persist
+    m_steamDetailsCache[steamAppId] = details;
+    saveSteamDetailsCache();
+
+    emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(details));
+}
+
+QVariantMap GameService::getSteamDetails(const QString& steamAppId)
+{
+    if (steamAppId.isEmpty()) return {};
+
+    if (m_steamDetailsCache.contains(steamAppId) && !m_steamDetailsCache[steamAppId].isExpired()) {
+        return steamDetailsToVariantMap(m_steamDetailsCache[steamAppId]);
+    }
+    return {};
+}
+
+QVariantMap GameService::getRecipeInfo(const QString& gameId)
+{
+    if (!m_coreBridge) return {};
+
+    auto pkg = m_coreBridge->getPackageForGame(gameId);
+    if (!pkg.has_value()) return {};
+
+    return {
+        {"packageId", pkg->packageId},
+        {"version", pkg->version},
+        {"gameName", pkg->gameName},
+        {"sizeBytes", pkg->sizeBytes},
+        {"hasRecipe", true}
+    };
+}
+
+QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) const
+{
+    QVariantList screenshotList;
+    screenshotList.reserve(details.screenshots.size());
+    for (const auto& url : details.screenshots)
+        screenshotList.append(url);
+
+    return {
+        {"description", details.description},
+        {"developers", QVariant::fromValue(details.developers)},
+        {"publishers", QVariant::fromValue(details.publishers)},
+        {"releaseDate", details.releaseDate},
+        {"genres", QVariant::fromValue(details.genres)},
+        {"metacriticScore", details.metacriticScore},
+        {"hasWindows", details.hasWindows},
+        {"hasMac", details.hasMac},
+        {"hasLinux", details.hasLinux},
+        {"price", details.price},
+        {"discountPercent", details.discountPercent},
+        {"screenshots", screenshotList},
+        {"backgroundUrl", details.backgroundUrl}
+    };
 }
 
 QVariantList GameService::searchGames(const QString& query)
@@ -409,6 +578,89 @@ void GameService::rebuildCache()
     }
 
     invalidateCache();
+}
+
+void GameService::loadSteamDetailsCache()
+{
+    const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/steam_details_cache.json";
+    QFile file(cachePath);
+    if (!file.open(QIODevice::ReadOnly)) return;
+
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+    file.close();
+
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) return;
+
+    const QJsonObject root = doc.object();
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        const QJsonObject obj = it.value().toObject();
+        SteamDetails details;
+        details.description = obj["description"].toString();
+        details.releaseDate = obj["releaseDate"].toString();
+        details.metacriticScore = obj["metacriticScore"].toInt(0);
+        details.hasWindows = obj["hasWindows"].toBool(true);
+        details.hasMac = obj["hasMac"].toBool(false);
+        details.hasLinux = obj["hasLinux"].toBool(false);
+        details.price = obj["price"].toString();
+        details.discountPercent = obj["discountPercent"].toInt(0);
+        details.backgroundUrl = obj["backgroundUrl"].toString();
+        details.fetchedAt = QDateTime::fromString(obj["fetchedAt"].toString(), Qt::ISODate);
+
+        for (const auto& v : obj["developers"].toArray()) details.developers.append(v.toString());
+        for (const auto& v : obj["publishers"].toArray()) details.publishers.append(v.toString());
+        for (const auto& v : obj["genres"].toArray()) details.genres.append(v.toString());
+        for (const auto& v : obj["screenshots"].toArray()) details.screenshots.append(v.toString());
+
+        // Skip expired entries
+        if (!details.isExpired()) {
+            m_steamDetailsCache[it.key()] = details;
+        }
+    }
+
+    qDebug() << "Loaded" << m_steamDetailsCache.size() << "cached Steam details";
+}
+
+void GameService::saveSteamDetailsCache()
+{
+    const QString dirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dirPath);
+
+    QJsonObject root;
+    for (auto it = m_steamDetailsCache.constBegin(); it != m_steamDetailsCache.constEnd(); ++it) {
+        const SteamDetails& d = it.value();
+        if (d.isExpired()) continue;
+
+        QJsonObject obj;
+        obj["description"] = d.description;
+        obj["releaseDate"] = d.releaseDate;
+        obj["metacriticScore"] = d.metacriticScore;
+        obj["hasWindows"] = d.hasWindows;
+        obj["hasMac"] = d.hasMac;
+        obj["hasLinux"] = d.hasLinux;
+        obj["price"] = d.price;
+        obj["discountPercent"] = d.discountPercent;
+        obj["backgroundUrl"] = d.backgroundUrl;
+        obj["fetchedAt"] = d.fetchedAt.toString(Qt::ISODate);
+
+        QJsonArray devArr, pubArr, genreArr, ssArr;
+        for (const auto& v : d.developers) devArr.append(v);
+        for (const auto& v : d.publishers) pubArr.append(v);
+        for (const auto& v : d.genres) genreArr.append(v);
+        for (const auto& v : d.screenshots) ssArr.append(v);
+
+        obj["developers"] = devArr;
+        obj["publishers"] = pubArr;
+        obj["genres"] = genreArr;
+        obj["screenshots"] = ssArr;
+
+        root[it.key()] = obj;
+    }
+
+    QFile file(dirPath + "/steam_details_cache.json");
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    }
 }
 
 bool GameService::isValidGamePath(const QString& path) const

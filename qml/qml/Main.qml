@@ -298,15 +298,17 @@ ApplicationWindow {
                 animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
-                    gameDetailView.gameId = gameId
+                    gameDetailView.resetDetails()
                     gameDetailView.gameName = gameName
                     gameDetailView.engine = engine
                     var gameData = GameService.getGameById(gameId)
                     if (gameData) {
                         gameDetailView.imageUrl = gameData.headerImageUrl || ""
-                        gameDetailView.steamAppId = gameData.steamAppId || ""
                         gameDetailView.verified = gameData.isVerified || false
+                        // Set steamAppId before gameId so onSteamAppIdChanged fires with data ready
+                        gameDetailView.steamAppId = gameData.steamAppId || ""
                     }
+                    gameDetailView.gameId = gameId
                     contentStackContainer.navigateTo(2)
                 }
             }

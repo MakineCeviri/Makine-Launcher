@@ -54,10 +54,97 @@ Item {
     // Screenshots
     property var screenshots: []
 
+    // Loading state
+    property bool isLoadingSteamDetails: false
+
     signal backClicked()
     signal translateClicked()
     signal steamStoreClicked()
     signal restoreClicked()
+
+    function resetDetails() {
+        description = ""
+        developers = []
+        publishers = []
+        releaseDate = ""
+        genres = []
+        metacriticScore = 0
+        hasWindows = true
+        hasMac = false
+        hasLinux = false
+        price = ""
+        discountPercent = 0
+        hasSteamDetails = false
+        screenshots = []
+        isLoadingSteamDetails = false
+        hasRecipe = false
+        recipeEngine = ""
+        recipeQuality = ""
+        qualityScore = 0
+        recipeVersion = ""
+        stringCount = 0
+        coverage = ""
+        fileCount = 0
+        author = ""
+    }
+
+    function populateSteamDetails(details) {
+        description = details.description || ""
+        developers = details.developers || []
+        publishers = details.publishers || []
+        releaseDate = details.releaseDate || ""
+        genres = details.genres || []
+        metacriticScore = details.metacriticScore || 0
+        hasWindows = details.hasWindows !== undefined ? details.hasWindows : true
+        hasMac = details.hasMac || false
+        hasLinux = details.hasLinux || false
+        price = details.price || ""
+        discountPercent = details.discountPercent || 0
+        screenshots = details.screenshots || []
+        if (details.backgroundUrl && details.backgroundUrl !== "")
+            heroImageUrl = details.backgroundUrl
+        hasSteamDetails = true
+        isLoadingSteamDetails = false
+    }
+
+    onSteamAppIdChanged: {
+        if (steamAppId === "") return
+
+        // Try sync cache first
+        var cached = GameService.getSteamDetails(steamAppId)
+        if (cached && cached.description !== undefined) {
+            populateSteamDetails(cached)
+        } else {
+            isLoadingSteamDetails = true
+        }
+
+        // Always fetch async (will no-op if cache is fresh)
+        GameService.fetchSteamDetails(steamAppId)
+    }
+
+    onGameIdChanged: {
+        if (gameId === "") return
+
+        var recipe = GameService.getRecipeInfo(gameId)
+        if (recipe && recipe.hasRecipe) {
+            hasRecipe = true
+            recipeVersion = recipe.version || ""
+        }
+    }
+
+    Connections {
+        target: GameService
+        function onSteamDetailsFetched(appId, details) {
+            if (appId === root.steamAppId) {
+                root.populateSteamDetails(details)
+            }
+        }
+        function onSteamDetailsFetchError(appId, error) {
+            if (appId === root.steamAppId) {
+                root.isLoadingSteamDetails = false
+            }
+        }
+    }
 
     // Quality color helper
     function getQualityColor(score) {
@@ -389,7 +476,27 @@ Item {
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
                 spacing: 32
-                visible: root.hasSteamDetails
+                visible: root.hasSteamDetails || root.isLoadingSteamDetails
+
+                // Loading indicator
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 12
+                    visible: root.isLoadingSteamDetails && !root.hasSteamDetails
+
+                    BusyIndicator {
+                        Layout.preferredWidth: 32
+                        Layout.preferredHeight: 32
+                        running: visible
+                    }
+
+                    Text {
+                        text: "Steam bilgileri yükleniyor..."
+                        font.pixelSize: 14
+                        color: Theme.textMuted
+                    }
+                }
 
                 // About section
                 ColumnLayout {
