@@ -552,6 +552,10 @@ it will be automatically detected.</translation>
         <translation>Genres</translation>
     </message>
     <message>
+        <source>Motor</source>
+        <translation>Engine</translation>
+    </message>
+    <message>
         <source>Değerlendirme</source>
         <translation>Rating</translation>
     </message>

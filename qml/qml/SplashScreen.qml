@@ -387,6 +387,15 @@ Item {
                     height: 12
                     radius: Dimensions.radiusStandard
                     color: Qt.rgba(1.0, 0.41, 0.71, 0.4)
+
+                    // Shimmer glow pulse
+                    opacity: 0.6 + 0.4 * Math.sin(shimmerPhase * Math.PI * 2)
+                    property real shimmerPhase: 0
+                    NumberAnimation on shimmerPhase {
+                        from: 0; to: 1
+                        duration: 1200
+                        loops: Animation.Infinite
+                    }
                 }
 
                 Rectangle {
@@ -405,6 +414,7 @@ Item {
             }
 
             Text {
+                id: statusLabel
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: progressTrack.bottom
                 anchors.topMargin: 14
@@ -414,8 +424,17 @@ Item {
                 font.letterSpacing: 1.5
                 color: Qt.rgba(1, 1, 1, 0.35)
 
-                Behavior on text {
-                    enabled: false
+                // Crossfade on text change
+                property string pendingText: root.statusText
+                onPendingTextChanged: {
+                    if (text !== pendingText) statusFadeAnim.restart()
+                }
+
+                SequentialAnimation {
+                    id: statusFadeAnim
+                    NumberAnimation { target: statusLabel; property: "opacity"; to: 0; duration: 120 }
+                    ScriptAction { script: statusLabel.text = statusLabel.pendingText }
+                    NumberAnimation { target: statusLabel; property: "opacity"; to: 1; duration: 180 }
                 }
             }
         }
@@ -441,6 +460,8 @@ Item {
             height: versionText.height + 8
             radius: Dimensions.radiusStandard
             color: Qt.rgba(1, 1, 1, 0.04)
+            scale: root.textOpacity  // Scales in with text
+            Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
 
             Text {
                 id: versionText

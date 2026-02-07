@@ -592,6 +592,12 @@ Item {
                                     value: root.genres.join(", ")
                                     visible: root.genres.length > 0
                                 }
+
+                                InfoRow {
+                                    label: qsTr("Motor")
+                                    value: root.engine
+                                    visible: root.engine !== ""
+                                }
                             }
                         }
                     }
