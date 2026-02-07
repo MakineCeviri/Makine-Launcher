@@ -209,6 +209,7 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
     int passed = 0;
     int failed = 0;
     int qaTotal = translatedStrings.count();
+    int totalScore = 0;
     QVariantList qaIssues;
 
     for (int i = 0; i < qaTotal; ++i) {
@@ -226,21 +227,28 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
 
             entry.qaScore = qaResult.score;
             entry.hasIssues = !qaResult.passed;
+            totalScore += qaResult.score;
 
             if (qaResult.passed) {
                 passed++;
             } else {
                 failed++;
-                QVariantMap issue;
-                issue["sourceText"] = entry.sourceText;
-                issue["targetText"] = entry.targetText;
-                issue["score"] = qaResult.score;
-                issue["severity"] = qaResult.score < 30 ? "critical"
-                    : (qaResult.score < 60 ? "warning" : "info");
-                qaIssues.append(issue);
+                // Emit individual QA issues with full detail
+                for (const auto& qaIssue : qaResult.issues) {
+                    QVariantMap issue;
+                    issue["code"] = qaIssue.code;
+                    issue["message"] = qaIssue.message;
+                    issue["severity"] = qaIssue.severity;
+                    issue["penaltyPoints"] = qaIssue.penaltyPoints;
+                    issue["sourceText"] = entry.sourceText;
+                    issue["targetText"] = entry.targetText;
+                    issue["score"] = qaResult.score;
+                    qaIssues.append(issue);
+                }
             }
         } else {
             passed++;
+            totalScore += 100;  // untranslated entries get perfect score
         }
 
         if (i % 20 == 0 || i == qaTotal - 1) {
@@ -252,7 +260,7 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
         }
     }
 
-    int avgScore = qaTotal > 0 ? (passed * 100) / qaTotal : 100;
+    int avgScore = qaTotal > 0 ? totalScore / qaTotal : 100;
     qDebug() << "QA completed: passed=" << passed << "failed=" << failed
              << "avgScore=" << avgScore << "issues:" << qaIssues.count();
 

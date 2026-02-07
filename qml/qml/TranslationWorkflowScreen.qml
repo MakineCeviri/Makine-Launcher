@@ -784,21 +784,28 @@ Item {
 
             // Show dialog if there are issues
             if (issues && issues.length > 0) {
-                // Convert C++ issues to dialog format
+                // Map severity strings from C++ to numeric values
+                var severityMap = {
+                    "info": 1,
+                    "warning": 2,
+                    "major": 3,
+                    "critical": 4
+                }
+
                 var dialogIssues = issues.map(function(issue) {
-                    var severityNum = issue.severity === "critical" ? 4 :
-                                      (issue.severity === "warning" ? 2 : 1)
                     return {
-                        code: "QA_" + severityNum,
-                        message: issue.sourceText.substring(0, 50) + (issue.sourceText.length > 50 ? "..." : ""),
-                        severity: severityNum,
-                        penaltyPoints: 100 - issue.score
+                        code: issue.code || "QA_UNKNOWN",
+                        message: issue.message || (issue.sourceText
+                            ? issue.sourceText.substring(0, 50) + (issue.sourceText.length > 50 ? "..." : "")
+                            : "Unknown issue"),
+                        severity: severityMap[issue.severity] || 1,
+                        penaltyPoints: issue.penaltyPoints || 0
                     }
                 })
 
                 qaResultsDialog.score = avgScore
                 qaResultsDialog.passed = (failed === 0)
-                qaResultsDialog.hasCriticalIssues = issues.some(function(i) { return i.severity === "critical" })
+                qaResultsDialog.hasCriticalIssues = dialogIssues.some(function(i) { return i.severity >= 4 })
                 qaResultsDialog.issues = dialogIssues
                 qaResultsDialog.open()
             }
