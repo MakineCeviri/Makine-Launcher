@@ -181,6 +181,26 @@ public:
      */
     Q_INVOKABLE QVariantMap analyzeFonts(const QString& gameId);
 
+    /**
+     * @brief Get BepInEx/XUnity runtime status for a Unity game
+     * @return Map with: isUnity, needsRuntime, installed, upToDate,
+     *         bepinexVersion, xunityVersion, backend (mono/il2cpp),
+     *         unityVersion, hasAntiCheat, antiCheatName
+     */
+    Q_INVOKABLE QVariantMap getRuntimeStatus(const QString& gameId);
+
+    /**
+     * @brief Install BepInEx + XUnity.AutoTranslator for a Unity game
+     * Emits runtimeInstallFinished when complete
+     */
+    Q_INVOKABLE void installRuntime(const QString& gameId);
+
+    /**
+     * @brief Uninstall BepInEx runtime from a Unity game
+     * Emits runtimeInstallFinished when complete
+     */
+    Q_INVOKABLE void uninstallRuntime(const QString& gameId);
+
 signals:
     void gamesChanged();
     void isScanningChanged();
@@ -196,6 +216,7 @@ signals:
     void localPackageReady(const QString& packageName, const QString& gameName, const QString& filePath);
     void localPackageError(const QString& filePath, const QString& error);
     void folderDropped(const QString& path, bool isGame);
+    void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
 
 private:
     void loadCachedGames();

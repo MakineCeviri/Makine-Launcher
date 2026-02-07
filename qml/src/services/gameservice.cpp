@@ -827,4 +827,64 @@ QVariantMap GameService::analyzeFonts(const QString& gameId)
     };
 }
 
+QVariantMap GameService::getRuntimeStatus(const QString& gameId)
+{
+    // Determine if this is a Unity game based on engine field
+    auto it = m_gameIdToIndex.constFind(gameId);
+    bool isUnity = false;
+    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.size()) {
+        isUnity = m_games[*it].engine.toLower().contains("unity");
+    }
+
+    if (!isUnity) {
+        return {
+            {"isUnity", false},
+            {"needsRuntime", false}
+        };
+    }
+
+    // Delegate to CoreBridge → RuntimeManager when core is integrated
+    // For now, return stub data for Unity games
+    return {
+        {"isUnity", true},
+        {"needsRuntime", true},
+        {"installed", false},
+        {"upToDate", false},
+        {"bepinexVersion", ""},
+        {"xunityVersion", ""},
+        {"backend", "unknown"},     // mono or il2cpp
+        {"unityVersion", ""},
+        {"hasAntiCheat", false},
+        {"antiCheatName", ""},
+        {"summary", tr("Runtime status requires core integration")}
+    };
+}
+
+void GameService::installRuntime(const QString& gameId)
+{
+    Q_UNUSED(gameId)
+
+    // Delegate to CoreBridge → RuntimeManager when core is integrated
+    qDebug() << "GameService::installRuntime stub called for" << gameId;
+
+    // Emit failure for now since core is not connected
+    QTimer::singleShot(500, this, [this, gameId]() {
+        emit runtimeInstallFinished(gameId, false,
+            tr("Runtime installation requires core integration"));
+    });
+}
+
+void GameService::uninstallRuntime(const QString& gameId)
+{
+    Q_UNUSED(gameId)
+
+    // Delegate to CoreBridge → RuntimeManager when core is integrated
+    qDebug() << "GameService::uninstallRuntime stub called for" << gameId;
+
+    QTimer::singleShot(500, this, [this, gameId]() {
+        emit runtimeInstallFinished(gameId, false,
+            tr("Runtime uninstallation requires core integration"));
+    });
+}
+
 } // namespace makineai

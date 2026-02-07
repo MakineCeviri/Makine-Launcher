@@ -73,6 +73,19 @@ Item {
     property int removedCount: 0
     property string compatibilitySummary: ""
 
+    // Runtime (BepInEx/XUnity) status - Unity games only
+    property bool isUnityGame: false
+    property bool runtimeNeeded: false
+    property bool runtimeInstalled: false
+    property bool runtimeUpToDate: false
+    property string bepinexVersion: ""
+    property string xunityVersion: ""
+    property string unityBackend: ""  // mono, il2cpp, unknown
+    property string unityVersion: ""
+    property bool hasAntiCheat: false
+    property string antiCheatName: ""
+    property bool isInstallingRuntime: false
+
     signal backClicked()
     signal translateClicked()
     signal steamStoreClicked()
@@ -114,6 +127,17 @@ Item {
         addedCount = 0
         removedCount = 0
         compatibilitySummary = ""
+        isUnityGame = false
+        runtimeNeeded = false
+        runtimeInstalled = false
+        runtimeUpToDate = false
+        bepinexVersion = ""
+        xunityVersion = ""
+        unityBackend = ""
+        unityVersion = ""
+        hasAntiCheat = false
+        antiCheatName = ""
+        isInstallingRuntime = false
     }
 
     function populateSteamDetails(details) {
@@ -180,6 +204,21 @@ Item {
             removedCount = compat.removedCount || 0
             compatibilitySummary = compat.summary || ""
         }
+
+        // Check BepInEx/XUnity runtime status for Unity games
+        var runtime = GameService.getRuntimeStatus(gameId)
+        if (runtime && runtime.isUnity) {
+            isUnityGame = true
+            runtimeNeeded = runtime.needsRuntime || false
+            runtimeInstalled = runtime.installed || false
+            runtimeUpToDate = runtime.upToDate || false
+            bepinexVersion = runtime.bepinexVersion || ""
+            xunityVersion = runtime.xunityVersion || ""
+            unityBackend = runtime.backend || "unknown"
+            unityVersion = runtime.unityVersion || ""
+            hasAntiCheat = runtime.hasAntiCheat || false
+            antiCheatName = runtime.antiCheatName || ""
+        }
     }
 
     Connections {
@@ -192,6 +231,21 @@ Item {
         function onSteamDetailsFetchError(appId, error) {
             if (appId === root.steamAppId) {
                 root.isLoadingSteamDetails = false
+            }
+        }
+        function onRuntimeInstallFinished(gId, success, error) {
+            if (gId === root.gameId) {
+                root.isInstallingRuntime = false
+                if (success) {
+                    // Refresh runtime status
+                    var runtime = GameService.getRuntimeStatus(root.gameId)
+                    if (runtime) {
+                        root.runtimeInstalled = runtime.installed || false
+                        root.runtimeUpToDate = runtime.upToDate || false
+                        root.bepinexVersion = runtime.bepinexVersion || ""
+                        root.xunityVersion = runtime.xunityVersion || ""
+                    }
+                }
             }
         }
     }
@@ -1270,6 +1324,246 @@ Item {
                                 text: removedCount + " " + qsTr("silinen dosya")
                                 font.pixelSize: 11
                                 color: Theme.destructive
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ===== RUNTIME STATUS (BepInEx/XUnity) =====
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 32
+                Layout.rightMargin: 32
+                spacing: 12
+                visible: root.isUnityGame && root.runtimeNeeded
+
+                Text {
+                    text: qsTr("Çeviri Çalışma Ortamı")
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    color: "white"
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: runtimeContent.height + 32
+                    radius: Dimensions.radiusStandard
+                    color: {
+                        if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.06)
+                        if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.06)
+                        return Qt.rgba(1, 1, 1, 0.03)
+                    }
+                    border.color: {
+                        if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.3)
+                        if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.3)
+                        return Qt.rgba(1, 1, 1, 0.08)
+                    }
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: runtimeContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 16
+                        spacing: 12
+
+                        // Status header
+                        RowLayout {
+                            spacing: 10
+
+                            Rectangle {
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                radius: 14
+                                color: {
+                                    if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.15)
+                                    if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.15)
+                                    return Qt.rgba(1, 1, 1, 0.08)
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: runtimeInstalled ? "\u2713" : "\u2193"
+                                    font.pixelSize: 14
+                                    font.weight: Font.Bold
+                                    color: {
+                                        if (runtimeInstalled && runtimeUpToDate) return Theme.success
+                                        if (runtimeInstalled) return Theme.warning
+                                        return Theme.textMuted
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                spacing: 2
+
+                                Text {
+                                    text: {
+                                        if (runtimeInstalled && runtimeUpToDate) return qsTr("BepInEx Kurulu")
+                                        if (runtimeInstalled) return qsTr("BepInEx Güncellenmeli")
+                                        return qsTr("BepInEx Gerekli")
+                                    }
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                    color: {
+                                        if (runtimeInstalled && runtimeUpToDate) return Theme.success
+                                        if (runtimeInstalled) return Theme.warning
+                                        return Theme.textSecondary
+                                    }
+                                }
+
+                                Text {
+                                    text: qsTr("Unity çevirileri için BepInEx + XUnity.AutoTranslator gereklidir")
+                                    font.pixelSize: 11
+                                    color: Theme.textMuted
+                                    visible: !runtimeInstalled
+                                }
+
+                                Text {
+                                    text: {
+                                        var parts = []
+                                        if (bepinexVersion) parts.push("BepInEx " + bepinexVersion)
+                                        if (xunityVersion) parts.push("XUnity " + xunityVersion)
+                                        return parts.join("  •  ")
+                                    }
+                                    font.pixelSize: 11
+                                    color: Theme.textSecondary
+                                    visible: runtimeInstalled && (bepinexVersion || xunityVersion)
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            // Backend badge
+                            Rectangle {
+                                Layout.preferredWidth: backendLabel.width + 16
+                                Layout.preferredHeight: 22
+                                radius: 4
+                                color: Qt.rgba(1, 1, 1, 0.06)
+                                visible: unityBackend !== "" && unityBackend !== "unknown"
+
+                                Text {
+                                    id: backendLabel
+                                    anchors.centerIn: parent
+                                    text: unityBackend === "il2cpp" ? "IL2CPP" : "Mono"
+                                    font.pixelSize: 10
+                                    font.weight: Font.Medium
+                                    color: Theme.textSecondary
+                                }
+                            }
+                        }
+
+                        // Anti-cheat warning
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: acRow.height + 16
+                            radius: 8
+                            color: Theme.withAlpha(Theme.destructive, 0.08)
+                            border.color: Theme.withAlpha(Theme.destructive, 0.2)
+                            border.width: 1
+                            visible: hasAntiCheat
+
+                            RowLayout {
+                                id: acRow
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.margins: 12
+                                spacing: 8
+
+                                Text {
+                                    text: "\u26A0"
+                                    font.pixelSize: 14
+                                    color: Theme.destructive
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: qsTr("Bu oyun %1 anti-cheat kullanıyor. BepInEx kurulumu online özelliklerle çakışabilir.").arg(antiCheatName || "Anti-Cheat")
+                                    font.pixelSize: 12
+                                    color: Theme.destructive
+                                    wrapMode: Text.WordWrap
+                                    lineHeight: 1.3
+                                }
+                            }
+                        }
+
+                        // Action buttons
+                        RowLayout {
+                            spacing: 10
+
+                            // Install / Update button
+                            Rectangle {
+                                Layout.preferredWidth: runtimeBtnText.width + 32
+                                Layout.preferredHeight: 34
+                                radius: Dimensions.radiusStandard
+                                color: runtimeBtnMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.2) : Theme.withAlpha(Theme.primary, 0.12)
+                                visible: !runtimeInstalled || !runtimeUpToDate
+                                opacity: isInstallingRuntime ? 0.6 : 1
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    id: runtimeBtnText
+                                    anchors.centerIn: parent
+                                    text: {
+                                        if (isInstallingRuntime) return qsTr("Kuruluyor...")
+                                        if (runtimeInstalled) return qsTr("Güncelle")
+                                        return qsTr("BepInEx Kur")
+                                    }
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                    color: Theme.primary
+                                }
+
+                                MouseArea {
+                                    id: runtimeBtnMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    enabled: !isInstallingRuntime
+                                    onClicked: {
+                                        isInstallingRuntime = true
+                                        GameService.installRuntime(root.gameId)
+                                    }
+                                }
+                            }
+
+                            // Uninstall button
+                            Rectangle {
+                                Layout.preferredWidth: uninstallBtnText.width + 32
+                                Layout.preferredHeight: 34
+                                radius: Dimensions.radiusStandard
+                                color: uninstallMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+                                border.color: Qt.rgba(1, 1, 1, 0.12)
+                                border.width: 1
+                                visible: runtimeInstalled
+                                opacity: isInstallingRuntime ? 0.6 : 1
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    id: uninstallBtnText
+                                    anchors.centerIn: parent
+                                    text: qsTr("Kaldır")
+                                    font.pixelSize: 12
+                                    font.weight: Font.Medium
+                                    color: Theme.textSecondary
+                                }
+
+                                MouseArea {
+                                    id: uninstallMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    enabled: !isInstallingRuntime
+                                    onClicked: {
+                                        isInstallingRuntime = true
+                                        GameService.uninstallRuntime(root.gameId)
+                                    }
+                                }
                             }
                         }
                     }
