@@ -152,7 +152,11 @@ private:
     void onItemCompleted(const QString& gameId, bool success, const QString& message);
     void finishBatch();
 
+    void disconnectCurrentItem();
+
     CoreBridge* m_coreBridge{nullptr};
+    QMetaObject::Connection m_itemCompletionConn;
+    QMetaObject::Connection m_itemProgressConn;
     std::vector<QueueItem> m_queue;
     std::vector<QueueItem> m_results;
     BatchOperationType m_currentOperation{BatchOperationType::Install};

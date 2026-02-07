@@ -17,7 +17,12 @@ TranslationService::TranslationService(QObject *parent)
     setupCoreBridge();
 }
 
-TranslationService::~TranslationService() = default;
+TranslationService::~TranslationService()
+{
+    if (m_coreBridge) {
+        disconnect(m_coreBridge, nullptr, this, nullptr);
+    }
+}
 
 TranslationService* TranslationService::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {

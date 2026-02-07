@@ -6,7 +6,6 @@
 
 #include "batchoperationservice.h"
 #include <QDebug>
-#include <memory>
 
 namespace makineai {
 
@@ -16,7 +15,16 @@ BatchOperationService::BatchOperationService(QObject *parent)
     m_coreBridge = CoreBridge::instance();
 }
 
-BatchOperationService::~BatchOperationService() = default;
+BatchOperationService::~BatchOperationService()
+{
+    disconnectCurrentItem();
+}
+
+void BatchOperationService::disconnectCurrentItem()
+{
+    disconnect(m_itemCompletionConn);
+    disconnect(m_itemProgressConn);
+}
 
 BatchOperationService* BatchOperationService::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {
@@ -197,17 +205,18 @@ void BatchOperationService::processNextItem()
         return;
     }
 
+    // Disconnect previous item connections before creating new ones
+    disconnectCurrentItem();
+
     // Connect to CoreBridge completion signal for this item
-    auto conn = std::make_shared<QMetaObject::Connection>();
-    *conn = connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
-        this, [this, conn, gameId = item.gameId](bool success, const QString& message) {
-            disconnect(*conn);
+    m_itemCompletionConn = connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
+        this, [this, gameId = item.gameId](bool success, const QString& message) {
+            disconnectCurrentItem();
             onItemCompleted(gameId, success, message);
         });
 
-    auto progressConn = std::make_shared<QMetaObject::Connection>();
-    *progressConn = connect(m_coreBridge, &CoreBridge::packageInstallProgress,
-        this, [this, progressConn](double progress, const QString& status) {
+    m_itemProgressConn = connect(m_coreBridge, &CoreBridge::packageInstallProgress,
+        this, [this](double progress, const QString& status) {
             onItemProgress(progress, status);
         });
 
@@ -218,13 +227,11 @@ void BatchOperationService::processNextItem()
             break;
         case BatchOperationType::Remove:
             // Remove not yet in CoreBridge — complete immediately
-            disconnect(*conn);
-            disconnect(*progressConn);
+            disconnectCurrentItem();
             onItemCompleted(item.gameId, false, "Remove not yet implemented");
             break;
         default:
-            disconnect(*conn);
-            disconnect(*progressConn);
+            disconnectCurrentItem();
             onItemCompleted(item.gameId, false, "Unknown operation");
             break;
     }

@@ -111,6 +111,7 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
     // Copy files recursively
     qint64 totalSize = 0;
     int copiedFiles = 0;
+    int failedFiles = 0;
 
     QDirIterator it(sourcePath, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext()) {
@@ -123,7 +124,17 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
         if (QFile::copy(sourceFile, destFile)) {
             totalSize += QFileInfo(destFile).size();
             copiedFiles++;
+        } else {
+            failedFiles++;
+            qWarning() << "Failed to copy:" << sourceFile << "->" << destFile;
         }
+    }
+
+    if (copiedFiles == 0) {
+        // Nothing was copied — remove empty backup dir and report error
+        QDir(backupDir).removeRecursively();
+        emit backupError(QString("Yedekleme başarısız: hiçbir dosya kopyalanamadı (%1)").arg(gameName));
+        return false;
     }
 
     BackupInfo backup;
@@ -147,7 +158,13 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
     emit backupsChanged();
     emit backupCreated(gameId);
 
-    qDebug() << "Backup created:" << backupId << "for game:" << gameId;
+    if (failedFiles > 0) {
+        qWarning() << "Backup created with" << failedFiles << "failed copies for game:" << gameId;
+        emit backupError(QString("Yedek oluşturuldu ancak %1 dosya kopyalanamadı").arg(failedFiles));
+    }
+
+    qDebug() << "Backup created:" << backupId << "for game:" << gameId
+             << "(" << copiedFiles << "files," << failedFiles << "failed)";
     return true;
 }
 
