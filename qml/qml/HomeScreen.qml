@@ -54,7 +54,7 @@ Item {
                             updateAvailable = true
                             latestVersion = tagName
                             downloadUrl = response.html_url || ""
-                            notificationMessage = qsTr("Yeni sürüm mevcut: ") + tagName
+                            notificationMessage = qsTr("Yeni sürüm mevcut: %1").arg(tagName)
                             notificationType = "update"
                         }
                     } catch (e) {
@@ -804,7 +804,7 @@ Item {
                                     Label {
                                         id: gamesCountLabel
                                         anchors.centerIn: parent
-                                        text: GameService.gameCount + " " + qsTr("oyun")
+                                        text: qsTr("%1 oyun").arg(GameService.gameCount)
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
                                         color: Theme.primary
@@ -821,7 +821,7 @@ Item {
                                     Label {
                                         id: patchedLabel
                                         anchors.centerIn: parent
-                                        text: GameService.patchedGamesCount + " " + qsTr("çevrildi")
+                                        text: qsTr("%1 çevrildi").arg(GameService.patchedGamesCount)
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
                                         color: Theme.success
@@ -1187,7 +1187,7 @@ Item {
                                     }
 
                                     Label {
-                                        text: GameService.gameCount + " " + qsTr("desteklenen oyun")
+                                        text: qsTr("%1 desteklenen oyun").arg(GameService.gameCount)
                                         font.pixelSize: 12
                                         color: Theme.textMuted
                                         anchors.verticalCenter: parent.verticalCenter
@@ -1421,7 +1421,7 @@ Item {
 
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
-        Accessible.name: qsTr("View All") + " (+" + remainingCount + ")"
+        Accessible.name: qsTr("View All (+%1)").arg(remainingCount)
         Accessible.onPressAction: clicked()
         Keys.onReturnPressed: clicked()
         Keys.onSpacePressed: clicked()

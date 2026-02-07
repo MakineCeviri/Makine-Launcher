@@ -171,6 +171,12 @@ Dialog {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.activeSeverityFilter = 0
                         }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("All issues")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: root.activeSeverityFilter = 0
+                        Keys.onSpacePressed: root.activeSeverityFilter = 0
                     }
 
                     // Critical badge
@@ -188,7 +194,7 @@ Dialog {
                         Text {
                             id: criticalBadgeText
                             anchors.centerIn: parent
-                            text: criticalCount + " Kritik"
+                            text: qsTr("%1 Kritik").arg(criticalCount)
                             font.pixelSize: 10
                             font.weight: Font.Medium
                             color: colorCritical
@@ -199,6 +205,12 @@ Dialog {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.activeSeverityFilter = root.activeSeverityFilter === 4 ? 0 : 4
                         }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("Critical issues")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: root.activeSeverityFilter = root.activeSeverityFilter === 4 ? 0 : 4
+                        Keys.onSpacePressed: root.activeSeverityFilter = root.activeSeverityFilter === 4 ? 0 : 4
                     }
 
                     // Major badge
@@ -216,7 +228,7 @@ Dialog {
                         Text {
                             id: majorBadgeText
                             anchors.centerIn: parent
-                            text: majorCount + " Önemli"
+                            text: qsTr("%1 Önemli").arg(majorCount)
                             font.pixelSize: 10
                             font.weight: Font.Medium
                             color: colorMajor
@@ -227,6 +239,12 @@ Dialog {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.activeSeverityFilter = root.activeSeverityFilter === 3 ? 0 : 3
                         }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("Major issues")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: root.activeSeverityFilter = root.activeSeverityFilter === 3 ? 0 : 3
+                        Keys.onSpacePressed: root.activeSeverityFilter = root.activeSeverityFilter === 3 ? 0 : 3
                     }
 
                     // Warning badge
@@ -244,7 +262,7 @@ Dialog {
                         Text {
                             id: warningBadgeText
                             anchors.centerIn: parent
-                            text: warningCount + " Uyarı"
+                            text: qsTr("%1 Uyarı").arg(warningCount)
                             font.pixelSize: 10
                             font.weight: Font.Medium
                             color: colorWarning
@@ -255,6 +273,12 @@ Dialog {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.activeSeverityFilter = root.activeSeverityFilter === 2 ? 0 : 2
                         }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("Warning issues")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: root.activeSeverityFilter = root.activeSeverityFilter === 2 ? 0 : 2
+                        Keys.onSpacePressed: root.activeSeverityFilter = root.activeSeverityFilter === 2 ? 0 : 2
                     }
                 }
             }
@@ -269,6 +293,9 @@ Dialog {
                 color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Close")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: root.close()
+                Keys.onSpacePressed: root.close()
 
                 Text {
                     anchors.centerIn: parent

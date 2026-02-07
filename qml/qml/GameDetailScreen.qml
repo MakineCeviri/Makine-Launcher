@@ -993,9 +993,9 @@ Item {
                         }
 
                         InfoRow { label: qsTr("Reçete Sürümü"); value: "v" + root.recipeVersion }
-                        InfoRow { label: qsTr("Metin Sayısı"); value: root.stringCount + " " + qsTr("adet") }
+                        InfoRow { label: qsTr("Metin Sayısı"); value: qsTr("%1 adet").arg(root.stringCount) }
                         InfoRow { label: qsTr("Kapsam"); value: root.coverage }
-                        InfoRow { label: qsTr("Dosya Sayısı"); value: root.fileCount + " " + qsTr("dosya") }
+                        InfoRow { label: qsTr("Dosya Sayısı"); value: qsTr("%1 dosya").arg(root.fileCount) }
                         InfoRow { label: qsTr("Hazırlayan"); value: root.author; visible: root.author !== "" }
                     }
                 }
@@ -1120,7 +1120,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: turkishSupportCount + "/" + totalFonts + " " + qsTr("yazı tipi Türkçe karakterleri destekliyor")
+                                    text: qsTr("%1/%2 yazı tipi Türkçe karakterleri destekliyor").arg(turkishSupportCount).arg(totalFonts)
                                     font.pixelSize: 11
                                     color: Theme.textSecondary
                                 }
@@ -1138,7 +1138,7 @@ Item {
                                 Text {
                                     id: fontCountLabel
                                     anchors.centerIn: parent
-                                    text: totalFonts + " " + qsTr("font")
+                                    text: qsTr("%1 font").arg(totalFonts)
                                     font.pixelSize: 11
                                     font.weight: Font.Medium
                                     color: Theme.textMuted
@@ -1224,7 +1224,7 @@ Item {
                         // "N more fonts" indicator
                         Text {
                             visible: fontsList.length > 3
-                            text: "+" + (fontsList.length - 3) + " " + qsTr("daha fazla yazı tipi")
+                            text: qsTr("+%1 daha fazla yazı tipi").arg(fontsList.length - 3)
                             font.pixelSize: 11
                             color: Theme.textMuted
                         }
@@ -1377,19 +1377,19 @@ Item {
 
                             Text {
                                 visible: modifiedCount > 0
-                                text: modifiedCount + " " + qsTr("değiştirilmiş")
+                                text: qsTr("%1 değiştirilmiş").arg(modifiedCount)
                                 font.pixelSize: 11
                                 color: Theme.warning
                             }
                             Text {
                                 visible: addedCount > 0
-                                text: addedCount + " " + qsTr("yeni dosya")
+                                text: qsTr("%1 yeni dosya").arg(addedCount)
                                 font.pixelSize: 11
                                 color: Theme.primary
                             }
                             Text {
                                 visible: removedCount > 0
-                                text: removedCount + " " + qsTr("silinen dosya")
+                                text: qsTr("%1 silinen dosya").arg(removedCount)
                                 font.pixelSize: 11
                                 color: Theme.destructive
                             }
@@ -1778,7 +1778,7 @@ Item {
 
                                         Text {
                                             property int fc: backupSection.latestBackup.fileCount || 0
-                                            text: fc + " " + qsTr("dosya")
+                                            text: qsTr("%1 dosya").arg(fc)
                                             font.pixelSize: 12
                                             color: Theme.textSecondary
                                             visible: fc > 0
@@ -1786,7 +1786,7 @@ Item {
 
                                         Text {
                                             property int bc: backupSection.gameBackups.length
-                                            text: bc + " " + qsTr("yedek mevcut")
+                                            text: qsTr("%1 yedek mevcut").arg(bc)
                                             font.pixelSize: 12
                                             color: Theme.textMuted
                                         }

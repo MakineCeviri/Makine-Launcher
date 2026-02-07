@@ -602,7 +602,7 @@ ApplicationWindow {
             if (homeView.updateAvailable) {
                 window.showNotification(
                     qsTr("Güncelleme Mevcut"),
-                    qsTr("Yeni sürüm mevcut: ") + homeView.latestVersion,
+                    qsTr("Yeni sürüm mevcut: %1").arg(homeView.latestVersion),
                     "update"
                 )
             }
@@ -614,8 +614,8 @@ ApplicationWindow {
         target: GameService
         function onLocalPackageReady(packageName, gameName, filePath) {
             window.showNotification(
-                qsTr("Paket Hazır: ") + packageName,
-                qsTr("Oyun: ") + gameName,
+                qsTr("Paket Hazır: %1").arg(packageName),
+                qsTr("Oyun: %1").arg(gameName),
                 "translation"
             )
         }

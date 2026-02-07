@@ -110,7 +110,7 @@ Rectangle {
                 Label {
                     id: failedLabel
                     anchors.centerIn: parent
-                    text: BatchOperationService.failedItems + " " + qsTr("hata")
+                    text: qsTr("%1 hata").arg(BatchOperationService.failedItems)
                     font.pixelSize: 10
                     font.weight: Font.Medium
                     color: Theme.destructive

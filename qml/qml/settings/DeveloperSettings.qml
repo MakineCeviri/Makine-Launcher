@@ -76,7 +76,7 @@ ColumnLayout {
                     }
 
                     root.isImporting = false
-                    root.devStatus = "\u2713 " + added + " " + qsTr("çeviri eklendi!")
+                    root.devStatus = qsTr("\u2713 %1 çeviri eklendi!").arg(added)
                 }
             }
 

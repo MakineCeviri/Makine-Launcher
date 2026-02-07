@@ -264,6 +264,9 @@ Dialog {
                 border.width: 1
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Close")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { root.cancelled(); root.close() }
+                Keys.onSpacePressed: { root.cancelled(); root.close() }
 
                 Behavior on color { ColorAnimation { duration: 150 } }
                 Behavior on border.color { ColorAnimation { duration: 150 } }

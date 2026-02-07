@@ -90,7 +90,7 @@ Item {
                     }
 
                     Label {
-                        text: root.gameEngine + " " + qsTr("motoru")
+                        text: qsTr("%1 motoru").arg(root.gameEngine)
                         font.pixelSize: 13
                         color: Theme.textMuted
                     }

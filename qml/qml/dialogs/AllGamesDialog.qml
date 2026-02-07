@@ -125,7 +125,7 @@ Dialog {
                     }
 
                     Text {
-                        text: filteredGames.length + " " + qsTr("oyun listeleniyor")
+                        text: qsTr("%1 oyun listeleniyor").arg(filteredGames.length)
                         font.pixelSize: 13
                         color: Theme.textMuted
                     }
@@ -163,7 +163,7 @@ Dialog {
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         Text {
-                            text: batchMode ? qsTr("Toplu Seçim") : qsTr("Toplu Seçim")
+                            text: qsTr("Toplu Seçim")
                             font.pixelSize: 12
                             font.weight: Font.Medium
                             color: batchMode ? Theme.primary : Theme.textSecondary
@@ -267,6 +267,8 @@ Dialog {
                             radius: 12
                             color: clearSearchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                             visible: searchInput.text.length > 0
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Clear search")
 
                             Text {
                                 anchors.centerIn: parent
@@ -722,7 +724,7 @@ Dialog {
                 Text {
                     id: installBtnLabel
                     anchors.centerIn: parent
-                    text: qsTr("Çevirileri Kur") + (selectedCount > 0 ? " (" + selectedCount + ")" : "")
+                    text: selectedCount > 0 ? qsTr("Çevirileri Kur (%1)").arg(selectedCount) : qsTr("Çevirileri Kur")
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                     color: selectedCount > 0 ? "white" : Theme.textMuted
