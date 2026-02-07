@@ -887,4 +887,17 @@ void GameService::uninstallRuntime(const QString& gameId)
     });
 }
 
+QVariantMap GameService::checkAntiCheat(const QString& gameId)
+{
+    Q_UNUSED(gameId)
+
+    // Delegate to CoreBridge → AntiCheatDetector when core is integrated
+    // Core has full detection for EAC, BattlEye, Vanguard, nProtect, etc.
+    // For now, return no anti-cheat detected
+    return {
+        {"hasAntiCheat", false},
+        {"systems", QVariantList()}
+    };
+}
+
 } // namespace makineai

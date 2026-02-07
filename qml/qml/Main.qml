@@ -463,7 +463,7 @@ ApplicationWindow {
                 onTranslateClicked: {
                     var gameData = GameService.getGameById(gameDetailView.gameId)
 
-                    // Pre-flight compatibility check
+                    // Pre-flight 1: Compatibility check
                     var compat = GameService.checkCompatibility(gameDetailView.gameId)
                     if (compat && (compat.level === "incompatible" || compat.level === "partial")) {
                         compatWarningDialog.gameName = gameDetailView.gameName
@@ -474,7 +474,16 @@ ApplicationWindow {
                         return
                     }
 
-                    // Compatible or unknown — proceed directly
+                    // Pre-flight 2: Anti-cheat check
+                    var antiCheat = GameService.checkAntiCheat(gameDetailView.gameId)
+                    if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
+                        antiCheatWarningDialog.gameName = gameDetailView.gameName
+                        antiCheatWarningDialog.detectedSystems = antiCheat.systems
+                        antiCheatWarningDialog.open()
+                        return
+                    }
+
+                    // All checks passed — proceed
                     startTranslationWorkflow(gameData)
                 }
 
@@ -623,6 +632,17 @@ ApplicationWindow {
         onRestoreBackup: {
             // Navigate to game detail screen's backup section
             contentStackContainer.navigateTo(2)
+        }
+    }
+
+    // ===== ANTI-CHEAT WARNING DIALOG =====
+    AntiCheatWarningDialog {
+        id: antiCheatWarningDialog
+        parent: Overlay.overlay
+
+        onContinueAnyway: {
+            var gameData = GameService.getGameById(gameDetailView.gameId)
+            gameDetailView.startTranslationWorkflow(gameData)
         }
     }
 

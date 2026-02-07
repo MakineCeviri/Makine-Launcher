@@ -182,6 +182,12 @@ public:
     Q_INVOKABLE QVariantMap analyzeFonts(const QString& gameId);
 
     /**
+     * @brief Check if a game has anti-cheat protection
+     * @return Map with: hasAntiCheat, systems (list of {name, shortName, severity, warning})
+     */
+    Q_INVOKABLE QVariantMap checkAntiCheat(const QString& gameId);
+
+    /**
      * @brief Get BepInEx/XUnity runtime status for a Unity game
      * @return Map with: isUnity, needsRuntime, installed, upToDate,
      *         bepinexVersion, xunityVersion, backend (mono/il2cpp),
