@@ -247,6 +247,7 @@ qt_add_qml_module(MakineAI
         qml/components/EmptyStateMessage.qml
         qml/components/CustomScrollBar.qml
         qml/components/AppFooter.qml
+        qml/components/BatchOperationsPanel.qml
 
         # Dialogs
         qml/dialogs/GameDetectorDialog.qml

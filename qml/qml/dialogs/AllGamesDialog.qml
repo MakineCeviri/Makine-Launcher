@@ -12,8 +12,41 @@ Dialog {
     property var games: []
     property string searchText: ""
     property string selectedCategory: "all"
+    property bool batchMode: false
+    property var selectedGameIds: ({})
+    property int selectedCount: Object.keys(selectedGameIds).length
 
     signal gameSelected(string gameId)
+
+    function toggleBatchSelection(gameId) {
+        var copy = Object.assign({}, selectedGameIds)
+        if (copy[gameId])
+            delete copy[gameId]
+        else
+            copy[gameId] = true
+        selectedGameIds = copy
+    }
+
+    function selectAllFiltered() {
+        var copy = Object.assign({}, selectedGameIds)
+        for (var i = 0; i < filteredGames.length; i++)
+            copy[filteredGames[i].id] = true
+        selectedGameIds = copy
+    }
+
+    function deselectAll() {
+        selectedGameIds = ({})
+    }
+
+    function startBatchInstall() {
+        var ids = Object.keys(selectedGameIds)
+        if (ids.length > 0) {
+            BatchOperationService.batchInstall(ids)
+            batchMode = false
+            selectedGameIds = ({})
+            root.close()
+        }
+    }
 
     title: qsTr("Tüm Desteklenen Oyunlar")
     modal: true
@@ -99,6 +132,53 @@ Dialog {
                 }
 
                 Item { Layout.fillWidth: true }
+
+                // Batch mode toggle
+                Rectangle {
+                    Layout.preferredWidth: batchToggleRow.width + 16
+                    Layout.preferredHeight: 32
+                    radius: Dimensions.radiusStandard
+                    color: batchMode
+                           ? Theme.withAlpha(Theme.primary, 0.15)
+                           : (batchToggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04))
+                    border.color: batchMode ? Theme.primary : "transparent"
+                    border.width: 1
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Batch mode")
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Row {
+                        id: batchToggleRow
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Text {
+                            text: "\u2611"
+                            font.pixelSize: 14
+                            color: batchMode ? Theme.primary : Theme.textMuted
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: batchMode ? qsTr("Toplu Seçim") : qsTr("Toplu Seçim")
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                            color: batchMode ? Theme.primary : Theme.textSecondary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: batchToggleMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            batchMode = !batchMode
+                            if (!batchMode) deselectAll()
+                        }
+                    }
+                }
 
                 // Close button
                 Rectangle {
@@ -438,14 +518,54 @@ Dialog {
                         Behavior on opacity { NumberAnimation { duration: 250 } }
                     }
 
+                    // Batch selection checkbox overlay
+                    Rectangle {
+                        visible: batchMode
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.topMargin: 6
+                        anchors.leftMargin: 6
+                        width: 22
+                        height: 22
+                        radius: 4
+                        color: selectedGameIds[modelData.id]
+                               ? Theme.primary
+                               : Qt.rgba(0, 0, 0, 0.6)
+                        border.color: selectedGameIds[modelData.id]
+                                      ? Theme.primary
+                                      : Qt.rgba(1, 1, 1, 0.3)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u2713"
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                            color: "white"
+                            visible: selectedGameIds[modelData.id] === true
+                        }
+                    }
+
+                    // Selected tint overlay
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Dimensions.cardBorderRadius
+                        color: Theme.withAlpha(Theme.primary, 0.15)
+                        visible: batchMode && selectedGameIds[modelData.id] === true
+                    }
+
                     MouseArea {
                         id: cardMouse
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            root.gameSelected(modelData.id)
-                            root.close()
+                            if (batchMode)
+                                toggleBatchSelection(modelData.id)
+                            else {
+                                root.gameSelected(modelData.id)
+                                root.close()
+                            }
                         }
                     }
                 }
@@ -477,6 +597,124 @@ Dialog {
                 text: qsTr("Arama kriterlerini değiştirmeyi deneyin")
                 font.pixelSize: 14
                 color: Theme.textMuted
+            }
+        }
+    }
+
+    // ===== BATCH ACTION FOOTER =====
+    footer: Rectangle {
+        height: batchMode ? 56 : 0
+        color: Theme.surface
+        visible: batchMode
+        clip: true
+
+        Behavior on height {
+            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        }
+
+        Rectangle {
+            anchors.top: parent.top
+            width: parent.width
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.06)
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 24
+            anchors.rightMargin: 24
+            spacing: 12
+
+            Text {
+                text: selectedCount > 0
+                      ? qsTr("%1 oyun seçildi").arg(selectedCount)
+                      : qsTr("Seçim yapın")
+                font.pixelSize: 13
+                color: Theme.textSecondary
+            }
+
+            Item { Layout.fillWidth: true }
+
+            // Select all
+            Rectangle {
+                Layout.preferredWidth: selectAllLabel.width + 16
+                Layout.preferredHeight: 30
+                radius: Dimensions.radiusStandard
+                color: selectAllMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+
+                Text {
+                    id: selectAllLabel
+                    anchors.centerIn: parent
+                    text: qsTr("Tümünü Seç")
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    color: Theme.textSecondary
+                }
+
+                MouseArea {
+                    id: selectAllMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: selectAllFiltered()
+                }
+            }
+
+            // Deselect all
+            Rectangle {
+                visible: selectedCount > 0
+                Layout.preferredWidth: deselectLabel.width + 16
+                Layout.preferredHeight: 30
+                radius: Dimensions.radiusStandard
+                color: deselectMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+
+                Text {
+                    id: deselectLabel
+                    anchors.centerIn: parent
+                    text: qsTr("Seçimi Kaldır")
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    color: Theme.textSecondary
+                }
+
+                MouseArea {
+                    id: deselectMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: deselectAll()
+                }
+            }
+
+            // Install button
+            Rectangle {
+                Layout.preferredWidth: installBtnLabel.width + 24
+                Layout.preferredHeight: 34
+                radius: Dimensions.radiusStandard
+                color: selectedCount > 0
+                       ? (installBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary)
+                       : Qt.rgba(1, 1, 1, 0.06)
+                opacity: selectedCount > 0 ? 1.0 : 0.5
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    id: installBtnLabel
+                    anchors.centerIn: parent
+                    text: qsTr("Çevirileri Kur") + (selectedCount > 0 ? " (" + selectedCount + ")" : "")
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                    color: selectedCount > 0 ? "white" : Theme.textMuted
+                }
+
+                MouseArea {
+                    id: installBtnMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: selectedCount > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: selectedCount > 0
+                    onClicked: startBatchInstall()
+                }
             }
         }
     }

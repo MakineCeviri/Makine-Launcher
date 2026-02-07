@@ -708,6 +708,14 @@ Item {
                             }
                         }
 
+                        // ===== BATCH OPERATIONS PANEL =====
+                        BatchOperationsPanel {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            animationsEnabled: root.animationsEnabled
+                        }
+
                         // ===== GAMES SECTION =====
                         ColumnLayout {
                             id: gamesSectionLayout
