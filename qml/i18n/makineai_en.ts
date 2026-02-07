@@ -1495,22 +1495,42 @@ it will be automatically detected.</translation>
 <context>
     <name>NavBar</name>
     <message>
-        <location filename="../qml/components/NavBar.qml" line="242"/>
+        <location filename="../qml/components/NavBar.qml" line="152"/>
+        <source>Home</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/NavBar.qml" line="245"/>
         <source>Ana Menü</source>
         <translation>Main Menu</translation>
     </message>
     <message>
-        <location filename="../qml/components/NavBar.qml" line="308"/>
+        <location filename="../qml/components/NavBar.qml" line="261"/>
+        <source>AI Active</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/NavBar.qml" line="261"/>
+        <source>AI Inactive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/NavBar.qml" line="314"/>
         <source>Kapat</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/components/NavBar.qml" line="308"/>
+        <location filename="../qml/components/NavBar.qml" line="314"/>
         <source>Türkçe Yama</source>
         <translation>Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/components/NavBar.qml" line="474"/>
+        <location filename="../qml/components/NavBar.qml" line="455"/>
+        <source>Support Us</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/components/NavBar.qml" line="483"/>
         <source>Destek Ol</source>
         <translation>Support Us</translation>
     </message>
@@ -1767,6 +1787,14 @@ Select a game from the main screen and install its Turkish translation!</transla
         <location filename="../qml/OnboardingWizard.qml" line="595"/>
         <source>Continue to next step</source>
         <translation>Continue to next step</translation>
+    </message>
+</context>
+<context>
+    <name>PerformanceMonitor</name>
+    <message>
+        <location filename="../qml/components/PerformanceMonitor.qml" line="237"/>
+        <source>Click: toggle • Dbl: reset</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
