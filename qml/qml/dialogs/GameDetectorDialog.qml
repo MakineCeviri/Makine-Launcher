@@ -280,31 +280,59 @@ Popup {
                 spacing: 24
                 visible: root.isScanning
 
-                Rectangle {
+                Item {
                     width: 80
                     height: 80
-                    radius: 40
-                    color: "transparent"
-                    border.color: root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
-                    border.width: 4
                     anchors.horizontalCenter: parent.horizontalCenter
 
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 72
-                        height: 72
-                        radius: 36
-                        color: "transparent"
-                        border.color: Theme.primary
-                        border.width: 4
-                        rotation: -90
+                    // Background track circle
+                    Canvas {
+                        anchors.fill: parent
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            ctx.beginPath()
+                            ctx.arc(width / 2, height / 2, 36, 0, 2 * Math.PI)
+                            ctx.strokeStyle = root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
+                            ctx.lineWidth = 4
+                            ctx.lineCap = "round"
+                            ctx.stroke()
+                        }
+                    }
 
-                        Rectangle {
-                            width: parent.width * root.progress
-                            height: 4
-                            color: Theme.primary
-                            anchors.top: parent.top
-                            anchors.left: parent.left
+                    // Progress arc
+                    Canvas {
+                        id: progressArc
+                        anchors.fill: parent
+                        property real progressValue: root.progress
+
+                        Behavior on progressValue { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+
+                        onProgressValueChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            if (progressValue <= 0.001) return
+
+                            var startAngle = -Math.PI / 2
+                            var endAngle = startAngle + progressValue * 2 * Math.PI
+                            var cx = width / 2, cy = height / 2, r = 36
+
+                            // Glow layer
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, startAngle, endAngle)
+                            ctx.strokeStyle = Theme.withAlpha(Theme.primary, 0.3)
+                            ctx.lineWidth = 8
+                            ctx.lineCap = "round"
+                            ctx.stroke()
+
+                            // Main arc
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, startAngle, endAngle)
+                            ctx.strokeStyle = Theme.primary
+                            ctx.lineWidth = 4
+                            ctx.lineCap = "round"
+                            ctx.stroke()
                         }
                     }
 
