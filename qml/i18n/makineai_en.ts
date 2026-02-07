@@ -1087,8 +1087,20 @@ Are you sure?</translation>
         <translation>Verified</translation>
     </message>
     <message>
-        <source>Çevrilmeyen</source>
+        <source>Çevirisi Var</source>
+        <translation>Translated</translation>
+    </message>
+    <message>
+        <source>Çevirisi Yok</source>
         <translation>Untranslated</translation>
+    </message>
+    <message>
+        <source>oyun listeleniyor</source>
+        <translation>games listed</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation>Unknown</translation>
     </message>
     <message>
         <source>Oyun bulunamadı</source>

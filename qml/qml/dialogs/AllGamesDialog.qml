@@ -12,7 +12,6 @@ Dialog {
     property var games: []
     property string searchText: ""
     property string selectedCategory: "all"
-    property var categories: ["all", "verified", "translating", "planned"]
 
     signal gameSelected(string gameId)
 
@@ -31,10 +30,14 @@ Dialog {
         var result = root.games
         if (searchText.length > 0) {
             var search = searchText.toLowerCase()
-            result = result.filter(g => g.name.toLowerCase().includes(search))
+            result = result.filter(g => (g.name || "").toLowerCase().includes(search))
         }
-        if (selectedCategory !== "all") {
-            result = result.filter(g => g.category === selectedCategory)
+        if (selectedCategory === "verified") {
+            result = result.filter(g => g.isVerified === true)
+        } else if (selectedCategory === "translated") {
+            result = result.filter(g => g.hasTranslation === true)
+        } else if (selectedCategory === "untranslated") {
+            result = result.filter(g => !g.hasTranslation)
         }
         return result
     }
@@ -89,7 +92,7 @@ Dialog {
                     }
 
                     Text {
-                        text: filteredGames.length + " oyun listeleniyor"
+                        text: filteredGames.length + " " + qsTr("oyun listeleniyor")
                         font.pixelSize: 13
                         color: Theme.textMuted
                     }
@@ -216,10 +219,17 @@ Dialog {
                     }
 
                     CategoryButton {
-                        text: qsTr("Çevrilmeyen")
-                        category: "translating"
-                        isSelected: selectedCategory === "translating"
-                        onClicked: selectedCategory = "translating"
+                        text: qsTr("Çevirisi Var")
+                        category: "translated"
+                        isSelected: selectedCategory === "translated"
+                        onClicked: selectedCategory = "translated"
+                    }
+
+                    CategoryButton {
+                        text: qsTr("Çevirisi Yok")
+                        category: "untranslated"
+                        isSelected: selectedCategory === "untranslated"
+                        onClicked: selectedCategory = "untranslated"
                     }
                 }
             }
@@ -268,7 +278,7 @@ Dialog {
                     color: Theme.surface
                     clip: true
                     Accessible.role: Accessible.Button
-                    Accessible.name: modelData.name || "Unknown"
+                    Accessible.name: modelData.name || qsTr("Unknown")
 
                     scale: cardMouse.containsMouse ? 1.05 : 1.0
                     transformOrigin: Item.Center
@@ -292,13 +302,14 @@ Dialog {
 
                     // Game image
                     Image {
+                        id: gameImg
                         anchors.fill: parent
-                        source: modelData.imageUrl || ""
+                        source: modelData.headerImageUrl || ""
                         fillMode: Image.PreserveAspectCrop
                         sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
                         asynchronous: true
                         cache: true
-                        visible: (modelData.imageUrl !== undefined && modelData.imageUrl !== null && modelData.imageUrl !== "")
+                        visible: status === Image.Ready
                     }
 
                     // Placeholder
@@ -308,7 +319,7 @@ Dialog {
                         font.pixelSize: 20
                         font.weight: Font.Bold
                         color: Theme.textMuted
-                        visible: modelData.imageUrl === undefined || modelData.imageUrl === null || modelData.imageUrl === ""
+                        visible: !gameImg.visible
                     }
 
                     // Bottom gradient overlay
@@ -324,24 +335,67 @@ Dialog {
                         }
                     }
 
-                    // Verified badge
-                    Rectangle {
-                        visible: modelData.verified === true
+                    // Status badges
+                    Row {
+                        visible: modelData.isVerified === true || modelData.hasTranslation === true
                         anchors.top: parent.top
                         anchors.right: parent.right
-                        anchors.topMargin: 8
-                        anchors.rightMargin: 8
-                        width: 22
-                        height: 22
-                        radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(Theme.primary, 0.9)
+                        anchors.topMargin: 6
+                        anchors.rightMargin: 6
+                        spacing: 4
+
+                        Rectangle {
+                            visible: modelData.hasTranslation === true
+                            width: 24; height: 16
+                            radius: Dimensions.badgeRadius
+                            color: Theme.turkishRed
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "TR"
+                                font.pixelSize: 8
+                                font.weight: Font.Bold
+                                color: "white"
+                            }
+                        }
+
+                        Rectangle {
+                            visible: modelData.isVerified === true
+                            width: 16; height: 16
+                            radius: 8
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u2713"
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                                color: "white"
+                            }
+                        }
+                    }
+
+                    // Engine badge
+                    Rectangle {
+                        visible: (modelData.engine || "") !== ""
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.bottomMargin: 28
+                        anchors.leftMargin: 8
+                        width: engineLabel.width + 12
+                        height: 18
+                        radius: Dimensions.badgeRadius
+                        color: Qt.rgba(0, 0, 0, 0.7)
 
                         Text {
+                            id: engineLabel
                             anchors.centerIn: parent
-                            text: "\u2713"
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
-                            color: "white"
+                            text: modelData.engine || ""
+                            font.pixelSize: 9
+                            font.weight: Font.Medium
+                            color: Theme.textMuted
                         }
                     }
 
