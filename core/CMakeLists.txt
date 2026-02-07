@@ -102,6 +102,7 @@ set(MAKINEAI_SOURCES
     # Security
     src/security/security_manager.cpp
     src/security/credential_store.cpp
+    src/security/ssl_pinning.cpp
 
     # Version Tracker
     src/version_tracker/version_tracker.cpp

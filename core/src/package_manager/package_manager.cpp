@@ -13,6 +13,7 @@
 #include "makineai/metrics.hpp"
 #include "makineai/audit.hpp"
 #include "makineai/validation.hpp"
+#include "makineai/ssl_pinning.hpp"
 
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
@@ -259,6 +260,7 @@ Result<ByteBuffer> Downloader::download(
     curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent_.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+    ssl::applySslPinning(curl, url);
 
     if (progress || cancel) {
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
@@ -359,6 +361,7 @@ VoidResult Downloader::downloadToFile(
     curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent_.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+    ssl::applySslPinning(curl, url);
 
     if (progress || cancel) {
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
