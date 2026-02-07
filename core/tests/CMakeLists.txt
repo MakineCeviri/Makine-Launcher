@@ -26,6 +26,7 @@ add_executable(makineai_tests
     test_version_tracker.cpp
     test_string_classifier.cpp
     test_translation_api.cpp
+    test_qa_service.cpp
 )
 
 target_link_libraries(makineai_tests PRIVATE
