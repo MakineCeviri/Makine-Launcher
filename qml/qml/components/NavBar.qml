@@ -105,7 +105,7 @@ Rectangle {
 
         NavBarItem {
             icon: "\uD83D\uDCE2"
-            label: "Projelerimiz"
+            label: qsTr("Projelerimiz")
             isSelected: root.currentIndex === 1
             isDark: root.isDark
             showLabel: root.width > 750
@@ -123,7 +123,7 @@ Rectangle {
 
         NavBarItem {
             icon: "\u2699"
-            label: "Ayarlar"
+            label: qsTr("Ayarlar")
             isDark: root.isDark
             showLabel: root.width > 750
             onClicked: root.settingsClicked()
