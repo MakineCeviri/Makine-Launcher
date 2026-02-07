@@ -57,6 +57,14 @@ Item {
     // Loading state
     property bool isLoadingSteamDetails: false
 
+    // Compatibility tracking
+    property string compatibilityLevel: "unknown"  // compatible, partial, incompatible, unknown
+    property int integrityPercent: 100
+    property int modifiedCount: 0
+    property int addedCount: 0
+    property int removedCount: 0
+    property string compatibilitySummary: ""
+
     signal backClicked()
     signal translateClicked()
     signal steamStoreClicked()
@@ -86,6 +94,12 @@ Item {
         coverage = ""
         fileCount = 0
         author = ""
+        compatibilityLevel = "unknown"
+        integrityPercent = 100
+        modifiedCount = 0
+        addedCount = 0
+        removedCount = 0
+        compatibilitySummary = ""
     }
 
     function populateSteamDetails(details) {
@@ -129,6 +143,17 @@ Item {
         if (recipe && recipe.hasRecipe) {
             hasRecipe = true
             recipeVersion = recipe.version || ""
+        }
+
+        // Check translation compatibility
+        var compat = GameService.checkCompatibility(gameId)
+        if (compat) {
+            compatibilityLevel = compat.level || "unknown"
+            integrityPercent = compat.integrityPercent !== undefined ? compat.integrityPercent : 100
+            modifiedCount = compat.modifiedCount || 0
+            addedCount = compat.addedCount || 0
+            removedCount = compat.removedCount || 0
+            compatibilitySummary = compat.summary || ""
         }
     }
 
@@ -854,6 +879,172 @@ Item {
                             font.pixelSize: 13
                             color: Theme.textMuted
                             anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+            }
+
+            // ===== COMPATIBILITY STATUS =====
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 32
+                Layout.rightMargin: 32
+                spacing: 12
+                visible: root.hasRecipe && root.compatibilityLevel !== "unknown"
+
+                Text {
+                    text: qsTr("Uyumluluk Durumu")
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    color: "white"
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: compatContent.height + 32
+                    radius: Dimensions.radiusStandard
+                    color: {
+                        if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.06)
+                        if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.06)
+                        if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.06)
+                        return Qt.rgba(1, 1, 1, 0.03)
+                    }
+                    border.color: {
+                        if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.3)
+                        if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.3)
+                        if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.3)
+                        return Qt.rgba(1, 1, 1, 0.08)
+                    }
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: compatContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 16
+                        spacing: 12
+
+                        // Status row
+                        RowLayout {
+                            spacing: 10
+
+                            // Status icon
+                            Rectangle {
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                radius: 14
+                                color: {
+                                    if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.15)
+                                    if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.15)
+                                    if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.15)
+                                    return Qt.rgba(1, 1, 1, 0.08)
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: {
+                                        if (compatibilityLevel === "compatible") return "\u2713"
+                                        if (compatibilityLevel === "partial") return "\u26A0"
+                                        if (compatibilityLevel === "incompatible") return "\u2717"
+                                        return "?"
+                                    }
+                                    font.pixelSize: 14
+                                    font.weight: Font.Bold
+                                    color: {
+                                        if (compatibilityLevel === "compatible") return Theme.success
+                                        if (compatibilityLevel === "partial") return Theme.warning
+                                        if (compatibilityLevel === "incompatible") return Theme.destructive
+                                        return Theme.textMuted
+                                    }
+                                }
+                            }
+
+                            ColumnLayout {
+                                spacing: 2
+
+                                Text {
+                                    text: {
+                                        if (compatibilityLevel === "compatible") return qsTr("Tam Uyumlu")
+                                        if (compatibilityLevel === "partial") return qsTr("Kısmi Uyumlu")
+                                        if (compatibilityLevel === "incompatible") return qsTr("Uyumsuz")
+                                        return qsTr("Bilinmiyor")
+                                    }
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                    color: {
+                                        if (compatibilityLevel === "compatible") return Theme.success
+                                        if (compatibilityLevel === "partial") return Theme.warning
+                                        if (compatibilityLevel === "incompatible") return Theme.destructive
+                                        return Theme.textMuted
+                                    }
+                                }
+
+                                Text {
+                                    text: compatibilitySummary
+                                    font.pixelSize: 11
+                                    color: Theme.textSecondary
+                                    visible: compatibilitySummary !== ""
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            // Integrity percentage
+                            Text {
+                                text: integrityPercent + "%"
+                                font.pixelSize: 20
+                                font.weight: Font.Bold
+                                color: {
+                                    if (integrityPercent >= 95) return Theme.success
+                                    if (integrityPercent >= 70) return Theme.warning
+                                    return Theme.destructive
+                                }
+                            }
+                        }
+
+                        // Integrity bar
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 4
+                            radius: 2
+                            color: Qt.rgba(1, 1, 1, 0.06)
+
+                            Rectangle {
+                                width: parent.width * (integrityPercent / 100)
+                                height: parent.height
+                                radius: 2
+                                color: {
+                                    if (integrityPercent >= 95) return Theme.success
+                                    if (integrityPercent >= 70) return Theme.warning
+                                    return Theme.destructive
+                                }
+                            }
+                        }
+
+                        // File change stats (only if there are changes)
+                        RowLayout {
+                            spacing: 16
+                            visible: modifiedCount > 0 || addedCount > 0 || removedCount > 0
+
+                            Text {
+                                visible: modifiedCount > 0
+                                text: modifiedCount + " " + qsTr("değiştirilmiş")
+                                font.pixelSize: 11
+                                color: Theme.warning
+                            }
+                            Text {
+                                visible: addedCount > 0
+                                text: addedCount + " " + qsTr("yeni dosya")
+                                font.pixelSize: 11
+                                color: Theme.primary
+                            }
+                            Text {
+                                visible: removedCount > 0
+                                text: removedCount + " " + qsTr("silinen dosya")
+                                font.pixelSize: 11
+                                color: Theme.destructive
+                            }
                         }
                     }
                 }

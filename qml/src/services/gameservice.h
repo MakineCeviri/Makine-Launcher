@@ -167,6 +167,13 @@ public:
      */
     Q_INVOKABLE void installLocalPackage(const QString& filePath);
 
+    /**
+     * @brief Check translation compatibility after game update
+     * @return Map with: level (compatible/partial/incompatible/unknown),
+     *         integrityPercent, modifiedCount, addedCount, removedCount, summary
+     */
+    Q_INVOKABLE QVariantMap checkCompatibility(const QString& gameId);
+
 signals:
     void gamesChanged();
     void isScanningChanged();

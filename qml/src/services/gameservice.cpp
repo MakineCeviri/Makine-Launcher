@@ -795,4 +795,20 @@ void GameService::installLocalPackage(const QString& filePath) {
     }
 }
 
+QVariantMap GameService::checkCompatibility(const QString& gameId)
+{
+    Q_UNUSED(gameId)
+
+    // Delegate to CoreBridge → VersionTracker when core is integrated
+    // For now, return unknown status (no snapshot taken yet)
+    return {
+        {"level", "unknown"},
+        {"integrityPercent", 100},
+        {"modifiedCount", 0},
+        {"addedCount", 0},
+        {"removedCount", 0},
+        {"summary", tr("No translation snapshot available yet")}
+    };
+}
+
 } // namespace makineai
