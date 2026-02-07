@@ -1814,7 +1814,7 @@ Select a game from the main screen and install its Turkish translation!</transla
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/components/PerformanceMonitor.qml" line="240"/>
+        <location filename="../qml/components/PerformanceMonitor.qml" line="241"/>
         <source>Click: toggle • Dbl: reset</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2563,15 +2563,15 @@ Select a game from the main screen and install its Turkish translation!</transla
     </message>
     <message>
         <location filename="../qml/TranslationWorkflowScreen.qml" line="269"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="782"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="791"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Hazır</source>
         <translation>Ready</translation>
     </message>
     <message>
         <location filename="../qml/TranslationWorkflowScreen.qml" line="294"/>
         <location filename="../qml/TranslationWorkflowScreen.qml" line="298"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="755"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="764"/>
         <source>İptal Et</source>
         <translation>Cancel</translation>
     </message>
@@ -2587,96 +2587,101 @@ Select a game from the main screen and install its Turkish translation!</transla
         <translation>Activity</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="521"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="453"/>
+        <source>Henüz aktivite yok</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="530"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Tespit</source>
         <translation>Detect</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="522"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="531"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Çıkarma</source>
         <translation>Extract</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="523"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="532"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Eşleştirme</source>
         <translation>Match</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="524"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="533"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>İnceleme</source>
         <translation>Review</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="525"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="534"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Uygulama</source>
         <translation>Apply</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="526"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="535"/>
         <source>Bitti</source>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="705"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="714"/>
         <source>Çeviriyi İptal Et?</source>
         <translation>Cancel Translation?</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="722"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="731"/>
         <source>Devam eden çeviri işlemi iptal edilecek.
 Emin misiniz?</source>
         <translation>The ongoing translation will be cancelled.
 Are you sure?</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="735"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="744"/>
         <source>Vazgeç</source>
         <translation>Go Back</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="783"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="792"/>
         <source>Tespit Ediliyor</source>
         <translation>Detecting</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="784"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="793"/>
         <source>Çıkarılıyor</source>
         <translation>Extracting</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="785"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="794"/>
         <source>Eşleştiriliyor</source>
         <translation>Matching</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="786"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="795"/>
         <source>İnceleniyor</source>
         <translation>Reviewing</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="787"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="796"/>
         <source>Uygulanıyor</source>
         <translation>Applying</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="788"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="797"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Tamamlandı</source>
         <translation>Completed</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="789"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="798"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="839"/>
         <source>Hata</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="790"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="799"/>
         <source>Bilinmiyor</source>
         <translation>Unknown</translation>
     </message>
@@ -2708,53 +2713,53 @@ Are you sure?</translation>
         <translation>Restarting translation...</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="831"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="840"/>
         <source>Aşama: %1</source>
         <translation>Phase: %1</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="841"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="850"/>
         <source>Çeviri başarıyla tamamlandı!</source>
         <translation>Translation completed successfully!</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="845"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="854"/>
         <source>Hata: %1</source>
         <translation>Error: %1</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="849"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="858"/>
         <source>QA tamamlandı: %1 geçti, %2 başarısız (Skor: %3)</source>
         <translation>QA completed: %1 passed, %2 failed (Score: %3)</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="867"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="876"/>
         <source>Bilinmeyen sorun</source>
         <translation>Unknown issue</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="817"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="826"/>
         <source>QA sorunları yoksayıldı, devam ediliyor...</source>
         <translation>QA issues ignored, continuing...</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="821"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="830"/>
         <source>QA sorunları inceleniyor...</source>
         <translation>Reviewing QA issues...</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="884"/>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="886"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="893"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="895"/>
         <source>TM eşleşme (%%1): %2...</source>
         <translation>TM match (%%1): %2...</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="891"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="900"/>
         <source>Eşleştirme tamamlandı: %1/%2 çeviri bulundu</source>
         <translation>Matching completed: %1/%2 translations found</translation>
     </message>
     <message>
-        <location filename="../qml/TranslationWorkflowScreen.qml" line="898"/>
+        <location filename="../qml/TranslationWorkflowScreen.qml" line="907"/>
         <source>Çeviri başlatılıyor: %1</source>
         <translation>Starting translation: %1</translation>
     </message>

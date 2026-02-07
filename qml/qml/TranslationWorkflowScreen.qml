@@ -447,6 +447,15 @@ Item {
                             radius: Dimensions.radiusStandard
                             color: Qt.rgba(0, 0, 0, 0.2)
 
+                            // Empty state
+                            Text {
+                                anchors.centerIn: parent
+                                text: qsTr("Henüz aktivite yok")
+                                font.pixelSize: 12
+                                color: Theme.textMuted
+                                visible: activityModel.count === 0
+                            }
+
                             ListView {
                                 id: activityList
                                 anchors.fill: parent
