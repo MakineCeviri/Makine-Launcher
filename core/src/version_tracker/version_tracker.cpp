@@ -378,4 +378,273 @@ void VersionMonitor::checkNow() {
     }
 }
 
+// ============================================================================
+// FileSnapshot & Compatibility (Issue #58)
+// ============================================================================
+
+std::unordered_map<std::string, std::string> FileSnapshot::hashMap() const {
+    std::unordered_map<std::string, std::string> map;
+    map.reserve(files.size());
+    for (const auto& f : files) {
+        map[f.relativePath.generic_string()] = f.sha256;
+    }
+    return map;
+}
+
+std::string CompatibilityReport::summary() const {
+    switch (level) {
+        case CompatibilityLevel::Compatible:
+            return "Translation is compatible (" + std::to_string(totalTracked) + " files unchanged)";
+        case CompatibilityLevel::PartiallyCompatible:
+            return "Partially compatible: " + std::to_string(modifiedFiles.size()) +
+                   " files modified, " + std::to_string(addedFiles.size()) +
+                   " added, " + std::to_string(removedFiles.size()) + " removed";
+        case CompatibilityLevel::Incompatible:
+            return "Incompatible: " + std::to_string(modifiedFiles.size() + removedFiles.size()) +
+                   " critical files changed — translation may be broken";
+        default:
+            return "Cannot determine compatibility";
+    }
+}
+
+int CompatibilityReport::integrityPercent() const {
+    if (totalTracked == 0) return 0;
+    return static_cast<int>((unchangedCount * 100) / totalTracked);
+}
+
+fs::path VersionTracker::snapshotPath(const std::string& gameId) const {
+    fs::path dir = snapshotDir_.empty() ? dbPath_.parent_path() / "snapshots" : snapshotDir_;
+    return dir / (gameId + ".snapshot.json");
+}
+
+std::string VersionTracker::hashFileContent(const fs::path& filePath) const {
+    SecurityManager security;
+    auto result = security.hashFile(filePath);
+    if (result) return *result;
+    return {};
+}
+
+VoidResult VersionTracker::saveSnapshot(const FileSnapshot& snapshot) const {
+    try {
+        nlohmann::json j;
+        j["version"] = 1;
+        j["gameId"] = snapshot.gameId;
+        j["takenAt"] = snapshot.takenAt;
+        j["patchVersion"] = snapshot.patchVersion;
+        j["files"] = nlohmann::json::array();
+
+        for (const auto& f : snapshot.files) {
+            j["files"].push_back({
+                {"path", f.relativePath.generic_string()},
+                {"sha256", f.sha256},
+                {"size", f.fileSize},
+                {"modified", f.modifiedAt}
+            });
+        }
+
+        auto path = snapshotPath(snapshot.gameId);
+        fs::create_directories(path.parent_path());
+
+        std::ofstream ofs(path);
+        if (!ofs) {
+            return std::unexpected(Error(ErrorCode::FileWriteFailed,
+                "Cannot write snapshot: " + path.string()));
+        }
+        ofs << j.dump(2);
+
+        MAKINEAI_LOG_INFO(log::VERSION, "Saved snapshot for {}: {} files",
+            snapshot.gameId, snapshot.files.size());
+        return {};
+
+    } catch (const std::exception& e) {
+        return std::unexpected(Error(ErrorCode::Unknown, e.what()));
+    }
+}
+
+Result<FileSnapshot> VersionTracker::loadSnapshot(const std::string& gameId) const {
+    auto path = snapshotPath(gameId);
+    if (!fs::exists(path)) {
+        return std::unexpected(Error(ErrorCode::FileNotFound,
+            "No snapshot for game: " + gameId));
+    }
+
+    try {
+        std::ifstream ifs(path);
+        if (!ifs) {
+            return std::unexpected(Error(ErrorCode::FileNotFound,
+                "Cannot read snapshot: " + path.string()));
+        }
+
+        auto j = nlohmann::json::parse(ifs);
+        FileSnapshot snapshot;
+        snapshot.gameId = j["gameId"].get<std::string>();
+        snapshot.takenAt = j["takenAt"].get<uint64_t>();
+        snapshot.patchVersion = j["patchVersion"].get<std::string>();
+
+        for (const auto& item : j["files"]) {
+            FileHashRecord rec;
+            rec.relativePath = item["path"].get<std::string>();
+            rec.sha256 = item["sha256"].get<std::string>();
+            rec.fileSize = item["size"].get<uint64_t>();
+            rec.modifiedAt = item["modified"].get<uint64_t>();
+            snapshot.files.push_back(std::move(rec));
+        }
+
+        return snapshot;
+
+    } catch (const std::exception& e) {
+        return std::unexpected(Error(ErrorCode::ParseError,
+            "Failed to parse snapshot: " + std::string(e.what())));
+    }
+}
+
+VoidResult VersionTracker::takeSnapshot(
+    const GameInfo& game,
+    const std::vector<fs::path>& trackedFiles,
+    const std::string& patchVersion
+) {
+    FileSnapshot snapshot;
+    snapshot.gameId = game.id.storeId;
+    snapshot.takenAt = static_cast<uint64_t>(
+        std::chrono::system_clock::now().time_since_epoch().count());
+    snapshot.patchVersion = patchVersion;
+
+    MAKINEAI_LOG_INFO(log::VERSION, "Taking file snapshot for {}: {} files",
+        game.name, trackedFiles.size());
+
+    for (const auto& relPath : trackedFiles) {
+        fs::path absPath = game.installPath / relPath;
+
+        if (!fs::exists(absPath)) {
+            MAKINEAI_LOG_WARN(log::VERSION, "Snapshot: file not found: {}", relPath.string());
+            continue;
+        }
+
+        FileHashRecord rec;
+        rec.relativePath = relPath;
+        rec.sha256 = hashFileContent(absPath);
+
+        if (rec.sha256.empty()) {
+            MAKINEAI_LOG_WARN(log::VERSION, "Snapshot: failed to hash: {}", relPath.string());
+            continue;
+        }
+
+        std::error_code ec;
+        rec.fileSize = fs::file_size(absPath, ec);
+        auto ftime = fs::last_write_time(absPath, ec);
+        if (!ec) {
+            rec.modifiedAt = static_cast<uint64_t>(
+                ftime.time_since_epoch().count());
+        }
+
+        snapshot.files.push_back(std::move(rec));
+    }
+
+    return saveSnapshot(snapshot);
+}
+
+Result<CompatibilityReport> VersionTracker::checkCompatibility(
+    const GameInfo& game
+) const {
+    auto snapshotResult = loadSnapshot(game.id.storeId);
+    if (!snapshotResult) {
+        CompatibilityReport report;
+        report.level = CompatibilityLevel::Unknown;
+        report.gameId = game.id.storeId;
+        return report;
+    }
+
+    const auto& snapshot = *snapshotResult;
+    auto baselineMap = snapshot.hashMap();
+
+    CompatibilityReport report;
+    report.gameId = game.id.storeId;
+    report.totalTracked = snapshot.files.size();
+    report.unchangedCount = 0;
+
+    // Check each file in the snapshot against current state
+    for (const auto& [relPath, expectedHash] : baselineMap) {
+        fs::path absPath = game.installPath / relPath;
+
+        if (!fs::exists(absPath)) {
+            report.removedFiles.push_back(relPath);
+            continue;
+        }
+
+        std::string currentHash = hashFileContent(absPath);
+        if (currentHash == expectedHash) {
+            report.unchangedCount++;
+        } else {
+            report.modifiedFiles.push_back(relPath);
+        }
+    }
+
+    // Check for new files in same directories (optional: detect added content)
+    // Only scan directories that contained tracked files
+    std::set<fs::path> trackedDirs;
+    for (const auto& f : snapshot.files) {
+        trackedDirs.insert(f.relativePath.parent_path());
+    }
+
+    for (const auto& dir : trackedDirs) {
+        fs::path absDir = game.installPath / dir;
+        if (!fs::is_directory(absDir)) continue;
+
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(absDir, ec)) {
+            if (!entry.is_regular_file()) continue;
+
+            auto relPath = fs::relative(entry.path(), game.installPath, ec).generic_string();
+            if (ec) continue;
+
+            if (baselineMap.find(relPath) == baselineMap.end()) {
+                report.addedFiles.push_back(relPath);
+            }
+        }
+    }
+
+    // Determine compatibility level
+    size_t changedCount = report.modifiedFiles.size() + report.removedFiles.size();
+
+    if (changedCount == 0) {
+        report.level = CompatibilityLevel::Compatible;
+    } else if (report.integrityPercent() >= 80) {
+        report.level = CompatibilityLevel::PartiallyCompatible;
+    } else {
+        report.level = CompatibilityLevel::Incompatible;
+    }
+
+    MAKINEAI_LOG_INFO(log::VERSION, "Compatibility check for {}: {} ({}% intact, {} modified, {} removed, {} added)",
+        game.id.storeId, report.summary(), report.integrityPercent(),
+        report.modifiedFiles.size(), report.removedFiles.size(), report.addedFiles.size());
+
+    return report;
+}
+
+Result<FileSnapshot> VersionTracker::getSnapshot(const std::string& gameId) const {
+    return loadSnapshot(gameId);
+}
+
+bool VersionTracker::hasSnapshot(const std::string& gameId) const {
+    return fs::exists(snapshotPath(gameId));
+}
+
+VoidResult VersionTracker::removeSnapshot(const std::string& gameId) {
+    auto path = snapshotPath(gameId);
+    if (!fs::exists(path)) {
+        return std::unexpected(Error(ErrorCode::FileNotFound,
+            "No snapshot for game: " + gameId));
+    }
+
+    std::error_code ec;
+    fs::remove(path, ec);
+    if (ec) {
+        return std::unexpected(Error(ErrorCode::FileAccessDenied,
+            "Failed to remove snapshot: " + ec.message()));
+    }
+
+    MAKINEAI_LOG_INFO(log::VERSION, "Removed snapshot for {}", gameId);
+    return {};
+}
+
 } // namespace makineai
