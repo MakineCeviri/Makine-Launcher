@@ -232,18 +232,15 @@ qt_add_qml_module(MakineAI
         qml/dialogs/CompatibilityWarningDialog.qml
 
     RESOURCES
-        # SVG icons (19 active)
+        # SVG icons (16 active)
         resources/icons/arrow_right.svg
         resources/icons/bell.svg
         resources/icons/box.svg
-        resources/icons/check-circle.svg
         resources/icons/chevron-right.svg
         resources/icons/close.svg
         resources/icons/delete.svg
         resources/icons/discord.svg
-        resources/icons/flag-tr.svg
         resources/icons/folder.svg
-        resources/icons/hourglass.svg
         resources/icons/info.svg
         resources/icons/lock.svg
         resources/icons/maximize.svg
