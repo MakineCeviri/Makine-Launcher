@@ -118,12 +118,13 @@ Item {
             }
         }
 
-        // Game image
+        // Game image — sourceSize limits decoded resolution to 2x card size for HiDPI
         Image {
             id: gameImage
             anchors.fill: parent
             source: root.imageUrl
             fillMode: Image.PreserveAspectCrop
+            sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
             asynchronous: true
             cache: true
             visible: false

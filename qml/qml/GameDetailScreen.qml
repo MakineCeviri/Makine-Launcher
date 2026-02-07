@@ -175,6 +175,7 @@ Item {
             anchors.fill: parent
             source: root.heroImageUrl
             fillMode: Image.PreserveAspectCrop
+            asynchronous: true
             opacity: 0.3
             visible: root.heroImageUrl !== ""
         }
@@ -311,6 +312,9 @@ Item {
                         anchors.fill: parent
                         source: root.imageUrl
                         fillMode: Image.PreserveAspectCrop
+                        sourceSize: Qt.size(300, 260)
+                        asynchronous: true
+                        cache: true
                         visible: root.imageUrl !== ""
                     }
 
@@ -1165,6 +1169,9 @@ Item {
                                     anchors.fill: parent
                                     source: modelData
                                     fillMode: Image.PreserveAspectCrop
+                                    sourceSize: Qt.size(640, 360)
+                                    asynchronous: true
+                                    cache: true
                                 }
                             }
                         }

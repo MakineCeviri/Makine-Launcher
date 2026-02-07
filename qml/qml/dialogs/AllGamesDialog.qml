@@ -295,6 +295,9 @@ Dialog {
                         anchors.fill: parent
                         source: modelData.imageUrl || ""
                         fillMode: Image.PreserveAspectCrop
+                        sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
+                        asynchronous: true
+                        cache: true
                         visible: (modelData.imageUrl !== undefined && modelData.imageUrl !== null && modelData.imageUrl !== "")
                     }
 

@@ -1215,6 +1215,7 @@ Item {
                 anchors.fill: parent
                 source: imageUrl
                 fillMode: Image.PreserveAspectCrop
+                sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
                 asynchronous: true
                 cache: true
                 visible: false
