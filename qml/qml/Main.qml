@@ -462,6 +462,23 @@ ApplicationWindow {
                 }
                 onTranslateClicked: {
                     var gameData = GameService.getGameById(gameDetailView.gameId)
+
+                    // Pre-flight compatibility check
+                    var compat = GameService.checkCompatibility(gameDetailView.gameId)
+                    if (compat && (compat.level === "incompatible" || compat.level === "partial")) {
+                        compatWarningDialog.gameName = gameDetailView.gameName
+                        compatWarningDialog.compatibilityLevel = compat.level
+                        compatWarningDialog.integrityPercent = compat.integrityPercent || 100
+                        compatWarningDialog.modifiedCount = compat.modifiedCount || 0
+                        compatWarningDialog.open()
+                        return
+                    }
+
+                    // Compatible or unknown — proceed directly
+                    startTranslationWorkflow(gameData)
+                }
+
+                function startTranslationWorkflow(gameData) {
                     workflowView.gameId = gameDetailView.gameId
                     workflowView.gameName = gameDetailView.gameName
                     workflowView.gamePath = gameData ? gameData.installPath : ""
@@ -591,6 +608,21 @@ ApplicationWindow {
                     "info"
                 )
             }
+        }
+    }
+
+    // ===== COMPATIBILITY WARNING DIALOG =====
+    CompatibilityWarningDialog {
+        id: compatWarningDialog
+        parent: Overlay.overlay
+
+        onProceedAnyway: {
+            var gameData = GameService.getGameById(gameDetailView.gameId)
+            gameDetailView.startTranslationWorkflow(gameData)
+        }
+        onRestoreBackup: {
+            // Navigate to game detail screen's backup section
+            contentStackContainer.navigateTo(2)
         }
     }
 

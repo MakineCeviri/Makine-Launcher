@@ -255,6 +255,7 @@ qt_add_qml_module(MakineAI
         qml/dialogs/QAResultsDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/CancelConfirmationDialog.qml
+        qml/dialogs/CompatibilityWarningDialog.qml
 
     RESOURCES
         # SVG icons (19 active)
