@@ -356,6 +356,21 @@ if(WIN32)
     )
 endif()
 
+# ===== Internationalization (i18n) =====
+find_package(Qt6 COMPONENTS LinguistTools QUIET)
+if(Qt6LinguistTools_FOUND)
+    set(TS_FILES
+        i18n/makineai_en.ts
+    )
+    qt_add_translations(MakineAI
+        TS_FILES ${TS_FILES}
+        RESOURCE_PREFIX "/i18n"
+    )
+    message(STATUS "i18n: Translation files configured (${TS_FILES})")
+else()
+    message(STATUS "i18n: Qt6::LinguistTools not found, translations disabled")
+endif()
+
 # Post-build: generate SHA-256 hash file for integrity verification
 add_custom_command(TARGET MakineAI POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E sha256sum "$<TARGET_FILE:MakineAI>"

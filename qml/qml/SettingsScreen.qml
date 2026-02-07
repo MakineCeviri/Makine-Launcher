@@ -20,12 +20,12 @@ Item {
     property int selectedCategory: 0
 
     property var categories: [
-        { name: "Genel", description: "Uygulama genel ayarlarını yapılandırın" },
-        { name: "Çeviri", description: "Çeviri tercihlerini ve dil ayarlarını düzenleyin" },
-        { name: "Projeler", description: "Tamamlanan çeviriler ve yedekler" },
-        { name: "Performans", description: "Performans ve kaynak kullanım ayarları" },
-        { name: "Hakkında", description: "Uygulama hakkında bilgiler" },
-        { name: "Geliştirici", description: "Geliştirici araçları ve test özellikleri" }
+        { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın") },
+        { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin") },
+        { name: qsTr("Projeler"), description: qsTr("Tamamlanan çeviriler ve yedekler") },
+        { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları") },
+        { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler") },
+        { name: qsTr("Geliştirici"), description: qsTr("Geliştirici araçları ve test özellikleri") }
     ]
 
     // Settings state - bound to SettingsManager
@@ -180,7 +180,7 @@ Item {
 
                             // Title
                             Label {
-                                text: "Ayarlar"
+                                text: qsTr("Ayarlar")
                                 font.pixelSize: 24
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary

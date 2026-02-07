@@ -8,6 +8,8 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QStandardPaths>
+#include <QTranslator>
+#include <QQmlEngine>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -125,6 +127,49 @@ void SettingsManager::setIsDarkMode(bool value)
     }
 }
 
+void SettingsManager::setAppLanguage(const QString& value)
+{
+    if (m_appLanguage != value) {
+        m_appLanguage = value;
+        m_settings.setValue("general/appLanguage", value);
+
+        // Load new translation at runtime
+        static QTranslator *currentTranslator = nullptr;
+        auto *app = QCoreApplication::instance();
+
+        if (currentTranslator) {
+            app->removeTranslator(currentTranslator);
+            delete currentTranslator;
+            currentTranslator = nullptr;
+        }
+
+        // "tr" is the source language, no translation file needed
+        if (value != "tr") {
+            currentTranslator = new QTranslator(app);
+            QString path = QCoreApplication::applicationDirPath() + "/i18n";
+            if (currentTranslator->load("makineai_" + value, path)) {
+                app->installTranslator(currentTranslator);
+            } else {
+                // Try from qrc
+                if (currentTranslator->load(":/i18n/makineai_" + value)) {
+                    app->installTranslator(currentTranslator);
+                } else {
+                    delete currentTranslator;
+                    currentTranslator = nullptr;
+                }
+            }
+        }
+
+        emit appLanguageChanged();
+        emit settingsChanged();
+    }
+}
+
+QStringList SettingsManager::availableLanguages() const
+{
+    return {"tr", "en"};
+}
+
 void SettingsManager::setOnboardingCompleted(bool value)
 {
     if (m_onboardingCompleted != value) {
@@ -171,6 +216,7 @@ void SettingsManager::loadSettings()
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
+    m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();
 }
 
 void SettingsManager::saveSettings()
@@ -185,6 +231,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("translation/language", m_translationLanguage);
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
+    m_settings.setValue("general/appLanguage", m_appLanguage);
     m_settings.sync();
 }
 

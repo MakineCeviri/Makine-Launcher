@@ -48,6 +48,9 @@ class SettingsManager : public QObject
     // Onboarding
     Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted WRITE setOnboardingCompleted NOTIFY onboardingCompletedChanged)
 
+    // Language
+    Q_PROPERTY(QString appLanguage READ appLanguage WRITE setAppLanguage NOTIFY appLanguageChanged)
+
 public:
     explicit SettingsManager(QObject *parent = nullptr);
     ~SettingsManager() override;
@@ -89,6 +92,11 @@ public:
     bool onboardingCompleted() const { return m_onboardingCompleted; }
     void setOnboardingCompleted(bool value);
 
+    // Language
+    QString appLanguage() const { return m_appLanguage; }
+    void setAppLanguage(const QString& value);
+    Q_INVOKABLE QStringList availableLanguages() const;
+
     // Q_INVOKABLE methods
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
@@ -104,6 +112,7 @@ signals:
     void translationLanguageChanged();
     void isDarkModeChanged();
     void onboardingCompletedChanged();
+    void appLanguageChanged();
     void settingsChanged();
 
 private:
@@ -132,6 +141,9 @@ private:
 
     // Onboarding
     bool m_onboardingCompleted{false};
+
+    // Language
+    QString m_appLanguage{"tr"};
 };
 
 } // namespace makineai
