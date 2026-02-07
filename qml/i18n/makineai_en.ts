@@ -1349,117 +1349,117 @@ it will be automatically detected.</translation>
         <translation>Security warning: binary integrity check failed</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="579"/>
+        <location filename="../qml/Main.qml" line="588"/>
         <source>Yeni sürüm mevcut: </source>
         <translation>New version available: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="591"/>
+        <location filename="../qml/Main.qml" line="600"/>
         <source>Paket Hazır: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="592"/>
+        <location filename="../qml/Main.qml" line="601"/>
         <source>Oyun: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="598"/>
+        <location filename="../qml/Main.qml" line="607"/>
         <source>Paket Hatası</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="606"/>
+        <location filename="../qml/Main.qml" line="615"/>
         <source>Oyun Eklendi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="810"/>
+        <location filename="../qml/Main.qml" line="830"/>
         <source>Minimize to Tray</source>
         <translation>Minimize to Tray</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="816"/>
+        <location filename="../qml/Main.qml" line="836"/>
         <source>Minimize</source>
         <translation>Minimize</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="822"/>
+        <location filename="../qml/Main.qml" line="842"/>
         <source>Restore</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="822"/>
+        <location filename="../qml/Main.qml" line="842"/>
         <source>Maximize</source>
         <translation>Maximize</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="829"/>
+        <location filename="../qml/Main.qml" line="849"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="983"/>
+        <location filename="../qml/Main.qml" line="1003"/>
         <source>Ana Menü</source>
         <translation>Main Menu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1107"/>
+        <location filename="../qml/Main.qml" line="1127"/>
         <source>Türkçe Yamayı Kapat</source>
         <translation>Disable Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1107"/>
+        <location filename="../qml/Main.qml" line="1127"/>
         <source>Türkçe Yamayı Aç</source>
         <translation>Enable Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1113"/>
+        <location filename="../qml/Main.qml" line="1133"/>
         <source>Projelerimiz</source>
         <translation>Our Projects</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1119"/>
+        <location filename="../qml/Main.qml" line="1139"/>
         <source>Ayarlar</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1230"/>
+        <location filename="../qml/Main.qml" line="1250"/>
         <source>Destekçi Ol</source>
         <translation>Become a Supporter</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="578"/>
+        <location filename="../qml/Main.qml" line="587"/>
         <source>Güncelleme Mevcut</source>
         <translation>Update Available</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="641"/>
+        <location filename="../qml/Main.qml" line="661"/>
         <source>Çeviri Paketi Algılandı</source>
         <translation>Translation Package Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="642"/>
+        <location filename="../qml/Main.qml" line="662"/>
         <source>Paket yükleme hazırlanıyor...</source>
         <translation>Preparing package installation...</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="647"/>
+        <location filename="../qml/Main.qml" line="667"/>
         <source>Arşiv Algılandı</source>
         <translation>Archive Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="648"/>
+        <location filename="../qml/Main.qml" line="668"/>
         <source>Arşiv içeriği analiz ediliyor...</source>
         <translation>Analyzing archive content...</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="653"/>
+        <location filename="../qml/Main.qml" line="673"/>
         <source>Klasör Algılandı</source>
         <translation>Folder Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="654"/>
+        <location filename="../qml/Main.qml" line="674"/>
         <source>Oyun klasörü algılanıyor...</source>
         <translation>Detecting game folder...</translation>
     </message>
@@ -1498,14 +1498,6 @@ it will be automatically detected.</translation>
         <location filename="../qml/components/NavBar.qml" line="242"/>
         <source>Ana Menü</source>
         <translation>Main Menu</translation>
-    </message>
-    <message>
-        <source>Projelerimiz</source>
-        <translation type="vanished">Our Projects</translation>
-    </message>
-    <message>
-        <source>Ayarlar</source>
-        <translation type="vanished">Settings</translation>
     </message>
     <message>
         <location filename="../qml/components/NavBar.qml" line="308"/>
@@ -2751,54 +2743,6 @@ it will be automatically detected.</translation>
         <location filename="../qml/components/WaitingForGameCard.qml" line="82"/>
         <source>Steam, Epic Games, GOG desteklenir</source>
         <translation>Steam, Epic Games, GOG supported</translation>
-    </message>
-</context>
-<context>
-    <name>makineai::GameService</name>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="744"/>
-        <source>Archive format not yet supported. Please use .mkpkg packages.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="748"/>
-        <source>Unsupported file type: .%1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="757"/>
-        <source>File not found</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="762"/>
-        <source>Not a valid .mkpkg package</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="810"/>
-        <source>No translation snapshot available yet</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="825"/>
-        <source>Font analysis requires core integration</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="859"/>
-        <source>Runtime status requires core integration</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="873"/>
-        <source>Runtime installation requires core integration</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="886"/>
-        <source>Runtime uninstallation requires core integration</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>
