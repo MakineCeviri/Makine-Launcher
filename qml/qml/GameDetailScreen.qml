@@ -56,6 +56,7 @@ Item {
 
     // Loading state
     property bool isLoadingSteamDetails: false
+    property bool steamFetchFailed: false
 
     // Font analysis
     property bool hasFontAnalysis: false
@@ -106,6 +107,7 @@ Item {
         hasSteamDetails = false
         screenshots = []
         isLoadingSteamDetails = false
+        steamFetchFailed = false
         hasRecipe = false
         recipeEngine = ""
         recipeQuality = ""
@@ -231,6 +233,7 @@ Item {
         function onSteamDetailsFetchError(appId, error) {
             if (appId === root.steamAppId) {
                 root.isLoadingSteamDetails = false
+                root.steamFetchFailed = true
             }
         }
         function onRuntimeInstallFinished(gId, success, error) {
@@ -584,7 +587,7 @@ Item {
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
                 spacing: 32
-                visible: root.hasSteamDetails || root.isLoadingSteamDetails
+                visible: root.hasSteamDetails || root.isLoadingSteamDetails || root.steamFetchFailed
 
                 // Loading indicator
                 RowLayout {
@@ -603,6 +606,52 @@ Item {
                         text: qsTr("Steam bilgileri yükleniyor...")
                         font.pixelSize: 14
                         color: Theme.textMuted
+                    }
+                }
+
+                // Fetch error with retry
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 12
+                    visible: root.steamFetchFailed && !root.hasSteamDetails && !root.isLoadingSteamDetails
+
+                    Text {
+                        text: qsTr("Steam bilgileri yüklenemedi")
+                        font.pixelSize: 14
+                        color: Theme.textMuted
+                    }
+
+                    Rectangle {
+                        width: retryText.width + 20
+                        height: 28
+                        radius: Dimensions.radiusStandard
+                        color: retryMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.15) : Theme.withAlpha(Theme.primary, 0.08)
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("Tekrar Dene")
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            id: retryText
+                            anchors.centerIn: parent
+                            text: qsTr("Tekrar Dene")
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                            color: Theme.primary
+                        }
+
+                        MouseArea {
+                            id: retryMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.steamFetchFailed = false
+                                root.isLoadingSteamDetails = true
+                                GameService.fetchSteamDetails(root.steamAppId)
+                            }
+                        }
                     }
                 }
 
