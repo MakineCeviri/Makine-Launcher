@@ -96,6 +96,9 @@ set(MAKINEAI_SOURCES
     # Package Manager
     src/package_manager/package_manager.cpp
 
+    # Font Manager
+    src/font_manager/font_manager.cpp
+
     # Runtime (BepInEx/XUnity integration)
     src/runtime/runtime_manager.cpp
 
@@ -188,6 +191,7 @@ set(MAKINEAI_HEADERS
     include/makineai/archive_utils.hpp
     include/makineai/concurrent_queue.hpp
     include/makineai/credential_store.hpp
+    include/makineai/font_manager.hpp
 
     # Modular Type Headers (Faz 3 refactor)
     include/makineai/types/common.hpp

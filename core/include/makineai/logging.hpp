@@ -57,6 +57,9 @@ constexpr const char* TM = "TransMem";
 /// Runtime management (BepInEx, etc.)
 constexpr const char* RUNTIME = "Runtime";
 
+/// Font analysis and injection
+constexpr const char* FONT = "Font";
+
 /// File operations
 constexpr const char* FILE = "File";
 
