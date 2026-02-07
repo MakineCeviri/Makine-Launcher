@@ -191,6 +191,11 @@ ColumnLayout {
                     color: clearCacheMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
                     border.color: Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Clear cache")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: SettingsManager.clearCache()
+                    Keys.onSpacePressed: SettingsManager.clearCache()
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -245,6 +250,11 @@ ColumnLayout {
                     color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.15) : Qt.rgba(1, 1, 1, 0.05)
                     border.color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.3) : Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Reset to defaults")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: SettingsManager.resetToDefaults()
+                    Keys.onSpacePressed: SettingsManager.resetToDefaults()
 
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Behavior on border.color { ColorAnimation { duration: 150 } }

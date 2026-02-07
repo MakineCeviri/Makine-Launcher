@@ -1136,22 +1136,32 @@ oyun klasörünü sürükleyin.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/settings/GeneralSettings.qml" line="200"/>
+        <location filename="../qml/settings/GeneralSettings.qml" line="195"/>
+        <source>Clear cache</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/settings/GeneralSettings.qml" line="205"/>
         <source>Temizle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/settings/GeneralSettings.qml" line="229"/>
+        <location filename="../qml/settings/GeneralSettings.qml" line="234"/>
         <source>Varsayılana Sıfırla</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/settings/GeneralSettings.qml" line="235"/>
+        <location filename="../qml/settings/GeneralSettings.qml" line="240"/>
         <source>Tüm ayarları fabrika değerlerine döndür</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/settings/GeneralSettings.qml" line="255"/>
+        <location filename="../qml/settings/GeneralSettings.qml" line="254"/>
+        <source>Reset to defaults</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/settings/GeneralSettings.qml" line="265"/>
         <source>Sıfırla</source>
         <translation type="unfinished"></translation>
     </message>
