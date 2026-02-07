@@ -27,12 +27,13 @@ jobs:
           exempt-issue-labels: >-
             pinned,
             confirmed,
+            status: confirmed,
+            status: in-progress,
             priority: critical,
             priority: high,
-            type: epic,
-            phase:2,
-            phase:3,
-            phase:4,
+            priority: medium,
+            priority: low,
+            epic,
             good first issue,
             help wanted
 
