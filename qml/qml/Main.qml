@@ -264,12 +264,23 @@ ApplicationWindow {
                     elide: Text.ElideRight
                 }
 
-                Label {
-                    text: "\uE8BB"
-                    font.pixelSize: 10
-                    font.family: "Segoe MDL2 Assets"
-                    color: Theme.textSecondary
-                    opacity: dismissMouse.containsMouse ? 1.0 : 0.6
+                Item {
+                    Layout.preferredWidth: 20
+                    Layout.preferredHeight: 20
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Dismiss warning")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: integrityBanner.visible = false
+                    Keys.onSpacePressed: integrityBanner.visible = false
+
+                    Label {
+                        anchors.centerIn: parent
+                        text: "\uE8BB"
+                        font.pixelSize: 10
+                        font.family: "Segoe MDL2 Assets"
+                        color: Theme.textSecondary
+                        opacity: dismissMouse.containsMouse ? 1.0 : 0.6
+                    }
 
                     MouseArea {
                         id: dismissMouse
@@ -863,6 +874,9 @@ ApplicationWindow {
         Accessible.role: Accessible.Button
         Accessible.name: tooltip
         Accessible.onPressAction: clicked()
+        activeFocusOnTab: true
+        Keys.onReturnPressed: clicked()
+        Keys.onSpacePressed: clicked()
 
         width: 46
         height: 32
@@ -936,6 +950,11 @@ ApplicationWindow {
                 Layout.preferredHeight: 44
                 Layout.alignment: Qt.AlignVCenter
                 scale: logoMouse.containsMouse ? 1.05 : 1.0
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Home")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: navBarRoot.homeClicked()
+                Keys.onSpacePressed: navBarRoot.homeClicked()
 
                 Behavior on scale {
                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
@@ -1009,6 +1028,11 @@ ApplicationWindow {
                 id: aiToggleItem
                 Layout.fillHeight: true
                 Layout.preferredWidth: aiToggleLabel.contentWidth + 24
+                Accessible.role: Accessible.Button
+                Accessible.name: navBarRoot.aiActive ? qsTr("AI Active") : qsTr("AI Inactive")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: { navBarRoot.aiActive = !navBarRoot.aiActive; navBarRoot.aiToggleClicked(navBarRoot.aiActive) }
+                Keys.onSpacePressed: { navBarRoot.aiActive = !navBarRoot.aiActive; navBarRoot.aiToggleClicked(navBarRoot.aiActive) }
 
                 readonly property var rainbowColors: Theme.brandGradient
 
@@ -1065,7 +1089,7 @@ ApplicationWindow {
                 Text {
                     id: aiToggleLabel
                     anchors.centerIn: parent
-                    text: aiToggleItem.makeRainbowText(navBarRoot.aiActive ? "Kapat" : "Türkçe Yama", aiToggleItem.animPhase)
+                    text: aiToggleItem.makeRainbowText(navBarRoot.aiActive ? qsTr("Kapat") : qsTr("Türkçe Yama"), aiToggleItem.animPhase)
                     textFormat: Text.RichText
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
@@ -1159,6 +1183,11 @@ ApplicationWindow {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
                 Layout.alignment: Qt.AlignVCenter
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Support Us")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: navBarRoot.donateClicked()
+                Keys.onSpacePressed: navBarRoot.donateClicked()
 
                 property bool hovered: donateMouse.containsMouse
                 scale: hovered ? 1.1 : 1.0
@@ -1257,6 +1286,11 @@ ApplicationWindow {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
                 Layout.alignment: Qt.AlignVCenter
+                Accessible.role: Accessible.Link
+                Accessible.name: "Discord"
+                activeFocusOnTab: true
+                Keys.onReturnPressed: Qt.openUrlExternally(Dimensions.discordUrl)
+                Keys.onSpacePressed: Qt.openUrlExternally(Dimensions.discordUrl)
 
                 property bool hovered: discordMouse.containsMouse
                 scale: hovered ? 1.1 : 1.0
