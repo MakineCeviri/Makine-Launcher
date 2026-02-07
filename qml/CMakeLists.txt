@@ -93,6 +93,7 @@ set(BACKEND_SOURCES
     src/services/corebridge.cpp
     src/services/systemtraymanager.cpp
     src/services/integrityservice.cpp
+    src/services/batchoperationservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -104,6 +105,7 @@ set(BACKEND_HEADERS
     src/services/corebridge.h
     src/services/systemtraymanager.h
     src/services/integrityservice.h
+    src/services/batchoperationservice.h
 )
 
 # Model sources
