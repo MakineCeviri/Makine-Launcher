@@ -5,12 +5,12 @@
  */
 
 #include "makineai/game_detector.hpp"
+#include "makineai/vdf_parser.hpp"
 #include "makineai/core.hpp"
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
 
 #include <fstream>
-#include <regex>
 #include <unordered_set>
 
 #ifdef _WIN32
@@ -28,7 +28,7 @@ struct RegKeyGuard {
     HKEY* ptr() { return &key; }
     HKEY get() const { return key; }
 };
-} // anonymous namespace
+} // namespace
 #endif
 
 bool SteamScanner::isAvailable() const {
@@ -198,34 +198,30 @@ Result<StringList> SteamScanner::findLibraryFolders() const {
     if (fs::exists(vdfPath)) {
         MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Parsing libraryfolders.vdf");
         std::ifstream vdf(vdfPath);
-        std::string line;
+        std::string content((std::istreambuf_iterator<char>(vdf)),
+                             std::istreambuf_iterator<char>());
 
-        // Simple VDF parsing for "path" entries
-        std::regex pathRegex("\"path\"\\s+\"([^\"]+)\"");
-        std::smatch match;
+        auto root = vdf::parse(content);
+        if (root) {
+            // Structure: "libraryfolders" { "0" { "path" "..." } "1" { ... } }
+            const vdf::Node* libFolders = root->find("libraryfolders");
+            if (!libFolders) libFolders = &*root;
 
-        while (std::getline(vdf, line)) {
-            if (std::regex_search(line, match, pathRegex)) {
-                std::string path = match[1].str();
-                // Unescape backslashes
-                std::string unescaped;
-                for (size_t i = 0; i < path.size(); ++i) {
-                    if (path[i] == '\\' && i + 1 < path.size() && path[i+1] == '\\') {
-                        unescaped += '\\';
-                        ++i;
-                    } else {
-                        unescaped += path[i];
-                    }
-                }
+            for (const auto& [key, entry] : libFolders->children) {
+                if (!entry.isObject()) continue;
 
-                // Add if not duplicate
-                if (std::find(folders.begin(), folders.end(), unescaped) == folders.end()) {
-                    if (fs::exists(unescaped)) {
-                        folders.push_back(unescaped);
-                        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found additional library: {}", unescaped);
+                std::string path = entry.getString("path");
+                if (path.empty()) continue;
+
+                if (std::find(folders.begin(), folders.end(), path) == folders.end()) {
+                    if (fs::exists(path)) {
+                        folders.push_back(path);
+                        MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: Found additional library: {}", path);
                     }
                 }
             }
+        } else {
+            MAKINEAI_LOG_WARN(log::SCANNER, "Steam: Failed to parse libraryfolders.vdf");
         }
     } else {
         MAKINEAI_LOG_DEBUG(log::SCANNER, "Steam: libraryfolders.vdf not found at {}", vdfPath.string());
@@ -286,25 +282,24 @@ Result<GameInfo> SteamScanner::parseAppManifest(const fs::path& acfFile) const {
             "Cannot open manifest: " + acfFile.string()));
     }
 
-    GameInfo game;
-    game.id.store = GameStore::Steam;
-
     std::string content((std::istreambuf_iterator<char>(file)),
                         std::istreambuf_iterator<char>());
 
-    // Simple VDF parsing
-    auto getValue = [&content](const std::string& key) -> std::string {
-        std::regex regex("\"" + key + "\"\\s+\"([^\"]+)\"", std::regex::icase);
-        std::smatch match;
-        if (std::regex_search(content, match, regex)) {
-            return match[1].str();
-        }
-        return "";
-    };
+    auto root = vdf::parse(content);
+    if (!root) {
+        return std::unexpected(Error(ErrorCode::ParseError,
+            "Failed to parse manifest: " + acfFile.string()));
+    }
 
-    game.id.storeId = getValue("appid");
-    game.name = getValue("name");
-    std::string installDir = getValue("installdir");
+    // ACF structure: "AppState" { "appid" "123" "name" "Game Name" ... }
+    const vdf::Node* appState = root->find("AppState");
+    if (!appState) appState = &*root;
+
+    GameInfo game;
+    game.id.store = GameStore::Steam;
+    game.id.storeId = appState->getString("appid");
+    game.name = appState->getString("name");
+    std::string installDir = appState->getString("installdir");
 
     // Filter out redistributable packages
     if (isRedistributable(game.id.storeId, game.name)) {
@@ -358,7 +353,8 @@ Result<GameInfo> SteamScanner::parseAppManifest(const fs::path& acfFile) const {
 
     // Try to get size
     try {
-        game.sizeBytes = std::stoull(getValue("SizeOnDisk"));
+        std::string sizeStr = appState->getString("SizeOnDisk");
+        game.sizeBytes = sizeStr.empty() ? 0 : std::stoull(sizeStr);
     } catch (const std::exception&) {
         game.sizeBytes = 0;
     }

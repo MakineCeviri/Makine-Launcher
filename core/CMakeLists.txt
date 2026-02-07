@@ -146,6 +146,7 @@ set(MAKINEAI_HEADERS
     include/makineai/parsers_factory.hpp
     include/makineai/patch_engine.hpp
     include/makineai/game_detector.hpp
+    include/makineai/vdf_parser.hpp
     include/makineai/package_manager.hpp
     include/makineai/runtime_manager.hpp
     include/makineai/security.hpp

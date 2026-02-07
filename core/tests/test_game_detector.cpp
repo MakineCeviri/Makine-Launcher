@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <makineai/game_detector.hpp>
+#include <makineai/vdf_parser.hpp>
 #include <makineai/types.hpp>
 #include <fstream>
 #include <filesystem>
@@ -195,6 +196,149 @@ TEST_F(GameDetectorTest, ScanForSignatures) {
     EXPECT_FALSE(signatures.hasUnityEngine);
     EXPECT_FALSE(signatures.hasPakFiles);
     EXPECT_FALSE(signatures.hasRpaFiles);
+}
+
+// ============================================================================
+// VDF Parser Tests
+// ============================================================================
+
+class VdfParserTest : public ::testing::Test {};
+
+TEST_F(VdfParserTest, ParseSimpleKeyValue) {
+    auto root = vdf::parse(R"("key" "value")");
+    ASSERT_TRUE(root.has_value());
+    EXPECT_EQ(root->getString("key"), "value");
+}
+
+TEST_F(VdfParserTest, ParseNestedObject) {
+    auto root = vdf::parse(R"(
+        "parent"
+        {
+            "child" "data"
+        }
+    )");
+    ASSERT_TRUE(root.has_value());
+    auto* parent = root->find("parent");
+    ASSERT_NE(parent, nullptr);
+    EXPECT_EQ(parent->getString("child"), "data");
+}
+
+TEST_F(VdfParserTest, ParseLibraryFoldersVdf) {
+    const char* vdfContent = R"(
+        "libraryfolders"
+        {
+            "0"
+            {
+                "path"      "C:\\Program Files (x86)\\Steam"
+                "label"     ""
+                "apps"
+                {
+                    "228980"    "1234567890"
+                    "730"       "9876543210"
+                }
+            }
+            "1"
+            {
+                "path"      "D:\\SteamLibrary"
+                "label"     ""
+                "apps"
+                {
+                    "570"       "1234567890"
+                }
+            }
+        }
+    )";
+
+    auto root = vdf::parse(vdfContent);
+    ASSERT_TRUE(root.has_value());
+
+    auto* libFolders = root->find("libraryfolders");
+    ASSERT_NE(libFolders, nullptr);
+    EXPECT_TRUE(libFolders->isObject());
+
+    // Check library folder 0
+    auto* folder0 = libFolders->find("0");
+    ASSERT_NE(folder0, nullptr);
+    EXPECT_EQ(folder0->getString("path"), "C:\\Program Files (x86)\\Steam");
+
+    auto* apps0 = folder0->find("apps");
+    ASSERT_NE(apps0, nullptr);
+    EXPECT_EQ(apps0->getString("228980"), "1234567890");
+    EXPECT_EQ(apps0->getString("730"), "9876543210");
+
+    // Check library folder 1
+    auto* folder1 = libFolders->find("1");
+    ASSERT_NE(folder1, nullptr);
+    EXPECT_EQ(folder1->getString("path"), "D:\\SteamLibrary");
+}
+
+TEST_F(VdfParserTest, ParseAppManifestAcf) {
+    const char* acfContent = R"(
+        "AppState"
+        {
+            "appid"     "570"
+            "Universe"  "1"
+            "name"      "Dota 2"
+            "StateFlags"    "4"
+            "installdir"    "dota 2 beta"
+            "SizeOnDisk"    "34567890123"
+        }
+    )";
+
+    auto root = vdf::parse(acfContent);
+    ASSERT_TRUE(root.has_value());
+
+    auto* appState = root->find("AppState");
+    ASSERT_NE(appState, nullptr);
+    EXPECT_EQ(appState->getString("appid"), "570");
+    EXPECT_EQ(appState->getString("name"), "Dota 2");
+    EXPECT_EQ(appState->getString("installdir"), "dota 2 beta");
+    EXPECT_EQ(appState->getString("SizeOnDisk"), "34567890123");
+}
+
+TEST_F(VdfParserTest, HandleEscapeSequences) {
+    auto root = vdf::parse(R"("path" "C:\\Users\\test\\Games")");
+    ASSERT_TRUE(root.has_value());
+    EXPECT_EQ(root->getString("path"), "C:\\Users\\test\\Games");
+}
+
+TEST_F(VdfParserTest, HandleComments) {
+    auto root = vdf::parse(
+        "// This is a comment\n"
+        "\"key\" \"value\"\n"
+        "// Another comment\n"
+        "\"key2\" \"value2\"\n"
+    );
+    ASSERT_TRUE(root.has_value());
+    EXPECT_EQ(root->getString("key"), "value");
+    EXPECT_EQ(root->getString("key2"), "value2");
+}
+
+TEST_F(VdfParserTest, GetStringDefaultValue) {
+    auto root = vdf::parse(R"("key" "value")");
+    ASSERT_TRUE(root.has_value());
+    EXPECT_EQ(root->getString("nonexistent", "default"), "default");
+    EXPECT_EQ(root->getString("nonexistent"), "");
+}
+
+TEST_F(VdfParserTest, EmptyInput) {
+    auto root = vdf::parse("");
+    ASSERT_TRUE(root.has_value());
+    EXPECT_TRUE(root->children.empty());
+}
+
+TEST_F(VdfParserTest, DeeplyNested) {
+    auto root = vdf::parse(R"(
+        "a" { "b" { "c" { "d" "deep" } } }
+    )");
+    ASSERT_TRUE(root.has_value());
+    auto* a = root->find("a");
+    ASSERT_NE(a, nullptr);
+    auto* b = a->find("b");
+    ASSERT_NE(b, nullptr);
+    auto* c = b->find("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->getString("d"), "deep");
 }
 
 } // namespace testing
