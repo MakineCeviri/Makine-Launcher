@@ -157,10 +157,10 @@ Item {
     // Quality label helper
     function getQualityLabel(quality) {
         var lower = quality.toLowerCase()
-        if (lower === "professional") return "Profesyonel"
-        if (lower === "verified") return "Doğrulanmış"
-        if (lower === "community") return "Topluluk"
-        if (lower === "ai") return "Yapay Zeka"
+        if (lower === "professional") return qsTr("Profesyonel")
+        if (lower === "verified") return qsTr("Doğrulanmış")
+        if (lower === "community") return qsTr("Topluluk")
+        if (lower === "ai") return qsTr("Yapay Zeka")
         return quality
     }
 
@@ -357,7 +357,7 @@ Item {
                             }
 
                             Text {
-                                text: "Onaylı Türkçe Çeviri"
+                                text: qsTr("Onaylı Türkçe Çeviri")
                                 font.pixelSize: 13
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
@@ -409,7 +409,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "Steam'de Aç"
+                                    text: qsTr("Steam'de Aç")
                                     font.pixelSize: 14
                                     font.weight: Font.DemiBold
                                     color: "white"
@@ -452,7 +452,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "Çeviriyi Başlat"
+                                    text: qsTr("Çeviriyi Başlat")
                                     font.pixelSize: 14
                                     font.weight: Font.DemiBold
                                     color: "white"
@@ -496,7 +496,7 @@ Item {
                     }
 
                     Text {
-                        text: "Steam bilgileri yükleniyor..."
+                        text: qsTr("Steam bilgileri yükleniyor...")
                         font.pixelSize: 14
                         color: Theme.textMuted
                     }
@@ -510,7 +510,7 @@ Item {
 
                     // Section title
                     Text {
-                        text: "Hakkında"
+                        text: qsTr("Hakkında")
                         font.pixelSize: 18
                         font.weight: Font.DemiBold
                         color: "white"
@@ -549,7 +549,7 @@ Item {
                         spacing: 12
 
                         Text {
-                            text: "Detaylar"
+                            text: qsTr("Detaylar")
                             font.pixelSize: 18
                             font.weight: Font.DemiBold
                             color: "white"
@@ -570,25 +570,25 @@ Item {
                                 spacing: 0
 
                                 InfoRow {
-                                    label: "Geliştirici"
+                                    label: qsTr("Geliştirici")
                                     value: root.developers.join(", ")
                                     visible: root.developers.length > 0
                                 }
 
                                 InfoRow {
-                                    label: "Yayıncı"
+                                    label: qsTr("Yayıncı")
                                     value: root.publishers.join(", ")
                                     visible: root.publishers.length > 0
                                 }
 
                                 InfoRow {
-                                    label: "Çıkış Tarihi"
+                                    label: qsTr("Çıkış Tarihi")
                                     value: root.releaseDate
                                     visible: root.releaseDate !== ""
                                 }
 
                                 InfoRow {
-                                    label: "Türler"
+                                    label: qsTr("Türler")
                                     value: root.genres.join(", ")
                                     visible: root.genres.length > 0
                                 }
@@ -602,7 +602,7 @@ Item {
                         spacing: 12
 
                         Text {
-                            text: "Değerlendirme"
+                            text: qsTr("Değerlendirme")
                             font.pixelSize: 18
                             font.weight: Font.DemiBold
                             color: "white"
@@ -658,10 +658,10 @@ Item {
 
                                         Text {
                                             text: {
-                                                if (root.metacriticScore >= 75) return "Çok Olumlu"
-                                                if (root.metacriticScore >= 50) return "Karışık"
-                                                if (root.metacriticScore > 0) return "Olumsuz"
-                                                return "Puan yok"
+                                                if (root.metacriticScore >= 75) return qsTr("Çok Olumlu")
+                                                if (root.metacriticScore >= 50) return qsTr("Karışık")
+                                                if (root.metacriticScore > 0) return qsTr("Olumsuz")
+                                                return qsTr("Puan yok")
                                             }
                                             font.pixelSize: 12
                                             color: Theme.textMuted
@@ -674,7 +674,7 @@ Item {
                                     spacing: 12
 
                                     Text {
-                                        text: "Platformlar:"
+                                        text: qsTr("Platformlar:")
                                         font.pixelSize: 13
                                         color: Theme.textMuted
                                     }
@@ -721,7 +721,7 @@ Item {
                                     }
 
                                     Text {
-                                        text: root.price === "" ? "Ücretsiz" : root.price
+                                        text: root.price === "" ? qsTr("Ücretsiz") : root.price
                                         font.pixelSize: 16
                                         font.weight: Font.Bold
                                         color: root.discountPercent > 0 ? Theme.success : Theme.textPrimary
@@ -741,7 +741,7 @@ Item {
                 spacing: 12
 
                 Text {
-                    text: "Çeviri Bilgileri"
+                    text: qsTr("Çeviri Bilgileri")
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                     color: "white"
@@ -814,11 +814,11 @@ Item {
                             }
                         }
 
-                        InfoRow { label: "Reçete Sürümü"; value: "v" + root.recipeVersion }
-                        InfoRow { label: "Metin Sayısı"; value: root.stringCount + " adet" }
-                        InfoRow { label: "Kapsam"; value: root.coverage }
-                        InfoRow { label: "Dosya Sayısı"; value: root.fileCount + " dosya" }
-                        InfoRow { label: "Hazırlayan"; value: root.author; visible: root.author !== "" }
+                        InfoRow { label: qsTr("Reçete Sürümü"); value: "v" + root.recipeVersion }
+                        InfoRow { label: qsTr("Metin Sayısı"); value: root.stringCount + " " + qsTr("adet") }
+                        InfoRow { label: qsTr("Kapsam"); value: root.coverage }
+                        InfoRow { label: qsTr("Dosya Sayısı"); value: root.fileCount + " " + qsTr("dosya") }
+                        InfoRow { label: qsTr("Hazırlayan"); value: root.author; visible: root.author !== "" }
                     }
                 }
 
@@ -844,7 +844,7 @@ Item {
                         }
 
                         Text {
-                            text: "Bu oyun için henüz çeviri reçetesi bulunmuyor."
+                            text: qsTr("Bu oyun için henüz çeviri reçetesi bulunmuyor.")
                             font.pixelSize: 13
                             color: Theme.textMuted
                             anchors.verticalCenter: parent.verticalCenter
@@ -880,7 +880,7 @@ Item {
                 }
 
                 Text {
-                    text: "Yedekleme Yönetimi"
+                    text: qsTr("Yedekleme Yönetimi")
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                     color: "white"
@@ -903,7 +903,7 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: "Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir."
+                            text: qsTr("Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir.")
                             font.pixelSize: 13
                             color: Theme.textMuted
                             wrapMode: Text.WordWrap
@@ -958,7 +958,7 @@ Item {
                                             Text {
                                                 id: latestBadgeText
                                                 anchors.centerIn: parent
-                                                text: "Son Yedek"
+                                                text: qsTr("Son Yedek")
                                                 font.pixelSize: 11
                                                 font.weight: Font.DemiBold
                                                 color: Theme.success
@@ -983,7 +983,7 @@ Item {
 
                                         Text {
                                             property int fc: backupSection.latestBackup.fileCount || 0
-                                            text: fc + " dosya"
+                                            text: fc + " " + qsTr("dosya")
                                             font.pixelSize: 12
                                             color: Theme.textSecondary
                                             visible: fc > 0
@@ -991,7 +991,7 @@ Item {
 
                                         Text {
                                             property int bc: backupSection.gameBackups.length
-                                            text: bc + " yedek mevcut"
+                                            text: bc + " " + qsTr("yedek mevcut")
                                             font.pixelSize: 12
                                             color: Theme.textMuted
                                         }
@@ -1031,7 +1031,7 @@ Item {
                                         }
 
                                         Text {
-                                            text: "Orijinale Dön"
+                                            text: qsTr("Orijinale Dön")
                                             font.pixelSize: 13
                                             font.weight: Font.Medium
                                             color: Theme.warning
@@ -1080,7 +1080,7 @@ Item {
                                         }
 
                                         Text {
-                                            text: "Yedekleri Sil"
+                                            text: qsTr("Yedekleri Sil")
                                             font.pixelSize: 13
                                             font.weight: Font.Medium
                                             color: Theme.textMuted
@@ -1118,7 +1118,7 @@ Item {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: "Bu oyun için henüz yedek bulunmuyor. Çeviri uygulandığında otomatik olarak oluşturulacak."
+                                text: qsTr("Bu oyun için henüz yedek bulunmuyor. Çeviri uygulandığında otomatik olarak oluşturulacak.")
                                 font.pixelSize: 13
                                 color: Theme.textMuted
                                 wrapMode: Text.WordWrap
@@ -1137,7 +1137,7 @@ Item {
                 visible: root.screenshots.length > 0
 
                 Text {
-                    text: "Ekran Görüntüleri"
+                    text: qsTr("Ekran Görüntüleri")
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                     color: "white"

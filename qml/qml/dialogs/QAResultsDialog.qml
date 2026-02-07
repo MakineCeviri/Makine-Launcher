@@ -37,7 +37,7 @@ Dialog {
     signal ignoreAndContinue()
     signal fixIssues()
 
-    title: "Kalite Kontrol Sonuçları"
+    title: qsTr("Kalite Kontrol Sonuçları")
     modal: true
     closePolicy: Popup.CloseOnEscape
     onOpened: activeSeverityFilter = 0
@@ -70,10 +70,10 @@ Dialog {
     }
 
     function getSeverityLabel(severity) {
-        if (severity >= 4) return "Kritik"
-        if (severity === 3) return "Önemli"
-        if (severity === 2) return "Uyarı"
-        return "Bilgi"
+        if (severity >= 4) return qsTr("Kritik")
+        if (severity === 3) return qsTr("Önemli")
+        if (severity === 2) return qsTr("Uyarı")
+        return qsTr("Bilgi")
     }
 
     // Score color
@@ -124,7 +124,7 @@ Dialog {
                 spacing: 4
 
                 Text {
-                    text: root.passed ? "Kalite Kontrolü Geçti" : "Kalite Kontrolü Başarısız"
+                    text: root.passed ? qsTr("Kalite Kontrolü Geçti") : qsTr("Kalite Kontrolü Başarısız")
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                     color: root.passed ? colorSuccess : colorCritical
@@ -160,7 +160,7 @@ Dialog {
                         Text {
                             id: allBadgeText
                             anchors.centerIn: parent
-                            text: "Tümü"
+                            text: qsTr("Tümü")
                             font.pixelSize: 10
                             font.weight: Font.Medium
                             color: Theme.primary
@@ -323,7 +323,7 @@ Dialog {
                 }
 
                 Text {
-                    text: "Harika! Hiçbir sorun tespit edilmedi."
+                    text: qsTr("Harika! Hiçbir sorun tespit edilmedi.")
                     font.pixelSize: 14
                     font.weight: Font.Medium
                     color: colorSuccess
@@ -541,7 +541,7 @@ Dialog {
                     spacing: 8
 
                     Text {
-                        text: "Yoksay ve Devam"
+                        text: qsTr("Yoksay ve Devam")
                         font.pixelSize: 14
                         font.weight: Font.Medium
                         color: Theme.textSecondary
@@ -587,7 +587,7 @@ Dialog {
                     }
 
                     Text {
-                        text: root.issues.length > 0 ? "Düzelt" : "Tamam"
+                        text: root.issues.length > 0 ? qsTr("Düzelt") : qsTr("Tamam")
                         font.pixelSize: 14
                         font.weight: Font.DemiBold
                         color: "white"

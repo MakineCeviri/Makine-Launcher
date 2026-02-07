@@ -330,7 +330,7 @@ Window {
                 id: titleText
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                text: "Makine Çeviri"
+                text: qsTr("Makine Çeviri")
                 font.pixelSize: 42
                 font.weight: Font.Black
                 font.letterSpacing: -1.5
@@ -367,7 +367,7 @@ Window {
                     }
 
                     Text {
-                        text: "AI Destekli"
+                        text: qsTr("AI Destekli")
                         font.pixelSize: 10
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.3
@@ -432,7 +432,7 @@ Window {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: progressTrack.bottom
                 anchors.topMargin: 14
-                text: "Yükleniyor..."
+                text: qsTr("Yükleniyor...")
                 font.pixelSize: 11
                 font.weight: Font.Medium
                 font.letterSpacing: 1.5
@@ -473,7 +473,7 @@ Window {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                text: "Makine Çeviri Topluluğu"
+                text: qsTr("Makine Çeviri Topluluğu")
                 font.pixelSize: 10
                 font.letterSpacing: 0.3
                 color: Qt.rgba(1, 1, 1, 0.3)

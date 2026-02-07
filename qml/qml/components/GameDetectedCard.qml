@@ -169,7 +169,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: "Oyun çalışıyor"
+                    text: qsTr("Oyun çalışıyor")
                     font.pixelSize: 13
                     font.weight: Font.Medium
                     color: Theme.success
@@ -203,7 +203,7 @@ Rectangle {
                     }
 
                     Text {
-                        text: "Anti-Cheat Tespit Edildi"
+                        text: qsTr("Anti-Cheat Tespit Edildi")
                         font.pixelSize: 14
                         font.weight: Font.DemiBold
                         color: Theme.warning
@@ -212,7 +212,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: root.antiCheatSummary || "Bu oyun anti-cheat sistemi kullanıyor. Çeviri bazı dosyaları etkilemeyebilir."
+                    text: root.antiCheatSummary || qsTr("Bu oyun anti-cheat sistemi kullanıyor. Çeviri bazı dosyaları etkilemeyebilir.")
                     font.pixelSize: 12
                     color: Theme.textMuted
                     wrapMode: Text.WordWrap

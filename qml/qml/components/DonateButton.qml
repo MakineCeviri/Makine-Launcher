@@ -129,7 +129,7 @@ Item {
         }
 
         Text {
-            text: "Destekçi Ol"
+            text: qsTr("Destekçi Ol")
             font.pixelSize: 14
             font.weight: Font.DemiBold
             color: "white"

@@ -24,9 +24,9 @@ ColumnLayout {
             SettingsDivider {}
             InfoRow { label: "Versiyon"; value: Dimensions.appVersionFull }
             SettingsDivider {}
-            InfoRow { label: "Geliştirici"; value: "Makine Çeviri" }
+            InfoRow { label: "Geliştirici"; value: qsTr("Makine Çeviri") }
             SettingsDivider {}
-            InfoRow { label: "Lisans"; value: "Ücretsiz Lisans" }
+            InfoRow { label: "Lisans"; value: qsTr("Ücretsiz Lisans") }
         }
     }
 
@@ -45,8 +45,8 @@ ColumnLayout {
             spacing: 0
 
             ClickableRow {
-                title: "Discord Desteği"
-                subtitle: "Topluluk ve yardım için Discord sunucumuza katılın."
+                title: qsTr("Discord Desteği")
+                subtitle: qsTr("Topluluk ve yardım için Discord sunucumuza katılın.")
                 iconSource: "qrc:/qt/qml/MakineAI/resources/icons/info.svg"
                 onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
             }
@@ -55,7 +55,7 @@ ColumnLayout {
 
             ClickableRow {
                 title: "Geri Bildirim"
-                subtitle: "Hata bildirimi ve öneriler için web sitemizi ziyaret edin."
+                subtitle: qsTr("Hata bildirimi ve öneriler için web sitemizi ziyaret edin.")
                 iconSource: "qrc:/qt/qml/MakineAI/resources/icons/info.svg"
                 onClicked: Qt.openUrlExternally("https://makineai.com/feedback")
             }

@@ -106,7 +106,7 @@ Item {
                 }
 
                 Text {
-                    text: "Türk oyun geliştirme ve çeviri topluluğu."
+                    text: qsTr("Türk oyun geliştirme ve çeviri topluluğu.")
                     font.pixelSize: 14
                     color: Theme.textSecondary
                 }

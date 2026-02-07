@@ -17,7 +17,7 @@ Popup {
 
     // Scanning state
     property bool isScanning: true
-    property string statusMessage: "Oyun kütüphaneleri taranıyor..."
+    property string statusMessage: qsTr("Oyun kütüphaneleri taranıyor...")
     property real progress: 0.0
     property string errorMessage: ""
 
@@ -46,7 +46,7 @@ Popup {
     // Folder dialog - parentWindow required on Windows Qt6
     FolderDialog {
         id: folderDialog
-        title: "Oyun Klasörünü Seçin"
+        title: qsTr("Oyun Klasörünü Seçin")
         parentWindow: root.appWindow
         onAccepted: addManualFolder(selectedFolder)
     }
@@ -110,7 +110,7 @@ Popup {
         root.errorMessage = ""
         root.isScanning = true
         root.progress = 0.1
-        root.statusMessage = "Oyun kütüphaneleri taranıyor..."
+        root.statusMessage = qsTr("Oyun kütüphaneleri taranıyor...")
         GameService.scanAllLibraries()
     }
 
@@ -215,7 +215,7 @@ Popup {
                     spacing: 2
 
                     Text {
-                        text: "Oyun Kütüphanesi"
+                        text: qsTr("Oyun Kütüphanesi")
                         font.pixelSize: 16
                         font.weight: Font.DemiBold
                         color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
@@ -323,7 +323,7 @@ Popup {
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Bu işlem birkaç saniye sürebilir"
+                    text: qsTr("Bu işlem birkaç saniye sürebilir")
                     font.pixelSize: 13
                     color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                 }
@@ -378,7 +378,7 @@ Popup {
 
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: "Oyun ara..."
+                                        text: qsTr("Oyun ara...")
                                         font.pixelSize: 13
                                         color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                                         visible: searchInput.text.length === 0
@@ -414,7 +414,7 @@ Popup {
 
                             ToolTip {
                                 visible: manualBtn.containsMouse
-                                text: "Manuel oyun ekle"
+                                text: qsTr("Manuel oyun ekle")
                                 delay: 500
                             }
                         }
@@ -446,7 +446,7 @@ Popup {
 
                             ToolTip {
                                 visible: refreshBtn.containsMouse
-                                text: "Yeniden tara"
+                                text: qsTr("Yeniden tara")
                                 delay: 500
                             }
                         }
@@ -572,7 +572,7 @@ Popup {
                                         if (src === "epic") return "Epic"
                                         if (src === "gog") return "GOG"
                                         if (src === "manual") return "Manuel"
-                                        return "Diğer"
+                                        return qsTr("Diğer")
                                     }
                                     font.pixelSize: 9
                                     font.weight: Font.DemiBold
@@ -617,7 +617,7 @@ Popup {
 
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: root.searchQuery.length > 0 ? "Sonuç bulunamadı" : "Yüklü oyun bulunamadı"
+                                text: root.searchQuery.length > 0 ? qsTr("Sonuç bulunamadı") : qsTr("Yüklü oyun bulunamadı")
                                 font.pixelSize: 16
                                 color: root.isDark ? Theme.textSecondary : Theme.lightTextSecondary
                             }
@@ -679,7 +679,7 @@ Popup {
                                     if (src === "epic") return "Epic"
                                     if (src === "gog") return "GOG"
                                     if (src === "manual") return "Manuel"
-                                    return "Diğer"
+                                    return qsTr("Diğer")
                                 }
                                 font.pixelSize: 9
                                 font.weight: Font.DemiBold
@@ -690,8 +690,8 @@ Popup {
 
                     Text {
                         text: root.selectedGame && root.selectedGame.isVerified
-                            ? "Onaylı çeviri reçetesi mevcut"
-                            : "Deneysel çeviri modu kullanılacak"
+                            ? qsTr("Onaylı çeviri reçetesi mevcut")
+                            : qsTr("Deneysel çeviri modu kullanılacak")
                         font.pixelSize: 12
                         color: root.selectedGame && root.selectedGame.isVerified ? Theme.success : Theme.warning
                     }
@@ -719,7 +719,7 @@ Popup {
                         }
 
                         Text {
-                            text: "Çeviriyi Başlat"
+                            text: qsTr("Çeviriyi Başlat")
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
                             color: "white"

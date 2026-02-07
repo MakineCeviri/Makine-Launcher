@@ -21,8 +21,8 @@ ColumnLayout {
             spacing: 0
 
             ToggleSetting {
-                title: "Donanım Hızlandırma"
-                description: "GPU kullanarak daha hızlı çeviri"
+                title: qsTr("Donanım Hızlandırma")
+                description: qsTr("GPU kullanarak daha hızlı çeviri")
                 checked: SettingsManager.hardwareAcceleration
                 onToggled: SettingsManager.hardwareAcceleration = !SettingsManager.hardwareAcceleration
             }
@@ -30,8 +30,8 @@ ColumnLayout {
             SettingsDivider {}
 
             ToggleSetting {
-                title: "Global Önbellek"
-                description: "Çevirileri tüm oyunlar için paylaş"
+                title: qsTr("Global Önbellek")
+                description: qsTr("Çevirileri tüm oyunlar için paylaş")
                 checked: SettingsManager.useGlobalCache
                 onToggled: SettingsManager.useGlobalCache = !SettingsManager.useGlobalCache
             }
@@ -39,8 +39,8 @@ ColumnLayout {
             SettingsDivider {}
 
             ToggleSetting {
-                title: "Uygulama Animasyonları"
-                description: "Arayüz animasyonlarını etkinleştir"
+                title: qsTr("Uygulama Animasyonları")
+                description: qsTr("Arayüz animasyonlarını etkinleştir")
                 checked: SettingsManager.enableAnimations
                 onToggled: SettingsManager.enableAnimations = !SettingsManager.enableAnimations
             }

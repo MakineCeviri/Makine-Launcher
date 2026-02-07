@@ -37,14 +37,14 @@ Rectangle {
     // Get phase text
     property string phaseText: {
         switch (phase) {
-            case TranslationPhaseBadge.Phase.Idle: return "Bekleniyor"
-            case TranslationPhaseBadge.Phase.Detecting: return "Tespit ediliyor"
-            case TranslationPhaseBadge.Phase.Preparing: return "Hazırlanıyor"
-            case TranslationPhaseBadge.Phase.Translating: return "Çevriliyor"
-            case TranslationPhaseBadge.Phase.Applying: return "Uygulanıyor"
-            case TranslationPhaseBadge.Phase.Completed: return "Tamamlandı"
-            case TranslationPhaseBadge.Phase.Failed: return "Hata"
-            default: return "Bilinmiyor"
+            case TranslationPhaseBadge.Phase.Idle: return qsTr("Bekleniyor")
+            case TranslationPhaseBadge.Phase.Detecting: return qsTr("Tespit ediliyor")
+            case TranslationPhaseBadge.Phase.Preparing: return qsTr("Hazırlanıyor")
+            case TranslationPhaseBadge.Phase.Translating: return qsTr("Çevriliyor")
+            case TranslationPhaseBadge.Phase.Applying: return qsTr("Uygulanıyor")
+            case TranslationPhaseBadge.Phase.Completed: return qsTr("Tamamlandı")
+            case TranslationPhaseBadge.Phase.Failed: return qsTr("Hata")
+            default: return qsTr("Bilinmiyor")
         }
     }
 

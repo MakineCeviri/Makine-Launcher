@@ -16,7 +16,7 @@ Dialog {
 
     signal gameSelected(string gameId)
 
-    title: "Tüm Desteklenen Oyunlar"
+    title: qsTr("Tüm Desteklenen Oyunlar")
     modal: true
     closePolicy: Popup.CloseOnEscape
     width: 900
@@ -82,7 +82,7 @@ Dialog {
                     spacing: 4
 
                     Text {
-                        text: "Tüm Desteklenen Oyunlar"
+                        text: qsTr("Tüm Desteklenen Oyunlar")
                         font.pixelSize: 24
                         font.weight: Font.Bold
                         color: Theme.textPrimary
@@ -164,7 +164,7 @@ Dialog {
 
                             Text {
                                 anchors.fill: parent
-                                text: "Oyun ara..."
+                                text: qsTr("Oyun ara...")
                                 font.pixelSize: 14
                                 color: Theme.textMuted
                                 visible: !searchInput.text && !searchInput.activeFocus
@@ -202,21 +202,21 @@ Dialog {
                     spacing: 8
 
                     CategoryButton {
-                        text: "Tümü"
+                        text: qsTr("Tümü")
                         category: "all"
                         isSelected: selectedCategory === "all"
                         onClicked: selectedCategory = "all"
                     }
 
                     CategoryButton {
-                        text: "Onaylı"
+                        text: qsTr("Onaylı")
                         category: "verified"
                         isSelected: selectedCategory === "verified"
                         onClicked: selectedCategory = "verified"
                     }
 
                     CategoryButton {
-                        text: "Çevrilmeyen"
+                        text: qsTr("Çevrilmeyen")
                         category: "translating"
                         isSelected: selectedCategory === "translating"
                         onClicked: selectedCategory = "translating"
@@ -412,7 +412,7 @@ Dialog {
 
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                text: "Oyun bulunamadı"
+                text: qsTr("Oyun bulunamadı")
                 font.pixelSize: 18
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
@@ -420,7 +420,7 @@ Dialog {
 
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                text: "Arama kriterlerini değiştirmeyi deneyin"
+                text: qsTr("Arama kriterlerini değiştirmeyi deneyin")
                 font.pixelSize: 14
                 color: Theme.textMuted
             }

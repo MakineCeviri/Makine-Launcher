@@ -101,7 +101,7 @@ Rectangle {
         WindowButton {
             visible: root.showPinToTray
             iconText: "\uE840"  // Segoe MDL2: Pin
-            tooltip: "Gizli simgelere küçült"
+            tooltip: qsTr("Gizli simgelere küçült")
             hoverColor: isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
             isDark: root.isDark
             onClicked: root.pinToTrayClicked()
@@ -110,7 +110,7 @@ Rectangle {
         // Minimize button - Windows 11 style
         WindowButton {
             iconText: "\uE921"  // Segoe MDL2: ChromeMinimize
-            tooltip: "Küçült"
+            tooltip: qsTr("Küçült")
             hoverColor: isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
             isDark: root.isDark
             onClicked: root.minimizeClicked()
@@ -123,7 +123,7 @@ Rectangle {
             iconText: root.Window.window && root.Window.window.visibility === Window.Maximized
                 ? "\uE923" : "\uE922"  // Segoe MDL2: ChromeRestore or ChromeMaximize
             tooltip: root.Window.window && root.Window.window.visibility === Window.Maximized
-                ? "Geri Yükle" : "Ekranı Kapla"
+                ? qsTr("Geri Yükle") : qsTr("Ekranı Kapla")
             hoverColor: isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
             isDark: root.isDark
             onClicked: root.maximizeClicked()
@@ -132,7 +132,7 @@ Rectangle {
         // Close button - Windows 11 style with red hover
         WindowButton {
             iconText: "\uE8BB"  // Segoe MDL2: ChromeClose
-            tooltip: "Kapat"
+            tooltip: qsTr("Kapat")
             hoverColor: Theme.closeButtonHover  // #E81123
             isClose: true
             isDark: root.isDark

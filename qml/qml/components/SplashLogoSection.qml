@@ -55,7 +55,7 @@ Item {
             }
 
             Text {
-                text: "Türkçe Yama"
+                text: qsTr("Türkçe Yama")
                 font.pixelSize: 11
                 font.weight: Font.Medium
                 color: Theme.splashGold

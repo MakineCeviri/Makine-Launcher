@@ -21,9 +21,9 @@ ColumnLayout {
             spacing: 0
 
             InfoSettingWithBadge {
-                title: "Çeviri Dili"
-                description: "Oyunların çevrileceği dil"
-                badgeText: "Türkçe"
+                title: qsTr("Çeviri Dili")
+                description: qsTr("Oyunların çevrileceği dil")
+                badgeText: qsTr("Türkçe")
             }
         }
     }
@@ -43,8 +43,8 @@ ColumnLayout {
             spacing: 0
 
             DisabledSetting {
-                title: "Çeviri Kalitesi"
-                description: "Bu özellik gelecek güncellemelerde eklenecektir"
+                title: qsTr("Çeviri Kalitesi")
+                description: qsTr("Bu özellik gelecek güncellemelerde eklenecektir")
             }
         }
     }

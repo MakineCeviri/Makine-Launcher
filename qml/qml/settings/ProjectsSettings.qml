@@ -51,7 +51,7 @@ ColumnLayout {
 
             EmptyStateMessage {
                 visible: BackupManager.backups.length === 0
-                title: "Henüz yedeklenmiş oyun yok"
+                title: qsTr("Henüz yedeklenmiş oyun yok")
                 iconSource: "qrc:/qt/qml/MakineAI/resources/icons/folder.svg"
             }
 
@@ -87,7 +87,7 @@ ColumnLayout {
             }
 
             Text {
-                text: BackupManager.restoreStatus || "Geri yükleniyor..."
+                text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
                 font.pixelSize: 14
                 color: Theme.textPrimary
             }

@@ -154,7 +154,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: "Türk oyun geliştirme ve çeviri topluluğu."
+                text: qsTr("Türk oyun geliştirme ve çeviri topluluğu.")
                 font.pixelSize: 14
                 color: isDark ? Theme.textSecondary : Theme.lightTextSecondary
                 lineHeight: 1.5

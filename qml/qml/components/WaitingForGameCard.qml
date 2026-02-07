@@ -42,7 +42,7 @@ Rectangle {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Oyun Aktif Değil"
+            text: qsTr("Oyun Aktif Değil")
             font.pixelSize: 18
             font.weight: Font.DemiBold
             color: Theme.textPrimary
@@ -53,7 +53,7 @@ Rectangle {
         Text {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
-            text: "Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir."
+            text: qsTr("Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir.")
             font.pixelSize: 13
             color: Theme.textMuted
             horizontalAlignment: Text.AlignHCenter

@@ -39,7 +39,7 @@ Rectangle {
                 spacing: 2
 
                 Label {
-                    text: "Türkçe Yama"
+                    text: qsTr("Türkçe Yama")
                     font.pixelSize: 16
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.3
@@ -47,7 +47,7 @@ Rectangle {
                 }
 
                 Label {
-                    text: "Oyun çeviri durumu"
+                    text: qsTr("Oyun çeviri durumu")
                     font.pixelSize: 11
                     color: Theme.textMuted
                 }
@@ -76,7 +76,7 @@ Rectangle {
                     }
 
                     Text {
-                        text: "Bekleniyor"
+                        text: qsTr("Bekleniyor")
                         font.pixelSize: 11
                         font.weight: Font.Medium
                         color: Theme.error
@@ -119,7 +119,7 @@ Rectangle {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Oyun Bekleniyor"
+                    text: qsTr("Oyun Bekleniyor")
                     font.pixelSize: 13
                     font.weight: Font.Medium
                     color: Theme.textPrimary
@@ -127,7 +127,7 @@ Rectangle {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Desteklenen bir oyun çalıştırın veya manuel seçin"
+                    text: qsTr("Desteklenen bir oyun çalıştırın veya manuel seçin")
                     font.pixelSize: 11
                     color: Theme.textMuted
                 }
@@ -151,7 +151,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: "Manuel Oyun Seç"
+                    text: qsTr("Manuel Oyun Seç")
                     font.pixelSize: 13
                     font.weight: Font.Medium
                     color: Theme.textPrimary

@@ -44,7 +44,7 @@ Rectangle {
                     Text {
                         id: comingSoonText
                         anchors.centerIn: parent
-                        text: "Yakında"
+                        text: qsTr("Yakında")
                         font.pixelSize: 10
                         font.weight: Font.DemiBold
                         color: Theme.textMuted

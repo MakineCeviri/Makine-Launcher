@@ -12,14 +12,14 @@ Item {
     signal animationFinished()
     signal updateAvailable(string version, string downloadUrl)
 
-    property string statusText: "Yükleniyor..."
+    property string statusText: qsTr("Yükleniyor...")
     property bool updateChecked: false
     property bool gamesChecked: false
     property int patchedGamesCount: 0
 
     function start() {
         animProgress = 0.0
-        statusText = "Başlatılıyor..."
+        statusText = qsTr("Başlatılıyor...")
         mainAnimation.start()
 
             checkForUpdates()
@@ -41,7 +41,7 @@ Item {
     }
 
     function checkForUpdates() {
-        statusText = "Güncellemeler kontrol ediliyor..."
+        statusText = qsTr("Güncellemeler kontrol ediliyor...")
 
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function() {
@@ -134,7 +134,7 @@ Item {
     function onUpdateCheckComplete(hasUpdate, version, downloadUrl) {
         updateCheckTimeoutTimer.stop()
         root.updateChecked = true
-        root.statusText = "Oyunlar taranıyor..."
+        root.statusText = qsTr("Oyunlar taranıyor...")
 
         if (hasUpdate) {
             DebugHelper.info("SplashScreen", "Update available: " + version)
@@ -156,7 +156,7 @@ Item {
         onTriggered: {
             root.patchedGamesCount = GameService.patchedGamesCount
             root.gamesChecked = true
-            root.statusText = "Hazır!"
+            root.statusText = qsTr("Hazır!")
 
             DebugHelper.log("SplashScreen", "Patched games check complete: " + root.patchedGamesCount + " games")
         }
@@ -339,7 +339,7 @@ Item {
                     }
 
                     Text {
-                        text: "Türkçe Yama"
+                        text: qsTr("Türkçe Yama")
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.3
@@ -456,7 +456,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: versionBadge.bottom
             anchors.topMargin: 6
-            text: "Makine Çeviri Topluluğu"
+            text: qsTr("Makine Çeviri Topluluğu")
             font.pixelSize: 10
             font.letterSpacing: 0.3
             color: Qt.rgba(1, 1, 1, 0.3)

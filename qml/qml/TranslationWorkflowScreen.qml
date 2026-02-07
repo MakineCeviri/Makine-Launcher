@@ -78,7 +78,7 @@ Item {
                     spacing: 4
 
                     Label {
-                        text: root.gameName || "Oyun Adı"
+                        text: root.gameName || qsTr("Oyun Adı")
                         font.pixelSize: 24
                         font.weight: Font.Bold
                         color: Theme.textPrimary
@@ -171,7 +171,7 @@ Item {
                             }
 
                             Label {
-                                text: "İlerleme"
+                                text: qsTr("İlerleme")
                                 font.pixelSize: 18
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
@@ -264,7 +264,7 @@ Item {
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: TranslationService.statusMessage || "Hazır"
+                                    text: TranslationService.statusMessage || qsTr("Hazır")
                                     font.pixelSize: 14
                                     color: Theme.textSecondary
                                     elide: Text.ElideRight
@@ -291,7 +291,7 @@ Item {
 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "İptal Et"
+                                    text: qsTr("İptal Et")
                                     font.pixelSize: 14
                                     font.weight: Font.Medium
                                     color: cancelBtnMouse.containsMouse ? Theme.error : Theme.textSecondary
@@ -321,7 +321,7 @@ Item {
 
                                 Label {
                                     anchors.centerIn: parent
-                                    text: "Tamam"
+                                    text: qsTr("Tamam")
                                     font.pixelSize: 14
                                     font.weight: Font.DemiBold
                                     color: "white"
@@ -366,7 +366,7 @@ Item {
                             }
 
                             Label {
-                                text: "Aktivite"
+                                text: qsTr("Aktivite")
                                 font.pixelSize: 18
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
@@ -451,12 +451,12 @@ Item {
         }
 
         readonly property var phases: [
-            { name: "Tespit", icon: "\uD83D\uDD0D" },
-            { name: "Çıkarma", icon: "\uD83D\uDCE4" },
-            { name: "Eşleştirme", icon: "\uD83D\uDD17" },
-            { name: "İnceleme", icon: "\uD83D\uDC41" },
-            { name: "Uygulama", icon: "\u2699" },
-            { name: "Bitti", icon: "\u2713" }
+            { name: qsTr("Tespit"), icon: "\uD83D\uDD0D" },
+            { name: qsTr("Çıkarma"), icon: "\uD83D\uDCE4" },
+            { name: qsTr("Eşleştirme"), icon: "\uD83D\uDD17" },
+            { name: qsTr("İnceleme"), icon: "\uD83D\uDC41" },
+            { name: qsTr("Uygulama"), icon: "\u2699" },
+            { name: qsTr("Bitti"), icon: "\u2713" }
         ]
 
         RowLayout {
@@ -635,7 +635,7 @@ Item {
         id: cancelConfirmDialog
         anchors.centerIn: parent
         modal: true
-        title: "Çeviriyi İptal Et?"
+        title: qsTr("Çeviriyi İptal Et?")
 
         // Explicit size to prevent binding loop
         width: 320
@@ -652,7 +652,7 @@ Item {
             spacing: 16
 
             Label {
-                text: "Devam eden çeviri işlemi iptal edilecek.\nEmin misiniz?"
+                text: qsTr("Devam eden çeviri işlemi iptal edilecek.\nEmin misiniz?")
                 font.pixelSize: 14
                 color: Theme.textSecondary
                 horizontalAlignment: Text.AlignHCenter
@@ -665,7 +665,7 @@ Item {
 
                 Button {
                     Layout.fillWidth: true
-                    text: "Vazgeç"
+                    text: qsTr("Vazgeç")
                     onClicked: cancelConfirmDialog.close()
 
                     background: Rectangle {
@@ -685,7 +685,7 @@ Item {
 
                 Button {
                     Layout.fillWidth: true
-                    text: "İptal Et"
+                    text: qsTr("İptal Et")
                     onClicked: {
                         TranslationService.stopTranslation()
                         cancelConfirmDialog.close()
@@ -712,15 +712,15 @@ Item {
     // ===== HELPER FUNCTIONS =====
     function getPhaseStatusText() {
         switch (TranslationService.phase) {
-        case 0: return "Hazır"
-        case 1: return "Tespit Ediliyor"
-        case 2: return "Çıkarılıyor"
-        case 3: return "Eşleştiriliyor"
-        case 4: return "İnceleniyor"
-        case 5: return "Uygulanıyor"
-        case 6: return "Tamamlandı"
-        case 7: return "Hata"
-        default: return "Bilinmiyor"
+        case 0: return qsTr("Hazır")
+        case 1: return qsTr("Tespit Ediliyor")
+        case 2: return qsTr("Çıkarılıyor")
+        case 3: return qsTr("Eşleştiriliyor")
+        case 4: return qsTr("İnceleniyor")
+        case 5: return qsTr("Uygulanıyor")
+        case 6: return qsTr("Tamamlandı")
+        case 7: return qsTr("Hata")
+        default: return qsTr("Bilinmiyor")
         }
     }
 

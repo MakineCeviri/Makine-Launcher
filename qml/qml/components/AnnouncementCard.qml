@@ -9,10 +9,10 @@ import MakineAI 1.0
 Rectangle {
     id: root
 
-    property string title: "Desteklenmeyen Oyunlar Hakkında"
-    property string content: "MakineAI, resmi olarak desteklenen oyunlar dışında kullanıldığında beklendiği gibi çalışmayabilir. Desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir."
+    property string title: qsTr("Desteklenmeyen Oyunlar Hakkında")
+    property string content: qsTr("MakineAI, resmi olarak desteklenen oyunlar dışında kullanıldığında beklendiği gibi çalışmayabilir. Desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.")
     property string date: "18 Ocak 2026"
-    property string warning: "Uygulamayı yalnızca resmi web sitemiz makineai.com üzerinden indirdiğinizden emin olun. Başka kaynaklardan indirilen sürümler güvenlik riski taşıyabilir."
+    property string warning: qsTr("Uygulamayı yalnızca resmi web sitemiz makineai.com üzerinden indirdiğinizden emin olun. Başka kaynaklardan indirilen sürümler güvenlik riski taşıyabilir.")
     property bool isImportant: true
     property bool isDark: true
     property bool hoverEnabled: true
@@ -88,7 +88,7 @@ Rectangle {
                         Text {
                             id: importantLabel
                             anchors.centerIn: parent
-                            text: "ÖNEMLİ"
+                            text: qsTr("ÖNEMLİ")
                             font.pixelSize: 9
                             font.weight: Font.Bold
                             color: "white"

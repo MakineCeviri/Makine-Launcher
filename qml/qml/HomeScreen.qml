@@ -54,7 +54,7 @@ Item {
                             updateAvailable = true
                             latestVersion = tagName
                             downloadUrl = response.html_url || ""
-                            notificationMessage = "Yeni sürüm mevcut: " + tagName
+                            notificationMessage = qsTr("Yeni sürüm mevcut: ") + tagName
                             notificationType = "update"
                         }
                     } catch (e) {
@@ -236,7 +236,7 @@ Item {
                                     Text {
                                         id: updateBtnText
                                         anchors.centerIn: parent
-                                        text: "İndir"
+                                        text: qsTr("İndir")
                                         font.pixelSize: 12
                                         font.weight: Font.Medium
                                         color: Theme.notificationUpdate
@@ -370,14 +370,14 @@ Item {
                                             spacing: 3
 
                                             Label {
-                                                text: "Türkçe Yama"
+                                                text: qsTr("Türkçe Yama")
                                                 font.pixelSize: 16
                                                 font.weight: Font.DemiBold
                                                 color: Theme.textPrimary
                                             }
 
                                             Label {
-                                                text: "Oyun çeviri durumu"
+                                                text: qsTr("Oyun çeviri durumu")
                                                 font.pixelSize: 11
                                                 color: Theme.textMuted
                                             }
@@ -434,7 +434,7 @@ Item {
 
                                             Label {
                                                 anchors.horizontalCenter: parent.horizontalCenter
-                                                text: "Oyun Bekleniyor"
+                                                text: qsTr("Oyun Bekleniyor")
                                                 font.pixelSize: 14
                                                 font.weight: Font.DemiBold
                                                 color: Theme.textPrimary
@@ -442,7 +442,7 @@ Item {
 
                                             Label {
                                                 anchors.horizontalCenter: parent.horizontalCenter
-                                                text: "Desteklenen bir oyun çalıştırın veya manuel seçin"
+                                                text: qsTr("Desteklenen bir oyun çalıştırın veya manuel seçin")
                                                 font.pixelSize: 11
                                                 color: Theme.textMuted
                                             }
@@ -477,7 +477,7 @@ Item {
                                             }
 
                                             Label {
-                                                text: "Manuel Oyun Seç"
+                                                text: qsTr("Manuel Oyun Seç")
                                                 font.pixelSize: 12
                                                 font.weight: Font.Medium
                                                 color: manualBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
@@ -519,7 +519,7 @@ Item {
                                         spacing: 3
 
                                         Label {
-                                            text: "Duyurular"
+                                            text: qsTr("Duyurular")
                                             font.pixelSize: 16
                                             font.weight: Font.DemiBold
                                             color: Theme.textPrimary
@@ -567,7 +567,7 @@ Item {
 
                                                 Label {
                                                     width: parent.width
-                                                    text: "Desteklenmeyen Oyunlar Hakkında"
+                                                    text: qsTr("Desteklenmeyen Oyunlar Hakkında")
                                                     font.pixelSize: 13
                                                     font.weight: Font.DemiBold
                                                     color: Theme.textPrimary
@@ -588,7 +588,7 @@ Item {
                                                 // "Devamını oku" / "Kapat" indicator
                                                 Label {
                                                     width: parent.width
-                                                    text: announcementContentBox.expanded ? "Kapat" : "Devamını oku →"
+                                                    text: announcementContentBox.expanded ? qsTr("Kapat") : qsTr("Devamını oku →")
                                                     font.pixelSize: 10
                                                     font.weight: Font.Medium
                                                     color: Theme.primary
@@ -649,7 +649,7 @@ Item {
                                             }
 
                                             Label {
-                                                text: "Güvenliğiniz için yalnızca"
+                                                text: qsTr("Güvenliğiniz için yalnızca")
                                                 font.pixelSize: 10
                                                 color: securityMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
@@ -667,7 +667,7 @@ Item {
                                             }
 
                                             Label {
-                                                text: "üzerinden indirin"
+                                                text: qsTr("üzerinden indirin")
                                                 font.pixelSize: 10
                                                 color: securityMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
@@ -714,7 +714,7 @@ Item {
                                 spacing: 12
 
                                 Label {
-                                    text: GameService.isScanning ? "Oyunlar Taraniyor..." : "Desteklenen Oyunlar"
+                                    text: GameService.isScanning ? qsTr("Oyunlar Taranıyor...") : qsTr("Desteklenen Oyunlar")
                                     font.pixelSize: 20
                                     font.weight: Font.DemiBold
                                     color: Theme.textPrimary
@@ -733,7 +733,7 @@ Item {
                                     }
 
                                     Label {
-                                        text: GameService.scanStatus || "Taraniyor..."
+                                        text: GameService.scanStatus || qsTr("Taranıyor...")
                                         font.pixelSize: 12
                                         color: Theme.textMuted
                                         anchors.verticalCenter: parent.verticalCenter
@@ -749,7 +749,7 @@ Item {
                                     Label {
                                         id: gamesCountLabel
                                         anchors.centerIn: parent
-                                        text: GameService.gameCount + " oyun"
+                                        text: GameService.gameCount + " " + qsTr("oyun")
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
                                         color: Theme.primary
@@ -872,14 +872,14 @@ Item {
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: "Henüz oyun bulunamadı"
+                                        text: qsTr("Henüz oyun bulunamadı")
                                         font.pixelSize: 14
                                         color: Theme.textSecondary
                                     }
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: "Steam, Epic veya GOG kütüphane klasörlerinizi kontrol edin"
+                                        text: qsTr("Steam, Epic veya GOG kütüphane klasörlerinizi kontrol edin")
                                         font.pixelSize: 12
                                         color: Theme.textMuted
                                     }
@@ -942,14 +942,14 @@ Item {
                                 spacing: 4
 
                                 Label {
-                                    text: "Projelerimiz"
+                                    text: qsTr("Projelerimiz")
                                     font.pixelSize: 24
                                     font.weight: Font.Bold
                                     color: Theme.textPrimary
                                 }
 
                                 Label {
-                                    text: "Makine Çeviri topluluğunun aktif projeleri"
+                                    text: qsTr("Makine Çeviri topluluğunun aktif projeleri")
                                     font.pixelSize: 14
                                     color: Theme.textSecondary
                                 }
@@ -969,8 +969,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            title: "Oyun Projeleri"
-                            subtitle: "MakineAI bünyesinde geliştirilen oyunlar"
+                            title: qsTr("Oyun Projeleri")
+                            subtitle: qsTr("MakineAI bünyesinde geliştirilen oyunlar")
                             categoryColor: Theme.destructive
                         }
 
@@ -978,8 +978,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            title: "Çeviri Projeleri"
-                            subtitle: "Topluluk tarafından yürütülen çeviri projeleri"
+                            title: qsTr("Çeviri Projeleri")
+                            subtitle: qsTr("Topluluk tarafından yürütülen çeviri projeleri")
                             categoryColor: Theme.statusCyan
                         }
 
@@ -1044,7 +1044,7 @@ Item {
 
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: "Oyun Aktif Değil"
+                                text: qsTr("Oyun Aktif Değil")
                                 font.pixelSize: 18
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
@@ -1053,7 +1053,7 @@ Item {
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.fillWidth: true
-                                text: "Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir."
+                                text: qsTr("Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir.")
                                 font.pixelSize: 13
                                 color: Theme.textMuted
                                 horizontalAlignment: Text.AlignHCenter
@@ -1078,7 +1078,7 @@ Item {
                                     }
 
                                     Label {
-                                        text: GameService.gameCount + " desteklenen oyun"
+                                        text: GameService.gameCount + " " + qsTr("desteklenen oyun")
                                         font.pixelSize: 12
                                         color: Theme.textMuted
                                         anchors.verticalCenter: parent.verticalCenter
@@ -1456,7 +1456,7 @@ Item {
                     ctx.textBaseline = "top";
                     ctx.globalAlpha = hov ? 0.9 : 0.4;
                     ctx.fillStyle = hov ? numGrad : "rgba(255,255,255,0.4)";
-                    var label = hov ? "Tümünü Gör →" : "Tümünü Gör";
+                    var label = hov ? qsTr("Tümünü Gör") + " →" : qsTr("Tümünü Gör");
                     ctx.fillText(label, Math.round(cx), lineY + 6);
                 }
             }
@@ -1541,15 +1541,15 @@ Item {
 
                 ProjectCard {
                     title: "Cyberless: Online"
-                    description: "Çok oyunculu cyberpunk aksiyon oyunu"
-                    status: "Tamamlandı"
+                    description: qsTr("Çok oyunculu cyberpunk aksiyon oyunu")
+                    status: qsTr("Tamamlandı")
                     statusColor: Theme.statusOnline
                 }
 
                 ProjectCard {
                     title: "Endurance"
-                    description: "Hayatta kalma, kaynak yönetimi, korku ve gerilim oyunu"
-                    status: "Geliştiriliyor"
+                    description: qsTr("Hayatta kalma, kaynak yönetimi, korku ve gerilim oyunu")
+                    status: qsTr("Geliştiriliyor")
                     statusColor: Theme.statusPurple
                 }
             }

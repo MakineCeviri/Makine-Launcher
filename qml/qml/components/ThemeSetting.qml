@@ -26,7 +26,7 @@ Item {
             }
 
             Text {
-                text: "Uygulama görünümünü seç"
+                text: qsTr("Uygulama görünümünü seç")
                 font.pixelSize: 13
                 color: Theme.textMuted
             }
@@ -51,7 +51,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Açık"
+                        text: qsTr("Açık")
                         font.pixelSize: 12
                         font.weight: !SettingsManager.isDarkMode ? Font.Medium : Font.Normal
                         color: !SettingsManager.isDarkMode ? "white" : Theme.textSecondary

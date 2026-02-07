@@ -31,7 +31,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: versionBadge.bottom
         anchors.topMargin: 6
-        text: "Makine Çeviri Topluluğu"
+        text: qsTr("Makine Çeviri Topluluğu")
         font.pixelSize: 10
         font.letterSpacing: 0.3
         color: Qt.rgba(1, 1, 1, 0.3)

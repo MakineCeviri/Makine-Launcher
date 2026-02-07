@@ -1015,7 +1015,7 @@ ApplicationWindow {
 
                 ToolTip {
                     visible: donateMouse.containsMouse
-                    text: "Destekçi Ol"
+                    text: qsTr("Destekçi Ol")
                     delay: 400
                 }
             }

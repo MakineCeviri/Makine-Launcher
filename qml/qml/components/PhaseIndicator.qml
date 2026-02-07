@@ -17,12 +17,12 @@ Rectangle {
     border.width: 1
 
     property var phases: [
-        { name: "Tespit", icon: "🔍" },
-        { name: "Çıkarma", icon: "📦" },
-        { name: "Eşleştirme", icon: "🔗" },
-        { name: "İnceleme", icon: "👁" },
-        { name: "Uygulama", icon: "⚙" },
-        { name: "Bitti", icon: "✓" }
+        { name: qsTr("Tespit"), icon: "🔍" },
+        { name: qsTr("Çıkarma"), icon: "📦" },
+        { name: qsTr("Eşleştirme"), icon: "🔗" },
+        { name: qsTr("İnceleme"), icon: "👁" },
+        { name: qsTr("Uygulama"), icon: "⚙" },
+        { name: qsTr("Bitti"), icon: "✓" }
     ]
 
     RowLayout {

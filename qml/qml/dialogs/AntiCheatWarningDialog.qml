@@ -26,7 +26,7 @@ Dialog {
     signal continueAnyway()
     signal cancelled()
 
-    title: "Koruma Sistemi Tespit Edildi"
+    title: qsTr("Koruma Sistemi Tespit Edildi")
     modal: true
     closePolicy: Popup.CloseOnEscape
     width: 520
@@ -79,11 +79,11 @@ Dialog {
 
     function getSeverityLabel(severity) {
         switch (severity) {
-            case "low": return "Düşük Risk"
-            case "medium": return "Orta Risk"
-            case "high": return "Yüksek Risk"
-            case "critical": return "Kritik Risk"
-            default: return "Bilinmiyor"
+            case "low": return qsTr("Düşük Risk")
+            case "medium": return qsTr("Orta Risk")
+            case "high": return qsTr("Yüksek Risk")
+            case "critical": return qsTr("Kritik Risk")
+            default: return qsTr("Bilinmiyor")
         }
     }
 
@@ -215,7 +215,7 @@ Dialog {
                 spacing: 6
 
                 Text {
-                    text: "Koruma Sistemi Tespit Edildi"
+                    text: qsTr("Koruma Sistemi Tespit Edildi")
                     font.pixelSize: 20
                     font.weight: Font.Bold
                     color: Theme.textPrimary
@@ -332,7 +332,7 @@ Dialog {
                 id: warningText
                 anchors.fill: parent
                 anchors.margins: 12
-                text: "Bu oyunda aktif koruma sistemi tespit edildi. Çeviri uygulamak oyunun çalışmasını engelleyebilir veya online ban'a neden olabilir."
+                text: qsTr("Bu oyunda aktif koruma sistemi tespit edildi. Çeviri uygulamak oyunun çalışmasını engelleyebilir veya online ban'a neden olabilir.")
                 font.pixelSize: 13
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
@@ -572,7 +572,7 @@ Dialog {
                     }
 
                     Text {
-                        text: "İptal Et"
+                        text: qsTr("İptal Et")
                         font.pixelSize: 14
                         font.weight: Font.Medium
                         color: cancelBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
@@ -670,7 +670,7 @@ Dialog {
                         }
 
                         Text {
-                            text: "Yine de Devam Et"
+                            text: qsTr("Yine de Devam Et")
                             font.pixelSize: 14
                             font.weight: Font.Bold
                             color: "white"

@@ -239,7 +239,7 @@ Rectangle {
 
         ToolTip {
             visible: logoMouse.containsMouse
-            text: "Ana Menü"
+            text: qsTr("Ana Menü")
             delay: 500
         }
     }
@@ -305,7 +305,7 @@ Rectangle {
                 Text {
                     id: toggleText
                     anchors.centerIn: parent
-                    text: isActive ? "Kapat" : "Türkçe Yama"
+                    text: isActive ? qsTr("Kapat") : qsTr("Türkçe Yama")
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
 
@@ -471,7 +471,7 @@ Rectangle {
             }
 
             Text {
-                text: "Destek Ol"
+                text: qsTr("Destek Ol")
                 font.pixelSize: 12
                 font.weight: Font.Medium
                 color: isDark ? Theme.textSecondary : Theme.lightTextSecondary

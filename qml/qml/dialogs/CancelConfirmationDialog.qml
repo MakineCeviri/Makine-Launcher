@@ -14,7 +14,7 @@ Dialog {
 
     signal accepted()
 
-    title: "Çeviriyi İptal Et?"
+    title: qsTr("Çeviriyi İptal Et?")
 
     modal: true
     closePolicy: Popup.CloseOnEscape
@@ -74,7 +74,7 @@ Dialog {
                 id: messageText
                 anchors.fill: parent
                 anchors.margins: 24
-                text: "Devam eden çeviri işlemi iptal edilecek.\nEmin misiniz?"
+                text: qsTr("Devam eden çeviri işlemi iptal edilecek.\nEmin misiniz?")
                 font.pixelSize: 14
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
@@ -99,13 +99,13 @@ Dialog {
             Item { Layout.fillWidth: true }
 
             GradientButton {
-                text: "Vazgeç"
+                text: qsTr("Vazgeç")
                 isPrimary: false
                 onClicked: root.close()
             }
 
             GradientButton {
-                text: "İptal Et"
+                text: qsTr("İptal Et")
                 isPrimary: true
                 onClicked: {
                     TranslationService.stopTranslation()
