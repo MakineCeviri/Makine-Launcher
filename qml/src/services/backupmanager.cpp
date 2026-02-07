@@ -16,6 +16,7 @@
 #include <QDirIterator>
 #include <QDebug>
 #include <QtConcurrent>
+#include <algorithm>
 
 namespace makineai {
 
@@ -46,6 +47,22 @@ QVariantList BackupManager::backups() const
     return result;
 }
 
+void BackupManager::setMaxBackupsPerGame(int max)
+{
+    if (max < 1) max = 1;
+    if (m_maxBackupsPerGame == max) return;
+    m_maxBackupsPerGame = max;
+    emit maxBackupsPerGameChanged();
+}
+
+QString BackupManager::totalSizeFormatted() const
+{
+    qint64 total = 0;
+    for (const auto& b : m_backups)
+        total += b.sizeBytes;
+    return BackupInfo::formatSize(total);
+}
+
 QVariantList BackupManager::getBackupsForGame(const QString& gameId)
 {
     QVariantList result;
@@ -56,6 +73,26 @@ QVariantList BackupManager::getBackupsForGame(const QString& gameId)
         }
     }
     return result;
+}
+
+QVariantMap BackupManager::getLatestBackup(const QString& gameId)
+{
+    const BackupInfo* latest = nullptr;
+    for (const auto& b : m_backups) {
+        if (b.gameId == gameId && b.isValid) {
+            if (!latest || b.createdAt > latest->createdAt)
+                latest = &b;
+        }
+    }
+    if (latest)
+        return latest->toVariantMap();
+    return {};
+}
+
+int BackupManager::backupCountForGame(const QString& gameId)
+{
+    return static_cast<int>(std::count_if(m_backups.begin(), m_backups.end(),
+        [&gameId](const BackupInfo& b) { return b.gameId == gameId; }));
 }
 
 bool BackupManager::createBackup(const QString& gameId, const QString& gameName, const QString& sourcePath)
@@ -71,8 +108,9 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
 
     QDir().mkpath(backupDir);
 
-    // Copy files (simplified - in production would use proper recursive copy)
+    // Copy files recursively
     qint64 totalSize = 0;
+    int copiedFiles = 0;
 
     QDirIterator it(sourcePath, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext()) {
@@ -84,6 +122,7 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
 
         if (QFile::copy(sourceFile, destFile)) {
             totalSize += QFileInfo(destFile).size();
+            copiedFiles++;
         }
     }
 
@@ -95,9 +134,14 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
     backup.originalPath = sourcePath;
     backup.createdAt = QDateTime::currentDateTime();
     backup.sizeBytes = totalSize;
+    backup.fileCount = copiedFiles;
     backup.isValid = true;
 
     m_backups.append(backup);
+
+    // Auto-cleanup: remove oldest backups if limit exceeded
+    cleanupOldBackups(gameId);
+
     saveBackups();
 
     emit backupsChanged();
@@ -262,6 +306,7 @@ void BackupManager::loadBackups()
         backup.originalPath = obj["originalPath"].toString();
         backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
         backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
+        backup.fileCount = obj["fileCount"].toInt();
         backup.isValid = QDir(backup.backupPath).exists();
         m_backups.append(backup);
     }
@@ -284,12 +329,47 @@ void BackupManager::saveBackups()
         obj["originalPath"] = backup.originalPath;
         obj["createdAt"] = backup.createdAt.toString(Qt::ISODate);
         obj["sizeBytes"] = backup.sizeBytes;
+        obj["fileCount"] = backup.fileCount;
         array.append(obj);
     }
 
     QFile file(backupsDir + "/backups.json");
     if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(array).toJson());
+    }
+}
+
+void BackupManager::cleanupOldBackups(const QString& gameId)
+{
+    // Collect backups for this game, sorted oldest first
+    QList<int> indices;
+    for (int i = 0; i < m_backups.size(); ++i) {
+        if (m_backups[i].gameId == gameId)
+            indices.append(i);
+    }
+
+    if (indices.size() <= m_maxBackupsPerGame)
+        return;
+
+    // Sort by createdAt ascending (oldest first)
+    std::sort(indices.begin(), indices.end(), [this](int a, int b) {
+        return m_backups[a].createdAt < m_backups[b].createdAt;
+    });
+
+    // Remove oldest until we're at the limit
+    int toRemove = indices.size() - m_maxBackupsPerGame;
+    for (int i = 0; i < toRemove; ++i) {
+        const auto& backup = m_backups[indices[i]];
+        QDir dir(backup.backupPath);
+        if (dir.exists())
+            dir.removeRecursively();
+
+        qDebug() << "Auto-cleanup: removed old backup" << backup.id << "for" << gameId;
+    }
+
+    // Remove from list (reverse order to keep indices valid)
+    for (int i = toRemove - 1; i >= 0; --i) {
+        m_backups.removeAt(indices[i]);
     }
 }
 

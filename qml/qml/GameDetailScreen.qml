@@ -850,86 +850,275 @@ Item {
             }
 
             // ===== BACKUP SECTION =====
-            Rectangle {
+            ColumnLayout {
+                id: backupSection
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                Layout.preferredHeight: backupContent.height + 40
-                radius: Dimensions.radiusStandard
-                color: Qt.rgba(1, 1, 1, 0.05)
-                border.color: Qt.rgba(1, 1, 1, 0.1)
-                border.width: 1
+                spacing: 12
 
-                ColumnLayout {
-                    id: backupContent
-                    anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 16
+                // Backup data from BackupManager
+                property var gameBackups: root.gameId !== "" ? BackupManager.getBackupsForGame(root.gameId) : []
+                property bool hasBackups: gameBackups.length > 0
+                property var latestBackup: root.gameId !== "" ? BackupManager.getLatestBackup(root.gameId) : ({})
 
-                    // Header
-                    RowLayout {
-                        spacing: 12
+                Connections {
+                    target: BackupManager
+                    function onBackupsChanged() {
+                        backupSection.gameBackups = root.gameId !== "" ? BackupManager.getBackupsForGame(root.gameId) : []
+                        backupSection.latestBackup = root.gameId !== "" ? BackupManager.getLatestBackup(root.gameId) : ({})
+                        backupSection.hasBackups = backupSection.gameBackups.length > 0
+                    }
+                    function onBackupRestored(gId) {
+                        if (gId === root.gameId)
+                            root.restoreClicked()
+                    }
+                }
+
+                Text {
+                    text: "Yedekleme Yönetimi"
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    color: "white"
+                }
+
+                // Main backup card
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: backupContent.height + 40
+                    radius: Dimensions.radiusStandard
+                    color: Qt.rgba(1, 1, 1, 0.05)
+                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: backupContent
+                        anchors.fill: parent
+                        anchors.margins: 20
+                        spacing: 16
 
                         Text {
-                            text: "\uD83D\uDCC1"  // Folder
-                            font.pixelSize: 18
+                            Layout.fillWidth: true
+                            text: "Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir."
+                            font.pixelSize: 13
+                            color: Theme.textMuted
+                            wrapMode: Text.WordWrap
                         }
 
-                        Text {
-                            text: "Yedekleme Yönetimi"
-                            font.pixelSize: 16
-                            font.weight: Font.DemiBold
-                            color: "white"
+                        // Restore in progress indicator
+                        RowLayout {
+                            visible: BackupManager.isRestoring
+                            spacing: 12
+
+                            BusyIndicator {
+                                Layout.preferredWidth: 24
+                                Layout.preferredHeight: 24
+                                running: visible
+                            }
+
+                            Text {
+                                text: BackupManager.restoreStatus
+                                font.pixelSize: 13
+                                color: Theme.primary
+                            }
                         }
-                    }
 
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir."
-                        font.pixelSize: 13
-                        color: Theme.textMuted
-                        wrapMode: Text.WordWrap
-                    }
+                        // Has backups state
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 12
+                            visible: backupSection.hasBackups && !BackupManager.isRestoring
 
-                    // Restore button
-                    Rectangle {
-                        Layout.preferredWidth: restoreBtnContent.width + 40
-                        Layout.preferredHeight: 44
-                        radius: Dimensions.radiusStandard
-                        color: restoreBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
-                        border.color: restoreBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
-                        border.width: 1
+                            // Latest backup info
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: latestInfoCol.height + 24
+                                radius: Dimensions.radiusSmall
+                                color: Qt.rgba(1, 1, 1, 0.04)
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                                ColumnLayout {
+                                    id: latestInfoCol
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 6
 
-                        Row {
-                            id: restoreBtnContent
-                            anchors.centerIn: parent
+                                    RowLayout {
+                                        spacing: 8
+
+                                        Rectangle {
+                                            Layout.preferredWidth: latestBadgeText.width + 16
+                                            Layout.preferredHeight: 22
+                                            radius: Dimensions.radiusSmall
+                                            color: Theme.withAlpha(Theme.success, 0.15)
+
+                                            Text {
+                                                id: latestBadgeText
+                                                anchors.centerIn: parent
+                                                text: "Son Yedek"
+                                                font.pixelSize: 11
+                                                font.weight: Font.DemiBold
+                                                color: Theme.success
+                                            }
+                                        }
+
+                                        Text {
+                                            text: backupSection.latestBackup.date || ""
+                                            font.pixelSize: 12
+                                            color: Theme.textMuted
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        spacing: 16
+
+                                        Text {
+                                            text: (backupSection.latestBackup.sizeFormatted || "0 B")
+                                            font.pixelSize: 12
+                                            color: Theme.textSecondary
+                                        }
+
+                                        Text {
+                                            property int fc: backupSection.latestBackup.fileCount || 0
+                                            text: fc + " dosya"
+                                            font.pixelSize: 12
+                                            color: Theme.textSecondary
+                                            visible: fc > 0
+                                        }
+
+                                        Text {
+                                            property int bc: backupSection.gameBackups.length
+                                            text: bc + " yedek mevcut"
+                                            font.pixelSize: 12
+                                            color: Theme.textMuted
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Action buttons
+                            RowLayout {
+                                spacing: 12
+
+                                // Restore latest button
+                                Rectangle {
+                                    Layout.preferredWidth: restoreBtnContent.width + 40
+                                    Layout.preferredHeight: 44
+                                    radius: Dimensions.radiusStandard
+                                    color: restoreBtnMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.warning, 0.1)
+                                    border.color: Theme.withAlpha(Theme.warning, restoreBtnMouse.containsMouse ? 0.4 : 0.2)
+                                    border.width: 1
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Restore latest backup")
+
+                                    Row {
+                                        id: restoreBtnContent
+                                        anchors.centerIn: parent
+                                        spacing: 8
+
+                                        Text {
+                                            text: "\u21BA"
+                                            font.pixelSize: 16
+                                            color: Theme.warning
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+
+                                        Text {
+                                            text: "Orijinale Dön"
+                                            font.pixelSize: 13
+                                            font.weight: Font.Medium
+                                            color: Theme.warning
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: restoreBtnMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            var latest = BackupManager.getLatestBackup(root.gameId)
+                                            if (latest && latest.id) {
+                                                BackupManager.restoreBackup(latest.id)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Delete all backups button
+                                Rectangle {
+                                    Layout.preferredWidth: deleteBtnContent.width + 40
+                                    Layout.preferredHeight: 44
+                                    radius: Dimensions.radiusStandard
+                                    color: deleteBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+                                    border.color: Qt.rgba(1, 1, 1, deleteBtnMouse.containsMouse ? 0.15 : 0.08)
+                                    border.width: 1
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Delete all backups")
+
+                                    Row {
+                                        id: deleteBtnContent
+                                        anchors.centerIn: parent
+                                        spacing: 8
+
+                                        Text {
+                                            text: "\uD83D\uDDD1"
+                                            font.pixelSize: 14
+                                            color: Theme.textMuted
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+
+                                        Text {
+                                            text: "Yedekleri Sil"
+                                            font.pixelSize: 13
+                                            font.weight: Font.Medium
+                                            color: Theme.textMuted
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: deleteBtnMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            var backups = BackupManager.getBackupsForGame(root.gameId)
+                                            for (var i = 0; i < backups.length; i++) {
+                                                BackupManager.deleteBackup(backups[i].id)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // No backups state
+                        RowLayout {
+                            visible: !backupSection.hasBackups && !BackupManager.isRestoring
                             spacing: 8
 
                             Text {
-                                text: "\u21BA"  // Refresh
+                                text: "\u2139"
                                 font.pixelSize: 16
-                                color: restoreBtnMouse.containsMouse ? "white" : Theme.textSecondary
-                                anchors.verticalCenter: parent.verticalCenter
+                                color: Theme.textMuted
+                                Layout.alignment: Qt.AlignTop
                             }
 
                             Text {
-                                text: "Yedeği Geri Yükle"
+                                Layout.fillWidth: true
+                                text: "Bu oyun için henüz yedek bulunmuyor. Çeviri uygulandığında otomatik olarak oluşturulacak."
                                 font.pixelSize: 13
-                                font.weight: Font.Medium
-                                color: restoreBtnMouse.containsMouse ? "white" : Theme.textSecondary
-                                anchors.verticalCenter: parent.verticalCenter
+                                color: Theme.textMuted
+                                wrapMode: Text.WordWrap
                             }
-                        }
-
-                        MouseArea {
-                            id: restoreBtnMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.restoreClicked()
                         }
                     }
                 }

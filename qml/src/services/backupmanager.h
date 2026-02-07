@@ -26,15 +26,25 @@ struct BackupInfo {
     QString originalPath;  // Original game path for restore
     QDateTime createdAt;
     qint64 sizeBytes{0};
+    int fileCount{0};
     bool isValid{true};
+
+    static QString formatSize(qint64 bytes) {
+        if (bytes < 1024) return QString::number(bytes) + " B";
+        if (bytes < 1024 * 1024) return QString::number(bytes / 1024.0, 'f', 1) + " KB";
+        if (bytes < 1024LL * 1024 * 1024) return QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + " MB";
+        return QString::number(bytes / (1024.0 * 1024.0 * 1024.0), 'f', 2) + " GB";
+    }
 
     QVariantMap toVariantMap(const QString& displayName = {}) const {
         return {
             {"id", id}, {"gameId", gameId}, {"gameName", gameName},
-            {"backupPath", backupPath},
+            {"backupPath", backupPath}, {"originalPath", originalPath},
             {"createdAt", createdAt.toString("dd MMM yyyy HH:mm")},
             {"date", createdAt.toString("dd MMM yyyy HH:mm")},
             {"sizeBytes", sizeBytes},
+            {"sizeFormatted", formatSize(sizeBytes)},
+            {"fileCount", fileCount},
             {"name", displayName.isEmpty()
                 ? gameName + " - " + createdAt.toString("dd.MM.yyyy")
                 : displayName},
@@ -61,6 +71,8 @@ class BackupManager : public QObject
     Q_PROPERTY(QVariantList backups READ backups NOTIFY backupsChanged)
     Q_PROPERTY(bool isRestoring READ isRestoring NOTIFY isRestoringChanged)
     Q_PROPERTY(QString restoreStatus READ restoreStatus NOTIFY restoreStatusChanged)
+    Q_PROPERTY(int maxBackupsPerGame READ maxBackupsPerGame WRITE setMaxBackupsPerGame NOTIFY maxBackupsPerGameChanged)
+    Q_PROPERTY(QString totalSizeFormatted READ totalSizeFormatted NOTIFY backupsChanged)
 
 public:
     explicit BackupManager(QObject *parent = nullptr);
@@ -72,19 +84,25 @@ public:
     QVariantList backups() const;
     bool isRestoring() const { return m_isRestoring; }
     QString restoreStatus() const { return m_restoreStatus; }
+    int maxBackupsPerGame() const { return m_maxBackupsPerGame; }
+    void setMaxBackupsPerGame(int max);
+    QString totalSizeFormatted() const;
 
     // Q_INVOKABLE methods
     Q_INVOKABLE QVariantList getBackupsForGame(const QString& gameId);
+    Q_INVOKABLE QVariantMap getLatestBackup(const QString& gameId);
     Q_INVOKABLE bool createBackup(const QString& gameId, const QString& gameName, const QString& sourcePath);
     Q_INVOKABLE bool restoreBackup(const QString& backupId, const QString& targetPath = QString());
     Q_INVOKABLE bool deleteBackup(const QString& backupId);
     Q_INVOKABLE bool hasBackup(const QString& gameId);
     Q_INVOKABLE QString getBackupPath(const QString& gameId);
+    Q_INVOKABLE int backupCountForGame(const QString& gameId);
 
 signals:
     void backupsChanged();
     void isRestoringChanged();
     void restoreStatusChanged();
+    void maxBackupsPerGameChanged();
     void backupCreated(const QString& gameId);
     void backupRestored(const QString& gameId);
     void backupDeleted(const QString& backupId);
@@ -93,12 +111,14 @@ signals:
 private:
     void loadBackups();
     void saveBackups();
+    void cleanupOldBackups(const QString& gameId);
     QString generateBackupId();
     QString getBackupsDirectory();
 
     QList<BackupInfo> m_backups;
     bool m_isRestoring{false};
     QString m_restoreStatus;
+    int m_maxBackupsPerGame{3};
 };
 
 } // namespace makineai
