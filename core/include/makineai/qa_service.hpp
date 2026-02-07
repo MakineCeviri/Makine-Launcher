@@ -269,6 +269,8 @@ private:
         const std::optional<std::string>& gameId,
         const std::optional<TermDomain>& domain
     );
+
+    static CheckResult checkTurkishCharacters(const std::string& target);
 };
 
 } // namespace makineai

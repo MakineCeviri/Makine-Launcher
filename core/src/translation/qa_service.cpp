@@ -421,7 +421,13 @@ QAResult QAService::performFullQA(
     result.issues.insert(result.issues.end(), caseResult.issues.begin(), caseResult.issues.end());
     result.score -= caseResult.penalty;
 
-    // 9. Glossary checks (optional)
+    // 9. Turkish character checks
+    MAKINEAI_LOG_DEBUG(log::QA, "Running Turkish character check...");
+    auto trResult = checkTurkishCharacters(targetText);
+    result.issues.insert(result.issues.end(), trResult.issues.begin(), trResult.issues.end());
+    result.score -= trResult.penalty;
+
+    // 10. Glossary checks (optional)
     if (checkGlossaryFlag) {
         MAKINEAI_LOG_DEBUG(log::QA, "Running glossary check...");
         auto glossResult = checkGlossary(sourceText, targetText, gameId, domain);
@@ -873,6 +879,71 @@ QAService::CheckResult QAService::checkGlossary(
                 10
             });
             result.penalty += 10;
+        }
+    }
+
+    return result;
+}
+
+QAService::CheckResult QAService::checkTurkishCharacters(const std::string& target) {
+    CheckResult result;
+
+    // Turkish-specific characters (UTF-8 byte sequences)
+    static const std::string_view turkishChars[] = {
+        "\xC3\xA7",  // ç
+        "\xC3\xB6",  // ö
+        "\xC3\xBC",  // ü
+        "\xC4\x9F",  // ğ
+        "\xC4\xB1",  // ı
+        "\xC5\x9F",  // ş
+        "\xC3\x87",  // Ç
+        "\xC3\x96",  // Ö
+        "\xC3\x9C",  // Ü
+        "\xC4\x9E",  // Ğ
+        "\xC4\xB0",  // İ
+        "\xC5\x9E",  // Ş
+    };
+
+    // Check for UTF-8 mojibake (double-encoded Turkish characters)
+    // Pattern: UTF-8 bytes read as Latin-1 then re-encoded to UTF-8
+    // e.g. ç (C3 A7) becomes Ã§ (C3 83 C2 A7)
+    static const std::string_view mojibakePatterns[] = {
+        "\xC3\x83\xC2\xA7",  // ç → Ã§
+        "\xC3\x83\xC2\xB6",  // ö → Ã¶
+        "\xC3\x83\xC2\xBC",  // ü → Ã¼
+    };
+
+    for (const auto& pattern : mojibakePatterns) {
+        if (target.find(pattern) != std::string::npos) {
+            result.issues.push_back(QAIssue{
+                "CHAR_TR_MOJIBAKE",
+                "Turkish character encoding error (mojibake) detected",
+                QASeverity::Major,
+                10
+            });
+            result.penalty += 10;
+            break;
+        }
+    }
+
+    // For texts longer than 30 bytes, warn if no Turkish-specific characters found
+    if (target.length() > 30) {
+        bool hasTurkishChar = false;
+        for (const auto& ch : turkishChars) {
+            if (target.find(ch) != std::string::npos) {
+                hasTurkishChar = true;
+                break;
+            }
+        }
+
+        if (!hasTurkishChar) {
+            result.issues.push_back(QAIssue{
+                "CHAR_TR_MISSING",
+                "No Turkish-specific characters found in translation",
+                QASeverity::Info,
+                2
+            });
+            result.penalty += 2;
         }
     }
 
