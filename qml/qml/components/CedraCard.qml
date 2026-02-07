@@ -17,11 +17,11 @@ Item {
     property real animValue: 0.0
 
     // Smooth sinusoidal transition (0→1→0)
-    property real smoothValue: 1.0 - Math.abs(animValue * 2.0 - 1.0)
+    readonly property real smoothValue: 1.0 - Math.abs(animValue * 2.0 - 1.0)
 
-    property color color1: Theme.lerpColor(Theme.gold, Theme.brown, smoothValue)
-    property color color2: Theme.lerpColor(Theme.brown, Theme.gold, smoothValue)
-    property color color3: Theme.lerpColor(Theme.olive, Theme.pastelBlue, smoothValue)
+    readonly property color color1: Theme.lerpColor(Theme.gold, Theme.brown, smoothValue)
+    readonly property color color2: Theme.lerpColor(Theme.brown, Theme.gold, smoothValue)
+    readonly property color color3: Theme.lerpColor(Theme.olive, Theme.pastelBlue, smoothValue)
 
     NumberAnimation on animValue {
         from: 0.0

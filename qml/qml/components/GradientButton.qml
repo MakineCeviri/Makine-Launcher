@@ -37,17 +37,17 @@ Rectangle {
     }
 
     // smoothValue = (1 - ((animValue * 2 - 1).abs())).clamp(0.0, 1.0)
-    property real smoothValue: animationsEnabled ? (1.0 - Math.abs(animValue * 2.0 - 1.0)) : 0.0
+    readonly property real smoothValue: animationsEnabled ? (1.0 - Math.abs(animValue * 2.0 - 1.0)) : 0.0
 
     // color1/color2 gold <-> olive lerp
-    property color color1: Theme.lerpColor(Theme.gold, Theme.olive, smoothValue)
-    property color color2: Theme.lerpColor(Theme.olive, Theme.gold, smoothValue)
+    readonly property color color1: Theme.lerpColor(Theme.gold, Theme.olive, smoothValue)
+    readonly property color color2: Theme.lerpColor(Theme.olive, Theme.gold, smoothValue)
 
     // glowIntensity = 0.3 + (smoothValue * 0.2), hover -> 0.6
-    property real glowIntensity: mouseArea.containsMouse ? 0.6 : (0.3 + smoothValue * 0.2)
+    readonly property real glowIntensity: mouseArea.containsMouse ? 0.6 : (0.3 + smoothValue * 0.2)
 
     // blurRadius = hover ? 24 : (16 + smoothValue * 8)
-    property real blurRadius: mouseArea.containsMouse ? 24.0 : (16.0 + smoothValue * 8.0)
+    readonly property real blurRadius: mouseArea.containsMouse ? 24.0 : (16.0 + smoothValue * 8.0)
 
     // Animated gradient
     gradient: Gradient {
