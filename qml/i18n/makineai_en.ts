@@ -351,6 +351,54 @@ Are you sure?</translation>
     </message>
 </context>
 <context>
+    <name>CompatibilityWarningDialog</name>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="21"/>
+        <source>Uyumluluk Uyarısı</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="60"/>
+        <source>Oyun Güncellendi</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="72"/>
+        <source>%1 oyunu, çeviri kurulduktan sonra güncellenmiş.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="74"/>
+        <source>%1 dosya değiştirilmiş.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="76"/>
+        <source>Çeviri büyük olasılıkla bozulmuş olabilir. Yedekleme geri yüklemesi önerilir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="78"/>
+        <source>Çeviri kısmen uyumsuz olabilir. Devam edebilir veya yedeği geri yükleyebilirsiniz.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="94"/>
+        <source>Bütünlük:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="130"/>
+        <source>Yedeği Geri Yükle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="159"/>
+        <source>Yine de Devam Et</source>
+        <translation type="unfinished">Continue Anyway</translation>
+    </message>
+</context>
+<context>
     <name>DeveloperSettings</name>
     <message>
         <location filename="../qml/settings/DeveloperSettings.qml" line="29"/>
@@ -496,300 +544,350 @@ or game folder here.</translation>
 <context>
     <name>GameDetailScreen</name>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="210"/>
+        <location filename="../qml/GameDetailScreen.qml" line="264"/>
         <source>Profesyonel</source>
         <translation>Professional</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="211"/>
+        <location filename="../qml/GameDetailScreen.qml" line="265"/>
         <source>Doğrulanmış</source>
         <translation>Verified</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="212"/>
+        <location filename="../qml/GameDetailScreen.qml" line="266"/>
         <source>Topluluk</source>
         <translation>Community</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="213"/>
+        <location filename="../qml/GameDetailScreen.qml" line="267"/>
         <source>Yapay Zeka</source>
         <translation>AI</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="255"/>
-        <location filename="../qml/GameDetailScreen.qml" line="277"/>
+        <location filename="../qml/GameDetailScreen.qml" line="309"/>
+        <location filename="../qml/GameDetailScreen.qml" line="331"/>
         <source>Back</source>
         <translation>Back</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="292"/>
-        <location filename="../qml/GameDetailScreen.qml" line="319"/>
+        <location filename="../qml/GameDetailScreen.qml" line="346"/>
+        <location filename="../qml/GameDetailScreen.qml" line="373"/>
         <source>Open on Steam</source>
         <translation>Open on Steam</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="410"/>
+        <location filename="../qml/GameDetailScreen.qml" line="464"/>
         <source>Onaylı Türkçe Çeviri</source>
         <translation>Verified Turkish Translation</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="462"/>
+        <location filename="../qml/GameDetailScreen.qml" line="516"/>
         <source>Steam&apos;de Aç</source>
         <translation>Open on Steam</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="505"/>
+        <location filename="../qml/GameDetailScreen.qml" line="559"/>
         <source>Çeviriyi Başlat</source>
         <translation>Start Translation</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="549"/>
+        <location filename="../qml/GameDetailScreen.qml" line="603"/>
         <source>Steam bilgileri yükleniyor...</source>
         <translation>Loading Steam details...</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="563"/>
+        <location filename="../qml/GameDetailScreen.qml" line="617"/>
         <source>Hakkında</source>
         <translation>About</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="602"/>
+        <location filename="../qml/GameDetailScreen.qml" line="656"/>
         <source>Detaylar</source>
         <translation>Details</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="623"/>
+        <location filename="../qml/GameDetailScreen.qml" line="677"/>
         <source>Geliştirici</source>
         <translation>Developer</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="629"/>
+        <location filename="../qml/GameDetailScreen.qml" line="683"/>
         <source>Yayıncı</source>
         <translation>Publisher</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="635"/>
+        <location filename="../qml/GameDetailScreen.qml" line="689"/>
         <source>Çıkış Tarihi</source>
         <translation>Release Date</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="641"/>
+        <location filename="../qml/GameDetailScreen.qml" line="695"/>
         <source>Türler</source>
         <translation>Genres</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="647"/>
+        <location filename="../qml/GameDetailScreen.qml" line="701"/>
         <source>Motor</source>
         <translation>Engine</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="661"/>
+        <location filename="../qml/GameDetailScreen.qml" line="715"/>
         <source>Değerlendirme</source>
         <translation>Rating</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="717"/>
+        <location filename="../qml/GameDetailScreen.qml" line="771"/>
         <source>Çok Olumlu</source>
         <translation>Very Positive</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="718"/>
+        <location filename="../qml/GameDetailScreen.qml" line="772"/>
         <source>Karışık</source>
         <translation>Mixed</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="719"/>
+        <location filename="../qml/GameDetailScreen.qml" line="773"/>
         <source>Olumsuz</source>
         <translation>Negative</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="720"/>
+        <location filename="../qml/GameDetailScreen.qml" line="774"/>
         <source>Puan yok</source>
         <translation>No rating</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="733"/>
+        <location filename="../qml/GameDetailScreen.qml" line="787"/>
         <source>Platformlar:</source>
         <translation>Platforms:</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="780"/>
+        <location filename="../qml/GameDetailScreen.qml" line="834"/>
         <source>Ücretsiz</source>
         <translation>Free</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="800"/>
+        <location filename="../qml/GameDetailScreen.qml" line="854"/>
         <source>Çeviri Bilgileri</source>
         <translation>Translation Info</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="873"/>
+        <location filename="../qml/GameDetailScreen.qml" line="927"/>
         <source>Reçete Sürümü</source>
         <translation>Recipe Version</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="874"/>
+        <location filename="../qml/GameDetailScreen.qml" line="928"/>
         <source>Metin Sayısı</source>
         <translation>String Count</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="874"/>
+        <location filename="../qml/GameDetailScreen.qml" line="928"/>
         <source>adet</source>
         <translation>items</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="875"/>
+        <location filename="../qml/GameDetailScreen.qml" line="929"/>
         <source>Kapsam</source>
         <translation>Coverage</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="876"/>
+        <location filename="../qml/GameDetailScreen.qml" line="930"/>
         <source>Dosya Sayısı</source>
         <translation>File Count</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="876"/>
-        <location filename="../qml/GameDetailScreen.qml" line="1409"/>
+        <location filename="../qml/GameDetailScreen.qml" line="930"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1703"/>
         <source>dosya</source>
         <translation>files</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="877"/>
+        <location filename="../qml/GameDetailScreen.qml" line="931"/>
         <source>Hazırlayan</source>
         <translation>Prepared By</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="903"/>
+        <location filename="../qml/GameDetailScreen.qml" line="957"/>
         <source>Bu oyun için henüz çeviri reçetesi bulunmuyor.</source>
         <translation>No translation recipe available for this game yet.</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="921"/>
+        <location filename="../qml/GameDetailScreen.qml" line="975"/>
         <source>Yazı Tipi Desteği</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="986"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1040"/>
         <source>Türkçe Karakter Desteği Tam</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="988"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1042"/>
         <source>Kısmi Türkçe Karakter Desteği</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="989"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1043"/>
         <source>Türkçe Karakter Desteği Yok</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1001"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1055"/>
         <source>yazı tipi Türkçe karakterleri destekliyor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1019"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1073"/>
         <source>font</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1033"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1087"/>
         <source>Eksik karakterler:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1105"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1159"/>
         <source>daha fazla yazı tipi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1122"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1176"/>
         <source>Uyumluluk Durumu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1194"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1248"/>
         <source>Tam Uyumlu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1195"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1249"/>
         <source>Kısmi Uyumlu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1196"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1250"/>
         <source>Uyumsuz</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1197"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1251"/>
         <source>Bilinmiyor</source>
         <translation type="unfinished">Unknown</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1258"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1312"/>
         <source>değiştirilmiş</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1264"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1318"/>
         <source>yeni dosya</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1270"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1324"/>
         <source>silinen dosya</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1306"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1342"/>
+        <source>Çeviri Çalışma Ortamı</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1404"/>
+        <source>BepInEx Kurulu</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1405"/>
+        <source>BepInEx Güncellenmeli</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1406"/>
+        <source>BepInEx Gerekli</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1418"/>
+        <source>Unity çevirileri için BepInEx + XUnity.AutoTranslator gereklidir</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1484"/>
+        <source>Bu oyun %1 anti-cheat kullanıyor. BepInEx kurulumu online özelliklerle çakışabilir.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1512"/>
+        <source>Kuruluyor...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1513"/>
+        <source>Güncelle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1514"/>
+        <source>BepInEx Kur</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1550"/>
+        <source>Kaldır</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/GameDetailScreen.qml" line="1600"/>
         <source>Yedekleme Yönetimi</source>
         <translation>Backup Management</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1329"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1623"/>
         <source>Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir.</source>
         <translation>Game files are automatically backed up before applying translation.</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1384"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1678"/>
         <source>Son Yedek</source>
         <translation>Latest Backup</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1417"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1711"/>
         <source>yedek mevcut</source>
         <translation>backups available</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1442"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1736"/>
         <source>Restore latest backup</source>
         <translation>Restore latest backup</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1457"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1751"/>
         <source>Orijinale Dön</source>
         <translation>Restore Original</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1491"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1785"/>
         <source>Delete all backups</source>
         <translation>Delete all backups</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1506"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1800"/>
         <source>Yedekleri Sil</source>
         <translation>Delete Backups</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1544"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1838"/>
         <source>Bu oyun için henüz yedek bulunmuyor. Çeviri uygulandığında otomatik olarak oluşturulacak.</source>
         <translation>No backups for this game yet. They will be created automatically when a translation is applied.</translation>
     </message>
     <message>
-        <location filename="../qml/GameDetailScreen.qml" line="1563"/>
+        <location filename="../qml/GameDetailScreen.qml" line="1857"/>
         <source>Ekran Görüntüleri</source>
         <translation>Screenshots</translation>
     </message>
@@ -1241,117 +1339,117 @@ it will be automatically detected.</translation>
         <translation>Security warning: binary integrity check failed</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="562"/>
+        <location filename="../qml/Main.qml" line="579"/>
         <source>Yeni sürüm mevcut: </source>
         <translation>New version available: </translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="574"/>
+        <location filename="../qml/Main.qml" line="591"/>
         <source>Paket Hazır: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="575"/>
+        <location filename="../qml/Main.qml" line="592"/>
         <source>Oyun: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="581"/>
+        <location filename="../qml/Main.qml" line="598"/>
         <source>Paket Hatası</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="589"/>
+        <location filename="../qml/Main.qml" line="606"/>
         <source>Oyun Eklendi</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="778"/>
+        <location filename="../qml/Main.qml" line="810"/>
         <source>Minimize to Tray</source>
         <translation>Minimize to Tray</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="784"/>
+        <location filename="../qml/Main.qml" line="816"/>
         <source>Minimize</source>
         <translation>Minimize</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="790"/>
+        <location filename="../qml/Main.qml" line="822"/>
         <source>Restore</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="790"/>
+        <location filename="../qml/Main.qml" line="822"/>
         <source>Maximize</source>
         <translation>Maximize</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="797"/>
+        <location filename="../qml/Main.qml" line="829"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="951"/>
+        <location filename="../qml/Main.qml" line="983"/>
         <source>Ana Menü</source>
         <translation>Main Menu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1075"/>
+        <location filename="../qml/Main.qml" line="1107"/>
         <source>Türkçe Yamayı Kapat</source>
         <translation>Disable Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1075"/>
+        <location filename="../qml/Main.qml" line="1107"/>
         <source>Türkçe Yamayı Aç</source>
         <translation>Enable Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1081"/>
+        <location filename="../qml/Main.qml" line="1113"/>
         <source>Projelerimiz</source>
         <translation>Our Projects</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1087"/>
+        <location filename="../qml/Main.qml" line="1119"/>
         <source>Ayarlar</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1198"/>
+        <location filename="../qml/Main.qml" line="1230"/>
         <source>Destekçi Ol</source>
         <translation>Become a Supporter</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="561"/>
+        <location filename="../qml/Main.qml" line="578"/>
         <source>Güncelleme Mevcut</source>
         <translation>Update Available</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="609"/>
+        <location filename="../qml/Main.qml" line="641"/>
         <source>Çeviri Paketi Algılandı</source>
         <translation>Translation Package Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="610"/>
+        <location filename="../qml/Main.qml" line="642"/>
         <source>Paket yükleme hazırlanıyor...</source>
         <translation>Preparing package installation...</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="615"/>
+        <location filename="../qml/Main.qml" line="647"/>
         <source>Arşiv Algılandı</source>
         <translation>Archive Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="616"/>
+        <location filename="../qml/Main.qml" line="648"/>
         <source>Arşiv içeriği analiz ediliyor...</source>
         <translation>Analyzing archive content...</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="621"/>
+        <location filename="../qml/Main.qml" line="653"/>
         <source>Klasör Algılandı</source>
         <translation>Folder Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="622"/>
+        <location filename="../qml/Main.qml" line="654"/>
         <source>Oyun klasörü algılanıyor...</source>
         <translation>Detecting game folder...</translation>
     </message>
@@ -2670,6 +2768,21 @@ it will be automatically detected.</translation>
     <message>
         <location filename="../src/services/gameservice.cpp" line="825"/>
         <source>Font analysis requires core integration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/services/gameservice.cpp" line="859"/>
+        <source>Runtime status requires core integration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/services/gameservice.cpp" line="873"/>
+        <source>Runtime installation requires core integration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/services/gameservice.cpp" line="886"/>
+        <source>Runtime uninstallation requires core integration</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
