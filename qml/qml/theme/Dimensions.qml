@@ -13,7 +13,7 @@ QtObject {
     readonly property string appVersion: "0.1.0alpha"
     readonly property string appVersionFull: "v0.1.0alpha"
     readonly property string appBuildNumber: "1"
-    readonly property string appDescription: "Türkçe Yama Launcher"
+    readonly property string appDescription: qsTr("Türkçe Yama Launcher")
     readonly property string appCopyright: "© 2026 MakineAI"
 
     // =========================================================================

@@ -490,6 +490,14 @@ Emin misiniz?</source>
     </message>
 </context>
 <context>
+    <name>Dimensions</name>
+    <message>
+        <location filename="../qml/theme/Dimensions.qml" line="16"/>
+        <source>Türkçe Yama Launcher</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>DisabledSetting</name>
     <message>
         <location filename="../qml/components/DisabledSetting.qml" line="47"/>
