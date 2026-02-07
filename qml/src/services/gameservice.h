@@ -156,6 +156,17 @@ public:
     Q_INVOKABLE QVariantMap getRecipeInfo(const QString& gameId);
     Q_INVOKABLE QVariantList searchGames(const QString& query);
 
+    /**
+     * @brief Handle files dropped onto the application window
+     * Dispatches to appropriate handler based on file type
+     */
+    Q_INVOKABLE void handleDroppedFiles(const QVariantList& urls);
+
+    /**
+     * @brief Install a local .mkpkg translation package
+     */
+    Q_INVOKABLE void installLocalPackage(const QString& filePath);
+
 signals:
     void gamesChanged();
     void isScanningChanged();
@@ -168,6 +179,9 @@ signals:
     void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
     void isFetchingSteamDetailsChanged();
+    void localPackageReady(const QString& packageName, const QString& gameName, const QString& filePath);
+    void localPackageError(const QString& filePath, const QString& error);
+    void folderDropped(const QString& path, bool isGame);
 
 private:
     void loadCachedGames();

@@ -706,4 +706,93 @@ bool GameService::isValidGamePath(const QString& path) const
     return true;
 }
 
+// =============================================================================
+// Drop Handling (#60)
+// =============================================================================
+
+void GameService::handleDroppedFiles(const QVariantList& urls) {
+    for (const auto& urlVar : urls) {
+        QString urlStr = urlVar.toString();
+
+        // Convert file:// URL to local path
+        QUrl url(urlStr);
+        QString filePath = url.isLocalFile() ? url.toLocalFile() : urlStr;
+
+        QFileInfo info(filePath);
+        if (!info.exists()) {
+            qWarning() << "Dropped file does not exist:" << filePath;
+            continue;
+        }
+
+        if (info.isDir()) {
+            // Folder dropped — try to detect as game directory
+            qDebug() << "Folder dropped:" << filePath;
+            addManualGame(filePath);
+            emit folderDropped(filePath, true);
+        } else {
+            QString ext = info.suffix().toLower();
+
+            if (ext == "mkpkg") {
+                // Translation package
+                qDebug() << "Package dropped:" << filePath;
+                installLocalPackage(filePath);
+            } else if (ext == "zip" || ext == "rar" || ext == "7z") {
+                // Archive — for now, emit as package attempt
+                // Full archive extraction would need libarchive integration
+                qDebug() << "Archive dropped:" << filePath;
+                emit localPackageError(filePath,
+                    tr("Archive format not yet supported. Please use .mkpkg packages."));
+            } else {
+                qDebug() << "Unknown file type dropped:" << filePath;
+                emit localPackageError(filePath,
+                    tr("Unsupported file type: .%1").arg(ext));
+            }
+        }
+    }
+}
+
+void GameService::installLocalPackage(const QString& filePath) {
+    QFileInfo info(filePath);
+    if (!info.exists() || !info.isFile()) {
+        emit localPackageError(filePath, tr("File not found"));
+        return;
+    }
+
+    if (info.suffix().toLower() != "mkpkg") {
+        emit localPackageError(filePath, tr("Not a valid .mkpkg package"));
+        return;
+    }
+
+    // Read the package manifest to get game info
+    // In a full implementation, this would use PackageBuilder::inspect()
+    // For now, extract basic info from filename convention: gamename-version.mkpkg
+    QString baseName = info.completeBaseName(); // e.g. "hollow-knight-tr-2.1.0"
+
+    // Try to parse name-version pattern
+    QString packageName = baseName;
+    QString gameName = baseName;
+
+    // Look for last hyphen followed by version-like string
+    int lastHyphen = baseName.lastIndexOf('-');
+    if (lastHyphen > 0) {
+        QString possibleVersion = baseName.mid(lastHyphen + 1);
+        // Simple version check: starts with digit
+        if (!possibleVersion.isEmpty() && possibleVersion[0].isDigit()) {
+            gameName = baseName.left(lastHyphen);
+        }
+    }
+
+    // Replace hyphens with spaces for display
+    gameName.replace('-', ' ');
+
+    qDebug() << "Installing local package:" << packageName << "for game:" << gameName;
+
+    emit localPackageReady(packageName, gameName, filePath);
+
+    // Delegate to CoreBridge for actual installation
+    if (m_coreBridge) {
+        m_coreBridge->installPackage(baseName, info.absoluteFilePath());
+    }
+}
+
 } // namespace makineai

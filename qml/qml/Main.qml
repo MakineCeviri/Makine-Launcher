@@ -566,6 +566,34 @@ ApplicationWindow {
         }
     }
 
+    // ===== DROP HANDLER SIGNALS =====
+    Connections {
+        target: GameService
+        function onLocalPackageReady(packageName, gameName, filePath) {
+            window.showNotification(
+                qsTr("Paket Hazır: ") + packageName,
+                qsTr("Oyun: ") + gameName,
+                "translation"
+            )
+        }
+        function onLocalPackageError(filePath, error) {
+            window.showNotification(
+                qsTr("Paket Hatası"),
+                error,
+                "error"
+            )
+        }
+        function onFolderDropped(path, isGame) {
+            if (isGame) {
+                window.showNotification(
+                    qsTr("Oyun Eklendi"),
+                    path,
+                    "info"
+                )
+            }
+        }
+    }
+
     // ===== DROP ZONE OVERLAY =====
     DropZoneOverlay {
         id: dropZoneOverlay
@@ -595,7 +623,9 @@ ApplicationWindow {
                     "info"
                 )
             }
-            // TODO: Backend integration for actual file processing
+
+            // Delegate to GameService for actual file processing
+            GameService.handleDroppedFiles(urls)
         }
     }
 
