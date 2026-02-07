@@ -92,6 +92,7 @@ set(BACKEND_SOURCES
     src/services/processscanner.cpp
     src/services/corebridge.cpp
     src/services/systemtraymanager.cpp
+    src/services/integrityservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -102,6 +103,7 @@ set(BACKEND_HEADERS
     src/services/processscanner.h
     src/services/corebridge.h
     src/services/systemtraymanager.h
+    src/services/integrityservice.h
 )
 
 # Model sources
@@ -352,6 +354,14 @@ if(WIN32)
         Version      # For GetFileVersionInfo APIs
     )
 endif()
+
+# Post-build: generate SHA-256 hash file for integrity verification
+add_custom_command(TARGET MakineAI POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E sha256sum "$<TARGET_FILE:MakineAI>"
+            > "$<TARGET_FILE:MakineAI>.sha256"
+    COMMENT "Generating binary integrity hash"
+    VERBATIM
+)
 
 # Install
 install(TARGETS MakineAI

@@ -48,6 +48,7 @@ void logToFile(const QString& msg) {
 #include "services/backupmanager.h"
 #include "services/processscanner.h"
 #include "services/systemtraymanager.h"
+#include "services/integrityservice.h"
 
 int main(int argc, char *argv[])
 {

@@ -168,6 +168,64 @@ ApplicationWindow {
             onTrayClicked: window.minimizeToTray()
         }
 
+        // ===== INTEGRITY WARNING BANNER =====
+        Rectangle {
+            id: integrityBanner
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 32 : 0
+            visible: IntegrityService.status === "failed"
+            color: Theme.warningBg
+            clip: true
+
+            Behavior on Layout.preferredHeight {
+                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
+                spacing: 8
+
+                Image {
+                    source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
+                    sourceSize: Qt.size(14, 14)
+                    Layout.preferredWidth: 14
+                    Layout.preferredHeight: 14
+                    opacity: 0.8
+                }
+
+                Label {
+                    text: qsTr("Binary integrity check failed — this executable may have been modified.")
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
+                    color: Theme.warning
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
+
+                Label {
+                    text: "\uE8BB"
+                    font.pixelSize: 10
+                    font.family: "Segoe MDL2 Assets"
+                    color: Theme.textSecondary
+                    opacity: dismissMouse.containsMouse ? 1.0 : 0.6
+
+                    MouseArea {
+                        id: dismissMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: integrityBanner.visible = false
+                    }
+                }
+            }
+
+            Accessible.role: Accessible.AlertMessage
+            Accessible.name: qsTr("Security warning: binary integrity check failed")
+        }
+
         // ===== NAV BAR (72px) - Native Qt NavBar =====
         NavBar {
             id: navBar
