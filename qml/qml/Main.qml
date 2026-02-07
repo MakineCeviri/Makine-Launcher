@@ -566,6 +566,39 @@ ApplicationWindow {
         }
     }
 
+    // ===== DROP ZONE OVERLAY =====
+    DropZoneOverlay {
+        id: dropZoneOverlay
+        anchors.fill: parent
+        z: 80
+
+        onFilesDropped: function(urls) {
+            var type = dropZoneOverlay.classifyDrop(urls)
+            DebugHelper.log("DropZone", "Files dropped: " + urls.length + " (" + type + ")")
+
+            if (type === "package") {
+                window.showNotification(
+                    qsTr("Çeviri Paketi Algılandı"),
+                    qsTr("Paket yükleme hazırlanıyor..."),
+                    "translation"
+                )
+            } else if (type === "archive") {
+                window.showNotification(
+                    qsTr("Arşiv Algılandı"),
+                    qsTr("Arşiv içeriği analiz ediliyor..."),
+                    "info"
+                )
+            } else if (type === "folder") {
+                window.showNotification(
+                    qsTr("Klasör Algılandı"),
+                    qsTr("Oyun klasörü algılanıyor..."),
+                    "info"
+                )
+            }
+            // TODO: Backend integration for actual file processing
+        }
+    }
+
     // ===== ONBOARDING WIZARD OVERLAY =====
     OnboardingWizard {
         id: onboardingWizard

@@ -214,6 +214,30 @@ Select a game from the main screen and install its Turkish translation!</transla
         <source>Güncelleme Mevcut</source>
         <translation>Update Available</translation>
     </message>
+    <message>
+        <source>Çeviri Paketi Algılandı</source>
+        <translation>Translation Package Detected</translation>
+    </message>
+    <message>
+        <source>Paket yükleme hazırlanıyor...</source>
+        <translation>Preparing package installation...</translation>
+    </message>
+    <message>
+        <source>Arşiv Algılandı</source>
+        <translation>Archive Detected</translation>
+    </message>
+    <message>
+        <source>Arşiv içeriği analiz ediliyor...</source>
+        <translation>Analyzing archive content...</translation>
+    </message>
+    <message>
+        <source>Klasör Algılandı</source>
+        <translation>Folder Detected</translation>
+    </message>
+    <message>
+        <source>Oyun klasörü algılanıyor...</source>
+        <translation>Detecting game folder...</translation>
+    </message>
 </context>
 <context>
     <name>NotificationBell</name>
@@ -251,6 +275,49 @@ Select a game from the main screen and install its Turkish translation!</transla
     <message>
         <source>Tümünü temizle</source>
         <translation>Clear all</translation>
+    </message>
+</context>
+<context>
+    <name>DropZoneOverlay</name>
+    <message>
+        <source>Çeviri Paketini Yükle</source>
+        <translation>Install Translation Package</translation>
+    </message>
+    <message>
+        <source>Arşivi Aç ve Analiz Et</source>
+        <translation>Open and Analyze Archive</translation>
+    </message>
+    <message>
+        <source>Oyun Klasörünü Ekle</source>
+        <translation>Add Game Folder</translation>
+    </message>
+    <message>
+        <source>Dosyayı Buraya Bırakın</source>
+        <translation>Drop File Here</translation>
+    </message>
+    <message>
+        <source>.mkpkg çeviri paketi algılandı.
+Bırakarak yüklemeyi başlatın.</source>
+        <translation>.mkpkg translation package detected.
+Drop to start installation.</translation>
+    </message>
+    <message>
+        <source>Arşiv dosyası algılandı.
+İçerik analiz edilecek.</source>
+        <translation>Archive file detected.
+Content will be analyzed.</translation>
+    </message>
+    <message>
+        <source>Oyun klasörü algılandı.
+Otomatik algılama yapılacak.</source>
+        <translation>Game folder detected.
+Automatic detection will run.</translation>
+    </message>
+    <message>
+        <source>Çeviri paketi, arşiv veya
+oyun klasörünü sürükleyin.</source>
+        <translation>Drag a translation package, archive,
+or game folder here.</translation>
     </message>
 </context>
 <context>

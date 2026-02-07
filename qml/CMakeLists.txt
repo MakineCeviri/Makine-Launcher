@@ -203,6 +203,9 @@ qt_add_qml_module(MakineAI
         qml/components/NotificationPanel.qml
         qml/components/NotificationToast.qml
 
+        # Components - Drag & Drop
+        qml/components/DropZoneOverlay.qml
+
         # Components - Splash
         qml/components/SplashLogoSection.qml
         qml/components/SplashProgressBar.qml
