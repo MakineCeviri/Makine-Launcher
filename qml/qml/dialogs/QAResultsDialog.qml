@@ -42,7 +42,7 @@ Dialog {
     closePolicy: Popup.CloseOnEscape
     onOpened: activeSeverityFilter = 0
     width: 550
-    height: Math.min(550, contentColumn.implicitHeight + 250)
+    contentHeight: contentColumn.implicitHeight
 
     // Center in parent
     x: (parent.width - width) / 2

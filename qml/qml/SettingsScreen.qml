@@ -880,6 +880,7 @@ Item {
                 Layout.fillWidth: true
 
                 ColumnLayout {
+                    id: licensesSection
                     Layout.fillWidth: true
                     spacing: 0
 
@@ -912,7 +913,7 @@ Item {
                             Item { Layout.fillWidth: true }
 
                             Label {
-                                text: licenseModel.length.toString()
+                                text: licensesSection.licenseModel.length.toString()
                                 font.pixelSize: Dimensions.fontSM
                                 font.weight: Font.Medium
                                 color: Theme.textMuted
@@ -923,7 +924,7 @@ Item {
                     SettingsDivider {}
 
                     Repeater {
-                        model: licenseModel
+                        model: licensesSection.licenseModel
 
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -937,7 +938,7 @@ Item {
                             }
 
                             SettingsDivider {
-                                visible: index < licenseModel.length - 1
+                                visible: index < licensesSection.licenseModel.length - 1
                             }
                         }
                     }

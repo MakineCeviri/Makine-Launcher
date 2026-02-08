@@ -219,7 +219,7 @@ ApplicationWindow {
         onActivated: Qt.quit()
     }
     Shortcut {
-        sequence: StandardKey.Back
+        sequences: [StandardKey.Back]
         enabled: contentStackContainer.currentIndex !== 0
         onActivated: {
             window.currentNavIndex = 0

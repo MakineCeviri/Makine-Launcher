@@ -30,7 +30,7 @@ Dialog {
     modal: true
     closePolicy: Popup.CloseOnEscape
     width: 520
-    height: Math.min(500, contentColumn.implicitHeight + 220)
+    contentHeight: contentColumn.implicitHeight
 
     // Center in parent
     x: (parent.width - width) / 2
