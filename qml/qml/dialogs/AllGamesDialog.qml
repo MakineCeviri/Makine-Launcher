@@ -528,7 +528,7 @@ Dialog {
                         text: modelData.name || qsTr("Unknown")
                         font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
-                        color: "white"
+                        color: Theme.textPrimary
                         elide: Text.ElideRight
                     }
 

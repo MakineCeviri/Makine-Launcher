@@ -1459,7 +1459,7 @@ Item {
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 anchors.margins: Dimensions.marginBase
                 text: gameName; font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
-                color: "white"; elide: Text.ElideRight
+                color: Theme.textPrimary; elide: Text.ElideRight
 
                 ToolTip {
                     visible: gameCardRoot.isHovered && gameNameLabel.truncated
@@ -1702,7 +1702,7 @@ Item {
                         text: title
                         font.pixelSize: Dimensions.fontTitle
                         font.weight: Font.DemiBold
-                        color: "white"
+                        color: Theme.textPrimary
                     }
 
                     Label {

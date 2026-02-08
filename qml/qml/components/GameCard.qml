@@ -276,7 +276,7 @@ Item {
                 text: root.gameName
                 font.pixelSize: Dimensions.fontCaption
                 font.weight: Font.DemiBold
-                color: "white"
+                color: Theme.textPrimary
                 maximumLineCount: 2
                 wrapMode: Text.WordWrap
                 elide: Text.ElideRight

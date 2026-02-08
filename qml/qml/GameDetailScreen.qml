@@ -322,7 +322,7 @@ Item {
             anchors.centerIn: parent
             text: "\u2190"  // Left arrow
             font.pixelSize: Dimensions.fontXL
-            color: "white"
+            color: Theme.textPrimary
         }
 
         MouseArea {
@@ -362,7 +362,7 @@ Item {
             anchors.centerIn: parent
             text: "\u2197"  // Arrow upper right
             font.pixelSize: Dimensions.fontTitle
-            color: "white"
+            color: Theme.textPrimary
         }
 
         MouseArea {
@@ -489,7 +489,7 @@ Item {
                         font.pixelSize: Dimensions.displayMedium
                         font.weight: Font.Bold
                         font.letterSpacing: Dimensions.letterSpacingHeadline
-                        color: "white"
+                        color: Theme.textPrimary
                         wrapMode: Text.WordWrap
                     }
 
@@ -523,7 +523,7 @@ Item {
                                 Text {
                                     text: "\uD83D\uDECD"  // Storefront
                                     font.pixelSize: Dimensions.fontTitle
-                                    color: "white"
+                                    color: Theme.textPrimary
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
@@ -531,7 +531,7 @@ Item {
                                     text: qsTr("Steam'de Aç")
                                     font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
-                                    color: "white"
+                                    color: Theme.textPrimary
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
@@ -571,7 +571,7 @@ Item {
                                 Text {
                                     text: "\uD83C\uDF10"  // Globe
                                     font.pixelSize: Dimensions.fontTitle
-                                    color: "white"
+                                    color: Theme.textPrimary
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
@@ -579,7 +579,7 @@ Item {
                                     text: qsTr("Çeviriyi Başlat")
                                     font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
-                                    color: "white"
+                                    color: Theme.textPrimary
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
@@ -686,7 +686,7 @@ Item {
                         text: qsTr("Hakkında")
                         font.pixelSize: Dimensions.fontTitle
                         font.weight: Font.DemiBold
-                        color: "white"
+                        color: Theme.textPrimary
                     }
 
                     // Glass card
@@ -725,7 +725,7 @@ Item {
                             text: qsTr("Detaylar")
                             font.pixelSize: Dimensions.fontTitle
                             font.weight: Font.DemiBold
-                            color: "white"
+                            color: Theme.textPrimary
                         }
 
                         Rectangle {
@@ -784,7 +784,7 @@ Item {
                             text: qsTr("Değerlendirme")
                             font.pixelSize: Dimensions.fontTitle
                             font.weight: Font.DemiBold
-                            color: "white"
+                            color: Theme.textPrimary
                         }
 
                         Rectangle {
@@ -821,7 +821,7 @@ Item {
                                             text: root.metacriticScore > 0 ? root.metacriticScore : "--"
                                             font.pixelSize: Dimensions.fontXL
                                             font.weight: Font.Bold
-                                            color: "white"
+                                            color: Theme.textPrimary
                                         }
                                     }
 
@@ -832,7 +832,7 @@ Item {
                                             text: "Metacritic"
                                             font.pixelSize: Dimensions.fontMD
                                             font.weight: Font.DemiBold
-                                            color: "white"
+                                            color: Theme.textPrimary
                                         }
 
                                         Text {
@@ -895,7 +895,7 @@ Item {
                                             text: "-" + root.discountPercent + "%"
                                             font.pixelSize: Dimensions.fontSM
                                             font.weight: Font.Bold
-                                            color: "white"
+                                            color: Theme.textPrimary
                                         }
                                     }
 
@@ -923,7 +923,7 @@ Item {
                     text: qsTr("Çeviri Bilgileri")
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 // Recipe card (when recipe exists)
@@ -1044,7 +1044,7 @@ Item {
                     text: qsTr("Yazı Tipi Desteği")
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 Rectangle {
@@ -1245,7 +1245,7 @@ Item {
                     text: qsTr("Uyumluluk Durumu")
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 Rectangle {
@@ -1411,7 +1411,7 @@ Item {
                     text: qsTr("Çeviri Çalışma Ortamı")
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 Rectangle {
@@ -1679,7 +1679,7 @@ Item {
                     text: qsTr("Yedekleme Yönetimi")
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 // Main backup card
@@ -1944,7 +1944,7 @@ Item {
                     text: qsTr("Ekran Görüntüleri")
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 // Horizontal scroll
