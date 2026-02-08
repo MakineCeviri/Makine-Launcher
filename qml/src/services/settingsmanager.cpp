@@ -235,6 +235,26 @@ void SettingsManager::saveSettings()
     m_settings.sync();
 }
 
+void SettingsManager::saveWindowGeometry(int x, int y, int width, int height, bool maximized)
+{
+    m_settings.setValue("window/x", x);
+    m_settings.setValue("window/y", y);
+    m_settings.setValue("window/width", width);
+    m_settings.setValue("window/height", height);
+    m_settings.setValue("window/maximized", maximized);
+}
+
+QVariantMap SettingsManager::windowGeometry() const
+{
+    QVariantMap geo;
+    geo["x"] = m_settings.value("window/x", -1).toInt();
+    geo["y"] = m_settings.value("window/y", -1).toInt();
+    geo["width"] = m_settings.value("window/width", -1).toInt();
+    geo["height"] = m_settings.value("window/height", -1).toInt();
+    geo["maximized"] = m_settings.value("window/maximized", false).toBool();
+    return geo;
+}
+
 void SettingsManager::setupAutoStart(bool enable)
 {
 #ifdef Q_OS_WIN

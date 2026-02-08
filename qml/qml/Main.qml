@@ -16,13 +16,25 @@ ApplicationWindow {
     minimumWidth: 900
     minimumHeight: 620
 
-    x: (Screen.width - width) / 2
-    y: (Screen.height - height) / 2
-
     title: "MakineAI"
     color: Theme.bgPrimary
 
     flags: Qt.Window | Qt.FramelessWindowHint
+
+    // Restore saved window position/size or center on screen
+    Component.onCompleted: {
+        var geo = SettingsManager.windowGeometry()
+        if (geo.width > 0 && geo.height > 0) {
+            window.x = geo.x
+            window.y = geo.y
+            window.width = Math.max(geo.width, minimumWidth)
+            window.height = Math.max(geo.height, minimumHeight)
+            if (geo.maximized) window.showMaximized()
+        } else {
+            window.x = (Screen.width - width) / 2
+            window.y = (Screen.height - height) / 2
+        }
+    }
 
     property int currentNavIndex: 0
     property bool aiActive: false
@@ -72,6 +84,14 @@ ApplicationWindow {
     Component.onDestruction: pageChangeTimer.stop()
 
     onClosing: function(close) {
+        // Save window geometry before closing
+        var isMax = (window.visibility === Window.Maximized)
+        if (!isMax) {
+            SettingsManager.saveWindowGeometry(window.x, window.y, window.width, window.height, false)
+        } else {
+            SettingsManager.saveWindowGeometry(window.x, window.y, window.width, window.height, true)
+        }
+
         if (SettingsManager.minimizeToTray) {
             close.accepted = false
             window.minimizeToTray()

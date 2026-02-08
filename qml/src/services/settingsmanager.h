@@ -10,6 +10,7 @@
 #include <QString>
 #include <QSettings>
 #include <QQmlEngine>
+#include <QVariantMap>
 
 namespace makineai {
 
@@ -100,6 +101,8 @@ public:
     // Q_INVOKABLE methods
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
+    Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
+    Q_INVOKABLE QVariantMap windowGeometry() const;
 
 signals:
     void autoDetectGamesChanged();
