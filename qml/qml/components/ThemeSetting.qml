@@ -62,6 +62,17 @@ Item {
                         color: !SettingsManager.isDarkMode ? "white" : Theme.textSecondary
                     }
 
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
+                    }
+
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
@@ -86,6 +97,17 @@ Item {
                         font.pixelSize: 12
                         font.weight: SettingsManager.isDarkMode ? Font.Medium : Font.Normal
                         color: SettingsManager.isDarkMode ? "white" : Theme.textSecondary
+                    }
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
                     }
 
                     MouseArea {

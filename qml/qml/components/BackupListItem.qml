@@ -102,6 +102,17 @@ Rectangle {
                     color: restoreBtn.hovered ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
                     border.color: Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: restoreBtn.activeFocus
+                    }
                 }
 
                 onClicked: {
@@ -126,6 +137,17 @@ Rectangle {
                 background: Rectangle {
                     radius: Dimensions.radiusStandard
                     color: deleteBtn.hovered ? Theme.withAlpha(Theme.error, 0.15) : Qt.rgba(1, 1, 1, 0.05)
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.destructive, 0.6)
+                        border.width: 2
+                        visible: deleteBtn.activeFocus
+                    }
                 }
 
                 onClicked: {
