@@ -1717,9 +1717,11 @@ Item {
                             }
 
                             Text {
+                                Layout.fillWidth: true
                                 text: BackupManager.restoreStatus
                                 font.pixelSize: 13
                                 color: Theme.primary
+                                elide: Text.ElideRight
                             }
                         }
 

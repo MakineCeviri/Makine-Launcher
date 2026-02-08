@@ -754,9 +754,11 @@ Item {
                     }
 
                     Text {
+                        Layout.fillWidth: true
                         text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
                         font.pixelSize: 14
                         color: Theme.textPrimary
+                        elide: Text.ElideRight
                     }
                 }
             }
