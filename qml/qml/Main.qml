@@ -257,7 +257,7 @@ ApplicationWindow {
 
                 Label {
                     text: qsTr("Binary integrity check failed — this executable may have been modified.")
-                    font.pixelSize: 11
+                    font.pixelSize: Dimensions.fontXS
                     font.weight: Font.Medium
                     color: Theme.warning
                     Layout.fillWidth: true
@@ -276,7 +276,7 @@ ApplicationWindow {
                     Label {
                         anchors.centerIn: parent
                         text: "\uE8BB"
-                        font.pixelSize: 10
+                        font.pixelSize: Dimensions.fontCaption
                         font.family: "Segoe MDL2 Assets"
                         color: Theme.textSecondary
                         opacity: dismissMouse.containsMouse ? 1.0 : 0.6
@@ -823,7 +823,7 @@ ApplicationWindow {
                     Text {
                         anchors.centerIn: parent
                         text: "M"
-                        font.pixelSize: 10
+                        font.pixelSize: Dimensions.fontCaption
                         font.weight: Font.Bold
                         color: "white"
                     }
@@ -832,7 +832,7 @@ ApplicationWindow {
 
             Label {
                 text: "MakineAI"
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 font.weight: Font.Medium
                 color: Theme.textSecondary
             }
@@ -898,7 +898,7 @@ ApplicationWindow {
         Label {
             anchors.centerIn: parent
             text: icon
-            font.pixelSize: 10
+            font.pixelSize: Dimensions.fontCaption
             font.family: "Segoe MDL2 Assets"
             color: btnMouse.containsMouse && isClose ? "white" : Theme.textSecondary
 
@@ -1007,7 +1007,7 @@ ApplicationWindow {
                         Text {
                             anchors.centerIn: parent
                             text: "M"
-                            font.pixelSize: 16
+                            font.pixelSize: Dimensions.fontLG
                             font.weight: Font.Bold
                             color: "white"
                         }
@@ -1097,7 +1097,7 @@ ApplicationWindow {
                     anchors.centerIn: parent
                     text: aiToggleItem.makeRainbowText(navBarRoot.aiActive ? qsTr("Kapat") : qsTr("Türkçe Yama"), aiToggleItem.animPhase)
                     textFormat: Text.RichText
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     font.weight: Font.DemiBold
                 }
 

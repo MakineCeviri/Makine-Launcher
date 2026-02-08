@@ -34,13 +34,13 @@ ColumnLayout {
                     spacing: 2
                     Text {
                         text: qsTr("Uygulama Dili")
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
                         color: Theme.textPrimary
                     }
                     Text {
                         text: qsTr("Arayüz dilini değiştir (yeniden başlatma gerekebilir)")
-                        font.pixelSize: 11
+                        font.pixelSize: Dimensions.fontXS
                         color: Theme.textMuted
                     }
                 }
@@ -67,7 +67,7 @@ ColumnLayout {
 
                     contentItem: Text {
                         text: langCombo.displayText
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textPrimary
                         verticalAlignment: Text.AlignVCenter
                         leftPadding: 10
@@ -174,13 +174,13 @@ ColumnLayout {
                     spacing: 2
                     Text {
                         text: qsTr("Önbellek Yönetimi")
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
                         color: Theme.textPrimary
                     }
                     Text {
                         text: qsTr("Oyun verisi ve Steam detay önbelleğini temizle")
-                        font.pixelSize: 11
+                        font.pixelSize: Dimensions.fontXS
                         color: Theme.textMuted
                     }
                 }
@@ -204,7 +204,7 @@ ColumnLayout {
                         id: clearCacheBtnText
                         anchors.centerIn: parent
                         text: qsTr("Temizle")
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         font.weight: Font.Medium
                         color: Theme.textSecondary
                     }
@@ -244,13 +244,13 @@ ColumnLayout {
                     spacing: 2
                     Text {
                         text: qsTr("Varsayılana Sıfırla")
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
                         color: Theme.textPrimary
                     }
                     Text {
                         text: qsTr("Tüm ayarları fabrika değerlerine döndür")
-                        font.pixelSize: 11
+                        font.pixelSize: Dimensions.fontXS
                         color: Theme.textMuted
                     }
                 }
@@ -275,7 +275,7 @@ ColumnLayout {
                         id: resetBtnText
                         anchors.centerIn: parent
                         text: qsTr("Sıfırla")
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         font.weight: Font.Medium
                         color: resetMouse.containsMouse ? Theme.destructive : Theme.textSecondary
                         Behavior on color { ColorAnimation { duration: 150 } }

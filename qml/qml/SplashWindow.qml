@@ -308,7 +308,7 @@ Window {
                 Text {
                     anchors.centerIn: parent
                     text: "M"
-                    font.pixelSize: 32 * logoScale
+                    font.pixelSize: Dimensions.fontBanner * logoScale
                     font.weight: Font.Bold
                     color: "white"
                 }
@@ -331,7 +331,7 @@ Window {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 text: qsTr("Makine Çeviri")
-                font.pixelSize: 42
+                font.pixelSize: Dimensions.fontSplash
                 font.weight: Font.Black
                 font.letterSpacing: -1.5
                 color: Theme.splashGold
@@ -362,13 +362,13 @@ Window {
 
                     Text {
                         text: "\u2728"  // Sparkle
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         color: Theme.splashGold
                     }
 
                     Text {
                         text: qsTr("AI Destekli")
-                        font.pixelSize: 10
+                        font.pixelSize: Dimensions.fontCaption
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.3
                         color: Theme.splashGold
@@ -433,7 +433,7 @@ Window {
                 anchors.top: progressTrack.bottom
                 anchors.topMargin: 14
                 text: qsTr("Yükleniyor...")
-                font.pixelSize: 11
+                font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
                 font.letterSpacing: 1.5
                 color: Qt.rgba(1, 1, 1, 0.35)
@@ -463,7 +463,7 @@ Window {
                     id: versionText
                     anchors.centerIn: parent
                     text: Dimensions.appVersionFull
-                    font.pixelSize: 8
+                    font.pixelSize: Dimensions.fontMicro
                     font.weight: Font.Medium
                     color: Qt.rgba(1, 1, 1, 0.45)
                 }
@@ -474,7 +474,7 @@ Window {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 text: qsTr("Makine Çeviri Topluluğu")
-                font.pixelSize: 10
+                font.pixelSize: Dimensions.fontCaption
                 font.letterSpacing: 0.3
                 color: Qt.rgba(1, 1, 1, 0.3)
             }

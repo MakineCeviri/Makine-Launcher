@@ -118,6 +118,8 @@ QtObject {
     // =========================================================================
 
     // Semantic font scale
+    readonly property int fontMicro: 8
+    readonly property int fontMini: 9
     readonly property int fontCaption: 10
     readonly property int fontBody: 13
     readonly property int fontSubtitle: 15
@@ -125,11 +127,14 @@ QtObject {
     readonly property int fontHeadline: 22
     readonly property int fontHero: 28
     readonly property int fontBanner: 32
-    readonly property int fontSplash: 44
+    readonly property int fontSplash: 42
 
     // TextTheme sizes
+    readonly property int displayXL: 56
     readonly property int displayLarge: 48
+    readonly property int displaySmall: 40
     readonly property int displayMedium: 36
+    readonly property int headlineXL: 26
     readonly property int headlineLarge: 24
     readonly property int headlineMedium: 20
     readonly property int titleLarge: 16

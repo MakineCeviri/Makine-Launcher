@@ -110,7 +110,7 @@ Dialog {
                     Text {
                         anchors.centerIn: parent
                         text: "\uD83C\uDFAE"  // Game controller
-                        font.pixelSize: 24
+                        font.pixelSize: Dimensions.headlineLarge
                     }
                 }
 
@@ -119,14 +119,14 @@ Dialog {
 
                     Text {
                         text: qsTr("Tüm Desteklenen Oyunlar")
-                        font.pixelSize: 24
+                        font.pixelSize: Dimensions.headlineLarge
                         font.weight: Font.Bold
                         color: Theme.textPrimary
                     }
 
                     Text {
                         text: qsTr("%1 oyun listeleniyor").arg(filteredGames.length)
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textMuted
                     }
                 }
@@ -158,13 +158,13 @@ Dialog {
 
                         Text {
                             text: "\u2611"
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             color: batchMode ? Theme.primary : Theme.textMuted
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         Text {
                             text: qsTr("Toplu Seçim")
-                            font.pixelSize: 12
+                            font.pixelSize: Dimensions.fontSM
                             font.weight: Font.Medium
                             color: batchMode ? Theme.primary : Theme.textSecondary
                             anchors.verticalCenter: parent.verticalCenter
@@ -209,7 +209,7 @@ Dialog {
                     Text {
                         anchors.centerIn: parent
                         text: "\u00D7"
-                        font.pixelSize: 24
+                        font.pixelSize: Dimensions.headlineLarge
                         color: Theme.textMuted
                     }
 
@@ -258,14 +258,14 @@ Dialog {
 
                         Text {
                             text: "\uD83D\uDD0D"
-                            font.pixelSize: 16
+                            font.pixelSize: Dimensions.fontLG
                             color: Theme.textMuted
                         }
 
                         TextInput {
                             id: searchInput
                             Layout.fillWidth: true
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             color: Theme.textPrimary
                             clip: true
                             selectByMouse: true
@@ -276,7 +276,7 @@ Dialog {
                             Text {
                                 anchors.fill: parent
                                 text: qsTr("Oyun ara...")
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted
                                 visible: !searchInput.text && !searchInput.activeFocus
                             }
@@ -295,7 +295,7 @@ Dialog {
                             Text {
                                 anchors.centerIn: parent
                                 text: "\u00D7"
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted
                             }
 
@@ -436,7 +436,7 @@ Dialog {
                     Text {
                         anchors.centerIn: parent
                         text: modelData.name ? modelData.name.substring(0, 2).toUpperCase() : ""
-                        font.pixelSize: 20
+                        font.pixelSize: Dimensions.fontXL
                         font.weight: Font.Bold
                         color: Theme.textMuted
                         visible: !gameImg.visible
@@ -474,7 +474,7 @@ Dialog {
                             Text {
                                 anchors.centerIn: parent
                                 text: "TR"
-                                font.pixelSize: 8
+                                font.pixelSize: Dimensions.fontMicro
                                 font.weight: Font.Bold
                                 color: "white"
                             }
@@ -490,7 +490,7 @@ Dialog {
                             Text {
                                 anchors.centerIn: parent
                                 text: "\u2713"
-                                font.pixelSize: 9
+                                font.pixelSize: Dimensions.fontMini
                                 font.weight: Font.Bold
                                 color: "white"
                             }
@@ -513,7 +513,7 @@ Dialog {
                             id: engineLabel
                             anchors.centerIn: parent
                             text: modelData.engine || ""
-                            font.pixelSize: 9
+                            font.pixelSize: Dimensions.fontMini
                             font.weight: Font.Medium
                             color: Theme.textMuted
                         }
@@ -526,7 +526,7 @@ Dialog {
                         anchors.bottom: parent.bottom
                         anchors.margins: 10
                         text: modelData.name || qsTr("Unknown")
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
                         color: "white"
                         elide: Text.ElideRight
@@ -579,7 +579,7 @@ Dialog {
                         Text {
                             anchors.centerIn: parent
                             text: "\u2713"
-                            font.pixelSize: 12
+                            font.pixelSize: Dimensions.fontSM
                             font.weight: Font.Bold
                             color: "white"
                             visible: selectedGameIds[modelData.id] === true
@@ -632,13 +632,13 @@ Dialog {
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: "\uD83D\uDE14"
-                font.pixelSize: 48
+                font.pixelSize: Dimensions.displayLarge
             }
 
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("Oyun bulunamadı")
-                font.pixelSize: 18
+                font.pixelSize: Dimensions.fontTitle
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
@@ -646,7 +646,7 @@ Dialog {
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("Arama kriterlerini değiştirmeyi deneyin")
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 color: Theme.textMuted
             }
         }
@@ -680,7 +680,7 @@ Dialog {
                 text: selectedCount > 0
                       ? qsTr("%1 oyun seçildi").arg(selectedCount)
                       : qsTr("Seçim yapın")
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 color: Theme.textSecondary
             }
 
@@ -702,7 +702,7 @@ Dialog {
                     id: selectAllLabel
                     anchors.centerIn: parent
                     text: qsTr("Tümünü Seç")
-                    font.pixelSize: 12
+                    font.pixelSize: Dimensions.fontSM
                     font.weight: Font.Medium
                     color: Theme.textSecondary
                 }
@@ -744,7 +744,7 @@ Dialog {
                     id: deselectLabel
                     anchors.centerIn: parent
                     text: qsTr("Seçimi Kaldır")
-                    font.pixelSize: 12
+                    font.pixelSize: Dimensions.fontSM
                     font.weight: Font.Medium
                     color: Theme.textSecondary
                 }
@@ -790,7 +790,7 @@ Dialog {
                     id: installBtnLabel
                     anchors.centerIn: parent
                     text: selectedCount > 0 ? qsTr("Çevirileri Kur (%1)").arg(selectedCount) : qsTr("Çevirileri Kur")
-                    font.pixelSize: 12
+                    font.pixelSize: Dimensions.fontSM
                     font.weight: Font.DemiBold
                     color: selectedCount > 0 ? "white" : Theme.textMuted
                 }
@@ -845,7 +845,7 @@ Dialog {
             id: catBtnLabel
             anchors.centerIn: parent
             text: parent.text
-            font.pixelSize: 13
+            font.pixelSize: Dimensions.fontBody
             font.weight: isSelected ? Font.DemiBold : Font.Medium
             color: isSelected ? Theme.primary : Theme.textSecondary
         }

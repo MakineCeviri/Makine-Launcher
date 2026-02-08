@@ -63,7 +63,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: root.unreadCount > 99 ? "99+" : root.unreadCount.toString()
-            font.pixelSize: 9
+            font.pixelSize: Dimensions.fontMini
             font.weight: Font.Bold
             color: "white"
         }

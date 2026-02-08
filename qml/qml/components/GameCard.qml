@@ -189,7 +189,7 @@ Item {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: root.gameName.substring(0, 2).toUpperCase()
-                    font.pixelSize: 28
+                    font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.textMuted
                 }
@@ -233,7 +233,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "TR"
-                        font.pixelSize: 9
+                        font.pixelSize: Dimensions.fontMini
                         font.weight: Font.Bold
                         color: "white"
                     }
@@ -250,7 +250,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "✓"
-                        font.pixelSize: 10
+                        font.pixelSize: Dimensions.fontCaption
                         font.weight: Font.Bold
                         color: "white"
                     }
@@ -273,7 +273,7 @@ Item {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 text: root.gameName
-                font.pixelSize: 10
+                font.pixelSize: Dimensions.fontCaption
                 font.weight: Font.DemiBold
                 color: "white"
                 maximumLineCount: 2
@@ -284,7 +284,7 @@ Item {
                     visible: root.isHovered && nameText.truncated
                     delay: 250
                     text: root.gameName
-                    font.pixelSize: 12
+                    font.pixelSize: Dimensions.fontSM
 
                     background: Rectangle {
                         color: Qt.rgba(0.1, 0.1, 0.1, 0.95)

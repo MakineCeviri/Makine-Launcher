@@ -27,7 +27,7 @@ Item {
         id: navItemLabel
         anchors.centerIn: parent
         text: navItemRoot.text
-        font.pixelSize: 13
+        font.pixelSize: Dimensions.fontBody
         font.weight: navItemRoot.selected ? Font.DemiBold : Font.Medium
         color: navItemRoot.selected ? Theme.primary
              : (navItemMouse.containsMouse || navItemRoot.activeFocus) ? Theme.textPrimary

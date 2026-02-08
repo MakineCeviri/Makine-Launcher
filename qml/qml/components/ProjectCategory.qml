@@ -48,14 +48,14 @@ Rectangle {
 
                 Label {
                     text: root.title
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
 
                 Label {
                     text: root.subtitle
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
                 }
             }

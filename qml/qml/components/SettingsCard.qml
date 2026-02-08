@@ -32,7 +32,7 @@ Rectangle {
 
             Text {
                 text: root.title
-                font.pixelSize: 16
+                font.pixelSize: Dimensions.fontLG
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
@@ -40,7 +40,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: root.description
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
                 wrapMode: Text.WordWrap
                 visible: root.description !== ""

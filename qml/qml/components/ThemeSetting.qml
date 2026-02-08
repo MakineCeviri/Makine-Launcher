@@ -20,14 +20,14 @@ Item {
 
             Text {
                 text: qsTr("Tema")
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium
                 color: Theme.textPrimary
             }
 
             Text {
                 text: qsTr("Uygulama görünümünü seç")
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
             }
         }
@@ -57,7 +57,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: qsTr("Açık")
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         font.weight: !SettingsManager.isDarkMode ? Font.Medium : Font.Normal
                         color: !SettingsManager.isDarkMode ? "white" : Theme.textSecondary
                     }
@@ -94,7 +94,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: qsTr("Koyu")
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         font.weight: SettingsManager.isDarkMode ? Font.Medium : Font.Normal
                         color: SettingsManager.isDarkMode ? "white" : Theme.textSecondary
                     }

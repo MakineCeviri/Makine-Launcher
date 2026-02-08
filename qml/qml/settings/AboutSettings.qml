@@ -102,7 +102,7 @@ ColumnLayout {
 
                 Text {
                     text: qsTr("Açık Kaynak Lisanslar")
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
                 }

@@ -193,7 +193,7 @@ Dialog {
                     Text {
                         anchors.centerIn: parent
                         text: root.highestSeverity === "critical" ? "\u2620" : "\u26A0"
-                        font.pixelSize: 26
+                        font.pixelSize: Dimensions.headlineXL
                         color: getSeverityColor(root.highestSeverity)
                     }
 
@@ -216,7 +216,7 @@ Dialog {
 
                 Text {
                     text: qsTr("Koruma Sistemi Tespit Edildi")
-                    font.pixelSize: 20
+                    font.pixelSize: Dimensions.fontXL
                     font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
@@ -226,7 +226,7 @@ Dialog {
 
                     Text {
                         text: root.gameName
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textSecondary
                         visible: root.gameName !== ""
                     }
@@ -244,7 +244,7 @@ Dialog {
                             id: overallSeverityText
                             anchors.centerIn: parent
                             text: getSeverityLabel(root.highestSeverity)
-                            font.pixelSize: 11
+                            font.pixelSize: Dimensions.fontXS
                             font.weight: Font.DemiBold
                             color: getSeverityColor(root.highestSeverity)
                         }
@@ -274,7 +274,7 @@ Dialog {
                 Text {
                     anchors.centerIn: parent
                     text: "\u00D7"
-                    font.pixelSize: 22
+                    font.pixelSize: Dimensions.fontHeadline
                     color: closeDialogMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
                 }
 
@@ -347,7 +347,7 @@ Dialog {
                 anchors.fill: parent
                 anchors.margins: 12
                 text: qsTr("Bu oyunda aktif koruma sistemi tespit edildi. Çeviri uygulamak oyunun çalışmasını engelleyebilir veya online ban'a neden olabilir.")
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
             }
@@ -457,7 +457,7 @@ Dialog {
                                 Text {
                                     anchors.centerIn: parent
                                     text: getSeverityIcon(modelData.severity)
-                                    font.pixelSize: 20
+                                    font.pixelSize: Dimensions.fontXL
                                     color: getSeverityColor(modelData.severity)
                                 }
                             }
@@ -472,7 +472,7 @@ Dialog {
 
                                 Text {
                                     text: modelData.name || modelData.shortName
-                                    font.pixelSize: 15
+                                    font.pixelSize: Dimensions.fontSubtitle
                                     font.weight: Font.DemiBold
                                     color: Theme.textPrimary
                                 }
@@ -494,7 +494,7 @@ Dialog {
                                         id: severityLabelText
                                         anchors.centerIn: parent
                                         text: getSeverityLabel(modelData.severity)
-                                        font.pixelSize: 10
+                                        font.pixelSize: Dimensions.fontCaption
                                         font.weight: Font.DemiBold
                                         color: getSeverityColor(modelData.severity)
                                     }
@@ -504,7 +504,7 @@ Dialog {
                             Text {
                                 Layout.fillWidth: true
                                 text: modelData.warning || modelData.description
-                                font.pixelSize: 12
+                                font.pixelSize: Dimensions.fontSM
                                 color: Theme.textSecondary
                                 elide: Text.ElideRight
                                 maximumLineCount: 2
@@ -581,7 +581,7 @@ Dialog {
 
                     Text {
                         text: "\u2715"  // X mark
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         color: cancelBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
 
@@ -590,7 +590,7 @@ Dialog {
 
                     Text {
                         text: qsTr("İptal Et")
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
                         color: cancelBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
@@ -695,14 +695,14 @@ Dialog {
 
                         Text {
                             text: "\u26A0"
-                            font.pixelSize: 18
+                            font.pixelSize: Dimensions.fontTitle
                             color: "white"
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
                             text: qsTr("Yine de Devam Et")
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Bold
                             color: "white"
                             anchors.verticalCenter: parent.verticalCenter

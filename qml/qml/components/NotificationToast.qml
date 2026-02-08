@@ -146,7 +146,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 text: {
                     switch(root.type) {
                         case "update": return "\u2B06"
@@ -168,7 +168,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: root.title
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
                 elide: Text.ElideRight
@@ -178,7 +178,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: root.message
-                font.pixelSize: 11
+                font.pixelSize: Dimensions.fontXS
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
@@ -202,7 +202,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: "\u2715"
-                font.pixelSize: 10
+                font.pixelSize: Dimensions.fontCaption
                 color: Theme.textMuted
                 opacity: closeMouse.containsMouse ? 1.0 : 0.5
             }

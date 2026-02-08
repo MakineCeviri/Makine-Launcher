@@ -46,7 +46,7 @@ Rectangle {
         Text {
             Layout.fillWidth: true
             text: root.text
-            font.pixelSize: 14
+            font.pixelSize: Dimensions.fontMD
             font.weight: root.isSelected ? Font.DemiBold : Font.Normal
             color: root.isSelected ? Theme.primary : Theme.textSecondary
             elide: Text.ElideRight

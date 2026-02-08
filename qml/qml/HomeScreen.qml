@@ -224,7 +224,7 @@ Item {
                                             default: return "ℹ"
                                         }
                                     }
-                                    font.pixelSize: 16
+                                    font.pixelSize: Dimensions.fontLG
                                     color: {
                                         switch(notificationType) {
                                             case "update": return Theme.notificationUpdate
@@ -238,7 +238,7 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     text: notificationMessage
-                                    font.pixelSize: 13
+                                    font.pixelSize: Dimensions.fontBody
                                     color: Theme.textPrimary
                                     elide: Text.ElideRight
                                 }
@@ -263,7 +263,7 @@ Item {
                                         id: updateBtnText
                                         anchors.centerIn: parent
                                         text: qsTr("İndir")
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         font.weight: Font.Medium
                                         color: Theme.notificationUpdate
                                     }
@@ -302,7 +302,7 @@ Item {
                                     Text {
                                         anchors.centerIn: parent
                                         text: "✕"
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.textMuted
                                     }
 
@@ -425,14 +425,14 @@ Item {
 
                                             Label {
                                                 text: qsTr("Türkçe Yama")
-                                                font.pixelSize: 16
+                                                font.pixelSize: Dimensions.fontLG
                                                 font.weight: Font.DemiBold
                                                 color: Theme.textPrimary
                                             }
 
                                             Label {
                                                 text: qsTr("Oyun çeviri durumu")
-                                                font.pixelSize: 11
+                                                font.pixelSize: Dimensions.fontXS
                                                 color: Theme.textMuted
                                             }
                                         }
@@ -489,7 +489,7 @@ Item {
                                             Label {
                                                 anchors.horizontalCenter: parent.horizontalCenter
                                                 text: qsTr("Oyun Bekleniyor")
-                                                font.pixelSize: 14
+                                                font.pixelSize: Dimensions.fontMD
                                                 font.weight: Font.DemiBold
                                                 color: Theme.textPrimary
                                             }
@@ -497,7 +497,7 @@ Item {
                                             Label {
                                                 anchors.horizontalCenter: parent.horizontalCenter
                                                 text: qsTr("Desteklenen bir oyun çalıştırın veya manuel seçin")
-                                                font.pixelSize: 11
+                                                font.pixelSize: Dimensions.fontXS
                                                 color: Theme.textMuted
                                             }
                                         }
@@ -537,7 +537,7 @@ Item {
 
                                             Label {
                                                 text: qsTr("Manuel Oyun Seç")
-                                                font.pixelSize: 12
+                                                font.pixelSize: Dimensions.fontSM
                                                 font.weight: Font.Medium
                                                 color: manualBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                                                 anchors.verticalCenter: parent.verticalCenter
@@ -590,13 +590,13 @@ Item {
 
                                         Label {
                                             text: qsTr("Duyurular")
-                                            font.pixelSize: 16
+                                            font.pixelSize: Dimensions.fontLG
                                             font.weight: Font.DemiBold
                                             color: Theme.textPrimary
                                         }
                                         Label {
                                             text: qsTr("Son güncelleme")
-                                            font.pixelSize: 11
+                                            font.pixelSize: Dimensions.fontXS
                                             color: Theme.textMuted
                                         }
                                     }
@@ -643,7 +643,7 @@ Item {
                                                 Label {
                                                     width: parent.width
                                                     text: qsTr("Desteklenmeyen Oyunlar Hakkında")
-                                                    font.pixelSize: 13
+                                                    font.pixelSize: Dimensions.fontBody
                                                     font.weight: Font.DemiBold
                                                     color: Theme.textPrimary
                                                     horizontalAlignment: Text.AlignHCenter
@@ -654,7 +654,7 @@ Item {
                                                     text: announcementContentBox.expanded
                                                         ? qsTr("Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.\n\nMakineAI, her oyun için en iyi çeviri deneyimini sunmayı hedefler. Ancak bazı oyunlar, kullandıkları özel metin sistemleri veya şifreleme yöntemleri nedeniyle henüz tam olarak desteklenememektedir.\n\nDesteklenmeyen bir oyunda çeviri başlattığınızda:\n• Bazı metinler eksik veya hatalı görünebilir\n• Oyun performansında düşüş yaşanabilir\n• Nadir durumlarda oyun kararsız hale gelebilir\n\nBu tür sorunlarla karşılaşırsanız, orijinal dil dosyalarını geri yüklemek için yedekleme özelliğini kullanabilirsiniz. Destek ekibimize bildirdiğiniz oyunlar öncelikli olarak değerlendirilecektir.")
                                                         : qsTr("Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.")
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: Dimensions.fontXS
                                                     color: Theme.textSecondary
                                                     wrapMode: Text.WordWrap
                                                     horizontalAlignment: announcementContentBox.expanded ? Text.AlignLeft : Text.AlignHCenter
@@ -664,7 +664,7 @@ Item {
                                                 Label {
                                                     width: parent.width
                                                     text: announcementContentBox.expanded ? qsTr("Kapat") : qsTr("Devamını oku →")
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: Dimensions.fontCaption
                                                     font.weight: Font.Medium
                                                     color: Theme.primary
                                                     horizontalAlignment: Text.AlignHCenter
@@ -741,7 +741,7 @@ Item {
 
                                             Label {
                                                 text: qsTr("Güvenliğiniz için yalnızca")
-                                                font.pixelSize: 10
+                                                font.pixelSize: Dimensions.fontCaption
                                                 color: securityMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -749,7 +749,7 @@ Item {
 
                                             Label {
                                                 text: "makineai.com"
-                                                font.pixelSize: 10
+                                                font.pixelSize: Dimensions.fontCaption
                                                 font.weight: Font.Medium
                                                 font.underline: true
                                                 color: securityMouse.containsMouse ? Theme.primary : Theme.textSecondary
@@ -759,7 +759,7 @@ Item {
 
                                             Label {
                                                 text: qsTr("üzerinden indirin")
-                                                font.pixelSize: 10
+                                                font.pixelSize: Dimensions.fontCaption
                                                 color: securityMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -825,7 +825,7 @@ Item {
 
                                 Label {
                                     text: GameService.isScanning ? qsTr("Oyunlar Taranıyor...") : qsTr("Desteklenen Oyunlar")
-                                    font.pixelSize: 20
+                                    font.pixelSize: Dimensions.fontXL
                                     font.weight: Font.DemiBold
                                     color: Theme.textPrimary
                                 }
@@ -844,7 +844,7 @@ Item {
 
                                     Label {
                                         text: GameService.scanStatus || qsTr("Taranıyor...")
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.textMuted
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -860,7 +860,7 @@ Item {
                                         id: gamesCountLabel
                                         anchors.centerIn: parent
                                         text: qsTr("%1 oyun").arg(GameService.gameCount)
-                                        font.pixelSize: 11
+                                        font.pixelSize: Dimensions.fontXS
                                         font.weight: Font.Medium
                                         color: Theme.primary
                                     }
@@ -877,7 +877,7 @@ Item {
                                         id: patchedLabel
                                         anchors.centerIn: parent
                                         text: qsTr("%1 çevrildi").arg(GameService.patchedGamesCount)
-                                        font.pixelSize: 11
+                                        font.pixelSize: Dimensions.fontXS
                                         font.weight: Font.Medium
                                         color: Theme.success
                                     }
@@ -900,7 +900,7 @@ Item {
                                     Label {
                                         anchors.centerIn: parent
                                         text: "\u21BB"
-                                        font.pixelSize: 13
+                                        font.pixelSize: Dimensions.fontBody
                                         color: rescanMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
                                         Behavior on color { ColorAnimation { duration: 150 } }
                                     }
@@ -1042,20 +1042,20 @@ Item {
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: "\uD83C\uDFAE"
-                                        font.pixelSize: 32
+                                        font.pixelSize: Dimensions.fontBanner
                                     }
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: qsTr("Henüz oyun bulunamadı")
-                                        font.pixelSize: 14
+                                        font.pixelSize: Dimensions.fontMD
                                         color: Theme.textSecondary
                                     }
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: qsTr("Steam, Epic veya GOG kütüphane klasörlerinizi kontrol edin")
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.textMuted
                                     }
                                 }
@@ -1109,7 +1109,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: "\uD83D\uDE80"
-                                    font.pixelSize: 24
+                                    font.pixelSize: Dimensions.headlineLarge
                                 }
                             }
 
@@ -1118,14 +1118,14 @@ Item {
 
                                 Label {
                                     text: qsTr("Projelerimiz")
-                                    font.pixelSize: 24
+                                    font.pixelSize: Dimensions.headlineLarge
                                     font.weight: Font.Bold
                                     color: Theme.textPrimary
                                 }
 
                                 Label {
                                     text: qsTr("Makine Çeviri topluluğunun aktif projeleri")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     color: Theme.textSecondary
                                 }
                             }
@@ -1213,14 +1213,14 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: "\uD83D\uDD0D"
-                                    font.pixelSize: 28
+                                    font.pixelSize: Dimensions.fontHero
                                 }
                             }
 
                             Label {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: qsTr("Oyun Aktif Değil")
-                                font.pixelSize: 18
+                                font.pixelSize: Dimensions.fontTitle
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                             }
@@ -1229,7 +1229,7 @@ Item {
                                 Layout.alignment: Qt.AlignHCenter
                                 Layout.fillWidth: true
                                 text: qsTr("Desteklenen bir oyunu başlattığınızda\notomatik olarak tespit edilecektir.")
-                                font.pixelSize: 13
+                                font.pixelSize: Dimensions.fontBody
                                 color: Theme.textMuted
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
@@ -1248,13 +1248,13 @@ Item {
 
                                     Label {
                                         text: "\uD83C\uDFAE"
-                                        font.pixelSize: 16
+                                        font.pixelSize: Dimensions.fontLG
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
 
                                     Label {
                                         text: qsTr("%1 desteklenen oyun").arg(GameService.gameCount)
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.textMuted
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
@@ -1413,7 +1413,7 @@ Item {
                 Label {
                     Layout.alignment: Qt.AlignHCenter
                     text: gameName.substring(0, 2).toUpperCase()
-                    font.pixelSize: 20
+                    font.pixelSize: Dimensions.fontXL
                     font.weight: Font.Bold
                     color: Theme.textMuted
                 }
@@ -1443,13 +1443,13 @@ Item {
                         visible: gameCardRoot.translated
                         width: 20; height: 14; radius: Dimensions.badgeRadius
                         color: Theme.turkishRed; anchors.verticalCenter: parent.verticalCenter
-                        Label { anchors.centerIn: parent; text: "TR"; font.pixelSize: 8; font.weight: Font.Bold; color: "white" }
+                        Label { anchors.centerIn: parent; text: "TR"; font.pixelSize: Dimensions.fontMicro; font.weight: Font.Bold; color: "white" }
                     }
                     Rectangle {
                         visible: gameCardRoot.verified
                         width: 14; height: 14; radius: 7
                         color: Theme.primary; anchors.verticalCenter: parent.verticalCenter
-                        Label { anchors.centerIn: parent; text: "✓"; font.pixelSize: 9; font.weight: Font.Bold; color: "white" }
+                        Label { anchors.centerIn: parent; text: "✓"; font.pixelSize: Dimensions.fontMini; font.weight: Font.Bold; color: "white" }
                     }
                 }
             }
@@ -1458,12 +1458,12 @@ Item {
                 id: gameNameLabel
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 anchors.margins: 10
-                text: gameName; font.pixelSize: 10; font.weight: Font.DemiBold
+                text: gameName; font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
                 color: "white"; elide: Text.ElideRight
 
                 ToolTip {
                     visible: gameCardRoot.isHovered && gameNameLabel.truncated
-                    delay: 300; text: gameName; font.pixelSize: 12
+                    delay: 300; text: gameName; font.pixelSize: Dimensions.fontSM
                     background: Rectangle { color: Qt.rgba(0.08, 0.08, 0.08, 0.96); radius: Dimensions.radiusStandard; border.color: Qt.rgba(1, 1, 1, 0.12); border.width: 1 }
                 }
             }
@@ -1691,7 +1691,7 @@ Item {
                     Label {
                         anchors.centerIn: parent
                         text: "\uD83C\uDFAE"
-                        font.pixelSize: 22
+                        font.pixelSize: Dimensions.fontHeadline
                     }
                 }
 
@@ -1700,14 +1700,14 @@ Item {
 
                     Label {
                         text: title
-                        font.pixelSize: 18
+                        font.pixelSize: Dimensions.fontTitle
                         font.weight: Font.DemiBold
                         color: "white"
                     }
 
                     Label {
                         text: subtitle
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textMuted
                     }
                 }

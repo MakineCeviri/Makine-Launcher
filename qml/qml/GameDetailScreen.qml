@@ -321,7 +321,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: "\u2190"  // Left arrow
-            font.pixelSize: 20
+            font.pixelSize: Dimensions.fontXL
             color: "white"
         }
 
@@ -361,7 +361,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: "\u2197"  // Arrow upper right
-            font.pixelSize: 18
+            font.pixelSize: Dimensions.fontTitle
             color: "white"
         }
 
@@ -436,7 +436,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: gameName.substring(0, 2).toUpperCase()
-                        font.pixelSize: 32
+                        font.pixelSize: Dimensions.fontBanner
                         font.weight: Font.Bold
                         color: Theme.textMuted
                         visible: root.imageUrl === ""
@@ -465,14 +465,14 @@ Item {
 
                             Text {
                                 text: "\u2713"
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: Theme.primary
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
                             Text {
                                 text: qsTr("Onaylı Türkçe Çeviri")
-                                font.pixelSize: 13
+                                font.pixelSize: Dimensions.fontBody
                                 font.weight: Font.DemiBold
                                 color: Theme.primary
                                 anchors.verticalCenter: parent.verticalCenter
@@ -486,7 +486,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: root.gameName
-                        font.pixelSize: 36
+                        font.pixelSize: Dimensions.displayMedium
                         font.weight: Font.Bold
                         font.letterSpacing: -0.5
                         color: "white"
@@ -522,14 +522,14 @@ Item {
 
                                 Text {
                                     text: "\uD83D\uDECD"  // Storefront
-                                    font.pixelSize: 18
+                                    font.pixelSize: Dimensions.fontTitle
                                     color: "white"
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
                                 Text {
                                     text: qsTr("Steam'de Aç")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
                                     color: "white"
                                     anchors.verticalCenter: parent.verticalCenter
@@ -570,14 +570,14 @@ Item {
 
                                 Text {
                                     text: "\uD83C\uDF10"  // Globe
-                                    font.pixelSize: 18
+                                    font.pixelSize: Dimensions.fontTitle
                                     color: "white"
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
                                 Text {
                                     text: qsTr("Çeviriyi Başlat")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
                                     color: "white"
                                     anchors.verticalCenter: parent.verticalCenter
@@ -621,7 +621,7 @@ Item {
 
                     Text {
                         text: qsTr("Steam bilgileri yükleniyor...")
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         color: Theme.textMuted
                     }
                 }
@@ -635,7 +635,7 @@ Item {
 
                     Text {
                         text: qsTr("Steam bilgileri yüklenemedi")
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         color: Theme.textMuted
                     }
 
@@ -656,7 +656,7 @@ Item {
                             id: retryText
                             anchors.centerIn: parent
                             text: qsTr("Tekrar Dene")
-                            font.pixelSize: 12
+                            font.pixelSize: Dimensions.fontSM
                             font.weight: Font.Medium
                             color: Theme.primary
                         }
@@ -684,7 +684,7 @@ Item {
                     // Section title
                     Text {
                         text: qsTr("Hakkında")
-                        font.pixelSize: 18
+                        font.pixelSize: Dimensions.fontTitle
                         font.weight: Font.DemiBold
                         color: "white"
                     }
@@ -703,7 +703,7 @@ Item {
                             anchors.fill: parent
                             anchors.margins: 20
                             text: root.description
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             color: Theme.textSecondary
                             wrapMode: Text.WordWrap
                             lineHeight: 1.6
@@ -723,7 +723,7 @@ Item {
 
                         Text {
                             text: qsTr("Detaylar")
-                            font.pixelSize: 18
+                            font.pixelSize: Dimensions.fontTitle
                             font.weight: Font.DemiBold
                             color: "white"
                         }
@@ -782,7 +782,7 @@ Item {
 
                         Text {
                             text: qsTr("Değerlendirme")
-                            font.pixelSize: 18
+                            font.pixelSize: Dimensions.fontTitle
                             font.weight: Font.DemiBold
                             color: "white"
                         }
@@ -819,7 +819,7 @@ Item {
                                         Text {
                                             anchors.centerIn: parent
                                             text: root.metacriticScore > 0 ? root.metacriticScore : "--"
-                                            font.pixelSize: 20
+                                            font.pixelSize: Dimensions.fontXL
                                             font.weight: Font.Bold
                                             color: "white"
                                         }
@@ -830,7 +830,7 @@ Item {
 
                                         Text {
                                             text: "Metacritic"
-                                            font.pixelSize: 14
+                                            font.pixelSize: Dimensions.fontMD
                                             font.weight: Font.DemiBold
                                             color: "white"
                                         }
@@ -842,7 +842,7 @@ Item {
                                                 if (root.metacriticScore > 0) return qsTr("Olumsuz")
                                                 return qsTr("Puan yok")
                                             }
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             color: Theme.textMuted
                                         }
                                     }
@@ -854,25 +854,25 @@ Item {
 
                                     Text {
                                         text: qsTr("Platformlar:")
-                                        font.pixelSize: 13
+                                        font.pixelSize: Dimensions.fontBody
                                         color: Theme.textMuted
                                     }
 
                                     Text {
                                         text: "\uD83D\uDDA5"  // Windows
-                                        font.pixelSize: 18
+                                        font.pixelSize: Dimensions.fontTitle
                                         visible: root.hasWindows
                                     }
 
                                     Text {
                                         text: "\uD83C\uDF4E"  // Apple
-                                        font.pixelSize: 18
+                                        font.pixelSize: Dimensions.fontTitle
                                         visible: root.hasMac
                                     }
 
                                     Text {
                                         text: "\uD83D\uDCBB"  // Linux
-                                        font.pixelSize: 18
+                                        font.pixelSize: Dimensions.fontTitle
                                         visible: root.hasLinux
                                     }
                                 }
@@ -893,7 +893,7 @@ Item {
                                             id: discountText
                                             anchors.centerIn: parent
                                             text: "-" + root.discountPercent + "%"
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             font.weight: Font.Bold
                                             color: "white"
                                         }
@@ -901,7 +901,7 @@ Item {
 
                                     Text {
                                         text: root.price === "" ? qsTr("Ücretsiz") : root.price
-                                        font.pixelSize: 16
+                                        font.pixelSize: Dimensions.fontLG
                                         font.weight: Font.Bold
                                         color: root.discountPercent > 0 ? Theme.success : Theme.textPrimary
                                     }
@@ -921,7 +921,7 @@ Item {
 
                 Text {
                     text: qsTr("Çeviri Bilgileri")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
@@ -960,14 +960,14 @@ Item {
 
                                     Text {
                                         text: "\u2728"
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.primary
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
 
                                     Text {
                                         text: root.recipeEngine
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         font.weight: Font.DemiBold
                                         color: Theme.primary
                                         anchors.verticalCenter: parent.verticalCenter
@@ -986,7 +986,7 @@ Item {
                                     id: qualityBadgeText
                                     anchors.centerIn: parent
                                     text: getQualityLabel(root.recipeQuality)
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     font.weight: Font.DemiBold
                                     color: getQualityColor(root.qualityScore)
                                 }
@@ -1017,14 +1017,14 @@ Item {
 
                         Text {
                             text: "\u2139"
-                            font.pixelSize: 18
+                            font.pixelSize: Dimensions.fontTitle
                             color: Theme.textMuted
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
                             text: qsTr("Bu oyun için henüz çeviri reçetesi bulunmuyor.")
-                            font.pixelSize: 13
+                            font.pixelSize: Dimensions.fontBody
                             color: Theme.textMuted
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -1042,7 +1042,7 @@ Item {
 
                 Text {
                     text: qsTr("Yazı Tipi Desteği")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
@@ -1090,7 +1090,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "A"
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Bold
                                     color: {
                                         if (turkishSupportCount === totalFonts) return Theme.success
@@ -1111,7 +1111,7 @@ Item {
                                             return qsTr("Kısmi Türkçe Karakter Desteği")
                                         return qsTr("Türkçe Karakter Desteği Yok")
                                     }
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
                                     color: {
                                         if (turkishSupportCount === totalFonts) return Theme.success
@@ -1122,7 +1122,7 @@ Item {
 
                                 Text {
                                     text: qsTr("%1/%2 yazı tipi Türkçe karakterleri destekliyor").arg(turkishSupportCount).arg(totalFonts)
-                                    font.pixelSize: 11
+                                    font.pixelSize: Dimensions.fontXS
                                     color: Theme.textSecondary
                                 }
                             }
@@ -1140,7 +1140,7 @@ Item {
                                     id: fontCountLabel
                                     anchors.centerIn: parent
                                     text: qsTr("%1 font").arg(totalFonts)
-                                    font.pixelSize: 11
+                                    font.pixelSize: Dimensions.fontXS
                                     font.weight: Font.Medium
                                     color: Theme.textMuted
                                 }
@@ -1154,7 +1154,7 @@ Item {
 
                             Text {
                                 text: qsTr("Eksik karakterler:")
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.textMuted
                             }
 
@@ -1173,7 +1173,7 @@ Item {
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData
-                                        font.pixelSize: 13
+                                        font.pixelSize: Dimensions.fontBody
                                         font.weight: Font.DemiBold
                                         color: Theme.destructive
                                     }
@@ -1192,7 +1192,7 @@ Item {
 
                                 Text {
                                     text: modelData.family || modelData.name || ""
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     color: Theme.textPrimary
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
@@ -1209,14 +1209,14 @@ Item {
                                         id: fmtLabel
                                         anchors.centerIn: parent
                                         text: modelData.format || ""
-                                        font.pixelSize: 9
+                                        font.pixelSize: Dimensions.fontMini
                                         color: Theme.textMuted
                                     }
                                 }
 
                                 Text {
                                     text: modelData.turkishSupport ? "\u2713" : "\u2717"
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     color: modelData.turkishSupport ? Theme.success : Theme.destructive
                                 }
                             }
@@ -1226,7 +1226,7 @@ Item {
                         Text {
                             visible: fontsList.length > 3
                             text: qsTr("+%1 daha fazla yazı tipi").arg(fontsList.length - 3)
-                            font.pixelSize: 11
+                            font.pixelSize: Dimensions.fontXS
                             color: Theme.textMuted
                         }
                     }
@@ -1243,7 +1243,7 @@ Item {
 
                 Text {
                     text: qsTr("Uyumluluk Durumu")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
@@ -1298,7 +1298,7 @@ Item {
                                         if (compatibilityLevel === "incompatible") return "\u2717"
                                         return "?"
                                     }
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Bold
                                     color: {
                                         if (compatibilityLevel === "compatible") return Theme.success
@@ -1319,7 +1319,7 @@ Item {
                                         if (compatibilityLevel === "incompatible") return qsTr("Uyumsuz")
                                         return qsTr("Bilinmiyor")
                                     }
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
                                     color: {
                                         if (compatibilityLevel === "compatible") return Theme.success
@@ -1331,7 +1331,7 @@ Item {
 
                                 Text {
                                     text: compatibilitySummary
-                                    font.pixelSize: 11
+                                    font.pixelSize: Dimensions.fontXS
                                     color: Theme.textSecondary
                                     visible: compatibilitySummary !== ""
                                 }
@@ -1342,7 +1342,7 @@ Item {
                             // Integrity percentage
                             Text {
                                 text: integrityPercent + "%"
-                                font.pixelSize: 20
+                                font.pixelSize: Dimensions.fontXL
                                 font.weight: Font.Bold
                                 color: {
                                     if (integrityPercent >= 95) return Theme.success
@@ -1379,19 +1379,19 @@ Item {
                             Text {
                                 visible: modifiedCount > 0
                                 text: qsTr("%1 değiştirilmiş").arg(modifiedCount)
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.warning
                             }
                             Text {
                                 visible: addedCount > 0
                                 text: qsTr("%1 yeni dosya").arg(addedCount)
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.primary
                             }
                             Text {
                                 visible: removedCount > 0
                                 text: qsTr("%1 silinen dosya").arg(removedCount)
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.destructive
                             }
                         }
@@ -1409,7 +1409,7 @@ Item {
 
                 Text {
                     text: qsTr("Çeviri Çalışma Ortamı")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
@@ -1455,7 +1455,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: runtimeInstalled ? "\u2713" : "\u2193"
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Bold
                                     color: {
                                         if (runtimeInstalled && runtimeUpToDate) return Theme.success
@@ -1474,7 +1474,7 @@ Item {
                                         if (runtimeInstalled) return qsTr("BepInEx Güncellenmeli")
                                         return qsTr("BepInEx Gerekli")
                                     }
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
                                     color: {
                                         if (runtimeInstalled && runtimeUpToDate) return Theme.success
@@ -1485,7 +1485,7 @@ Item {
 
                                 Text {
                                     text: qsTr("Unity çevirileri için BepInEx + XUnity.AutoTranslator gereklidir")
-                                    font.pixelSize: 11
+                                    font.pixelSize: Dimensions.fontXS
                                     color: Theme.textMuted
                                     visible: !runtimeInstalled
                                 }
@@ -1497,7 +1497,7 @@ Item {
                                         if (xunityVersion) parts.push("XUnity " + xunityVersion)
                                         return parts.join("  •  ")
                                     }
-                                    font.pixelSize: 11
+                                    font.pixelSize: Dimensions.fontXS
                                     color: Theme.textSecondary
                                     visible: runtimeInstalled && (bepinexVersion || xunityVersion)
                                 }
@@ -1517,7 +1517,7 @@ Item {
                                     id: backendLabel
                                     anchors.centerIn: parent
                                     text: unityBackend === "il2cpp" ? "IL2CPP" : "Mono"
-                                    font.pixelSize: 10
+                                    font.pixelSize: Dimensions.fontCaption
                                     font.weight: Font.Medium
                                     color: Theme.textSecondary
                                 }
@@ -1544,14 +1544,14 @@ Item {
 
                                 Text {
                                     text: "\u26A0"
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     color: Theme.destructive
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
                                     text: qsTr("Bu oyun %1 anti-cheat kullanıyor. BepInEx kurulumu online özelliklerle çakışabilir.").arg(antiCheatName || "Anti-Cheat")
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     color: Theme.destructive
                                     wrapMode: Text.WordWrap
                                     lineHeight: 1.3
@@ -1587,7 +1587,7 @@ Item {
                                         if (runtimeInstalled) return qsTr("Güncelle")
                                         return qsTr("BepInEx Kur")
                                     }
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     font.weight: Font.DemiBold
                                     color: Theme.primary
                                 }
@@ -1627,7 +1627,7 @@ Item {
                                     id: uninstallBtnText
                                     anchors.centerIn: parent
                                     text: qsTr("Kaldır")
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     font.weight: Font.Medium
                                     color: Theme.textSecondary
                                 }
@@ -1677,7 +1677,7 @@ Item {
 
                 Text {
                     text: qsTr("Yedekleme Yönetimi")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
@@ -1700,7 +1700,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             text: qsTr("Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir.")
-                            font.pixelSize: 13
+                            font.pixelSize: Dimensions.fontBody
                             color: Theme.textMuted
                             wrapMode: Text.WordWrap
                         }
@@ -1719,7 +1719,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 text: BackupManager.restoreStatus
-                                font.pixelSize: 13
+                                font.pixelSize: Dimensions.fontBody
                                 color: Theme.primary
                                 elide: Text.ElideRight
                             }
@@ -1757,7 +1757,7 @@ Item {
                                                 id: latestBadgeText
                                                 anchors.centerIn: parent
                                                 text: qsTr("Son Yedek")
-                                                font.pixelSize: 11
+                                                font.pixelSize: Dimensions.fontXS
                                                 font.weight: Font.DemiBold
                                                 color: Theme.success
                                             }
@@ -1765,7 +1765,7 @@ Item {
 
                                         Text {
                                             text: backupSection.latestBackup.date || ""
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             color: Theme.textMuted
                                         }
                                     }
@@ -1775,14 +1775,14 @@ Item {
 
                                         Text {
                                             text: (backupSection.latestBackup.sizeFormatted || "0 B")
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             color: Theme.textSecondary
                                         }
 
                                         Text {
                                             property int fc: backupSection.latestBackup.fileCount || 0
                                             text: qsTr("%1 dosya").arg(fc)
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             color: Theme.textSecondary
                                             visible: fc > 0
                                         }
@@ -1790,7 +1790,7 @@ Item {
                                         Text {
                                             property int bc: backupSection.gameBackups.length
                                             text: qsTr("%1 yedek mevcut").arg(bc)
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             color: Theme.textMuted
                                         }
                                     }
@@ -1826,14 +1826,14 @@ Item {
 
                                         Text {
                                             text: "\u21BA"
-                                            font.pixelSize: 16
+                                            font.pixelSize: Dimensions.fontLG
                                             color: Theme.warning
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
 
                                         Text {
                                             text: qsTr("Orijinale Dön")
-                                            font.pixelSize: 13
+                                            font.pixelSize: Dimensions.fontBody
                                             font.weight: Font.Medium
                                             color: Theme.warning
                                             anchors.verticalCenter: parent.verticalCenter
@@ -1878,14 +1878,14 @@ Item {
 
                                         Text {
                                             text: "\uD83D\uDDD1"
-                                            font.pixelSize: 14
+                                            font.pixelSize: Dimensions.fontMD
                                             color: Theme.textMuted
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
 
                                         Text {
                                             text: qsTr("Yedekleri Sil")
-                                            font.pixelSize: 13
+                                            font.pixelSize: Dimensions.fontBody
                                             font.weight: Font.Medium
                                             color: Theme.textMuted
                                             anchors.verticalCenter: parent.verticalCenter
@@ -1915,7 +1915,7 @@ Item {
 
                             Text {
                                 text: "\u2139"
-                                font.pixelSize: 16
+                                font.pixelSize: Dimensions.fontLG
                                 color: Theme.textMuted
                                 Layout.alignment: Qt.AlignTop
                             }
@@ -1923,7 +1923,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 text: qsTr("Bu oyun için henüz yedek bulunmuyor. Çeviri uygulandığında otomatik olarak oluşturulacak.")
-                                font.pixelSize: 13
+                                font.pixelSize: Dimensions.fontBody
                                 color: Theme.textMuted
                                 wrapMode: Text.WordWrap
                             }
@@ -1942,7 +1942,7 @@ Item {
 
                 Text {
                     text: qsTr("Ekran Görüntüleri")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: "white"
                 }
@@ -2002,14 +2002,14 @@ Item {
             Text {
                 Layout.preferredWidth: 100
                 text: label
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
             }
 
             Text {
                 Layout.fillWidth: true
                 text: value
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 font.weight: Font.Medium
                 color: Theme.textPrimary
                 wrapMode: Text.WordWrap

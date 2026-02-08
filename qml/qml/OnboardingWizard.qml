@@ -87,7 +87,7 @@ Rectangle {
                 visible: !root.isLastStep
                 text: qsTr("Atla")
                 flat: true
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 contentItem: Text {
                     text: parent.text
                     font: parent.font
@@ -134,7 +134,7 @@ Rectangle {
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("MakineAI'a Hoş Geldin")
-                    font.pixelSize: 28
+                    font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
@@ -142,7 +142,7 @@ Rectangle {
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("Oyunlarını Türkçe oynamanın en kolay yolu")
-                    font.pixelSize: 15
+                    font.pixelSize: Dimensions.fontSubtitle
                     color: Theme.textSecondary
                 }
 
@@ -183,14 +183,14 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     text: "\uE8F1"
                     font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 48
+                    font.pixelSize: Dimensions.displayLarge
                     color: Theme.primary
                 }
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("Oyun Kütüphaneni Tarayalım")
-                    font.pixelSize: 24
+                    font.pixelSize: Dimensions.headlineLarge
                     font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
@@ -199,7 +199,7 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.maximumWidth: 420
                     text: qsTr("Bilgisayarındaki oyun kütüphanelerini otomatik olarak tarayıp\nçevirisi mevcut oyunları bulacağız.")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     color: Theme.textSecondary
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -241,7 +241,7 @@ Rectangle {
                     Layout.preferredHeight: 42
                     text: root.isScanning ? qsTr("Taranıyor...") : qsTr("Taramayı Başlat")
                     enabled: !root.isScanning
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.DemiBold
 
                     contentItem: RowLayout {
@@ -255,7 +255,7 @@ Rectangle {
                         }
                         Text {
                             text: root.isScanning ? qsTr("Taranıyor...") : qsTr("Taramayı Başlat")
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             font.weight: Font.DemiBold
                             color: "white"
                         }
@@ -292,7 +292,7 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     text: root.foundGames > 0 ? "\uE930" : "\uE783"
                     font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 48
+                    font.pixelSize: Dimensions.displayLarge
                     color: root.foundGames > 0 ? Theme.success : Theme.textMuted
                 }
 
@@ -301,7 +301,7 @@ Rectangle {
                     text: root.foundGames > 0
                           ? qsTr("%1 Oyun Bulundu!").arg(root.foundGames)
                           : qsTr("Henüz Oyun Bulunamadı")
-                    font.pixelSize: 24
+                    font.pixelSize: Dimensions.headlineLarge
                     font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
@@ -312,7 +312,7 @@ Rectangle {
                     text: root.foundGames > 0
                           ? qsTr("Oyun kütüphanen başarıyla tarandı.\nAna ekrandan çevirisi olan oyunları görebilirsin.")
                           : qsTr("Endişelenme! Ana ekrandan manuel olarak\noyun klasörü ekleyebilirsin.")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     color: Theme.textSecondary
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -337,14 +337,14 @@ Rectangle {
                             spacing: 2
                             Text {
                                 text: root.foundGames.toString()
-                                font.pixelSize: 22
+                                font.pixelSize: Dimensions.fontHeadline
                                 font.weight: Font.Bold
                                 color: Theme.primary
                                 anchors.horizontalCenter: parent.horizontalCenter
                             }
                             Text {
                                 text: qsTr("Toplam Oyun")
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.textMuted
                                 anchors.horizontalCenter: parent.horizontalCenter
                             }
@@ -360,14 +360,14 @@ Rectangle {
                             spacing: 2
                             Text {
                                 text: GameService.gameCount.toString()
-                                font.pixelSize: 22
+                                font.pixelSize: Dimensions.fontHeadline
                                 font.weight: Font.Bold
                                 color: Theme.success
                                 anchors.horizontalCenter: parent.horizontalCenter
                             }
                             Text {
                                 text: qsTr("Kütüphanede")
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.textMuted
                                 anchors.horizontalCenter: parent.horizontalCenter
                             }
@@ -388,14 +388,14 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     text: "\uE713"
                     font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 48
+                    font.pixelSize: Dimensions.displayLarge
                     color: Theme.primary
                 }
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("Hızlı Ayarlar")
-                    font.pixelSize: 24
+                    font.pixelSize: Dimensions.headlineLarge
                     font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
@@ -403,7 +403,7 @@ Rectangle {
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("Temel tercihlerini ayarla — sonra istediğin zaman değiştirebilirsin")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     color: Theme.textSecondary
                 }
 
@@ -463,14 +463,14 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     text: "\uE930"
                     font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 56
+                    font.pixelSize: Dimensions.displayXL
                     color: Theme.success
                 }
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("Her Şey Hazır!")
-                    font.pixelSize: 28
+                    font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
@@ -479,7 +479,7 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.maximumWidth: 420
                     text: qsTr("MakineAI kullanıma hazır.\nAna ekrandan bir oyun seç ve Türkçe çevirisini yükle!")
-                    font.pixelSize: 15
+                    font.pixelSize: Dimensions.fontSubtitle
                     color: Theme.textSecondary
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -491,7 +491,7 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: 220
                     Layout.preferredHeight: 46
-                    font.pixelSize: 15
+                    font.pixelSize: Dimensions.fontSubtitle
                     font.weight: Font.DemiBold
 
                     contentItem: Text {
@@ -535,7 +535,7 @@ Rectangle {
                 visible: !root.isFirstStep && !root.isLastStep
                 text: qsTr("Geri")
                 flat: true
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 contentItem: Text {
                     text: parent.text
                     font: parent.font
@@ -584,7 +584,7 @@ Rectangle {
             Button {
                 visible: !root.isLastStep
                 text: qsTr("Devam")
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 font.weight: Font.DemiBold
 
                 contentItem: Text {
@@ -634,7 +634,7 @@ Rectangle {
                 anchors.centerIn: parent
                 text: parent.parent.icon
                 font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 18
+                font.pixelSize: Dimensions.fontTitle
                 color: Theme.primary
             }
         }
@@ -645,14 +645,14 @@ Rectangle {
 
             Text {
                 text: parent.parent.title
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
             Text {
                 Layout.fillWidth: true
                 text: parent.parent.description
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
             }
@@ -675,13 +675,13 @@ Rectangle {
         Text {
             text: parent.platformIcon
             font.family: "Segoe MDL2 Assets"
-            font.pixelSize: 16
+            font.pixelSize: Dimensions.fontLG
             color: Theme.textSecondary
         }
 
         Text {
             text: parent.platformName
-            font.pixelSize: 14
+            font.pixelSize: Dimensions.fontMD
             color: Theme.textPrimary
         }
     }
@@ -703,14 +703,14 @@ Rectangle {
 
             Text {
                 text: parent.parent.title
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
             Text {
                 Layout.fillWidth: true
                 text: parent.parent.description
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 color: Theme.textMuted
                 wrapMode: Text.WordWrap
             }

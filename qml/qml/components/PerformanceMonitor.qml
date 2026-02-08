@@ -170,7 +170,7 @@ Rectangle {
 
             Text {
                 text: Math.round(root.currentFps) + " FPS"
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Bold
                 font.family: "Consolas"
                 color: root.fpsColor
@@ -181,7 +181,7 @@ Rectangle {
             // Collapse indicator
             Text {
                 text: root.showDetails ? "▼" : "▶"
-                font.pixelSize: 10
+                font.pixelSize: Dimensions.fontCaption
                 color: Theme.textMuted
             }
         }
@@ -239,7 +239,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: qsTr("Click: toggle • Dbl: reset")
-                font.pixelSize: 9
+                font.pixelSize: Dimensions.fontMini
                 color: Theme.textMuted
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -257,7 +257,7 @@ Rectangle {
 
         Text {
             text: label
-            font.pixelSize: 10
+            font.pixelSize: Dimensions.fontCaption
             font.family: "Consolas"
             color: Theme.textMuted
         }
@@ -266,7 +266,7 @@ Rectangle {
 
         Text {
             text: value
-            font.pixelSize: 10
+            font.pixelSize: Dimensions.fontCaption
             font.family: "Consolas"
             font.weight: Font.Medium
             color: valueColor

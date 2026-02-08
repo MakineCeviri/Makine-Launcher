@@ -27,14 +27,14 @@ Rectangle {
 
             Label {
                 text: root.title
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium
                 color: Theme.textPrimary
             }
 
             Label {
                 text: root.description
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
             }
         }
@@ -50,7 +50,7 @@ Rectangle {
                 id: badgeText
                 anchors.centerIn: parent
                 text: root.badgeText
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 font.weight: Font.DemiBold
                 color: Theme.primary
             }

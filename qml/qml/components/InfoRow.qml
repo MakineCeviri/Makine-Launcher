@@ -18,7 +18,7 @@ RowLayout {
 
     Text {
         text: root.label
-        font.pixelSize: 13
+        font.pixelSize: Dimensions.fontBody
         color: root.labelColor
     }
 
@@ -26,7 +26,7 @@ RowLayout {
 
     Text {
         text: root.value
-        font.pixelSize: 13
+        font.pixelSize: Dimensions.fontBody
         font.weight: Font.Medium
         color: root.valueColor
         horizontalAlignment: Text.AlignRight

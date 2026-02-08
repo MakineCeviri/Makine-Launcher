@@ -74,7 +74,7 @@ Item {
                 Label {
                     anchors.centerIn: parent
                     text: root.icon
-                    font.pixelSize: 20
+                    font.pixelSize: Dimensions.fontXL
                     color: root.isDestructive ? Theme.error : Theme.textMuted
                     visible: root.icon !== "" && root.iconSource === ""
                 }
@@ -97,14 +97,14 @@ Item {
 
                 Label {
                     text: root.title
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: root.isDestructive ? Theme.error : Theme.textPrimary
                 }
 
                 Label {
                     text: root.subtitle
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
                     visible: root.subtitle !== ""
                 }

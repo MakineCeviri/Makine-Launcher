@@ -206,7 +206,7 @@ Popup {
                     Text {
                         anchors.centerIn: parent
                         text: "🎮"
-                        font.pixelSize: 18
+                        font.pixelSize: Dimensions.fontTitle
                     }
                 }
 
@@ -216,14 +216,14 @@ Popup {
 
                     Text {
                         text: qsTr("Oyun Kütüphanesi")
-                        font.pixelSize: 16
+                        font.pixelSize: Dimensions.fontLG
                         font.weight: Font.DemiBold
                         color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
                     }
 
                     Text {
                         text: root.isScanning ? root.statusMessage : qsTr("%1 oyun bulundu").arg(root.installedGames.length)
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                     }
                 }
@@ -247,7 +247,7 @@ Popup {
                     Text {
                         anchors.centerIn: parent
                         text: "✕"
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                     }
 
@@ -353,7 +353,7 @@ Popup {
                     Text {
                         anchors.centerIn: parent
                         text: Math.round(root.progress * 100) + "%"
-                        font.pixelSize: 18
+                        font.pixelSize: Dimensions.fontTitle
                         font.weight: Font.DemiBold
                         color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
                     }
@@ -362,7 +362,7 @@ Popup {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: root.statusMessage
-                    font.pixelSize: 16
+                    font.pixelSize: Dimensions.fontLG
                     font.weight: Font.Medium
                     color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
                 }
@@ -370,7 +370,7 @@ Popup {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: qsTr("Bu işlem birkaç saniye sürebilir")
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                 }
             }
@@ -399,14 +399,14 @@ Popup {
 
                         Text {
                             text: "\u26A0"
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             color: Theme.error
                         }
 
                         Text {
                             Layout.fillWidth: true
                             text: root.errorMessage
-                            font.pixelSize: 12
+                            font.pixelSize: Dimensions.fontSM
                             color: Theme.error
                             wrapMode: Text.WordWrap
                         }
@@ -428,7 +428,7 @@ Popup {
                                 id: retryErrText
                                 anchors.centerIn: parent
                                 text: qsTr("Tekrar Dene")
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 font.weight: Font.Medium
                                 color: Theme.error
                             }
@@ -471,7 +471,7 @@ Popup {
 
                                 Text {
                                     text: "🔍"
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                 }
 
                                 TextInput {
@@ -480,7 +480,7 @@ Popup {
                                     Layout.fillHeight: true
                                     verticalAlignment: TextInput.AlignVCenter
                                     color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
-                                    font.pixelSize: 13
+                                    font.pixelSize: Dimensions.fontBody
                                     clip: true
                                     Accessible.role: Accessible.EditableText
                                     Accessible.name: qsTr("Search games")
@@ -489,7 +489,7 @@ Popup {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: qsTr("Oyun ara...")
-                                        font.pixelSize: 13
+                                        font.pixelSize: Dimensions.fontBody
                                         color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                                         visible: searchInput.text.length === 0
                                     }
@@ -518,7 +518,7 @@ Popup {
                             Text {
                                 anchors.centerIn: parent
                                 text: "➕"
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                             }
 
                             // Focus indicator
@@ -568,7 +568,7 @@ Popup {
                             Text {
                                 anchors.centerIn: parent
                                 text: "🔄"
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                             }
 
                             // Focus indicator
@@ -678,7 +678,7 @@ Popup {
                                         if (src === "gog") return "☁"
                                         return "📁"
                                     }
-                                    font.pixelSize: 18
+                                    font.pixelSize: Dimensions.fontTitle
                                     visible: gameThumbImage.status !== Image.Ready
                                 }
                             }
@@ -690,7 +690,7 @@ Popup {
 
                                 Text {
                                     text: modelData.name || qsTr("Unknown")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Medium
                                     color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
                                     elide: Text.ElideRight
@@ -699,7 +699,7 @@ Popup {
 
                                 Text {
                                     text: modelData.source === "steam" ? "App ID: " + modelData.appId : (modelData.installPath || "")
-                                    font.pixelSize: 11
+                                    font.pixelSize: Dimensions.fontXS
                                     color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                                     elide: Text.ElideMiddle
                                     width: parent.width
@@ -731,7 +731,7 @@ Popup {
                                         if (src === "manual") return "Manuel"
                                         return qsTr("Diğer")
                                     }
-                                    font.pixelSize: 9
+                                    font.pixelSize: Dimensions.fontMini
                                     font.weight: Font.DemiBold
                                     color: "white"
                                 }
@@ -741,7 +741,7 @@ Popup {
                             Text {
                                 visible: root.selectedGame && root.selectedGame.id === modelData.id
                                 text: "✓"
-                                font.pixelSize: 16
+                                font.pixelSize: Dimensions.fontLG
                                 color: Theme.primary
                             }
                         }
@@ -779,14 +779,14 @@ Popup {
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: "🔍"
-                                font.pixelSize: 40
+                                font.pixelSize: Dimensions.displaySmall
                                 opacity: 0.5
                             }
 
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: root.searchQuery.length > 0 ? qsTr("Sonuç bulunamadı") : qsTr("Yüklü oyun bulunamadı")
-                                font.pixelSize: 16
+                                font.pixelSize: Dimensions.fontLG
                                 color: root.isDark ? Theme.textSecondary : Theme.lightTextSecondary
                             }
                         }
@@ -829,7 +829,7 @@ Popup {
 
                         Text {
                             text: root.selectedGame ? root.selectedGame.name : ""
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             font.weight: Font.DemiBold
                             color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
                             elide: Text.ElideRight
@@ -855,7 +855,7 @@ Popup {
                                     if (src === "manual") return "Manuel"
                                     return qsTr("Diğer")
                                 }
-                                font.pixelSize: 9
+                                font.pixelSize: Dimensions.fontMini
                                 font.weight: Font.DemiBold
                                 color: "white"
                             }
@@ -866,7 +866,7 @@ Popup {
                         text: root.selectedGame && root.selectedGame.isVerified
                             ? qsTr("Onaylı çeviri reçetesi mevcut")
                             : qsTr("Deneysel çeviri modu kullanılacak")
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         color: root.selectedGame && root.selectedGame.isVerified ? Theme.success : Theme.warning
                     }
                 }
@@ -893,13 +893,13 @@ Popup {
 
                         Text {
                             text: "🌐"
-                            font.pixelSize: 16
+                            font.pixelSize: Dimensions.fontLG
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
                             text: qsTr("Çeviriyi Başlat")
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             font.weight: Font.DemiBold
                             color: "white"
                             anchors.verticalCenter: parent.verticalCenter

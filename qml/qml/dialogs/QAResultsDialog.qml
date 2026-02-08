@@ -114,7 +114,7 @@ Dialog {
                 Text {
                     anchors.centerIn: parent
                     text: root.score
-                    font.pixelSize: 22
+                    font.pixelSize: Dimensions.fontHeadline
                     font.weight: Font.Bold
                     color: scoreColor
                 }
@@ -125,7 +125,7 @@ Dialog {
 
                 Text {
                     text: root.passed ? qsTr("Kalite Kontrolü Geçti") : qsTr("Kalite Kontrolü Başarısız")
-                    font.pixelSize: 18
+                    font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
                     color: root.passed ? colorSuccess : colorCritical
                 }
@@ -136,7 +136,7 @@ Dialog {
                             ? qsTr("%1/%2 sorun gösteriliyor").arg(root.filteredIssues.length).arg(root.issues.length)
                             : qsTr("%1 sorun tespit edildi").arg(root.issues.length))
                         : qsTr("Sorun tespit edilmedi")
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
                 }
 
@@ -161,7 +161,7 @@ Dialog {
                             id: allBadgeText
                             anchors.centerIn: parent
                             text: qsTr("Tümü")
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             font.weight: Font.Medium
                             color: Theme.primary
                         }
@@ -206,7 +206,7 @@ Dialog {
                             id: criticalBadgeText
                             anchors.centerIn: parent
                             text: qsTr("%1 Kritik").arg(criticalCount)
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             font.weight: Font.Medium
                             color: colorCritical
                         }
@@ -251,7 +251,7 @@ Dialog {
                             id: majorBadgeText
                             anchors.centerIn: parent
                             text: qsTr("%1 Önemli").arg(majorCount)
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             font.weight: Font.Medium
                             color: colorMajor
                         }
@@ -296,7 +296,7 @@ Dialog {
                             id: warningBadgeText
                             anchors.centerIn: parent
                             text: qsTr("%1 Uyarı").arg(warningCount)
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             font.weight: Font.Medium
                             color: colorWarning
                         }
@@ -344,7 +344,7 @@ Dialog {
                 Text {
                     anchors.centerIn: parent
                     text: "\u00D7"
-                    font.pixelSize: 20
+                    font.pixelSize: Dimensions.fontXL
                     color: Theme.textMuted
                 }
 
@@ -400,13 +400,13 @@ Dialog {
 
                 Text {
                     text: "\u2713"
-                    font.pixelSize: 24
+                    font.pixelSize: Dimensions.headlineLarge
                     color: colorSuccess
                 }
 
                 Text {
                     text: qsTr("Harika! Hiçbir sorun tespit edilmedi.")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: colorSuccess
                 }
@@ -441,7 +441,7 @@ Dialog {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "\u2714"
-                    font.pixelSize: 32
+                    font.pixelSize: Dimensions.fontBanner
                     color: Theme.success
                 }
 
@@ -450,7 +450,7 @@ Dialog {
                     text: root.activeSeverityFilter === 0
                         ? qsTr("Sorun bulunamadı")
                         : qsTr("Bu filtre için sorun yok")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: Theme.textSecondary
                 }
@@ -503,7 +503,7 @@ Dialog {
                                 Text {
                                     anchors.centerIn: parent
                                     text: getSeverityIcon(modelData.severity)
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     color: getSeverityColor(modelData.severity)
                                 }
                             }
@@ -514,7 +514,7 @@ Dialog {
 
                                 Text {
                                     text: modelData.message
-                                    font.pixelSize: 13
+                                    font.pixelSize: Dimensions.fontBody
                                     font.weight: Font.Medium
                                     color: Theme.textPrimary
                                     elide: Text.ElideRight
@@ -537,7 +537,7 @@ Dialog {
                                             id: severityText
                                             anchors.centerIn: parent
                                             text: getSeverityLabel(modelData.severity)
-                                            font.pixelSize: 9
+                                            font.pixelSize: Dimensions.fontMini
                                             font.weight: Font.Medium
                                             color: getSeverityColor(modelData.severity)
                                         }
@@ -546,7 +546,7 @@ Dialog {
                                     // Penalty points
                                     Text {
                                         text: qsTr("-%1 puan").arg(modelData.penaltyPoints)
-                                        font.pixelSize: 11
+                                        font.pixelSize: Dimensions.fontXS
                                         color: Theme.textMuted
                                         visible: modelData.penaltyPoints > 0
                                     }
@@ -563,7 +563,7 @@ Dialog {
                                 Text {
                                     anchors.centerIn: parent
                                     text: issueItem.expanded ? "\u25B2" : "\u25BC"  // Up/Down arrow
-                                    font.pixelSize: 10
+                                    font.pixelSize: Dimensions.fontCaption
                                     color: Theme.textMuted
                                     rotation: issueItem.expanded ? 0 : 0
                                 }
@@ -588,7 +588,7 @@ Dialog {
                                 text: qsTr("Kod: %1").arg(modelData.code) + "\n" +
                                       qsTr("Açıklama: %1").arg(modelData.message) + "\n" +
                                       qsTr("Ceza Puanı: -%1").arg(modelData.penaltyPoints)
-                                font.pixelSize: 12
+                                font.pixelSize: Dimensions.fontSM
                                 color: Theme.textSecondary
                                 wrapMode: Text.WordWrap
                             }
@@ -652,7 +652,7 @@ Dialog {
 
                     Text {
                         text: qsTr("Yoksay ve Devam")
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
                         color: Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
@@ -705,14 +705,14 @@ Dialog {
 
                     Text {
                         text: root.issues.length > 0 ? "\uD83D\uDD27" : "\u2713"  // Wrench or checkmark
-                        font.pixelSize: 16
+                        font.pixelSize: Dimensions.fontLG
                         color: "white"
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
                     Text {
                         text: root.issues.length > 0 ? qsTr("Düzelt") : qsTr("Tamam")
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         font.weight: Font.DemiBold
                         color: "white"
                         anchors.verticalCenter: parent.verticalCenter

@@ -56,7 +56,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: root.iconText
-            font.pixelSize: 16
+            font.pixelSize: Dimensions.fontLG
             font.family: "Segoe MDL2 Assets"  // Windows icon font
 
             color: {

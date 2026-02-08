@@ -67,7 +67,7 @@ Popup {
 
                 Text {
                     text: qsTr("Bildirimler")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
                 }
@@ -94,7 +94,7 @@ Popup {
                         id: markAllText
                         anchors.centerIn: parent
                         text: qsTr("Tümünü oku")
-                        font.pixelSize: 11
+                        font.pixelSize: Dimensions.fontXS
                         font.weight: Font.Medium
                         color: Theme.primary
                     }
@@ -195,7 +195,7 @@ Popup {
 
                             Text {
                                 anchors.centerIn: parent
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 text: {
                                     switch(delegateRoot.type) {
                                         case "update": return "\u2B06" // up arrow
@@ -221,7 +221,7 @@ Popup {
                                 Text {
                                     Layout.fillWidth: true
                                     text: delegateRoot.title
-                                    font.pixelSize: 12
+                                    font.pixelSize: Dimensions.fontSM
                                     font.weight: delegateRoot.read ? Font.Normal : Font.DemiBold
                                     color: delegateRoot.read ? Theme.textSecondary : Theme.textPrimary
                                     elide: Text.ElideRight
@@ -242,7 +242,7 @@ Popup {
                             Text {
                                 Layout.fillWidth: true
                                 text: delegateRoot.message
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 color: Theme.textMuted
                                 wrapMode: Text.WordWrap
                                 maximumLineCount: 2
@@ -251,7 +251,7 @@ Popup {
 
                             Text {
                                 text: delegateRoot.time
-                                font.pixelSize: 10
+                                font.pixelSize: Dimensions.fontCaption
                                 color: Theme.textMuted
                                 opacity: 0.7
                             }
@@ -291,14 +291,14 @@ Popup {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: "\uD83D\uDD14" // bell emoji
-                            font.pixelSize: 28
+                            font.pixelSize: Dimensions.fontHero
                             opacity: 0.5
                         }
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: qsTr("Bildirim yok")
-                            font.pixelSize: 13
+                            font.pixelSize: Dimensions.fontBody
                             font.weight: Font.Medium
                             color: Theme.textSecondary
                         }
@@ -306,7 +306,7 @@ Popup {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: qsTr("Yeni çeviriler ve güncellemeler burada görünecek")
-                            font.pixelSize: 11
+                            font.pixelSize: Dimensions.fontXS
                             color: Theme.textMuted
                         }
                     }
@@ -337,7 +337,7 @@ Popup {
             Text {
                 anchors.centerIn: parent
                 text: qsTr("Tümünü temizle")
-                font.pixelSize: 11
+                font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
                 color: clearMouse.containsMouse ? Theme.error : Theme.textMuted
                 opacity: clearMouse.containsMouse ? 1.0 : 0.7

@@ -122,7 +122,7 @@ ColumnLayout {
             anchors.fill: parent
             anchors.margins: 16
             text: root.devStatus
-            font.pixelSize: 12
+            font.pixelSize: Dimensions.fontSM
             font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"
             color: Qt.rgba(1, 1, 1, 0.7)
             readOnly: true

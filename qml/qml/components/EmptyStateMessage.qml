@@ -35,13 +35,13 @@ Rectangle {
 
             Label {
                 text: root.title
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 color: Theme.textMuted
             }
 
             Label {
                 text: root.description
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 color: Theme.textMuted
                 visible: root.description !== ""
             }

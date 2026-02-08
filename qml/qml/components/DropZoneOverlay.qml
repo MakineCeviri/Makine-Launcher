@@ -109,7 +109,7 @@ Item {
 
                 Text {
                     anchors.centerIn: parent
-                    font.pixelSize: 28
+                    font.pixelSize: Dimensions.fontHero
                     text: {
                         switch(root.dropType) {
                             case "package": return "\uD83D\uDCE6" // package
@@ -139,7 +139,7 @@ Item {
                         default: return qsTr("Dosyayı Buraya Bırakın")
                     }
                 }
-                font.pixelSize: 18
+                font.pixelSize: Dimensions.fontTitle
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
@@ -157,7 +157,7 @@ Item {
                         default: return qsTr("Çeviri paketi, arşiv veya\noyun klasörünü sürükleyin.")
                     }
                 }
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
                 lineHeight: 1.3
@@ -183,7 +183,7 @@ Item {
                             id: formatText
                             anchors.centerIn: parent
                             text: modelData
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             font.weight: Font.Medium
                             font.family: "monospace"
                             color: Theme.primary

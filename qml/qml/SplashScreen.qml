@@ -304,7 +304,7 @@ Item {
                 anchors.top: logoImage.bottom
                 anchors.topMargin: 12
                 text: "MakineAI"
-                font.pixelSize: 36
+                font.pixelSize: Dimensions.displayMedium
                 font.weight: Font.Bold
                 font.letterSpacing: -0.5
                 color: Theme.splashGold
@@ -334,13 +334,13 @@ Item {
 
                     Text {
                         text: "✨"
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
                     Text {
                         text: qsTr("Türkçe Yama")
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.3
                         color: Theme.splashGold
@@ -419,7 +419,7 @@ Item {
                 anchors.top: progressTrack.bottom
                 anchors.topMargin: 14
                 text: root.statusText
-                font.pixelSize: 11
+                font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
                 font.letterSpacing: 1.5
                 color: Qt.rgba(1, 1, 1, 0.35)
@@ -467,7 +467,7 @@ Item {
                 id: versionText
                 anchors.centerIn: parent
                 text: Dimensions.appVersionFull
-                font.pixelSize: 10
+                font.pixelSize: Dimensions.fontCaption
                 font.weight: Font.Medium
                 color: Qt.rgba(1, 1, 1, 0.45)
             }
@@ -478,7 +478,7 @@ Item {
             anchors.top: versionBadge.bottom
             anchors.topMargin: 6
             text: qsTr("Makine Çeviri Topluluğu")
-            font.pixelSize: 10
+            font.pixelSize: Dimensions.fontCaption
             font.letterSpacing: 0.3
             color: Qt.rgba(1, 1, 1, 0.3)
         }

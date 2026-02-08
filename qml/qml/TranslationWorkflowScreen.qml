@@ -57,7 +57,7 @@ Item {
                     Label {
                         anchors.centerIn: parent
                         text: "\u2190"  // Left arrow
-                        font.pixelSize: 20
+                        font.pixelSize: Dimensions.fontXL
                         color: backBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                     }
 
@@ -95,14 +95,14 @@ Item {
 
                     Label {
                         text: root.gameName || qsTr("Oyun Adı")
-                        font.pixelSize: 24
+                        font.pixelSize: Dimensions.headlineLarge
                         font.weight: Font.Bold
                         color: Theme.textPrimary
                     }
 
                     Label {
                         text: qsTr("%1 motoru").arg(root.gameEngine)
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textMuted
                     }
                 }
@@ -126,7 +126,7 @@ Item {
                         Label {
                             text: TranslationService.phase === 6 ? "\u2713" :
                                   TranslationService.phase === 7 ? "\u2717" : "\u23F3"
-                            font.pixelSize: 14
+                            font.pixelSize: Dimensions.fontMD
                             color: TranslationService.phase === 6 ? Theme.success :
                                    TranslationService.phase === 7 ? Theme.error : Theme.primary
                             anchors.verticalCenter: parent.verticalCenter
@@ -134,7 +134,7 @@ Item {
 
                         Label {
                             text: getPhaseStatusText()
-                            font.pixelSize: 12
+                            font.pixelSize: Dimensions.fontSM
                             font.weight: Font.DemiBold
                             color: TranslationService.phase === 6 ? Theme.success :
                                    TranslationService.phase === 7 ? Theme.error : Theme.primary
@@ -181,14 +181,14 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: "\u23F3"
-                                    font.pixelSize: 20
+                                    font.pixelSize: Dimensions.fontXL
                                     color: Theme.primary
                                 }
                             }
 
                             Label {
                                 text: qsTr("İlerleme")
-                                font.pixelSize: 18
+                                font.pixelSize: Dimensions.fontTitle
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                             }
@@ -197,7 +197,7 @@ Item {
 
                             Label {
                                 text: Math.round(TranslationService.progress * 100) + "%"
-                                font.pixelSize: 24
+                                font.pixelSize: Dimensions.headlineLarge
                                 font.weight: Font.Bold
                                 color: Theme.gold
                             }
@@ -274,14 +274,14 @@ Item {
                                 Label {
                                     visible: TranslationService.phase === 6
                                     text: "\u2713"
-                                    font.pixelSize: 20
+                                    font.pixelSize: Dimensions.fontXL
                                     color: Theme.success
                                 }
 
                                 Label {
                                     Layout.fillWidth: true
                                     text: TranslationService.statusMessage || qsTr("Hazır")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     color: Theme.textSecondary
                                     elide: Text.ElideRight
                                 }
@@ -313,7 +313,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: qsTr("İptal Et")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Medium
                                     color: cancelBtnMouse.containsMouse ? Theme.error : Theme.textSecondary
                                 }
@@ -356,7 +356,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: qsTr("Tekrar Dene")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Medium
                                     color: retryBtnMouse.containsMouse ? Theme.warning : Theme.textSecondary
                                 }
@@ -402,7 +402,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: qsTr("Geri Dön")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Medium
                                     color: Theme.textSecondary
                                 }
@@ -448,7 +448,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: qsTr("Tamam")
-                                    font.pixelSize: 14
+                                    font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.DemiBold
                                     color: "white"
                                 }
@@ -498,13 +498,13 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: "\uD83D\uDCDD"  // Memo
-                                    font.pixelSize: 20
+                                    font.pixelSize: Dimensions.fontXL
                                 }
                             }
 
                             Label {
                                 text: qsTr("Aktivite")
-                                font.pixelSize: 18
+                                font.pixelSize: Dimensions.fontTitle
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                             }
@@ -521,7 +521,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: qsTr("Henüz aktivite yok")
-                                font.pixelSize: 12
+                                font.pixelSize: Dimensions.fontSM
                                 color: Theme.textMuted
                                 visible: activityModel.count === 0
                             }
@@ -553,14 +553,14 @@ Item {
                                     Label {
                                         Layout.fillWidth: true
                                         text: model.message
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.textSecondary
                                         elide: Text.ElideRight
                                     }
 
                                     Label {
                                         text: model.time
-                                        font.pixelSize: 10
+                                        font.pixelSize: Dimensions.fontCaption
                                         color: Theme.textMuted
                                     }
                                 }
@@ -693,7 +693,7 @@ Item {
                             Label {
                                 anchors.centerIn: parent
                                 text: phaseItem.isCompleted ? "\u2713" : modelData.icon
-                                font.pixelSize: 16
+                                font.pixelSize: Dimensions.fontLG
                                 font.weight: phaseItem.isCompleted ? Font.Bold : Font.Normal
                                 color: phaseItem.isCompleted || phaseItem.isFinal ? Theme.success :
                                        phaseItem.isActive ? Theme.gold : Theme.textMuted
@@ -716,7 +716,7 @@ Item {
                     // Phase name with transition
                     Label {
                         text: modelData.name
-                        font.pixelSize: 11
+                        font.pixelSize: Dimensions.fontXS
                         font.weight: index + 1 === phaseIndicator.currentPhase ? Font.DemiBold : Font.Normal
                         color: index + 1 < phaseIndicator.currentPhase ? Theme.success :
                                index + 1 === phaseIndicator.currentPhase ? Theme.gold :
@@ -799,7 +799,7 @@ Item {
 
             Label {
                 text: qsTr("Devam eden çeviri işlemi iptal edilecek.\nEmin misiniz?")
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 color: Theme.textSecondary
                 horizontalAlignment: Text.AlignHCenter
                 Layout.fillWidth: true
@@ -823,7 +823,7 @@ Item {
 
                     contentItem: Label {
                         text: parent.text
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textSecondary
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -845,7 +845,7 @@ Item {
 
                     contentItem: Label {
                         text: parent.text
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter

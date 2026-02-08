@@ -75,7 +75,7 @@ Rectangle {
                         return qsTr("Toplu İşlem Tamamlandı — %1 hata").arg(failed)
                     return qsTr("Toplu İşlem Tamamlandı")
                 }
-                font.pixelSize: 13
+                font.pixelSize: Dimensions.fontBody
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
@@ -94,7 +94,7 @@ Rectangle {
                     id: completedLabel
                     anchors.centerIn: parent
                     text: BatchOperationService.completedItems + "/" + BatchOperationService.totalItems
-                    font.pixelSize: 10
+                    font.pixelSize: Dimensions.fontCaption
                     font.weight: Font.Medium
                     color: Theme.success
                 }
@@ -111,7 +111,7 @@ Rectangle {
                     id: failedLabel
                     anchors.centerIn: parent
                     text: qsTr("%1 hata").arg(BatchOperationService.failedItems)
-                    font.pixelSize: 10
+                    font.pixelSize: Dimensions.fontCaption
                     font.weight: Font.Medium
                     color: Theme.destructive
                 }
@@ -141,7 +141,7 @@ Rectangle {
                     id: actionBtnLabel
                     anchors.centerIn: parent
                     text: BatchOperationService.isRunning ? qsTr("İptal") : qsTr("Temizle")
-                    font.pixelSize: 11
+                    font.pixelSize: Dimensions.fontXS
                     font.weight: Font.Medium
                     color: BatchOperationService.isRunning ? Theme.destructive : Theme.textSecondary
                 }
@@ -171,7 +171,7 @@ Rectangle {
             Label {
                 visible: BatchOperationService.currentGameName !== ""
                 text: BatchOperationService.statusMessage || BatchOperationService.currentGameName
-                font.pixelSize: 11
+                font.pixelSize: Dimensions.fontXS
                 color: Theme.textSecondary
                 elide: Text.ElideRight
                 Layout.fillWidth: true
@@ -247,14 +247,14 @@ Rectangle {
 
                         Label {
                             text: modelData.success ? "\u2713" : "\u2717"
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             color: modelData.success ? Theme.success : Theme.destructive
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Label {
                             text: modelData.gameName || modelData.gameId || ""
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             color: Theme.textSecondary
                             elide: Text.ElideRight
                             maximumLineCount: 1
@@ -276,7 +276,7 @@ Rectangle {
                     id: moreLabel
                     anchors.centerIn: parent
                     text: "+" + (BatchOperationService.results.length - 5)
-                    font.pixelSize: 10
+                    font.pixelSize: Dimensions.fontCaption
                     color: Theme.textMuted
                 }
             }

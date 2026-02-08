@@ -26,7 +26,7 @@ ColumnLayout {
 
                 Text {
                     text: qsTr("Yedekler")
-                    font.pixelSize: 16
+                    font.pixelSize: Dimensions.fontLG
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
                 }
@@ -42,7 +42,7 @@ ColumnLayout {
                         id: badgeText
                         anchors.centerIn: parent
                         text: BackupManager.backups.length
-                        font.pixelSize: 11
+                        font.pixelSize: Dimensions.fontXS
                         font.weight: Font.Medium
                         color: Theme.primary
                     }
@@ -89,7 +89,7 @@ ColumnLayout {
             Text {
                 Layout.fillWidth: true
                 text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 color: Theme.textPrimary
                 elide: Text.ElideRight
             }

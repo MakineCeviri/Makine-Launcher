@@ -49,7 +49,7 @@ Dialog {
             Text {
                 anchors.centerIn: parent
                 text: "\u26A0"
-                font.pixelSize: 28
+                font.pixelSize: Dimensions.fontHero
                 color: Theme.warning
             }
         }
@@ -58,7 +58,7 @@ Dialog {
         Text {
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("Oyun Güncellendi")
-            font.pixelSize: 18
+            font.pixelSize: Dimensions.fontTitle
             font.weight: Font.DemiBold
             color: Theme.textPrimary
         }
@@ -78,7 +78,7 @@ Dialog {
                     msg += "\n\n" + qsTr("Çeviri kısmen uyumsuz olabilir. Devam edebilir veya yedeği geri yükleyebilirsiniz.")
                 return msg
             }
-            font.pixelSize: 13
+            font.pixelSize: Dimensions.fontBody
             color: Theme.textSecondary
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
@@ -92,13 +92,13 @@ Dialog {
 
             Text {
                 text: qsTr("Bütünlük:")
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 color: Theme.textMuted
             }
 
             Text {
                 text: integrityPercent + "%"
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Bold
                 color: {
                     if (integrityPercent >= 95) return Theme.success
@@ -133,7 +133,7 @@ Dialog {
                 Text {
                     anchors.centerIn: parent
                     text: qsTr("Yedeği Geri Yükle")
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     font.weight: Font.Medium
                     color: Theme.textSecondary
                 }
@@ -178,7 +178,7 @@ Dialog {
                 Text {
                     anchors.centerIn: parent
                     text: qsTr("Yine de Devam Et")
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     font.weight: Font.DemiBold
                     color: Theme.warning
                 }

@@ -43,7 +43,7 @@ Rectangle {
             Label {
                 Layout.fillWidth: true
                 text: root.title
-                font.pixelSize: 15
+                font.pixelSize: Dimensions.fontSubtitle
                 font.weight: Font.DemiBold
                 color: "white"
             }
@@ -54,7 +54,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             text: root.description
-            font.pixelSize: 13
+            font.pixelSize: Dimensions.fontBody
             color: Theme.textMuted
             wrapMode: Text.WordWrap
         }
@@ -70,7 +70,7 @@ Rectangle {
                 id: statusText
                 anchors.centerIn: parent
                 text: root.status
-                font.pixelSize: 11
+                font.pixelSize: Dimensions.fontXS
                 font.weight: Font.DemiBold
                 color: root.statusColor
             }

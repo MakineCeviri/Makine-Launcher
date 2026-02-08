@@ -95,7 +95,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: "M"
-                    font.pixelSize: 10
+                    font.pixelSize: Dimensions.fontCaption
                     font.weight: Font.Bold
                     color: "white"
                 }
@@ -104,7 +104,7 @@ Rectangle {
 
         Label {
             text: "MakineAI"
-            font.pixelSize: 12
+            font.pixelSize: Dimensions.fontSM
             font.weight: Font.Medium
             color: Theme.textSecondary
         }

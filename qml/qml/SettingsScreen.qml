@@ -169,7 +169,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: "\u2190"  // Left arrow
-                                    font.pixelSize: 18
+                                    font.pixelSize: Dimensions.fontTitle
                                     color: backMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -187,7 +187,7 @@ Item {
                             // Title
                             Label {
                                 text: qsTr("Ayarlar")
-                                font.pixelSize: 24
+                                font.pixelSize: Dimensions.headlineLarge
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                             }
@@ -229,7 +229,7 @@ Item {
                         Layout.leftMargin: 20
                         Layout.bottomMargin: 20
                         text: Dimensions.appName + " " + Dimensions.appVersionFull
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         color: Theme.textMuted
                     }
                 }
@@ -274,7 +274,7 @@ Item {
 
                             Label {
                                 text: categories[selectedCategory].name
-                                font.pixelSize: 28
+                                font.pixelSize: Dimensions.fontHero
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                                 elide: Text.ElideRight
@@ -292,7 +292,7 @@ Item {
 
                             Label {
                                 text: categories[selectedCategory].description
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted
                             }
                         }
@@ -510,7 +510,7 @@ Item {
 
                         Text {
                             text: qsTr("Yedekler")
-                            font.pixelSize: 16
+                            font.pixelSize: Dimensions.fontLG
                             font.weight: Font.DemiBold
                             color: Theme.textPrimary
                         }
@@ -526,7 +526,7 @@ Item {
                                 id: backupCountText
                                 anchors.centerIn: parent
                                 text: BackupManager.backups.length
-                                font.pixelSize: 11
+                                font.pixelSize: Dimensions.fontXS
                                 font.weight: Font.Medium
                                 color: Theme.primary
                             }
@@ -547,12 +547,12 @@ Item {
 
                             Text {
                                 text: "📁"
-                                font.pixelSize: 24
+                                font.pixelSize: Dimensions.headlineLarge
                             }
 
                             Text {
                                 text: qsTr("Henüz yedeklenmiş oyun yok")
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted
                             }
                         }
@@ -587,7 +587,7 @@ Item {
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData.gameName ? modelData.gameName.substring(0, 2).toUpperCase() : "?"
-                                        font.pixelSize: 16
+                                        font.pixelSize: Dimensions.fontLG
                                         font.weight: Font.Bold
                                         color: Theme.textMuted
                                     }
@@ -600,7 +600,7 @@ Item {
 
                                     Text {
                                         text: modelData.gameName || qsTr("Bilinmeyen Oyun")
-                                        font.pixelSize: 14
+                                        font.pixelSize: Dimensions.fontMD
                                         font.weight: Font.Medium
                                         color: Theme.textPrimary
                                         elide: Text.ElideRight
@@ -614,7 +614,7 @@ Item {
                                                     ? (modelData.sizeBytes / 1048576).toFixed(1) + " MB"
                                                     : (modelData.sizeBytes / 1024).toFixed(0) + " KB")
                                         }
-                                        font.pixelSize: 12
+                                        font.pixelSize: Dimensions.fontSM
                                         color: Theme.textMuted
                                     }
                                 }
@@ -641,14 +641,14 @@ Item {
 
                                         Text {
                                             text: "↩"
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             color: "white"
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
 
                                         Text {
                                             text: qsTr("Geri Al")
-                                            font.pixelSize: 12
+                                            font.pixelSize: Dimensions.fontSM
                                             font.weight: Font.Medium
                                             color: "white"
                                             anchors.verticalCenter: parent.verticalCenter
@@ -695,7 +695,7 @@ Item {
                                     Text {
                                         anchors.centerIn: parent
                                         text: "🗑"
-                                        font.pixelSize: 14
+                                        font.pixelSize: Dimensions.fontMD
                                     }
 
                                     // Focus indicator
@@ -756,7 +756,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         color: Theme.textPrimary
                         elide: Text.ElideRight
                     }
@@ -901,7 +901,7 @@ Item {
 
                             Label {
                                 text: qsTr("Açık Kaynak Lisanslar")
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
                             }
@@ -910,7 +910,7 @@ Item {
 
                             Label {
                                 text: licenseModel.length.toString()
-                                font.pixelSize: 12
+                                font.pixelSize: Dimensions.fontSM
                                 font.weight: Font.Medium
                                 color: Theme.textMuted
                             }
@@ -1059,7 +1059,7 @@ Item {
                             anchors.fill: parent
                             anchors.margins: 16
                             text: devStatus
-                            font.pixelSize: 12
+                            font.pixelSize: Dimensions.fontSM
                             font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"
                             color: Qt.rgba(1, 1, 1, 0.7)
                             readOnly: true
@@ -1125,7 +1125,7 @@ Item {
 
             Label {
                 text: name
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: isSelected ? Font.DemiBold : Font.Medium
                 color: isSelected ? Theme.textPrimary
                      : catMouse.containsMouse ? Theme.textPrimary
@@ -1190,14 +1190,14 @@ Item {
 
                 Label {
                     text: qsTr("Tema")
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: Theme.textPrimary
                 }
 
                 Label {
                     text: qsTr("Uygulama görünümünü seç")
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
                 }
             }
@@ -1242,14 +1242,14 @@ Item {
 
                             Label {
                                 text: "☀"  // Sun icon
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: !isDarkTheme ? Theme.textPrimary : (lightMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
                             Label {
                                 text: qsTr("Açık")
-                                font.pixelSize: 13
+                                font.pixelSize: Dimensions.fontBody
                                 font.weight: !isDarkTheme ? Font.DemiBold : Font.Medium
                                 color: !isDarkTheme ? Theme.textPrimary : (lightMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
                                 anchors.verticalCenter: parent.verticalCenter
@@ -1304,14 +1304,14 @@ Item {
 
                             Label {
                                 text: "🌙"  // Moon icon
-                                font.pixelSize: 14
+                                font.pixelSize: Dimensions.fontMD
                                 color: isDarkTheme ? Theme.textPrimary : (darkMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
                                 anchors.verticalCenter: parent.verticalCenter
                             }
 
                             Label {
                                 text: qsTr("Koyu")
-                                font.pixelSize: 13
+                                font.pixelSize: Dimensions.fontBody
                                 font.weight: isDarkTheme ? Font.DemiBold : Font.Medium
                                 color: isDarkTheme ? Theme.textPrimary : Theme.textMuted
                                 anchors.verticalCenter: parent.verticalCenter
@@ -1382,7 +1382,7 @@ Item {
                 Label {
                     Layout.fillWidth: true
                     text: title
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: Theme.textPrimary
                     elide: Text.ElideRight
@@ -1391,7 +1391,7 @@ Item {
                 Label {
                     Layout.fillWidth: true
                     text: description
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
                     elide: Text.ElideRight
                 }
@@ -1488,14 +1488,14 @@ Item {
 
                 Label {
                     text: title
-                    font.pixelSize: 14
+                    font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: Theme.textPrimary
                 }
 
                 Label {
                     text: description
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
                 }
             }
@@ -1510,7 +1510,7 @@ Item {
                     id: badgeLabel
                     anchors.centerIn: parent
                     text: badgeText
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     font.weight: Font.DemiBold
                     color: Theme.primary
                     elide: Text.ElideRight
@@ -1542,7 +1542,7 @@ Item {
 
                     Label {
                         text: title
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
                         color: Theme.textMuted
                     }
@@ -1557,7 +1557,7 @@ Item {
                             id: yakindaLabel
                             anchors.centerIn: parent
                             text: qsTr("Yakında")
-                            font.pixelSize: 10
+                            font.pixelSize: Dimensions.fontCaption
                             font.weight: Font.DemiBold
                             color: Theme.textMuted
                         }
@@ -1566,14 +1566,14 @@ Item {
 
                 Label {
                     text: description
-                    font.pixelSize: 13
+                    font.pixelSize: Dimensions.fontBody
                     color: Theme.withAlpha(Theme.textMuted, 0.7)
                 }
             }
 
             Label {
                 text: "🔒"  // Lock icon
-                font.pixelSize: 20
+                font.pixelSize: Dimensions.fontXL
                 color: Theme.textMuted
             }
         }
@@ -1624,7 +1624,7 @@ Item {
                     Label {
                         anchors.centerIn: parent
                         text: icon
-                        font.pixelSize: 18
+                        font.pixelSize: Dimensions.fontTitle
                         color: isDestructive ? Theme.error : Qt.rgba(1, 1, 1, 0.7)
                     }
                 }
@@ -1635,14 +1635,14 @@ Item {
 
                     Label {
                         text: title
-                        font.pixelSize: 14
+                        font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
                         color: isDestructive ? Theme.error : Theme.textPrimary
                     }
 
                     Label {
                         text: subtitle
-                        font.pixelSize: 13
+                        font.pixelSize: Dimensions.fontBody
                         color: Theme.textMuted
                     }
                 }
@@ -1663,7 +1663,7 @@ Item {
                         anchors.centerIn: parent
                         visible: !isLoading
                         text: "›"
-                        font.pixelSize: 20
+                        font.pixelSize: Dimensions.fontXL
                         color: Theme.textMuted
                     }
                 }
@@ -1695,7 +1695,7 @@ Item {
 
             Label {
                 text: label
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 color: Theme.textMuted
             }
 
@@ -1703,7 +1703,7 @@ Item {
 
             Label {
                 text: value
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium
                 color: Theme.textPrimary
             }

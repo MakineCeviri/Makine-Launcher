@@ -39,7 +39,7 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 text: root.modelData.gameName ? root.modelData.gameName.substring(0, 2).toUpperCase() : "?"
-                font.pixelSize: 16
+                font.pixelSize: Dimensions.fontLG
                 font.weight: Font.Bold
                 color: Theme.textMuted
             }
@@ -52,7 +52,7 @@ Rectangle {
 
             Text {
                 text: root.modelData.gameName || qsTr("Bilinmeyen Oyun")
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium
                 color: Theme.textPrimary
                 elide: Text.ElideRight
@@ -66,7 +66,7 @@ Rectangle {
                             ? (root.modelData.sizeBytes / 1048576).toFixed(1) + " MB"
                             : (root.modelData.sizeBytes / 1024).toFixed(0) + " KB")
                 }
-                font.pixelSize: 12
+                font.pixelSize: Dimensions.fontSM
                 color: Theme.textMuted
             }
         }
@@ -91,7 +91,7 @@ Rectangle {
                     }
                     Text {
                         text: restoreBtn.text
-                        font.pixelSize: 12
+                        font.pixelSize: Dimensions.fontSM
                         font.weight: Font.Medium
                         color: Theme.textPrimary
                     }

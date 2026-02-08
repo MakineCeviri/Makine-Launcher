@@ -114,7 +114,7 @@ Rectangle {
             Text {
                 anchors.centerIn: parent
                 text: "C"
-                font.pixelSize: 28
+                font.pixelSize: Dimensions.fontHero
                 font.weight: Font.Bold
                 color: root.color1
             }
@@ -139,7 +139,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: qsTr("Türk oyun geliştirme ve çeviri topluluğu.")
-                font.pixelSize: 14
+                font.pixelSize: Dimensions.fontMD
                 color: isDark ? Theme.textSecondary : Theme.lightTextSecondary
                 lineHeight: 1.5
                 wrapMode: Text.WordWrap
