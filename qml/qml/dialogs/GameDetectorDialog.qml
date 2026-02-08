@@ -190,7 +190,7 @@ Popup {
                 anchors.fill: parent
                 anchors.leftMargin: 20
                 anchors.rightMargin: 20
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 // Gradient icon
                 Rectangle {
@@ -212,7 +212,7 @@ Popup {
 
                 Column {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: Dimensions.spacingXXS
 
                     Text {
                         text: qsTr("Oyun Kütüphanesi")
@@ -291,7 +291,7 @@ Popup {
             // Scanning state
             Column {
                 anchors.centerIn: parent
-                spacing: 24
+                spacing: Dimensions.spacingSection
                 visible: root.isScanning
 
                 Item {
@@ -395,7 +395,7 @@ Popup {
                         anchors.fill: parent
                         anchors.leftMargin: 16
                         anchors.rightMargin: 16
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Text {
                             text: "\u26A0"
@@ -455,7 +455,7 @@ Popup {
                         anchors.rightMargin: 16
                         anchors.topMargin: 12
                         anchors.bottomMargin: 8
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Rectangle {
                             Layout.fillWidth: true
@@ -467,7 +467,7 @@ Popup {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 12
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 Text {
                                     text: "🔍"
@@ -606,7 +606,7 @@ Popup {
                     height: parent.height - 54
                     clip: true
                     model: root.filteredGames
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     ScrollBar.vertical: ScrollBar {
                         policy: ScrollBar.AsNeeded
@@ -686,7 +686,7 @@ Popup {
                             // Game info
                             Column {
                                 Layout.fillWidth: true
-                                spacing: 4
+                                spacing: Dimensions.spacingXS
 
                                 Text {
                                     text: modelData.name || qsTr("Unknown")
@@ -774,7 +774,7 @@ Popup {
 
                         Column {
                             anchors.centerIn: parent
-                            spacing: 16
+                            spacing: Dimensions.spacingXL
 
                             Text {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -818,14 +818,14 @@ Popup {
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 20
-                spacing: 16
+                spacing: Dimensions.spacingXL
 
                 Column {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Dimensions.spacingXS
 
                     Row {
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Text {
                             text: root.selectedGame ? root.selectedGame.name : ""
@@ -889,7 +889,7 @@ Popup {
                     Row {
                         id: startBtnRow
                         anchors.centerIn: parent
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Text {
                             text: "🌐"

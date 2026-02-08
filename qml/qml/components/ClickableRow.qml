@@ -55,7 +55,7 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: 20
             anchors.rightMargin: 20
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Icon container (visible when icon or iconSource is set)
             Rectangle {
@@ -92,7 +92,7 @@ Item {
             // Built-in title/subtitle layout
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: Dimensions.spacingXXS
                 visible: root.title !== ""
 
                 Label {

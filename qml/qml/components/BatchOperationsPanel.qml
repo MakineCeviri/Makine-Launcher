@@ -42,12 +42,12 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: 12
-        spacing: 10
+        spacing: Dimensions.spacingBase
 
         // ===== HEADER ROW =====
         RowLayout {
             Layout.fillWidth: true
-            spacing: 10
+            spacing: Dimensions.spacingBase
 
             // Animated indicator
             Rectangle {
@@ -164,7 +164,7 @@ Rectangle {
         // ===== PROGRESS SECTION (running only) =====
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Dimensions.spacingSM
             visible: BatchOperationService.isRunning
 
             // Current game label
@@ -220,7 +220,7 @@ Rectangle {
         // ===== RESULTS SUMMARY (completed only) =====
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: Dimensions.spacingSM
             visible: !BatchOperationService.isRunning && BatchOperationService.results.length > 0
 
             Repeater {
@@ -243,7 +243,7 @@ Rectangle {
                     Row {
                         id: resultItemRow
                         anchors.centerIn: parent
-                        spacing: 4
+                        spacing: Dimensions.spacingXS
 
                         Label {
                             text: modelData.success ? "\u2713" : "\u2717"

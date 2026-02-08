@@ -412,7 +412,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 32
+                spacing: Dimensions.spacingPage
 
                 // Cover image
                 Rectangle {
@@ -461,7 +461,7 @@ Item {
                         Row {
                             id: verifiedRow
                             anchors.centerIn: parent
-                            spacing: 6
+                            spacing: Dimensions.spacingSM
 
                             Text {
                                 text: "\u2713"
@@ -497,7 +497,7 @@ Item {
 
                     // Action buttons
                     RowLayout {
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         // Steam button
                         Rectangle {
@@ -518,7 +518,7 @@ Item {
                             Row {
                                 id: steamBtnContent
                                 anchors.centerIn: parent
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 Text {
                                     text: "\uD83D\uDECD"  // Storefront
@@ -566,7 +566,7 @@ Item {
                             Row {
                                 id: translateBtnContent
                                 anchors.centerIn: parent
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 Text {
                                     text: "\uD83C\uDF10"  // Globe
@@ -603,14 +603,14 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 32
+                spacing: Dimensions.spacingPage
                 visible: root.hasSteamDetails || root.isLoadingSteamDetails || root.steamFetchFailed
 
                 // Loading indicator
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 12
+                    spacing: Dimensions.spacingLG
                     visible: root.isLoadingSteamDetails && !root.hasSteamDetails
 
                     BusyIndicator {
@@ -630,7 +630,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 12
+                    spacing: Dimensions.spacingLG
                     visible: root.steamFetchFailed && !root.hasSteamDetails && !root.isLoadingSteamDetails
 
                     Text {
@@ -678,7 +678,7 @@ Item {
                 // About section
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: Dimensions.spacingLG
                     visible: root.description !== ""
 
                     // Section title
@@ -714,12 +714,12 @@ Item {
                 // Details and Rating row
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 24
+                    spacing: Dimensions.spacingSection
 
                     // Left - Details
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         Text {
                             text: qsTr("Detaylar")
@@ -778,7 +778,7 @@ Item {
                     // Right - Rating
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         Text {
                             text: qsTr("Değerlendirme")
@@ -799,11 +799,11 @@ Item {
                                 id: ratingColumn
                                 anchors.fill: parent
                                 anchors.margins: 20
-                                spacing: 16
+                                spacing: Dimensions.spacingXL
 
                                 // Metacritic
                                 RowLayout {
-                                    spacing: 12
+                                    spacing: Dimensions.spacingLG
 
                                     Rectangle {
                                         Layout.preferredWidth: 48
@@ -826,7 +826,7 @@ Item {
                                     }
 
                                     ColumnLayout {
-                                        spacing: 2
+                                        spacing: Dimensions.spacingXXS
 
                                         Text {
                                             text: "Metacritic"
@@ -850,7 +850,7 @@ Item {
 
                                 // Platforms
                                 RowLayout {
-                                    spacing: 12
+                                    spacing: Dimensions.spacingLG
 
                                     Text {
                                         text: qsTr("Platformlar:")
@@ -880,7 +880,7 @@ Item {
                                 // Price
                                 RowLayout {
                                     visible: root.price !== ""
-                                    spacing: 8
+                                    spacing: Dimensions.spacingMD
 
                                     Rectangle {
                                         visible: root.discountPercent > 0
@@ -917,7 +917,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 Text {
                     text: qsTr("Çeviri Bilgileri")
@@ -940,11 +940,11 @@ Item {
                         id: recipeContent
                         anchors.fill: parent
                         anchors.margins: 20
-                        spacing: 16
+                        spacing: Dimensions.spacingXL
 
                         // Badges row
                         RowLayout {
-                            spacing: 8
+                            spacing: Dimensions.spacingMD
 
                             // Engine badge
                             Rectangle {
@@ -956,7 +956,7 @@ Item {
                                 Row {
                                     id: engineBadgeRow
                                     anchors.centerIn: parent
-                                    spacing: 6
+                                    spacing: Dimensions.spacingSM
 
                                     Text {
                                         text: "\u2728"
@@ -1013,7 +1013,7 @@ Item {
 
                     Row {
                         anchors.centerIn: parent
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         Text {
                             text: "\u2139"
@@ -1037,7 +1037,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 12
+                spacing: Dimensions.spacingLG
                 visible: root.hasFontAnalysis
 
                 Text {
@@ -1071,11 +1071,11 @@ Item {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 16
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         // Summary row
                         RowLayout {
-                            spacing: 10
+                            spacing: Dimensions.spacingBase
 
                             Rectangle {
                                 Layout.preferredWidth: 28
@@ -1101,7 +1101,7 @@ Item {
                             }
 
                             ColumnLayout {
-                                spacing: 2
+                                spacing: Dimensions.spacingXXS
 
                                 Text {
                                     text: {
@@ -1149,7 +1149,7 @@ Item {
 
                         // Missing chars display
                         RowLayout {
-                            spacing: 6
+                            spacing: Dimensions.spacingSM
                             visible: missingChars.length > 0
 
                             Text {
@@ -1188,7 +1188,7 @@ Item {
                             RowLayout {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 Text {
                                     text: modelData.family || modelData.name || ""
@@ -1238,7 +1238,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 12
+                spacing: Dimensions.spacingLG
                 visible: root.hasRecipe && root.compatibilityLevel !== "unknown"
 
                 Text {
@@ -1272,11 +1272,11 @@ Item {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 16
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         // Status row
                         RowLayout {
-                            spacing: 10
+                            spacing: Dimensions.spacingBase
 
                             // Status icon
                             Rectangle {
@@ -1310,7 +1310,7 @@ Item {
                             }
 
                             ColumnLayout {
-                                spacing: 2
+                                spacing: Dimensions.spacingXXS
 
                                 Text {
                                     text: {
@@ -1373,7 +1373,7 @@ Item {
 
                         // File change stats (only if there are changes)
                         RowLayout {
-                            spacing: 16
+                            spacing: Dimensions.spacingXL
                             visible: modifiedCount > 0 || addedCount > 0 || removedCount > 0
 
                             Text {
@@ -1404,7 +1404,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 12
+                spacing: Dimensions.spacingLG
                 visible: root.isUnityGame && root.runtimeNeeded
 
                 Text {
@@ -1436,11 +1436,11 @@ Item {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 16
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         // Status header
                         RowLayout {
-                            spacing: 10
+                            spacing: Dimensions.spacingBase
 
                             Rectangle {
                                 Layout.preferredWidth: 28
@@ -1466,7 +1466,7 @@ Item {
                             }
 
                             ColumnLayout {
-                                spacing: 2
+                                spacing: Dimensions.spacingXXS
 
                                 Text {
                                     text: {
@@ -1540,7 +1540,7 @@ Item {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.margins: 12
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 Text {
                                     text: "\u26A0"
@@ -1561,7 +1561,7 @@ Item {
 
                         // Action buttons
                         RowLayout {
-                            spacing: 10
+                            spacing: Dimensions.spacingBase
 
                             // Install / Update button
                             Rectangle {
@@ -1655,7 +1655,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 // Backup data from BackupManager
                 property var gameBackups: root.gameId !== "" ? BackupManager.getBackupsForGame(root.gameId) : []
@@ -1695,7 +1695,7 @@ Item {
                         id: backupContent
                         anchors.fill: parent
                         anchors.margins: 20
-                        spacing: 16
+                        spacing: Dimensions.spacingXL
 
                         Text {
                             Layout.fillWidth: true
@@ -1708,7 +1708,7 @@ Item {
                         // Restore in progress indicator
                         RowLayout {
                             visible: BackupManager.isRestoring
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
 
                             BusyIndicator {
                                 Layout.preferredWidth: 24
@@ -1728,7 +1728,7 @@ Item {
                         // Has backups state
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
                             visible: backupSection.hasBackups && !BackupManager.isRestoring
 
                             // Latest backup info
@@ -1742,10 +1742,10 @@ Item {
                                     id: latestInfoCol
                                     anchors.fill: parent
                                     anchors.margins: 12
-                                    spacing: 6
+                                    spacing: Dimensions.spacingSM
 
                                     RowLayout {
-                                        spacing: 8
+                                        spacing: Dimensions.spacingMD
 
                                         Rectangle {
                                             Layout.preferredWidth: latestBadgeText.width + 16
@@ -1771,7 +1771,7 @@ Item {
                                     }
 
                                     RowLayout {
-                                        spacing: 16
+                                        spacing: Dimensions.spacingXL
 
                                         Text {
                                             text: (backupSection.latestBackup.sizeFormatted || "0 B")
@@ -1799,7 +1799,7 @@ Item {
 
                             // Action buttons
                             RowLayout {
-                                spacing: 12
+                                spacing: Dimensions.spacingLG
 
                                 // Restore latest button
                                 Rectangle {
@@ -1822,7 +1822,7 @@ Item {
                                     Row {
                                         id: restoreBtnContent
                                         anchors.centerIn: parent
-                                        spacing: 8
+                                        spacing: Dimensions.spacingMD
 
                                         Text {
                                             text: "\u21BA"
@@ -1874,7 +1874,7 @@ Item {
                                     Row {
                                         id: deleteBtnContent
                                         anchors.centerIn: parent
-                                        spacing: 8
+                                        spacing: Dimensions.spacingMD
 
                                         Text {
                                             text: "\uD83D\uDDD1"
@@ -1911,7 +1911,7 @@ Item {
                         // No backups state
                         RowLayout {
                             visible: !backupSection.hasBackups && !BackupManager.isRestoring
-                            spacing: 8
+                            spacing: Dimensions.spacingMD
 
                             Text {
                                 text: "\u2139"
@@ -1937,7 +1937,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
-                spacing: 12
+                spacing: Dimensions.spacingLG
                 visible: root.screenshots.length > 0
 
                 Text {
@@ -1957,7 +1957,7 @@ Item {
                     ScrollBar.vertical.policy: ScrollBar.AlwaysOff
 
                     Row {
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         Repeater {
                             model: root.screenshots

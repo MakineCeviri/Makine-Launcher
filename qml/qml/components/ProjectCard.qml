@@ -20,11 +20,11 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Dimensions.marginMD
-        spacing: 10
+        spacing: Dimensions.spacingBase
 
         // Top row
         RowLayout {
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             Rectangle {
                 Layout.preferredWidth: 34

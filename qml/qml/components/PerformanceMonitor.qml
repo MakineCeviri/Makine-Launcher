@@ -146,11 +146,11 @@ Rectangle {
         id: contentColumn
         anchors.fill: parent
         anchors.margins: 8
-        spacing: 4
+        spacing: Dimensions.spacingXS
 
         // FPS Header (always visible)
         RowLayout {
-            spacing: 8
+            spacing: Dimensions.spacingMD
 
             // FPS indicator dot
             Rectangle {
@@ -189,7 +189,7 @@ Rectangle {
         // Details section
         ColumnLayout {
             visible: root.showDetails
-            spacing: 2
+            spacing: Dimensions.spacingXXS
             Layout.fillWidth: true
 
             // Separator
@@ -253,7 +253,7 @@ Rectangle {
         property color valueColor: Theme.textSecondary
 
         Layout.fillWidth: true
-        spacing: 4
+        spacing: Dimensions.spacingXS
 
         Text {
             text: label

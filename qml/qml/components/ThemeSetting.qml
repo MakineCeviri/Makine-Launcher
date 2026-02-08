@@ -12,11 +12,11 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: 8
         anchors.rightMargin: 8
-        spacing: 12
+        spacing: Dimensions.spacingLG
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Dimensions.spacingXS
 
             Text {
                 text: qsTr("Tema")

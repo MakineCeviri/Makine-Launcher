@@ -6,7 +6,7 @@ import "../components"
 
 ColumnLayout {
     id: root
-    spacing: 16
+    spacing: Dimensions.spacingXL
 
     property bool isImporting: false
     property string devStatus: ""

@@ -5,7 +5,7 @@ import MakineAI 1.0
 import "../components"
 
 ColumnLayout {
-    spacing: 16
+    spacing: Dimensions.spacingXL
 
     // App info card
     Rectangle {
@@ -98,7 +98,7 @@ ColumnLayout {
                 Layout.preferredHeight: 40
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
-                spacing: 8
+                spacing: Dimensions.spacingMD
 
                 Text {
                     text: qsTr("Açık Kaynak Lisanslar")

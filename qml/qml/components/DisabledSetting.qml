@@ -18,15 +18,15 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 20
         anchors.rightMargin: 20
-        spacing: 16
+        spacing: Dimensions.spacingXL
 
         // Content (title, "Yakında" badge and description)
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Dimensions.spacingXS
 
             RowLayout {
-                spacing: 8
+                spacing: Dimensions.spacingMD
 
                 Label {
                     text: root.title

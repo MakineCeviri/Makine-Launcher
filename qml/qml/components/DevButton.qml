@@ -40,7 +40,7 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 20
         anchors.rightMargin: 20
-        spacing: 16
+        spacing: Dimensions.spacingXL
 
         // Left item (icon)
         Rectangle {
@@ -67,7 +67,7 @@ Rectangle {
         // Content (title and subtitle)
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Dimensions.spacingXS
 
             Label {
                 text: root.title

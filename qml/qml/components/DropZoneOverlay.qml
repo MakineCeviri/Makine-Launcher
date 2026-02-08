@@ -97,7 +97,7 @@ Item {
 
         ColumnLayout {
             anchors.centerIn: parent
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Drop icon
             Rectangle {
@@ -166,7 +166,7 @@ Item {
             // Supported formats badge
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 8
+                spacing: Dimensions.spacingMD
 
                 Repeater {
                     model: [".mkpkg", ".zip", ".rar"]

@@ -141,7 +141,7 @@ Dialog {
             anchors.fill: parent
             anchors.leftMargin: 24
             anchors.rightMargin: 24
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Animated warning icon container
             Item {
@@ -212,7 +212,7 @@ Dialog {
             }
 
             ColumnLayout {
-                spacing: 6
+                spacing: Dimensions.spacingSM
 
                 Text {
                     text: qsTr("Koruma Sistemi Tespit Edildi")
@@ -222,7 +222,7 @@ Dialog {
                 }
 
                 RowLayout {
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     Text {
                         text: root.gameName
@@ -325,7 +325,7 @@ Dialog {
 
     contentItem: ColumnLayout {
         id: contentColumn
-        spacing: 16
+        spacing: Dimensions.spacingXL
 
         // Warning message
         Rectangle {
@@ -374,7 +374,7 @@ Dialog {
             ListView {
                 id: systemsList
                 model: root.detectedSystems
-                spacing: 10
+                spacing: Dimensions.spacingBase
 
                 // Staggered entry animation
                 add: Transition {
@@ -465,10 +465,10 @@ Dialog {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Dimensions.spacingSM
 
                             RowLayout {
-                                spacing: 10
+                                spacing: Dimensions.spacingBase
 
                                 Text {
                                     text: modelData.name || modelData.shortName
@@ -577,7 +577,7 @@ Dialog {
                 Row {
                     id: cancelBtnContent
                     anchors.centerIn: parent
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     Text {
                         text: "\u2715"  // X mark
@@ -691,7 +691,7 @@ Dialog {
                     Row {
                         id: continueBtnContent
                         anchors.centerIn: parent
-                        spacing: 10
+                        spacing: Dimensions.spacingBase
 
                         Text {
                             text: "\u26A0"

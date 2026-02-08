@@ -5,7 +5,7 @@ import MakineAI 1.0
 import "../components"
 
 ColumnLayout {
-    spacing: 16
+    spacing: Dimensions.spacingXL
 
     // Language selection
     Rectangle {
@@ -27,11 +27,11 @@ ColumnLayout {
                 Layout.preferredHeight: 48
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: Dimensions.spacingXXS
                     Text {
                         text: qsTr("Uygulama Dili")
                         font.pixelSize: Dimensions.fontBody
@@ -167,11 +167,11 @@ ColumnLayout {
                 Layout.preferredHeight: 48
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: Dimensions.spacingXXS
                     Text {
                         text: qsTr("Önbellek Yönetimi")
                         font.pixelSize: Dimensions.fontBody
@@ -237,11 +237,11 @@ ColumnLayout {
                 Layout.preferredHeight: 48
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: Dimensions.spacingXXS
                     Text {
                         text: qsTr("Varsayılana Sıfırla")
                         font.pixelSize: Dimensions.fontBody

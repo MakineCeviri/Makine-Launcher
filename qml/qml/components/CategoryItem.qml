@@ -34,7 +34,7 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
-        spacing: 10
+        spacing: Dimensions.spacingBase
 
         Image {
             source: root.iconSource

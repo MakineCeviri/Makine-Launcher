@@ -27,7 +27,7 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
-        spacing: 12
+        spacing: Dimensions.spacingLG
 
         // Left item (Game icon)
         Rectangle {
@@ -48,7 +48,7 @@ Rectangle {
         // Content (Backup info)
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Dimensions.spacingXXS
 
             Text {
                 text: root.modelData.gameName || qsTr("Bilinmeyen Oyun")
@@ -73,7 +73,7 @@ Rectangle {
 
         // Right item (Buttons)
         RowLayout {
-            spacing: 8
+            spacing: Dimensions.spacingMD
 
             // Restore button
             Button {
@@ -83,7 +83,7 @@ Rectangle {
                 activeFocusOnTab: true
 
                 contentItem: RowLayout {
-                    spacing: 6
+                    spacing: Dimensions.spacingSM
                     Image {
                         source: "qrc:/qt/qml/MakineAI/resources/icons/rotate-ccw.svg"
                         sourceSize: Qt.size(14, 14)

@@ -23,11 +23,11 @@ Rectangle {
         id: mainColumn
         anchors.fill: parent
         anchors.margins: 16
-        spacing: 12
+        spacing: Dimensions.spacingLG
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: Dimensions.spacingXS
             visible: root.title !== ""
 
             Text {
@@ -50,7 +50,7 @@ Rectangle {
         ColumnLayout {
             id: contentColumn
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Dimensions.spacingMD
         }
     }
 }

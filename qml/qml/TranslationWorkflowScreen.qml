@@ -40,7 +40,7 @@ Item {
             // ===== HEADER - Oyun bilgisi ve geri butonu =====
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 16
+                spacing: Dimensions.spacingXL
 
                 // Back button
                 Rectangle {
@@ -91,7 +91,7 @@ Item {
                 // Oyun bilgisi
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Dimensions.spacingXS
 
                     Label {
                         text: root.gameName || qsTr("Oyun Adı")
@@ -121,7 +121,7 @@ Item {
                     Row {
                         id: statusRow
                         anchors.centerIn: parent
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Label {
                             text: TranslationService.phase === 6 ? "\u2713" :
@@ -166,11 +166,11 @@ Item {
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: Dimensions.marginLG
-                        spacing: 20
+                        spacing: Dimensions.spacingXXL
 
                         // Progress header
                         RowLayout {
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
 
                             Rectangle {
                                 Layout.preferredWidth: 40
@@ -223,7 +223,7 @@ Item {
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: 16
-                                spacing: 12
+                                spacing: Dimensions.spacingLG
 
                                 // Animated spinner
                                 Item {
@@ -293,7 +293,7 @@ Item {
                         // Butonlar
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
 
                             // Cancel button (visible during processing)
                             Rectangle {
@@ -483,11 +483,11 @@ Item {
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: Dimensions.marginLG
-                        spacing: 16
+                        spacing: Dimensions.spacingXL
 
                         // Activity header
                         RowLayout {
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
 
                             Rectangle {
                                 Layout.preferredWidth: 40
@@ -531,7 +531,7 @@ Item {
                                 anchors.fill: parent
                                 anchors.margins: 12
                                 clip: true
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 model: ListModel {
                                     id: activityModel
@@ -539,7 +539,7 @@ Item {
 
                                 delegate: RowLayout {
                                     width: activityList.width
-                                    spacing: 8
+                                    spacing: Dimensions.spacingMD
 
                                     Rectangle {
                                         Layout.preferredWidth: 6
@@ -615,7 +615,7 @@ Item {
 
                 delegate: RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     // Phase circle with glow
                     Item {
@@ -795,7 +795,7 @@ Item {
         }
 
         contentItem: ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             Label {
                 text: qsTr("Devam eden çeviri işlemi iptal edilecek.\nEmin misiniz?")
@@ -807,7 +807,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 Button {
                     Layout.fillWidth: true

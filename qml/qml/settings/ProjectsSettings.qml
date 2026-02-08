@@ -5,7 +5,7 @@ import MakineAI 1.0
 import "../components"
 
 ColumnLayout {
-    spacing: 16
+    spacing: Dimensions.spacingXL
 
     Rectangle {
         Layout.fillWidth: true
@@ -19,10 +19,10 @@ ColumnLayout {
             id: backupColumn
             anchors.fill: parent
             anchors.margins: 8
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             RowLayout {
-                spacing: 8
+                spacing: Dimensions.spacingMD
 
                 Text {
                     text: qsTr("Yedekler")
@@ -78,7 +78,7 @@ ColumnLayout {
             id: restoreRow
             anchors.fill: parent
             anchors.margins: 8
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             BusyIndicator {
                 Layout.preferredWidth: 24

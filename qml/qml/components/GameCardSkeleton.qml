@@ -81,7 +81,7 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.margins: 10
-            spacing: 6
+            spacing: Dimensions.spacingSM
 
             // Title line 1
             SkeletonLoader {

@@ -119,7 +119,7 @@ Rectangle {
 
             // ===== STEP 1: WELCOME =====
             ColumnLayout {
-                spacing: 24
+                spacing: Dimensions.spacingSection
 
                 Item { Layout.fillHeight: true }
 
@@ -151,7 +151,7 @@ Rectangle {
                 // Feature bullets
                 ColumnLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 16
+                    spacing: Dimensions.spacingXL
 
                     FeatureBullet {
                         icon: "\uE8F1"  // Search
@@ -175,7 +175,7 @@ Rectangle {
 
             // ===== STEP 2: LIBRARY SCAN =====
             ColumnLayout {
-                spacing: 24
+                spacing: Dimensions.spacingSection
 
                 Item { Layout.fillHeight: true }
 
@@ -210,7 +210,7 @@ Rectangle {
                 // Platform checkboxes
                 ColumnLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 12
+                    spacing: Dimensions.spacingLG
 
                     PlatformRow {
                         platformName: "Steam"
@@ -245,7 +245,7 @@ Rectangle {
                     font.weight: Font.DemiBold
 
                     contentItem: RowLayout {
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
                         Item { Layout.fillWidth: true }
                         BusyIndicator {
                             visible: root.isScanning
@@ -284,7 +284,7 @@ Rectangle {
 
             // ===== STEP 3: SCAN RESULTS =====
             ColumnLayout {
-                spacing: 24
+                spacing: Dimensions.spacingSection
 
                 Item { Layout.fillHeight: true }
 
@@ -331,10 +331,10 @@ Rectangle {
 
                     RowLayout {
                         anchors.centerIn: parent
-                        spacing: 16
+                        spacing: Dimensions.spacingXL
 
                         Column {
-                            spacing: 2
+                            spacing: Dimensions.spacingXXS
                             Text {
                                 text: root.foundGames.toString()
                                 font.pixelSize: Dimensions.fontHeadline
@@ -357,7 +357,7 @@ Rectangle {
                         }
 
                         Column {
-                            spacing: 2
+                            spacing: Dimensions.spacingXXS
                             Text {
                                 text: GameService.gameCount.toString()
                                 font.pixelSize: Dimensions.fontHeadline
@@ -380,7 +380,7 @@ Rectangle {
 
             // ===== STEP 4: QUICK SETTINGS =====
             ColumnLayout {
-                spacing: 24
+                spacing: Dimensions.spacingSection
 
                 Item { Layout.fillHeight: true }
 
@@ -455,7 +455,7 @@ Rectangle {
 
             // ===== STEP 5: DONE =====
             ColumnLayout {
-                spacing: 24
+                spacing: Dimensions.spacingSection
 
                 Item { Layout.fillHeight: true }
 
@@ -528,7 +528,7 @@ Rectangle {
         // ===== BOTTOM NAVIGATION =====
         RowLayout {
             Layout.fillWidth: true
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Back button
             Button {
@@ -559,7 +559,7 @@ Rectangle {
 
             // Step indicators
             Row {
-                spacing: 8
+                spacing: Dimensions.spacingMD
                 Layout.alignment: Qt.AlignHCenter
 
                 Repeater {
@@ -622,7 +622,7 @@ Rectangle {
         property string description: ""
 
         Layout.preferredWidth: 380
-        spacing: 16
+        spacing: Dimensions.spacingXL
 
         Rectangle {
             Layout.preferredWidth: 40
@@ -641,7 +641,7 @@ Rectangle {
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Dimensions.spacingXXS
 
             Text {
                 text: parent.parent.title
@@ -664,7 +664,7 @@ Rectangle {
         property string platformIcon: ""
         property alias checked: checkbox.checked
 
-        spacing: 12
+        spacing: Dimensions.spacingLG
         Layout.preferredWidth: 240
 
         CheckBox {
@@ -695,11 +695,11 @@ Rectangle {
 
         Layout.fillWidth: true
         Layout.preferredHeight: 64
-        spacing: 12
+        spacing: Dimensions.spacingLG
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Dimensions.spacingXXS
 
             Text {
                 text: parent.parent.title

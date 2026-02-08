@@ -100,7 +100,7 @@ Dialog {
             anchors.fill: parent
             anchors.leftMargin: 24
             anchors.rightMargin: 24
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Score circle
             Rectangle {
@@ -121,7 +121,7 @@ Dialog {
             }
 
             ColumnLayout {
-                spacing: 4
+                spacing: Dimensions.spacingXS
 
                 Text {
                     text: root.passed ? qsTr("Kalite Kontrolü Geçti") : qsTr("Kalite Kontrolü Başarısız")
@@ -142,7 +142,7 @@ Dialog {
 
                 // Issue summary badges (clickable for filtering)
                 RowLayout {
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
                     visible: root.issues.length > 0
 
                     // "All" badge
@@ -380,7 +380,7 @@ Dialog {
 
     contentItem: ColumnLayout {
         id: contentColumn
-        spacing: 16
+        spacing: Dimensions.spacingXL
 
         // No issues state
         Rectangle {
@@ -396,7 +396,7 @@ Dialog {
 
             RowLayout {
                 anchors.centerIn: parent
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 Text {
                     text: "\u2713"
@@ -435,7 +435,7 @@ Dialog {
             // Empty state when no issues match filter
             Column {
                 anchors.centerIn: parent
-                spacing: 8
+                spacing: Dimensions.spacingMD
                 visible: root.filteredIssues.length === 0
 
                 Text {
@@ -459,7 +459,7 @@ Dialog {
             ListView {
                 id: issuesList
                 model: root.filteredIssues
-                spacing: 8
+                spacing: Dimensions.spacingMD
                 visible: root.filteredIssues.length > 0
 
                 delegate: Rectangle {
@@ -485,11 +485,11 @@ Dialog {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 12
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
 
                             // Severity icon
                             Rectangle {
@@ -510,7 +510,7 @@ Dialog {
 
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 2
+                                spacing: Dimensions.spacingXXS
 
                                 Text {
                                     text: modelData.message
@@ -522,7 +522,7 @@ Dialog {
                                 }
 
                                 RowLayout {
-                                    spacing: 8
+                                    spacing: Dimensions.spacingMD
 
                                     // Severity badge
                                     Rectangle {
@@ -624,7 +624,7 @@ Dialog {
             anchors.fill: parent
             anchors.leftMargin: 24
             anchors.rightMargin: 24
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             Item { Layout.fillWidth: true }
 
@@ -648,7 +648,7 @@ Dialog {
                 Row {
                     id: ignoreBtnContent
                     anchors.centerIn: parent
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     Text {
                         text: qsTr("Yoksay ve Devam")
@@ -701,7 +701,7 @@ Dialog {
                 Row {
                     id: fixBtnContent
                     anchors.centerIn: parent
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     Text {
                         text: root.issues.length > 0 ? "\uD83D\uDD27" : "\u2713"  // Wrench or checkmark

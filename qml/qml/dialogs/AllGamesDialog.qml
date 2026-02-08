@@ -90,11 +90,11 @@ Dialog {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 24
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Top row with title and close
             RowLayout {
-                spacing: 16
+                spacing: Dimensions.spacingXL
 
                 // Icon
                 Rectangle {
@@ -115,7 +115,7 @@ Dialog {
                 }
 
                 ColumnLayout {
-                    spacing: 4
+                    spacing: Dimensions.spacingXS
 
                     Text {
                         text: qsTr("Tüm Desteklenen Oyunlar")
@@ -154,7 +154,7 @@ Dialog {
                     Row {
                         id: batchToggleRow
                         anchors.centerIn: parent
-                        spacing: 6
+                        spacing: Dimensions.spacingSM
 
                         Text {
                             text: "\u2611"
@@ -237,7 +237,7 @@ Dialog {
             // Search and filter row
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: Dimensions.spacingLG
 
                 // Search input
                 Rectangle {
@@ -254,7 +254,7 @@ Dialog {
                         anchors.fill: parent
                         anchors.leftMargin: 12
                         anchors.rightMargin: 12
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Text {
                             text: "\uD83D\uDD0D"
@@ -312,7 +312,7 @@ Dialog {
 
                 // Category filters
                 RowLayout {
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     CategoryButton {
                         text: qsTr("Tümü")
@@ -462,7 +462,7 @@ Dialog {
                         anchors.right: parent.right
                         anchors.topMargin: 6
                         anchors.rightMargin: 6
-                        spacing: 4
+                        spacing: Dimensions.spacingXS
 
                         Rectangle {
                             visible: modelData.hasTranslation === true
@@ -626,7 +626,7 @@ Dialog {
         // Empty state
         ColumnLayout {
             anchors.centerIn: parent
-            spacing: 16
+            spacing: Dimensions.spacingXL
             visible: root.filteredGames.length === 0
 
             Text {
@@ -674,7 +674,7 @@ Dialog {
             anchors.fill: parent
             anchors.leftMargin: 24
             anchors.rightMargin: 24
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             Text {
                 text: selectedCount > 0

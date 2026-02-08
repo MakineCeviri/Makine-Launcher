@@ -136,7 +136,7 @@ Item {
                             anchors.fill: parent
                             anchors.leftMargin: 20
                             anchors.rightMargin: 20
-                            spacing: 16
+                            spacing: Dimensions.spacingXL
 
                             // Back button
                             Rectangle {
@@ -261,7 +261,7 @@ Item {
 
                     ColumnLayout {
                         width: settingsScrollView.availableWidth
-                        spacing: 16
+                        spacing: Dimensions.spacingXL
 
                         Item { Layout.preferredHeight: 32 }
 
@@ -270,7 +270,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.leftMargin: 32
                             Layout.rightMargin: 32
-                            spacing: 8
+                            spacing: Dimensions.spacingMD
 
                             Label {
                                 text: categories[selectedCategory].name
@@ -364,7 +364,7 @@ Item {
         id: generalSettings
 
         ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             SettingsCard {
                 Layout.fillWidth: true
@@ -456,7 +456,7 @@ Item {
         id: translationSettings
 
         ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             SettingsCard {
                 Layout.fillWidth: true
@@ -494,7 +494,7 @@ Item {
         id: projectsSettings
 
         ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // Backup list card
             SettingsCard {
@@ -502,11 +502,11 @@ Item {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: Dimensions.spacingLG
 
                     // Section header
                     RowLayout {
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Text {
                             text: qsTr("Yedekler")
@@ -543,7 +543,7 @@ Item {
 
                         RowLayout {
                             anchors.centerIn: parent
-                            spacing: 12
+                            spacing: Dimensions.spacingLG
 
                             Text {
                                 text: "📁"
@@ -575,7 +575,7 @@ Item {
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: 12
-                                spacing: 12
+                                spacing: Dimensions.spacingLG
 
                                 // Game icon placeholder
                                 Rectangle {
@@ -596,7 +596,7 @@ Item {
                                 // Backup info
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 2
+                                    spacing: Dimensions.spacingXXS
 
                                     Text {
                                         text: modelData.gameName || qsTr("Bilinmeyen Oyun")
@@ -637,7 +637,7 @@ Item {
                                     Row {
                                         id: restoreBtnContent
                                         anchors.centerIn: parent
-                                        spacing: 6
+                                        spacing: Dimensions.spacingSM
 
                                         Text {
                                             text: "↩"
@@ -745,7 +745,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: Dimensions.spacingLG
 
                     BusyIndicator {
                         Layout.preferredWidth: 24
@@ -770,7 +770,7 @@ Item {
         id: performanceSettings
 
         ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             SettingsCard {
                 Layout.fillWidth: true
@@ -813,7 +813,7 @@ Item {
         id: aboutSettings
 
         ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             // App info card
             SettingsCard {
@@ -948,7 +948,7 @@ Item {
         id: developerSettings
 
         ColumnLayout {
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             SettingsCard {
                 Layout.fillWidth: true
@@ -1109,7 +1109,7 @@ Item {
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 8
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             // Selection indicator
             Rectangle {
@@ -1182,11 +1182,11 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: 20
             anchors.rightMargin: 20
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Dimensions.spacingXS
 
                 Label {
                     text: qsTr("Tema")
@@ -1212,7 +1212,7 @@ Item {
                 Row {
                     id: themeRow
                     anchors.centerIn: parent
-                    spacing: 4
+                    spacing: Dimensions.spacingXS
 
                     // Light theme option
                     Rectangle {
@@ -1238,7 +1238,7 @@ Item {
                         Row {
                             id: lightRow
                             anchors.centerIn: parent
-                            spacing: 6
+                            spacing: Dimensions.spacingSM
 
                             Label {
                                 text: "☀"  // Sun icon
@@ -1300,7 +1300,7 @@ Item {
                         Row {
                             id: darkRow
                             anchors.centerIn: parent
-                            spacing: 6
+                            spacing: Dimensions.spacingSM
 
                             Label {
                                 text: "🌙"  // Moon icon
@@ -1373,11 +1373,11 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: 20
             anchors.rightMargin: 20
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Dimensions.spacingXS
 
                 Label {
                     Layout.fillWidth: true
@@ -1480,11 +1480,11 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: 20
             anchors.rightMargin: 20
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Dimensions.spacingXS
 
                 Label {
                     text: title
@@ -1531,14 +1531,14 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: 20
             anchors.rightMargin: 20
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: Dimensions.spacingXS
 
                 RowLayout {
-                    spacing: 8
+                    spacing: Dimensions.spacingMD
 
                     Label {
                         text: title
@@ -1607,7 +1607,7 @@ Item {
                 anchors.fill: parent
                 anchors.leftMargin: 20
                 anchors.rightMargin: 20
-                spacing: 16
+                spacing: Dimensions.spacingXL
 
                 // Icon container
                 Rectangle {
@@ -1631,7 +1631,7 @@ Item {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: Dimensions.spacingXS
 
                     Label {
                         text: title

@@ -245,7 +245,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.leftMargin: 16
                 anchors.rightMargin: 16
-                spacing: 8
+                spacing: Dimensions.spacingMD
 
                 Image {
                     source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
@@ -754,7 +754,7 @@ ApplicationWindow {
             anchors.fill: parent
             anchors.leftMargin: 12
             anchors.rightMargin: 0
-            spacing: 8
+            spacing: Dimensions.spacingMD
 
             Rectangle {
                 Layout.preferredWidth: 18
@@ -948,7 +948,7 @@ ApplicationWindow {
             anchors.fill: parent
             anchors.leftMargin: 24
             anchors.rightMargin: 24
-            spacing: 16
+            spacing: Dimensions.spacingXL
 
             Item {
                 id: logoContainer

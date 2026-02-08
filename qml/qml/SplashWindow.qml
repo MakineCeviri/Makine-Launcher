@@ -358,7 +358,7 @@ Window {
                 Row {
                     id: badgeRow
                     anchors.centerIn: parent
-                    spacing: 4
+                    spacing: Dimensions.spacingXS
 
                     Text {
                         text: "\u2728"  // Sparkle

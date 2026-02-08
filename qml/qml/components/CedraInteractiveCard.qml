@@ -89,7 +89,7 @@ Rectangle {
     RowLayout {
         anchors.fill: parent
         anchors.margins: 24
-        spacing: 20
+        spacing: Dimensions.spacingXXL
 
         Rectangle {
             id: logoContainer
@@ -122,7 +122,7 @@ Rectangle {
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Dimensions.spacingMD
 
             GradientText {
                 id: titleText

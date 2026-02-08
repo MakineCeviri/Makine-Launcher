@@ -126,7 +126,7 @@ Item {
         anchors.rightMargin: 12
         anchors.topMargin: 12
         anchors.bottomMargin: 12
-        spacing: 10
+        spacing: Dimensions.spacingBase
 
         // Type icon
         Rectangle {
@@ -163,7 +163,7 @@ Item {
         // Text content
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Dimensions.spacingXXS
 
             Text {
                 Layout.fillWidth: true

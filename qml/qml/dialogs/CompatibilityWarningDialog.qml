@@ -36,7 +36,7 @@ Dialog {
 
     contentItem: ColumnLayout {
         id: contentCol
-        spacing: 16
+        spacing: Dimensions.spacingXL
 
         // Warning icon
         Rectangle {
@@ -88,7 +88,7 @@ Dialog {
         // Integrity badge
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            spacing: 8
+            spacing: Dimensions.spacingMD
 
             Text {
                 text: qsTr("Bütünlük:")
@@ -112,7 +112,7 @@ Dialog {
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 8
-            spacing: 12
+            spacing: Dimensions.spacingLG
 
             // Restore backup button
             Rectangle {

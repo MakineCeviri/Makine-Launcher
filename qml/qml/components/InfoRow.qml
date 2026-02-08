@@ -14,7 +14,7 @@ RowLayout {
     property color labelColor: Theme.textMuted
     property color valueColor: Theme.textPrimary
 
-    spacing: 8
+    spacing: Dimensions.spacingMD
 
     Text {
         text: root.label

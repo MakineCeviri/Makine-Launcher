@@ -4,7 +4,7 @@ import MakineAI 1.0
 import "../components"
 
 ColumnLayout {
-    spacing: 16
+    spacing: Dimensions.spacingXL
 
     Rectangle {
         Layout.fillWidth: true

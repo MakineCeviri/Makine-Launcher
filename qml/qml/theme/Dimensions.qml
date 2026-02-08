@@ -56,6 +56,21 @@ QtObject {
     readonly property int paddingXXL: 48
 
     // =========================================================================
+    // SPACING (Row/Column/Layout gaps)
+    // =========================================================================
+
+    readonly property int spacingXXS: 2
+    readonly property int spacingXS: 4
+    readonly property int spacingSM: 6
+    readonly property int spacingMD: 8
+    readonly property int spacingBase: 10
+    readonly property int spacingLG: 12
+    readonly property int spacingXL: 16
+    readonly property int spacingXXL: 20
+    readonly property int spacingSection: 24
+    readonly property int spacingPage: 32
+
+    // =========================================================================
     // BORDER RADIUS
     // =========================================================================
 

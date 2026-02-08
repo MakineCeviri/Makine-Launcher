@@ -175,7 +175,7 @@ Popup {
                         anchors.rightMargin: 16
                         anchors.topMargin: 10
                         anchors.bottomMargin: 10
-                        spacing: 12
+                        spacing: Dimensions.spacingLG
 
                         // Type indicator
                         Rectangle {
@@ -212,11 +212,11 @@ Popup {
                         // Content
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 2
+                            spacing: Dimensions.spacingXXS
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: Dimensions.spacingMD
 
                                 Text {
                                     Layout.fillWidth: true
@@ -286,7 +286,7 @@ Popup {
 
                     ColumnLayout {
                         anchors.centerIn: parent
-                        spacing: 8
+                        spacing: Dimensions.spacingMD
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter

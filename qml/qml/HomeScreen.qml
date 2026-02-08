@@ -213,7 +213,7 @@ Item {
                                 anchors.fill: parent
                                 anchors.leftMargin: 16
                                 anchors.rightMargin: 12
-                                spacing: 12
+                                spacing: Dimensions.spacingLG
 
                                 Text {
                                     text: {
@@ -449,11 +449,11 @@ Item {
 
                                         Column {
                                             anchors.centerIn: parent
-                                            spacing: 10
+                                            spacing: Dimensions.spacingBase
 
                                             Row {
                                                 anchors.horizontalCenter: parent.horizontalCenter
-                                                spacing: 8
+                                                spacing: Dimensions.spacingMD
 
                                                 Repeater {
                                                     model: 3
@@ -524,7 +524,7 @@ Item {
 
                                         Row {
                                             anchors.centerIn: parent
-                                            spacing: 8
+                                            spacing: Dimensions.spacingMD
 
                                             Image {
                                                 width: 14; height: 14
@@ -636,7 +636,7 @@ Item {
                                             Column {
                                                 id: announcementContentCol
                                                 width: parent.width
-                                                spacing: 8
+                                                spacing: Dimensions.spacingMD
 
                                                 Item { width: 1; height: 4 }
 
@@ -821,7 +821,7 @@ Item {
                             }
 
                             RowLayout {
-                                spacing: 12
+                                spacing: Dimensions.spacingLG
 
                                 Label {
                                     text: GameService.isScanning ? qsTr("Oyunlar Taranıyor...") : qsTr("Desteklenen Oyunlar")
@@ -834,7 +834,7 @@ Item {
 
                                 Row {
                                     visible: GameService.isScanning
-                                    spacing: 8
+                                    spacing: Dimensions.spacingMD
 
                                     BusyIndicator {
                                         width: 20
@@ -1037,7 +1037,7 @@ Item {
 
                                 ColumnLayout {
                                     anchors.centerIn: parent
-                                    spacing: 12
+                                    spacing: Dimensions.spacingLG
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
@@ -1087,14 +1087,14 @@ Item {
 
                     ColumnLayout {
                         width: parent.width
-                        spacing: 32
+                        spacing: Dimensions.spacingPage
 
                         Item { Layout.preferredHeight: Dimensions.marginXXL }
 
                         RowLayout {
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            spacing: 16
+                            spacing: Dimensions.spacingXL
 
                             Rectangle {
                                 Layout.preferredWidth: 48
@@ -1114,7 +1114,7 @@ Item {
                             }
 
                             ColumnLayout {
-                                spacing: 4
+                                spacing: Dimensions.spacingXS
 
                                 Label {
                                     text: qsTr("Projelerimiz")
@@ -1200,7 +1200,7 @@ Item {
                         ColumnLayout {
                             id: waitingCardContent
                             anchors.centerIn: parent
-                            spacing: 20
+                            spacing: Dimensions.spacingXXL
                             width: parent.width - 64
 
                             Rectangle {
@@ -1244,7 +1244,7 @@ Item {
 
                                 Row {
                                     anchors.centerIn: parent
-                                    spacing: 8
+                                    spacing: Dimensions.spacingMD
 
                                     Label {
                                         text: "\uD83C\uDFAE"
@@ -1408,7 +1408,7 @@ Item {
 
             ColumnLayout {
                 anchors.centerIn: parent
-                spacing: 8
+                spacing: Dimensions.spacingMD
                 visible: gameImage.status !== Image.Ready
                 Label {
                     Layout.alignment: Qt.AlignHCenter
@@ -1438,7 +1438,7 @@ Item {
 
                 Row {
                     id: badgeRow
-                    anchors.centerIn: parent; spacing: 4
+                    anchors.centerIn: parent; spacing: Dimensions.spacingXS
                     Rectangle {
                         visible: gameCardRoot.translated
                         width: 20; height: 14; radius: Dimensions.badgeRadius
@@ -1696,7 +1696,7 @@ Item {
                 }
 
                 ColumnLayout {
-                    spacing: 2
+                    spacing: Dimensions.spacingXXS
 
                     Label {
                         text: title
@@ -1724,7 +1724,7 @@ Item {
             Flow {
                 Layout.fillWidth: true
                 Layout.margins: 16
-                spacing: 16
+                spacing: Dimensions.spacingXL
 
                 ProjectCard {
                     title: "Cyberless: Online"

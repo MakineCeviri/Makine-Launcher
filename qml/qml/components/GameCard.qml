@@ -184,7 +184,7 @@ Item {
 
             Column {
                 anchors.centerIn: parent
-                spacing: 8
+                spacing: Dimensions.spacingMD
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -220,7 +220,7 @@ Item {
             Row {
                 id: badgeContent
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: Dimensions.spacingXS
 
                 Rectangle {
                     visible: root.translated

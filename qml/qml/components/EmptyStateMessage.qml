@@ -18,7 +18,7 @@ Rectangle {
 
     RowLayout {
         anchors.centerIn: parent
-        spacing: 12
+        spacing: Dimensions.spacingLG
 
         Image {
             source: root.iconSource
@@ -30,7 +30,7 @@ Rectangle {
         }
 
         ColumnLayout {
-            spacing: 2
+            spacing: Dimensions.spacingXXS
             Layout.alignment: Qt.AlignVCenter
 
             Label {

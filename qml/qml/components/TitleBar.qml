@@ -43,7 +43,7 @@ Rectangle {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 0
-        spacing: 8
+        spacing: Dimensions.spacingMD
 
         Rectangle {
             Layout.preferredWidth: 18

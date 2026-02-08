@@ -44,7 +44,7 @@ Rectangle {
 
             ColumnLayout {
                 Layout.alignment: Qt.AlignVCenter
-                spacing: 2
+                spacing: Dimensions.spacingXXS
 
                 Label {
                     text: root.title
