@@ -215,7 +215,7 @@ QtObject {
     readonly property int fadeTransitionDuration: 300
     readonly property int splashDuration: 2500
     readonly property int tooltipDelay: 500
-    readonly property int pressScale: 0.97   // Scale factor on button press
+    readonly property real pressScale: 0.97   // Scale factor on button press
 
     // =========================================================================
     // LIMITS

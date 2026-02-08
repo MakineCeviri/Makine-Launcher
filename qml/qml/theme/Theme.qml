@@ -310,6 +310,7 @@ QtObject {
 
     /// Rengi alfa ile döndür
     function withAlpha(color, alpha) {
+        if (!color) return Qt.rgba(0, 0, 0, alpha)
         return Qt.rgba(color.r, color.g, color.b, alpha)
     }
 

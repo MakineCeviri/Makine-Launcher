@@ -22,7 +22,7 @@ Dialog {
     modal: true
     closePolicy: Popup.CloseOnEscape
     width: 440
-    height: contentCol.height + 140
+    height: contentCol.implicitHeight + 140
 
     x: parent ? (parent.width - width) / 2 : 0
     y: parent ? (parent.height - height) / 2 : 0

@@ -18,7 +18,7 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: shouldShow ? contentCol.implicitHeight + 24 : 0
-    Layout.topMargin: shouldShow ? 0 : -spacing
+    Layout.topMargin: 0
     visible: shouldShow
     clip: true
 
