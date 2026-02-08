@@ -1464,7 +1464,7 @@ Item {
                 ToolTip {
                     visible: gameCardRoot.isHovered && gameNameLabel.truncated
                     delay: 300; text: gameName; font.pixelSize: Dimensions.fontSM
-                    background: Rectangle { color: Qt.rgba(0.08, 0.08, 0.08, 0.96); radius: Dimensions.radiusStandard; border.color: Theme.withAlpha(Theme.textPrimary, 0.12); border.width: 1 }
+                    background: Rectangle { color: Theme.withAlpha(Theme.surface, 0.96); radius: Dimensions.radiusStandard; border.color: Theme.withAlpha(Theme.textPrimary, 0.12); border.width: 1 }
                 }
             }
         }

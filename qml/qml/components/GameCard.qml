@@ -288,7 +288,7 @@ Item {
                     font.pixelSize: Dimensions.fontSM
 
                     background: Rectangle {
-                        color: Qt.rgba(0.1, 0.1, 0.1, 0.95)
+                        color: Theme.withAlpha(Theme.surface, 0.95)
                         radius: Dimensions.radiusStandard
                         border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     }
