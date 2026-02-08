@@ -1735,7 +1735,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: latestInfoCol.height + 24
-                                radius: Dimensions.radiusSmall
+                                radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.textPrimary, 0.04)
 
                                 ColumnLayout {
@@ -1750,7 +1750,7 @@ Item {
                                         Rectangle {
                                             Layout.preferredWidth: latestBadgeText.width + 16
                                             Layout.preferredHeight: 22
-                                            radius: Dimensions.radiusSmall
+                                            radius: Dimensions.radiusStandard
                                             color: Theme.withAlpha(Theme.success, 0.15)
 
                                             Text {

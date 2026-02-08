@@ -96,7 +96,7 @@ Rectangle {
                 }
                 background: Rectangle {
                     color: parent.hovered ? Theme.surfaceHover : "transparent"
-                    radius: Dimensions.radiusSmall
+                    radius: Dimensions.radiusStandard
                 }
                 onClicked: root.skip()
 
@@ -544,7 +544,7 @@ Rectangle {
                 }
                 background: Rectangle {
                     color: parent.hovered ? Theme.surfaceHover : "transparent"
-                    radius: Dimensions.radiusSmall
+                    radius: Dimensions.radiusStandard
                 }
                 onClicked: root.previousStep()
 
@@ -595,7 +595,7 @@ Rectangle {
                 }
 
                 background: Rectangle {
-                    radius: Dimensions.radiusSmall
+                    radius: Dimensions.radiusStandard
                     color: parent.hovered ? Theme.primaryHover : Theme.primary
                     implicitWidth: 80
                     implicitHeight: 34

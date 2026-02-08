@@ -59,7 +59,7 @@ ColumnLayout {
                     onActivated: SettingsManager.appLanguage = currentValue
 
                     background: Rectangle {
-                        radius: Dimensions.radiusSmall
+                        radius: Dimensions.radiusStandard
                         color: Theme.surfaceLight
                         border.color: Theme.surfaceActive
                         border.width: 1
@@ -188,7 +188,7 @@ ColumnLayout {
                 Rectangle {
                     Layout.preferredWidth: clearCacheBtnText.width + 24
                     Layout.preferredHeight: 32
-                    radius: Dimensions.radiusSmall
+                    radius: Dimensions.radiusStandard
                     color: clearCacheMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.textPrimary, 0.05)
                     border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
@@ -258,7 +258,7 @@ ColumnLayout {
                 Rectangle {
                     Layout.preferredWidth: resetBtnText.width + 24
                     Layout.preferredHeight: 32
-                    radius: Dimensions.radiusSmall
+                    radius: Dimensions.radiusStandard
                     color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.15) : Theme.withAlpha(Theme.textPrimary, 0.05)
                     border.color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.3) : Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
