@@ -1225,7 +1225,7 @@ ApplicationWindow {
                     Behavior on opacity { NumberAnimation { duration: 200 } }
 
                     property real phase: donateItem.colorPhase
-                    onPhaseChanged: requestPaint()
+                    onPhaseChanged: if (donateItem.hovered) requestPaint()
 
                     onPaint: {
                         var ctx = getContext("2d")

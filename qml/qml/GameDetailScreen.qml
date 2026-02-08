@@ -283,6 +283,7 @@ Item {
             source: root.heroImageUrl
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            cache: true
             opacity: 0.3
             visible: root.heroImageUrl !== ""
         }
