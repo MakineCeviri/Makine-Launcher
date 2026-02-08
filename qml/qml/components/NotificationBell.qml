@@ -107,7 +107,7 @@ Item {
         text: root.unreadCount > 0
             ? qsTr("%1 yeni bildirim").arg(root.unreadCount)
             : qsTr("Bildirimler")
-        delay: 400
+        delay: 500
     }
 
     Accessible.role: Accessible.Button

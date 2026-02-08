@@ -48,6 +48,7 @@ Item {
                     height: 28
                     radius: Dimensions.radiusStandard
                     color: !SettingsManager.isDarkMode ? Theme.primary : "transparent"
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     Accessible.role: Accessible.RadioButton
                     Accessible.name: qsTr("Light theme")
                     activeFocusOnTab: true
@@ -85,6 +86,7 @@ Item {
                     height: 28
                     radius: Dimensions.radiusStandard
                     color: SettingsManager.isDarkMode ? Theme.primary : "transparent"
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     Accessible.role: Accessible.RadioButton
                     Accessible.name: qsTr("Dark theme")
                     activeFocusOnTab: true

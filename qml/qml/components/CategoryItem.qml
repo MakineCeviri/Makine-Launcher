@@ -41,6 +41,7 @@ Rectangle {
             sourceSize: Qt.size(18, 18)
             visible: root.iconSource !== ""
             opacity: root.isSelected ? 1.0 : 0.6
+            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
         }
 
         Text {

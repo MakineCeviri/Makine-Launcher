@@ -18,6 +18,6 @@ Rectangle {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         height: 1
-        color: Theme.withAlpha(Theme.textMuted, 0.1)
+        color: Theme.withAlpha(Theme.textMuted, 0.15)
     }
 }

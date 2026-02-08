@@ -43,7 +43,7 @@ Rectangle {
         Rectangle {
             implicitWidth: badgeText.implicitWidth + 28
             implicitHeight: 32
-            radius: 16
+            radius: Dimensions.radiusFull
             color: Theme.withAlpha(Theme.primary, 0.15)
 
             Text {

@@ -13,7 +13,7 @@ Rectangle {
 
     implicitHeight: catContent.implicitHeight
     color: Theme.surface
-    border.color: Qt.rgba(1, 1, 1, 0.08)
+    border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
     border.width: 1
     radius: Dimensions.radiusXS
 
@@ -26,7 +26,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             Layout.margins: Dimensions.marginML
-            spacing: 14
+            spacing: Dimensions.spacingLG
 
             Rectangle {
                 Layout.preferredWidth: 42
@@ -50,7 +50,7 @@ Rectangle {
                     text: root.title
                     font.pixelSize: Dimensions.fontTitle
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: Theme.textPrimary
                 }
 
                 Label {
@@ -67,7 +67,7 @@ Rectangle {
             Layout.topMargin: Dimensions.marginBase
             Layout.bottomMargin: Dimensions.marginBase
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.1)
+            color: Theme.withAlpha(Theme.textPrimary, 0.1)
         }
 
         // Project cards area

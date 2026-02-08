@@ -12,8 +12,8 @@ Rectangle {
 
     width: 280
     height: 140
-    color: Qt.rgba(1, 1, 1, 0.03)
-    border.color: Qt.rgba(1, 1, 1, 0.08)
+    color: Theme.withAlpha(Theme.textPrimary, 0.03)
+    border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
     border.width: 1
     radius: Dimensions.radiusXS
 
@@ -45,7 +45,7 @@ Rectangle {
                 text: root.title
                 font.pixelSize: Dimensions.fontSubtitle
                 font.weight: Font.DemiBold
-                color: "white"
+                color: Theme.textPrimary
             }
         }
 

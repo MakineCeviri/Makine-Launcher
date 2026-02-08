@@ -9,7 +9,7 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: 72
-    color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+    color: mouseArea.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.04) : "transparent"
     radius: Dimensions.radiusStandard
 
     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -99,8 +99,8 @@ Rectangle {
 
                 background: Rectangle {
                     radius: Dimensions.radiusStandard
-                    color: restoreBtn.hovered ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
-                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    color: restoreBtn.hovered ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
 
                     // Focus indicator
@@ -136,7 +136,7 @@ Rectangle {
 
                 background: Rectangle {
                     radius: Dimensions.radiusStandard
-                    color: deleteBtn.hovered ? Theme.withAlpha(Theme.error, 0.15) : Qt.rgba(1, 1, 1, 0.05)
+                    color: deleteBtn.hovered ? Theme.withAlpha(Theme.error, 0.15) : Theme.withAlpha(Theme.textPrimary, 0.05)
 
                     // Focus indicator
                     Rectangle {

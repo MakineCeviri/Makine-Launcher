@@ -13,7 +13,7 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: 80
-    color: Qt.rgba(1, 1, 1, 0.03)
+    color: Theme.withAlpha(Theme.textPrimary, 0.03)
     radius: Dimensions.radiusStandard
 
     RowLayout {

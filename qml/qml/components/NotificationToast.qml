@@ -227,7 +227,7 @@ Item {
         anchors.leftMargin: Dimensions.marginSM
         height: 2
         radius: 1
-        width: (parent.width - 16) * progressAnim.progress
+        width: (parent.width - Dimensions.marginSM * 2) * progressAnim.progress
         color: Theme.withAlpha(Theme.textMuted, 0.3)
         visible: root.showing
 

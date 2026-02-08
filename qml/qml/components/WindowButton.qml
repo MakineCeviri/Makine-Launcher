@@ -13,7 +13,7 @@ Item {
     // =========================================================================
 
     property string iconText: ""
-    property color hoverColor: Qt.rgba(1, 1, 1, 0.1)
+    property color hoverColor: Theme.withAlpha(Theme.textPrimary, 0.1)
     property bool isClose: false
     property string tooltip: ""
     property bool isDark: true
@@ -33,6 +33,9 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: root.tooltip
+    activeFocusOnTab: true
+    Keys.onReturnPressed: root.clicked()
+    Keys.onSpacePressed: root.clicked()
 
     // =========================================================================
     // HOVER STATE
@@ -83,6 +86,20 @@ Item {
         cursorShape: Qt.ArrowCursor  // Windows butonları için normal cursor
 
         onClicked: root.clicked()
+    }
+
+    // =========================================================================
+    // FOCUS INDICATOR
+    // =========================================================================
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 2
+        radius: Dimensions.radiusStandard
+        color: "transparent"
+        border.color: Theme.withAlpha(Theme.primary, 0.6)
+        border.width: 2
+        visible: root.activeFocus
     }
 
     // =========================================================================
