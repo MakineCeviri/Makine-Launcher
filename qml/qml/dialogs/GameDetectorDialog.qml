@@ -97,7 +97,7 @@ Popup {
 
         function onScanCompleted(count) {
             root.isScanning = false
-            root.statusMessage = count + " oyun bulundu"
+            root.statusMessage = qsTr("%1 oyun bulundu").arg(count)
         }
 
         function onScanError(error) {
@@ -222,7 +222,7 @@ Popup {
                     }
 
                     Text {
-                        text: root.isScanning ? root.statusMessage : (root.installedGames.length + " oyun bulundu")
+                        text: root.isScanning ? root.statusMessage : qsTr("%1 oyun bulundu").arg(root.installedGames.length)
                         font.pixelSize: 12
                         color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
                     }
@@ -379,6 +379,38 @@ Popup {
             Column {
                 anchors.fill: parent
                 visible: !root.isScanning
+
+                // Error banner
+                Rectangle {
+                    width: parent.width
+                    height: root.errorMessage ? errorRow.implicitHeight + 16 : 0
+                    visible: root.errorMessage !== ""
+                    color: Theme.withAlpha(Theme.error, 0.1)
+                    border.color: Theme.withAlpha(Theme.error, 0.3)
+                    border.width: 1
+
+                    RowLayout {
+                        id: errorRow
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 16
+                        spacing: 8
+
+                        Text {
+                            text: "\u26A0"
+                            font.pixelSize: 14
+                            color: Theme.error
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.errorMessage
+                            font.pixelSize: 12
+                            color: Theme.error
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
 
                 // Search bar
                 Item {
