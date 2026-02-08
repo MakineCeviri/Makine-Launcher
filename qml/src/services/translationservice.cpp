@@ -75,6 +75,12 @@ void TranslationService::startTranslation(const QString& gameId, const QString& 
         return;
     }
 
+    // Validate inputs
+    if (gameId.isEmpty() || installPath.isEmpty()) {
+        emit translationError(gameId, tr("Geçersiz oyun bilgisi"));
+        return;
+    }
+
     m_activeGameId = gameId;
     m_activeGameName = gameName;
     m_activeInstallPath = installPath;
@@ -153,6 +159,16 @@ void TranslationService::onExtractionCompleted(int count)
 
 void TranslationService::runMatchingAndQA(int /*extractedCount*/)
 {
+    if (!m_coreBridge) {
+        QMetaObject::invokeMethod(this, [this]() {
+            setProgress(0, tr("Hata: Core modülü başlatılamadı"));
+            m_isActive.store(false, std::memory_order_relaxed);
+            emit isActiveChanged();
+            emit translationError(m_activeGameId, tr("Core modülü başlatılamadı"));
+        }, Qt::QueuedConnection);
+        return;
+    }
+
     // --- Phase 3: Matching translations (TM) --- (runs on worker thread)
     auto extractedStrings = m_coreBridge->extractedStrings();
     QList<TranslationEntryQt> translatedStrings;

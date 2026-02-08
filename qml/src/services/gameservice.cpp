@@ -223,20 +223,21 @@ void GameService::addManualGame(const QString& path)
 {
     // Security: Validate path
     if (!isValidGamePath(path)) {
-        emit scanError("Geçersiz oyun klasörü: " + path);
+        emit scanError(tr("Geçersiz oyun klasörü: %1").arg(path));
         return;
     }
 
     QDir dir(path);
     if (!dir.exists()) {
-        emit scanError("Belirtilen klasör bulunamadı: " + path);
+        emit scanError(tr("Belirtilen klasör bulunamadı: %1").arg(path));
         return;
     }
 
-    // Check for duplicate
+    // Check for duplicate (case-insensitive on Windows)
+    const QString canonicalPath = QFileInfo(path).canonicalFilePath();
     for (const auto& game : m_games) {
-        if (game.installPath == path) {
-            emit scanError("Bu oyun zaten eklenmiş: " + path);
+        if (QFileInfo(game.installPath).canonicalFilePath() == canonicalPath) {
+            emit scanError(tr("Bu oyun zaten eklenmiş: %1").arg(path));
             return;
         }
     }
@@ -345,6 +346,10 @@ void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteAr
     }
 
     const QJsonObject appData = appObj.value("data").toObject();
+    if (appData.isEmpty()) {
+        emit steamDetailsFetchError(steamAppId, QStringLiteral("Steam API returned empty data"));
+        return;
+    }
 
     SteamDetails details;
     details.description = appData.value("short_description").toString();
