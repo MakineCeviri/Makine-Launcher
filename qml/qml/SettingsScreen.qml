@@ -345,7 +345,7 @@ Item {
 
                             Timer {
                                 id: categoryChangeTimer
-                                interval: 150  // Wait for fade out
+                                interval: Dimensions.animFast  // Wait for fade out
                                 onTriggered: {
                                     // Update content and fade in
                                     contentLoader.pendingCategory = selectedCategory

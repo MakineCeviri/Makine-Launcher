@@ -152,7 +152,7 @@ Item {
 
     Timer {
         id: patchedGamesCheckTimer
-        interval: 300
+        interval: Dimensions.fadeTransitionDuration
         onTriggered: {
             root.patchedGamesCount = GameService.patchedGamesCount
             root.gamesChecked = true

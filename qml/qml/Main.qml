@@ -407,7 +407,7 @@ ApplicationWindow {
 
             Timer {
                 id: pageChangeTimer
-                interval: 200
+                interval: Dimensions.transitionDuration
                 property int newIndex: 0
                 onTriggered: {
                     var oldPage = contentStackContainer.getPage(contentStackContainer.previousIndex)
