@@ -29,11 +29,6 @@ Popup {
     signal gameSelected(var game)
     signal dialogClosed()
 
-    // Radius constants
-    readonly property real radiusLarge: 4
-    readonly property real radiusMedium: 4
-    readonly property real radiusSmall: 4
-    readonly property real radiusTiny: 2
 
     width: 600
     height: Math.min(700, parent ? parent.height - 40 : 660)
@@ -169,7 +164,7 @@ Popup {
     }
 
     background: Rectangle {
-        radius: root.radiusLarge
+        radius: Dimensions.radiusStandard
         color: root.isDark
             ? Qt.rgba(0.08, 0.08, 0.12, 0.95)
             : Qt.rgba(0.95, 0.95, 0.97, 0.95)
@@ -196,7 +191,7 @@ Popup {
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
-                    radius: root.radiusSmall
+                    radius: Dimensions.radiusStandard
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0.0; color: Theme.splashGold }
@@ -232,7 +227,7 @@ Popup {
                 Rectangle {
                     Layout.preferredWidth: 36
                     Layout.preferredHeight: 36
-                    radius: root.radiusSmall
+                    radius: Dimensions.radiusStandard
                     color: closeBtn.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                     scale: closeBtn.pressed ? 0.9 : 1.0
                     Accessible.role: Accessible.Button
@@ -460,7 +455,7 @@ Popup {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 38
-                            radius: root.radiusSmall
+                            radius: Dimensions.radiusStandard
                             color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05)
 
                             RowLayout {
@@ -501,7 +496,7 @@ Popup {
                         Rectangle {
                             Layout.preferredWidth: 38
                             Layout.preferredHeight: 38
-                            radius: root.radiusSmall
+                            radius: Dimensions.radiusStandard
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Add game manually")
                             activeFocusOnTab: true
@@ -551,7 +546,7 @@ Popup {
                         Rectangle {
                             Layout.preferredWidth: 38
                             Layout.preferredHeight: 38
-                            radius: root.radiusSmall
+                            radius: Dimensions.radiusStandard
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Refresh game list")
                             activeFocusOnTab: true
@@ -616,7 +611,7 @@ Popup {
                         width: gamesList.width - 32
                         height: 68
                         x: 16
-                        radius: root.radiusMedium
+                        radius: Dimensions.radiusStandard
                         Accessible.role: Accessible.Button
                         Accessible.name: modelData.name || qsTr("Unknown")
                         activeFocusOnTab: true
@@ -647,7 +642,7 @@ Popup {
                             Rectangle {
                                 Layout.preferredWidth: 100
                                 Layout.preferredHeight: 38
-                                radius: root.radiusSmall
+                                radius: Dimensions.radiusStandard
                                 color: {
                                     var src = modelData.source || ""
                                     if (src === "steam") return Qt.rgba(0.106, 0.157, 0.22, 0.3)
@@ -710,7 +705,7 @@ Popup {
                             Rectangle {
                                 Layout.preferredWidth: sourceBadgeText.width + 12
                                 Layout.preferredHeight: 18
-                                radius: root.radiusTiny
+                                radius: 2
                                 color: {
                                     var src = (modelData.source || "").toLowerCase()
                                     if (src === "steam") return Qt.rgba(0.106, 0.157, 0.22, 0.8)
@@ -840,7 +835,7 @@ Popup {
                             visible: root.selectedGame !== null
                             width: footerSourceText.width + 12
                             height: 18
-                            radius: root.radiusTiny
+                            radius: 2
                             color: Theme.primary
 
                             Text {
@@ -874,7 +869,7 @@ Popup {
                 Rectangle {
                     Layout.preferredWidth: startBtnRow.width + 48
                     Layout.preferredHeight: 48
-                    radius: root.radiusMedium
+                    radius: Dimensions.radiusStandard
                     color: startBtn.containsMouse ? Theme.primaryHover : Theme.primary
                     scale: startBtn.pressed ? 0.96 : 1.0
                     Accessible.role: Accessible.Button

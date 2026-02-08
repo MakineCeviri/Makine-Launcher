@@ -43,7 +43,7 @@ Dialog {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 56
             Layout.preferredHeight: 56
-            radius: 28
+            radius: Dimensions.radiusFull
             color: Theme.withAlpha(Theme.warning, 0.12)
 
             Text {
@@ -122,6 +122,7 @@ Dialog {
                 color: restoreMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
                 border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
                 border.width: 1
+                scale: restoreMouse.pressed ? 0.97 : 1.0
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Yedeği Geri Yükle")
                 activeFocusOnTab: true
@@ -129,6 +130,7 @@ Dialog {
                 Keys.onSpacePressed: { root.restoreBackup(); root.close() }
 
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                 Text {
                     anchors.centerIn: parent
@@ -172,8 +174,10 @@ Dialog {
                 Keys.onReturnPressed: { root.proceedAnyway(); root.close() }
                 Keys.onSpacePressed: { root.proceedAnyway(); root.close() }
                 color: proceedMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.warning, 0.12)
+                scale: proceedMouse.pressed ? 0.97 : 1.0
 
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                 Text {
                     anchors.centerIn: parent
