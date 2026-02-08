@@ -878,6 +878,15 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
+                    readonly property var licenseModel: [
+                        { name: "Qt Framework", license: "LGPL v3", url: "https://www.qt.io/licensing" },
+                        { name: "Boost", license: "BSL-1.0", url: "https://www.boost.org/LICENSE_1_0.txt" },
+                        { name: "OpenSSL", license: "Apache-2.0", url: "https://www.openssl.org/source/license.html" },
+                        { name: "spdlog", license: "MIT", url: "https://github.com/gabime/spdlog/blob/v1.x/LICENSE" },
+                        { name: "nlohmann/json", license: "MIT", url: "https://github.com/nlohmann/json/blob/develop/LICENSE.MIT" },
+                        { name: "Inter Font", license: "OFL-1.1", url: "https://github.com/rsms/inter/blob/master/LICENSE.txt" }
+                    ]
+
                     // Section header
                     Item {
                         Layout.fillWidth: true
@@ -898,7 +907,7 @@ Item {
                             Item { Layout.fillWidth: true }
 
                             Label {
-                                text: "6"
+                                text: licenseModel.length.toString()
                                 font.pixelSize: 12
                                 font.weight: Font.Medium
                                 color: Theme.textMuted
@@ -909,14 +918,7 @@ Item {
                     SettingsDivider {}
 
                     Repeater {
-                        model: [
-                            { name: "Qt Framework", license: "LGPL v3", url: "https://www.qt.io/licensing" },
-                            { name: "Boost", license: "BSL-1.0", url: "https://www.boost.org/LICENSE_1_0.txt" },
-                            { name: "OpenSSL", license: "Apache-2.0", url: "https://www.openssl.org/source/license.html" },
-                            { name: "spdlog", license: "MIT", url: "https://github.com/gabime/spdlog/blob/v1.x/LICENSE" },
-                            { name: "nlohmann/json", license: "MIT", url: "https://github.com/nlohmann/json/blob/develop/LICENSE.MIT" },
-                            { name: "Inter Font", license: "OFL-1.1", url: "https://github.com/rsms/inter/blob/master/LICENSE.txt" }
-                        ]
+                        model: licenseModel
 
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -930,7 +932,7 @@ Item {
                             }
 
                             SettingsDivider {
-                                visible: index < 5
+                                visible: index < licenseModel.length - 1
                             }
                         }
                     }
