@@ -614,10 +614,15 @@ Popup {
                         height: 68
                         x: 16
                         radius: root.radiusMedium
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.name || qsTr("Unknown")
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: root.selectGame(modelData)
+                        Keys.onSpacePressed: root.selectGame(modelData)
                         color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
                             if (isSelected) return Theme.withAlpha(Theme.primary, 0.15)
-                            if (gameTileMouse.containsMouse) return root.isDark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.06)
+                            if (gameTileMouse.containsMouse || activeFocus) return root.isDark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.06)
                             return root.isDark ? Qt.rgba(1, 1, 1, 0.03) : Qt.rgba(0, 0, 0, 0.03)
                         }
                         border.color: {
@@ -679,7 +684,7 @@ Popup {
                                 spacing: 4
 
                                 Text {
-                                    text: modelData.name || "Unknown"
+                                    text: modelData.name || qsTr("Unknown")
                                     font.pixelSize: 14
                                     font.weight: Font.Medium
                                     color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
@@ -734,6 +739,17 @@ Popup {
                                 font.pixelSize: 16
                                 color: Theme.primary
                             }
+                        }
+
+                        // Focus indicator
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -1
+                            radius: parent.radius + 1
+                            color: "transparent"
+                            border.color: Theme.withAlpha(Theme.primary, 0.6)
+                            border.width: 2
+                            visible: parent.activeFocus
                         }
 
                         MouseArea {
