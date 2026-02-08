@@ -55,6 +55,9 @@ find_package(Qt6 REQUIRED COMPONENTS
 
 qt_standard_project_setup(REQUIRES 6.5)
 
+# Suppress QTP0004: qmldir files exist for all subdirectories
+qt_policy(SET QTP0004 NEW)
+
 # Core library linkage
 if(NOT MAKINEAI_UI_ONLY)
     if(TARGET makineai_core)
