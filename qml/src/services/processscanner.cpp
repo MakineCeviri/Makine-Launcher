@@ -149,8 +149,7 @@ void ProcessScanner::detectRunningGames()
         }
     }
 #else
-    // Non-Windows platforms - placeholder
-    Q_UNUSED(this)
+    // Non-Windows platforms - no process scanning
 #endif
 }
 
