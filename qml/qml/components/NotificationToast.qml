@@ -199,6 +199,7 @@ Item {
                 anchors.fill: parent
                 radius: Dimensions.radiusXS
                 color: closeMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
             }
 
             Text {
@@ -207,6 +208,7 @@ Item {
                 font.pixelSize: Dimensions.fontCaption
                 color: Theme.textMuted
                 opacity: closeMouse.containsMouse ? 1.0 : 0.5
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             }
 
             MouseArea {
