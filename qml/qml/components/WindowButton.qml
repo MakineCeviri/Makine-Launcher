@@ -16,7 +16,6 @@ Item {
     property color hoverColor: Theme.withAlpha(Theme.textPrimary, 0.1)
     property bool isClose: false
     property string tooltip: ""
-    property bool isDark: true
 
     // =========================================================================
     // SIZE
@@ -66,7 +65,7 @@ Item {
                 if (root.isHovered && root.isClose) {
                     return "white"
                 }
-                return root.isDark ? Theme.textSecondary : Theme.lightTextSecondary
+                return Theme.textSecondary
             }
 
             Behavior on color {

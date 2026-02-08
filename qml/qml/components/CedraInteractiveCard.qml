@@ -9,7 +9,6 @@ import MakineAI 1.0
 Rectangle {
     id: root
 
-    property bool isDark: true
     property bool animationsEnabled: true
 
     implicitHeight: 104
@@ -140,7 +139,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: qsTr("Türk oyun geliştirme ve çeviri topluluğu.")
                 font.pixelSize: Dimensions.fontMD
-                color: isDark ? Theme.textSecondary : Theme.lightTextSecondary
+                color: Theme.textSecondary
                 lineHeight: 1.5
                 wrapMode: Text.WordWrap
             }

@@ -11,7 +11,6 @@ Popup {
     id: root
 
     property var appWindow: null  // Required for FolderDialog on Windows
-    property bool isDark: true
     property var selectedGame: null
     property string searchQuery: ""
 
@@ -165,10 +164,8 @@ Popup {
 
     background: Rectangle {
         radius: Dimensions.radiusStandard
-        color: root.isDark
-            ? Qt.rgba(0.08, 0.08, 0.12, 0.95)
-            : Qt.rgba(0.95, 0.95, 0.97, 0.95)
-        border.color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1)
+        color: Theme.withAlpha(Theme.surface, 0.98)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
         border.width: 1
     }
 
@@ -213,13 +210,13 @@ Popup {
                         text: qsTr("Oyun Kütüphanesi")
                         font.pixelSize: Dimensions.fontLG
                         font.weight: Font.DemiBold
-                        color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                        color: Theme.textPrimary
                     }
 
                     Text {
                         text: root.isScanning ? root.statusMessage : qsTr("%1 oyun bulundu").arg(root.installedGames.length)
                         font.pixelSize: Dimensions.fontSM
-                        color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                        color: Theme.textMuted
                     }
                 }
 
@@ -243,7 +240,7 @@ Popup {
                         anchors.centerIn: parent
                         text: "✕"
                         font.pixelSize: Dimensions.fontMD
-                        color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                        color: Theme.textMuted
                     }
 
                     // Focus indicator
@@ -274,7 +271,7 @@ Popup {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 height: 1
-                color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.background, 0.08)
+                color: Theme.withAlpha(Theme.textPrimary, 0.08)
             }
         }
 
@@ -302,7 +299,7 @@ Popup {
                             ctx.clearRect(0, 0, width, height)
                             ctx.beginPath()
                             ctx.arc(width / 2, height / 2, 36, 0, 2 * Math.PI)
-                            ctx.strokeStyle = root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1)
+                            ctx.strokeStyle = Theme.withAlpha(Theme.textPrimary, 0.1)
                             ctx.lineWidth = 4
                             ctx.lineCap = "round"
                             ctx.stroke()
@@ -350,7 +347,7 @@ Popup {
                         text: Math.round(root.progress * 100) + "%"
                         font.pixelSize: Dimensions.fontTitle
                         font.weight: Font.DemiBold
-                        color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                        color: Theme.textPrimary
                     }
                 }
 
@@ -359,14 +356,14 @@ Popup {
                     text: root.statusMessage
                     font.pixelSize: Dimensions.fontLG
                     font.weight: Font.Medium
-                    color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                    color: Theme.textPrimary
                 }
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: qsTr("Bu işlem birkaç saniye sürebilir")
                     font.pixelSize: Dimensions.fontBody
-                    color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                    color: Theme.textMuted
                 }
             }
 
@@ -456,7 +453,7 @@ Popup {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 38
                             radius: Dimensions.radiusStandard
-                            color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.05)
 
                             RowLayout {
                                 anchors.fill: parent
@@ -474,7 +471,7 @@ Popup {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     verticalAlignment: TextInput.AlignVCenter
-                                    color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                                    color: Theme.textPrimary
                                     font.pixelSize: Dimensions.fontBody
                                     clip: true
                                     Accessible.role: Accessible.EditableText
@@ -485,7 +482,7 @@ Popup {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: qsTr("Oyun ara...")
                                         font.pixelSize: Dimensions.fontBody
-                                        color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                                        color: Theme.textMuted
                                         visible: searchInput.text.length === 0
                                     }
                                 }
@@ -503,8 +500,8 @@ Popup {
                             Keys.onReturnPressed: folderDialog.open()
                             Keys.onSpacePressed: folderDialog.open()
                             color: manualBtn.containsMouse
-                                ? (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1))
-                                : (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05))
+                                ? (Theme.withAlpha(Theme.textPrimary, 0.1))
+                                : (Theme.withAlpha(Theme.textPrimary, 0.05))
                             scale: manualBtn.pressed ? 0.92 : 1.0
 
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -553,8 +550,8 @@ Popup {
                             Keys.onReturnPressed: root.startScan()
                             Keys.onSpacePressed: root.startScan()
                             color: refreshBtn.containsMouse
-                                ? (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1))
-                                : (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05))
+                                ? (Theme.withAlpha(Theme.textPrimary, 0.1))
+                                : (Theme.withAlpha(Theme.textPrimary, 0.05))
                             scale: refreshBtn.pressed ? 0.92 : 1.0
 
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -620,13 +617,13 @@ Popup {
                         color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
                             if (isSelected) return Theme.withAlpha(Theme.primary, 0.15)
-                            if (gameTileMouse.containsMouse || activeFocus) return root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.background, 0.06)
-                            return root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.03) : Theme.withAlpha(Theme.background, 0.03)
+                            if (gameTileMouse.containsMouse || activeFocus) return Theme.withAlpha(Theme.textPrimary, 0.06)
+                            return Theme.withAlpha(Theme.textPrimary, 0.03)
                         }
                         border.color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
                             if (isSelected) return Theme.withAlpha(Theme.primary, 0.5)
-                            return root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.background, 0.08)
+                            return Theme.withAlpha(Theme.textPrimary, 0.08)
                         }
                         border.width: 1
 
@@ -687,7 +684,7 @@ Popup {
                                     text: modelData.name || qsTr("Unknown")
                                     font.pixelSize: Dimensions.fontMD
                                     font.weight: Font.Medium
-                                    color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                                    color: Theme.textPrimary
                                     elide: Text.ElideRight
                                     width: parent.width
                                 }
@@ -695,7 +692,7 @@ Popup {
                                 Text {
                                     text: modelData.source === "steam" ? "App ID: " + modelData.appId : (modelData.installPath || "")
                                     font.pixelSize: Dimensions.fontXS
-                                    color: root.isDark ? Theme.textMuted : Theme.lightTextMuted
+                                    color: Theme.textMuted
                                     elide: Text.ElideMiddle
                                     width: parent.width
                                 }
@@ -782,7 +779,7 @@ Popup {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 text: root.searchQuery.length > 0 ? qsTr("Sonuç bulunamadı") : qsTr("Yüklü oyun bulunamadı")
                                 font.pixelSize: Dimensions.fontLG
-                                color: root.isDark ? Theme.textSecondary : Theme.lightTextSecondary
+                                color: Theme.textSecondary
                             }
                         }
                     }
@@ -807,7 +804,7 @@ Popup {
                 anchors.top: parent.top
                 width: parent.width
                 height: 1
-                color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.background, 0.08)
+                color: Theme.withAlpha(Theme.textPrimary, 0.08)
             }
 
             RowLayout {
@@ -826,7 +823,7 @@ Popup {
                             text: root.selectedGame ? root.selectedGame.name : ""
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.DemiBold
-                            color: root.isDark ? Theme.textPrimary : Theme.lightTextPrimary
+                            color: Theme.textPrimary
                             elide: Text.ElideRight
                             width: Math.min(implicitWidth, 300)
                         }
