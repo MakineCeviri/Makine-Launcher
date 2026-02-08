@@ -80,12 +80,12 @@
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="147"/>
         <source>Batch mode</source>
-        <translation type="unfinished"></translation>
+        <translation>Batch mode</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="163"/>
         <source>Toplu Seçim</source>
-        <translation type="unfinished"></translation>
+        <translation>Batch Selection</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="190"/>
@@ -125,27 +125,27 @@
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="630"/>
         <source>%1 oyun seçildi</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 games selected</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="631"/>
         <source>Seçim yapın</source>
-        <translation type="unfinished"></translation>
+        <translation>Make a selection</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="648"/>
         <source>Tümünü Seç</source>
-        <translation type="unfinished"></translation>
+        <translation>Select All</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="674"/>
         <source>Seçimi Kaldır</source>
-        <translation type="unfinished"></translation>
+        <translation>Deselect All</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="704"/>
         <source>Çevirileri Kur</source>
-        <translation type="unfinished"></translation>
+        <translation>Install Translations</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/AllGamesDialog.qml" line="128"/>
@@ -193,7 +193,7 @@
     <message>
         <location filename="../qml/components/AnnouncementCard.qml" line="99"/>
         <source>Duyuru</source>
-        <translation type="unfinished"></translation>
+        <translation>Announcement</translation>
     </message>
 </context>
 <context>
@@ -283,7 +283,7 @@
     <message>
         <location filename="../qml/components/BackupListItem.qml" line="118"/>
         <source>Delete backup</source>
-        <translation type="unfinished"></translation>
+        <translation>Delete backup</translation>
     </message>
 </context>
 <context>
@@ -291,34 +291,34 @@
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="71"/>
         <source>Toplu İşlem Devam Ediyor</source>
-        <translation type="unfinished"></translation>
+        <translation>Batch Operation In Progress</translation>
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="75"/>
         <source>Toplu İşlem Tamamlandı — %1 hata</source>
-        <translation type="unfinished"></translation>
+        <translation>Batch Operation Completed — %1 errors</translation>
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="76"/>
         <source>Toplu İşlem Tamamlandı</source>
-        <translation type="unfinished"></translation>
+        <translation>Batch Operation Completed</translation>
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="113"/>
         <source>hata</source>
-        <translation type="unfinished"></translation>
+        <translation>errors</translation>
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="140"/>
         <source>İptal</source>
-        <translation type="unfinished"></translation>
+        <translation>Cancel</translation>
     </message>
     <message>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="126"/>
         <location filename="../qml/components/BatchOperationsPanel.qml" line="140"/>
         <source>Temizle</source>
-        <translation type="unfinished">Clear</translation>
+        <translation>Clear</translation>
     </message>
 </context>
 <context>
@@ -367,49 +367,49 @@ Are you sure?</translation>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="21"/>
         <source>Uyumluluk Uyarısı</source>
-        <translation type="unfinished"></translation>
+        <translation>Compatibility Warning</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="60"/>
         <source>Oyun Güncellendi</source>
-        <translation type="unfinished"></translation>
+        <translation>Game Updated</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="72"/>
         <source>%1 oyunu, çeviri kurulduktan sonra güncellenmiş.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 has been updated after the translation was installed.</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="74"/>
         <source>%1 dosya değiştirilmiş.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 files have been modified.</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="76"/>
         <source>Çeviri büyük olasılıkla bozulmuş olabilir. Yedekleme geri yüklemesi önerilir.</source>
-        <translation type="unfinished"></translation>
+        <translation>The translation is most likely corrupted. Restoring the backup is recommended.</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="78"/>
         <source>Çeviri kısmen uyumsuz olabilir. Devam edebilir veya yedeği geri yükleyebilirsiniz.</source>
-        <translation type="unfinished"></translation>
+        <translation>The translation may be partially incompatible. You can continue or restore the backup.</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="94"/>
         <source>Bütünlük:</source>
-        <translation type="unfinished"></translation>
+        <translation>Integrity:</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="126"/>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="132"/>
         <source>Yedeği Geri Yükle</source>
-        <translation type="unfinished"></translation>
+        <translation>Restore Backup</translation>
     </message>
     <message>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="156"/>
         <location filename="../qml/dialogs/CompatibilityWarningDialog.qml" line="163"/>
         <source>Yine de Devam Et</source>
-        <translation type="unfinished">Continue Anyway</translation>
+        <translation>Continue Anyway</translation>
     </message>
 </context>
 <context>
@@ -612,13 +612,13 @@ or game folder here.</translation>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="620"/>
         <source>Steam bilgileri yüklenemedi</source>
-        <translation type="unfinished"></translation>
+        <translation>Failed to load Steam details</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="631"/>
         <location filename="../qml/GameDetailScreen.qml" line="638"/>
         <source>Tekrar Dene</source>
-        <translation type="unfinished">Retry</translation>
+        <translation>Retry</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="666"/>
@@ -739,132 +739,132 @@ or game folder here.</translation>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1024"/>
         <source>Yazı Tipi Desteği</source>
-        <translation type="unfinished"></translation>
+        <translation>Font Support</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1089"/>
         <source>Türkçe Karakter Desteği Tam</source>
-        <translation type="unfinished"></translation>
+        <translation>Full Turkish Character Support</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1091"/>
         <source>Kısmi Türkçe Karakter Desteği</source>
-        <translation type="unfinished"></translation>
+        <translation>Partial Turkish Character Support</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1092"/>
         <source>Türkçe Karakter Desteği Yok</source>
-        <translation type="unfinished"></translation>
+        <translation>No Turkish Character Support</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1104"/>
         <source>yazı tipi Türkçe karakterleri destekliyor</source>
-        <translation type="unfinished"></translation>
+        <translation>font supports Turkish characters</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1122"/>
         <source>font</source>
-        <translation type="unfinished"></translation>
+        <translation>font</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1136"/>
         <source>Eksik karakterler:</source>
-        <translation type="unfinished"></translation>
+        <translation>Missing characters:</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1208"/>
         <source>daha fazla yazı tipi</source>
-        <translation type="unfinished"></translation>
+        <translation>more fonts</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1225"/>
         <source>Uyumluluk Durumu</source>
-        <translation type="unfinished"></translation>
+        <translation>Compatibility Status</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1297"/>
         <source>Tam Uyumlu</source>
-        <translation type="unfinished"></translation>
+        <translation>Fully Compatible</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1298"/>
         <source>Kısmi Uyumlu</source>
-        <translation type="unfinished"></translation>
+        <translation>Partially Compatible</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1299"/>
         <source>Uyumsuz</source>
-        <translation type="unfinished"></translation>
+        <translation>Incompatible</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1300"/>
         <source>Bilinmiyor</source>
-        <translation type="unfinished">Unknown</translation>
+        <translation>Unknown</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1361"/>
         <source>değiştirilmiş</source>
-        <translation type="unfinished"></translation>
+        <translation>modified</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1367"/>
         <source>yeni dosya</source>
-        <translation type="unfinished"></translation>
+        <translation>new file</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1373"/>
         <source>silinen dosya</source>
-        <translation type="unfinished"></translation>
+        <translation>deleted file</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1391"/>
         <source>Çeviri Çalışma Ortamı</source>
-        <translation type="unfinished"></translation>
+        <translation>Translation Workspace</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1453"/>
         <source>BepInEx Kurulu</source>
-        <translation type="unfinished"></translation>
+        <translation>BepInEx Installed</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1454"/>
         <source>BepInEx Güncellenmeli</source>
-        <translation type="unfinished"></translation>
+        <translation>BepInEx Needs Update</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1455"/>
         <source>BepInEx Gerekli</source>
-        <translation type="unfinished"></translation>
+        <translation>BepInEx Required</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1467"/>
         <source>Unity çevirileri için BepInEx + XUnity.AutoTranslator gereklidir</source>
-        <translation type="unfinished"></translation>
+        <translation>BepInEx + XUnity.AutoTranslator is required for Unity translations</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1533"/>
         <source>Bu oyun %1 anti-cheat kullanıyor. BepInEx kurulumu online özelliklerle çakışabilir.</source>
-        <translation type="unfinished"></translation>
+        <translation>This game uses %1 anti-cheat. BepInEx installation may conflict with online features.</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1561"/>
         <source>Kuruluyor...</source>
-        <translation type="unfinished"></translation>
+        <translation>Installing...</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1562"/>
         <source>Güncelle</source>
-        <translation type="unfinished"></translation>
+        <translation>Update</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1563"/>
         <source>BepInEx Kur</source>
-        <translation type="unfinished"></translation>
+        <translation>Install BepInEx</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1599"/>
         <source>Kaldır</source>
-        <translation type="unfinished"></translation>
+        <translation>Remove</translation>
     </message>
     <message>
         <location filename="../qml/GameDetailScreen.qml" line="1649"/>
@@ -1371,22 +1371,22 @@ it will be automatically detected.</translation>
     <message>
         <location filename="../qml/Main.qml" line="600"/>
         <source>Paket Hazır: </source>
-        <translation type="unfinished"></translation>
+        <translation>Package Ready: </translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="601"/>
         <source>Oyun: </source>
-        <translation type="unfinished"></translation>
+        <translation>Game: </translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="607"/>
         <source>Paket Hatası</source>
-        <translation type="unfinished"></translation>
+        <translation>Package Error</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="615"/>
         <source>Oyun Eklendi</source>
-        <translation type="unfinished"></translation>
+        <translation>Game Added</translation>
     </message>
     <message>
         <location filename="../qml/Main.qml" line="830"/>
@@ -1512,7 +1512,7 @@ it will be automatically detected.</translation>
     <message>
         <location filename="../qml/components/NavBar.qml" line="152"/>
         <source>Home</source>
-        <translation type="unfinished"></translation>
+        <translation>Home</translation>
     </message>
     <message>
         <location filename="../qml/components/NavBar.qml" line="245"/>
@@ -1522,12 +1522,12 @@ it will be automatically detected.</translation>
     <message>
         <location filename="../qml/components/NavBar.qml" line="261"/>
         <source>AI Active</source>
-        <translation type="unfinished"></translation>
+        <translation>AI Active</translation>
     </message>
     <message>
         <location filename="../qml/components/NavBar.qml" line="261"/>
         <source>AI Inactive</source>
-        <translation type="unfinished"></translation>
+        <translation>AI Inactive</translation>
     </message>
     <message>
         <location filename="../qml/components/NavBar.qml" line="314"/>
@@ -1542,7 +1542,7 @@ it will be automatically detected.</translation>
     <message>
         <location filename="../qml/components/NavBar.qml" line="455"/>
         <source>Support Us</source>
-        <translation type="unfinished"></translation>
+        <translation>Support Us</translation>
     </message>
     <message>
         <location filename="../qml/components/NavBar.qml" line="483"/>
@@ -1811,12 +1811,12 @@ Select a game from the main screen and install its Turkish translation!</transla
     <message>
         <location filename="../qml/components/PerformanceMonitor.qml" line="135"/>
         <source>Performance Monitor</source>
-        <translation type="unfinished"></translation>
+        <translation>Performance Monitor</translation>
     </message>
     <message>
         <location filename="../qml/components/PerformanceMonitor.qml" line="241"/>
         <source>Click: toggle • Dbl: reset</source>
-        <translation type="unfinished"></translation>
+        <translation>Click: toggle • Dbl: reset</translation>
     </message>
 </context>
 <context>
@@ -2589,7 +2589,7 @@ Select a game from the main screen and install its Turkish translation!</transla
     <message>
         <location filename="../qml/TranslationWorkflowScreen.qml" line="453"/>
         <source>Henüz aktivite yok</source>
-        <translation type="unfinished"></translation>
+        <translation>No activity yet</translation>
     </message>
     <message>
         <location filename="../qml/TranslationWorkflowScreen.qml" line="530"/>
@@ -2779,7 +2779,7 @@ Are you sure?</translation>
     <message>
         <location filename="../qml/components/ViewAllCard.qml" line="226"/>
         <source>View all games</source>
-        <translation type="unfinished"></translation>
+        <translation>View all games</translation>
     </message>
 </context>
 <context>
