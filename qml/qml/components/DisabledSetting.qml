@@ -39,7 +39,7 @@ Rectangle {
                     implicitWidth: comingSoonText.implicitWidth + 16
                     implicitHeight: 20
                     radius: Dimensions.radiusStandard
-                    color: Qt.rgba(1, 1, 1, 0.08)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.08)
 
                     Text {
                         id: comingSoonText

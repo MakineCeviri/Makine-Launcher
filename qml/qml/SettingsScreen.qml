@@ -255,7 +255,7 @@ Item {
                         contentItem: Rectangle {
                             implicitWidth: 8
                             radius: Dimensions.radiusStandard
-                            color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+                            color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.25) : Theme.withAlpha(Theme.textPrimary, 0.12)
                         }
                     }
 
@@ -347,7 +347,8 @@ Item {
                                 id: categoryChangeTimer
                                 interval: Dimensions.animFast  // Wait for fade out
                                 onTriggered: {
-                                    // Update content and fade in
+                                    // Reset scroll position, update content, fade in
+                                    settingsScrollView.ScrollBar.vertical.position = 0
                                     contentLoader.pendingCategory = selectedCategory
                                     contentLoader.opacity = 1
                                 }
