@@ -43,7 +43,7 @@ Item {
     // Background dimmer
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.6)
+        color: Theme.withAlpha(Theme.background, 0.6)
         opacity: root.active ? 1.0 : 0.0
 
         Behavior on opacity {

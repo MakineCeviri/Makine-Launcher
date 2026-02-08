@@ -308,7 +308,7 @@ Item {
         width: 40
         height: 40
         radius: Dimensions.radiusStandard
-        color: backBtnMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
+        color: backBtnMouse.containsMouse ? Theme.withAlpha(Theme.background, 0.5) : Theme.withAlpha(Theme.background, 0.3)
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Back")
         activeFocusOnTab: true
@@ -348,7 +348,7 @@ Item {
         width: 40
         height: 40
         radius: Dimensions.radiusStandard
-        color: openNewMouse.containsMouse ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(0, 0, 0, 0.3)
+        color: openNewMouse.containsMouse ? Theme.withAlpha(Theme.background, 0.5) : Theme.withAlpha(Theme.background, 0.3)
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Open on Steam")
         activeFocusOnTab: true
@@ -397,7 +397,7 @@ Item {
             contentItem: Rectangle {
                 implicitWidth: 8
                 radius: Dimensions.radiusStandard
-                color: parent.pressed ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.15)
+                color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.25) : Theme.withAlpha(Theme.textPrimary, 0.15)
             }
         }
 
@@ -504,8 +504,8 @@ Item {
                             Layout.preferredWidth: steamBtnContent.width + 48
                             Layout.preferredHeight: 48
                             radius: Dimensions.radiusStandard
-                            color: steamBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.1)
-                            border.color: Qt.rgba(1, 1, 1, 0.2)
+                            color: steamBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.15) : Theme.withAlpha(Theme.textPrimary, 0.1)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.2)
                             border.width: 1
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Open on Steam")
@@ -694,8 +694,8 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: descriptionText.height + 40
                         radius: Dimensions.radiusStandard
-                        color: Qt.rgba(1, 1, 1, 0.05)
-                        border.color: Qt.rgba(1, 1, 1, 0.1)
+                        color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                         border.width: 1
 
                         Text {
@@ -732,8 +732,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: detailsColumn.height + 40
                             radius: Dimensions.radiusStandard
-                            color: Qt.rgba(1, 1, 1, 0.05)
-                            border.color: Qt.rgba(1, 1, 1, 0.1)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                             border.width: 1
 
                             ColumnLayout {
@@ -791,8 +791,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: ratingColumn.height + 40
                             radius: Dimensions.radiusStandard
-                            color: Qt.rgba(1, 1, 1, 0.05)
-                            border.color: Qt.rgba(1, 1, 1, 0.1)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                             border.width: 1
 
                             ColumnLayout {
@@ -931,8 +931,8 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: recipeContent.height + 40
                     radius: Dimensions.radiusStandard
-                    color: Qt.rgba(1, 1, 1, 0.05)
-                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
                     visible: root.hasRecipe
 
@@ -1006,8 +1006,8 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 56
                     radius: Dimensions.radiusStandard
-                    color: Qt.rgba(1, 1, 1, 0.05)
-                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
                     visible: !root.hasRecipe
 
@@ -1052,13 +1052,13 @@ Item {
                     Layout.preferredHeight: fontContent.height + 32
                     radius: Dimensions.radiusStandard
                     color: {
-                        if (totalFonts === 0) return Qt.rgba(1, 1, 1, 0.03)
+                        if (totalFonts === 0) return Theme.withAlpha(Theme.textPrimary, 0.03)
                         if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.06)
                         if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.06)
                         return Theme.withAlpha(Theme.destructive, 0.06)
                     }
                     border.color: {
-                        if (totalFonts === 0) return Qt.rgba(1, 1, 1, 0.08)
+                        if (totalFonts === 0) return Theme.withAlpha(Theme.textPrimary, 0.08)
                         if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.3)
                         if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.3)
                         return Theme.withAlpha(Theme.destructive, 0.3)
@@ -1134,7 +1134,7 @@ Item {
                                 Layout.preferredWidth: fontCountLabel.width + 16
                                 Layout.preferredHeight: 24
                                 radius: Dimensions.badgeRadius
-                                color: Qt.rgba(1, 1, 1, 0.06)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.06)
 
                                 Text {
                                     id: fontCountLabel
@@ -1203,7 +1203,7 @@ Item {
                                     Layout.preferredWidth: fmtLabel.width + 10
                                     Layout.preferredHeight: 18
                                     radius: Dimensions.badgeRadius
-                                    color: Qt.rgba(1, 1, 1, 0.06)
+                                    color: Theme.withAlpha(Theme.textPrimary, 0.06)
 
                                     Text {
                                         id: fmtLabel
@@ -1256,13 +1256,13 @@ Item {
                         if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.06)
                         if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.06)
                         if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.06)
-                        return Qt.rgba(1, 1, 1, 0.03)
+                        return Theme.withAlpha(Theme.textPrimary, 0.03)
                     }
                     border.color: {
                         if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.3)
                         if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.3)
                         if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.3)
-                        return Qt.rgba(1, 1, 1, 0.08)
+                        return Theme.withAlpha(Theme.textPrimary, 0.08)
                     }
                     border.width: 1
 
@@ -1287,7 +1287,7 @@ Item {
                                     if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.15)
                                     if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.15)
                                     if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.15)
-                                    return Qt.rgba(1, 1, 1, 0.08)
+                                    return Theme.withAlpha(Theme.textPrimary, 0.08)
                                 }
 
                                 Text {
@@ -1357,7 +1357,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 4
                             radius: 2
-                            color: Qt.rgba(1, 1, 1, 0.06)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.06)
 
                             Rectangle {
                                 width: parent.width * (integrityPercent / 100)
@@ -1421,12 +1421,12 @@ Item {
                     color: {
                         if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.06)
                         if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.06)
-                        return Qt.rgba(1, 1, 1, 0.03)
+                        return Theme.withAlpha(Theme.textPrimary, 0.03)
                     }
                     border.color: {
                         if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.3)
                         if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.3)
-                        return Qt.rgba(1, 1, 1, 0.08)
+                        return Theme.withAlpha(Theme.textPrimary, 0.08)
                     }
                     border.width: 1
 
@@ -1449,7 +1449,7 @@ Item {
                                 color: {
                                     if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.15)
                                     if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.15)
-                                    return Qt.rgba(1, 1, 1, 0.08)
+                                    return Theme.withAlpha(Theme.textPrimary, 0.08)
                                 }
 
                                 Text {
@@ -1510,7 +1510,7 @@ Item {
                                 Layout.preferredWidth: backendLabel.width + 16
                                 Layout.preferredHeight: 22
                                 radius: 4
-                                color: Qt.rgba(1, 1, 1, 0.06)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.06)
                                 visible: unityBackend !== "" && unityBackend !== "unknown"
 
                                 Text {
@@ -1610,8 +1610,8 @@ Item {
                                 Layout.preferredWidth: uninstallBtnText.width + 32
                                 Layout.preferredHeight: 34
                                 radius: Dimensions.radiusStandard
-                                color: uninstallMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
-                                border.color: Qt.rgba(1, 1, 1, 0.12)
+                                color: uninstallMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
+                                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
                                 border.width: 1
                                 visible: runtimeInstalled
                                 opacity: isInstallingRuntime ? 0.6 : 1
@@ -1687,8 +1687,8 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: backupContent.height + 40
                     radius: Dimensions.radiusStandard
-                    color: Qt.rgba(1, 1, 1, 0.05)
-                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
 
                     ColumnLayout {
@@ -1736,7 +1736,7 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: latestInfoCol.height + 24
                                 radius: Dimensions.radiusSmall
-                                color: Qt.rgba(1, 1, 1, 0.04)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.04)
 
                                 ColumnLayout {
                                     id: latestInfoCol
@@ -1859,8 +1859,8 @@ Item {
                                     Layout.preferredWidth: deleteBtnContent.width + 40
                                     Layout.preferredHeight: 44
                                     radius: Dimensions.radiusStandard
-                                    color: deleteBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
-                                    border.color: Qt.rgba(1, 1, 1, deleteBtnMouse.containsMouse ? 0.15 : 0.08)
+                                    color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
+                                    border.color: Theme.withAlpha(Theme.textPrimary, deleteBtnMouse.containsMouse ? 0.15 : 0.08)
                                     border.width: 1
 
                                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

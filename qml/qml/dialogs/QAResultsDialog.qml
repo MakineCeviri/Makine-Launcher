@@ -87,7 +87,7 @@ Dialog {
     background: Rectangle {
         color: Theme.surface
         radius: Dimensions.radiusStandard
-        border.color: Qt.rgba(1, 1, 1, 0.1)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
         border.width: 1
     }
 
@@ -334,7 +334,7 @@ Dialog {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
                 radius: Dimensions.radiusStandard
-                color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                color: closeDialogMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Close")
                 activeFocusOnTab: true
@@ -374,7 +374,7 @@ Dialog {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.06)
+            color: Theme.withAlpha(Theme.textPrimary, 0.06)
         }
     }
 
@@ -428,7 +428,7 @@ Dialog {
                 contentItem: Rectangle {
                     implicitWidth: 6
                     radius: 3
-                    color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+                    color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.1)
                 }
             }
 
@@ -467,7 +467,7 @@ Dialog {
                     width: issuesList.width
                     height: expanded ? (issueContent.height + 24) : 56
                     radius: Dimensions.radiusStandard
-                    color: issueMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.03)
+                    color: issueMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.textPrimary, 0.03)
                     border.color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                           getSeverityColor(modelData.severity).g,
                                           getSeverityColor(modelData.severity).b, 0.3)
@@ -575,7 +575,7 @@ Dialog {
                             Layout.fillWidth: true
                             Layout.preferredHeight: detailsText.implicitHeight + 16
                             radius: Dimensions.radiusStandard
-                            color: Qt.rgba(1, 1, 1, 0.03)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.03)
                             visible: issueItem.expanded
                             opacity: issueItem.expanded ? 1 : 0
 
@@ -617,7 +617,7 @@ Dialog {
             anchors.top: parent.top
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.06)
+            color: Theme.withAlpha(Theme.textPrimary, 0.06)
         }
 
         RowLayout {
@@ -633,8 +633,8 @@ Dialog {
                 Layout.preferredWidth: ignoreBtnContent.width + 32
                 Layout.preferredHeight: 44
                 radius: Dimensions.radiusStandard
-                color: ignoreBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
-                border.color: Qt.rgba(1, 1, 1, 0.2)
+                color: ignoreBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
+                border.color: Theme.withAlpha(Theme.textPrimary, 0.2)
                 border.width: 1
                 visible: root.issues.length > 0
                 Accessible.role: Accessible.Button

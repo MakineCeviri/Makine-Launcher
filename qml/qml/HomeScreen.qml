@@ -188,19 +188,19 @@ Item {
 
                             color: {
                                 switch(notificationType) {
-                                    case "update": return Qt.rgba(0.2, 0.6, 1, 0.15)
-                                    case "warning": return Qt.rgba(1, 0.7, 0, 0.15)
-                                    case "error": return Qt.rgba(1, 0.3, 0.3, 0.15)
-                                    default: return Qt.rgba(0.5, 0.5, 0.5, 0.1)
+                                    case "update": return Theme.withAlpha(Theme.notificationUpdate, 0.15)
+                                    case "warning": return Theme.withAlpha(Theme.notificationWarning, 0.15)
+                                    case "error": return Theme.withAlpha(Theme.notificationError, 0.15)
+                                    default: return Theme.withAlpha(Theme.textMuted, 0.1)
                                 }
                             }
 
                             border.color: {
                                 switch(notificationType) {
-                                    case "update": return Qt.rgba(0.2, 0.6, 1, 0.4)
-                                    case "warning": return Qt.rgba(1, 0.7, 0, 0.4)
-                                    case "error": return Qt.rgba(1, 0.3, 0.3, 0.4)
-                                    default: return Qt.rgba(1, 1, 1, 0.1)
+                                    case "update": return Theme.withAlpha(Theme.notificationUpdate, 0.4)
+                                    case "warning": return Theme.withAlpha(Theme.notificationWarning, 0.4)
+                                    case "error": return Theme.withAlpha(Theme.notificationError, 0.4)
+                                    default: return Theme.withAlpha(Theme.textPrimary, 0.1)
                                 }
                             }
                             border.width: 1
@@ -248,7 +248,7 @@ Item {
                                     width: updateBtnText.width + 16
                                     height: 28
                                     radius: Dimensions.radiusStandard
-                                    color: updateBtnMouse.containsMouse ? Qt.rgba(0.2, 0.6, 1, 0.3) : Qt.rgba(0.2, 0.6, 1, 0.2)
+                                    color: updateBtnMouse.containsMouse ? Theme.withAlpha(Theme.notificationUpdate, 0.3) : Theme.withAlpha(Theme.notificationUpdate, 0.2)
                                     scale: updateBtnMouse.pressed ? 0.94 : 1.0
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Download update")
@@ -292,7 +292,7 @@ Item {
                                     width: 24
                                     height: 24
                                     radius: 12
-                                    color: closeBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                                    color: closeBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Close notification")
                                     activeFocusOnTab: true
@@ -358,8 +358,8 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: root.diTopRowHeight
                                 radius: Dimensions.radiusStandard
-                                color: Qt.rgba(1, 1, 1, 0.03)
-                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.03)
+                                border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                                 border.width: 1
 
                                 ColumnLayout {
@@ -443,8 +443,8 @@ Item {
                                         Layout.fillHeight: true
                                         Layout.minimumHeight: 60
                                         radius: Dimensions.radiusStandard
-                                        color: Qt.rgba(1, 1, 1, 0.02)
-                                        border.color: Qt.rgba(1, 1, 1, 0.06)
+                                        color: Theme.withAlpha(Theme.textPrimary, 0.02)
+                                        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
                                         border.width: 1
 
                                         Column {
@@ -508,9 +508,9 @@ Item {
                                         Layout.preferredHeight: 38
                                         radius: Dimensions.radiusStandard
                                         color: manualBtnMouse.containsMouse
-                                            ? Qt.rgba(1, 1, 1, 0.1)
-                                            : Qt.rgba(1, 1, 1, 0.05)
-                                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.1)
+                                            : Theme.withAlpha(Theme.textPrimary, 0.05)
+                                        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                                         border.width: 1
                                         Accessible.role: Accessible.Button
                                         Accessible.name: qsTr("Select game manually")
@@ -574,8 +574,8 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: root.diTopRowHeight
                                 radius: Dimensions.radiusStandard
-                                color: Qt.rgba(1, 1, 1, 0.03)
-                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.03)
+                                border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                                 border.width: 1
 
                                 ColumnLayout {
@@ -608,11 +608,11 @@ Item {
                                         Layout.minimumHeight: 60
                                         radius: Dimensions.radiusStandard
                                         color: announcementContentMouse.containsMouse
-                                            ? Qt.rgba(1, 1, 1, 0.06)
-                                            : Qt.rgba(1, 1, 1, 0.02)
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.06)
+                                            : Theme.withAlpha(Theme.textPrimary, 0.02)
                                         border.color: announcementContentMouse.containsMouse
-                                            ? Qt.rgba(1, 1, 1, 0.12)
-                                            : Qt.rgba(1, 1, 1, 0.06)
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.12)
+                                            : Theme.withAlpha(Theme.textPrimary, 0.06)
                                         border.width: 1
 
                                         property bool expanded: false
@@ -700,11 +700,11 @@ Item {
                                         Layout.preferredHeight: 38
                                         radius: Dimensions.radiusStandard
                                         color: securityMouse.containsMouse
-                                            ? Qt.rgba(1, 1, 1, 0.1)
-                                            : Qt.rgba(1, 1, 1, 0.05)
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.1)
+                                            : Theme.withAlpha(Theme.textPrimary, 0.05)
                                         border.color: securityMouse.containsMouse
-                                            ? Qt.rgba(1, 1, 1, 0.15)
-                                            : Qt.rgba(1, 1, 1, 0.08)
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.15)
+                                            : Theme.withAlpha(Theme.textPrimary, 0.08)
                                         border.width: 1
                                         Accessible.role: Accessible.Link
                                         Accessible.name: qsTr("Visit makineai.com")
@@ -888,7 +888,7 @@ Item {
                                     Layout.preferredWidth: 22
                                     Layout.preferredHeight: 22
                                     radius: Dimensions.badgeRadius
-                                    color: rescanMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                                    color: rescanMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Rescan libraries")
                                     activeFocusOnTab: true
@@ -937,7 +937,7 @@ Item {
                                 Layout.preferredHeight: 1
                                 Layout.topMargin: root.diSeparatorTopMargin
                                 Layout.bottomMargin: root.diSeparatorBottomMargin
-                                color: Qt.rgba(1, 1, 1, 0.15)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.15)
                             }
 
                             Flow {
@@ -1030,8 +1030,8 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 120
                                 radius: Dimensions.radiusStandard
-                                color: Qt.rgba(1, 1, 1, 0.03)
-                                border.color: Qt.rgba(1, 1, 1, 0.08)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.03)
+                                border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                                 border.width: 1
                                 visible: GameService.gameCount === 0 && !GameService.isScanning
 
@@ -1081,7 +1081,7 @@ Item {
                         contentItem: Rectangle {
                             implicitWidth: 8
                             radius: Dimensions.radiusStandard
-                            color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+                            color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.1)
                         }
                     }
 
@@ -1169,7 +1169,7 @@ Item {
                     height: 120
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                        GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.35) }
                     }
                     // Don't block mouse events
                     MouseArea {
@@ -1194,7 +1194,7 @@ Item {
                         height: waitingCardContent.height + 64
                         radius: Dimensions.radiusStandard
                         color: Theme.titlebarBg
-                        border.color: Qt.rgba(1, 1, 1, 0.06)
+                        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         border.width: 1
 
                         ColumnLayout {
@@ -1208,7 +1208,7 @@ Item {
                                 Layout.preferredWidth: 64
                                 Layout.preferredHeight: 64
                                 radius: 32
-                                color: Qt.rgba(1, 1, 1, 0.05)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.05)
 
                                 Label {
                                     anchors.centerIn: parent
@@ -1240,7 +1240,7 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 40
                                 radius: Dimensions.radiusStandard
-                                color: Qt.rgba(1, 1, 1, 0.03)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.03)
 
                                 Row {
                                     anchors.centerIn: parent
@@ -1270,8 +1270,8 @@ Item {
     // ===== GLASS CARD COMPONENT =====
     component GlassCard: Rectangle {
         radius: Dimensions.radiusStandard
-        color: Qt.rgba(1, 1, 1, 0.03)
-        border.color: Qt.rgba(1, 1, 1, 0.08)
+        color: Theme.withAlpha(Theme.textPrimary, 0.03)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
         border.width: 1
     }
 
@@ -1424,7 +1424,7 @@ Item {
                 height: parent.height * 0.5
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.9) }
+                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.9) }
                 }
             }
 
@@ -1434,7 +1434,7 @@ Item {
                 anchors.topMargin: Dimensions.spacingSM; anchors.rightMargin: Dimensions.spacingSM
                 width: badgeRow.width + 8; height: 20
                 radius: Dimensions.badgeRadius
-                color: Qt.rgba(0, 0, 0, 0.7)
+                color: Theme.withAlpha(Theme.background, 0.7)
 
                 Row {
                     id: badgeRow
@@ -1464,7 +1464,7 @@ Item {
                 ToolTip {
                     visible: gameCardRoot.isHovered && gameNameLabel.truncated
                     delay: 300; text: gameName; font.pixelSize: Dimensions.fontSM
-                    background: Rectangle { color: Qt.rgba(0.08, 0.08, 0.08, 0.96); radius: Dimensions.radiusStandard; border.color: Qt.rgba(1, 1, 1, 0.12); border.width: 1 }
+                    background: Rectangle { color: Qt.rgba(0.08, 0.08, 0.08, 0.96); radius: Dimensions.radiusStandard; border.color: Theme.withAlpha(Theme.textPrimary, 0.12); border.width: 1 }
                 }
             }
         }
@@ -1666,7 +1666,7 @@ Item {
 
         radius: Dimensions.radiusStandard
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.08)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
         border.width: 1
 
         implicitHeight: catContent.height
@@ -1718,7 +1718,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                color: Qt.rgba(1, 1, 1, 0.06)
+                color: Theme.withAlpha(Theme.textPrimary, 0.06)
             }
 
             Flow {

@@ -18,7 +18,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width
         height: 1
-        color: Qt.rgba(1, 1, 1, 0.08)
+        color: Theme.withAlpha(Theme.textPrimary, 0.08)
     }
 
     MouseArea {

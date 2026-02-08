@@ -109,7 +109,7 @@ Item {
         width: logoRect.width + 8 + _effectiveAnimValue * 16
         height: logoRect.height + 8 + _effectiveAnimValue * 16
         radius: logoRect.radius + 4
-        color: Qt.rgba(1, 1, 1, 0.2 + _effectiveAnimValue * 0.3)
+        color: Theme.withAlpha(Theme.textPrimary, 0.2 + _effectiveAnimValue * 0.3)
         z: -1
 
         Behavior on width { NumberAnimation { duration: Dimensions.animInstant } }
@@ -178,7 +178,7 @@ Item {
             width: logoSize * 0.35
             height: width
             radius: width * 0.5
-            color: Qt.rgba(1, 1, 1, 0.9)
+            color: Theme.withAlpha(Theme.textPrimary, 0.9)
         }
     }
 

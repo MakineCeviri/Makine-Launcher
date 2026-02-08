@@ -202,7 +202,7 @@ Item {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.4; color: "transparent" }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.85) }
+                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.85) }
             }
         }
 
@@ -216,7 +216,7 @@ Item {
             width: badgeContent.width + 10
             height: 22
             radius: Dimensions.badgeRadius
-            color: Qt.rgba(0, 0, 0, 0.75)
+            color: Theme.withAlpha(Theme.background, 0.75)
 
             Row {
                 id: badgeContent
@@ -290,7 +290,7 @@ Item {
                     background: Rectangle {
                         color: Qt.rgba(0.1, 0.1, 0.1, 0.95)
                         radius: Dimensions.radiusStandard
-                        border.color: Qt.rgba(1, 1, 1, 0.1)
+                        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     }
                 }
             }

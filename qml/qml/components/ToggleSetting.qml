@@ -19,7 +19,7 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: 72
-    color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+    color: mouseArea.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.04) : "transparent"
     radius: Dimensions.radiusStandard
 
     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

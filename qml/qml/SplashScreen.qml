@@ -369,7 +369,7 @@ Item {
                 width: 200
                 height: 4
                 radius: Dimensions.radiusStandard
-                color: Qt.rgba(1, 1, 1, 0.08)
+                color: Theme.withAlpha(Theme.textPrimary, 0.08)
             }
 
             Item {
@@ -422,7 +422,7 @@ Item {
                 font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
                 font.letterSpacing: Dimensions.letterSpacingLoose
-                color: Qt.rgba(1, 1, 1, 0.35)
+                color: Theme.withAlpha(Theme.textPrimary, 0.35)
 
                 // Crossfade on text change
                 property string pendingText: root.statusText
@@ -459,7 +459,7 @@ Item {
             width: versionText.width + 20
             height: versionText.height + 8
             radius: Dimensions.radiusStandard
-            color: Qt.rgba(1, 1, 1, 0.04)
+            color: Theme.withAlpha(Theme.textPrimary, 0.04)
             scale: root.textOpacity  // Scales in with text
             Behavior on scale { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
@@ -469,7 +469,7 @@ Item {
                 text: Dimensions.appVersionFull
                 font.pixelSize: Dimensions.fontCaption
                 font.weight: Font.Medium
-                color: Qt.rgba(1, 1, 1, 0.45)
+                color: Theme.withAlpha(Theme.textPrimary, 0.45)
             }
         }
 
@@ -480,7 +480,7 @@ Item {
             text: qsTr("Makine Çeviri Topluluğu")
             font.pixelSize: Dimensions.fontCaption
             font.letterSpacing: Dimensions.letterSpacingWide
-            color: Qt.rgba(1, 1, 1, 0.3)
+            color: Theme.withAlpha(Theme.textPrimary, 0.3)
         }
     }
 

@@ -14,7 +14,7 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: 72
-    color: (mouseArea.containsMouse || activeFocus) ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+    color: (mouseArea.containsMouse || activeFocus) ? Theme.withAlpha(Theme.textPrimary, 0.04) : "transparent"
     radius: Dimensions.radiusStandard
     enabled: !root.isLoading
 
@@ -49,7 +49,7 @@ Rectangle {
             radius: Dimensions.radiusStandard
             color: root.isDestructive
                  ? Theme.withAlpha(Theme.error, 0.1)
-                 : Qt.rgba(1, 1, 1, 0.06)
+                 : Theme.withAlpha(Theme.textPrimary, 0.06)
 
             scale: mouseArea.pressed ? 0.95 : 1.0
             Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }

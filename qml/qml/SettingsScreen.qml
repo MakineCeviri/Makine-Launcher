@@ -120,7 +120,7 @@ Item {
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right
                     width: 1
-                    color: Qt.rgba(1, 1, 1, 0.06)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.06)
                 }
 
                 ColumnLayout {
@@ -146,13 +146,13 @@ Item {
                                 radius: Dimensions.radiusStandard
                                 color: backMouse.containsMouse
                                     ? Theme.surfaceHover
-                                    : Qt.rgba(1, 1, 1, 0.06)
+                                    : Theme.withAlpha(Theme.textPrimary, 0.06)
 
                                 scale: backMouse.pressed ? 0.92 : 1.0
 
                                 // Hover border glow
                                 border.color: backMouse.containsMouse
-                                    ? Qt.rgba(1, 1, 1, 0.2)
+                                    ? Theme.withAlpha(Theme.textPrimary, 0.2)
                                     : "transparent"
                                 border.width: 1
 
@@ -200,7 +200,7 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 1
-                        color: Qt.rgba(1, 1, 1, 0.06)
+                        color: Theme.withAlpha(Theme.textPrimary, 0.06)
                     }
 
                     Item { Layout.preferredHeight: 12 }
@@ -541,7 +541,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 80
                         radius: Dimensions.radiusStandard
-                        color: Qt.rgba(1, 1, 1, 0.03)
+                        color: Theme.withAlpha(Theme.textPrimary, 0.03)
                         visible: BackupManager.backups.length === 0
 
                         RowLayout {
@@ -569,8 +569,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 72
                             radius: Dimensions.radiusStandard
-                            color: backupItemMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.03)
-                            border.color: Qt.rgba(1, 1, 1, 0.08)
+                            color: backupItemMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.textPrimary, 0.03)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                             border.width: 1
 
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -1064,7 +1064,7 @@ Item {
                             text: devStatus
                             font.pixelSize: Dimensions.fontSM
                             font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"
-                            color: Qt.rgba(1, 1, 1, 0.7)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.7)
                             readOnly: true
                             selectByMouse: true
                             wrapMode: TextEdit.Wrap
@@ -1094,15 +1094,15 @@ Item {
         height: 40
         radius: Dimensions.radiusStandard
         color: isSelected
-            ? Qt.rgba(1, 1, 1, 0.08)
-            : ((catMouse.containsMouse || catItem.activeFocus) ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
+            ? Theme.withAlpha(Theme.textPrimary, 0.08)
+            : ((catMouse.containsMouse || catItem.activeFocus) ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent")
 
         scale: catMouse.pressed ? 0.97 : 1.0
 
         // Hover/focus glow border
         border.color: isSelected
             ? Theme.withAlpha(Theme.primary, 0.4)
-            : ((catMouse.containsMouse || catItem.activeFocus) ? Qt.rgba(1, 1, 1, 0.15) : "transparent")
+            : ((catMouse.containsMouse || catItem.activeFocus) ? Theme.withAlpha(Theme.textPrimary, 0.15) : "transparent")
         border.width: isSelected ? 1.5 : 1
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -1156,7 +1156,7 @@ Item {
 
         radius: Dimensions.radiusStandard
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
 
         ColumnLayout {
@@ -1170,7 +1170,7 @@ Item {
     component SettingsDivider: Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: 1
-        color: Qt.rgba(1, 1, 1, 0.04)
+        color: Theme.withAlpha(Theme.textPrimary, 0.04)
     }
 
     // ===== THEME SETTING =====
@@ -1210,7 +1210,7 @@ Item {
                 Layout.preferredWidth: themeRow.width + 8
                 Layout.preferredHeight: 40
                 radius: Dimensions.radiusStandard
-                color: Qt.rgba(1, 1, 1, 0.06)
+                color: Theme.withAlpha(Theme.textPrimary, 0.06)
 
                 Row {
                     id: themeRow
@@ -1223,8 +1223,8 @@ Item {
                         width: lightRow.width + 28
                         height: 32
                         radius: Dimensions.radiusStandard
-                        color: !isDarkTheme ? Qt.rgba(1, 1, 1, 0.12) : (lightMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
-                        border.color: !isDarkTheme ? Qt.rgba(1, 1, 1, 0.2) : (lightMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
+                        color: !isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.12) : (lightMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent")
+                        border.color: !isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.2) : (lightMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent")
                         border.width: 1
                         scale: lightMouse.pressed ? 0.95 : 1.0
 
@@ -1285,8 +1285,8 @@ Item {
                         width: darkRow.width + 28
                         height: 32
                         radius: Dimensions.radiusStandard
-                        color: isDarkTheme ? Qt.rgba(1, 1, 1, 0.12) : (darkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
-                        border.color: isDarkTheme ? Qt.rgba(1, 1, 1, 0.2) : (darkMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
+                        color: isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.12) : (darkMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent")
+                        border.color: isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.2) : (darkMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent")
                         border.width: 1
                         scale: darkMouse.pressed ? 0.95 : 1.0
 
@@ -1368,7 +1368,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: toggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.02) : "transparent"
+            color: toggleMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.02) : "transparent"
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
         }
 
@@ -1406,12 +1406,12 @@ Item {
                 Layout.preferredWidth: Dimensions.toggleWidth
                 Layout.preferredHeight: Dimensions.toggleHeight
                 radius: Dimensions.toggleRadius
-                color: checked ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
+                color: checked ? Theme.primary : Theme.withAlpha(Theme.textPrimary, 0.1)
 
                 // Hover/focus glow border
                 property bool showGlow: toggleMouse.containsMouse || toggleRoot.activeFocus
                 border.color: showGlow
-                    ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Qt.rgba(1, 1, 1, 0.3))
+                    ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Theme.withAlpha(Theme.textPrimary, 0.3))
                     : "transparent"
                 border.width: 1.5
 
@@ -1443,7 +1443,7 @@ Item {
                         anchors.margins: -1
                         radius: Dimensions.radiusStandard
                         color: "transparent"
-                        border.color: Qt.rgba(0, 0, 0, 0.15)
+                        border.color: Theme.withAlpha(Theme.background, 0.15)
                         border.width: 1
                         z: -1
                     }
@@ -1554,7 +1554,7 @@ Item {
                         Layout.preferredWidth: yakindaLabel.width + 16
                         Layout.preferredHeight: 20
                         radius: Dimensions.radiusStandard
-                        color: Qt.rgba(1, 1, 1, 0.08)
+                        color: Theme.withAlpha(Theme.textPrimary, 0.08)
 
                         Label {
                             id: yakindaLabel
@@ -1602,7 +1602,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: devMouse.containsMouse && !isLoading ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
+            color: devMouse.containsMouse && !isLoading ? Theme.withAlpha(Theme.textPrimary, 0.03) : "transparent"
 
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -1619,7 +1619,7 @@ Item {
                     radius: Dimensions.radiusStandard
                     color: isDestructive
                          ? Theme.withAlpha(Theme.error, 0.1)
-                         : Qt.rgba(1, 1, 1, 0.06)
+                         : Theme.withAlpha(Theme.textPrimary, 0.06)
 
                     scale: devMouse.pressed ? 0.95 : 1.0
                     Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
@@ -1628,7 +1628,7 @@ Item {
                         anchors.centerIn: parent
                         text: icon
                         font.pixelSize: Dimensions.fontTitle
-                        color: isDestructive ? Theme.error : Qt.rgba(1, 1, 1, 0.7)
+                        color: isDestructive ? Theme.error : Theme.withAlpha(Theme.textPrimary, 0.7)
                     }
                 }
 

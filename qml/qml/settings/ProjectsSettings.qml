@@ -10,7 +10,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: backupColumn.implicitHeight + 16
@@ -69,7 +69,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: BackupManager.isRestoring
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: restoreRow.implicitHeight + 16

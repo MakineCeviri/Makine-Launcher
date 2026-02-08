@@ -9,7 +9,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: langColumn.implicitHeight + 16
@@ -31,7 +31,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: qualityColumn.implicitHeight + 16

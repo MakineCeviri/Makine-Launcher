@@ -259,8 +259,8 @@ Dialog {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
                 radius: Dimensions.radiusStandard
-                color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.04)
-                border.color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : "transparent"
+                color: closeDialogMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.12) : Theme.withAlpha(Theme.textPrimary, 0.04)
+                border.color: closeDialogMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.2) : "transparent"
                 border.width: 1
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Close")
@@ -367,7 +367,7 @@ Dialog {
                 contentItem: Rectangle {
                     implicitWidth: 6
                     radius: 3
-                    color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+                    color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.1)
                 }
             }
 
@@ -387,7 +387,7 @@ Dialog {
                     width: systemsList.width
                     height: 80
                     radius: Dimensions.radiusStandard
-                    color: delegateMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.03)
+                    color: delegateMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.textPrimary, 0.03)
                     border.color: Qt.rgba(getSeverityColor(modelData.severity).r,
                                           getSeverityColor(modelData.severity).g,
                                           getSeverityColor(modelData.severity).b,
@@ -538,8 +538,8 @@ Dialog {
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.2; color: Qt.rgba(1, 1, 1, 0.1) }
-                GradientStop { position: 0.8; color: Qt.rgba(1, 1, 1, 0.1) }
+                GradientStop { position: 0.2; color: Theme.withAlpha(Theme.textPrimary, 0.1) }
+                GradientStop { position: 0.8; color: Theme.withAlpha(Theme.textPrimary, 0.1) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }
@@ -565,8 +565,8 @@ Dialog {
                 activeFocusOnTab: true
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
                 Keys.onSpacePressed: { root.cancelled(); root.close() }
-                color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)
-                border.color: cancelBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.15)
+                color: cancelBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.03)
+                border.color: cancelBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.25) : Theme.withAlpha(Theme.textPrimary, 0.15)
                 border.width: 1.5
                 scale: cancelBtnMouse.pressed ? 0.97 : 1.0
 
@@ -669,7 +669,7 @@ Dialog {
                     Rectangle {
                         anchors.fill: parent
                         radius: parent.radius
-                        color: continueBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                        color: continueBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
 
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     }
@@ -683,7 +683,7 @@ Dialog {
                         radius: parent.radius
 
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.15) }
+                            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.textPrimary, 0.15) }
                             GradientStop { position: 1.0; color: "transparent" }
                         }
                     }

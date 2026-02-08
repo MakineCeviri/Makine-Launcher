@@ -83,7 +83,7 @@ Item {
                 case "success": return Theme.withAlpha(Theme.success, 0.4)
                 case "warning": return Theme.withAlpha(Theme.notificationWarning, 0.4)
                 case "error": return Theme.withAlpha(Theme.notificationError, 0.4)
-                default: return Qt.rgba(1, 1, 1, 0.1)
+                default: return Theme.withAlpha(Theme.textPrimary, 0.1)
             }
         }
         border.width: 1
@@ -91,7 +91,7 @@ Item {
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Qt.rgba(0, 0, 0, 0.3)
+            shadowColor: Theme.withAlpha(Theme.background, 0.3)
             shadowBlur: 0.8
             shadowVerticalOffset: 4
             shadowHorizontalOffset: 0
@@ -198,7 +198,7 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: Dimensions.radiusXS
-                color: closeMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                color: closeMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
             }
 
             Text {

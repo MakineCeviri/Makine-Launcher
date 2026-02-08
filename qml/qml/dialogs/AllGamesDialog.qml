@@ -78,7 +78,7 @@ Dialog {
     background: Rectangle {
         color: Theme.surface
         radius: Dimensions.radiusStandard
-        border.color: Qt.rgba(1, 1, 1, 0.1)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
         border.width: 1
     }
 
@@ -140,7 +140,7 @@ Dialog {
                     radius: Dimensions.radiusStandard
                     color: batchMode
                            ? Theme.withAlpha(Theme.primary, 0.15)
-                           : (batchToggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04))
+                           : (batchToggleMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04))
                     border.color: batchMode ? Theme.primary : "transparent"
                     border.width: 1
                     Accessible.role: Accessible.Button
@@ -199,7 +199,7 @@ Dialog {
                     Layout.preferredWidth: 36
                     Layout.preferredHeight: 36
                     radius: Dimensions.radiusStandard
-                    color: closeDialogMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    color: closeDialogMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Close")
                     activeFocusOnTab: true
@@ -244,8 +244,8 @@ Dialog {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 44
                     radius: Dimensions.radiusStandard
-                    color: Qt.rgba(1, 1, 1, 0.05)
-                    border.color: searchInput.activeFocus ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: searchInput.activeFocus ? Theme.primary : Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
 
                     Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
@@ -287,7 +287,7 @@ Dialog {
                             Layout.preferredWidth: 24
                             Layout.preferredHeight: 24
                             radius: 12
-                            color: clearSearchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                            color: clearSearchMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                             visible: searchInput.text.length > 0
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Clear search")
@@ -350,7 +350,7 @@ Dialog {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.06)
+            color: Theme.withAlpha(Theme.textPrimary, 0.06)
         }
     }
 
@@ -364,7 +364,7 @@ Dialog {
             contentItem: Rectangle {
                 implicitWidth: 8
                 radius: Dimensions.radiusStandard
-                color: parent.pressed ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+                color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.1)
             }
         }
 
@@ -451,7 +451,7 @@ Dialog {
                         radius: Dimensions.cardBorderRadius
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.9) }
+                            GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.9) }
                         }
                     }
 
@@ -507,7 +507,7 @@ Dialog {
                         width: engineLabel.width + 12
                         height: 18
                         radius: Dimensions.badgeRadius
-                        color: Qt.rgba(0, 0, 0, 0.7)
+                        color: Theme.withAlpha(Theme.background, 0.7)
 
                         Text {
                             id: engineLabel
@@ -570,10 +570,10 @@ Dialog {
                         radius: 4
                         color: selectedGameIds[modelData.id]
                                ? Theme.primary
-                               : Qt.rgba(0, 0, 0, 0.6)
+                               : Theme.withAlpha(Theme.background, 0.6)
                         border.color: selectedGameIds[modelData.id]
                                       ? Theme.primary
-                                      : Qt.rgba(1, 1, 1, 0.3)
+                                      : Theme.withAlpha(Theme.textPrimary, 0.3)
                         border.width: 1
 
                         Text {
@@ -667,7 +667,7 @@ Dialog {
             anchors.top: parent.top
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.06)
+            color: Theme.withAlpha(Theme.textPrimary, 0.06)
         }
 
         RowLayout {
@@ -691,7 +691,7 @@ Dialog {
                 Layout.preferredWidth: selectAllLabel.width + 16
                 Layout.preferredHeight: 30
                 radius: Dimensions.radiusStandard
-                color: selectAllMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+                color: selectAllMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Select all")
                 activeFocusOnTab: true
@@ -733,7 +733,7 @@ Dialog {
                 Layout.preferredWidth: deselectLabel.width + 16
                 Layout.preferredHeight: 30
                 radius: Dimensions.radiusStandard
-                color: deselectMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
+                color: deselectMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Deselect all")
                 activeFocusOnTab: true
@@ -776,7 +776,7 @@ Dialog {
                 radius: Dimensions.radiusStandard
                 color: selectedCount > 0
                        ? (installBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary)
-                       : Qt.rgba(1, 1, 1, 0.06)
+                       : Theme.withAlpha(Theme.textPrimary, 0.06)
                 opacity: selectedCount > 0 ? 1.0 : 0.5
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Install translations")
@@ -834,8 +834,8 @@ Dialog {
         width: catBtnLabel.width + 24
         height: 36
         radius: Dimensions.radiusStandard
-        color: isSelected ? Theme.withAlpha(Theme.primary, 0.15) : (catBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-        border.color: isSelected ? Theme.primary : (catBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
+        color: isSelected ? Theme.withAlpha(Theme.primary, 0.15) : (catBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.05) : "transparent")
+        border.color: isSelected ? Theme.primary : (catBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent")
         border.width: 1
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

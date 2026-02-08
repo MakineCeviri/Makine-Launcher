@@ -47,7 +47,7 @@ Item {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
                     radius: Dimensions.radiusStandard
-                    color: backBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    color: backBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Geri")
                     activeFocusOnTab: true
@@ -216,8 +216,8 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 60
                             radius: Dimensions.radiusStandard
-                            color: Qt.rgba(1, 1, 1, 0.03)
-                            border.color: Qt.rgba(1, 1, 1, 0.08)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.03)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                             border.width: 1
 
                             RowLayout {
@@ -300,8 +300,8 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 44
                                 radius: Dimensions.radiusStandard
-                                color: cancelBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.2) : Qt.rgba(1, 1, 1, 0.05)
-                                border.color: cancelBtnMouse.containsMouse ? Theme.error : Qt.rgba(1, 1, 1, 0.1)
+                                color: cancelBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                                border.color: cancelBtnMouse.containsMouse ? Theme.error : Theme.withAlpha(Theme.textPrimary, 0.1)
                                 border.width: 1
                                 visible: TranslationService.isProcessing
                                 Accessible.role: Accessible.Button
@@ -344,8 +344,8 @@ Item {
                                 Layout.preferredHeight: 44
                                 radius: Dimensions.radiusStandard
                                 visible: TranslationService.phase === 7
-                                color: retryBtnMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Qt.rgba(1, 1, 1, 0.05)
-                                border.color: retryBtnMouse.containsMouse ? Theme.warning : Qt.rgba(1, 1, 1, 0.1)
+                                color: retryBtnMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                                border.color: retryBtnMouse.containsMouse ? Theme.warning : Theme.withAlpha(Theme.textPrimary, 0.1)
                                 border.width: 1
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("Tekrar Dene")
@@ -390,8 +390,8 @@ Item {
                                 Layout.preferredHeight: 44
                                 radius: Dimensions.radiusStandard
                                 visible: TranslationService.phase === 7
-                                color: errorBackMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
-                                border.color: Qt.rgba(1, 1, 1, 0.1)
+                                color: errorBackMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                                border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                                 border.width: 1
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("Geri Dön")
@@ -515,7 +515,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             radius: Dimensions.radiusStandard
-                            color: Qt.rgba(0, 0, 0, 0.2)
+                            color: Theme.withAlpha(Theme.background, 0.2)
 
                             // Empty state
                             Text {
@@ -581,9 +581,9 @@ Item {
         id: phaseIndicator
         property int currentPhase: 0
 
-        color: Qt.rgba(1, 1, 1, 0.03)
+        color: Theme.withAlpha(Theme.textPrimary, 0.03)
         radius: Dimensions.radiusStandard
-        border.color: Qt.rgba(1, 1, 1, 0.08)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
         border.width: 1
 
         // Subtle gradient overlay
@@ -591,7 +591,7 @@ Item {
             anchors.fill: parent
             radius: parent.radius
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.02) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.textPrimary, 0.02) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }
@@ -675,11 +675,11 @@ Item {
 
                             color: parent.isCompleted || parent.isFinal ? Theme.withAlpha(Theme.success, 0.2) :
                                    parent.isActive ? Theme.withAlpha(Theme.gold, 0.2) :
-                                   Qt.rgba(1, 1, 1, 0.05)
+                                   Theme.withAlpha(Theme.textPrimary, 0.05)
 
                             border.color: parent.isCompleted || parent.isFinal ? Theme.success :
                                           parent.isActive ? Theme.gold :
-                                          Qt.rgba(1, 1, 1, 0.15)
+                                          Theme.withAlpha(Theme.textPrimary, 0.15)
                             border.width: parent.isActive ? 2 : 1
 
                             Behavior on color {
@@ -739,7 +739,7 @@ Item {
                             anchors.topMargin: 1
                             anchors.bottomMargin: 1
                             radius: 1
-                            color: Qt.rgba(1, 1, 1, 0.1)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.1)
                         }
 
                         // Fill progress
@@ -771,8 +771,8 @@ Item {
     // ===== GLASS CARD COMPONENT =====
     component GlassCard: Rectangle {
         radius: Dimensions.radiusStandard
-        color: Qt.rgba(1, 1, 1, 0.03)
-        border.color: Qt.rgba(1, 1, 1, 0.08)
+        color: Theme.withAlpha(Theme.textPrimary, 0.03)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
         border.width: 1
     }
 
@@ -790,7 +790,7 @@ Item {
         background: Rectangle {
             color: Theme.surface
             radius: Dimensions.radiusStandard
-            border.color: Qt.rgba(1, 1, 1, 0.1)
+            border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
             border.width: 1
         }
 
@@ -815,9 +815,9 @@ Item {
                     onClicked: cancelConfirmDialog.close()
 
                     background: Rectangle {
-                        color: parent.hovered ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
+                        color: parent.hovered ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.textPrimary, 0.05)
                         radius: Dimensions.radiusStandard
-                        border.color: Qt.rgba(1, 1, 1, 0.1)
+                        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                         border.width: 1
                     }
 

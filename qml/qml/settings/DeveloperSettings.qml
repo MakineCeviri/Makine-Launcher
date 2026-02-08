@@ -14,7 +14,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: devColumn.implicitHeight + 16
@@ -112,7 +112,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: root.devStatus !== ""
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: statusText.implicitHeight + 32
@@ -124,7 +124,7 @@ ColumnLayout {
             text: root.devStatus
             font.pixelSize: Dimensions.fontSM
             font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"
-            color: Qt.rgba(1, 1, 1, 0.7)
+            color: Theme.withAlpha(Theme.textPrimary, 0.7)
             readOnly: true
             selectByMouse: true
             wrapMode: TextEdit.Wrap

@@ -69,8 +69,8 @@ Item {
         width: parent.width
         height: root.barHeight
         radius: height / 2
-        color: Qt.rgba(1, 1, 1, 0.05)
-        border.color: Qt.rgba(1, 1, 1, 0.08)
+        color: Theme.withAlpha(Theme.textPrimary, 0.05)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
         border.width: 1
 
         // Subtle inner shadow
@@ -79,7 +79,7 @@ Item {
             anchors.margins: 1
             radius: parent.radius - 1
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.1) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.background, 0.1) }
                 GradientStop { position: 0.3; color: "transparent" }
             }
         }
@@ -135,7 +135,7 @@ Item {
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.3) }
+                GradientStop { position: 0.5; color: Theme.withAlpha(Theme.textPrimary, 0.3) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
 
@@ -161,7 +161,7 @@ Item {
             radius: parent.radius
 
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.25) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.textPrimary, 0.25) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }

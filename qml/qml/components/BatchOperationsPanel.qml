@@ -23,10 +23,10 @@ Rectangle {
     clip: true
 
     radius: Dimensions.radiusStandard
-    color: Qt.rgba(1, 1, 1, 0.03)
+    color: Theme.withAlpha(Theme.textPrimary, 0.03)
     border.color: BatchOperationService.isRunning
                   ? Theme.withAlpha(Theme.primary, 0.3)
-                  : Qt.rgba(1, 1, 1, 0.08)
+                  : Theme.withAlpha(Theme.textPrimary, 0.08)
     border.width: 1
 
     Behavior on Layout.preferredHeight {
@@ -130,10 +130,10 @@ Rectangle {
                 color: actionBtnMouse.containsMouse
                        ? (BatchOperationService.isRunning
                           ? Theme.withAlpha(Theme.destructive, 0.2)
-                          : Qt.rgba(1, 1, 1, 0.1))
+                          : Theme.withAlpha(Theme.textPrimary, 0.1))
                        : (BatchOperationService.isRunning
                           ? Theme.withAlpha(Theme.destructive, 0.1)
-                          : Qt.rgba(1, 1, 1, 0.05))
+                          : Theme.withAlpha(Theme.textPrimary, 0.05))
 
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -182,7 +182,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 6
                 radius: 3
-                color: Qt.rgba(1, 1, 1, 0.06)
+                color: Theme.withAlpha(Theme.textPrimary, 0.06)
 
                 Rectangle {
                     width: parent.width * BatchOperationService.overallProgress
@@ -201,7 +201,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 3
                 radius: 2
-                color: Qt.rgba(1, 1, 1, 0.04)
+                color: Theme.withAlpha(Theme.textPrimary, 0.04)
                 visible: BatchOperationService.currentItemProgress > 0
 
                 Rectangle {
@@ -270,7 +270,7 @@ Rectangle {
                 width: moreLabel.width + 12
                 height: 22
                 radius: Dimensions.badgeRadius
-                color: Qt.rgba(1, 1, 1, 0.05)
+                color: Theme.withAlpha(Theme.textPrimary, 0.05)
 
                 Label {
                     id: moreLabel

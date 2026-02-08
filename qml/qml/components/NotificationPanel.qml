@@ -37,14 +37,14 @@ Popup {
     background: Rectangle {
         color: Theme.surface
         radius: Dimensions.radiusLG
-        border.color: Qt.rgba(1, 1, 1, 0.08)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
         border.width: 1
 
         // Drop shadow
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Qt.rgba(0, 0, 0, 0.4)
+            shadowColor: Theme.withAlpha(Theme.background, 0.4)
             shadowBlur: 1.0
             shadowVerticalOffset: 8
             shadowHorizontalOffset: 0
@@ -125,7 +125,7 @@ Popup {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 height: 1
-                color: Qt.rgba(1, 1, 1, 0.06)
+                color: Theme.withAlpha(Theme.textPrimary, 0.06)
             }
         }
 
@@ -155,7 +155,7 @@ Popup {
                     width: notificationList.width
                     height: delegateLayout.implicitHeight + 20
                     color: delegateMouse.containsMouse
-                        ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
+                        ? Theme.withAlpha(Theme.textPrimary, 0.03) : "transparent"
                     Accessible.role: Accessible.ListItem
                     Accessible.name: delegateRoot.title
 
@@ -274,7 +274,7 @@ Popup {
                         anchors.leftMargin: Dimensions.marginMD
                         anchors.rightMargin: Dimensions.marginMD
                         height: 1
-                        color: Qt.rgba(1, 1, 1, 0.04)
+                        color: Theme.withAlpha(Theme.textPrimary, 0.04)
                         visible: delegateRoot.index < notificationList.count - 1
                     }
                 }
@@ -331,7 +331,7 @@ Popup {
                 anchors.top: parent.top
                 width: parent.width
                 height: 1
-                color: Qt.rgba(1, 1, 1, 0.06)
+                color: Theme.withAlpha(Theme.textPrimary, 0.06)
             }
 
             Text {

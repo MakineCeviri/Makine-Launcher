@@ -173,7 +173,7 @@ Popup {
         color: root.isDark
             ? Qt.rgba(0.08, 0.08, 0.12, 0.95)
             : Qt.rgba(0.95, 0.95, 0.97, 0.95)
-        border.color: root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
+        border.color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1)
         border.width: 1
     }
 
@@ -233,7 +233,7 @@ Popup {
                     Layout.preferredWidth: 36
                     Layout.preferredHeight: 36
                     radius: root.radiusSmall
-                    color: closeBtn.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                    color: closeBtn.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                     scale: closeBtn.pressed ? 0.9 : 1.0
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Close")
@@ -279,7 +279,7 @@ Popup {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 height: 1
-                color: root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+                color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.background, 0.08)
             }
         }
 
@@ -307,7 +307,7 @@ Popup {
                             ctx.clearRect(0, 0, width, height)
                             ctx.beginPath()
                             ctx.arc(width / 2, height / 2, 36, 0, 2 * Math.PI)
-                            ctx.strokeStyle = root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1)
+                            ctx.strokeStyle = root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1)
                             ctx.lineWidth = 4
                             ctx.lineCap = "round"
                             ctx.stroke()
@@ -461,7 +461,7 @@ Popup {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 38
                             radius: root.radiusSmall
-                            color: root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05)
+                            color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05)
 
                             RowLayout {
                                 anchors.fill: parent
@@ -508,8 +508,8 @@ Popup {
                             Keys.onReturnPressed: folderDialog.open()
                             Keys.onSpacePressed: folderDialog.open()
                             color: manualBtn.containsMouse
-                                ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
-                                : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
+                                ? (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1))
+                                : (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05))
                             scale: manualBtn.pressed ? 0.92 : 1.0
 
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -558,8 +558,8 @@ Popup {
                             Keys.onReturnPressed: root.startScan()
                             Keys.onSpacePressed: root.startScan()
                             color: refreshBtn.containsMouse
-                                ? (root.isDark ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(0, 0, 0, 0.1))
-                                : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
+                                ? (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.background, 0.1))
+                                : (root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.05) : Theme.withAlpha(Theme.background, 0.05))
                             scale: refreshBtn.pressed ? 0.92 : 1.0
 
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -625,13 +625,13 @@ Popup {
                         color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
                             if (isSelected) return Theme.withAlpha(Theme.primary, 0.15)
-                            if (gameTileMouse.containsMouse || activeFocus) return root.isDark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.06)
-                            return root.isDark ? Qt.rgba(1, 1, 1, 0.03) : Qt.rgba(0, 0, 0, 0.03)
+                            if (gameTileMouse.containsMouse || activeFocus) return root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.background, 0.06)
+                            return root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.03) : Theme.withAlpha(Theme.background, 0.03)
                         }
                         border.color: {
                             var isSelected = root.selectedGame && root.selectedGame.id === modelData.id
                             if (isSelected) return Theme.withAlpha(Theme.primary, 0.5)
-                            return root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+                            return root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.background, 0.08)
                         }
                         border.width: 1
 
@@ -812,7 +812,7 @@ Popup {
                 anchors.top: parent.top
                 width: parent.width
                 height: 1
-                color: root.isDark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+                color: root.isDark ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.background, 0.08)
             }
 
             RowLayout {

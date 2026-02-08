@@ -47,7 +47,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Dimensions.radiusStandard
-        color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
+        color: mouseArea.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.03) : "transparent"
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -64,7 +64,7 @@ Item {
                 radius: Dimensions.radiusStandard
                 color: root.isDestructive
                     ? Theme.withAlpha(Theme.error, 0.1)
-                    : Qt.rgba(1, 1, 1, 0.06)
+                    : Theme.withAlpha(Theme.textPrimary, 0.06)
                 visible: root.icon !== "" || root.iconSource !== ""
 
                 scale: mouseArea.pressed ? 0.95 : 1.0

@@ -40,7 +40,7 @@ Rectangle {
     width: showDetails ? 180 : 80
     height: showDetails ? contentColumn.height + 16 : 32
     radius: Dimensions.radiusStandard
-    color: Qt.rgba(0, 0, 0, 0.85)
+    color: Theme.withAlpha(Theme.background, 0.85)
     border.color: fpsColor
     border.width: 1
 
@@ -196,7 +196,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Qt.rgba(1, 1, 1, 0.1)
+                color: Theme.withAlpha(Theme.textPrimary, 0.1)
             }
 
             // Frame time
@@ -231,7 +231,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Qt.rgba(1, 1, 1, 0.1)
+                color: Theme.withAlpha(Theme.textPrimary, 0.1)
                 Layout.topMargin: Dimensions.marginXXS
             }
 

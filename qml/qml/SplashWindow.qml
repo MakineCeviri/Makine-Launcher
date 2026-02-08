@@ -239,7 +239,7 @@ Window {
             anchors.fill: parent
             radius: parent.radius
             color: "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.12)
+            border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
             border.width: 1
         }
 
@@ -402,7 +402,7 @@ Window {
                 width: 200
                 height: 4
                 radius: Dimensions.radiusStandard
-                color: Qt.rgba(1, 1, 1, 0.08)
+                color: Theme.withAlpha(Theme.textPrimary, 0.08)
             }
 
             // Progress glow
@@ -442,7 +442,7 @@ Window {
                 font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
                 font.letterSpacing: Dimensions.letterSpacingLoose
-                color: Qt.rgba(1, 1, 1, 0.35)
+                color: Theme.withAlpha(Theme.textPrimary, 0.35)
             }
         }
 
@@ -463,7 +463,7 @@ Window {
                 width: versionText.width + 20
                 height: 18
                 radius: Dimensions.radiusStandard
-                color: Qt.rgba(1, 1, 1, 0.04)
+                color: Theme.withAlpha(Theme.textPrimary, 0.04)
 
                 Text {
                     id: versionText
@@ -471,7 +471,7 @@ Window {
                     text: Dimensions.appVersionFull
                     font.pixelSize: Dimensions.fontMicro
                     font.weight: Font.Medium
-                    color: Qt.rgba(1, 1, 1, 0.45)
+                    color: Theme.withAlpha(Theme.textPrimary, 0.45)
                 }
             }
 
@@ -482,7 +482,7 @@ Window {
                 text: qsTr("Makine Çeviri Topluluğu")
                 font.pixelSize: Dimensions.fontCaption
                 font.letterSpacing: Dimensions.letterSpacingWide
-                color: Qt.rgba(1, 1, 1, 0.3)
+                color: Theme.withAlpha(Theme.textPrimary, 0.3)
             }
         }
     }

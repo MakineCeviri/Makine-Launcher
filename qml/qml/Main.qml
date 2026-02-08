@@ -592,7 +592,7 @@ ApplicationWindow {
 
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.35) }
                 }
             }
         }
@@ -772,7 +772,7 @@ ApplicationWindow {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.08)
+            color: Theme.withAlpha(Theme.textPrimary, 0.08)
         }
 
         MouseArea {
@@ -985,7 +985,7 @@ ApplicationWindow {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.08)
+            color: Theme.withAlpha(Theme.textPrimary, 0.08)
         }
 
         RowLayout {

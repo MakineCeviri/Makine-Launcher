@@ -37,8 +37,8 @@ Rectangle {
     property int animationDelay: 0  // For staggered animations in lists
 
     // Colors
-    property color baseColor: Qt.rgba(1, 1, 1, 0.06)
-    property color shimmerColor: Qt.rgba(1, 1, 1, 0.12)
+    property color baseColor: Theme.withAlpha(Theme.textPrimary, 0.06)
+    property color shimmerColor: Theme.withAlpha(Theme.textPrimary, 0.12)
 
     // Size
     implicitWidth: 100
@@ -81,7 +81,7 @@ Rectangle {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "transparent" }
             GradientStop { position: 0.3; color: root.shimmerColor }
-            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.18) }
+            GradientStop { position: 0.5; color: Theme.withAlpha(Theme.textPrimary, 0.18) }
             GradientStop { position: 0.7; color: root.shimmerColor }
             GradientStop { position: 1.0; color: "transparent" }
         }

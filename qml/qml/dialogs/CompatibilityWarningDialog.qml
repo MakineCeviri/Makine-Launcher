@@ -119,8 +119,8 @@ Dialog {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
                 radius: Dimensions.radiusStandard
-                color: restoreMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
-                border.color: Qt.rgba(1, 1, 1, 0.12)
+                color: restoreMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
+                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
                 border.width: 1
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Yedeği Geri Yükle")

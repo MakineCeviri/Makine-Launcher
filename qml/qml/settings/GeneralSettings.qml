@@ -11,7 +11,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: langColumn.implicitHeight + 16
@@ -81,7 +81,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: themeColumn.implicitHeight + 16
@@ -100,7 +100,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: settingsColumn.implicitHeight + 16
@@ -151,7 +151,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         color: Theme.surface
-        border.color: Qt.rgba(1, 1, 1, 0.06)
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
         border.width: 1
         radius: Dimensions.radiusStandard
         implicitHeight: cacheColumn.implicitHeight + 16
@@ -189,8 +189,8 @@ ColumnLayout {
                     Layout.preferredWidth: clearCacheBtnText.width + 24
                     Layout.preferredHeight: 32
                     radius: Dimensions.radiusSmall
-                    color: clearCacheMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.05)
-                    border.color: Qt.rgba(1, 1, 1, 0.1)
+                    color: clearCacheMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Clear cache")
@@ -259,8 +259,8 @@ ColumnLayout {
                     Layout.preferredWidth: resetBtnText.width + 24
                     Layout.preferredHeight: 32
                     radius: Dimensions.radiusSmall
-                    color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.15) : Qt.rgba(1, 1, 1, 0.05)
-                    border.color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.3) : Qt.rgba(1, 1, 1, 0.1)
+                    color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.15) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: resetMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.3) : Theme.withAlpha(Theme.textPrimary, 0.1)
                     border.width: 1
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Reset to defaults")
