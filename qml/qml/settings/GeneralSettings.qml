@@ -48,6 +48,7 @@ ColumnLayout {
                 ComboBox {
                     id: langCombo
                     Layout.preferredWidth: 140
+                    Accessible.name: qsTr("Application language")
                     model: [
                         { value: "tr", label: "Türkçe" },
                         { value: "en", label: "English" }
