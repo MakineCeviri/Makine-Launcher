@@ -23,7 +23,7 @@ Item {
         NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
     }
 
-    Label {
+    Text {
         id: navItemLabel
         anchors.centerIn: parent
         text: navItemRoot.text

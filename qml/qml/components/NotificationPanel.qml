@@ -20,11 +20,11 @@ Popup {
     signal clearAll()
 
     width: 360
-    height: Math.min(contentHeight, 480)
+    height: Math.min(panelContentHeight, 480)
     padding: 0
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    readonly property real contentHeight: headerItem.height + listContainer.implicitHeight + footerItem.height + 2
+    readonly property real panelContentHeight: headerItem.height + listContainer.implicitHeight + footerItem.height + 2
 
     enter: Transition {
         NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.animFast }
