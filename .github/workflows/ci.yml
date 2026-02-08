@@ -129,13 +129,11 @@ jobs:
         run: |
           cd build/core
           ctest -C ${{ env.BUILD_TYPE }} -L unit --output-on-failure --timeout 120
-        continue-on-error: true
 
       - name: Run Integration Tests
         run: |
           cd build/core
           ctest -C ${{ env.BUILD_TYPE }} -L integration --output-on-failure --timeout 180
-        continue-on-error: true
 
       - name: Upload Core Library
         uses: actions/upload-artifact@v4
@@ -151,7 +149,7 @@ jobs:
         with:
           name: test-results
           path: build/core/Testing/
-          if-no-files-found: ignore
+          if-no-files-found: warn
           retention-days: 7
 
   # =============================================================================
@@ -244,9 +242,9 @@ jobs:
           echo "Analysis: ${{ needs.static-analysis.result }}"
 
           # Quality and static analysis are informational (continue-on-error)
-          # Only build failures block the pipeline
+          # Build and test failures block the pipeline
           if [ "${{ needs.build.result }}" == "failure" ]; then
-            echo "::error::Core build failed"
+            echo "::error::Core build or tests failed"
             exit 1
           fi
           if [ "${{ needs.build-qml.result }}" == "failure" ]; then

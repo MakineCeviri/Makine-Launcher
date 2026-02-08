@@ -83,6 +83,10 @@ ipch/
 *.idb
 *.dSYM/
 
+# Linker maps & Windows resource outputs
+*.map
+*.res
+
 # Precompiled headers
 *.gch
 *.pch
