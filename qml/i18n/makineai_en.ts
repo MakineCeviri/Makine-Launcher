@@ -1369,163 +1369,163 @@ it will be automatically detected.</translation>
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="259"/>
+        <location filename="../qml/Main.qml" line="303"/>
         <source>Binary integrity check failed — this executable may have been modified.</source>
         <translation>Binary integrity check failed — this executable may have been modified.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="303"/>
+        <location filename="../qml/Main.qml" line="347"/>
         <source>Security warning: binary integrity check failed</source>
         <translation>Security warning: binary integrity check failed</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="624"/>
+        <location filename="../qml/Main.qml" line="668"/>
         <source>Paket Hatası</source>
         <translation>Package Error</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="632"/>
+        <location filename="../qml/Main.qml" line="676"/>
         <source>Oyun Eklendi</source>
         <translation>Game Added</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="847"/>
+        <location filename="../qml/Main.qml" line="891"/>
         <source>Minimize to Tray</source>
         <translation>Minimize to Tray</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="853"/>
+        <location filename="../qml/Main.qml" line="897"/>
         <source>Minimize</source>
         <translation>Minimize</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="859"/>
+        <location filename="../qml/Main.qml" line="903"/>
         <source>Restore</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="859"/>
+        <location filename="../qml/Main.qml" line="903"/>
         <source>Maximize</source>
         <translation>Maximize</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="866"/>
+        <location filename="../qml/Main.qml" line="910"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="960"/>
+        <location filename="../qml/Main.qml" line="1004"/>
         <source>Home</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1028"/>
+        <location filename="../qml/Main.qml" line="1072"/>
         <source>Ana Menü</source>
         <translation>Main Menu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1038"/>
+        <location filename="../qml/Main.qml" line="1082"/>
         <source>AI Active</source>
         <translation>AI Active</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1038"/>
+        <location filename="../qml/Main.qml" line="1082"/>
         <source>AI Inactive</source>
         <translation>AI Inactive</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1098"/>
+        <location filename="../qml/Main.qml" line="1142"/>
         <source>Türkçe Yama</source>
         <translation>Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1157"/>
+        <location filename="../qml/Main.qml" line="1201"/>
         <source>Türkçe Yamayı Kapat</source>
         <translation>Disable Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1157"/>
+        <location filename="../qml/Main.qml" line="1201"/>
         <source>Türkçe Yamayı Aç</source>
         <translation>Enable Turkish Patch</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1163"/>
+        <location filename="../qml/Main.qml" line="1207"/>
         <source>Projelerimiz</source>
         <translation>Our Projects</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1169"/>
+        <location filename="../qml/Main.qml" line="1213"/>
         <source>Ayarlar</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1193"/>
+        <location filename="../qml/Main.qml" line="1237"/>
         <source>Support Us</source>
         <translation>Support Us</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="1285"/>
+        <location filename="../qml/Main.qml" line="1329"/>
         <source>Destekçi Ol</source>
         <translation>Become a Supporter</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="604"/>
+        <location filename="../qml/Main.qml" line="648"/>
         <source>Güncelleme Mevcut</source>
         <translation>Update Available</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="271"/>
+        <location filename="../qml/Main.qml" line="315"/>
         <source>Dismiss warning</source>
         <translation>Dismiss warning</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="296"/>
-        <location filename="../qml/Main.qml" line="1098"/>
+        <location filename="../qml/Main.qml" line="340"/>
+        <location filename="../qml/Main.qml" line="1142"/>
         <source>Kapat</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="605"/>
+        <location filename="../qml/Main.qml" line="649"/>
         <source>Yeni sürüm mevcut: %1</source>
         <translation>New version available: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="617"/>
+        <location filename="../qml/Main.qml" line="661"/>
         <source>Paket Hazır: %1</source>
         <translation>Package Ready: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="618"/>
+        <location filename="../qml/Main.qml" line="662"/>
         <source>Oyun: %1</source>
         <translation>Game: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="678"/>
+        <location filename="../qml/Main.qml" line="722"/>
         <source>Çeviri Paketi Algılandı</source>
         <translation>Translation Package Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="679"/>
+        <location filename="../qml/Main.qml" line="723"/>
         <source>Paket yükleme hazırlanıyor...</source>
         <translation>Preparing package installation...</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="684"/>
+        <location filename="../qml/Main.qml" line="728"/>
         <source>Arşiv Algılandı</source>
         <translation>Archive Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="685"/>
+        <location filename="../qml/Main.qml" line="729"/>
         <source>Arşiv içeriği analiz ediliyor...</source>
         <translation>Analyzing archive content...</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="690"/>
+        <location filename="../qml/Main.qml" line="734"/>
         <source>Klasör Algılandı</source>
         <translation>Folder Detected</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="691"/>
+        <location filename="../qml/Main.qml" line="735"/>
         <source>Oyun klasörü algılanıyor...</source>
         <translation>Detecting game folder...</translation>
     </message>
@@ -2067,7 +2067,7 @@ Select a game from the main screen and install its Turkish translation!</transla
     </message>
     <message>
         <location filename="../qml/SettingsScreen.qml" line="28"/>
-        <location filename="../qml/SettingsScreen.qml" line="830"/>
+        <location filename="../qml/SettingsScreen.qml" line="832"/>
         <source>Geliştirici</source>
         <translation>Developer</translation>
     </message>
@@ -2082,12 +2082,12 @@ Select a game from the main screen and install its Turkish translation!</transla
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1559"/>
+        <location filename="../qml/SettingsScreen.qml" line="1561"/>
         <source>Yakında</source>
         <translation>Coming Soon</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="388"/>
+        <location filename="../qml/SettingsScreen.qml" line="390"/>
         <source>Otomatik Oyun Tespiti</source>
         <translation>Auto Game Detection</translation>
     </message>
@@ -2097,312 +2097,312 @@ Select a game from the main screen and install its Turkish translation!</transla
         <translation>Back</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="389"/>
+        <location filename="../qml/SettingsScreen.qml" line="391"/>
         <source>Oyunları otomatik olarak tespit et</source>
         <translation>Automatically detect games</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="397"/>
+        <location filename="../qml/SettingsScreen.qml" line="399"/>
         <source>Windows ile Başlat</source>
         <translation>Start with Windows</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="398"/>
+        <location filename="../qml/SettingsScreen.qml" line="400"/>
         <source>Bilgisayar açıldığında otomatik başlat</source>
         <translation>Start automatically when computer boots</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="406"/>
+        <location filename="../qml/SettingsScreen.qml" line="408"/>
         <source>Sistem Tepsisine Küçült</source>
         <translation>Minimize to Tray</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="407"/>
+        <location filename="../qml/SettingsScreen.qml" line="409"/>
         <source>Kapatıldığında arka planda çalışır</source>
         <translation>Runs in background when closed</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="415"/>
+        <location filename="../qml/SettingsScreen.qml" line="417"/>
         <source>Bildirimler</source>
         <translation>Notifications</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="416"/>
+        <location filename="../qml/SettingsScreen.qml" line="418"/>
         <source>Oyun tespit edildiğinde bildirim göster</source>
         <translation>Show notification when game detected</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="432"/>
+        <location filename="../qml/SettingsScreen.qml" line="434"/>
         <source>İndirme Dizini</source>
         <translation>Download Directory</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="433"/>
+        <location filename="../qml/SettingsScreen.qml" line="435"/>
         <source>Çeviri paketlerinin indirileceği konum</source>
         <translation>Location where translation packages will be downloaded</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="439"/>
+        <location filename="../qml/SettingsScreen.qml" line="441"/>
         <source>Önbellek Yönetimi</source>
         <translation>Cache Management</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="440"/>
+        <location filename="../qml/SettingsScreen.qml" line="442"/>
         <source>Önbellek boyutunu görüntüle ve temizle</source>
         <translation>View cache size and clear cache</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="446"/>
+        <location filename="../qml/SettingsScreen.qml" line="448"/>
         <source>Proxy Ayarları</source>
         <translation>Proxy Settings</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="447"/>
+        <location filename="../qml/SettingsScreen.qml" line="449"/>
         <source>Ağ bağlantısı için proxy yapılandırması</source>
         <translation>Proxy configuration for network connections</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="469"/>
+        <location filename="../qml/SettingsScreen.qml" line="471"/>
         <source>Çeviri Dili</source>
         <translation>Translation Language</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="470"/>
+        <location filename="../qml/SettingsScreen.qml" line="472"/>
         <source>Oyunların çevrileceği dil</source>
         <translation>Language games will be translated to</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="471"/>
+        <location filename="../qml/SettingsScreen.qml" line="473"/>
         <source>Türkçe</source>
         <translation>Turkish</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="484"/>
+        <location filename="../qml/SettingsScreen.qml" line="486"/>
         <source>Çeviri Kalitesi</source>
         <translation>Translation Quality</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="485"/>
+        <location filename="../qml/SettingsScreen.qml" line="487"/>
         <source>Bu özellik gelecek güncellemelerde eklenecektir</source>
         <translation>This feature will be added in future updates</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="512"/>
+        <location filename="../qml/SettingsScreen.qml" line="514"/>
         <source>Yedekler</source>
         <translation>Backups</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="554"/>
+        <location filename="../qml/SettingsScreen.qml" line="556"/>
         <source>Henüz yedeklenmiş oyun yok</source>
         <translation>No games backed up yet</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="602"/>
+        <location filename="../qml/SettingsScreen.qml" line="604"/>
         <source>Bilinmeyen Oyun</source>
         <translation>Unknown Game</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="632"/>
+        <location filename="../qml/SettingsScreen.qml" line="634"/>
         <source>Restore backup</source>
         <translation>Restore backup</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="650"/>
+        <location filename="../qml/SettingsScreen.qml" line="652"/>
         <source>Geri Al</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="690"/>
+        <location filename="../qml/SettingsScreen.qml" line="692"/>
         <source>Delete backup</source>
         <translation>Delete backup</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="724"/>
+        <location filename="../qml/SettingsScreen.qml" line="726"/>
         <source>Yedeği sil</source>
         <translation>Delete backup</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="758"/>
+        <location filename="../qml/SettingsScreen.qml" line="760"/>
         <source>Geri yükleniyor...</source>
         <translation>Restoring...</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="783"/>
+        <location filename="../qml/SettingsScreen.qml" line="785"/>
         <source>Donanım Hızlandırma</source>
         <translation>Hardware Acceleration</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="784"/>
+        <location filename="../qml/SettingsScreen.qml" line="786"/>
         <source>GPU kullanarak daha hızlı çeviri</source>
         <translation>Faster translation using GPU</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="792"/>
+        <location filename="../qml/SettingsScreen.qml" line="794"/>
         <source>Global Önbellek</source>
         <translation>Global Cache</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="793"/>
+        <location filename="../qml/SettingsScreen.qml" line="795"/>
         <source>Çevirileri tüm oyunlar için paylaş</source>
         <translation>Share translations across all games</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="801"/>
+        <location filename="../qml/SettingsScreen.qml" line="803"/>
         <source>Uygulama Animasyonları</source>
         <translation>App Animations</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="802"/>
+        <location filename="../qml/SettingsScreen.qml" line="804"/>
         <source>Arayüz animasyonlarını etkinleştir</source>
         <translation>Enable interface animations</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="826"/>
+        <location filename="../qml/SettingsScreen.qml" line="828"/>
         <source>Uygulama</source>
         <translation>Application</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="828"/>
+        <location filename="../qml/SettingsScreen.qml" line="830"/>
         <source>Versiyon</source>
         <translation>Version</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="830"/>
+        <location filename="../qml/SettingsScreen.qml" line="832"/>
         <source>MakineAI Ekibi</source>
         <translation>MakineAI Team</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="832"/>
+        <location filename="../qml/SettingsScreen.qml" line="834"/>
         <source>Özel Lisans</source>
         <translation>Proprietary License</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="832"/>
+        <location filename="../qml/SettingsScreen.qml" line="834"/>
         <source>Lisans</source>
         <translation>License</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="834"/>
+        <location filename="../qml/SettingsScreen.qml" line="836"/>
         <source>Platform</source>
         <translation>Platform</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="849"/>
+        <location filename="../qml/SettingsScreen.qml" line="851"/>
         <source>Discord Desteği</source>
         <translation>Discord Support</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="850"/>
+        <location filename="../qml/SettingsScreen.qml" line="852"/>
         <source>Topluluk ve yardım için Discord sunucumuza katılın</source>
         <translation>Join our Discord server for community and help</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="859"/>
+        <location filename="../qml/SettingsScreen.qml" line="861"/>
         <source>Kaynak kodu, hata bildirimi ve katkılar</source>
         <translation>Source code, bug reports, and contributions</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="867"/>
+        <location filename="../qml/SettingsScreen.qml" line="869"/>
         <source>Geri Bildirim</source>
         <translation>Feedback</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="868"/>
+        <location filename="../qml/SettingsScreen.qml" line="870"/>
         <source>Hata bildirimi ve öneriler için web sitemizi ziyaret edin</source>
         <translation>Visit our website for bug reports and suggestions</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="903"/>
+        <location filename="../qml/SettingsScreen.qml" line="905"/>
         <source>Açık Kaynak Lisanslar</source>
         <translation>Open Source Licenses</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="961"/>
+        <location filename="../qml/SettingsScreen.qml" line="963"/>
         <source>Test Verisi Aktar</source>
         <translation>Import Test Data</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="962"/>
+        <location filename="../qml/SettingsScreen.qml" line="964"/>
         <source>Translation Memory&apos;ye 30 test çevirisi ekle</source>
         <translation>Add 30 test translations to Translation Memory</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="967"/>
+        <location filename="../qml/SettingsScreen.qml" line="969"/>
         <source>Test verisi aktarılıyor...</source>
         <translation>Importing test data...</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1012"/>
+        <location filename="../qml/SettingsScreen.qml" line="1014"/>
         <source>%1 çeviri eklendi!</source>
         <translation>%1 translations added!</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1019"/>
+        <location filename="../qml/SettingsScreen.qml" line="1021"/>
         <source>TM&apos;yi Temizle</source>
         <translation>Clear TM</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1020"/>
+        <location filename="../qml/SettingsScreen.qml" line="1022"/>
         <source>Tüm Translation Memory verilerini sil</source>
         <translation>Delete all Translation Memory data</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1024"/>
+        <location filename="../qml/SettingsScreen.qml" line="1026"/>
         <source>Bu özellik henüz aktif değil</source>
         <translation>This feature is not yet active</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1031"/>
+        <location filename="../qml/SettingsScreen.qml" line="1033"/>
         <source>TM İstatistikleri</source>
         <translation>TM Statistics</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1032"/>
+        <location filename="../qml/SettingsScreen.qml" line="1034"/>
         <source>Translation Memory durumunu göster</source>
         <translation>Show Translation Memory status</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1036"/>
+        <location filename="../qml/SettingsScreen.qml" line="1038"/>
         <source>TM/Glossary İstatistikleri:</source>
         <translation>TM/Glossary Statistics:</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1037"/>
+        <location filename="../qml/SettingsScreen.qml" line="1039"/>
         <source>Glossary Terimleri: %1</source>
         <translation>Glossary Terms: %1</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1038"/>
+        <location filename="../qml/SettingsScreen.qml" line="1040"/>
         <source>Durum: Aktif</source>
         <translation>Status: Active</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1192"/>
+        <location filename="../qml/SettingsScreen.qml" line="1194"/>
         <source>Tema</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1199"/>
+        <location filename="../qml/SettingsScreen.qml" line="1201"/>
         <source>Uygulama görünümünü seç</source>
         <translation>Choose application appearance</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1233"/>
+        <location filename="../qml/SettingsScreen.qml" line="1235"/>
         <source>Light theme</source>
         <translation>Light theme</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1251"/>
+        <location filename="../qml/SettingsScreen.qml" line="1253"/>
         <source>Açık</source>
         <translation>Light</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1295"/>
+        <location filename="../qml/SettingsScreen.qml" line="1297"/>
         <source>Dark theme</source>
         <translation>Dark theme</translation>
     </message>
     <message>
-        <location filename="../qml/SettingsScreen.qml" line="1313"/>
+        <location filename="../qml/SettingsScreen.qml" line="1315"/>
         <source>Koyu</source>
         <translation>Dark</translation>
     </message>
@@ -2448,47 +2448,24 @@ Select a game from the main screen and install its Turkish translation!</transla
 <context>
     <name>SplashWindow</name>
     <message>
-        <location filename="../qml/SplashWindow.qml" line="333"/>
+        <location filename="../qml/SplashWindow.qml" line="339"/>
         <source>Makine Çeviri</source>
         <translation>Makine Translation</translation>
     </message>
     <message>
-        <location filename="../qml/SplashWindow.qml" line="370"/>
+        <location filename="../qml/SplashWindow.qml" line="376"/>
         <source>AI Destekli</source>
         <translation>AI Powered</translation>
     </message>
     <message>
-        <location filename="../qml/SplashWindow.qml" line="435"/>
+        <location filename="../qml/SplashWindow.qml" line="441"/>
         <source>Yükleniyor...</source>
         <translation>Loading...</translation>
     </message>
     <message>
-        <location filename="../qml/SplashWindow.qml" line="476"/>
+        <location filename="../qml/SplashWindow.qml" line="482"/>
         <source>Makine Çeviri Topluluğu</source>
         <translation>Makine Translation Community</translation>
-    </message>
-</context>
-<context>
-    <name>SystemTrayManager</name>
-    <message>
-        <location filename="../src/services/systemtraymanager.cpp" line="44"/>
-        <source>MakineAI&apos;ı Aç</source>
-        <translation>Open MakineAI</translation>
-    </message>
-    <message>
-        <location filename="../src/services/systemtraymanager.cpp" line="48"/>
-        <source>Ayarlar</source>
-        <translation>Settings</translation>
-    </message>
-    <message>
-        <location filename="../src/services/systemtraymanager.cpp" line="54"/>
-        <source>Tamamen Kapat</source>
-        <translation>Quit</translation>
-    </message>
-    <message>
-        <location filename="../src/services/systemtraymanager.cpp" line="117"/>
-        <source> — %1 güncelleme mevcut</source>
-        <translation> — %1 updates available</translation>
     </message>
 </context>
 <context>
@@ -2780,420 +2757,6 @@ Are you sure?</translation>
         <location filename="../qml/TranslationWorkflowScreen.qml" line="977"/>
         <source>Çeviri başlatılıyor: %1</source>
         <translation>Starting translation: %1</translation>
-    </message>
-</context>
-<context>
-    <name>makineai::BackupManager</name>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="102"/>
-        <source>Kaynak klasör bulunamadı: %1</source>
-        <translation>Source folder not found: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="136"/>
-        <source>Yedekleme başarısız: hiçbir dosya kopyalanamadı (%1)</source>
-        <translation>Backup failed: no files could be copied (%1)</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="163"/>
-        <source>Yedek oluşturuldu ancak %1 dosya kopyalanamadı</source>
-        <translation>Backup created but %1 files could not be copied</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="177"/>
-        <source>Yedek bulunamadı: %1</source>
-        <translation>Backup not found: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="182"/>
-        <source>Yedek dosyaları bulunamadı</source>
-        <translation>Backup files not found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="192"/>
-        <source>Yedek klasörü bulunamadı: %1</source>
-        <translation>Backup folder not found: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="198"/>
-        <source>Yedek geri yükleniyor...</source>
-        <translation>Restoring backup...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="238"/>
-        <source>Geri yükleniyor: %1/%2</source>
-        <translation>Restoring: %1/%2</translation>
-    </message>
-    <message>
-        <location filename="../src/services/backupmanager.cpp" line="250"/>
-        <source>%1 dosya geri yüklendi</source>
-        <translation>%1 files restored</translation>
-    </message>
-</context>
-<context>
-    <name>makineai::BatchOperationService</name>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="152"/>
-        <source>Toplu yükleme</source>
-        <translation>Batch install</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="153"/>
-        <source>Toplu güncelleme</source>
-        <translation>Batch update</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="154"/>
-        <source>Toplu kaldırma</source>
-        <translation>Batch uninstall</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="155"/>
-        <source>Toplu işlem</source>
-        <translation>Batch operation</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="158"/>
-        <source>%1 başlatılıyor (%2 oyun)...</source>
-        <translation>Starting %1 (%2 games)...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="307"/>
-        <source>Tamamlandı: %1 başarılı, %2 başarısız, %3 atlandı</source>
-        <translation>Completed: %1 successful, %2 failed, %3 skipped</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="324"/>
-        <source>İptal ediliyor...</source>
-        <translation>Cancelling...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/batchoperationservice.cpp" line="351"/>
-        <source>Mevcut çeviriler kontrol ediliyor...</source>
-        <translation>Checking existing translations...</translation>
-    </message>
-</context>
-<context>
-    <name>makineai::CoreBridge</name>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="107"/>
-        <source>Onaylı oyunlar yükleniyor...</source>
-        <translation>Loading verified games...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="148"/>
-        <location filename="../src/services/corebridge.cpp" line="479"/>
-        <location filename="../src/services/corebridge.cpp" line="497"/>
-        <source>Steam kütüphanesi taranıyor...</source>
-        <translation>Scanning Steam library...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="170"/>
-        <source>%1 oyun yüklendi...</source>
-        <translation>%1 games loaded...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="175"/>
-        <source>%1 onaylı oyun bulundu</source>
-        <translation>%1 verified games found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="216"/>
-        <location filename="../src/services/corebridge.cpp" line="669"/>
-        <source>Dosyalar taranıyor...</source>
-        <translation>Scanning files...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="232"/>
-        <location filename="../src/services/corebridge.cpp" line="681"/>
-        <source>Metinler işleniyor...</source>
-        <translation>Processing texts...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="246"/>
-        <location filename="../src/services/corebridge.cpp" line="718"/>
-        <source>%1 metin çıkarıldı</source>
-        <translation>%1 texts extracted</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="260"/>
-        <location filename="../src/services/corebridge.cpp" line="747"/>
-        <source>Yedek oluşturuluyor...</source>
-        <translation>Creating backup...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="263"/>
-        <location filename="../src/services/corebridge.cpp" line="760"/>
-        <source>Çeviriler uygulanıyor...</source>
-        <translation>Applying translations...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="266"/>
-        <location filename="../src/services/corebridge.cpp" line="771"/>
-        <source>%1 çeviri uygulandı</source>
-        <translation>%1 translations applied</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="482"/>
-        <location filename="../src/services/corebridge.cpp" line="508"/>
-        <source>Epic Games taranıyor...</source>
-        <translation>Scanning Epic Games...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="485"/>
-        <location filename="../src/services/corebridge.cpp" line="519"/>
-        <source>GOG Galaxy taranıyor...</source>
-        <translation>Scanning GOG Galaxy...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="488"/>
-        <source>%1 oyun bulundu</source>
-        <translation>%1 games found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="499"/>
-        <source>%1 Steam oyunu bulundu</source>
-        <translation>%1 Steam games found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="510"/>
-        <source>%1 Epic oyunu bulundu</source>
-        <translation>%1 Epic games found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="521"/>
-        <source>%1 GOG oyunu bulundu</source>
-        <translation>%1 GOG games found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="531"/>
-        <source>Core kütüphanesi başlatılamadı. Lütfen uygulamayı yeniden başlatın.</source>
-        <translation>Core library could not be initialized. Please restart the application.</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="665"/>
-        <location filename="../src/services/corebridge.cpp" line="743"/>
-        <location filename="../src/services/corebridge.cpp" line="786"/>
-        <location filename="../src/services/corebridge.cpp" line="817"/>
-        <source>Desteklenmeyen motor: %1</source>
-        <translation>Unsupported engine: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="714"/>
-        <source>İşleniyor: %1/%2</source>
-        <translation>Processing: %1/%2</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="795"/>
-        <source>Yedek oluşturulamadı</source>
-        <translation>Backup could not be created</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="823"/>
-        <source>Yedek geri yüklenemedi</source>
-        <translation>Backup could not be restored</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="1267"/>
-        <source>Paket bulunamadı</source>
-        <translation>Package not found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/corebridge.cpp" line="1281"/>
-        <source>Paket başarıyla kuruldu: %1 dosya</source>
-        <translation>Package installed successfully: %1 files</translation>
-    </message>
-</context>
-<context>
-    <name>makineai::GameService</name>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="105"/>
-        <source>Oyun kütüphaneleri taranıyor...</source>
-        <translation>Scanning game libraries...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="185"/>
-        <source>Steam kütüphanesi taranıyor...</source>
-        <translation>Scanning Steam library...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="199"/>
-        <source>Epic Games taranıyor...</source>
-        <translation>Scanning Epic Games...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="213"/>
-        <source>GOG Galaxy taranıyor...</source>
-        <translation>Scanning GOG Galaxy...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="226"/>
-        <source>Geçersiz oyun klasörü: %1</source>
-        <translation>Invalid game folder: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="232"/>
-        <source>Belirtilen klasör bulunamadı: %1</source>
-        <translation>Specified folder not found: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="240"/>
-        <source>Bu oyun zaten eklenmiş: %1</source>
-        <translation>This game is already added: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="380"/>
-        <source>Ücretsiz</source>
-        <translation>Free</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="749"/>
-        <source>Archive format not yet supported. Please use .mkpkg packages.</source>
-        <translation>Archive format not yet supported. Please use .mkpkg packages.</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="753"/>
-        <source>Unsupported file type: .%1</source>
-        <translation>Unsupported file type: .%1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="762"/>
-        <source>File not found</source>
-        <translation>File not found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="767"/>
-        <source>Not a valid .mkpkg package</source>
-        <translation>Not a valid .mkpkg package</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="815"/>
-        <source>No translation snapshot available yet</source>
-        <translation>No translation snapshot available yet</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="830"/>
-        <source>Font analysis requires core integration</source>
-        <translation>Font analysis requires core integration</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="864"/>
-        <source>Runtime status requires core integration</source>
-        <translation>Runtime status requires core integration</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="878"/>
-        <source>Runtime installation requires core integration</source>
-        <translation>Runtime installation requires core integration</translation>
-    </message>
-    <message>
-        <location filename="../src/services/gameservice.cpp" line="891"/>
-        <source>Runtime uninstallation requires core integration</source>
-        <translation>Runtime uninstallation requires core integration</translation>
-    </message>
-</context>
-<context>
-    <name>makineai::TranslationService</name>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="80"/>
-        <source>Geçersiz oyun bilgisi</source>
-        <translation>Invalid game information</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="97"/>
-        <source>Sistem hatası: Core bağlantısı yok</source>
-        <translation>System error: No core connection</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="98"/>
-        <source>Core bağlantısı kurulamadı</source>
-        <translation>Core connection could not be established</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="106"/>
-        <source>Oyun motoru tespit ediliyor...</source>
-        <translation>Detecting game engine...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="113"/>
-        <source>Oyun motoru tespit edilemedi</source>
-        <translation>Game engine could not be detected</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="114"/>
-        <source>Desteklenmeyen oyun motoru</source>
-        <translation>Unsupported game engine</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="121"/>
-        <source>Motor tespit edildi: %1</source>
-        <translation>Engine detected: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="125"/>
-        <source>Metinler çıkarılıyor...</source>
-        <translation>Extracting texts...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="144"/>
-        <source>Çevrilecek metin bulunamadı</source>
-        <translation>No translatable text found</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="145"/>
-        <source>Oyunda çevrilecek metin bulunamadı</source>
-        <translation>No translatable text found in the game</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="153"/>
-        <source>Çeviriler eşleştiriliyor...</source>
-        <translation>Matching translations...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="164"/>
-        <source>Hata: Core modülü başlatılamadı</source>
-        <translation>Error: Core module could not be initialized</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="167"/>
-        <source>Core modülü başlatılamadı</source>
-        <translation>Core module could not be initialized</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="216"/>
-        <source>Eşleştiriliyor: %1/%2 (%3 bulundu)</source>
-        <translation>Matching: %1/%2 (%3 found)</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="226"/>
-        <source>Kalite kontrolü yapılıyor...</source>
-        <translation>Running quality check...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="278"/>
-        <source>Kontrol ediliyor: %1/%2</source>
-        <translation>Checking: %1/%2</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="300"/>
-        <source>Kalite kontrolü tamamlandı (Skor: %1)</source>
-        <translation>Quality check completed (Score: %1)</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="304"/>
-        <source>Çeviriler uygulanıyor...</source>
-        <translation>Applying translations...</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="324"/>
-        <source>Çeviri tamamlandı! %1 metin uygulandı</source>
-        <translation>Translation completed! %1 texts applied</translation>
-    </message>
-    <message>
-        <location filename="../src/services/translationservice.cpp" line="354"/>
-        <location filename="../src/services/translationservice.cpp" line="364"/>
-        <source> (Duraklatıldı)</source>
-        <translation> (Paused)</translation>
     </message>
 </context>
 </TS>
