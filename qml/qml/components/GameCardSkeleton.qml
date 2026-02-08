@@ -65,8 +65,8 @@ Item {
         SkeletonLoader {
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: 8
-            anchors.rightMargin: 8
+            anchors.topMargin: Dimensions.marginSM
+            anchors.rightMargin: Dimensions.marginSM
             width: 22
             height: 22
             skeletonRadius: 4
@@ -80,7 +80,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.margins: 10
+            anchors.margins: Dimensions.marginBase
             spacing: Dimensions.spacingSM
 
             // Title line 1

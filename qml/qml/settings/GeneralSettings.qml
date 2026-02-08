@@ -19,14 +19,14 @@ ColumnLayout {
         ColumnLayout {
             id: langColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
-                Layout.leftMargin: 8
-                Layout.rightMargin: 8
+                Layout.leftMargin: Dimensions.marginSM
+                Layout.rightMargin: Dimensions.marginSM
                 spacing: Dimensions.spacingLG
 
                 ColumnLayout {
@@ -89,7 +89,7 @@ ColumnLayout {
         ColumnLayout {
             id: themeColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             ThemeSetting {}
@@ -108,7 +108,7 @@ ColumnLayout {
         ColumnLayout {
             id: settingsColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             ToggleSetting {
@@ -159,14 +159,14 @@ ColumnLayout {
         ColumnLayout {
             id: cacheColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
-                Layout.leftMargin: 8
-                Layout.rightMargin: 8
+                Layout.leftMargin: Dimensions.marginSM
+                Layout.rightMargin: Dimensions.marginSM
                 spacing: Dimensions.spacingLG
 
                 ColumnLayout {
@@ -235,8 +235,8 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
-                Layout.leftMargin: 8
-                Layout.rightMargin: 8
+                Layout.leftMargin: Dimensions.marginSM
+                Layout.rightMargin: Dimensions.marginSM
                 spacing: Dimensions.spacingLG
 
                 ColumnLayout {

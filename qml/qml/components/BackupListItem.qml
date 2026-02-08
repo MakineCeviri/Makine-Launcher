@@ -25,8 +25,8 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: Dimensions.marginMS
+        anchors.rightMargin: Dimensions.marginMS
         spacing: Dimensions.spacingLG
 
         // Left item (Game icon)

@@ -47,7 +47,7 @@ Rectangle {
     // Position: top-right corner
     anchors.right: parent ? parent.right : undefined
     anchors.top: parent ? parent.top : undefined
-    anchors.margins: 12
+    anchors.margins: Dimensions.marginMS
 
     // FPS color based on performance
     property color fpsColor: {
@@ -145,7 +145,7 @@ Rectangle {
     ColumnLayout {
         id: contentColumn
         anchors.fill: parent
-        anchors.margins: 8
+        anchors.margins: Dimensions.marginSM
         spacing: Dimensions.spacingXS
 
         // FPS Header (always visible)
@@ -232,7 +232,7 @@ Rectangle {
                 Layout.fillWidth: true
                 height: 1
                 color: Qt.rgba(1, 1, 1, 0.1)
-                Layout.topMargin: 2
+                Layout.topMargin: Dimensions.marginXXS
             }
 
             // Help text

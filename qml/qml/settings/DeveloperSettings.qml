@@ -22,7 +22,7 @@ ColumnLayout {
         ColumnLayout {
             id: devColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             DevButton {
@@ -120,7 +120,7 @@ ColumnLayout {
         TextEdit {
             id: statusText
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: Dimensions.marginMD
             text: root.devStatus
             font.pixelSize: Dimensions.fontSM
             font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"

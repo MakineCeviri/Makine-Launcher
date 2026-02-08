@@ -134,8 +134,8 @@ Item {
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 20
-                            anchors.rightMargin: 20
+                            anchors.leftMargin: Dimensions.marginML
+                            anchors.rightMargin: Dimensions.marginML
                             spacing: Dimensions.spacingXL
 
                             // Back button
@@ -211,8 +211,8 @@ Item {
 
                         CategoryItem {
                             Layout.fillWidth: true
-                            Layout.leftMargin: 12
-                            Layout.rightMargin: 12
+                            Layout.leftMargin: Dimensions.marginMS
+                            Layout.rightMargin: Dimensions.marginMS
                             categoryIndex: index
                             name: modelData.name
                             isSelected: selectedCategory === index
@@ -226,8 +226,8 @@ Item {
 
                     // Version info at bottom
                     Label {
-                        Layout.leftMargin: 20
-                        Layout.bottomMargin: 20
+                        Layout.leftMargin: Dimensions.marginML
+                        Layout.bottomMargin: Dimensions.marginML
                         text: Dimensions.appName + " " + Dimensions.appVersionFull
                         font.pixelSize: Dimensions.fontSM
                         color: Theme.textMuted
@@ -268,8 +268,8 @@ Item {
                         // Category title with fade animation
                         ColumnLayout {
                             Layout.fillWidth: true
-                            Layout.leftMargin: 32
-                            Layout.rightMargin: 32
+                            Layout.leftMargin: Dimensions.marginXL
+                            Layout.rightMargin: Dimensions.marginXL
                             spacing: Dimensions.spacingMD
 
                             Label {
@@ -303,8 +303,8 @@ Item {
                         Loader {
                             id: contentLoader
                             Layout.fillWidth: true
-                            Layout.leftMargin: 32
-                            Layout.rightMargin: 32
+                            Layout.leftMargin: Dimensions.marginXL
+                            Layout.rightMargin: Dimensions.marginXL
                             Layout.preferredWidth: Math.min(settingsScrollView.availableWidth - 64, 640)
 
                             // Simple smooth opacity animation
@@ -574,7 +574,7 @@ Item {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 12
+                                anchors.margins: Dimensions.marginMS
                                 spacing: Dimensions.spacingLG
 
                                 // Game icon placeholder
@@ -896,8 +896,8 @@ Item {
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 20
-                            anchors.rightMargin: 20
+                            anchors.leftMargin: Dimensions.marginML
+                            anchors.rightMargin: Dimensions.marginML
 
                             Label {
                                 text: qsTr("Açık Kaynak Lisanslar")
@@ -1057,7 +1057,7 @@ Item {
                         TextEdit {
                             id: statusText
                             anchors.fill: parent
-                            anchors.margins: 16
+                            anchors.margins: Dimensions.marginMD
                             text: devStatus
                             font.pixelSize: Dimensions.fontSM
                             font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"
@@ -1108,7 +1108,7 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 8
+            anchors.leftMargin: Dimensions.marginSM
             spacing: Dimensions.spacingLG
 
             // Selection indicator
@@ -1180,8 +1180,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
             spacing: Dimensions.spacingXL
 
             ColumnLayout {
@@ -1371,8 +1371,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
             spacing: Dimensions.spacingXL
 
             ColumnLayout {
@@ -1478,8 +1478,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
             spacing: Dimensions.spacingXL
 
             ColumnLayout {
@@ -1529,8 +1529,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
             spacing: Dimensions.spacingXL
 
             ColumnLayout {
@@ -1605,8 +1605,8 @@ Item {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
+                anchors.leftMargin: Dimensions.marginML
+                anchors.rightMargin: Dimensions.marginML
                 spacing: Dimensions.spacingXL
 
                 // Icon container
@@ -1690,8 +1690,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
 
             Label {
                 text: label

@@ -48,8 +48,8 @@ Item {
         visible: root.unreadCount > 0
         anchors.top: parent.top
         anchors.right: parent.right
-        anchors.topMargin: 2
-        anchors.rightMargin: 2
+        anchors.topMargin: Dimensions.marginXXS
+        anchors.rightMargin: Dimensions.marginXXS
         width: root.unreadCount > 9 ? 18 : 16
         height: 16
         radius: 8

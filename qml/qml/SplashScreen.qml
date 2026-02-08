@@ -302,7 +302,7 @@ Item {
                 id: titleText
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: logoImage.bottom
-                anchors.topMargin: 12
+                anchors.topMargin: Dimensions.marginMS
                 text: "MakineAI"
                 font.pixelSize: Dimensions.displayMedium
                 font.weight: Font.Bold
@@ -313,7 +313,7 @@ Item {
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: titleText.bottom
-                anchors.topMargin: 8
+                anchors.topMargin: Dimensions.marginSM
                 width: badgeRow.width + 28
                 height: 26
                 radius: Dimensions.radiusStandard
@@ -357,7 +357,7 @@ Item {
         Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: logoSection.bottom
-            anchors.topMargin: 48
+            anchors.topMargin: Dimensions.marginXXL
             width: 200
             height: 50
             opacity: root.textOpacity
@@ -476,7 +476,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: versionBadge.bottom
-            anchors.topMargin: 6
+            anchors.topMargin: Dimensions.spacingSM
             text: qsTr("Makine Çeviri Topluluğu")
             font.pixelSize: Dimensions.fontCaption
             font.letterSpacing: 0.3

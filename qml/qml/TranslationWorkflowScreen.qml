@@ -222,7 +222,7 @@ Item {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 16
+                                anchors.margins: Dimensions.marginMD
                                 spacing: Dimensions.spacingLG
 
                                 // Animated spinner
@@ -529,7 +529,7 @@ Item {
                             ListView {
                                 id: activityList
                                 anchors.fill: parent
-                                anchors.margins: 12
+                                anchors.margins: Dimensions.marginMS
                                 clip: true
                                 spacing: Dimensions.spacingMD
 
@@ -607,7 +607,7 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: Dimensions.marginMD
             spacing: 0
 
             Repeater {

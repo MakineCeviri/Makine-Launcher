@@ -139,8 +139,8 @@ Dialog {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
+            anchors.leftMargin: Dimensions.marginLG
+            anchors.rightMargin: Dimensions.marginLG
             spacing: Dimensions.spacingXL
 
             // Animated warning icon container
@@ -330,8 +330,8 @@ Dialog {
         // Warning message
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: 24
-            Layout.rightMargin: 24
+            Layout.leftMargin: Dimensions.marginLG
+            Layout.rightMargin: Dimensions.marginLG
             Layout.preferredHeight: warningText.implicitHeight + 24
             radius: Dimensions.radiusStandard
             color: Qt.rgba(getSeverityColor(root.highestSeverity).r,
@@ -345,7 +345,7 @@ Dialog {
             Text {
                 id: warningText
                 anchors.fill: parent
-                anchors.margins: 12
+                anchors.margins: Dimensions.marginMS
                 text: qsTr("Bu oyunda aktif koruma sistemi tespit edildi. Çeviri uygulamak oyunun çalışmasını engelleyebilir veya online ban'a neden olabilir.")
                 font.pixelSize: Dimensions.fontBody
                 color: Theme.textSecondary
@@ -357,8 +357,8 @@ Dialog {
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: 24
-            Layout.rightMargin: 24
+            Layout.leftMargin: Dimensions.marginLG
+            Layout.rightMargin: Dimensions.marginLG
             clip: true
 
             ScrollBar.vertical: ScrollBar {
@@ -405,7 +405,7 @@ Dialog {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
-                        anchors.margins: 2
+                        anchors.margins: Dimensions.marginXXS
                         width: 4
                         radius: 2
                         color: getSeverityColor(modelData.severity)
@@ -416,10 +416,10 @@ Dialog {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 12
-                        anchors.topMargin: 12
-                        anchors.bottomMargin: 12
+                        anchors.leftMargin: Dimensions.marginMD
+                        anchors.rightMargin: Dimensions.marginMS
+                        anchors.topMargin: Dimensions.marginMS
+                        anchors.bottomMargin: Dimensions.marginMS
                         spacing: 14
 
                         // Severity icon with glow
@@ -546,10 +546,10 @@ Dialog {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
-            anchors.topMargin: 12
-            anchors.bottomMargin: 20
+            anchors.leftMargin: Dimensions.marginLG
+            anchors.rightMargin: Dimensions.marginLG
+            anchors.topMargin: Dimensions.marginMS
+            anchors.bottomMargin: Dimensions.marginML
             spacing: 14
 
             Item { Layout.fillWidth: true }

@@ -17,7 +17,7 @@ ColumnLayout {
         ColumnLayout {
             id: langColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             InfoSettingWithBadge {
@@ -39,7 +39,7 @@ ColumnLayout {
         ColumnLayout {
             id: qualityColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             DisabledSetting {

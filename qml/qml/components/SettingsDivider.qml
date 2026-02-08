@@ -7,8 +7,8 @@ import MakineAI 1.0
 Rectangle {
     id: root
 
-    property int topMargin: 16
-    property int bottomMargin: 16
+    property int topMargin: Dimensions.marginMD
+    property int bottomMargin: Dimensions.marginMD
 
     implicitHeight: 1 + topMargin + bottomMargin
     color: "transparent"

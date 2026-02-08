@@ -41,7 +41,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 12
+        anchors.margins: Dimensions.marginMS
         spacing: Dimensions.spacingBase
 
         // ===== HEADER ROW =====

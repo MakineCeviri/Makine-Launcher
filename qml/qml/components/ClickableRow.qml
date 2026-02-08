@@ -53,8 +53,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
             spacing: Dimensions.spacingXL
 
             // Icon container (visible when icon or iconSource is set)

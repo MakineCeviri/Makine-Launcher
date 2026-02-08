@@ -37,9 +37,13 @@ QtObject {
     // MARGINS
     // =========================================================================
 
+    readonly property int marginXXS: 2
     readonly property int marginXS: 4
     readonly property int marginSM: 8
+    readonly property int marginBase: 10
+    readonly property int marginMS: 12
     readonly property int marginMD: 16
+    readonly property int marginML: 20
     readonly property int marginLG: 24
     readonly property int marginXL: 32
     readonly property int marginXXL: 48

@@ -76,7 +76,7 @@ Rectangle {
     // ===== MAIN LAYOUT =====
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 48
+        anchors.margins: Dimensions.marginXXL
         spacing: 0
 
         // Skip button (top right)

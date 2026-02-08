@@ -320,7 +320,7 @@ Window {
             id: textSection
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: logoItem.bottom
-            anchors.topMargin: 20
+            anchors.topMargin: Dimensions.marginML
             width: parent.width
             height: 100
             opacity: textOpacity * (1.0 - fadeOut)
@@ -341,7 +341,7 @@ Window {
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: titleText.bottom
-                anchors.topMargin: 12
+                anchors.topMargin: Dimensions.marginMS
                 width: badgeRow.width + 24
                 height: 24
                 radius: Dimensions.radiusStandard

@@ -89,7 +89,7 @@ Dialog {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
+            anchors.margins: Dimensions.marginLG
             spacing: Dimensions.spacingXL
 
             // Top row with title and close
@@ -252,8 +252,8 @@ Dialog {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
+                        anchors.leftMargin: Dimensions.marginMS
+                        anchors.rightMargin: Dimensions.marginMS
                         spacing: Dimensions.spacingMD
 
                         Text {
@@ -460,8 +460,8 @@ Dialog {
                         visible: modelData.isVerified === true || modelData.hasTranslation === true
                         anchors.top: parent.top
                         anchors.right: parent.right
-                        anchors.topMargin: 6
-                        anchors.rightMargin: 6
+                        anchors.topMargin: Dimensions.spacingSM
+                        anchors.rightMargin: Dimensions.spacingSM
                         spacing: Dimensions.spacingXS
 
                         Rectangle {
@@ -503,7 +503,7 @@ Dialog {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         anchors.bottomMargin: 28
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: Dimensions.marginSM
                         width: engineLabel.width + 12
                         height: 18
                         radius: Dimensions.badgeRadius
@@ -524,7 +524,7 @@ Dialog {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        anchors.margins: 10
+                        anchors.margins: Dimensions.marginBase
                         text: modelData.name || qsTr("Unknown")
                         font.pixelSize: Dimensions.fontBody
                         font.weight: Font.DemiBold
@@ -563,8 +563,8 @@ Dialog {
                         visible: batchMode
                         anchors.top: parent.top
                         anchors.left: parent.left
-                        anchors.topMargin: 6
-                        anchors.leftMargin: 6
+                        anchors.topMargin: Dimensions.spacingSM
+                        anchors.leftMargin: Dimensions.spacingSM
                         width: 22
                         height: 22
                         radius: 4
@@ -672,8 +672,8 @@ Dialog {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
+            anchors.leftMargin: Dimensions.marginLG
+            anchors.rightMargin: Dimensions.marginLG
             spacing: Dimensions.spacingLG
 
             Text {

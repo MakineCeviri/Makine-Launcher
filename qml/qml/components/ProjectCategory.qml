@@ -25,7 +25,7 @@ Rectangle {
         // Header
         RowLayout {
             Layout.fillWidth: true
-            Layout.margins: 20
+            Layout.margins: Dimensions.marginML
             spacing: 14
 
             Rectangle {
@@ -64,8 +64,8 @@ Rectangle {
         // Divider
         Rectangle {
             Layout.fillWidth: true
-            Layout.topMargin: 10
-            Layout.bottomMargin: 10
+            Layout.topMargin: Dimensions.marginBase
+            Layout.bottomMargin: Dimensions.marginBase
             height: 1
             color: Qt.rgba(1, 1, 1, 0.1)
         }

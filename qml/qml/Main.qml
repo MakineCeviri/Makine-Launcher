@@ -243,8 +243,8 @@ ApplicationWindow {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
+                anchors.leftMargin: Dimensions.marginMD
+                anchors.rightMargin: Dimensions.marginMD
                 spacing: Dimensions.spacingMD
 
                 Image {
@@ -752,7 +752,7 @@ ApplicationWindow {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 12
+            anchors.leftMargin: Dimensions.marginMS
             anchors.rightMargin: 0
             spacing: Dimensions.spacingMD
 
@@ -946,8 +946,8 @@ ApplicationWindow {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
+            anchors.leftMargin: Dimensions.marginLG
+            anchors.rightMargin: Dimensions.marginLG
             spacing: Dimensions.spacingXL
 
             Item {

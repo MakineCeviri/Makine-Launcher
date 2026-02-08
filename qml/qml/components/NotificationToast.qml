@@ -29,8 +29,8 @@ Item {
 
     anchors.right: parent ? parent.right : undefined
     anchors.top: parent ? parent.top : undefined
-    anchors.rightMargin: 16
-    anchors.topMargin: 16
+    anchors.rightMargin: Dimensions.marginMD
+    anchors.topMargin: Dimensions.marginMD
     width: 320
     height: toastContent.implicitHeight + 24
     z: 200
@@ -102,8 +102,8 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.leftMargin: 1
-        anchors.topMargin: 8
-        anchors.bottomMargin: 8
+        anchors.topMargin: Dimensions.marginSM
+        anchors.bottomMargin: Dimensions.marginSM
         width: 3
         radius: 2
         color: {
@@ -123,9 +123,9 @@ Item {
         id: toastContent
         anchors.fill: parent
         anchors.leftMargin: 14
-        anchors.rightMargin: 12
-        anchors.topMargin: 12
-        anchors.bottomMargin: 12
+        anchors.rightMargin: Dimensions.marginMS
+        anchors.topMargin: Dimensions.marginMS
+        anchors.bottomMargin: Dimensions.marginMS
         spacing: Dimensions.spacingBase
 
         // Type icon
@@ -221,8 +221,8 @@ Item {
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        anchors.bottomMargin: 2
-        anchors.leftMargin: 8
+        anchors.bottomMargin: Dimensions.marginXXS
+        anchors.leftMargin: Dimensions.marginSM
         height: 2
         radius: 1
         width: (parent.width - 16) * progressAnim.progress

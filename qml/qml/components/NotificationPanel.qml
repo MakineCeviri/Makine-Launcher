@@ -62,8 +62,8 @@ Popup {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 12
+                anchors.leftMargin: Dimensions.marginMD
+                anchors.rightMargin: Dimensions.marginMS
 
                 Text {
                     text: qsTr("Bildirimler")
@@ -171,10 +171,10 @@ Popup {
                     RowLayout {
                         id: delegateLayout
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-                        anchors.topMargin: 10
-                        anchors.bottomMargin: 10
+                        anchors.leftMargin: Dimensions.marginMD
+                        anchors.rightMargin: Dimensions.marginMD
+                        anchors.topMargin: Dimensions.marginBase
+                        anchors.bottomMargin: Dimensions.marginBase
                         spacing: Dimensions.spacingLG
 
                         // Type indicator
@@ -271,8 +271,8 @@ Popup {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
+                        anchors.leftMargin: Dimensions.marginMD
+                        anchors.rightMargin: Dimensions.marginMD
                         height: 1
                         color: Qt.rgba(1, 1, 1, 0.04)
                         visible: delegateRoot.index < notificationList.count - 1

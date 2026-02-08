@@ -98,8 +98,8 @@ Dialog {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
+            anchors.leftMargin: Dimensions.marginLG
+            anchors.rightMargin: Dimensions.marginLG
             spacing: Dimensions.spacingXL
 
             // Score circle
@@ -385,8 +385,8 @@ Dialog {
         // No issues state
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: 24
-            Layout.rightMargin: 24
+            Layout.leftMargin: Dimensions.marginLG
+            Layout.rightMargin: Dimensions.marginLG
             Layout.preferredHeight: 80
             radius: Dimensions.radiusStandard
             color: Theme.withAlpha(colorSuccess, 0.1)
@@ -417,8 +417,8 @@ Dialog {
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: 24
-            Layout.rightMargin: 24
+            Layout.leftMargin: Dimensions.marginLG
+            Layout.rightMargin: Dimensions.marginLG
             clip: true
             visible: root.issues.length > 0
 
@@ -484,7 +484,7 @@ Dialog {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.margins: 12
+                        anchors.margins: Dimensions.marginMS
                         spacing: Dimensions.spacingMD
 
                         RowLayout {
@@ -584,7 +584,7 @@ Dialog {
                             Text {
                                 id: detailsText
                                 anchors.fill: parent
-                                anchors.margins: 8
+                                anchors.margins: Dimensions.marginSM
                                 text: qsTr("Kod: %1").arg(modelData.code) + "\n" +
                                       qsTr("Açıklama: %1").arg(modelData.message) + "\n" +
                                       qsTr("Ceza Puanı: -%1").arg(modelData.penaltyPoints)
@@ -622,8 +622,8 @@ Dialog {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
+            anchors.leftMargin: Dimensions.marginLG
+            anchors.rightMargin: Dimensions.marginLG
             spacing: Dimensions.spacingLG
 
             Item { Layout.fillWidth: true }

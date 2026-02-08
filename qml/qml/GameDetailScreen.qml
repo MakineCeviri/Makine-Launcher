@@ -410,8 +410,8 @@ Item {
             // ===== HERO SECTION =====
             RowLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingPage
 
                 // Cover image
@@ -601,8 +601,8 @@ Item {
             // ===== STEAM DETAILS SECTION =====
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingPage
                 visible: root.hasSteamDetails || root.isLoadingSteamDetails || root.steamFetchFailed
 
@@ -701,7 +701,7 @@ Item {
                         Text {
                             id: descriptionText
                             anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.margins: Dimensions.marginML
                             text: root.description
                             font.pixelSize: Dimensions.fontMD
                             color: Theme.textSecondary
@@ -739,7 +739,7 @@ Item {
                             ColumnLayout {
                                 id: detailsColumn
                                 anchors.fill: parent
-                                anchors.margins: 20
+                                anchors.margins: Dimensions.marginML
                                 spacing: 0
 
                                 InfoRow {
@@ -798,7 +798,7 @@ Item {
                             ColumnLayout {
                                 id: ratingColumn
                                 anchors.fill: parent
-                                anchors.margins: 20
+                                anchors.margins: Dimensions.marginML
                                 spacing: Dimensions.spacingXL
 
                                 // Metacritic
@@ -915,8 +915,8 @@ Item {
             // ===== RECIPE SECTION =====
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
 
                 Text {
@@ -939,7 +939,7 @@ Item {
                     ColumnLayout {
                         id: recipeContent
                         anchors.fill: parent
-                        anchors.margins: 20
+                        anchors.margins: Dimensions.marginML
                         spacing: Dimensions.spacingXL
 
                         // Badges row
@@ -1035,8 +1035,8 @@ Item {
             // ===== FONT SUPPORT SECTION =====
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
                 visible: root.hasFontAnalysis
 
@@ -1070,7 +1070,7 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.margins: 16
+                        anchors.margins: Dimensions.marginMD
                         spacing: Dimensions.spacingLG
 
                         // Summary row
@@ -1236,8 +1236,8 @@ Item {
             // ===== COMPATIBILITY STATUS =====
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
                 visible: root.hasRecipe && root.compatibilityLevel !== "unknown"
 
@@ -1271,7 +1271,7 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.margins: 16
+                        anchors.margins: Dimensions.marginMD
                         spacing: Dimensions.spacingLG
 
                         // Status row
@@ -1402,8 +1402,8 @@ Item {
             // ===== RUNTIME STATUS (BepInEx/XUnity) =====
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
                 visible: root.isUnityGame && root.runtimeNeeded
 
@@ -1435,7 +1435,7 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
-                        anchors.margins: 16
+                        anchors.margins: Dimensions.marginMD
                         spacing: Dimensions.spacingLG
 
                         // Status header
@@ -1539,7 +1539,7 @@ Item {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                anchors.margins: 12
+                                anchors.margins: Dimensions.marginMS
                                 spacing: Dimensions.spacingMD
 
                                 Text {
@@ -1653,8 +1653,8 @@ Item {
             ColumnLayout {
                 id: backupSection
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
 
                 // Backup data from BackupManager
@@ -1694,7 +1694,7 @@ Item {
                     ColumnLayout {
                         id: backupContent
                         anchors.fill: parent
-                        anchors.margins: 20
+                        anchors.margins: Dimensions.marginML
                         spacing: Dimensions.spacingXL
 
                         Text {
@@ -1741,7 +1741,7 @@ Item {
                                 ColumnLayout {
                                     id: latestInfoCol
                                     anchors.fill: parent
-                                    anchors.margins: 12
+                                    anchors.margins: Dimensions.marginMS
                                     spacing: Dimensions.spacingSM
 
                                     RowLayout {
@@ -1935,8 +1935,8 @@ Item {
             // ===== SCREENSHOTS SECTION =====
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
                 visible: root.screenshots.length > 0
 

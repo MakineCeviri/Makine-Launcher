@@ -211,8 +211,8 @@ Item {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 16
-                                anchors.rightMargin: 12
+                                anchors.leftMargin: Dimensions.marginMD
+                                anchors.rightMargin: Dimensions.marginMS
                                 spacing: Dimensions.spacingLG
 
                                 Text {
@@ -627,7 +627,7 @@ Item {
 
                                         Flickable {
                                             anchors.fill: parent
-                                            anchors.margins: 10
+                                            anchors.margins: Dimensions.marginBase
                                             contentHeight: announcementContentCol.height
                                             clip: true
                                             interactive: announcementContentBox.expanded
@@ -1431,7 +1431,7 @@ Item {
             Rectangle {
                 visible: gameCardRoot.translated || gameCardRoot.verified
                 anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: 6; anchors.rightMargin: 6
+                anchors.topMargin: Dimensions.spacingSM; anchors.rightMargin: Dimensions.spacingSM
                 width: badgeRow.width + 8; height: 20
                 radius: Dimensions.badgeRadius
                 color: Qt.rgba(0, 0, 0, 0.7)
@@ -1457,7 +1457,7 @@ Item {
             Label {
                 id: gameNameLabel
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.margins: 10
+                anchors.margins: Dimensions.marginBase
                 text: gameName; font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
                 color: "white"; elide: Text.ElideRight
 
@@ -1679,7 +1679,7 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.margins: 20
+                Layout.margins: Dimensions.marginML
                 spacing: 14
 
                 Rectangle {
@@ -1723,7 +1723,7 @@ Item {
 
             Flow {
                 Layout.fillWidth: true
-                Layout.margins: 16
+                Layout.margins: Dimensions.marginMD
                 spacing: Dimensions.spacingXL
 
                 ProjectCard {

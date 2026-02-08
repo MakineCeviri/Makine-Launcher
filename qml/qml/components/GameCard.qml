@@ -210,8 +210,8 @@ Item {
             visible: root.translated || root.verified
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: 10
-            anchors.rightMargin: 10
+            anchors.topMargin: Dimensions.marginBase
+            anchors.rightMargin: Dimensions.marginBase
             width: badgeContent.width + 10
             height: 22
             radius: Dimensions.badgeRadius
@@ -263,9 +263,9 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
-            anchors.bottomMargin: 10
+            anchors.leftMargin: Dimensions.marginBase
+            anchors.rightMargin: Dimensions.marginBase
+            anchors.bottomMargin: Dimensions.marginBase
             height: nameText.height + 2
 
             Text {

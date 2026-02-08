@@ -188,8 +188,8 @@ Popup {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
+                anchors.leftMargin: Dimensions.marginML
+                anchors.rightMargin: Dimensions.marginML
                 spacing: Dimensions.spacingLG
 
                 // Gradient icon
@@ -393,8 +393,8 @@ Popup {
                     RowLayout {
                         id: errorRow
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
+                        anchors.leftMargin: Dimensions.marginMD
+                        anchors.rightMargin: Dimensions.marginMD
                         spacing: Dimensions.spacingMD
 
                         Text {
@@ -451,10 +451,10 @@ Popup {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-                        anchors.topMargin: 12
-                        anchors.bottomMargin: 8
+                        anchors.leftMargin: Dimensions.marginMD
+                        anchors.rightMargin: Dimensions.marginMD
+                        anchors.topMargin: Dimensions.marginMS
+                        anchors.bottomMargin: Dimensions.marginSM
                         spacing: Dimensions.spacingMD
 
                         Rectangle {
@@ -465,8 +465,8 @@ Popup {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
+                                anchors.leftMargin: Dimensions.marginMS
+                                anchors.rightMargin: Dimensions.marginMS
                                 spacing: Dimensions.spacingMD
 
                                 Text {
@@ -817,7 +817,7 @@ Popup {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: Dimensions.marginML
                 spacing: Dimensions.spacingXL
 
                 Column {

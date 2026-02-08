@@ -19,7 +19,7 @@ ColumnLayout {
         ColumnLayout {
             id: infoColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             InfoRow { label: qsTr("Uygulama"); value: Dimensions.appName }
@@ -48,7 +48,7 @@ ColumnLayout {
         ColumnLayout {
             id: linksColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             ClickableRow {
@@ -90,14 +90,14 @@ ColumnLayout {
         ColumnLayout {
             id: licensesColumn
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Dimensions.marginSM
             spacing: 0
 
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
-                Layout.leftMargin: 8
-                Layout.rightMargin: 8
+                Layout.leftMargin: Dimensions.marginSM
+                Layout.rightMargin: Dimensions.marginSM
                 spacing: Dimensions.spacingMD
 
                 Text {

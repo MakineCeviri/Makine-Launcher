@@ -66,8 +66,8 @@ Dialog {
         // Description
         Text {
             Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
+            Layout.leftMargin: Dimensions.marginMD
+            Layout.rightMargin: Dimensions.marginMD
             text: {
                 var msg = qsTr("%1 oyunu, çeviri kurulduktan sonra güncellenmiş.").arg(gameName)
                 if (modifiedCount > 0)
@@ -111,7 +111,7 @@ Dialog {
         // Buttons
         RowLayout {
             Layout.fillWidth: true
-            Layout.topMargin: 8
+            Layout.topMargin: Dimensions.marginSM
             spacing: Dimensions.spacingLG
 
             // Restore backup button

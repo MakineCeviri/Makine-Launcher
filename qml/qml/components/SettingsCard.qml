@@ -22,7 +22,7 @@ Rectangle {
     ColumnLayout {
         id: mainColumn
         anchors.fill: parent
-        anchors.margins: 16
+        anchors.margins: Dimensions.marginMD
         spacing: Dimensions.spacingLG
 
         ColumnLayout {
