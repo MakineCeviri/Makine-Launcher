@@ -1378,16 +1378,20 @@ Item {
                 spacing: 4
 
                 Label {
+                    Layout.fillWidth: true
                     text: title
                     font.pixelSize: 14
                     font.weight: Font.Medium
                     color: Theme.textPrimary
+                    elide: Text.ElideRight
                 }
 
                 Label {
+                    Layout.fillWidth: true
                     text: description
                     font.pixelSize: 13
                     color: Theme.textMuted
+                    elide: Text.ElideRight
                 }
             }
 

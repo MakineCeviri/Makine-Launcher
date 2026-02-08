@@ -385,6 +385,7 @@ Popup {
                     width: parent.width
                     height: root.errorMessage ? errorRow.implicitHeight + 16 : 0
                     visible: root.errorMessage !== ""
+                    radius: Dimensions.radiusStandard
                     color: Theme.withAlpha(Theme.error, 0.1)
                     border.color: Theme.withAlpha(Theme.error, 0.3)
                     border.width: 1
@@ -408,6 +409,34 @@ Popup {
                             font.pixelSize: 12
                             color: Theme.error
                             wrapMode: Text.WordWrap
+                        }
+
+                        Rectangle {
+                            width: retryErrText.width + 16
+                            height: 24
+                            radius: Dimensions.radiusSM
+                            color: retryErrMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.2) : "transparent"
+                            border.color: Theme.withAlpha(Theme.error, 0.4)
+                            border.width: 1
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Tekrar Dene")
+
+                            Text {
+                                id: retryErrText
+                                anchors.centerIn: parent
+                                text: qsTr("Tekrar Dene")
+                                font.pixelSize: 11
+                                font.weight: Font.Medium
+                                color: Theme.error
+                            }
+
+                            MouseArea {
+                                id: retryErrMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.startScan()
+                            }
                         }
                     }
                 }
