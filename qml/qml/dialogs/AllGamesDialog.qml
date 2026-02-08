@@ -389,6 +389,16 @@ Dialog {
                     clip: true
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.name || qsTr("Unknown")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: {
+                        if (batchMode)
+                            toggleBatchSelection(modelData.id)
+                        else {
+                            root.gameSelected(modelData.id)
+                            root.close()
+                        }
+                    }
+                    Keys.onSpacePressed: Keys.onReturnPressed(event)
 
                     scale: cardMouse.containsMouse ? 1.05 : 1.0
                     transformOrigin: Item.Center
@@ -515,7 +525,7 @@ Dialog {
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
                         anchors.margins: 10
-                        text: modelData.name || "Unknown"
+                        text: modelData.name || qsTr("Unknown")
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         color: "white"
@@ -582,6 +592,17 @@ Dialog {
                         radius: Dimensions.cardBorderRadius
                         color: Theme.withAlpha(Theme.primary, 0.15)
                         visible: batchMode && selectedGameIds[modelData.id] === true
+                    }
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
                     }
 
                     MouseArea {
