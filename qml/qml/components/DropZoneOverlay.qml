@@ -19,7 +19,7 @@ Item {
     signal filesDropped(var urls)
 
     visible: active
-    z: 100
+    z: Dimensions.zDialog
 
     // Determine drop type from file extensions
     function classifyDrop(urls) {

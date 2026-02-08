@@ -113,7 +113,7 @@ ApplicationWindow {
         anchors.bottomMargin: window.resizeMargin * 2
         width: window.resizeMargin
         cursorShape: Qt.SizeHorCursor
-        z: 100
+        z: Dimensions.zDialog
         onPressed: window.startSystemResize(Qt.RightEdge)
     }
 
@@ -125,7 +125,7 @@ ApplicationWindow {
         anchors.rightMargin: window.resizeMargin * 2
         height: window.resizeMargin
         cursorShape: Qt.SizeVerCursor
-        z: 100
+        z: Dimensions.zDialog
         onPressed: window.startSystemResize(Qt.BottomEdge)
     }
 
@@ -137,7 +137,7 @@ ApplicationWindow {
         anchors.bottomMargin: window.resizeMargin * 2
         width: window.resizeMargin
         cursorShape: Qt.SizeHorCursor
-        z: 100
+        z: Dimensions.zDialog
         onPressed: window.startSystemResize(Qt.LeftEdge)
     }
 
@@ -149,7 +149,7 @@ ApplicationWindow {
         anchors.rightMargin: window.resizeMargin * 2
         height: window.resizeMargin
         cursorShape: Qt.SizeVerCursor
-        z: 100
+        z: Dimensions.zDialog
         onPressed: window.startSystemResize(Qt.TopEdge)
     }
 
@@ -159,7 +159,7 @@ ApplicationWindow {
         width: window.resizeMargin * 2
         height: window.resizeMargin * 2
         cursorShape: Qt.SizeFDiagCursor
-        z: 101
+        z: Dimensions.zWindowControls
         onPressed: window.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
     }
 
@@ -169,7 +169,7 @@ ApplicationWindow {
         width: window.resizeMargin * 2
         height: window.resizeMargin * 2
         cursorShape: Qt.SizeBDiagCursor
-        z: 101
+        z: Dimensions.zWindowControls
         onPressed: window.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
     }
 
@@ -179,7 +179,7 @@ ApplicationWindow {
         width: window.resizeMargin * 2
         height: window.resizeMargin * 2
         cursorShape: Qt.SizeBDiagCursor
-        z: 101
+        z: Dimensions.zWindowControls
         onPressed: window.startSystemResize(Qt.RightEdge | Qt.TopEdge)
     }
 
@@ -189,8 +189,30 @@ ApplicationWindow {
         width: window.resizeMargin * 2
         height: window.resizeMargin * 2
         cursorShape: Qt.SizeFDiagCursor
-        z: 101
+        z: Dimensions.zWindowControls
         onPressed: window.startSystemResize(Qt.LeftEdge | Qt.TopEdge)
+    }
+
+    // ===== KEYBOARD SHORTCUTS =====
+    Shortcut {
+        sequence: "Ctrl+Q"
+        onActivated: Qt.quit()
+    }
+    Shortcut {
+        sequence: StandardKey.Back
+        enabled: contentStackContainer.currentIndex !== 0
+        onActivated: {
+            window.currentNavIndex = 0
+            contentStackContainer.navigateTo(0)
+        }
+    }
+    Shortcut {
+        sequence: "Escape"
+        enabled: contentStackContainer.currentIndex !== 0
+        onActivated: {
+            window.currentNavIndex = 0
+            contentStackContainer.navigateTo(0)
+        }
     }
 
     // GPU Optimization: Disable animations when window is not visible/active
@@ -545,7 +567,7 @@ ApplicationWindow {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 120
-                z: 10
+                z: Dimensions.zContent
                 enabled: false
 
                 gradient: Gradient {
@@ -561,7 +583,7 @@ ApplicationWindow {
         id: notificationPanel
         parent: Overlay.overlay
         model: window.notificationModel.items
-        z: 60
+        z: Dimensions.zNavigation
 
         onClosed: window.notificationPanelOpen = false
         onNotificationClicked: function(index) {
@@ -578,7 +600,7 @@ ApplicationWindow {
     NotificationToast {
         id: notificationToast
         parent: Overlay.overlay
-        z: 200
+        z: Dimensions.zToast
 
         onClicked: {
             notificationToast.dismiss()
@@ -669,7 +691,7 @@ ApplicationWindow {
     DropZoneOverlay {
         id: dropZoneOverlay
         anchors.fill: parent
-        z: 80
+        z: Dimensions.zHeader
 
         onFilesDropped: function(urls) {
             var type = dropZoneOverlay.classifyDrop(urls)
@@ -704,7 +726,7 @@ ApplicationWindow {
     OnboardingWizard {
         id: onboardingWizard
         anchors.fill: parent
-        z: 50
+        z: Dimensions.zOverlay
         visible: !SettingsManager.onboardingCompleted
         onCompleted: {
             // Trigger initial game scan if not already done
@@ -1344,7 +1366,7 @@ ApplicationWindow {
     PerformanceMonitor {
         id: perfMonitor
         visible: window.showPerformanceMonitor
-        z: 9999
+        z: Dimensions.zDebug
     }
 
     Shortcut {

@@ -306,7 +306,7 @@ Item {
                 text: "MakineAI"
                 font.pixelSize: Dimensions.displayMedium
                 font.weight: Font.Bold
-                font.letterSpacing: -0.5
+                font.letterSpacing: Dimensions.letterSpacingHeadline
                 color: Theme.splashGold
             }
 
@@ -342,7 +342,7 @@ Item {
                         text: qsTr("Türkçe Yama")
                         font.pixelSize: Dimensions.fontSM
                         font.weight: Font.DemiBold
-                        font.letterSpacing: 0.3
+                        font.letterSpacing: Dimensions.letterSpacingWide
                         color: Theme.splashGold
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -421,7 +421,7 @@ Item {
                 text: root.statusText
                 font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
-                font.letterSpacing: 1.5
+                font.letterSpacing: Dimensions.letterSpacingLoose
                 color: Qt.rgba(1, 1, 1, 0.35)
 
                 // Crossfade on text change
@@ -479,7 +479,7 @@ Item {
             anchors.topMargin: Dimensions.spacingSM
             text: qsTr("Makine Çeviri Topluluğu")
             font.pixelSize: Dimensions.fontCaption
-            font.letterSpacing: 0.3
+            font.letterSpacing: Dimensions.letterSpacingWide
             color: Qt.rgba(1, 1, 1, 0.3)
         }
     }

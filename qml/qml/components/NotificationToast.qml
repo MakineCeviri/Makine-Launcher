@@ -33,7 +33,7 @@ Item {
     anchors.topMargin: Dimensions.marginMD
     width: 320
     height: toastContent.implicitHeight + 24
-    z: 200
+    z: Dimensions.zToast
     visible: opacity > 0
     opacity: showing ? 1.0 : 0.0
 

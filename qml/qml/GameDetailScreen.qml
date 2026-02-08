@@ -314,7 +314,7 @@ Item {
         activeFocusOnTab: true
         Keys.onReturnPressed: root.backClicked()
         Keys.onSpacePressed: root.backClicked()
-        z: 100
+        z: Dimensions.zDialog
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -354,7 +354,7 @@ Item {
         activeFocusOnTab: true
         Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
         Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
-        z: 100
+        z: Dimensions.zDialog
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -488,7 +488,7 @@ Item {
                         text: root.gameName
                         font.pixelSize: Dimensions.displayMedium
                         font.weight: Font.Bold
-                        font.letterSpacing: -0.5
+                        font.letterSpacing: Dimensions.letterSpacingHeadline
                         color: "white"
                         wrapMode: Text.WordWrap
                     }

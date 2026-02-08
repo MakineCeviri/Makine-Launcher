@@ -339,7 +339,7 @@ Window {
                 text: qsTr("Makine Çeviri")
                 font.pixelSize: Dimensions.fontSplash
                 font.weight: Font.Black
-                font.letterSpacing: -1.5
+                font.letterSpacing: Dimensions.letterSpacingDisplay
                 color: Theme.splashGold
             }
 
@@ -376,7 +376,7 @@ Window {
                         text: qsTr("AI Destekli")
                         font.pixelSize: Dimensions.fontCaption
                         font.weight: Font.DemiBold
-                        font.letterSpacing: 0.3
+                        font.letterSpacing: Dimensions.letterSpacingWide
                         color: Theme.splashGold
                     }
                 }
@@ -441,7 +441,7 @@ Window {
                 text: qsTr("Yükleniyor...")
                 font.pixelSize: Dimensions.fontXS
                 font.weight: Font.Medium
-                font.letterSpacing: 1.5
+                font.letterSpacing: Dimensions.letterSpacingLoose
                 color: Qt.rgba(1, 1, 1, 0.35)
             }
         }
@@ -481,7 +481,7 @@ Window {
                 anchors.bottom: parent.bottom
                 text: qsTr("Makine Çeviri Topluluğu")
                 font.pixelSize: Dimensions.fontCaption
-                font.letterSpacing: 0.3
+                font.letterSpacing: Dimensions.letterSpacingWide
                 color: Qt.rgba(1, 1, 1, 0.3)
             }
         }

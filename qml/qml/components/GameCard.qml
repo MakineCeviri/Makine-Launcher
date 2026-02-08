@@ -63,7 +63,7 @@ Item {
         // Animated rainbow gradient border
         Canvas {
             anchors.fill: parent
-            z: 10
+            z: Dimensions.zContent
             property real phase: cardContent.borderPhase
             onPhaseChanged: if (hov) requestPaint()
             property bool hov: root.isHovered
@@ -305,7 +305,7 @@ Item {
         border.color: Theme.withAlpha(Theme.primary, 0.6)
         border.width: 2
         visible: root.activeFocus
-        z: 1
+        z: Dimensions.zBase
     }
 
     // MOUSE AREA

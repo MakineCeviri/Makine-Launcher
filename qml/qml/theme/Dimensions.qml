@@ -184,6 +184,8 @@ QtObject {
     readonly property real letterSpacingDisplay: -1.5
     readonly property real letterSpacingHeadline: -0.5
     readonly property real letterSpacingBody: 0.0
+    readonly property real letterSpacingWide: 0.3
+    readonly property real letterSpacingLoose: 1.5
 
     // =========================================================================
     // ICON SIZES
@@ -269,4 +271,18 @@ QtObject {
 
     readonly property int dialogRadius: radiusStandard
     readonly property int badgeRadius: radiusStandard
+
+    // =========================================================================
+    // Z-INDEX LAYERS
+    // =========================================================================
+
+    readonly property int zBase: 0
+    readonly property int zContent: 10
+    readonly property int zOverlay: 50
+    readonly property int zNavigation: 60
+    readonly property int zHeader: 80
+    readonly property int zDialog: 100
+    readonly property int zWindowControls: 101
+    readonly property int zToast: 200
+    readonly property int zDebug: 9999
 }
