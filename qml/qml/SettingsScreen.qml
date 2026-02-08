@@ -341,6 +341,8 @@ Item {
                                 }
                             }
 
+                            Component.onDestruction: categoryChangeTimer.stop()
+
                             Timer {
                                 id: categoryChangeTimer
                                 interval: 150  // Wait for fade out

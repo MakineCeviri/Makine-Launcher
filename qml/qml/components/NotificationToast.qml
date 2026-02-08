@@ -63,6 +63,8 @@ Item {
         root.dismissed()
     }
 
+    Component.onDestruction: dismissTimer.stop()
+
     Timer {
         id: dismissTimer
         interval: root.duration

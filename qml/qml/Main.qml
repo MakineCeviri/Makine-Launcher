@@ -69,6 +69,8 @@ ApplicationWindow {
 
     readonly property int resizeMargin: 6
 
+    Component.onDestruction: pageChangeTimer.stop()
+
     onClosing: function(close) {
         if (SettingsManager.minimizeToTray) {
             close.accepted = false

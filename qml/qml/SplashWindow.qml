@@ -32,6 +32,12 @@ Window {
 
     signal finished()
 
+    Component.onDestruction: {
+        updateTimer.stop()
+        mainSequence.stop()
+        particleAnimation.stop()
+    }
+
     // ===== ANIMATION PROPERTIES =====
     property real logoScale: 0.7
     property real logoOpacity: 0.0
