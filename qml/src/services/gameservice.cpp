@@ -102,7 +102,7 @@ void GameService::scanAllLibraries()
     emit isScanningChanged();
 
     m_scanProgress = 0;
-    m_scanStatus = "Oyun kütüphaneleri taranıyor...";
+    m_scanStatus = tr("Oyun kütüphaneleri taranıyor...");
     emit scanStatusChanged();
     emit scanProgressChanged();
 
@@ -182,7 +182,7 @@ void GameService::scanSteamLibrary()
     if (m_isScanning) return;
 
     m_isScanning = true;
-    m_scanStatus = "Steam kütüphanesi taranıyor...";
+    m_scanStatus = tr("Steam kütüphanesi taranıyor...");
     emit isScanningChanged();
     emit scanStatusChanged();
 
@@ -196,7 +196,7 @@ void GameService::scanEpicLibrary()
     if (m_isScanning) return;
 
     m_isScanning = true;
-    m_scanStatus = "Epic Games taranıyor...";
+    m_scanStatus = tr("Epic Games taranıyor...");
     emit isScanningChanged();
     emit scanStatusChanged();
 
@@ -210,7 +210,7 @@ void GameService::scanGogLibrary()
     if (m_isScanning) return;
 
     m_isScanning = true;
-    m_scanStatus = "GOG Galaxy taranıyor...";
+    m_scanStatus = tr("GOG Galaxy taranıyor...");
     emit isScanningChanged();
     emit scanStatusChanged();
 
@@ -377,7 +377,7 @@ void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteAr
 
     // Price
     if (appData.value("is_free").toBool()) {
-        details.price = QStringLiteral("Ücretsiz");
+        details.price = tr("Ücretsiz");
     } else {
         const QJsonObject priceObj = appData.value("price_overview").toObject();
         details.price = priceObj.value("final_formatted").toString();

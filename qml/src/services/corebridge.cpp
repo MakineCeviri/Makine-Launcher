@@ -104,7 +104,7 @@ void CoreBridge::scanAllLibraries()
 
     // Add verified games for UI testing
     (void)QtConcurrent::run([this]() {
-        emit scanProgress(0.1, "Onaylı oyunlar yükleniyor...");
+        emit scanProgress(0.1, tr("Onaylı oyunlar yükleniyor..."));
         QThread::msleep(200);
 
         // Verified games list (30 games)
@@ -145,7 +145,7 @@ void CoreBridge::scanAllLibraries()
             {"2651280", "Marvel's Spider-Man 2"},
         };
 
-        emit scanProgress(0.3, "Steam kütüphanesi taranıyor...");
+        emit scanProgress(0.3, tr("Steam kütüphanesi taranıyor..."));
         QThread::msleep(200);
 
         int count = 0;
@@ -167,12 +167,12 @@ void CoreBridge::scanAllLibraries()
             count++;
             if (count % 5 == 0) {
                 emit scanProgress(0.3 + 0.6 * (static_cast<qreal>(count) / total),
-                    QString("%1 oyun yüklendi...").arg(count));
+                    tr("%1 oyun yüklendi...").arg(count));
                 QThread::msleep(50);
             }
         }
 
-        emit scanProgress(1.0, QString("%1 onaylı oyun bulundu").arg(m_detectedGames.count()));
+        emit scanProgress(1.0, tr("%1 onaylı oyun bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
     });
 }
@@ -213,7 +213,7 @@ void CoreBridge::extractStrings(const QString& gamePath, const QString& engine)
     m_extractedStrings.clear();
 
     (void)QtConcurrent::run([this]() {
-        emit extractionProgress(0.2, "Dosyalar taranıyor...");
+        emit extractionProgress(0.2, tr("Dosyalar taranıyor..."));
         QThread::msleep(500);
 
         // Sample strings for UI testing
@@ -229,7 +229,7 @@ void CoreBridge::extractStrings(const QString& gamePath, const QString& engine)
             "Load Game"
         };
 
-        emit extractionProgress(0.5, "Metinler işleniyor...");
+        emit extractionProgress(0.5, tr("Metinler işleniyor..."));
 
         int index = 0;
         for (const auto& text : samples) {
@@ -243,7 +243,7 @@ void CoreBridge::extractStrings(const QString& gamePath, const QString& engine)
         }
 
         QThread::msleep(500);
-        emit extractionProgress(1.0, QString("%1 metin çıkarıldı").arg(m_extractedStrings.count()));
+        emit extractionProgress(1.0, tr("%1 metin çıkarıldı").arg(m_extractedStrings.count()));
         emit extractionCompleted(m_extractedStrings.count());
     });
 }
@@ -257,13 +257,13 @@ void CoreBridge::applyTranslations(const QString& gamePath, const QString& engin
     emit patchStarted();
 
     (void)QtConcurrent::run([this, translations]() {
-        emit patchProgress(0.3, "Yedek oluşturuluyor...");
+        emit patchProgress(0.3, tr("Yedek oluşturuluyor..."));
         QThread::msleep(500);
 
-        emit patchProgress(0.7, "Çeviriler uygulanıyor...");
+        emit patchProgress(0.7, tr("Çeviriler uygulanıyor..."));
         QThread::msleep(500);
 
-        emit patchProgress(1.0, QString("%1 çeviri uygulandı").arg(translations.count()));
+        emit patchProgress(1.0, tr("%1 çeviri uygulandı").arg(translations.count()));
         emit patchCompleted(translations.count());
     });
 }
@@ -476,16 +476,16 @@ void CoreBridge::scanAllLibraries()
     m_detectedGames.clear();
 
     (void)QtConcurrent::run([this]() {
-        emit scanProgress(0.0, "Steam kütüphanesi taranıyor...");
+        emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
         doScanSteam();
 
-        emit scanProgress(0.33, "Epic Games taranıyor...");
+        emit scanProgress(0.33, tr("Epic Games taranıyor..."));
         doScanEpic();
 
-        emit scanProgress(0.66, "GOG Galaxy taranıyor...");
+        emit scanProgress(0.66, tr("GOG Galaxy taranıyor..."));
         doScanGog();
 
-        emit scanProgress(1.0, QString("%1 oyun bulundu").arg(m_detectedGames.count()));
+        emit scanProgress(1.0, tr("%1 oyun bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
     });
 }
@@ -494,9 +494,9 @@ void CoreBridge::scanSteamLibrary()
 {
     emit scanStarted();
     (void)QtConcurrent::run([this]() {
-        emit scanProgress(0.0, "Steam kütüphanesi taranıyor...");
+        emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
         doScanSteam();
-        emit scanProgress(1.0, QString("%1 Steam oyunu bulundu").arg(m_detectedGames.count()));
+        emit scanProgress(1.0, tr("%1 Steam oyunu bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
     });
 }
@@ -505,9 +505,9 @@ void CoreBridge::scanEpicLibrary()
 {
     emit scanStarted();
     (void)QtConcurrent::run([this]() {
-        emit scanProgress(0.0, "Epic Games taranıyor...");
+        emit scanProgress(0.0, tr("Epic Games taranıyor..."));
         doScanEpic();
-        emit scanProgress(1.0, QString("%1 Epic oyunu bulundu").arg(m_detectedGames.count()));
+        emit scanProgress(1.0, tr("%1 Epic oyunu bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
     });
 }
@@ -516,9 +516,9 @@ void CoreBridge::scanGogLibrary()
 {
     emit scanStarted();
     (void)QtConcurrent::run([this]() {
-        emit scanProgress(0.0, "GOG Galaxy taranıyor...");
+        emit scanProgress(0.0, tr("GOG Galaxy taranıyor..."));
         doScanGog();
-        emit scanProgress(1.0, QString("%1 GOG oyunu bulundu").arg(m_detectedGames.count()));
+        emit scanProgress(1.0, tr("%1 GOG oyunu bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
     });
 }
@@ -528,7 +528,7 @@ void CoreBridge::doScanSteam()
     // Safety guard: Ensure Core is initialized before scanning
     if (!s_coreInitialized) {
         qWarning() << "CoreBridge::doScanSteam - Core not initialized, skipping scan";
-        emit scanError("Core kütüphanesi başlatılamadı. Lütfen uygulamayı yeniden başlatın.");
+        emit scanError(tr("Core kütüphanesi başlatılamadı. Lütfen uygulamayı yeniden başlatın."));
         return;
     }
 
@@ -662,11 +662,11 @@ void CoreBridge::doExtractStrings(const QString& gamePath, const QString& engine
     else if (engine == "RPGMaker") handler = std::make_unique<RpgMakerHandler>();
     else if (engine == "GameMaker") handler = std::make_unique<GameMakerHandler>();
     else {
-        emit extractionError("Desteklenmeyen motor: " + engine);
+        emit extractionError(tr("Desteklenmeyen motor: %1").arg(engine));
         return;
     }
 
-    emit extractionProgress(0.1, "Dosyalar taranıyor...");
+    emit extractionProgress(0.1, tr("Dosyalar taranıyor..."));
 
     ExtractionOptions options;
     options.minLength = 2;
@@ -678,7 +678,7 @@ void CoreBridge::doExtractStrings(const QString& gamePath, const QString& engine
         return;
     }
 
-    emit extractionProgress(0.5, "Metinler işleniyor...");
+    emit extractionProgress(0.5, tr("Metinler işleniyor..."));
 
     const auto& extractionResult = *result;
     int processed = 0;
@@ -711,11 +711,11 @@ void CoreBridge::doExtractStrings(const QString& gamePath, const QString& engine
 
         if (processed % 100 == 0) {
             qreal progress = 0.5 + 0.5 * (static_cast<qreal>(processed) / total);
-            emit extractionProgress(progress, QString("İşleniyor: %1/%2").arg(processed).arg(total));
+            emit extractionProgress(progress, tr("İşleniyor: %1/%2").arg(processed).arg(total));
         }
     }
 
-    emit extractionProgress(1.0, QString("%1 metin çıkarıldı").arg(m_extractedStrings.count()));
+    emit extractionProgress(1.0, tr("%1 metin çıkarıldı").arg(m_extractedStrings.count()));
     emit extractionCompleted(m_extractedStrings.count());
 }
 
@@ -740,11 +740,11 @@ void CoreBridge::doApplyTranslations(const QString& gamePath, const QString& eng
     else if (engine == "RPGMaker") handler = std::make_unique<RpgMakerHandler>();
     else if (engine == "GameMaker") handler = std::make_unique<GameMakerHandler>();
     else {
-        emit patchError("Desteklenmeyen motor: " + engine);
+        emit patchError(tr("Desteklenmeyen motor: %1").arg(engine));
         return;
     }
 
-    emit patchProgress(0.1, "Yedek oluşturuluyor...");
+    emit patchProgress(0.1, tr("Yedek oluşturuluyor..."));
 
     std::vector<TranslationEntry> coreTranslations;
     for (const auto& qtEntry : translations) {
@@ -757,7 +757,7 @@ void CoreBridge::doApplyTranslations(const QString& gamePath, const QString& eng
         coreTranslations.push_back(entry);
     }
 
-    emit patchProgress(0.3, "Çeviriler uygulanıyor...");
+    emit patchProgress(0.3, tr("Çeviriler uygulanıyor..."));
 
     PatchOptions options;
     options.createBackup = true;
@@ -768,7 +768,7 @@ void CoreBridge::doApplyTranslations(const QString& gamePath, const QString& eng
         return;
     }
 
-    emit patchProgress(1.0, QString("%1 çeviri uygulandı").arg(result->appliedCount));
+    emit patchProgress(1.0, tr("%1 çeviri uygulandı").arg(result->appliedCount));
     emit patchCompleted(result->appliedCount);
 }
 
@@ -783,7 +783,7 @@ QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
     else if (engine == "RPGMaker") handler = std::make_unique<RpgMakerHandler>();
     else if (engine == "GameMaker") handler = std::make_unique<GameMakerHandler>();
     else {
-        emit backupError("Desteklenmeyen motor: " + engine);
+        emit backupError(tr("Desteklenmeyen motor: %1").arg(engine));
         return QString();
     }
 
@@ -792,7 +792,7 @@ QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
     auto result = handler->createBackup(path, backupId);
 
     if (!result || !result->success) {
-        QString error = result ? QString::fromStdString(result->errorMessage) : "Yedek oluşturulamadı";
+        QString error = result ? QString::fromStdString(result->errorMessage) : tr("Yedek oluşturulamadı");
         emit backupError(error);
         return QString();
     }
@@ -814,13 +814,13 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
     else if (engine == "RPGMaker") handler = std::make_unique<RpgMakerHandler>();
     else if (engine == "GameMaker") handler = std::make_unique<GameMakerHandler>();
     else {
-        emit backupError("Desteklenmeyen motor: " + engine);
+        emit backupError(tr("Desteklenmeyen motor: %1").arg(engine));
         return false;
     }
 
     auto result = handler->restoreBackup(path, backupId.toStdString());
     if (!result || !result->success) {
-        QString error = result ? QString::fromStdString(result->errorMessage) : "Yedek geri yüklenemedi";
+        QString error = result ? QString::fromStdString(result->errorMessage) : tr("Yedek geri yüklenemedi");
         emit backupError(error);
         return false;
     }
@@ -1264,7 +1264,7 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
         auto pkgResult = pm.getPackage(packageId.toStdString());
         if (!pkgResult) {
             qWarning() << "Package not found:" << packageId;
-            emit packageInstallCompleted(false, "Paket bulunamadı");
+            emit packageInstallCompleted(false, tr("Paket bulunamadı"));
             return;
         }
 
@@ -1278,7 +1278,7 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
         });
 
         if (installResult) {
-            emit packageInstallCompleted(true, QString("Paket başarıyla kuruldu: %1 dosya").arg(installResult->filesPatched));
+            emit packageInstallCompleted(true, tr("Paket başarıyla kuruldu: %1 dosya").arg(installResult->filesPatched));
         } else {
             emit packageInstallCompleted(false, QString::fromStdString(installResult.error().message()));
         }

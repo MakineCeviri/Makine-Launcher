@@ -149,13 +149,13 @@ void BatchOperationService::startBatch(BatchOperationType type, const QVariantLi
 
     QString opName;
     switch (type) {
-        case BatchOperationType::Install: opName = "Toplu yükleme"; break;
-        case BatchOperationType::Update: opName = "Toplu güncelleme"; break;
-        case BatchOperationType::Remove: opName = "Toplu kaldırma"; break;
-        default: opName = "Toplu işlem"; break;
+        case BatchOperationType::Install: opName = tr("Toplu yükleme"); break;
+        case BatchOperationType::Update: opName = tr("Toplu güncelleme"); break;
+        case BatchOperationType::Remove: opName = tr("Toplu kaldırma"); break;
+        default: opName = tr("Toplu işlem"); break;
     }
 
-    m_statusMessage = QString("%1 başlatılıyor (%2 oyun)...").arg(opName).arg(m_totalItems);
+    m_statusMessage = tr("%1 başlatılıyor (%2 oyun)...").arg(opName).arg(m_totalItems);
     emit statusMessageChanged();
 
     qDebug() << "Batch operation started:" << opName << "for" << m_totalItems << "games";
@@ -304,7 +304,7 @@ void BatchOperationService::finishBatch()
     m_currentGameId.clear();
     m_currentGameName.clear();
 
-    m_statusMessage = QString("Tamamlandı: %1 başarılı, %2 başarısız, %3 atlandı")
+    m_statusMessage = tr("Tamamlandı: %1 başarılı, %2 başarısız, %3 atlandı")
         .arg(succeeded).arg(failed).arg(skipped);
     emit statusMessageChanged();
 
@@ -321,7 +321,7 @@ void BatchOperationService::cancel()
     if (!m_isRunning.load()) return;
 
     m_cancelRequested = true;
-    m_statusMessage = "İptal ediliyor...";
+    m_statusMessage = tr("İptal ediliyor...");
     emit statusMessageChanged();
 
     qDebug() << "Batch operation cancel requested";
@@ -348,7 +348,7 @@ void BatchOperationService::checkAvailableTranslations()
     // Delegate to CoreBridge to check available translations
     if (!m_coreBridge) return;
 
-    m_statusMessage = "Mevcut çeviriler kontrol ediliyor...";
+    m_statusMessage = tr("Mevcut çeviriler kontrol ediliyor...");
     emit statusMessageChanged();
 
     // CoreBridge::checkAvailableTranslations() would be called here

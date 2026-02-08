@@ -99,7 +99,7 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
 {
     QDir sourceDir(sourcePath);
     if (!sourceDir.exists()) {
-        emit backupError("Kaynak klasör bulunamadı: " + sourcePath);
+        emit backupError(tr("Kaynak klasör bulunamadı: %1").arg(sourcePath));
         return false;
     }
 
@@ -133,7 +133,7 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
     if (copiedFiles == 0) {
         // Nothing was copied — remove empty backup dir and report error
         QDir(backupDir).removeRecursively();
-        emit backupError(QString("Yedekleme başarısız: hiçbir dosya kopyalanamadı (%1)").arg(gameName));
+        emit backupError(tr("Yedekleme başarısız: hiçbir dosya kopyalanamadı (%1)").arg(gameName));
         return false;
     }
 
@@ -160,7 +160,7 @@ bool BackupManager::createBackup(const QString& gameId, const QString& gameName,
 
     if (failedFiles > 0) {
         qWarning() << "Backup created with" << failedFiles << "failed copies for game:" << gameId;
-        emit backupError(QString("Yedek oluşturuldu ancak %1 dosya kopyalanamadı").arg(failedFiles));
+        emit backupError(tr("Yedek oluşturuldu ancak %1 dosya kopyalanamadı").arg(failedFiles));
     }
 
     qDebug() << "Backup created:" << backupId << "for game:" << gameId
@@ -174,12 +174,12 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
         [&backupId](const BackupInfo& b) { return b.id == backupId; });
 
     if (it == m_backups.end()) {
-        emit backupError("Yedek bulunamadı: " + backupId);
+        emit backupError(tr("Yedek bulunamadı: %1").arg(backupId));
         return false;
     }
 
     if (!it->isValid) {
-        emit backupError("Yedek dosyaları bulunamadı");
+        emit backupError(tr("Yedek dosyaları bulunamadı"));
         return false;
     }
 
@@ -189,13 +189,13 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
 
     QDir sourceDir(backupDir);
     if (!sourceDir.exists()) {
-        emit backupError("Yedek klasörü bulunamadı: " + backupDir);
+        emit backupError(tr("Yedek klasörü bulunamadı: %1").arg(backupDir));
         return false;
     }
 
     // Set restoring state
     m_isRestoring = true;
-    m_restoreStatus = "Yedek geri yükleniyor...";
+    m_restoreStatus = tr("Yedek geri yükleniyor...");
     emit isRestoringChanged();
     emit restoreStatusChanged();
 
@@ -235,7 +235,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
                 // Update status periodically
                 if (restoredCount % 10 == 0 || restoredCount == totalFiles) {
                     QMetaObject::invokeMethod(this, [this, restoredCount, totalFiles]() {
-                        m_restoreStatus = QString("Geri yükleniyor: %1/%2").arg(restoredCount).arg(totalFiles);
+                        m_restoreStatus = tr("Geri yükleniyor: %1/%2").arg(restoredCount).arg(totalFiles);
                         emit restoreStatusChanged();
                     }, Qt::QueuedConnection);
                 }
@@ -247,7 +247,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
         // Finish restore
         QMetaObject::invokeMethod(this, [this, restoredCount, gameId]() {
             m_isRestoring = false;
-            m_restoreStatus = QString("%1 dosya geri yüklendi").arg(restoredCount);
+            m_restoreStatus = tr("%1 dosya geri yüklendi").arg(restoredCount);
             emit isRestoringChanged();
             emit restoreStatusChanged();
             emit backupRestored(gameId);

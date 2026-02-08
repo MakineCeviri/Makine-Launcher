@@ -41,17 +41,17 @@ void SystemTrayManager::buildMenu()
     m_trayMenu->addSeparator();
 
     // Show window
-    auto *showAction = m_trayMenu->addAction("MakineAI'ı Aç");
+    auto *showAction = m_trayMenu->addAction(tr("MakineAI'ı Aç"));
     connect(showAction, &QAction::triggered, this, &SystemTrayManager::showWindowRequested);
 
     // Settings
-    auto *settingsAction = m_trayMenu->addAction("Ayarlar");
+    auto *settingsAction = m_trayMenu->addAction(tr("Ayarlar"));
     connect(settingsAction, &QAction::triggered, this, &SystemTrayManager::settingsRequested);
 
     m_trayMenu->addSeparator();
 
     // Quit
-    auto *quitAction = m_trayMenu->addAction("Tamamen Kapat");
+    auto *quitAction = m_trayMenu->addAction(tr("Tamamen Kapat"));
     connect(quitAction, &QAction::triggered, this, &SystemTrayManager::quitRequested);
 
     m_trayIcon->setContextMenu(m_trayMenu);
@@ -114,7 +114,7 @@ void SystemTrayManager::updateTooltip()
 {
     QString tooltip = "MakineAI";
     if (m_pendingUpdates > 0) {
-        tooltip += QString(" — %1 güncelleme mevcut").arg(m_pendingUpdates);
+        tooltip += tr(" — %1 güncelleme mevcut").arg(m_pendingUpdates);
     }
     m_trayIcon->setToolTip(tooltip);
 }
