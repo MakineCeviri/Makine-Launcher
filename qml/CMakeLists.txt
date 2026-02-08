@@ -174,7 +174,6 @@ qt_add_qml_module(MakineAI
         qml/components/GameCardSkeleton.qml
         qml/components/ProjectCard.qml
         qml/components/SettingsCard.qml
-        qml/components/ViewAllCard.qml
 
         # Components - Buttons
         qml/components/DevButton.qml
@@ -194,13 +193,11 @@ qt_add_qml_module(MakineAI
 
         # Components - Visual
         qml/components/MakineLogo.qml
-        qml/components/TranslationPhaseBadge.qml
         qml/components/TranslationProgressBar.qml
         qml/components/GradientText.qml
         qml/components/SkeletonLoader.qml
         qml/components/PerformanceMonitor.qml
         qml/components/Badge.qml
-        qml/components/PhaseIndicator.qml
 
         # Components - Settings UI
         qml/components/ToggleSetting.qml

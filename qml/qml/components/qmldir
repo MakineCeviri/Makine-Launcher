@@ -22,7 +22,6 @@ NotificationBell 1.0 NotificationBell.qml
 NotificationPanel 1.0 NotificationPanel.qml
 NotificationToast 1.0 NotificationToast.qml
 PerformanceMonitor 1.0 PerformanceMonitor.qml
-PhaseIndicator 1.0 PhaseIndicator.qml
 ProjectCard 1.0 ProjectCard.qml
 ProjectCategory 1.0 ProjectCategory.qml
 SettingsCard 1.0 SettingsCard.qml
@@ -31,7 +30,5 @@ SkeletonLoader 1.0 SkeletonLoader.qml
 ThemeSetting 1.0 ThemeSetting.qml
 TitleBar 1.0 TitleBar.qml
 ToggleSetting 1.0 ToggleSetting.qml
-TranslationPhaseBadge 1.0 TranslationPhaseBadge.qml
 TranslationProgressBar 1.0 TranslationProgressBar.qml
-ViewAllCard 1.0 ViewAllCard.qml
 WindowButton 1.0 WindowButton.qml
