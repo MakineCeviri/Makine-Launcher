@@ -213,6 +213,7 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
             const qreal prog = static_cast<qreal>(i + 1) / total;
             const int m = matched;
             QMetaObject::invokeMethod(this, [this, prog, i, total, m]() {
+                if (!m_isActive.load(std::memory_order_relaxed)) return;
                 setProgress(prog, tr("Eşleştiriliyor: %1/%2 (%3 bulundu)")
                     .arg(i + 1).arg(total).arg(m));
             }, Qt::QueuedConnection);
@@ -221,6 +222,7 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
 
     qDebug() << "TM Matching completed:" << matched << "/" << total << "translations found";
     QMetaObject::invokeMethod(this, [this, matched, total]() {
+        if (!m_isActive.load(std::memory_order_relaxed)) return;
         emit matchingCompleted(matched, total);
         setPhase(TranslationPhase::Reviewing);
         setProgress(0, tr("Kalite kontrolü yapılıyor..."));
@@ -275,6 +277,7 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
         if (i % 20 == 0 || i == qaTotal - 1) {
             const qreal prog = static_cast<qreal>(i + 1) / qaTotal;
             QMetaObject::invokeMethod(this, [this, prog, i, qaTotal]() {
+                if (!m_isActive.load(std::memory_order_relaxed)) return;
                 setProgress(prog, tr("Kontrol ediliyor: %1/%2")
                     .arg(i + 1).arg(qaTotal));
             }, Qt::QueuedConnection);
@@ -296,6 +299,8 @@ void TranslationService::runMatchingAndQA(int /*extractedCount*/)
     // Switch to main thread for phase transitions and patching
     QMetaObject::invokeMethod(this, [this, passed, failed, avgScore, qaIssues,
             approvedTranslations = std::move(approvedTranslations)]() {
+        if (!m_isActive.load(std::memory_order_relaxed)) return;
+
         emit qaCompleted(passed, failed, avgScore, qaIssues);
         setProgress(1.0, tr("Kalite kontrolü tamamlandı (Skor: %1)").arg(avgScore));
 

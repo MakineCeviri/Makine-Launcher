@@ -24,15 +24,11 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
             this, &SystemTrayManager::updateCheckRequested);
 }
 
-SystemTrayManager::~SystemTrayManager()
-{
-    delete m_trayMenu;
-}
+SystemTrayManager::~SystemTrayManager() = default;
 
 void SystemTrayManager::buildMenu()
 {
-    delete m_trayMenu;
-    m_trayMenu = new QMenu();
+    m_trayMenu = std::make_unique<QMenu>();
 
     // Title (disabled, acts as header)
     auto *titleAction = m_trayMenu->addAction("MakineAI v" + QCoreApplication::applicationVersion());
@@ -54,7 +50,7 @@ void SystemTrayManager::buildMenu()
     auto *quitAction = m_trayMenu->addAction(tr("Tamamen Kapat"));
     connect(quitAction, &QAction::triggered, this, &SystemTrayManager::quitRequested);
 
-    m_trayIcon->setContextMenu(m_trayMenu);
+    m_trayIcon->setContextMenu(m_trayMenu.get());
     updateTooltip();
 }
 

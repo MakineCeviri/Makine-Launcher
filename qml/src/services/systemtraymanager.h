@@ -15,6 +15,7 @@
 #include <QMenu>
 #include <QIcon>
 #include <QTimer>
+#include <memory>
 
 class SystemTrayManager : public QObject
 {
@@ -55,7 +56,7 @@ private:
     void updateTooltip();
 
     QSystemTrayIcon *m_trayIcon;
-    QMenu *m_trayMenu{nullptr};
+    std::unique_ptr<QMenu> m_trayMenu;
     int m_pendingUpdates{0};
     bool m_backgroundCheckEnabled{false};
     QTimer m_updateCheckTimer;

@@ -11,6 +11,25 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
+
+// RAII wrapper for Windows HANDLE (snapshot, process, etc.)
+class HandleGuard {
+public:
+    explicit HandleGuard(HANDLE h = INVALID_HANDLE_VALUE) : h_(h) {}
+    ~HandleGuard() { close(); }
+    HandleGuard(const HandleGuard&) = delete;
+    HandleGuard& operator=(const HandleGuard&) = delete;
+
+    HANDLE get() const { return h_; }
+    explicit operator bool() const { return h_ != INVALID_HANDLE_VALUE; }
+
+    void close() {
+        if (h_ != INVALID_HANDLE_VALUE) { CloseHandle(h_); h_ = INVALID_HANDLE_VALUE; }
+    }
+
+private:
+    HANDLE h_;
+};
 #endif
 
 namespace makineai {
@@ -157,21 +176,19 @@ QStringList ProcessScanner::getRunningProcesses()
     QStringList processes;
 
 #ifdef Q_OS_WIN
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnapshot == INVALID_HANDLE_VALUE) {
+    HandleGuard snapshot{CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)};
+    if (!snapshot) {
         return processes;
     }
 
     PROCESSENTRY32W pe32;
     pe32.dwSize = sizeof(PROCESSENTRY32W);
 
-    if (Process32FirstW(hSnapshot, &pe32)) {
+    if (Process32FirstW(snapshot.get(), &pe32)) {
         do {
             processes.append(QString::fromWCharArray(pe32.szExeFile));
-        } while (Process32NextW(hSnapshot, &pe32));
+        } while (Process32NextW(snapshot.get(), &pe32));
     }
-
-    CloseHandle(hSnapshot);
 #endif
 
     return processes;
