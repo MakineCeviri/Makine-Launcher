@@ -100,9 +100,12 @@ QtObject {
     // ANIMATION DURATIONS (ms)
     // =========================================================================
 
+    readonly property int animInstant: 50
+    readonly property int animVeryFast: 100
     readonly property int animFast: 150
     readonly property int animNormal: 250
     readonly property int animSlow: 400
+    readonly property int animVerySlow: 800
     readonly property int animGradient: 2000
 
     // =========================================================================

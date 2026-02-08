@@ -476,8 +476,8 @@ Dialog {
 
                     property bool expanded: false
 
-                    Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on height { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                     ColumnLayout {
                         id: issueContent
@@ -579,7 +579,7 @@ Dialog {
                             visible: issueItem.expanded
                             opacity: issueItem.expanded ? 1 : 0
 
-                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration } }
 
                             Text {
                                 id: detailsText
@@ -643,7 +643,7 @@ Dialog {
                 Keys.onReturnPressed: { root.ignoreAndContinue(); root.close() }
                 Keys.onSpacePressed: { root.ignoreAndContinue(); root.close() }
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Row {
                     id: ignoreBtnContent
@@ -696,7 +696,7 @@ Dialog {
                     ? (root.issues.length > 0 ? Theme.primaryHover : Theme.withAlpha(colorSuccess, 0.9))
                     : (root.issues.length > 0 ? Theme.primary : colorSuccess)
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Row {
                     id: fixBtnContent

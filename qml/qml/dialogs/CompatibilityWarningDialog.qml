@@ -128,7 +128,7 @@ Dialog {
                 Keys.onReturnPressed: { root.restoreBackup(); root.close() }
                 Keys.onSpacePressed: { root.restoreBackup(); root.close() }
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Text {
                     anchors.centerIn: parent
@@ -173,7 +173,7 @@ Dialog {
                 Keys.onSpacePressed: { root.proceedAnyway(); root.close() }
                 color: proceedMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.warning, 0.12)
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Text {
                     anchors.centerIn: parent

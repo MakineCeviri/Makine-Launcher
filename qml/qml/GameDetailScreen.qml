@@ -316,7 +316,7 @@ Item {
         Keys.onSpacePressed: root.backClicked()
         z: 100
 
-        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
         Text {
             anchors.centerIn: parent
@@ -356,7 +356,7 @@ Item {
         Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
         z: 100
 
-        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
         Text {
             anchors.centerIn: parent
@@ -513,7 +513,7 @@ Item {
                             Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
                             Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                             Row {
                                 id: steamBtnContent
@@ -561,7 +561,7 @@ Item {
                             Keys.onReturnPressed: root.translateClicked()
                             Keys.onSpacePressed: root.translateClicked()
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                             Row {
                                 id: translateBtnContent
@@ -650,7 +650,7 @@ Item {
                         Keys.onReturnPressed: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) }
                         Keys.onSpacePressed: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) }
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                         Text {
                             id: retryText
@@ -1577,7 +1577,7 @@ Item {
                                 Keys.onReturnPressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.installRuntime(root.gameId) } }
                                 Keys.onSpacePressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.installRuntime(root.gameId) } }
 
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                 Text {
                                     id: runtimeBtnText
@@ -1621,7 +1621,7 @@ Item {
                                 Keys.onReturnPressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.uninstallRuntime(root.gameId) } }
                                 Keys.onSpacePressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.uninstallRuntime(root.gameId) } }
 
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                 Text {
                                     id: uninstallBtnText
@@ -1810,8 +1810,8 @@ Item {
                                     border.color: Theme.withAlpha(Theme.warning, restoreBtnMouse.containsMouse ? 0.4 : 0.2)
                                     border.width: 1
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Restore latest backup")
@@ -1863,7 +1863,7 @@ Item {
                                     border.color: Qt.rgba(1, 1, 1, deleteBtnMouse.containsMouse ? 0.15 : 0.08)
                                     border.width: 1
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Delete all backups")

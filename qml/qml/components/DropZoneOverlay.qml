@@ -47,7 +47,7 @@ Item {
         opacity: root.active ? 1.0 : 0.0
 
         Behavior on opacity {
-            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
         }
     }
 
@@ -60,10 +60,10 @@ Item {
         opacity: root.active ? 1.0 : 0.0
 
         Behavior on scale {
-            NumberAnimation { duration: 250; easing.type: Easing.OutBack }
+            NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutBack }
         }
         Behavior on opacity {
-            NumberAnimation { duration: 200 }
+            NumberAnimation { duration: Dimensions.transitionDuration }
         }
 
         // Dashed border
@@ -122,8 +122,8 @@ Item {
                     SequentialAnimation on y {
                         running: root.active
                         loops: Animation.Infinite
-                        NumberAnimation { from: -2; to: 2; duration: 800; easing.type: Easing.InOutSine }
-                        NumberAnimation { from: 2; to: -2; duration: 800; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: -2; to: 2; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 2; to: -2; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                     }
                 }
             }

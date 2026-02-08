@@ -20,7 +20,7 @@ Item {
 
     property real underlineWidth: selected ? 24 : (navItemMouse.containsMouse || activeFocus ? 16 : 0)
     Behavior on underlineWidth {
-        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
     }
 
     Label {
@@ -33,7 +33,7 @@ Item {
              : (navItemMouse.containsMouse || navItemRoot.activeFocus) ? Theme.textPrimary
              : Theme.textSecondary
 
-        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
     }
 
     Rectangle {

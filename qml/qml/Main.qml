@@ -238,7 +238,7 @@ ApplicationWindow {
             clip: true
 
             Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
             }
 
             RowLayout {
@@ -892,7 +892,7 @@ ApplicationWindow {
         radius: 0
 
         Behavior on color {
-            ColorAnimation { duration: 150 }
+            ColorAnimation { duration: Dimensions.animFast }
         }
 
         Label {
@@ -903,7 +903,7 @@ ApplicationWindow {
             color: btnMouse.containsMouse && isClose ? "white" : Theme.textSecondary
 
             Behavior on color {
-                ColorAnimation { duration: 150 }
+                ColorAnimation { duration: Dimensions.animFast }
             }
         }
 
@@ -963,7 +963,7 @@ ApplicationWindow {
                 Keys.onSpacePressed: navBarRoot.homeClicked()
 
                 Behavior on scale {
-                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
                 }
 
                 AnimatedGradientGlow {
@@ -972,7 +972,7 @@ ApplicationWindow {
                     active: true
                     animationsEnabled: window.animationsEnabled
                     opacity: logoMouse.containsMouse ? 0.7 : 0.35
-                    Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
                 }
 
                 Rectangle {
@@ -1089,7 +1089,7 @@ ApplicationWindow {
 
                 property real underlineWidth: aiToggleMouse.containsMouse ? 70 : 0
                 Behavior on underlineWidth {
-                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
                 }
 
                 Text {
@@ -1197,7 +1197,7 @@ ApplicationWindow {
 
                 property bool hovered: donateMouse.containsMouse
                 scale: hovered ? 1.1 : 1.0
-                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
 
                 property real wobble: 0
                 SequentialAnimation on wobble {
@@ -1222,7 +1222,7 @@ ApplicationWindow {
                     width: 20; height: 20
                     rotation: donateItem.wobble
                     opacity: donateItem.hovered ? 1.0 : 0.7
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration } }
 
                     property real phase: donateItem.colorPhase
                     onPhaseChanged: if (donateItem.hovered) requestPaint()
@@ -1300,14 +1300,14 @@ ApplicationWindow {
 
                 property bool hovered: discordMouse.containsMouse
                 scale: hovered ? 1.1 : 1.0
-                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
 
                 property real pulse: 0.7
                 SequentialAnimation on pulse {
                     loops: Animation.Infinite
                     running: !discordItem.hovered && window.animationsEnabled
-                    NumberAnimation { from: 0.7; to: 1.0; duration: 2000; easing.type: Easing.InOutSine }
-                    NumberAnimation { from: 1.0; to: 0.7; duration: 2000; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 0.7; to: 1.0; duration: Dimensions.animGradient; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 1.0; to: 0.7; duration: Dimensions.animGradient; easing.type: Easing.InOutSine }
                 }
 
                 Image {

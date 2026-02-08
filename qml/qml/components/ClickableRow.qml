@@ -49,7 +49,7 @@ Item {
         radius: Dimensions.radiusStandard
         color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
 
-        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
         RowLayout {
             anchors.fill: parent
@@ -68,7 +68,7 @@ Item {
                 visible: root.icon !== "" || root.iconSource !== ""
 
                 scale: mouseArea.pressed ? 0.95 : 1.0
-                Behavior on scale { NumberAnimation { duration: 100 } }
+                Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
                 // Emoji/text icon
                 Label {
@@ -126,7 +126,7 @@ Item {
                 opacity: mouseArea.containsMouse ? 0.8 : 0.4
 
                 Behavior on opacity {
-                    NumberAnimation { duration: 150 }
+                    NumberAnimation { duration: Dimensions.animFast }
                 }
             }
         }

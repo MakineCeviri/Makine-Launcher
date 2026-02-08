@@ -12,7 +12,7 @@ Rectangle {
     color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
     radius: Dimensions.radiusStandard
 
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
     Accessible.role: Accessible.ListItem
     Accessible.name: root.modelData.gameName || ""

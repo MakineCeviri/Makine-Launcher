@@ -149,7 +149,7 @@ Dialog {
                     Keys.onReturnPressed: { batchMode = !batchMode; if (!batchMode) deselectAll() }
                     Keys.onSpacePressed: { batchMode = !batchMode; if (!batchMode) deselectAll() }
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                     Row {
                         id: batchToggleRow
@@ -248,7 +248,7 @@ Dialog {
                     border.color: searchInput.activeFocus ? Theme.primary : Qt.rgba(1, 1, 1, 0.1)
                     border.width: 1
 
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                     RowLayout {
                         anchors.fill: parent
@@ -543,7 +543,7 @@ Dialog {
                             GradientStop { position: 1.0; color: Theme.withAlpha(Theme.pink, 0.12) }
                         }
 
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                        Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration } }
                     }
 
                     // Border glow
@@ -555,7 +555,7 @@ Dialog {
                         border.color: Theme.withAlpha(Theme.splashGold, 0.6)
                         opacity: cardMouse.containsMouse ? 0.6 : 0
 
-                        Behavior on opacity { NumberAnimation { duration: 250 } }
+                        Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
                     }
 
                     // Batch selection checkbox overlay
@@ -660,7 +660,7 @@ Dialog {
         clip: true
 
         Behavior on height {
-            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
         }
 
         Rectangle {
@@ -784,7 +784,7 @@ Dialog {
                 Keys.onReturnPressed: { if (selectedCount > 0) startBatchInstall() }
                 Keys.onSpacePressed: { if (selectedCount > 0) startBatchInstall() }
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Text {
                     id: installBtnLabel
@@ -838,8 +838,8 @@ Dialog {
         border.color: isSelected ? Theme.primary : (catBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
         border.width: 1
 
-        Behavior on color { ColorAnimation { duration: 150 } }
-        Behavior on border.color { ColorAnimation { duration: 150 } }
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
         Text {
             id: catBtnLabel

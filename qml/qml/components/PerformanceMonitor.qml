@@ -163,8 +163,8 @@ Rectangle {
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
                     running: root.visible && root.currentFps < 30
-                    NumberAnimation { to: 0.3; duration: 300 }
-                    NumberAnimation { to: 1.0; duration: 300 }
+                    NumberAnimation { to: 0.3; duration: Dimensions.fadeTransitionDuration }
+                    NumberAnimation { to: 1.0; duration: Dimensions.fadeTransitionDuration }
                 }
             }
 

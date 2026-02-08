@@ -27,11 +27,11 @@ Popup {
     readonly property real contentHeight: headerItem.height + listContainer.implicitHeight + footerItem.height + 2
 
     enter: Transition {
-        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 150 }
-        NumberAnimation { property: "y"; from: root.y - 8; to: root.y; duration: 150; easing.type: Easing.OutCubic }
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.animFast }
+        NumberAnimation { property: "y"; from: root.y - 8; to: root.y; duration: Dimensions.animFast; easing.type: Easing.OutCubic }
     }
     exit: Transition {
-        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 100 }
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animVeryFast }
     }
 
     background: Rectangle {
@@ -88,7 +88,7 @@ Popup {
                     Keys.onReturnPressed: root.markAllRead()
                     Keys.onSpacePressed: root.markAllRead()
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                     Text {
                         id: markAllText
@@ -166,7 +166,7 @@ Popup {
                     required property string type
                     required property bool read
 
-                    Behavior on color { ColorAnimation { duration: 100 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animVeryFast } }
 
                     RowLayout {
                         id: delegateLayout
@@ -342,8 +342,8 @@ Popup {
                 color: clearMouse.containsMouse ? Theme.error : Theme.textMuted
                 opacity: clearMouse.containsMouse ? 1.0 : 0.7
 
-                Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             }
 
             // Focus indicator

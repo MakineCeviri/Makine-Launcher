@@ -100,7 +100,7 @@ Window {
         property: "glowPulse"
         from: 0.0
         to: 1.0
-        duration: 2000
+        duration: Dimensions.animGradient
         loops: Animation.Infinite
     }
 
@@ -180,7 +180,7 @@ Window {
         }
 
         // Pause 100ms
-        PauseAnimation { duration: 100 }
+        PauseAnimation { duration: Dimensions.animVeryFast }
 
         // Fade out 0 -> 1, 220ms, easeOut
         NumberAnimation {

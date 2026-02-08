@@ -641,15 +641,15 @@ Item {
                             SequentialAnimation on scale {
                                 running: parent.visible
                                 loops: Animation.Infinite
-                                NumberAnimation { to: 1.15; duration: 800; easing.type: Easing.InOutSine }
-                                NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 1.15; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 1.0; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                             }
 
                             SequentialAnimation on opacity {
                                 running: parent.visible
                                 loops: Animation.Infinite
-                                NumberAnimation { to: 0.5; duration: 800; easing.type: Easing.InOutSine }
-                                NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 0.5; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 1.0; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                             }
                         }
 
@@ -683,11 +683,11 @@ Item {
                             border.width: parent.isActive ? 2 : 1
 
                             Behavior on color {
-                                ColorAnimation { duration: 300 }
+                                ColorAnimation { duration: Dimensions.fadeTransitionDuration }
                             }
 
                             Behavior on border.color {
-                                ColorAnimation { duration: 300 }
+                                ColorAnimation { duration: Dimensions.fadeTransitionDuration }
                             }
 
                             Label {
@@ -699,7 +699,7 @@ Item {
                                        phaseItem.isActive ? Theme.gold : Theme.textMuted
 
                                 Behavior on color {
-                                    ColorAnimation { duration: 300 }
+                                    ColorAnimation { duration: Dimensions.fadeTransitionDuration }
                                 }
                             }
 
@@ -723,7 +723,7 @@ Item {
                                Theme.textMuted
 
                         Behavior on color {
-                            ColorAnimation { duration: 300 }
+                            ColorAnimation { duration: Dimensions.fadeTransitionDuration }
                         }
                     }
 
@@ -759,7 +759,7 @@ Item {
                             }
 
                             Behavior on width {
-                                NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
+                                NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
                             }
                         }
                     }

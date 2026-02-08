@@ -241,7 +241,7 @@ Popup {
                     Keys.onReturnPressed: { root.dialogClosed(); root.close() }
                     Keys.onSpacePressed: { root.dialogClosed(); root.close() }
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                     Text {
@@ -320,7 +320,7 @@ Popup {
                         anchors.fill: parent
                         property real progressValue: root.progress
 
-                        Behavior on progressValue { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                        Behavior on progressValue { NumberAnimation { duration: Dimensions.fadeTransitionDuration; easing.type: Easing.OutCubic } }
 
                         onProgressValueChanged: requestPaint()
                         onPaint: {
@@ -512,8 +512,8 @@ Popup {
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
                             scale: manualBtn.pressed ? 0.92 : 1.0
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                            Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast; easing.type: Easing.OutCubic } }
 
                             Text {
                                 anchors.centerIn: parent
@@ -562,8 +562,8 @@ Popup {
                                 : (root.isDark ? Qt.rgba(1, 1, 1, 0.05) : Qt.rgba(0, 0, 0, 0.05))
                             scale: refreshBtn.pressed ? 0.92 : 1.0
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                            Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast; easing.type: Easing.OutCubic } }
 
                             Text {
                                 anchors.centerIn: parent
@@ -635,8 +635,8 @@ Popup {
                         }
                         border.width: 1
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                         RowLayout {
                             anchors.fill: parent
@@ -805,7 +805,7 @@ Popup {
             visible: height > 0
 
             Behavior on height {
-                NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic }
             }
 
             Rectangle {
@@ -883,7 +883,7 @@ Popup {
                     Keys.onReturnPressed: { if (root.selectedGame) { root.gameSelected(root.selectedGame); root.close() } }
                     Keys.onSpacePressed: { if (root.selectedGame) { root.gameSelected(root.selectedGame); root.close() } }
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                     Row {

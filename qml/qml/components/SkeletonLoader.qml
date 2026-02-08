@@ -66,7 +66,7 @@ Rectangle {
         }
 
         // Pause between cycles
-        PauseAnimation { duration: 300 }
+        PauseAnimation { duration: Dimensions.fadeTransitionDuration }
     }
 
     // Shimmer gradient overlay
@@ -96,12 +96,12 @@ Rectangle {
 
         NumberAnimation {
             to: 1.3
-            duration: 800
+            duration: Dimensions.animVerySlow
             easing.type: Easing.InOutSine
         }
         NumberAnimation {
             to: 1.0
-            duration: 800
+            duration: Dimensions.animVerySlow
             easing.type: Easing.InOutSine
         }
     }

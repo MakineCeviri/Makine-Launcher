@@ -39,15 +39,15 @@ Dialog {
     // Entry animation
     enter: Transition {
         ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: 200; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
         }
     }
 
     exit: Transition {
         ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 150 }
-            NumberAnimation { property: "scale"; from: 1; to: 0.95; duration: 150 }
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animFast }
+            NumberAnimation { property: "scale"; from: 1; to: 0.95; duration: Dimensions.animFast }
         }
     }
 
@@ -165,15 +165,15 @@ Dialog {
                     SequentialAnimation on scale {
                         running: root.animationsEnabled && pulseGlow.visible
                         loops: Animation.Infinite
-                        NumberAnimation { to: 1.2; duration: 800; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.2; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                     }
 
                     SequentialAnimation on opacity {
                         running: root.animationsEnabled && pulseGlow.visible
                         loops: Animation.Infinite
-                        NumberAnimation { to: 0.3; duration: 800; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 0.3; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                     }
                 }
 
@@ -201,12 +201,12 @@ Dialog {
                     SequentialAnimation on x {
                         running: root.animationsEnabled && root.highestSeverity === "critical"
                         loops: Animation.Infinite
-                        NumberAnimation { to: 3; duration: 50 }
-                        NumberAnimation { to: -3; duration: 50 }
-                        NumberAnimation { to: 2; duration: 50 }
-                        NumberAnimation { to: -2; duration: 50 }
-                        NumberAnimation { to: 0; duration: 50 }
-                        PauseAnimation { duration: 2000 }
+                        NumberAnimation { to: 3; duration: Dimensions.animInstant }
+                        NumberAnimation { to: -3; duration: Dimensions.animInstant }
+                        NumberAnimation { to: 2; duration: Dimensions.animInstant }
+                        NumberAnimation { to: -2; duration: Dimensions.animInstant }
+                        NumberAnimation { to: 0; duration: Dimensions.animInstant }
+                        PauseAnimation { duration: Dimensions.animGradient }
                     }
                 }
             }
@@ -268,8 +268,8 @@ Dialog {
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
                 Keys.onSpacePressed: { root.cancelled(); root.close() }
 
-                Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Text {
                     anchors.centerIn: parent
@@ -378,8 +378,8 @@ Dialog {
 
                 // Staggered entry animation
                 add: Transition {
-                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200 }
-                    NumberAnimation { property: "scale"; from: 0.95; to: 1; duration: 200; easing.type: Easing.OutCubic }
+                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.transitionDuration }
+                    NumberAnimation { property: "scale"; from: 0.95; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
                 }
 
                 delegate: Rectangle {
@@ -395,10 +395,10 @@ Dialog {
                     border.width: delegateMouse.containsMouse ? 2 : 1
                     scale: delegateMouse.containsMouse ? 1.01 : 1.0
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
-                    Behavior on border.width { NumberAnimation { duration: 150 } }
-                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                    Behavior on border.width { NumberAnimation { duration: Dimensions.animFast } }
+                    Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
 
                     // Left accent bar
                     Rectangle {
@@ -411,7 +411,7 @@ Dialog {
                         color: getSeverityColor(modelData.severity)
                         opacity: delegateMouse.containsMouse ? 1.0 : 0.6
 
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
                     }
 
                     RowLayout {
@@ -570,9 +570,9 @@ Dialog {
                 border.width: 1.5
                 scale: cancelBtnMouse.pressed ? 0.97 : 1.0
 
-                Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
-                Behavior on scale { NumberAnimation { duration: 100 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
                 Row {
                     id: cancelBtnContent
@@ -585,7 +585,7 @@ Dialog {
                         color: cancelBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     }
 
                     Text {
@@ -595,7 +595,7 @@ Dialog {
                         color: cancelBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     }
                 }
 
@@ -641,7 +641,7 @@ Dialog {
                     border.width: 3
                     z: -1
 
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
                 }
 
                 Rectangle {
@@ -663,7 +663,7 @@ Dialog {
                         GradientStop { position: 1.0; color: Qt.darker(getSeverityColor(root.highestSeverity), 1.2) }
                     }
 
-                    Behavior on scale { NumberAnimation { duration: 100 } }
+                    Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
                     // Hover highlight overlay
                     Rectangle {
@@ -671,7 +671,7 @@ Dialog {
                         radius: parent.radius
                         color: continueBtnMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     }
 
                     // Top highlight

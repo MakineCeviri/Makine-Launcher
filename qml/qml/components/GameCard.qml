@@ -34,12 +34,12 @@ Item {
 
     // Hover lift: subtle Y translate + scale
     transform: [
-        Translate { y: root.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } } },
+        Translate { y: root.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
         Scale {
             origin.x: root.width / 2; origin.y: root.height / 2
             xScale: root.isHovered ? 1.02 : 1.0; yScale: root.isHovered ? 1.02 : 1.0
-            Behavior on xScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-            Behavior on yScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+            Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
         }
     ]
 
@@ -147,7 +147,7 @@ Item {
             brightness: root.isHovered ? 0.06 : 0
             opacity: 0
 
-            Behavior on brightness { NumberAnimation { duration: 250 } }
+            Behavior on brightness { NumberAnimation { duration: Dimensions.animNormal } }
 
             // Fade in when image loads
             states: State {
@@ -156,7 +156,7 @@ Item {
                 PropertyChanges { target: maskedImage; opacity: 1 }
             }
             transitions: Transition {
-                NumberAnimation { property: "opacity"; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { property: "opacity"; duration: Dimensions.fadeTransitionDuration; easing.type: Easing.OutCubic }
             }
         }
 

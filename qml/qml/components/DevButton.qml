@@ -26,7 +26,7 @@ Rectangle {
     Keys.onReturnPressed: clicked()
     Keys.onSpacePressed: clicked()
 
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
     MouseArea {
         id: mouseArea
@@ -52,7 +52,7 @@ Rectangle {
                  : Qt.rgba(1, 1, 1, 0.06)
 
             scale: mouseArea.pressed ? 0.95 : 1.0
-            Behavior on scale { NumberAnimation { duration: 100 } }
+            Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
             Image {
                 anchors.centerIn: parent

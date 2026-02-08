@@ -66,7 +66,7 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: 300
+            duration: Dimensions.fadeTransitionDuration
             easing.type: Easing.OutCubic
         }
         NumberAnimation {
@@ -82,7 +82,7 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: 300
+            duration: Dimensions.fadeTransitionDuration
             easing.type: Easing.OutCubic
         }
         NumberAnimation {
@@ -156,9 +156,9 @@ Item {
                                     : "transparent"
                                 border.width: 1
 
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Behavior on border.color { ColorAnimation { duration: 150 } }
-                                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                                Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast; easing.type: Easing.OutCubic } }
 
                                 Accessible.role: Accessible.Button
                                 Accessible.name: qsTr("Back")
@@ -172,7 +172,7 @@ Item {
                                     font.pixelSize: Dimensions.fontTitle
                                     color: backMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                 }
 
                                 MouseArea {
@@ -283,9 +283,9 @@ Item {
                                 opacity: 1.0
                                 Behavior on text {
                                     SequentialAnimation {
-                                        NumberAnimation { target: parent; property: "opacity"; to: 0; duration: 100 }
+                                        NumberAnimation { target: parent; property: "opacity"; to: 0; duration: Dimensions.animVeryFast }
                                         PropertyAction { }
-                                        NumberAnimation { target: parent; property: "opacity"; to: 1; duration: 150 }
+                                        NumberAnimation { target: parent; property: "opacity"; to: 1; duration: Dimensions.animFast }
                                     }
                                 }
                             }
@@ -311,7 +311,7 @@ Item {
                             opacity: 1.0
                             Behavior on opacity {
                                 NumberAnimation {
-                                    duration: 200
+                                    duration: Dimensions.transitionDuration
                                     easing.type: Easing.OutCubic
                                 }
                             }
@@ -570,7 +570,7 @@ Item {
                             border.color: Qt.rgba(1, 1, 1, 0.08)
                             border.width: 1
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                             RowLayout {
                                 anchors.fill: parent
@@ -626,7 +626,7 @@ Item {
                                     radius: Dimensions.radiusStandard
                                     color: restoreBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Restore backup")
@@ -684,7 +684,7 @@ Item {
                                     radius: Dimensions.radiusStandard
                                     color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.15) : "transparent"
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Delete backup")
@@ -1102,9 +1102,9 @@ Item {
             : ((catMouse.containsMouse || catItem.activeFocus) ? Qt.rgba(1, 1, 1, 0.15) : "transparent")
         border.width: isSelected ? 1.5 : 1
 
-        Behavior on color { ColorAnimation { duration: 150 } }
-        Behavior on border.color { ColorAnimation { duration: 150 } }
-        Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast; easing.type: Easing.OutCubic } }
 
         RowLayout {
             anchors.fill: parent
@@ -1119,7 +1119,7 @@ Item {
                 color: isSelected ? Theme.textPrimary : "transparent"
 
                 Behavior on Layout.preferredHeight {
-                    NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
                 }
             }
 
@@ -1131,7 +1131,7 @@ Item {
                      : catMouse.containsMouse ? Theme.textPrimary
                      : Theme.textSecondary
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
             }
 
             Item { Layout.fillWidth: true }
@@ -1225,9 +1225,9 @@ Item {
                         border.width: 1
                         scale: lightMouse.pressed ? 0.95 : 1.0
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
-                        Behavior on scale { NumberAnimation { duration: 100 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                        Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
                         Accessible.role: Accessible.RadioButton
                         Accessible.name: qsTr("Light theme")
@@ -1287,9 +1287,9 @@ Item {
                         border.width: 1
                         scale: darkMouse.pressed ? 0.95 : 1.0
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
-                        Behavior on scale { NumberAnimation { duration: 100 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                        Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
                         Accessible.role: Accessible.RadioButton
                         Accessible.name: qsTr("Dark theme")
@@ -1366,7 +1366,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             color: toggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.02) : "transparent"
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
         }
 
         RowLayout {
@@ -1421,8 +1421,8 @@ Item {
                         easing.type: Easing.OutCubic
                     }
                 }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
-                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
 
                 // Handle
                 Rectangle {
@@ -1453,7 +1453,7 @@ Item {
                     }
 
                     scale: toggleMouse.pressed ? 0.85 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 100 } }
+                    Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
                 }
 
                 MouseArea {
@@ -1601,7 +1601,7 @@ Item {
             anchors.fill: parent
             color: devMouse.containsMouse && !isLoading ? Qt.rgba(1, 1, 1, 0.03) : "transparent"
 
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
             RowLayout {
                 anchors.fill: parent
@@ -1619,7 +1619,7 @@ Item {
                          : Qt.rgba(1, 1, 1, 0.06)
 
                     scale: devMouse.pressed ? 0.95 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 100 } }
+                    Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
 
                     Label {
                         anchors.centerIn: parent

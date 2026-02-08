@@ -56,7 +56,7 @@ Item {
         id: glowAnimation
         from: 0.0
         to: 1.0
-        duration: 2000
+        duration: Dimensions.animGradient
         loops: Animation.Infinite
         running: root.isGlowing
     }
@@ -70,7 +70,7 @@ Item {
 
     scale: hoverEnabled && hovered ? 1.05 : 1.0
     Behavior on scale {
-        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
     }
 
     // =========================================================================
@@ -98,8 +98,8 @@ Item {
         color: getGlowColor(_effectiveAnimValue)
         z: -2
 
-        Behavior on width { NumberAnimation { duration: 50 } }
-        Behavior on height { NumberAnimation { duration: 50 } }
+        Behavior on width { NumberAnimation { duration: Dimensions.animInstant } }
+        Behavior on height { NumberAnimation { duration: Dimensions.animInstant } }
     }
 
     Rectangle {
@@ -112,8 +112,8 @@ Item {
         color: Qt.rgba(1, 1, 1, 0.2 + _effectiveAnimValue * 0.3)
         z: -1
 
-        Behavior on width { NumberAnimation { duration: 50 } }
-        Behavior on height { NumberAnimation { duration: 50 } }
+        Behavior on width { NumberAnimation { duration: Dimensions.animInstant } }
+        Behavior on height { NumberAnimation { duration: Dimensions.animInstant } }
     }
 
     // =========================================================================

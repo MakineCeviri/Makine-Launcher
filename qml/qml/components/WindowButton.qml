@@ -50,7 +50,7 @@ Item {
         color: root.isHovered ? root.hoverColor : "transparent"
 
         Behavior on color {
-            ColorAnimation { duration: 150 }
+            ColorAnimation { duration: Dimensions.animFast }
         }
 
         Text {
@@ -67,7 +67,7 @@ Item {
             }
 
             Behavior on color {
-                ColorAnimation { duration: 150 }
+                ColorAnimation { duration: Dimensions.animFast }
             }
         }
     }

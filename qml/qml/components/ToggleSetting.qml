@@ -22,7 +22,7 @@ Rectangle {
     color: mouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
     radius: Dimensions.radiusStandard
 
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
     // Focus indicator
     Rectangle {
@@ -79,7 +79,7 @@ Rectangle {
             radius: Dimensions.toggleRadius
             color: root.checked ? Theme.primary : Theme.withAlpha(Theme.textMuted, 0.3)
 
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
             // Knob (kare görünümlü)
             Rectangle {
@@ -93,7 +93,7 @@ Rectangle {
 
                 Behavior on x {
                     NumberAnimation {
-                        duration: 150
+                        duration: Dimensions.animFast
                         easing.type: Easing.OutCubic
                     }
                 }

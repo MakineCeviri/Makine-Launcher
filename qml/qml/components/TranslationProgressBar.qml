@@ -107,7 +107,7 @@ Item {
         Behavior on width {
             enabled: !root.indeterminate
             NumberAnimation {
-                duration: 300
+                duration: Dimensions.fadeTransitionDuration
                 easing.type: Easing.OutCubic
             }
         }
@@ -205,7 +205,7 @@ Item {
 
         Behavior on x {
             NumberAnimation {
-                duration: 300
+                duration: Dimensions.fadeTransitionDuration
                 easing.type: Easing.OutCubic
             }
         }
@@ -222,7 +222,7 @@ Item {
         opacity: root.value >= 1.0 ? 1.0 : 0.0
 
         Behavior on opacity {
-            NumberAnimation { duration: 300 }
+            NumberAnimation { duration: Dimensions.fadeTransitionDuration }
         }
 
         // Success glow

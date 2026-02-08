@@ -198,7 +198,7 @@ ColumnLayout {
                     Keys.onReturnPressed: SettingsManager.clearCache()
                     Keys.onSpacePressed: SettingsManager.clearCache()
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                     Text {
                         id: clearCacheBtnText
@@ -268,8 +268,8 @@ ColumnLayout {
                     Keys.onReturnPressed: SettingsManager.resetToDefaults()
                     Keys.onSpacePressed: SettingsManager.resetToDefaults()
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                     Text {
                         id: resetBtnText
@@ -278,7 +278,7 @@ ColumnLayout {
                         font.pixelSize: Dimensions.fontSM
                         font.weight: Font.Medium
                         color: resetMouse.containsMouse ? Theme.destructive : Theme.textSecondary
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     }
 
                     // Focus indicator

@@ -38,7 +38,7 @@ Item {
             : Theme.textSecondary
 
         Behavior on colorizationColor {
-            ColorAnimation { duration: 150 }
+            ColorAnimation { duration: Dimensions.animFast }
         }
     }
 
@@ -57,7 +57,7 @@ Item {
 
         scale: visible ? 1.0 : 0.0
         Behavior on scale {
-            NumberAnimation { duration: 200; easing.type: Easing.OutBack }
+            NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutBack }
         }
 
         Text {
@@ -78,7 +78,7 @@ Item {
             : "transparent"
 
         Behavior on color {
-            ColorAnimation { duration: 150 }
+            ColorAnimation { duration: Dimensions.animFast }
         }
     }
 

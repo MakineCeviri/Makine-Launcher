@@ -38,13 +38,13 @@ Item {
     opacity: showing ? 1.0 : 0.0
 
     Behavior on opacity {
-        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
     }
 
     transform: Translate {
         y: root.showing ? 0 : -20
         Behavior on y {
-            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
         }
     }
 

@@ -572,8 +572,8 @@ Rectangle {
                              : index < root.currentStep ? Theme.success
                              : Theme.surfaceActive
 
-                        Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on width { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: Dimensions.transitionDuration } }
                     }
                 }
             }

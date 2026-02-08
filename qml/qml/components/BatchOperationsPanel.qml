@@ -30,10 +30,10 @@ Rectangle {
     border.width: 1
 
     Behavior on Layout.preferredHeight {
-        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic }
     }
     Behavior on border.color {
-        ColorAnimation { duration: 200 }
+        ColorAnimation { duration: Dimensions.transitionDuration }
     }
 
     ColumnLayout {
@@ -135,7 +135,7 @@ Rectangle {
                           ? Theme.withAlpha(Theme.destructive, 0.1)
                           : Qt.rgba(1, 1, 1, 0.05))
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Label {
                     id: actionBtnLabel
@@ -191,7 +191,7 @@ Rectangle {
                     color: Theme.primary
 
                     Behavior on width {
-                        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+                        NumberAnimation { duration: Dimensions.fadeTransitionDuration; easing.type: Easing.OutCubic }
                     }
                 }
             }
@@ -211,7 +211,7 @@ Rectangle {
                     color: Theme.withAlpha(Theme.primary, 0.5)
 
                     Behavior on width {
-                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                        NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
                     }
                 }
             }

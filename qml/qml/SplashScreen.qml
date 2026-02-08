@@ -461,7 +461,7 @@ Item {
             radius: Dimensions.radiusStandard
             color: Qt.rgba(1, 1, 1, 0.04)
             scale: root.textOpacity  // Scales in with text
-            Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
             Text {
                 id: versionText

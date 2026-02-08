@@ -98,7 +98,7 @@ Item {
             target: notificationBanner
             property: "opacity"
             to: 0
-            duration: 200
+            duration: Dimensions.transitionDuration
             easing.type: Easing.OutCubic
         }
         ScriptAction {
@@ -206,7 +206,7 @@ Item {
                             border.width: 1
 
                             Behavior on Layout.preferredHeight {
-                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
                             }
 
                             RowLayout {
@@ -256,7 +256,7 @@ Item {
                                     Keys.onReturnPressed: Qt.openUrlExternally(downloadUrl)
                                     Keys.onSpacePressed: Qt.openUrlExternally(downloadUrl)
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                                     Text {
@@ -346,7 +346,7 @@ Item {
                                 target: topRowLayout
                                 property: "opacity"
                                 from: 0; to: 1
-                                duration: 400
+                                duration: Dimensions.animSlow
                                 easing.type: Easing.OutCubic
                             }
 
@@ -469,8 +469,8 @@ Item {
                                                             loops: Animation.Infinite
                                                             running: root.animationsEnabled
                                                             PauseAnimation { duration: index * 250 }
-                                                            NumberAnimation { from: 0.25; to: 1.0; duration: 400; easing.type: Easing.InOutSine }
-                                                            NumberAnimation { from: 1.0; to: 0.25; duration: 400; easing.type: Easing.InOutSine }
+                                                            NumberAnimation { from: 0.25; to: 1.0; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
+                                                            NumberAnimation { from: 1.0; to: 0.25; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
                                                             PauseAnimation { duration: (2 - index) * 250 }
                                                         }
 
@@ -478,8 +478,8 @@ Item {
                                                             loops: Animation.Infinite
                                                             running: root.animationsEnabled
                                                             PauseAnimation { duration: index * 250 }
-                                                            NumberAnimation { from: 1.0; to: 1.3; duration: 400; easing.type: Easing.InOutSine }
-                                                            NumberAnimation { from: 1.3; to: 1.0; duration: 400; easing.type: Easing.InOutSine }
+                                                            NumberAnimation { from: 1.0; to: 1.3; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
+                                                            NumberAnimation { from: 1.3; to: 1.0; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
                                                             PauseAnimation { duration: (2 - index) * 250 }
                                                         }
                                                     }
@@ -519,7 +519,7 @@ Item {
                                         Keys.onSpacePressed: gameDetectorDialog.open()
 
                                         Behavior on color {
-                                            ColorAnimation { duration: 150 }
+                                            ColorAnimation { duration: Dimensions.animFast }
                                         }
 
                                         Row {
@@ -532,7 +532,7 @@ Item {
                                                 sourceSize: Qt.size(14, 14)
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 opacity: manualBtnMouse.containsMouse ? 1.0 : 0.6
-                                                Behavior on opacity { NumberAnimation { duration: 150 } }
+                                                Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
                                             }
 
                                             Label {
@@ -622,8 +622,8 @@ Item {
                                         Keys.onReturnPressed: expanded = !expanded
                                         Keys.onSpacePressed: expanded = !expanded
 
-                                        Behavior on color { ColorAnimation { duration: 150 } }
-                                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                                         Flickable {
                                             anchors.fill: parent
@@ -669,7 +669,7 @@ Item {
                                                     color: Theme.primary
                                                     horizontalAlignment: Text.AlignHCenter
                                                     opacity: announcementContentMouse.containsMouse || announcementContentBox.expanded ? 1.0 : 0.0
-                                                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                                                    Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
                                                 }
                                             }
                                         }
@@ -712,8 +712,8 @@ Item {
                                         Keys.onReturnPressed: Qt.openUrlExternally("https://makineai.com")
                                         Keys.onSpacePressed: Qt.openUrlExternally("https://makineai.com")
 
-                                        Behavior on color { ColorAnimation { duration: 150 } }
-                                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                                         Row {
                                             anchors.centerIn: parent
@@ -728,14 +728,14 @@ Item {
                                                     source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
                                                     sourceSize: Qt.size(13, 13)
                                                     opacity: securityMouse.containsMouse ? 0 : 0.6
-                                                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                                                    Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
                                                 }
                                                 Image {
                                                     anchors.fill: parent
                                                     source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check-active.svg"
                                                     sourceSize: Qt.size(13, 13)
                                                     opacity: securityMouse.containsMouse ? 0.9 : 0
-                                                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                                                    Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
                                                 }
                                             }
 
@@ -744,7 +744,7 @@ Item {
                                                 font.pixelSize: Dimensions.fontCaption
                                                 color: securityMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                Behavior on color { ColorAnimation { duration: 150 } }
+                                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                             }
 
                                             Label {
@@ -754,7 +754,7 @@ Item {
                                                 font.underline: true
                                                 color: securityMouse.containsMouse ? Theme.primary : Theme.textSecondary
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                Behavior on color { ColorAnimation { duration: 150 } }
+                                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                             }
 
                                             Label {
@@ -762,7 +762,7 @@ Item {
                                                 font.pixelSize: Dimensions.fontCaption
                                                 color: securityMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                Behavior on color { ColorAnimation { duration: 150 } }
+                                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                             }
                                         }
 
@@ -810,12 +810,12 @@ Item {
 
                             SequentialAnimation {
                                 id: gamesSectionEntryAnim
-                                PauseAnimation { duration: 200 }
+                                PauseAnimation { duration: Dimensions.transitionDuration }
                                 NumberAnimation {
                                     target: gamesSectionLayout
                                     property: "opacity"
                                     from: 0; to: 1
-                                    duration: 400
+                                    duration: Dimensions.animSlow
                                     easing.type: Easing.OutCubic
                                 }
                             }
@@ -895,14 +895,14 @@ Item {
                                     Keys.onReturnPressed: GameService.scanAllLibraries()
                                     Keys.onSpacePressed: GameService.scanAllLibraries()
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Label {
                                         anchors.centerIn: parent
                                         text: "\u21BB"
                                         font.pixelSize: Dimensions.fontBody
                                         color: rescanMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
-                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                     }
 
                                     // Focus indicator
@@ -999,7 +999,7 @@ Item {
                                                 target: gameCardDelegate
                                                 property: "opacity"
                                                 from: 0; to: 1
-                                                duration: 300
+                                                duration: Dimensions.fadeTransitionDuration
                                                 easing.type: Easing.OutCubic
                                             }
                                         }
@@ -1304,12 +1304,12 @@ Item {
         property bool isHovered: cardMouse.containsMouse
 
         transform: [
-            Translate { y: gameCardRoot.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } } },
+            Translate { y: gameCardRoot.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
             Scale {
                 origin.x: gameCardRoot.width / 2; origin.y: gameCardRoot.height / 2
                 xScale: gameCardRoot.isHovered ? 1.02 : 1.0; yScale: gameCardRoot.isHovered ? 1.02 : 1.0
-                Behavior on xScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-                Behavior on yScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+                Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
             }
         ]
 
@@ -1403,7 +1403,7 @@ Item {
                 maskSource: imageMask
                 visible: gameImage.status === Image.Ready
                 brightness: gameCardRoot.isHovered ? 0.06 : 0
-                Behavior on brightness { NumberAnimation { duration: 250 } }
+                Behavior on brightness { NumberAnimation { duration: Dimensions.animNormal } }
             }
 
             ColumnLayout {
@@ -1498,12 +1498,12 @@ Item {
         property bool isHovered: viewAllMouse.containsMouse
 
         transform: [
-            Translate { y: viewAllRoot.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } } },
+            Translate { y: viewAllRoot.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
             Scale {
                 origin.x: viewAllRoot.width / 2; origin.y: viewAllRoot.height / 2
                 xScale: viewAllRoot.isHovered ? 1.02 : 1.0; yScale: viewAllRoot.isHovered ? 1.02 : 1.0
-                Behavior on xScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-                Behavior on yScale { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+                Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
             }
         ]
 
