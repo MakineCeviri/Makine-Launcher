@@ -432,10 +432,35 @@ Dialog {
                 }
             }
 
+            // Empty state when no issues match filter
+            Column {
+                anchors.centerIn: parent
+                spacing: 8
+                visible: root.filteredIssues.length === 0
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "\u2714"
+                    font.pixelSize: 32
+                    color: Theme.success
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: root.activeSeverityFilter === 0
+                        ? qsTr("Sorun bulunamadı")
+                        : qsTr("Bu filtre için sorun yok")
+                    font.pixelSize: 14
+                    font.weight: Font.Medium
+                    color: Theme.textSecondary
+                }
+            }
+
             ListView {
                 id: issuesList
                 model: root.filteredIssues
                 spacing: 8
+                visible: root.filteredIssues.length > 0
 
                 delegate: Rectangle {
                     id: issueItem
