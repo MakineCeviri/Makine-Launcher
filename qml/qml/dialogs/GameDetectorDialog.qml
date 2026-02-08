@@ -415,11 +415,14 @@ Popup {
                             width: retryErrText.width + 16
                             height: 24
                             radius: Dimensions.radiusSM
-                            color: retryErrMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.2) : "transparent"
-                            border.color: Theme.withAlpha(Theme.error, 0.4)
+                            color: retryErrMouse.containsMouse || activeFocus ? Theme.withAlpha(Theme.error, 0.2) : "transparent"
+                            border.color: activeFocus ? Theme.withAlpha(Theme.error, 0.6) : Theme.withAlpha(Theme.error, 0.4)
                             border.width: 1
                             Accessible.role: Accessible.Button
                             Accessible.name: qsTr("Tekrar Dene")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: root.startScan()
+                            Keys.onSpacePressed: root.startScan()
 
                             Text {
                                 id: retryErrText
@@ -661,6 +664,8 @@ Popup {
                                         ? "https://steamcdn-a.akamaihd.net/steam/apps/" + modelData.appId + "/capsule_231x87.jpg"
                                         : ""
                                     fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    cache: true
                                     visible: status === Image.Ready
                                 }
 

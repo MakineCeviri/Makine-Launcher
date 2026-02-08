@@ -251,7 +251,7 @@ QtObject {
     readonly property color severityCritical: "#B71C1C"
 
     // =========================================================================
-    // CARD DARK GRADIENT (CedraCard, CedraInteractiveCard backgrounds)
+    // CARD DARK GRADIENT (CedraInteractiveCard backgrounds)
     // =========================================================================
 
     readonly property color cardDarkStart: "#1A1A2E"

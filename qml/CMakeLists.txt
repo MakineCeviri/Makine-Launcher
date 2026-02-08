@@ -168,8 +168,6 @@ qt_add_qml_module(MakineAI
         qml/settings/DeveloperSettings.qml
 
         # Components - Cards
-        qml/components/GlassCard.qml
-        qml/components/CedraCard.qml
         qml/components/CedraInteractiveCard.qml
         qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
@@ -179,14 +177,10 @@ qt_add_qml_module(MakineAI
         qml/components/ViewAllCard.qml
 
         # Components - Buttons
-        qml/components/StopButton.qml
-        qml/components/GradientButton.qml
         qml/components/DevButton.qml
-        qml/components/DonateButton.qml
         qml/components/WindowButton.qml
 
         # Components - Navigation
-        qml/components/NavBarItem.qml
         qml/components/NavItem.qml
         qml/components/TitleBar.qml
 
