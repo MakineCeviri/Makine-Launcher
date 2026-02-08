@@ -84,6 +84,9 @@ Popup {
                     visible: root.model && root.model.count > 0
                     Accessible.role: Accessible.Button
                     Accessible.name: qsTr("Tümünü oku")
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: root.markAllRead()
+                    Keys.onSpacePressed: root.markAllRead()
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -94,6 +97,17 @@ Popup {
                         font.pixelSize: 11
                         font.weight: Font.Medium
                         color: Theme.primary
+                    }
+
+                    // Focus indicator
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
                     }
 
                     MouseArea {
@@ -308,6 +322,9 @@ Popup {
             visible: notificationList.count > 0
             Accessible.role: Accessible.Button
             Accessible.name: qsTr("Tümünü temizle")
+            activeFocusOnTab: true
+            Keys.onReturnPressed: root.clearAll()
+            Keys.onSpacePressed: root.clearAll()
 
             // Top border
             Rectangle {
@@ -327,6 +344,17 @@ Popup {
 
                 Behavior on color { ColorAnimation { duration: 150 } }
                 Behavior on opacity { NumberAnimation { duration: 150 } }
+            }
+
+            // Focus indicator
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -1
+                radius: Dimensions.radiusXS + 1
+                color: "transparent"
+                border.color: Theme.withAlpha(Theme.destructive, 0.6)
+                border.width: 2
+                visible: footerItem.activeFocus
             }
 
             MouseArea {

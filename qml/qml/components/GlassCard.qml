@@ -121,7 +121,7 @@ Item {
         color: "transparent"
         border.color: Theme.withAlpha(root.glowColor, 0.5)
         border.width: 2
-        z: -0.5
+        z: -1
 
         Behavior on border.color {
             ColorAnimation { duration: 200 }

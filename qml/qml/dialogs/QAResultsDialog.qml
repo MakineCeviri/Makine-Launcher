@@ -520,7 +520,7 @@ Dialog {
 
                                     // Penalty points
                                     Text {
-                                        text: "-" + modelData.penaltyPoints + " puan"
+                                        text: qsTr("-%1 puan").arg(modelData.penaltyPoints)
                                         font.pixelSize: 11
                                         color: Theme.textMuted
                                         visible: modelData.penaltyPoints > 0
