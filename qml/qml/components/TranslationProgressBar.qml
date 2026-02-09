@@ -79,7 +79,7 @@ Item {
             anchors.margins: 1
             radius: parent.radius - 1
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.background, 0.1) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.bgPrimary, 0.1) }
                 GradientStop { position: 0.3; color: "transparent" }
             }
         }

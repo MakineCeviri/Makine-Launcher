@@ -91,7 +91,7 @@ Item {
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Theme.withAlpha(Theme.background, 0.3)
+            shadowColor: Theme.withAlpha(Theme.bgPrimary, 0.3)
             shadowBlur: 0.8
             shadowVerticalOffset: 4
             shadowHorizontalOffset: 0

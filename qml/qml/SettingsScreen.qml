@@ -1444,7 +1444,7 @@ Item {
                         anchors.margins: -1
                         radius: Dimensions.radiusStandard
                         color: "transparent"
-                        border.color: Theme.withAlpha(Theme.background, 0.15)
+                        border.color: Theme.withAlpha(Theme.bgPrimary, 0.15)
                         border.width: 1
                         z: -1
                     }

@@ -30,7 +30,7 @@ Item {
         anchors.margins: -4
         anchors.bottomMargin: -8
         radius: Dimensions.radiusStandard
-        color: Theme.withAlpha(Theme.background, 0.15)
+        color: Theme.withAlpha(Theme.bgPrimary, 0.15)
         z: -1
     }
 
@@ -57,7 +57,7 @@ Item {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.5; color: "transparent" }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.7) }
+                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.7) }
             }
         }
 

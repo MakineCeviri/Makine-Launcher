@@ -87,8 +87,8 @@ Item {
                 for (var i = 0; i < colors.length; i++)
                     grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
 
-                var r = Dimensions.cardBorderRadius
                 var bw = 1.5
+                var r = Dimensions.cardBorderRadius - bw / 2
                 var px = bw / 2, py = bw / 2
                 var w = width - bw, h = height - bw
 
@@ -202,7 +202,7 @@ Item {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.4; color: "transparent" }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.85) }
+                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.85) }
             }
         }
 
@@ -216,7 +216,7 @@ Item {
             width: badgeContent.width + 10
             height: 22
             radius: Dimensions.badgeRadius
-            color: Theme.withAlpha(Theme.background, 0.75)
+            color: Theme.withAlpha(Theme.bgPrimary, 0.75)
 
             Row {
                 id: badgeContent

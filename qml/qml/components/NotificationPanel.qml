@@ -44,7 +44,7 @@ Popup {
         layer.enabled: true
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Theme.withAlpha(Theme.background, 0.4)
+            shadowColor: Theme.withAlpha(Theme.bgPrimary, 0.4)
             shadowBlur: 1.0
             shadowVerticalOffset: 8
             shadowHorizontalOffset: 0

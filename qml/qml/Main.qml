@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Dialogs
 import MakineAI 1.0
 
 /**
@@ -13,8 +14,8 @@ ApplicationWindow {
 
     width: minimumWidth
     height: minimumHeight
-    minimumWidth: 900
-    minimumHeight: 620
+    minimumWidth: Dimensions.minWindowWidth
+    minimumHeight: Dimensions.minWindowHeight
 
     title: "MakineAI"
     color: Theme.bgPrimary
@@ -37,49 +38,24 @@ ApplicationWindow {
     }
 
     property int currentNavIndex: 0
-    property bool aiActive: false
     property bool notificationPanelOpen: false
 
-    // Notification model with unread tracking
     property QtObject notificationModel: QtObject {
         property int unreadCount: 0
-
-        property ListModel items: ListModel {
-            id: notificationListModel
-        }
-
+        property ListModel items: ListModel { id: notificationListModel }
         function addNotification(title, message, type) {
-            items.insert(0, {
-                "title": title,
-                "message": message,
-                "type": type || "info",
-                "time": Qt.formatTime(new Date(), "HH:mm"),
-                "read": false
-            })
+            items.insert(0, { "title": title, "message": message, "type": type || "info", "time": Qt.formatTime(new Date(), "HH:mm"), "read": false })
             unreadCount++
         }
-
-        function markAllAsRead() {
-            for (var i = 0; i < items.count; i++) {
-                items.setProperty(i, "read", true)
-            }
-            unreadCount = 0
-        }
-
-        function markAsRead(index) {
-            if (index >= 0 && index < items.count && !items.get(index).read) {
-                items.setProperty(index, "read", true)
-                unreadCount = Math.max(0, unreadCount - 1)
-            }
-        }
-
-        function clear() {
-            items.clear()
-            unreadCount = 0
-        }
+        function markAllAsRead() { for (var i = 0; i < items.count; i++) items.setProperty(i, "read", true); unreadCount = 0 }
+        function markAsRead(index) { if (index >= 0 && index < items.count && !items.get(index).read) { items.setProperty(index, "read", true); unreadCount = Math.max(0, unreadCount - 1) } }
+        function clear() { items.clear(); unreadCount = 0 }
     }
 
     readonly property int resizeMargin: 6
+
+    // Store normal geometry before maximize so restore works on frameless windows
+    property rect normalGeometry: Qt.rect(0, 0, 0, 0)
 
     Component.onDestruction: pageChangeTimer.stop()
 
@@ -115,7 +91,7 @@ ApplicationWindow {
             window.show()
             window.raise()
             window.requestActivate()
-            window.currentNavIndex = 2
+            window.currentNavIndex = 3
             contentStackContainer.navigateTo(1)
         }
         function onQuitRequested() {
@@ -252,13 +228,22 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.titlebarHeight
             windowRef: window
-            translationMode: window.aiActive
+            translationMode: window.currentNavIndex === 2
 
             onMinimizeClicked: window.showMinimized()
             onMaximizeClicked: {
                 if (window.visibility === Window.Maximized) {
                     window.showNormal()
+                    // Restore saved geometry for frameless windows
+                    if (window.normalGeometry.width > 0) {
+                        window.x = window.normalGeometry.x
+                        window.y = window.normalGeometry.y
+                        window.width = window.normalGeometry.width
+                        window.height = window.normalGeometry.height
+                    }
                 } else {
+                    // Save current geometry before maximizing
+                    window.normalGeometry = Qt.rect(window.x, window.y, window.width, window.height)
                     window.showMaximized()
                 }
             }
@@ -365,28 +350,15 @@ ApplicationWindow {
                 contentStackContainer.navigateTo(0)
             }
             onSettingsClicked: {
-                window.currentNavIndex = 2
+                window.currentNavIndex = 3
                 contentStackContainer.navigateTo(1)
             }
-            onAiToggleClicked: function(active) {
-                window.aiActive = active
-                homeView.setAIActive(active)
-                if (active) {
-                    contentStackContainer.navigateTo(0)
-                    window.currentNavIndex = 0
-                }
+            onTranslationClicked: {
+                window.currentNavIndex = 2
+                contentStackContainer.navigateTo(0)
+                homeView.showTranslationPage()
             }
             onDonateClicked: Qt.openUrlExternally(Dimensions.donatePageUrl)
-            onNotificationClicked: {
-                window.notificationPanelOpen = !window.notificationPanelOpen
-                notificationPanel.x = navBar.width - notificationPanel.width - 80
-                notificationPanel.y = navBar.y + navBar.height + 4
-                if (window.notificationPanelOpen) {
-                    notificationPanel.open()
-                } else {
-                    notificationPanel.close()
-                }
-            }
         }
 
         // ===== CONTENT STACK - Simple crossfade transitions =====
@@ -500,6 +472,7 @@ ApplicationWindow {
                     gameDetailView.gameId = gameId
                     contentStackContainer.navigateTo(2)
                 }
+                onManualFolderRequested: manualFolderDialog.open()
             }
 
             SettingsScreen {
@@ -509,7 +482,6 @@ ApplicationWindow {
                 onBack: {
                     window.currentNavIndex = 0
                     contentStackContainer.navigateTo(0)
-                    navBar.currentIndex = 0
                 }
             }
 
@@ -592,7 +564,7 @@ ApplicationWindow {
 
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.35) }
+                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.35) }
                 }
             }
         }
@@ -630,6 +602,17 @@ ApplicationWindow {
                 notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
                 notificationPanel.open()
             }
+        }
+    }
+
+    // ===== MANUAL GAME FOLDER DIALOG =====
+    FolderDialog {
+        id: manualFolderDialog
+        title: qsTr("Oyun Klasörünü Seç")
+        onAccepted: {
+            var folderPath = selectedFolder.toString().replace("file:///", "")
+            var folderName = folderPath.split("/").pop()
+            homeView.gameSelected("manual", folderName, folderPath, "Unknown")
         }
     }
 
@@ -972,12 +955,9 @@ ApplicationWindow {
         property int currentIndex: 0
         signal homeClicked()
         signal projectsClicked()
+        signal translationClicked()
         signal settingsClicked()
         signal donateClicked()
-        signal aiToggleClicked(bool active)
-        signal notificationClicked()
-
-        property bool aiActive: false
 
         color: Theme.withAlpha(Theme.surface, 0.7)
 
@@ -1015,7 +995,9 @@ ApplicationWindow {
                     width: 52; height: 52
                     active: true
                     animationsEnabled: window.animationsEnabled
-                    opacity: logoMouse.containsMouse ? 0.7 : 0.35
+                    opacity: logoMouse.containsMouse ? 0.8
+                           : navBarRoot.currentIndex === 0 ? 0.6
+                           : 0.2
                     Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
                 }
 
@@ -1074,133 +1056,10 @@ ApplicationWindow {
                 }
             }
 
-            Item {
-                id: aiToggleItem
-                Layout.fillHeight: true
-                Layout.preferredWidth: aiToggleLabel.contentWidth + 24
-                Accessible.role: Accessible.Button
-                Accessible.name: navBarRoot.aiActive ? qsTr("AI Active") : qsTr("AI Inactive")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: { navBarRoot.aiActive = !navBarRoot.aiActive; navBarRoot.aiToggleClicked(navBarRoot.aiActive) }
-                Keys.onSpacePressed: { navBarRoot.aiActive = !navBarRoot.aiActive; navBarRoot.aiToggleClicked(navBarRoot.aiActive) }
-
-                readonly property var rainbowColors: Theme.brandGradient
-
-                property real animPhase: 0
-                NumberAnimation on animPhase {
-                    from: 0; to: 1
-                    duration: 3000
-                    loops: Animation.Infinite
-                    running: window.animationsEnabled
-                }
-
-                function lerpHex(c1, c2, t) {
-                    var r1 = parseInt(c1.substring(1, 3), 16)
-                    var g1 = parseInt(c1.substring(3, 5), 16)
-                    var b1 = parseInt(c1.substring(5, 7), 16)
-                    var r2 = parseInt(c2.substring(1, 3), 16)
-                    var g2 = parseInt(c2.substring(3, 5), 16)
-                    var b2 = parseInt(c2.substring(5, 7), 16)
-                    var r = Math.round(r1 + (r2 - r1) * t)
-                    var g = Math.round(g1 + (g2 - g1) * t)
-                    var b = Math.round(b1 + (b2 - b1) * t)
-                    function pad(s) { return s.length < 2 ? "0" + s : s }
-                    return "#" + pad(r.toString(16)) + pad(g.toString(16)) + pad(b.toString(16))
-                }
-
-                function makeRainbowText(str, phase) {
-                    var nonSpace = []
-                    for (var i = 0; i < str.length; i++) {
-                        if (str[i] !== " ") nonSpace.push(i)
-                    }
-                    var result = ""
-                    var n = rainbowColors.length
-                    for (var j = 0; j < str.length; j++) {
-                        if (str[j] === " ") {
-                            result += " "
-                        } else {
-                            var ci = nonSpace.indexOf(j)
-                            var pos = ((ci / Math.max(1, nonSpace.length - 1)) + phase) % 1.0
-                            var scaledPos = pos * (n - 1)
-                            var idx = Math.floor(scaledPos)
-                            var frac = scaledPos - idx
-                            var c = lerpHex(rainbowColors[idx % n], rainbowColors[(idx + 1) % n], frac)
-                            result += '<span style="color:' + c + '">' + str[j] + '</span>'
-                        }
-                    }
-                    return result
-                }
-
-                property real underlineWidth: aiToggleMouse.containsMouse ? 70 : 0
-                Behavior on underlineWidth {
-                    NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
-                }
-
-                Text {
-                    id: aiToggleLabel
-                    anchors.centerIn: parent
-                    text: aiToggleItem.makeRainbowText(navBarRoot.aiActive ? qsTr("Kapat") : qsTr("Türkçe Yama"), aiToggleItem.animPhase)
-                    textFormat: Text.RichText
-                    font.pixelSize: Dimensions.fontBody
-                    font.weight: Font.DemiBold
-                }
-
-                Item {
-                    anchors.bottom: parent.bottom
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: aiToggleItem.underlineWidth
-                    height: 2
-                    clip: true
-                    visible: width > 0
-
-                    Rectangle {
-                        width: parent.width * 2
-                        height: parent.height
-                        radius: 1
-                        x: -parent.width * aiToggleItem.animPhase
-
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.000; color: Theme.brandGold }
-                            GradientStop { position: 0.056; color: Theme.brandOrange }
-                            GradientStop { position: 0.111; color: Theme.brandCoral }
-                            GradientStop { position: 0.167; color: Theme.brandPurple }
-                            GradientStop { position: 0.222; color: Theme.brandBlue }
-                            GradientStop { position: 0.278; color: Theme.brandTeal }
-                            GradientStop { position: 0.333; color: Theme.brandGreen }
-                            GradientStop { position: 0.389; color: Theme.brandLime }
-                            GradientStop { position: 0.444; color: Theme.brandOlive }
-                            GradientStop { position: 0.500; color: Theme.brandGold }
-                            GradientStop { position: 0.556; color: Theme.brandOrange }
-                            GradientStop { position: 0.611; color: Theme.brandCoral }
-                            GradientStop { position: 0.667; color: Theme.brandPurple }
-                            GradientStop { position: 0.722; color: Theme.brandBlue }
-                            GradientStop { position: 0.778; color: Theme.brandTeal }
-                            GradientStop { position: 0.833; color: Theme.brandGreen }
-                            GradientStop { position: 0.889; color: Theme.brandLime }
-                            GradientStop { position: 0.944; color: Theme.brandOlive }
-                            GradientStop { position: 1.000; color: Theme.brandGold }
-                        }
-                    }
-                }
-
-                MouseArea {
-                    id: aiToggleMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-
-                    onClicked: {
-                        navBarRoot.aiActive = !navBarRoot.aiActive
-                        navBarRoot.aiToggleClicked(navBarRoot.aiActive)
-                    }
-                }
-
-                ToolTip {
-                    visible: aiToggleMouse.containsMouse
-                    text: navBarRoot.aiActive ? qsTr("Türkçe Yamayı Kapat") : qsTr("Türkçe Yamayı Aç")
-                    delay: 500
-                }
+            NavItem {
+                text: qsTr("Türkçe Yama")
+                selected: navBarRoot.currentIndex === 2
+                onClicked: navBarRoot.translationClicked()
             }
 
             NavItem {
@@ -1209,30 +1068,14 @@ ApplicationWindow {
                 onClicked: navBarRoot.projectsClicked()
             }
 
-            NavItem {
-                text: qsTr("Ayarlar")
-                selected: navBarRoot.currentIndex === 2
-                onClicked: navBarRoot.settingsClicked()
-            }
-
             Item { Layout.fillWidth: true }
-
-            // Notification bell
-            NotificationBell {
-                id: navNotificationBell
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                Layout.alignment: Qt.AlignVCenter
-                unreadCount: window.notificationModel.unreadCount
-                panelOpen: window.notificationPanelOpen
-                onClicked: navBarRoot.notificationClicked()
-            }
 
             Item {
                 id: donateItem
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
                 Layout.alignment: Qt.AlignVCenter
+                Layout.rightMargin: -8
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Support Us")
                 activeFocusOnTab: true
@@ -1374,6 +1217,96 @@ ApplicationWindow {
                 ToolTip {
                     visible: discordMouse.containsMouse
                     text: "Discord"
+                    delay: 400
+                }
+            }
+
+            // Separator dot
+            Rectangle {
+                Layout.preferredWidth: 3; Layout.preferredHeight: 3
+                Layout.alignment: Qt.AlignVCenter
+                radius: 2
+                color: Theme.withAlpha(Theme.textPrimary, 0.15)
+            }
+
+            // Settings gear icon
+            Item {
+                id: settingsItem
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                Layout.alignment: Qt.AlignVCenter
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Ayarlar")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: navBarRoot.settingsClicked()
+                Keys.onSpacePressed: navBarRoot.settingsClicked()
+
+                property bool hovered: settingsMouse.containsMouse
+                property bool isSelected: navBarRoot.currentIndex === 3
+                scale: hovered ? 1.1 : 1.0
+                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
+
+                rotation: hovered ? 30 : 0
+                Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+
+                Canvas {
+                    id: gearCanvas
+                    anchors.centerIn: parent
+                    width: 18; height: 18
+                    property bool sel: settingsItem.isSelected
+                    property bool hov: settingsItem.hovered
+                    onSelChanged: requestPaint()
+                    onHovChanged: requestPaint()
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+
+                        var c = sel ? Theme.primary : (hov ? Theme.textPrimary : Theme.textMuted)
+                        ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, sel ? 1.0 : (hov ? 0.9 : 0.6))
+                        ctx.lineWidth = 1.5
+                        ctx.lineCap = "round"
+                        ctx.lineJoin = "round"
+
+                        var cx = 9, cy = 9, outerR = 8, innerR = 6
+                        var teeth = 6
+
+                        // Gear outer shape
+                        ctx.beginPath()
+                        for (var i = 0; i < teeth; i++) {
+                            var a1 = (i / teeth) * Math.PI * 2 - Math.PI / 2
+                            var a2 = a1 + (0.3 / teeth) * Math.PI * 2
+                            var a3 = a1 + (0.5 / teeth) * Math.PI * 2
+                            var a4 = a1 + (0.8 / teeth) * Math.PI * 2
+                            var a5 = a1 + (1.0 / teeth) * Math.PI * 2
+
+                            if (i === 0) ctx.moveTo(cx + Math.cos(a1) * innerR, cy + Math.sin(a1) * innerR)
+                            ctx.lineTo(cx + Math.cos(a2) * outerR, cy + Math.sin(a2) * outerR)
+                            ctx.lineTo(cx + Math.cos(a3) * outerR, cy + Math.sin(a3) * outerR)
+                            ctx.lineTo(cx + Math.cos(a4) * innerR, cy + Math.sin(a4) * innerR)
+                            ctx.lineTo(cx + Math.cos(a5) * innerR, cy + Math.sin(a5) * innerR)
+                        }
+                        ctx.closePath()
+                        ctx.stroke()
+
+                        // Center circle
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, 3, 0, Math.PI * 2)
+                        ctx.stroke()
+                    }
+                }
+
+                MouseArea {
+                    id: settingsMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: navBarRoot.settingsClicked()
+                }
+
+                ToolTip {
+                    visible: settingsMouse.containsMouse
+                    text: qsTr("Ayarlar")
                     delay: 400
                 }
             }

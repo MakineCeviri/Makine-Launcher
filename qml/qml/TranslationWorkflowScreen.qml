@@ -515,7 +515,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             radius: Dimensions.radiusStandard
-                            color: Theme.withAlpha(Theme.background, 0.2)
+                            color: Theme.withAlpha(Theme.bgPrimary, 0.2)
 
                             // Empty state
                             Text {

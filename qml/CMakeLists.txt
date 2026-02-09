@@ -175,7 +175,6 @@ qt_add_qml_module(MakineAI
         qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
         qml/components/GameCardSkeleton.qml
-        qml/components/ProjectCard.qml
         qml/components/SettingsCard.qml
 
         # Components - Buttons
@@ -187,7 +186,6 @@ qt_add_qml_module(MakineAI
         qml/components/TitleBar.qml
 
         # Components - Notifications
-        qml/components/NotificationBell.qml
         qml/components/NotificationPanel.qml
         qml/components/NotificationToast.qml
 
@@ -210,9 +208,11 @@ qt_add_qml_module(MakineAI
         qml/components/SettingsDivider.qml
         qml/components/ClickableRow.qml
 
+        # Components - Projects Page
+        qml/components/ProjectShowcaseCard.qml
+
         # Components - List Items
         qml/components/CategoryItem.qml
-        qml/components/ProjectCategory.qml
         qml/components/BackupListItem.qml
         qml/components/InfoRow.qml
         qml/components/EmptyStateMessage.qml

@@ -308,7 +308,7 @@ Item {
         width: 40
         height: 40
         radius: Dimensions.radiusStandard
-        color: backBtnMouse.containsMouse ? Theme.withAlpha(Theme.background, 0.5) : Theme.withAlpha(Theme.background, 0.3)
+        color: backBtnMouse.containsMouse ? Theme.withAlpha(Theme.bgPrimary, 0.5) : Theme.withAlpha(Theme.bgPrimary, 0.3)
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Back")
         activeFocusOnTab: true
@@ -348,7 +348,7 @@ Item {
         width: 40
         height: 40
         radius: Dimensions.radiusStandard
-        color: openNewMouse.containsMouse ? Theme.withAlpha(Theme.background, 0.5) : Theme.withAlpha(Theme.background, 0.3)
+        color: openNewMouse.containsMouse ? Theme.withAlpha(Theme.bgPrimary, 0.5) : Theme.withAlpha(Theme.bgPrimary, 0.3)
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Open on Steam")
         activeFocusOnTab: true
