@@ -60,8 +60,6 @@ Rectangle {
     Item {
         id: frameTimer
 
-        property real startTime: 0
-
         // Called every frame via NumberAnimation
         NumberAnimation on rotation {
             from: 0

@@ -52,8 +52,6 @@ public:
     Q_INVOKABLE void startWatching(int intervalMs = 3000);
     Q_INVOKABLE void stopWatching();
     Q_INVOKABLE bool checkGameRunning(const QString& gameId);
-    Q_INVOKABLE void scanAntiCheat(const QString& gamePath);
-
 signals:
     void isWatchingChanged();
     void gameRunningChanged();
@@ -68,7 +66,6 @@ private slots:
 
 private:
     void detectRunningGames();
-    void checkAntiCheatSystems(const QString& gamePath);
     QStringList getRunningProcesses();
 
     QTimer* m_scanTimer{nullptr};

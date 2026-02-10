@@ -247,6 +247,7 @@ qt_add_qml_module(MakineAI
         resources/icons/star.svg
         resources/icons/trash.svg
         resources/icons/window-search.svg
+        resources/icons/window-search-active.svg
         # PNG images
         resources/images/logo.png
         # Fonts (Inter - Google Fonts)

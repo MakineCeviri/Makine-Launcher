@@ -102,6 +102,16 @@ public:
      */
     QList<DetectedGame> detectedGames() const { return m_detectedGames; }
 
+    /**
+     * @brief Get all supported games from package catalog, enriched with install status
+     */
+    QVariantList allSupportedGames() const;
+
+    /**
+     * @brief Get count of all supported games in catalog
+     */
+    int supportedGameCount() const;
+
     // ========== Backup ==========
 
     /**

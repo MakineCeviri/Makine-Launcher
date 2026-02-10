@@ -511,6 +511,33 @@ int GameService::patchedGamesCount() const
     return count;
 }
 
+QVariantList GameService::supportedGames() const
+{
+    if (m_cacheValid && !m_supportedGamesCache.isEmpty()) {
+        return m_supportedGamesCache;
+    }
+
+    if (!m_coreBridge) return {};
+
+    m_supportedGamesCache = m_coreBridge->allSupportedGames();
+
+    // Enrich with packageInstalled status
+    for (int i = 0; i < m_supportedGamesCache.size(); ++i) {
+        QVariantMap entry = m_supportedGamesCache[i].toMap();
+        const QString steamAppId = entry["steamAppId"].toString();
+        entry["packageInstalled"] = m_coreBridge->isPackageInstalled(steamAppId);
+        m_supportedGamesCache[i] = entry;
+    }
+
+    return m_supportedGamesCache;
+}
+
+int GameService::supportedGameCount() const
+{
+    if (!m_coreBridge) return 0;
+    return m_coreBridge->supportedGameCount();
+}
+
 QVariantList GameService::gamesWithTranslation() const
 {
     QVariantList result;
@@ -618,6 +645,7 @@ void GameService::invalidateCache()
     m_gamesCache.clear();
     m_featuredGamesCache.clear();
     m_recentGamesCache.clear();
+    m_supportedGamesCache.clear();
 }
 
 void GameService::rebuildCache()
@@ -960,92 +988,48 @@ bool GameService::isTranslationInstalled(const QString& gameId)
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
     Q_UNUSED(gameId)
-
-    // Delegate to CoreBridge → VersionTracker when core is integrated
-    // For now, return unknown status (no snapshot taken yet)
-    return {
-        {"level", "unknown"},
-        {"integrityPercent", 100},
-        {"modifiedCount", 0},
-        {"addedCount", 0},
-        {"removedCount", 0},
-        {"summary", tr("No translation snapshot available yet")}
-    };
+    return {{"level", "unknown"}, {"integrityPercent", 100},
+            {"modifiedCount", 0}, {"addedCount", 0}, {"removedCount", 0},
+            {"summary", tr("No translation snapshot available yet")}};
 }
 
 QVariantMap GameService::analyzeFonts(const QString& gameId)
 {
     Q_UNUSED(gameId)
-
-    // Delegate to CoreBridge → FontManager when core is integrated
-    // For now, return empty analysis (no font data available yet)
-    return {
-        {"hasFontAnalysis", false},
-        {"totalFonts", 0},
-        {"turkishSupportCount", 0},
-        {"missingChars", QStringList()},
-        {"summary", tr("Font analysis requires core integration")},
-        {"fonts", QVariantList()}
-    };
+    return {{"hasFontAnalysis", false}, {"totalFonts", 0},
+            {"turkishSupportCount", 0}, {"missingChars", QStringList()},
+            {"summary", tr("Font analysis not available")}, {"fonts", QVariantList()}};
 }
 
 QVariantMap GameService::getRuntimeStatus(const QString& gameId)
 {
-    // Determine if this is a Unity game based on engine field
     auto it = m_gameIdToIndex.constFind(gameId);
     bool isUnity = false;
-    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.size()) {
+    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.size())
         isUnity = m_games[*it].engine.toLower().contains("unity");
-    }
 
-    if (!isUnity) {
-        return {
-            {"isUnity", false},
-            {"needsRuntime", false}
-        };
-    }
+    if (!isUnity)
+        return {{"isUnity", false}, {"needsRuntime", false}};
 
-    // Delegate to CoreBridge → RuntimeManager when core is integrated
-    // For now, return stub data for Unity games
-    return {
-        {"isUnity", true},
-        {"needsRuntime", true},
-        {"installed", false},
-        {"upToDate", false},
-        {"bepinexVersion", ""},
-        {"xunityVersion", ""},
-        {"backend", "unknown"},     // mono or il2cpp
-        {"unityVersion", ""},
-        {"hasAntiCheat", false},
-        {"antiCheatName", ""},
-        {"summary", tr("Runtime status requires core integration")}
-    };
+    return {{"isUnity", true}, {"needsRuntime", true}, {"installed", false},
+            {"upToDate", false}, {"bepinexVersion", ""}, {"xunityVersion", ""},
+            {"backend", "unknown"}, {"unityVersion", ""},
+            {"hasAntiCheat", false}, {"antiCheatName", ""}};
 }
 
 void GameService::installRuntime(const QString& gameId)
 {
     Q_UNUSED(gameId)
-
-    // Delegate to CoreBridge → RuntimeManager when core is integrated
-    qDebug() << "GameService::installRuntime stub called for" << gameId;
-
-    // Emit failure for now since core is not connected
-    QTimer::singleShot(500, this, [this, gameId]() {
-        emit runtimeInstallFinished(gameId, false,
-            tr("Runtime installation requires core integration"));
+    QTimer::singleShot(100, this, [this, gameId]() {
+        emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
     });
 }
 
 void GameService::uninstallRuntime(const QString& gameId)
 {
     Q_UNUSED(gameId)
-
-    // Delegate to CoreBridge → RuntimeManager when core is integrated
-    qDebug() << "GameService::uninstallRuntime stub called for" << gameId;
-
-    QTimer::singleShot(500, this, [this, gameId]() {
-        emit runtimeInstallFinished(gameId, false,
-            tr("Runtime uninstallation requires core integration"));
+    QTimer::singleShot(100, this, [this, gameId]() {
+        emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
     });
 }
 
@@ -1086,26 +1070,6 @@ QVariantMap GameService::checkAntiCheat(const QString& gameId)
             {"severity", "high"},
             {"warning", tr("BattlEye aktif oyunlarda dosya değişiklikleri engellenir")}
         });
-    }
-
-    // Check for Denuvo
-    {
-        QDir dir(gamePath);
-        const auto exeFiles = dir.entryList({"*.exe"}, QDir::Files);
-        for (const QString& exe : exeFiles) {
-            QFileInfo fi(gamePath + "/" + exe);
-            // Denuvo executables are typically very large (>100MB)
-            if (fi.size() > 100 * 1024 * 1024) {
-                // Check file for Denuvo signature strings (basic heuristic)
-                QFile f(fi.absoluteFilePath());
-                if (f.open(QIODevice::ReadOnly)) {
-                    // Read first 4KB for header check
-                    QByteArray header = f.read(4096);
-                    f.close();
-                    // This is a very rough heuristic; real detection needs PE analysis
-                }
-            }
-        }
     }
 
     // Check for Vanguard (Riot)

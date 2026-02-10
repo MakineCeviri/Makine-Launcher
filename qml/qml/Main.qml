@@ -502,8 +502,6 @@ ApplicationWindow {
                     }
                 }
             }
-            property alias settingsView: settingsLoader
-
             GameDetailScreen {
                 id: gameDetailView
                 anchors.fill: parent
@@ -540,21 +538,6 @@ ApplicationWindow {
                 }
             }
 
-            // ===== BOTTOM GRADIENT SHADOW =====
-            Rectangle {
-                id: bottomGradientShadow
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 120
-                z: Dimensions.zContent
-                enabled: false
-
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.35) }
-                }
-            }
         }
     }
 
@@ -1081,7 +1064,7 @@ ApplicationWindow {
             }
 
             NavItem {
-                text: qsTr("Türkçe Yama")
+                text: qsTr("Kütüphane")
                 selected: navBarRoot.currentIndex === 2
                 onClicked: navBarRoot.translationClicked()
             }

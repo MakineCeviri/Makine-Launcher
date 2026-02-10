@@ -428,38 +428,41 @@ Item {
 
                                         Column {
                                             anchors.centerIn: parent
-                                            spacing: Dimensions.spacingBase
+                                            spacing: 14
 
+                                            // Typing dots
                                             Row {
                                                 anchors.horizontalCenter: parent.horizontalCenter
-                                                spacing: Dimensions.spacingMD
+                                                spacing: 5
 
                                                 Repeater {
                                                     model: 3
 
                                                     Rectangle {
                                                         required property int index
-                                                        width: 8
-                                                        height: 8
-                                                        radius: 4
-                                                        color: Theme.primary
+                                                        width: 6
+                                                        height: 6
+                                                        radius: 3
+                                                        color: Theme.textMuted
+                                                        opacity: 0.3
+                                                        scale: 1.0
 
                                                         SequentialAnimation on opacity {
                                                             loops: Animation.Infinite
                                                             running: root.animationsEnabled
-                                                            PauseAnimation { duration: index * 250 }
-                                                            NumberAnimation { from: 0.25; to: 1.0; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
-                                                            NumberAnimation { from: 1.0; to: 0.25; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
-                                                            PauseAnimation { duration: (2 - index) * 250 }
+                                                            PauseAnimation { duration: index * 220 }
+                                                            NumberAnimation { to: 0.75; duration: 500; easing.type: Easing.InOutSine }
+                                                            NumberAnimation { to: 0.3; duration: 500; easing.type: Easing.InOutSine }
+                                                            PauseAnimation { duration: (2 - index) * 220 + 600 }
                                                         }
 
                                                         SequentialAnimation on scale {
                                                             loops: Animation.Infinite
                                                             running: root.animationsEnabled
-                                                            PauseAnimation { duration: index * 250 }
-                                                            NumberAnimation { from: 1.0; to: 1.3; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
-                                                            NumberAnimation { from: 1.3; to: 1.0; duration: Dimensions.animSlow; easing.type: Easing.InOutSine }
-                                                            PauseAnimation { duration: (2 - index) * 250 }
+                                                            PauseAnimation { duration: index * 220 }
+                                                            NumberAnimation { to: 1.35; duration: 500; easing.type: Easing.InOutSine }
+                                                            NumberAnimation { to: 1.0; duration: 500; easing.type: Easing.InOutSine }
+                                                            PauseAnimation { duration: (2 - index) * 220 + 600 }
                                                         }
                                                     }
                                                 }
@@ -483,13 +486,16 @@ Item {
                                     }
 
                                     Rectangle {
+                                        id: manualBtn
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: 38
                                         radius: Dimensions.radiusStandard
                                         color: manualBtnMouse.containsMouse
                                             ? Theme.withAlpha(Theme.textPrimary, 0.1)
                                             : Theme.withAlpha(Theme.textPrimary, 0.05)
-                                        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                                        border.color: manualBtnMouse.containsMouse
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.15)
+                                            : Theme.withAlpha(Theme.textPrimary, 0.08)
                                         border.width: 1
                                         Accessible.role: Accessible.Button
                                         Accessible.name: qsTr("Select game manually")
@@ -497,29 +503,40 @@ Item {
                                         Keys.onReturnPressed: root.manualFolderRequested()
                                         Keys.onSpacePressed: root.manualFolderRequested()
 
-                                        Behavior on color {
-                                            ColorAnimation { duration: Dimensions.animFast }
-                                        }
+                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                                         Row {
                                             anchors.centerIn: parent
-                                            spacing: Dimensions.spacingMD
+                                            spacing: 5
 
-                                            Image {
-                                                width: 14; height: 14
-                                                source: "qrc:/qt/qml/MakineAI/resources/icons/window-search.svg"
-                                                sourceSize: Qt.size(14, 14)
+                                            Item {
+                                                width: 13; height: 13
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                opacity: manualBtnMouse.containsMouse ? 1.0 : 0.6
-                                                Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+
+                                                Image {
+                                                    anchors.fill: parent
+                                                    source: "qrc:/qt/qml/MakineAI/resources/icons/window-search.svg"
+                                                    sourceSize: Qt.size(13, 13)
+                                                    opacity: manualBtnMouse.containsMouse ? 0 : 0.6
+                                                    Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+                                                }
+                                                Image {
+                                                    anchors.fill: parent
+                                                    source: "qrc:/qt/qml/MakineAI/resources/icons/window-search-active.svg"
+                                                    sourceSize: Qt.size(13, 13)
+                                                    opacity: manualBtnMouse.containsMouse ? 0.9 : 0
+                                                    Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+                                                }
                                             }
 
                                             Label {
                                                 text: qsTr("Manuel Oyun Ekle")
                                                 font.pixelSize: Dimensions.fontSM
                                                 font.weight: Font.Medium
-                                                color: manualBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                                                color: manualBtnMouse.containsMouse ? Theme.textSecondary : Theme.textMuted
                                                 anchors.verticalCenter: parent.verticalCenter
+                                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                             }
                                         }
 
@@ -531,7 +548,7 @@ Item {
                                             color: "transparent"
                                             border.color: Theme.withAlpha(Theme.primary, 0.6)
                                             border.width: 2
-                                            visible: parent.activeFocus
+                                            visible: manualBtn.activeFocus
                                         }
 
                                         MouseArea {
@@ -562,9 +579,9 @@ Item {
                                     anchors.margins: root.diCardMargin
                                     spacing: root.diCardSpacing
 
+                                    // Header
                                     Column {
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 44
                                         spacing: 3
 
                                         Label {
@@ -574,102 +591,66 @@ Item {
                                             color: Theme.textPrimary
                                         }
                                         Label {
-                                            text: Qt.formatDate(new Date(), "d MMMM yyyy")
+                                            text: new Date().toLocaleDateString("tr-TR", { day: 'numeric', month: 'long', year: 'numeric' })
                                             font.pixelSize: Dimensions.fontXS
                                             color: Theme.textMuted
                                         }
                                     }
 
+                                    // Announcement content
                                     Rectangle {
-                                        id: announcementContentBox
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
                                         Layout.minimumHeight: 60
                                         radius: Dimensions.radiusStandard
-                                        color: announcementContentMouse.containsMouse
-                                            ? Theme.withAlpha(Theme.textPrimary, 0.06)
-                                            : Theme.withAlpha(Theme.textPrimary, 0.02)
-                                        border.color: announcementContentMouse.containsMouse
-                                            ? Theme.withAlpha(Theme.textPrimary, 0.12)
-                                            : Theme.withAlpha(Theme.textPrimary, 0.06)
+                                        color: Theme.withAlpha(Theme.textPrimary, 0.02)
+                                        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
                                         border.width: 1
-
-                                        property bool expanded: false
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: expanded ? qsTr("Collapse announcement") : qsTr("Expand announcement")
-                                        activeFocusOnTab: true
-                                        Keys.onReturnPressed: expanded = !expanded
-                                        Keys.onSpacePressed: expanded = !expanded
-
-                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                                         Flickable {
                                             anchors.fill: parent
                                             anchors.margins: Dimensions.marginBase
                                             contentHeight: announcementContentCol.height
                                             clip: true
-                                            interactive: announcementContentBox.expanded
                                             boundsBehavior: Flickable.StopAtBounds
 
                                             Column {
                                                 id: announcementContentCol
                                                 width: parent.width
-                                                spacing: Dimensions.spacingMD
+                                                spacing: Dimensions.spacingSM
 
-                                                Item { width: 1; height: 4 }
-
-                                                Label {
+                                                // Title with accent bar
+                                                Row {
                                                     width: parent.width
-                                                    text: qsTr("Desteklenmeyen Oyunlar Hakkında")
-                                                    font.pixelSize: Dimensions.fontBody
-                                                    font.weight: Font.DemiBold
-                                                    color: Theme.textPrimary
-                                                    horizontalAlignment: Text.AlignHCenter
+                                                    spacing: Dimensions.spacingSM
+
+                                                    Rectangle {
+                                                        width: 2
+                                                        height: announcementTitle.height
+                                                        radius: 1
+                                                        color: Theme.withAlpha(Theme.textPrimary, 0.25)
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                    }
+
+                                                    Label {
+                                                        id: announcementTitle
+                                                        text: qsTr("Kütüphaneye Dahil Olmayan Oyunlar")
+                                                        font.pixelSize: Dimensions.fontBody
+                                                        font.weight: Font.DemiBold
+                                                        color: Theme.textPrimary
+                                                    }
                                                 }
 
+                                                // Body text
                                                 Label {
                                                     width: parent.width
-                                                    text: announcementContentBox.expanded
-                                                        ? qsTr("Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.\n\nMakineAI, her oyun için en iyi çeviri deneyimini sunmayı hedefler. Ancak bazı oyunlar, kullandıkları özel metin sistemleri veya şifreleme yöntemleri nedeniyle henüz tam olarak desteklenememektedir.\n\nDesteklenmeyen bir oyunda çeviri başlattığınızda:\n• Bazı metinler eksik veya hatalı görünebilir\n• Oyun performansında düşüş yaşanabilir\n• Nadir durumlarda oyun kararsız hale gelebilir\n\nBu tür sorunlarla karşılaşırsanız, orijinal dil dosyalarını geri yüklemek için yedekleme özelliğini kullanabilirsiniz. Destek ekibimize bildirdiğiniz oyunlar öncelikli olarak değerlendirilecektir.")
-                                                        : qsTr("Resmi olarak desteklenmeyen oyunlarda çeviri hataları veya performans sorunları yaşanabilir.")
+                                                    text: qsTr("Çeviri kütüphanemizde henüz yer almayan oyunlarda beklenmedik sorunlarla karşılaşılabilir. Olası aksaklıklara karşı, yama öncesi otomatik oluşturulan yedek sayesinde dosyalarınız güvende tutulur.\n\nKütüphane dışı oyunlarda bazı metinler eksik görünebilir veya performans farklılıkları yaşanabilir. Eklenmesini istediğiniz oyunları bize bildirmeniz, değerlendirme sürecimize dahil edilecektir.")
                                                     font.pixelSize: Dimensions.fontXS
                                                     color: Theme.textSecondary
                                                     wrapMode: Text.WordWrap
-                                                    horizontalAlignment: announcementContentBox.expanded ? Text.AlignLeft : Text.AlignHCenter
-                                                }
-
-                                                // "Devamını oku" / "Kapat" indicator
-                                                Label {
-                                                    width: parent.width
-                                                    text: announcementContentBox.expanded ? qsTr("Kapat") : qsTr("Devamını oku →")
-                                                    font.pixelSize: Dimensions.fontCaption
-                                                    font.weight: Font.Medium
-                                                    color: Theme.primary
-                                                    horizontalAlignment: Text.AlignHCenter
-                                                    opacity: announcementContentMouse.containsMouse || announcementContentBox.expanded ? 1.0 : 0.0
-                                                    Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+                                                    lineHeight: 1.4
                                                 }
                                             }
-                                        }
-
-                                        // Focus indicator
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            anchors.margins: -1
-                                            radius: parent.radius + 1
-                                            color: "transparent"
-                                            border.color: Theme.withAlpha(Theme.primary, 0.6)
-                                            border.width: 2
-                                            visible: announcementContentBox.activeFocus
-                                        }
-
-                                        MouseArea {
-                                            id: announcementContentMouse
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: announcementContentBox.expanded = !announcementContentBox.expanded
                                         }
                                     }
 
@@ -803,99 +784,21 @@ Item {
                                 spacing: Dimensions.spacingLG
 
                                 Label {
-                                    text: GameService.isScanning ? qsTr("Oyunlar Taranıyor...") : qsTr("Desteklenen Oyunlar")
+                                    text: qsTr("Türkçe Yama Kütüphanesi")
                                     font.pixelSize: Dimensions.fontXL
                                     font.weight: Font.DemiBold
                                     color: Theme.textPrimary
                                 }
 
+                                BusyIndicator {
+                                    visible: GameService.isScanning
+                                    running: GameService.isScanning
+                                    Layout.preferredWidth: 16
+                                    Layout.preferredHeight: 16
+                                }
+
                                 Item { Layout.fillWidth: true }
 
-                                Row {
-                                    visible: GameService.isScanning
-                                    spacing: Dimensions.spacingMD
-
-                                    BusyIndicator {
-                                        width: 20
-                                        height: 20
-                                        running: GameService.isScanning
-                                    }
-
-                                    Label {
-                                        text: GameService.scanStatus || qsTr("Taranıyor...")
-                                        font.pixelSize: Dimensions.fontSM
-                                        color: Theme.textMuted
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                }
-
-                                Rectangle {
-                                    Layout.preferredHeight: 22
-                                    Layout.preferredWidth: gamesCountLabel.width + 14
-                                    radius: Dimensions.badgeRadius
-                                    color: Theme.withAlpha(Theme.primary, 0.12)
-
-                                    Behavior on Layout.preferredWidth {
-                                        NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic }
-                                    }
-
-                                    Label {
-                                        id: gamesCountLabel
-                                        anchors.centerIn: parent
-                                        text: qsTr("%1 oyun").arg(GameService.gameCount)
-                                        font.pixelSize: Dimensions.fontXS
-                                        font.weight: Font.Medium
-                                        color: Theme.primary
-                                    }
-                                }
-
-                                Rectangle {
-                                    visible: !GameService.isScanning
-                                    Layout.preferredWidth: 22
-                                    Layout.preferredHeight: 22
-                                    radius: Dimensions.badgeRadius
-                                    color: rescanMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
-                                    Accessible.role: Accessible.Button
-                                    Accessible.name: qsTr("Rescan libraries")
-                                    activeFocusOnTab: true
-                                    Keys.onReturnPressed: GameService.scanAllLibraries()
-                                    Keys.onSpacePressed: GameService.scanAllLibraries()
-
-                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: "\u21BB"
-                                        font.pixelSize: Dimensions.fontBody
-                                        color: rescanMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
-                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                    }
-
-                                    // Focus indicator
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        anchors.margins: -1
-                                        radius: parent.radius + 1
-                                        color: "transparent"
-                                        border.color: Theme.withAlpha(Theme.primary, 0.6)
-                                        border.width: 2
-                                        visible: parent.activeFocus
-                                    }
-
-                                    MouseArea {
-                                        id: rescanMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: GameService.scanAllLibraries()
-                                    }
-
-                                    ToolTip {
-                                        visible: rescanMouse.containsMouse
-                                        text: qsTr("Kütüphaneleri yeniden tara")
-                                        delay: 400
-                                    }
-                                }
                             }
 
                             Rectangle {
@@ -903,14 +806,14 @@ Item {
                                 Layout.preferredHeight: 1
                                 Layout.topMargin: root.diSeparatorTopMargin
                                 Layout.bottomMargin: root.diSeparatorBottomMargin
-                                color: Theme.withAlpha(Theme.textPrimary, 0.15)
+                                color: Theme.withAlpha(Theme.textPrimary, 0.06)
                             }
 
                             Flow {
                                 id: skeletonFlow
                                 Layout.fillWidth: true
                                 spacing: Dimensions.cardGap
-                                visible: GameService.isScanning && GameService.gameCount === 0
+                                visible: GameService.supportedGameCount === 0 && GameService.isScanning
 
                                 Repeater {
                                     model: 7
@@ -934,7 +837,7 @@ Item {
 
                                 Repeater {
                                     id: gamesRepeater
-                                    model: GameService.games.slice(0, gamesRow.maxCards)
+                                    model: GameService.supportedGames.slice(0, gamesRow.maxCards)
 
                                     GameCard {
                                         id: gameCardDelegate
@@ -983,10 +886,10 @@ Item {
 
                                 ViewAllCard {
                                     id: viewAllCardItem
-                                    remainingCount: Math.max(0, GameService.gameCount - gamesRepeater.count)
+                                    remainingCount: Math.max(0, GameService.supportedGameCount - gamesRepeater.count)
 
                                     onClicked: {
-                                        allGamesDialog.games = GameService.games
+                                        allGamesDialog.games = GameService.supportedGames
                                         allGamesDialog.open()
                                     }
                                 }
@@ -999,7 +902,7 @@ Item {
                                 color: Theme.withAlpha(Theme.textPrimary, 0.03)
                                 border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
                                 border.width: 1
-                                visible: GameService.gameCount === 0 && !GameService.isScanning
+                                visible: GameService.supportedGameCount === 0 && !GameService.isScanning
 
                                 ColumnLayout {
                                     anchors.centerIn: parent
@@ -1013,14 +916,14 @@ Item {
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: qsTr("Henüz oyun bulunamadı")
+                                        text: qsTr("Çeviri paketi bulunamadı")
                                         font.pixelSize: Dimensions.fontMD
                                         color: Theme.textSecondary
                                     }
 
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
-                                        text: qsTr("Steam, Epic veya GOG kütüphane klasörlerinizi kontrol edin")
+                                        text: qsTr("translation_data klasörünü kontrol edin")
                                         font.pixelSize: Dimensions.fontSM
                                         color: Theme.textMuted
                                     }
@@ -1076,7 +979,7 @@ Item {
                             Layout.preferredHeight: 1
                             Layout.topMargin: root.diSeparatorTopMargin
                             Layout.bottomMargin: root.diSeparatorBottomMargin
-                            color: Theme.withAlpha(Theme.textPrimary, 0.15)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         }
 
                         RowLayout {
@@ -1256,7 +1159,7 @@ Item {
                             Layout.preferredHeight: 1
                             Layout.topMargin: root.diSeparatorTopMargin
                             Layout.bottomMargin: root.diSeparatorBottomMargin
-                            color: Theme.withAlpha(Theme.textPrimary, 0.15)
+                            color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         }
 
                         GridLayout {
@@ -1407,7 +1310,7 @@ Item {
                                 Label {
                                     id: patchCountLabel
                                     anchors.centerIn: parent
-                                    text: qsTr("%1 yama").arg(GameService.gamesWithTranslation.length)
+                                    text: qsTr("%1 kurulu oyunda yama mevcut").arg(GameService.gamesWithTranslation.length)
                                     font.pixelSize: Dimensions.fontXS
                                     font.weight: Font.Medium
                                     color: Theme.primary
@@ -1586,8 +1489,9 @@ Item {
 
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: "\uD83C\uDF10"
+                                    text: ":/"
                                     font.pixelSize: Dimensions.fontHero
+                                    color: Theme.textMuted
                                 }
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
@@ -1603,7 +1507,7 @@ Item {
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
                                     text: translationPage.activeFilter === "all"
-                                        ? qsTr("Oyun kütüphanenizi tarattıktan sonra yama mevcut oyunlar burada listelenir")
+                                        ? qsTr("Bilgisayarınızda çevirisi olan oyun bulunamadı")
                                         : translationPage.activeFilter === "installed"
                                             ? qsTr("Mevcut yamalardan birini kurmak için Tümü filtresine geçin")
                                             : qsTr("Tüm yamalar başarıyla kurulmuş durumda")
@@ -1682,6 +1586,299 @@ Item {
                                     font.pixelSize: Dimensions.fontSM
                                     color: Theme.textMuted
                                     anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                        }
+
+                        // ===== GAME LIBRARY SECTION =====
+                        Item { Layout.preferredHeight: Dimensions.spacingLG }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            spacing: Dimensions.spacingMD
+
+                            Label {
+                                text: qsTr("Oyun Kütüphanesi")
+                                font.pixelSize: Dimensions.fontXL
+                                font.weight: Font.DemiBold
+                                color: Theme.textPrimary
+                            }
+
+                            BusyIndicator {
+                                visible: GameService.isScanning
+                                running: GameService.isScanning
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                            }
+
+                            Rectangle {
+                                Layout.preferredHeight: 20
+                                Layout.preferredWidth: libCountLabel.width + 12
+                                radius: Dimensions.radiusStandard
+                                color: Theme.withAlpha(Theme.textMuted, 0.10)
+                                Label {
+                                    id: libCountLabel
+                                    anchors.centerIn: parent
+                                    text: qsTr("%1 kurulu").arg(GameService.gameCount)
+                                    font.pixelSize: Dimensions.fontXS
+                                    font.weight: Font.Medium
+                                    color: Theme.textSecondary
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            // Rescan button
+                            Rectangle {
+                                visible: !GameService.isScanning
+                                Layout.preferredWidth: 22
+                                Layout.preferredHeight: 22
+                                radius: Dimensions.badgeRadius
+                                color: libRescanMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("Rescan libraries")
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: GameService.scanAllLibraries()
+                                Keys.onSpacePressed: GameService.scanAllLibraries()
+
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "\u21BB"
+                                    font.pixelSize: Dimensions.fontBody
+                                    color: libRescanMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                }
+
+                                MouseArea {
+                                    id: libRescanMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: GameService.scanAllLibraries()
+                                }
+
+                                ToolTip {
+                                    visible: libRescanMouse.containsMouse
+                                    text: qsTr("Kütüphaneleri yeniden tara")
+                                    delay: 400
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 1
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                        }
+
+                        // Library game grid
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            spacing: Dimensions.cardGap
+                            visible: GameService.gameCount > 0
+
+                            Repeater {
+                                id: libraryRepeater
+                                model: GameService.games
+
+                                Item {
+                                    id: libCard
+                                    width: Dimensions.cardWidth
+                                    height: Dimensions.cardHeight
+
+                                    required property var modelData
+                                    required property int index
+
+                                    property bool hov: libCardMouse.containsMouse
+
+                                    transform: [
+                                        Translate { y: libCard.hov ? -3 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
+                                        Scale {
+                                            origin.x: libCard.width / 2; origin.y: libCard.height / 2
+                                            xScale: libCard.hov ? 1.015 : 1.0; yScale: libCard.hov ? 1.015 : 1.0
+                                            Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+                                            Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+                                        }
+                                    ]
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: Dimensions.cardBorderRadius
+                                        color: Theme.surface
+                                        clip: true
+
+                                        Image {
+                                            id: libImg
+                                            anchors.fill: parent
+                                            source: libCard.modelData.headerImageUrl || ""
+                                            fillMode: Image.PreserveAspectCrop
+                                            sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
+                                            asynchronous: true
+                                            cache: true
+                                            visible: status === Image.Ready
+                                        }
+
+                                        // Placeholder
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: Theme.withAlpha(Theme.textPrimary, 0.04)
+                                            visible: !libImg.visible
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: libCard.modelData.name ? libCard.modelData.name.substring(0, 2).toUpperCase() : ""
+                                                font.pixelSize: Dimensions.fontXL
+                                                font.weight: Font.Bold
+                                                color: Theme.withAlpha(Theme.textMuted, 0.5)
+                                            }
+                                        }
+
+                                        // Bottom gradient
+                                        Rectangle {
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            height: parent.height * 0.45
+                                            gradient: Gradient {
+                                                GradientStop { position: 0.0; color: "transparent" }
+                                                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.9) }
+                                            }
+                                        }
+
+                                        // TR badge if has translation
+                                        Rectangle {
+                                            visible: libCard.modelData.hasTranslation === true
+                                            anchors.top: parent.top
+                                            anchors.right: parent.right
+                                            anchors.topMargin: Dimensions.spacingSM
+                                            anchors.rightMargin: Dimensions.spacingSM
+                                            width: 22; height: 14
+                                            radius: Dimensions.badgeRadius
+                                            color: Theme.turkishRed
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "TR"
+                                                font.pixelSize: Dimensions.fontMicro
+                                                font.weight: Font.Bold
+                                                color: "#ffffff"
+                                            }
+                                        }
+
+                                        // Source badge (Steam/Epic/GOG)
+                                        Rectangle {
+                                            anchors.top: parent.top
+                                            anchors.left: parent.left
+                                            anchors.topMargin: Dimensions.spacingSM
+                                            anchors.leftMargin: Dimensions.spacingSM
+                                            width: srcLabel.width + 8; height: 14
+                                            radius: Dimensions.badgeRadius
+                                            color: Theme.withAlpha(Theme.bgPrimary, 0.7)
+                                            visible: libCard.modelData.source && libCard.modelData.source !== ""
+
+                                            Text {
+                                                id: srcLabel
+                                                anchors.centerIn: parent
+                                                text: {
+                                                    var s = libCard.modelData.source || ""
+                                                    if (s === "steam") return "Steam"
+                                                    if (s === "epic") return "Epic"
+                                                    if (s === "gog") return "GOG"
+                                                    return s.charAt(0).toUpperCase() + s.slice(1)
+                                                }
+                                                font.pixelSize: Dimensions.fontMicro
+                                                color: Theme.textMuted
+                                            }
+                                        }
+
+                                        // Game name
+                                        Text {
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            anchors.margins: Dimensions.marginBase
+                                            text: libCard.modelData.name || ""
+                                            font.pixelSize: Dimensions.fontCaption
+                                            font.weight: Font.DemiBold
+                                            color: Theme.textPrimary
+                                            elide: Text.ElideRight
+                                            maximumLineCount: 2
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        // Hover tint
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: Theme.withAlpha(Theme.primary, 0.08)
+                                            opacity: libCard.hov ? 1.0 : 0.0
+                                            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+                                        }
+                                    }
+
+                                    // Hover border
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: Dimensions.cardBorderRadius
+                                        color: "transparent"
+                                        border.width: 1
+                                        border.color: Theme.withAlpha(Theme.primary, 0.4)
+                                        opacity: libCard.hov ? 1.0 : 0.0
+                                        Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+                                    }
+
+                                    MouseArea {
+                                        id: libCardMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            root.gameSelected(
+                                                libCard.modelData.id || "",
+                                                libCard.modelData.name || "",
+                                                libCard.modelData.installPath || "",
+                                                libCard.modelData.engine || ""
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Library empty state
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 100
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            radius: Dimensions.radiusStandard
+                            color: Theme.withAlpha(Theme.textPrimary, 0.02)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                            border.width: 1
+                            visible: GameService.gameCount === 0 && !GameService.isScanning
+
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: Dimensions.spacingSM
+
+                                Label {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: qsTr("Kurulu oyun bulunamadı")
+                                    font.pixelSize: Dimensions.fontBody
+                                    color: Theme.textSecondary
+                                }
+                                Label {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: qsTr("Steam, Epic veya GOG kütüphanenizi tarayın")
+                                    font.pixelSize: Dimensions.fontXS
+                                    color: Theme.textMuted
                                 }
                             }
                         }
@@ -1883,6 +2080,7 @@ Item {
                     }
                 }
             }
+
 
             Label {
                 id: gameNameLabel

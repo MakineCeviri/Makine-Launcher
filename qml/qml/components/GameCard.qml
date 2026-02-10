@@ -259,6 +259,7 @@ Item {
             }
         }
 
+
         // GAME NAME
         Item {
             anchors.left: parent.left

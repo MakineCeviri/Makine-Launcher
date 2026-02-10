@@ -352,12 +352,28 @@ Dialog {
 
                                     // Status badges
                                     Row {
-                                        visible: modelData.isVerified === true || modelData.hasTranslation === true
+                                        visible: modelData.isVerified === true || modelData.hasTranslation === true || modelData.isInstalled === true
                                         anchors.top: parent.top
                                         anchors.right: parent.right
                                         anchors.topMargin: Dimensions.marginSM
                                         anchors.rightMargin: Dimensions.marginSM
                                         spacing: Dimensions.spacingXS
+
+                                        Rectangle {
+                                            visible: modelData.isInstalled === true
+                                            width: installedLabel.width + 8; height: 14
+                                            radius: Dimensions.badgeRadius
+                                            color: Theme.withAlpha("#4CAF50", 0.85)
+
+                                            Text {
+                                                id: installedLabel
+                                                anchors.centerIn: parent
+                                                text: qsTr("Kurulu")
+                                                font.pixelSize: Dimensions.fontMicro
+                                                font.weight: Font.Bold
+                                                color: "#ffffff"
+                                            }
+                                        }
 
                                         Rectangle {
                                             visible: modelData.hasTranslation === true

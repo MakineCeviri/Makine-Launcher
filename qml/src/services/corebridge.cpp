@@ -186,10 +186,6 @@ void CoreBridge::doScanSteamReal()
     qDebug() << "Found" << libraryPaths.size() << "Steam library folders";
 
     // Known redistributable AppIDs to filter out
-    static const QSet<QString> redistributables = {
-        "228980", "228981", "1070560", "1245620",  // remove 1245620 from redist
-    };
-    // Actually only these are redistributables
     static const QSet<QString> realRedistributables = {
         "228980", "228981", "1070560", "1161040", "1493710",
     };
@@ -580,6 +576,52 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
     return true;
 }
 
+
+// ========== Supported Games Catalog ==========
+
+QVariantList CoreBridge::allSupportedGames() const
+{
+    if (!m_localPkgManager) return {};
+
+    QVariantList catalog = m_localPkgManager->allPackagesAsList();
+
+    // Enrich each catalog entry with install status from detected games
+    for (int i = 0; i < catalog.size(); ++i) {
+        QVariantMap entry = catalog[i].toMap();
+        const QString steamAppId = entry["steamAppId"].toString();
+
+        bool found = false;
+        for (const auto& game : m_detectedGames) {
+            if (game.steamAppId == steamAppId) {
+                entry["isInstalled"] = true;
+                entry["installPath"] = game.installPath;
+                entry["id"] = game.id;
+                entry["source"] = game.source;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            entry["isInstalled"] = false;
+            entry["id"] = steamAppId;
+        }
+
+        // All catalog games have translation available
+        entry["hasTranslation"] = true;
+        entry["name"] = entry["gameName"];
+
+        catalog[i] = entry;
+    }
+
+    return catalog;
+}
+
+int CoreBridge::supportedGameCount() const
+{
+    if (!m_localPkgManager) return 0;
+    return m_localPkgManager->packageCount();
+}
 
 // ========== Package Management (via LocalPackageManager) ==========
 

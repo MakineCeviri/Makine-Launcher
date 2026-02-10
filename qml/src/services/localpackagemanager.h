@@ -14,6 +14,8 @@
 #include <QHash>
 #include <QString>
 #include <QJsonObject>
+#include <QVariantList>
+#include <QVariantMap>
 #include <optional>
 
 namespace makineai {
@@ -48,6 +50,7 @@ public:
 
     int packageCount() const { return m_packages.size(); }
     QStringList availableAppIds() const { return m_packages.keys(); }
+    QVariantList allPackagesAsList() const;
 
 signals:
     void installProgress(double progress, const QString& status);

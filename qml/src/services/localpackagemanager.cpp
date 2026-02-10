@@ -40,7 +40,7 @@ static const QHash<QString, QPair<QString, QString>> s_packageMapping = {
     {"DOS2",           {"435150",  "Divinity: Original Sin 2"}},
     {"DOSEE",          {"373420",  "Divinity: Original Sin Enhanced Edition"}},
     {"EW104D",         {"1065310", "Evil West"}},
-    {"HL_1120320",     {"1120320", "Half-Life: Alyx"}},
+    {"HL_1120320",     {"1583230", "High On Life"}},
     {"IFR134D2",       {"2221920", "Immortals Fenyx Rising"}},
     {"MEA",            {"1238000", "Mass Effect: Andromeda"}},
     {"POE_1381318",    {"291650",  "Pillars of Eternity"}},
@@ -50,6 +50,7 @@ static const QHash<QString, QPair<QString, QString>> s_packageMapping = {
     {"COE33_56442",    {"1903340", "Clair Obscur: Expedition 33"}},
     {"JGC_1000",       {"2677660", "Indiana Jones and the Great Circle"}},
     {"D2R_1471776",    {"990080",  "Hogwarts Legacy"}},
+    {"TCP_1544020",    {"1544020", "The Callisto Protocol"}},
 };
 
 LocalPackageManager::LocalPackageManager(QObject *parent)
@@ -193,6 +194,24 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
 
         m_packages[steamAppId] = info;
     }
+}
+
+QVariantList LocalPackageManager::allPackagesAsList() const
+{
+    QVariantList result;
+    result.reserve(m_packages.size());
+    for (auto it = m_packages.constBegin(); it != m_packages.constEnd(); ++it) {
+        const auto& pkg = it.value();
+        result.append(QVariantMap{
+            {"steamAppId", pkg.steamAppId},
+            {"gameName", pkg.gameName},
+            {"engine", pkg.engine},
+            {"version", pkg.version},
+            {"packageId", pkg.packageId},
+            {"headerImageUrl", QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(pkg.steamAppId)},
+        });
+    }
+    return result;
 }
 
 bool LocalPackageManager::hasPackage(const QString& steamAppId) const

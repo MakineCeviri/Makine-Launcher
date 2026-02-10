@@ -17,8 +17,6 @@
 #include <QFileInfo>
 #include <QDateTime>
 
-class QNetworkAccessManager;
-
 #include "corebridge.h"
 
 namespace makineai {
@@ -124,6 +122,8 @@ class GameService : public QObject
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
     Q_PROPERTY(bool isFetchingSteamDetails READ isFetchingSteamDetails NOTIFY isFetchingSteamDetailsChanged)
     Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY gamesChanged)
+    Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY gamesChanged)
+    Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY gamesChanged)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -143,6 +143,8 @@ public:
     QString lastError() const { return m_lastError; }
     bool isFetchingSteamDetails() const { return !m_pendingFetches.isEmpty(); }
     QVariantList gamesWithTranslation() const;
+    QVariantList supportedGames() const;
+    int supportedGameCount() const;
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
@@ -281,6 +283,7 @@ private:
     mutable QVariantList m_gamesCache;
     mutable QVariantList m_featuredGamesCache;
     mutable QVariantList m_recentGamesCache;
+    mutable QVariantList m_supportedGamesCache;
     mutable bool m_cacheValid{false};
 };
 

@@ -32,22 +32,12 @@ Item {
     property bool autoDetectGames: SettingsManager.autoDetectGames
     property bool startWithWindows: SettingsManager.startWithWindows
     property bool minimizeToTray: SettingsManager.minimizeToTray
-    property bool showNotifications: SettingsManager.showNotifications
-    property bool hardwareAcceleration: SettingsManager.hardwareAcceleration
-    property bool useGlobalCache: SettingsManager.useGlobalCache
     property bool disableAnimations: !SettingsManager.enableAnimations
-
-    // Developer status
-    property string devStatus: ""
-    property bool isImporting: false
 
     // Update SettingsManager when properties change
     onAutoDetectGamesChanged: SettingsManager.autoDetectGames = autoDetectGames
     onStartWithWindowsChanged: SettingsManager.startWithWindows = startWithWindows
     onMinimizeToTrayChanged: SettingsManager.minimizeToTray = minimizeToTray
-    onShowNotificationsChanged: SettingsManager.showNotifications = showNotifications
-    onHardwareAccelerationChanged: SettingsManager.hardwareAcceleration = hardwareAcceleration
-    onUseGlobalCacheChanged: SettingsManager.useGlobalCache = useGlobalCache
     onDisableAnimationsChanged: SettingsManager.enableAnimations = !disableAnimations
 
     // Entry animation state
@@ -57,7 +47,7 @@ Item {
         entryAnimation.start()
     }
 
-    // Smooth entry animation
+    // Smooth entry animation (opacity only — x breaks Row layout)
     ParallelAnimation {
         id: entryAnimation
 
@@ -66,14 +56,6 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: Dimensions.fadeTransitionDuration
-            easing.type: Easing.OutCubic
-        }
-        NumberAnimation {
-            target: sidebar
-            property: "x"
-            from: -40
-            to: 0
             duration: 350
             easing.type: Easing.OutCubic
         }
@@ -82,14 +64,6 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: Dimensions.fadeTransitionDuration
-            easing.type: Easing.OutCubic
-        }
-        NumberAnimation {
-            target: contentArea
-            property: "x"
-            from: 40
-            to: 0
             duration: 350
             easing.type: Easing.OutCubic
         }
@@ -241,7 +215,6 @@ Item {
                 width: parent.width - sidebar.width
                 height: parent.height
                 opacity: 0  // Start invisible for animation
-                x: 0
 
                 ScrollView {
                     id: settingsScrollView
@@ -412,14 +385,6 @@ Item {
                         onToggled: minimizeToTray = !minimizeToTray
                     }
 
-                    SettingsDivider {}
-
-                    ToggleSetting {
-                        title: qsTr("Bildirimler")
-                        description: qsTr("Oyun tespit edildiğinde bildirim göster")
-                        checked: showNotifications
-                        onToggled: showNotifications = !showNotifications
-                    }
                 }
             }
 
@@ -430,6 +395,13 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
+
+                    DisabledSetting {
+                        title: qsTr("Bildirimler")
+                        description: qsTr("Oyun tespit edildiğinde bildirim göster")
+                    }
+
+                    SettingsDivider {}
 
                     DisabledSetting {
                         title: qsTr("İndirme Dizini")
@@ -783,28 +755,31 @@ Item {
                     spacing: 0
 
                     ToggleSetting {
-                        title: qsTr("Donanım Hızlandırma")
-                        description: qsTr("GPU kullanarak daha hızlı çeviri")
-                        checked: hardwareAcceleration
-                        onToggled: hardwareAcceleration = !hardwareAcceleration
-                    }
-
-                    SettingsDivider {}
-
-                    ToggleSetting {
-                        title: qsTr("Global Önbellek")
-                        description: qsTr("Çevirileri tüm oyunlar için paylaş")
-                        checked: useGlobalCache
-                        onToggled: useGlobalCache = !useGlobalCache
-                    }
-
-                    SettingsDivider {}
-
-                    ToggleSetting {
                         title: qsTr("Uygulama Animasyonları")
                         description: qsTr("Arayüz animasyonlarını etkinleştir")
                         checked: !disableAnimations
                         onToggled: disableAnimations = !disableAnimations
+                    }
+                }
+            }
+
+            SettingsCard {
+                Layout.fillWidth: true
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    DisabledSetting {
+                        title: qsTr("Donanım Hızlandırma")
+                        description: qsTr("GPU kullanarak daha hızlı çeviri işleme")
+                    }
+
+                    SettingsDivider {}
+
+                    DisabledSetting {
+                        title: qsTr("Global Önbellek")
+                        description: qsTr("Çevirileri tüm oyunlar için paylaş")
                     }
                 }
             }
@@ -961,115 +936,23 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    DevButton {
-                        title: qsTr("Test Verisi Aktar")
-                        subtitle: qsTr("Translation Memory'ye 30 test çevirisi ekle")
-                        icon: "⬆"  // Upload icon
-                        isLoading: isImporting
-                        onClicked: {
-                            isImporting = true
-                            devStatus = qsTr("Test verisi aktarılıyor...")
-
-                            // Add sample TM entries
-                            var testData = [
-                                ["New Game", "Yeni Oyun"],
-                                ["Load Game", "Oyun Yükle"],
-                                ["Save Game", "Oyunu Kaydet"],
-                                ["Settings", "Ayarlar"],
-                                ["Options", "Seçenekler"],
-                                ["Exit", "Çıkış"],
-                                ["Continue", "Devam Et"],
-                                ["Start", "Başla"],
-                                ["Quit", "Çık"],
-                                ["Yes", "Evet"],
-                                ["No", "Hayır"],
-                                ["Cancel", "İptal"],
-                                ["OK", "Tamam"],
-                                ["Back", "Geri"],
-                                ["Next", "İleri"],
-                                ["Play", "Oyna"],
-                                ["Pause", "Duraklat"],
-                                ["Resume", "Devam Et"],
-                                ["Restart", "Yeniden Başlat"],
-                                ["Level", "Seviye"],
-                                ["Score", "Puan"],
-                                ["Health", "Sağlık"],
-                                ["Mana", "Mana"],
-                                ["Attack", "Saldırı"],
-                                ["Defense", "Savunma"],
-                                ["Inventory", "Envanter"],
-                                ["Equipment", "Ekipman"],
-                                ["Quest", "Görev"],
-                                ["Map", "Harita"],
-                                ["Skills", "Yetenekler"]
-                            ]
-
-                            var added = 0
-                            for (var i = 0; i < testData.length; i++) {
-                                var entry = testData[i]
-                                if (CoreBridge.addTMEntry(entry[0], entry[1], "", "")) {
-                                    added++
-                                }
-                            }
-
-                            isImporting = false
-                            devStatus = qsTr("%1 çeviri eklendi!").arg(added)
-                        }
+                    DisabledSetting {
+                        title: qsTr("Translation Memory")
+                        description: qsTr("Çeviri belleği test verisi aktarma ve yönetim araçları")
                     }
 
                     SettingsDivider {}
 
-                    DevButton {
-                        title: qsTr("TM'yi Temizle")
-                        subtitle: qsTr("Tüm Translation Memory verilerini sil")
-                        icon: "🗑"  // Delete icon
-                        isDestructive: true
-                        onClicked: {
-                            devStatus = qsTr("Bu özellik henüz aktif değil")
-                        }
+                    DisabledSetting {
+                        title: qsTr("Glossary Yönetimi")
+                        description: qsTr("Terim sözlüğü görüntüleme ve düzenleme")
                     }
 
                     SettingsDivider {}
 
-                    DevButton {
-                        title: qsTr("TM İstatistikleri")
-                        subtitle: qsTr("Translation Memory durumunu göster")
-                        icon: "📊"  // Analytics icon
-                        onClicked: {
-                            var terms = CoreBridge.getAllGlossaryTerms()
-                            devStatus = qsTr("TM/Glossary İstatistikleri:") + "\n" +
-                                       qsTr("Glossary Terimleri: %1").arg(terms.length) + "\n" +
-                                       qsTr("Durum: Aktif")
-                        }
-                    }
-                }
-            }
-
-            SettingsCard {
-                Layout.fillWidth: true
-                visible: devStatus !== ""
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: statusText.implicitHeight + 32
-
-                        // Selectable status text
-                        TextEdit {
-                            id: statusText
-                            anchors.fill: parent
-                            anchors.margins: Dimensions.marginMD
-                            text: devStatus
-                            font.pixelSize: Dimensions.fontSM
-                            font.family: Qt.platform.os === "windows" ? "Consolas" : "Courier New"
-                            color: Theme.withAlpha(Theme.textPrimary, 0.7)
-                            readOnly: true
-                            selectByMouse: true
-                            wrapMode: TextEdit.Wrap
-                        }
+                    DisabledSetting {
+                        title: qsTr("Adaptasyon Motoru")
+                        description: qsTr("Güncelleme tespiti ve otomatik uyarlama araçları")
                     }
                 }
             }
@@ -1579,107 +1462,6 @@ Item {
                 text: "🔒"  // Lock icon
                 font.pixelSize: Dimensions.fontXL
                 color: Theme.textMuted
-            }
-        }
-    }
-
-    // ===== DEV BUTTON =====
-    component DevButton: Item {
-        property string title: ""
-        property string subtitle: ""
-        property string icon: ""
-        property bool isLoading: false
-        property bool isDestructive: false
-        signal clicked()
-
-        Layout.fillWidth: true
-        Layout.preferredHeight: 72
-
-        Accessible.role: Accessible.Button
-        Accessible.name: title
-        activeFocusOnTab: true
-        Keys.onReturnPressed: { if (!isLoading) clicked() }
-        Keys.onSpacePressed: { if (!isLoading) clicked() }
-
-        Rectangle {
-            anchors.fill: parent
-            color: devMouse.containsMouse && !isLoading ? Theme.withAlpha(Theme.textPrimary, 0.03) : "transparent"
-
-            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Dimensions.marginML
-                anchors.rightMargin: Dimensions.marginML
-                spacing: Dimensions.spacingXL
-
-                // Icon container
-                Rectangle {
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 40
-                    radius: Dimensions.radiusStandard
-                    color: isDestructive
-                         ? Theme.withAlpha(Theme.error, 0.1)
-                         : Theme.withAlpha(Theme.textPrimary, 0.06)
-
-                    scale: devMouse.pressed ? 0.95 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: icon
-                        font.pixelSize: Dimensions.fontTitle
-                        color: isDestructive ? Theme.error : Theme.withAlpha(Theme.textPrimary, 0.7)
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: Dimensions.spacingXS
-
-                    Label {
-                        text: title
-                        font.pixelSize: Dimensions.fontMD
-                        font.weight: Font.Medium
-                        color: isDestructive ? Theme.error : Theme.textPrimary
-                    }
-
-                    Label {
-                        text: subtitle
-                        font.pixelSize: Dimensions.fontBody
-                        color: Theme.textMuted
-                    }
-                }
-
-                Item {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
-
-                    // Loading indicator
-                    BusyIndicator {
-                        anchors.fill: parent
-                        visible: isLoading
-                        running: isLoading
-                    }
-
-                    // Chevron
-                    Label {
-                        anchors.centerIn: parent
-                        visible: !isLoading
-                        text: "›"
-                        font.pixelSize: Dimensions.fontXL
-                        color: Theme.textMuted
-                    }
-                }
-            }
-
-            MouseArea {
-                id: devMouse
-                anchors.fill: parent
-                enabled: !isLoading
-                hoverEnabled: true
-                cursorShape: isLoading ? Qt.ArrowCursor : Qt.PointingHandCursor
-                onClicked: parent.parent.clicked()
             }
         }
     }

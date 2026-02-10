@@ -96,11 +96,6 @@ bool ProcessScanner::checkGameRunning(const QString& gameId)
     return m_gameRunning && m_runningGameId == gameId;
 }
 
-void ProcessScanner::scanAntiCheat(const QString& gamePath)
-{
-    checkAntiCheatSystems(gamePath);
-}
-
 void ProcessScanner::performScan()
 {
     detectRunningGames();
@@ -151,23 +146,6 @@ void ProcessScanner::detectRunningGames()
 #else
     // Non-Windows platforms - no process scanning
 #endif
-}
-
-void ProcessScanner::checkAntiCheatSystems(const QString& gamePath)
-{
-    Q_UNUSED(gamePath)
-
-    // Known anti-cheat indicators
-    // In production, would check for:
-    // - EasyAntiCheat files
-    // - BattlEye files
-    // - Vanguard (Riot)
-    // - etc.
-
-    // Placeholder for now
-    m_hasAntiCheat = false;
-    m_antiCheatSummary.clear();
-    emit antiCheatChanged();
 }
 
 QStringList ProcessScanner::getRunningProcesses()
