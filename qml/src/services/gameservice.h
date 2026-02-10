@@ -21,6 +21,8 @@
 
 namespace makineai {
 
+class UpdateDetectionService;
+
 /**
  * @brief Game data model
  */
@@ -227,6 +229,16 @@ public:
      */
     Q_INVOKABLE void uninstallRuntime(const QString& gameId);
 
+    /**
+     * @brief Force update check for a single game
+     */
+    Q_INVOKABLE void forceUpdateCheck(const QString& gameId);
+
+    /**
+     * @brief Force update check for all games with translations
+     */
+    Q_INVOKABLE void forceUpdateCheckAll();
+
 signals:
     void gamesChanged();
     void isScanningChanged();
@@ -247,6 +259,8 @@ signals:
     void translationInstallProgress(const QString& gameId, double progress, const QString& status);
     void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
+    void gameUpdateDetected(const QString& gameId, const QString& gameName,
+                            const QString& summary);
 
 private:
     void loadCachedGames();
@@ -258,6 +272,7 @@ private:
 
     void invalidateCache();
     void rebuildCache();
+    void ensureSupportedGamesCache();
     bool isValidGamePath(const QString& path) const;
 
     void parseSteamApiResponse(const QString& steamAppId, const QByteArray& data);
@@ -266,6 +281,7 @@ private:
     void saveSteamDetailsCache();
 
     CoreBridge* m_coreBridge{nullptr};
+    UpdateDetectionService* m_updateService{nullptr};
     QNetworkAccessManager* m_networkManager{nullptr};
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;  // O(1) lookup by ID

@@ -30,7 +30,7 @@ Item {
     Keys.onSpacePressed: root.clicked()
 
     Layout.fillWidth: true
-    implicitHeight: 80
+    implicitHeight: 72
     implicitWidth: 200
 
     // Focus indicator

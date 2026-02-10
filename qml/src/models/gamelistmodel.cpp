@@ -300,18 +300,15 @@ void GameListModel::applySort()
         [this](const DetectedGame& a, const DetectedGame& b) {
             switch (m_sortOrder) {
             case GameSortOrder::NameAsc:
-                return a.name.toLower() < b.name.toLower();
+                return QString::compare(a.name, b.name, Qt::CaseInsensitive) < 0;
             case GameSortOrder::NameDesc:
-                return a.name.toLower() > b.name.toLower();
+                return QString::compare(a.name, b.name, Qt::CaseInsensitive) > 0;
             case GameSortOrder::EngineAsc:
                 return a.engine < b.engine;
             case GameSortOrder::EngineDesc:
                 return a.engine > b.engine;
-            case GameSortOrder::RecentFirst:
-                // For now, just sort by name - could add lastPlayed tracking later
-                return a.name.toLower() < b.name.toLower();
             default:
-                return a.name.toLower() < b.name.toLower();
+                return QString::compare(a.name, b.name, Qt::CaseInsensitive) < 0;
             }
         });
 }

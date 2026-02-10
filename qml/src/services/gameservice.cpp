@@ -6,6 +6,7 @@
 
 #include "gameservice.h"
 #include "backupmanager.h"
+#include "updatedetectionservice.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -23,10 +24,21 @@ namespace makineai {
 GameService::GameService(QObject *parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
+    , m_updateService(new UpdateDetectionService(this))
 {
+    m_updateService->setGameService(this);
     setupCoreBridge();
     loadCachedGames();
     loadSteamDetailsCache();
+
+    // Forward update detection signals
+    connect(m_updateService, &UpdateDetectionService::gameUpdateDetected,
+            this, &GameService::gameUpdateDetected);
+
+    // Start monitoring after first scan completes
+    connect(this, &GameService::scanCompleted, this, [this](int) {
+        m_updateService->startMonitoring();
+    }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
     // Auto-scan on first launch if no cached games
     if (m_games.isEmpty()) {
@@ -150,6 +162,13 @@ void GameService::setupCoreBridge()
                             m_games[idx].hasTranslation = true;
                             invalidateCache();
                             emit gamesChanged();
+
+                            // Record store version + take file snapshot
+                            const auto& game = m_games[idx];
+                            auto pkg = m_coreBridge->getPackageForGame(gameId);
+                            QString patchVer = pkg.has_value() ? pkg->version : "unknown";
+                            m_updateService->recordStoreVersion(gameId, game.installPath, game.source);
+                            m_updateService->takeSnapshot(gameId, patchVer, game.installPath, game.engine);
                         }
                     }
                 }
@@ -166,10 +185,19 @@ void GameService::setupCoreBridge()
 
 void GameService::onScanProgress(qreal progress, const QString& status)
 {
-    m_scanProgress = progress;
-    m_scanStatus = status;
-    emit scanProgressChanged();
-    emit scanStatusChanged();
+    bool changed = false;
+    if (m_scanProgress != progress) {
+        m_scanProgress = progress;
+        changed = true;
+    }
+    if (m_scanStatus != status) {
+        m_scanStatus = status;
+        changed = true;
+    }
+    if (changed) {
+        emit scanProgressChanged();
+        emit scanStatusChanged();
+    }
 }
 
 void GameService::onScanCompleted(int count)
@@ -203,6 +231,7 @@ void GameService::onScanCompleted(int count)
     emit scanCompleted(count);
 
     saveCachedGames();
+    ensureSupportedGamesCache();
 }
 
 void GameService::onGameDetected(const QString& gameId, const QString& gameName)
@@ -489,11 +518,10 @@ QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) c
 QVariantList GameService::searchGames(const QString& query)
 {
     QVariantList result;
-    const QString lowerQuery = query.toLower();
 
     for (const auto& game : m_games) {
-        if (game.name.toLower().contains(lowerQuery) ||
-            game.id.contains(query)) {
+        if (game.name.contains(query, Qt::CaseInsensitive) ||
+            game.id.contains(query, Qt::CaseInsensitive)) {
             result.append(game.toSummary());
         }
     }
@@ -609,6 +637,7 @@ void GameService::loadCachedGames()
 
     qDebug() << "Loaded" << m_games.count() << "games from cache";
     emit gamesChanged();
+    ensureSupportedGamesCache();
 }
 
 void GameService::saveCachedGames()
@@ -659,6 +688,14 @@ void GameService::rebuildCache()
     }
 
     invalidateCache();
+}
+
+void GameService::ensureSupportedGamesCache()
+{
+    if (!m_supportedGamesCache.isEmpty()) return;
+
+    // Pre-warm by calling supportedGames() which populates m_supportedGamesCache
+    supportedGames();
 }
 
 void GameService::loadSteamDetailsCache()
@@ -972,6 +1009,10 @@ void GameService::uninstallTranslation(const QString& gameId)
         m_games[*it].hasTranslation = false;
         invalidateCache();
         emit gamesChanged();
+
+        // Clean up update detection data
+        m_updateService->removeSnapshot(gameId);
+        m_updateService->removeStoreVersion(gameId);
     }
 
     emit translationUninstalled(gameId, success,
@@ -987,10 +1028,7 @@ bool GameService::isTranslationInstalled(const QString& gameId)
 
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
-    Q_UNUSED(gameId)
-    return {{"level", "unknown"}, {"integrityPercent", 100},
-            {"modifiedCount", 0}, {"addedCount", 0}, {"removedCount", 0},
-            {"summary", tr("No translation snapshot available yet")}};
+    return m_updateService->checkCompatibility(gameId);
 }
 
 QVariantMap GameService::analyzeFonts(const QString& gameId)
@@ -1031,6 +1069,16 @@ void GameService::uninstallRuntime(const QString& gameId)
     QTimer::singleShot(100, this, [this, gameId]() {
         emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
     });
+}
+
+void GameService::forceUpdateCheck(const QString& gameId)
+{
+    m_updateService->checkGameQuick(gameId);
+}
+
+void GameService::forceUpdateCheckAll()
+{
+    m_updateService->checkAllGamesQuick();
 }
 
 QVariantMap GameService::checkAntiCheat(const QString& gameId)

@@ -107,6 +107,21 @@ void SettingsManager::setEnableAnimations(bool value)
     }
 }
 
+void SettingsManager::setGraphicsBackend(const QString& value)
+{
+    if (m_graphicsBackend != value) {
+        m_graphicsBackend = value;
+        m_settings.setValue("performance/graphicsBackend", value);
+        emit graphicsBackendChanged();
+        emit settingsChanged();
+    }
+}
+
+QStringList SettingsManager::availableGraphicsBackends() const
+{
+    return {"auto", "vulkan", "d3d11", "opengl"};
+}
+
 void SettingsManager::setTranslationLanguage(const QString& value)
 {
     if (m_translationLanguage != value) {
@@ -199,6 +214,7 @@ void SettingsManager::resetToDefaults()
     setHardwareAcceleration(true);
     setUseGlobalCache(true);
     setEnableAnimations(true);
+    setGraphicsBackend("vulkan");
     setTranslationLanguage("tr");
     setIsDarkMode(true);
 }
@@ -223,6 +239,12 @@ void SettingsManager::loadSettings()
     m_hardwareAcceleration = m_settings.value("performance/hardwareAcceleration", true).toBool();
     m_useGlobalCache = m_settings.value("performance/useGlobalCache", true).toBool();
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
+    m_graphicsBackend = m_settings.value("performance/graphicsBackend", "vulkan").toString();
+    // Migrate: "auto" from earlier versions → vulkan
+    if (m_graphicsBackend == "auto") {
+        m_graphicsBackend = "vulkan";
+        m_settings.setValue("performance/graphicsBackend", m_graphicsBackend);
+    }
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
@@ -239,6 +261,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("performance/hardwareAcceleration", m_hardwareAcceleration);
     m_settings.setValue("performance/useGlobalCache", m_useGlobalCache);
     m_settings.setValue("performance/enableAnimations", m_enableAnimations);
+    m_settings.setValue("performance/graphicsBackend", m_graphicsBackend);
     m_settings.setValue("translation/language", m_translationLanguage);
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);

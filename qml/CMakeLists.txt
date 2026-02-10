@@ -49,8 +49,6 @@ find_package(Qt6 REQUIRED COMPONENTS
     Network
     Svg
     Concurrent
-    Widgets
-    PrintSupport
 )
 
 qt_standard_project_setup(REQUIRES 6.5)
@@ -97,6 +95,7 @@ set(BACKEND_SOURCES
     src/services/integrityservice.cpp
     src/services/batchoperationservice.cpp
     src/services/localpackagemanager.cpp
+    src/services/updatedetectionservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -110,6 +109,7 @@ set(BACKEND_HEADERS
     src/services/batchoperationservice.h
     src/services/localpackagemanager.h
     src/services/vdfparser.h
+    src/services/updatedetectionservice.h
 )
 
 # Model sources
@@ -151,8 +151,6 @@ qt_add_qml_module(MakineAI
         qml/HomeScreen.qml
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
-        qml/SplashScreen.qml
-        qml/SplashWindow.qml
         qml/OnboardingWizard.qml
 
         # Theme (singletons)
@@ -160,29 +158,15 @@ qt_add_qml_module(MakineAI
         qml/theme/Dimensions.qml
         qml/theme/DebugHelper.qml
 
-        # Settings Pages
-        qml/settings/GeneralSettings.qml
-        qml/settings/TranslationSettings.qml
-        qml/settings/ProjectsSettings.qml
-        qml/settings/PerformanceSettings.qml
-        qml/settings/AboutSettings.qml
-        qml/settings/DeveloperSettings.qml
-
         # Components - Cards
-        qml/components/CedraInteractiveCard.qml
         qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
         qml/components/GameCardSkeleton.qml
         qml/components/PatchCard.qml
         qml/components/SettingsCard.qml
 
-        # Components - Buttons
-        qml/components/DevButton.qml
-        qml/components/WindowButton.qml
-
         # Components - Navigation
         qml/components/NavItem.qml
-        qml/components/TitleBar.qml
 
         # Components - Notifications
         qml/components/NotificationPanel.qml
@@ -192,9 +176,6 @@ qt_add_qml_module(MakineAI
         qml/components/DropZoneOverlay.qml
 
         # Components - Visual
-        qml/components/MakineLogo.qml
-        qml/components/TranslationProgressBar.qml
-        qml/components/GradientText.qml
         qml/components/SkeletonLoader.qml
         qml/components/PerformanceMonitor.qml
         qml/components/Badge.qml
@@ -212,16 +193,13 @@ qt_add_qml_module(MakineAI
 
         # Components - List Items
         qml/components/CategoryItem.qml
-        qml/components/BackupListItem.qml
         qml/components/InfoRow.qml
-        qml/components/EmptyStateMessage.qml
         qml/components/BatchOperationsPanel.qml
 
         # Utilities
         qml/utils/VersionUtils.js
 
         # Dialogs
-        qml/dialogs/GameDetectorDialog.qml
         qml/dialogs/AllGamesDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/CompatibilityWarningDialog.qml
@@ -282,8 +260,6 @@ target_link_libraries(MakineAI PRIVATE
     Qt6::Network
     Qt6::Svg
     Qt6::Concurrent
-    Qt6::Widgets
-    Qt6::PrintSupport
 )
 
 # Link core dependencies (only for full build)
@@ -328,13 +304,12 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN
     )
 
-    # Link Windows libraries for process scanning and core
+    # Link Windows libraries for process scanning and system tray
     target_link_libraries(MakineAI PRIVATE
         psapi
         Shlwapi
         Advapi32
         User32
-        Version      # For GetFileVersionInfo APIs
     )
 endif()
 

@@ -1,21 +1,22 @@
 /**
  * @file systemtraymanager.h
- * @brief System tray icon and menu management
+ * @brief System tray icon using native Win32 APIs (no Qt6Widgets dependency)
  * @copyright (c) 2026 MakineAI Team
  *
- * Provides system tray icon with context menu, toast notifications,
- * and background service coordination. Supports minimize-to-tray on
- * window close and Windows startup integration.
+ * Uses Shell_NotifyIconW + native popup menu to avoid linking Qt6::Widgets.
+ * Saves ~7 MB by allowing QGuiApplication instead of QApplication.
  */
 
 #pragma once
 
 #include <QObject>
-#include <QSystemTrayIcon>
-#include <QMenu>
 #include <QIcon>
 #include <QTimer>
-#include <memory>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 class SystemTrayManager : public QObject
 {
@@ -53,16 +54,24 @@ signals:
     void backgroundCheckEnabledChanged();
     void updateCheckRequested();
 
-private slots:
-    void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
-    void onMessageClicked();
-
 private:
-    void buildMenu();
     void updateTooltip();
 
-    QSystemTrayIcon *m_trayIcon;
-    std::unique_ptr<QMenu> m_trayMenu;
+#ifdef Q_OS_WIN
+    static LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void handleTrayMessage(LPARAM lParam);
+    void showContextMenu();
+    HICON qIconToHicon(const QIcon &icon, int size);
+
+    HWND m_msgWindow{nullptr};
+    NOTIFYICONDATAW m_nid{};
+    HMENU m_contextMenu{nullptr};
+    HICON m_hIcon{nullptr};
+    bool m_visible{false};
+
+    enum MenuId { IdShow = 1, IdSettings, IdQuit };
+#endif
+
     int m_pendingUpdates{0};
     bool m_backgroundCheckEnabled{false};
     bool m_serviceMode{false};

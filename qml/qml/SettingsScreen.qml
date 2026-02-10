@@ -22,7 +22,7 @@ Item {
     property var categories: [
         { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın") },
         { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin") },
-        { name: qsTr("Projeler"), description: qsTr("Tamamlanan çeviriler ve yedekler") },
+        { name: qsTr("Yedekler"), description: qsTr("Tamamlanan çeviriler ve yedekler") },
         { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları") },
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler") },
         { name: qsTr("Geliştirici"), description: qsTr("Geliştirici araçları ve test özellikleri") }
@@ -40,36 +40,6 @@ Item {
     onMinimizeToTrayChanged: SettingsManager.minimizeToTray = minimizeToTray
     onDisableAnimationsChanged: SettingsManager.enableAnimations = !disableAnimations
 
-    // Entry animation state
-    property bool animationComplete: false
-
-    Component.onCompleted: {
-        entryAnimation.start()
-    }
-
-    // Smooth entry animation (opacity only — x breaks Row layout)
-    ParallelAnimation {
-        id: entryAnimation
-
-        NumberAnimation {
-            target: sidebar
-            property: "opacity"
-            from: 0
-            to: 1
-            duration: 350
-            easing.type: Easing.OutCubic
-        }
-        NumberAnimation {
-            target: contentArea
-            property: "opacity"
-            from: 0
-            to: 1
-            duration: 350
-            easing.type: Easing.OutCubic
-        }
-
-        onFinished: root.animationComplete = true
-    }
 
     Rectangle {
         anchors.fill: parent
@@ -84,7 +54,6 @@ Item {
                 id: sidebar
                 width: 280
                 height: parent.height
-                opacity: 0  // Start invisible for animation
                 x: 0
                 color: Theme.withAlpha(Theme.surface, 0.5)
 
@@ -101,72 +70,19 @@ Item {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Header with back button
+                    // Header
                     Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Dimensions.navbarHeight
 
-                        RowLayout {
-                            anchors.fill: parent
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
                             anchors.leftMargin: Dimensions.marginML
-                            anchors.rightMargin: Dimensions.marginML
-                            spacing: Dimensions.spacingXL
-
-                            // Back button
-                            Rectangle {
-                                id: backBtn
-                                Layout.preferredWidth: 36
-                                Layout.preferredHeight: 36
-                                radius: Dimensions.radiusStandard
-                                color: backMouse.containsMouse
-                                    ? Theme.surfaceHover
-                                    : Theme.withAlpha(Theme.textPrimary, 0.06)
-
-                                scale: backMouse.pressed ? 0.92 : 1.0
-
-                                // Hover border glow
-                                border.color: backMouse.containsMouse
-                                    ? Theme.withAlpha(Theme.textPrimary, 0.2)
-                                    : "transparent"
-                                border.width: 1
-
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-                                Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast; easing.type: Easing.OutCubic } }
-
-                                Accessible.role: Accessible.Button
-                                Accessible.name: qsTr("Back")
-                                activeFocusOnTab: true
-                                Keys.onReturnPressed: root.back()
-                                Keys.onSpacePressed: root.back()
-
-                                Label {
-                                    anchors.centerIn: parent
-                                    text: "\u2190"  // Left arrow
-                                    font.pixelSize: Dimensions.fontTitle
-                                    color: backMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
-
-                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                }
-
-                                MouseArea {
-                                    id: backMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.back()
-                                }
-                            }
-
-                            // Title
-                            Label {
-                                text: qsTr("Ayarlar")
-                                font.pixelSize: Dimensions.headlineLarge
-                                font.weight: Font.DemiBold
-                                color: Theme.textPrimary
-                            }
-
-                            Item { Layout.fillWidth: true }
+                            text: qsTr("Ayarlar")
+                            font.pixelSize: Dimensions.headlineLarge
+                            font.weight: Font.DemiBold
+                            color: Theme.textPrimary
                         }
                     }
 
@@ -177,7 +93,7 @@ Item {
                         color: Theme.withAlpha(Theme.textPrimary, 0.06)
                     }
 
-                    Item { Layout.preferredHeight: 12 }
+                    Item { Layout.preferredHeight: 4 }
 
                     // Category list
                     Repeater {
@@ -185,8 +101,6 @@ Item {
 
                         CategoryItem {
                             Layout.fillWidth: true
-                            Layout.leftMargin: Dimensions.marginMS
-                            Layout.rightMargin: Dimensions.marginMS
                             categoryIndex: index
                             name: modelData.name
                             isSelected: selectedCategory === index
@@ -214,7 +128,6 @@ Item {
                 id: contentArea
                 width: parent.width - sidebar.width
                 height: parent.height
-                opacity: 0  // Start invisible for animation
 
                 ScrollView {
                     id: settingsScrollView
@@ -238,7 +151,7 @@ Item {
 
                         Item { Layout.preferredHeight: 32 }
 
-                        // Category title with fade animation
+                        // Category title
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.leftMargin: Dimensions.marginXL
@@ -252,15 +165,6 @@ Item {
                                 color: Theme.textPrimary
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
-
-                                opacity: 1.0
-                                Behavior on text {
-                                    SequentialAnimation {
-                                        NumberAnimation { target: parent; property: "opacity"; to: 0; duration: Dimensions.animVeryFast }
-                                        PropertyAction { }
-                                        NumberAnimation { target: parent; property: "opacity"; to: 1; duration: Dimensions.animFast }
-                                    }
-                                }
                             }
 
                             Label {
@@ -280,20 +184,8 @@ Item {
                             Layout.rightMargin: Dimensions.marginXL
                             Layout.preferredWidth: Math.min(settingsScrollView.availableWidth - 64, 640)
 
-                            // Simple smooth opacity animation
-                            opacity: 1.0
-                            Behavior on opacity {
-                                NumberAnimation {
-                                    duration: Dimensions.transitionDuration
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
-
-                            // Track pending category for smooth transition
-                            property int pendingCategory: selectedCategory
-
                             sourceComponent: {
-                                switch(pendingCategory) {
+                                switch(selectedCategory) {
                                     case 0: return generalSettings
                                     case 1: return translationSettings
                                     case 2: return projectsSettings
@@ -304,26 +196,11 @@ Item {
                                 }
                             }
 
-                            // Smooth fade transition on category change
+                            // Reset scroll on category change
                             Connections {
                                 target: root
                                 function onSelectedCategoryChanged() {
-                                    // Start fade out
-                                    contentLoader.opacity = 0
-                                    categoryChangeTimer.start()
-                                }
-                            }
-
-                            Component.onDestruction: categoryChangeTimer.stop()
-
-                            Timer {
-                                id: categoryChangeTimer
-                                interval: Dimensions.animFast  // Wait for fade out
-                                onTriggered: {
-                                    // Reset scroll position, update content, fade in
                                     settingsScrollView.ScrollBar.vertical.position = 0
-                                    contentLoader.pendingCategory = selectedCategory
-                                    contentLoader.opacity = 1
                                 }
                             }
                         }
@@ -526,7 +403,7 @@ Item {
                             }
 
                             Text {
-                                text: qsTr("Henüz yedeklenmiş oyun yok")
+                                text: qsTr("Henüz yedeklenmiş çeviri yok")
                                 font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted
                             }
@@ -801,17 +678,13 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
-                    InfoRow { label: qsTr("Uygulama"); value: Dimensions.appName }
-                    SettingsDivider {}
                     InfoRow { label: qsTr("Versiyon"); value: Dimensions.appVersionFull }
                     SettingsDivider {}
                     InfoRow { label: qsTr("Geliştirici"); value: qsTr("MakineAI Ekibi") }
                     SettingsDivider {}
-                    InfoRow { label: qsTr("Lisans"); value: qsTr("Özel Lisans") }
+                    InfoRow { label: qsTr("Lisans"); value: qsTr("Ücretsiz Lisans") }
                     SettingsDivider {}
                     InfoRow { label: qsTr("Platform"); value: Qt.platform.os }
-                    SettingsDivider {}
-                    InfoRow { label: "Qt"; value: "6.10.1" }
                 }
             }
 
@@ -828,15 +701,6 @@ Item {
                         subtitle: qsTr("Topluluk ve yardım için Discord sunucumuza katılın")
                         icon: "\uD83D\uDCAC"  // 💬
                         onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
-                    }
-
-                    SettingsDivider {}
-
-                    ClickableRow {
-                        title: "GitHub"
-                        subtitle: qsTr("Kaynak kodu, hata bildirimi ve katkılar")
-                        icon: "\uD83D\uDD17"  // 🔗
-                        onClicked: Qt.openUrlExternally("https://github.com/jlceaser/MakineAI")
                     }
 
                     SettingsDivider {}
@@ -905,11 +769,38 @@ Item {
                             Layout.fillWidth: true
                             spacing: 0
 
-                            ClickableRow {
-                                title: modelData.name
-                                subtitle: modelData.license
-                                icon: "\uD83D\uDCC4"  // 📄
-                                onClicked: Qt.openUrlExternally(modelData.url)
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 56
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: Dimensions.marginML
+                                    anchors.rightMargin: Dimensions.marginML
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.name
+                                        font.pixelSize: Dimensions.fontMD
+                                        font.weight: Font.Medium
+                                        color: Theme.textPrimary
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Label {
+                                        text: modelData.license
+                                        font.pixelSize: Dimensions.fontSM
+                                        font.weight: Font.Medium
+                                        color: Theme.textMuted
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Qt.openUrlExternally(modelData.url)
+                                }
                             }
 
                             SettingsDivider {
@@ -959,7 +850,7 @@ Item {
         }
     }
 
-    // ===== CATEGORY ITEM COMPONENT =====
+    // ===== CATEGORY ITEM COMPONENT (W10 sharp flat) =====
     component CategoryItem: Rectangle {
         id: catItem
         property int categoryIndex: 0
@@ -975,53 +866,26 @@ Item {
         Accessible.name: name
         Accessible.onPressAction: clicked()
 
-        height: 40
-        radius: Dimensions.radiusStandard
+        height: 36
+        radius: 0
         color: isSelected
             ? Theme.withAlpha(Theme.textPrimary, 0.08)
-            : ((catMouse.containsMouse || catItem.activeFocus) ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent")
+            : catMouse.pressed
+                ? Theme.withAlpha(Theme.textPrimary, 0.06)
+                : catMouse.containsMouse
+                    ? Theme.withAlpha(Theme.textPrimary, 0.04)
+                    : "transparent"
 
-        scale: catMouse.pressed ? 0.97 : 1.0
-
-        // Hover/focus glow border
-        border.color: isSelected
-            ? Theme.withAlpha(Theme.primary, 0.4)
-            : ((catMouse.containsMouse || catItem.activeFocus) ? Theme.withAlpha(Theme.textPrimary, 0.15) : "transparent")
-        border.width: isSelected ? 1.5 : 1
-
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-        Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast; easing.type: Easing.OutCubic } }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginSM
-            spacing: Dimensions.spacingLG
-
-            // Selection indicator
-            Rectangle {
-                Layout.preferredWidth: 3
-                Layout.preferredHeight: isSelected ? 20 : 0
-                radius: 2
-                color: isSelected ? Theme.textPrimary : "transparent"
-
-                Behavior on Layout.preferredHeight {
-                    NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-                }
-            }
-
-            Label {
-                text: name
-                font.pixelSize: Dimensions.fontMD
-                font.weight: isSelected ? Font.DemiBold : Font.Medium
-                color: isSelected ? Theme.textPrimary
-                     : catMouse.containsMouse ? Theme.textPrimary
-                     : Theme.textSecondary
-
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-            }
-
-            Item { Layout.fillWidth: true }
+        Label {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.leftMargin: Dimensions.marginML
+            text: name
+            font.pixelSize: Dimensions.fontMD
+            font.weight: isSelected ? Font.DemiBold : Font.Normal
+            color: isSelected ? Theme.textPrimary
+                 : catMouse.containsMouse ? Theme.textPrimary
+                 : Theme.textSecondary
         }
 
         MouseArea {
@@ -1059,7 +923,6 @@ Item {
 
     // ===== THEME SETTING =====
     component ThemeSetting: Item {
-        // Connected to SettingsManager
         property bool isDarkTheme: SettingsManager.isDarkMode
 
         Layout.fillWidth: true
@@ -1076,20 +939,24 @@ Item {
                 spacing: Dimensions.spacingXS
 
                 Label {
+                    Layout.fillWidth: true
                     text: qsTr("Tema")
                     font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: Theme.textPrimary
+                    elide: Text.ElideRight
                 }
 
                 Label {
+                    Layout.fillWidth: true
                     text: qsTr("Uygulama görünümünü seç")
                     font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
+                    elide: Text.ElideRight
                 }
             }
 
-            // Theme selector container
+            // Theme selector
             Rectangle {
                 Layout.preferredWidth: themeRow.width + 8
                 Layout.preferredHeight: 40
@@ -1101,26 +968,13 @@ Item {
                     anchors.centerIn: parent
                     spacing: Dimensions.spacingXS
 
-                    // Light theme option
+                    // Light theme — disabled (Yakında)
                     Rectangle {
-                        id: lightThemeBtn
                         width: lightRow.width + 28
                         height: 32
                         radius: Dimensions.radiusStandard
-                        color: !isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.12) : (lightMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent")
-                        border.color: !isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.2) : (lightMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent")
-                        border.width: 1
-                        scale: lightMouse.pressed ? 0.95 : 1.0
-
-                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-                        Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
-
-                        Accessible.role: Accessible.RadioButton
-                        Accessible.name: qsTr("Light theme")
-                        activeFocusOnTab: true
-                        Keys.onReturnPressed: SettingsManager.isDarkMode = false
-                        Keys.onSpacePressed: SettingsManager.isDarkMode = false
+                        color: "transparent"
+                        opacity: 0.4
 
                         Row {
                             id: lightRow
@@ -1128,61 +982,41 @@ Item {
                             spacing: Dimensions.spacingSM
 
                             Label {
-                                text: "☀"  // Sun icon
-                                font.pixelSize: Dimensions.fontMD
-                                color: !isDarkTheme ? Theme.textPrimary : (lightMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Label {
                                 text: qsTr("Açık")
                                 font.pixelSize: Dimensions.fontBody
-                                font.weight: !isDarkTheme ? Font.DemiBold : Font.Medium
-                                color: !isDarkTheme ? Theme.textPrimary : (lightMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
+                                font.weight: Font.Medium
+                                color: Theme.textMuted
                                 anchors.verticalCenter: parent.verticalCenter
                             }
-                        }
 
-                        // Focus indicator
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.margins: -2
-                            radius: parent.radius + 2
-                            color: "transparent"
-                            border.color: Theme.withAlpha(Theme.primary, 0.6)
-                            border.width: 2
-                            visible: lightThemeBtn.activeFocus
-                        }
+                            Rectangle {
+                                width: yakindaLbl.width + 10
+                                height: 16
+                                radius: 8
+                                color: Theme.withAlpha(Theme.textPrimary, 0.1)
+                                anchors.verticalCenter: parent.verticalCenter
 
-                        MouseArea {
-                            id: lightMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: SettingsManager.isDarkMode = false
+                                Label {
+                                    id: yakindaLbl
+                                    anchors.centerIn: parent
+                                    text: qsTr("Yakında")
+                                    font.pixelSize: Dimensions.fontCaption
+                                    font.weight: Font.DemiBold
+                                    color: Theme.textMuted
+                                }
+                            }
                         }
                     }
 
-                    // Dark theme option
+                    // Dark theme — active
                     Rectangle {
                         id: darkThemeBtn
                         width: darkRow.width + 28
                         height: 32
                         radius: Dimensions.radiusStandard
-                        color: isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.12) : (darkMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent")
-                        border.color: isDarkTheme ? Theme.withAlpha(Theme.textPrimary, 0.2) : (darkMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent")
+                        color: Theme.withAlpha(Theme.textPrimary, 0.12)
+                        border.color: Theme.withAlpha(Theme.textPrimary, 0.2)
                         border.width: 1
-                        scale: darkMouse.pressed ? 0.95 : 1.0
-
-                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-                        Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
-
-                        Accessible.role: Accessible.RadioButton
-                        Accessible.name: qsTr("Dark theme")
-                        activeFocusOnTab: true
-                        Keys.onReturnPressed: SettingsManager.isDarkMode = true
-                        Keys.onSpacePressed: SettingsManager.isDarkMode = true
 
                         Row {
                             id: darkRow
@@ -1190,38 +1024,12 @@ Item {
                             spacing: Dimensions.spacingSM
 
                             Label {
-                                text: "🌙"  // Moon icon
-                                font.pixelSize: Dimensions.fontMD
-                                color: isDarkTheme ? Theme.textPrimary : (darkMouse.containsMouse ? Theme.textSecondary : Theme.textMuted)
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Label {
                                 text: qsTr("Koyu")
                                 font.pixelSize: Dimensions.fontBody
-                                font.weight: isDarkTheme ? Font.DemiBold : Font.Medium
-                                color: isDarkTheme ? Theme.textPrimary : Theme.textMuted
+                                font.weight: Font.DemiBold
+                                color: Theme.textPrimary
                                 anchors.verticalCenter: parent.verticalCenter
                             }
-                        }
-
-                        // Focus indicator
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.margins: -2
-                            radius: parent.radius + 2
-                            color: "transparent"
-                            border.color: Theme.withAlpha(Theme.primary, 0.6)
-                            border.width: 2
-                            visible: darkThemeBtn.activeFocus
-                        }
-
-                        MouseArea {
-                            id: darkMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: SettingsManager.isDarkMode = true
                         }
                     }
                 }
@@ -1374,23 +1182,27 @@ Item {
                 spacing: Dimensions.spacingXS
 
                 Label {
+                    Layout.fillWidth: true
                     text: title
                     font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
                     color: Theme.textPrimary
+                    elide: Text.ElideRight
                 }
 
                 Label {
+                    Layout.fillWidth: true
                     text: description
                     font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
+                    elide: Text.ElideRight
                 }
             }
 
             Rectangle {
                 Layout.preferredWidth: Math.max(badgeLabel.width + 28, 70)
-                Layout.preferredHeight: 32
-                radius: Dimensions.radiusStandard
+                Layout.preferredHeight: 28
+                radius: 14
                 color: Theme.withAlpha(Theme.primary, 0.15)
 
                 Label {
@@ -1424,44 +1236,39 @@ Item {
                 Layout.fillWidth: true
                 spacing: Dimensions.spacingXS
 
-                RowLayout {
-                    spacing: Dimensions.spacingMD
-
-                    Label {
-                        text: title
-                        font.pixelSize: Dimensions.fontMD
-                        font.weight: Font.Medium
-                        color: Theme.textMuted
-                    }
-
-                    Rectangle {
-                        Layout.preferredWidth: yakindaLabel.width + 16
-                        Layout.preferredHeight: 20
-                        radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(Theme.textPrimary, 0.08)
-
-                        Label {
-                            id: yakindaLabel
-                            anchors.centerIn: parent
-                            text: qsTr("Yakında")
-                            font.pixelSize: Dimensions.fontCaption
-                            font.weight: Font.DemiBold
-                            color: Theme.textMuted
-                        }
-                    }
+                Label {
+                    text: title
+                    font.pixelSize: Dimensions.fontMD
+                    font.weight: Font.Medium
+                    color: Theme.textMuted
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                 }
 
                 Label {
                     text: description
                     font.pixelSize: Dimensions.fontBody
                     color: Theme.withAlpha(Theme.textMuted, 0.7)
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                 }
             }
 
-            Label {
-                text: "🔒"  // Lock icon
-                font.pixelSize: Dimensions.fontXL
-                color: Theme.textMuted
+            // Right-aligned "Yakında" badge
+            Rectangle {
+                Layout.preferredWidth: _yakindaLbl.width + 24
+                Layout.preferredHeight: 28
+                radius: 14
+                color: Theme.withAlpha(Theme.textPrimary, 0.08)
+
+                Label {
+                    id: _yakindaLbl
+                    anchors.centerIn: parent
+                    text: qsTr("Yakında")
+                    font.pixelSize: Dimensions.fontSM
+                    font.weight: Font.DemiBold
+                    color: Theme.textMuted
+                }
             }
         }
     }
@@ -1472,7 +1279,7 @@ Item {
         property string value: ""
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 60
+        Layout.preferredHeight: 56
 
         RowLayout {
             anchors.fill: parent
@@ -1480,12 +1287,12 @@ Item {
             anchors.rightMargin: Dimensions.marginML
 
             Label {
+                Layout.fillWidth: true
                 text: label
                 font.pixelSize: Dimensions.fontMD
                 color: Theme.textMuted
+                elide: Text.ElideRight
             }
-
-            Item { Layout.fillWidth: true }
 
             Label {
                 text: value

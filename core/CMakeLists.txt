@@ -99,9 +99,6 @@ set(MAKINEAI_SOURCES
     # Package Builder
     src/package_builder/package_builder.cpp
 
-    # Font Manager
-    src/font_manager/font_manager.cpp
-
     # Runtime (BepInEx/XUnity integration)
     src/runtime/runtime_manager.cpp
 
@@ -114,31 +111,12 @@ set(MAKINEAI_SOURCES
     # Version Tracker
     src/version_tracker/version_tracker.cpp
 
-    # Translation Services
-    src/translation/translation_memory.cpp
-    src/translation/glossary_service.cpp
-    src/translation/qa_service.cpp
+    # Translation API
     src/translation/translation_api.cpp
-    src/translation/string_classifier.cpp
 
     # Formats (archive parsers)
     src/formats/pickle_reader.cpp
     src/formats/rpa_archive.cpp
-
-    # Engine Handlers
-    src/handlers/engine_handler_base.cpp
-    src/handlers/unity_handler.cpp
-    src/handlers/unreal_handler.cpp
-    src/handlers/renpy_handler.cpp
-    src/handlers/rpgmaker_handler.cpp
-    src/handlers/gamemaker_handler.cpp
-    src/handlers/godot_handler.cpp
-
-    # Translation Pipeline (Decision Engine)
-    src/translation_pipeline/translation_pipeline.cpp
-
-    # Recipe System
-    src/recipe/recipe_loader.cpp
 
     # Platform (Windows)
     src/platform/windows/registry.cpp
@@ -165,11 +143,7 @@ set(MAKINEAI_HEADERS
     include/makineai/runtime_manager.hpp
     include/makineai/security.hpp
     include/makineai/version_tracker.hpp
-    include/makineai/translation_memory.hpp
-    include/makineai/glossary_service.hpp
-    include/makineai/qa_service.hpp
     include/makineai/translation_api.hpp
-    include/makineai/string_classifier.hpp
     include/makineai/types.hpp
     include/makineai/error.hpp
     include/makineai/async.hpp
@@ -183,18 +157,15 @@ set(MAKINEAI_HEADERS
     include/makineai/version.hpp
     include/makineai/memory.hpp
     include/makineai/lazy.hpp
-    include/makineai/batch.hpp
     include/makineai/scanner_base.hpp
     include/makineai/sandbox.hpp
     include/makineai/path_utils.hpp
     include/makineai/utf_utils.hpp
     include/makineai/sqlite_utils.hpp
-    include/makineai/file_watcher.hpp
     include/makineai/crypto_utils.hpp
     include/makineai/archive_utils.hpp
     include/makineai/concurrent_queue.hpp
     include/makineai/credential_store.hpp
-    include/makineai/font_manager.hpp
     include/makineai/package_builder.hpp
 
     # Modular Type Headers (Faz 3 refactor)
@@ -202,24 +173,6 @@ set(MAKINEAI_HEADERS
     include/makineai/types/game_types.hpp
     include/makineai/types/patch_types.hpp
     include/makineai/types/translation_types.hpp
-    include/makineai/types/tm_types.hpp
-    include/makineai/types/pipeline_types.hpp
-
-    # Engine Handlers
-    include/makineai/handlers/engine_handler.hpp
-    include/makineai/handlers/unity_handler.hpp
-    include/makineai/handlers/unreal_handler.hpp
-    include/makineai/handlers/renpy_handler.hpp
-    include/makineai/handlers/rpgmaker_handler.hpp
-    include/makineai/handlers/gamemaker_handler.hpp
-    include/makineai/handlers/godot_handler.hpp
-
-    # Translation Pipeline
-    include/makineai/translation_pipeline.hpp
-
-    # Recipe System
-    include/makineai/recipe_loader.hpp
-
     include/formats/unity_bundle.hpp
     include/formats/unreal_pak.hpp
     include/formats/bethesda_ba2.hpp
@@ -361,17 +314,9 @@ add_executable(test_unity tests/test_unity.cpp)
 target_link_libraries(test_unity PRIVATE makineai_core)
 target_include_directories(test_unity PRIVATE ${MAKINEAI_INCLUDE_DIR})
 
-add_executable(test_translation_api tests/test_translation_api.cpp)
-target_link_libraries(test_translation_api PRIVATE makineai_core)
-target_include_directories(test_translation_api PRIVATE ${MAKINEAI_INCLUDE_DIR})
-
 add_executable(test_game_scan tests/test_game_scan.cpp)
 target_link_libraries(test_game_scan PRIVATE makineai_core)
 target_include_directories(test_game_scan PRIVATE ${MAKINEAI_INCLUDE_DIR})
-
-add_executable(test_string_classifier tests/test_string_classifier.cpp)
-target_link_libraries(test_string_classifier PRIVATE makineai_core)
-target_include_directories(test_string_classifier PRIVATE ${MAKINEAI_INCLUDE_DIR})
 
 # Install targets
 install(TARGETS makineai_core

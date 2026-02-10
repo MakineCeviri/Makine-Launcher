@@ -98,8 +98,6 @@ public:
     Q_INVOKABLE bool hasBackup(const QString& gameId);
     Q_INVOKABLE QString getBackupPath(const QString& gameId);
     Q_INVOKABLE int backupCountForGame(const QString& gameId);
-    Q_INVOKABLE void createBackupAsync(const QString& gameId, const QString& gameName, const QString& sourcePath);
-
 signals:
     void backupProgress(double progress, const QString& status);
     void backupsChanged();

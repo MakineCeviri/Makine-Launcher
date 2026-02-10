@@ -29,6 +29,14 @@ struct PackageInfo {
     QString installType; // "overlay", "runtime", "replace"
     qint64 sizeBytes{0};
     int fileCount{0};
+    QHash<QString, QString> storeIds; // store -> id (e.g. "epic" -> "abc123")
+};
+
+struct InstalledPackageInfo {
+    QString version;
+    QString gamePath;
+    QStringList installedFiles;
+    qint64 installedAt{0};
 };
 
 class LocalPackageManager : public QObject
@@ -48,6 +56,9 @@ public:
     void installPackage(const QString& steamAppId, const QString& gamePath);
     bool uninstallPackage(const QString& steamAppId, const QString& gamePath);
 
+    // Resolve any store ID (epic_xxx, gog_xxx, steamAppId) to canonical steamAppId
+    QString resolveGameId(const QString& gameId) const;
+
     int packageCount() const { return m_packages.size(); }
     QStringList availableAppIds() const { return m_packages.keys(); }
     QVariantList allPackagesAsList() const;
@@ -65,8 +76,10 @@ private:
 
     // steamAppId -> PackageInfo
     QHash<QString, PackageInfo> m_packages;
-    // steamAppId -> installed version
-    QHash<QString, QString> m_installed;
+    // steamAppId -> installed package info
+    QHash<QString, InstalledPackageInfo> m_installed;
+    // Reverse index: any store ID -> steamAppId
+    QHash<QString, QString> m_storeIdToSteamAppId;
     QString m_dataPath;
 };
 

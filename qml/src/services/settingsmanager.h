@@ -39,6 +39,7 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool hardwareAcceleration READ hardwareAcceleration WRITE setHardwareAcceleration NOTIFY hardwareAccelerationChanged)
     Q_PROPERTY(bool useGlobalCache READ useGlobalCache WRITE setUseGlobalCache NOTIFY useGlobalCacheChanged)
     Q_PROPERTY(bool enableAnimations READ enableAnimations WRITE setEnableAnimations NOTIFY enableAnimationsChanged)
+    Q_PROPERTY(QString graphicsBackend READ graphicsBackend WRITE setGraphicsBackend NOTIFY graphicsBackendChanged)
 
     // Translation settings
     Q_PROPERTY(QString translationLanguage READ translationLanguage WRITE setTranslationLanguage NOTIFY translationLanguageChanged)
@@ -84,6 +85,10 @@ public:
     bool enableAnimations() const { return m_enableAnimations; }
     void setEnableAnimations(bool value);
 
+    QString graphicsBackend() const { return m_graphicsBackend; }
+    void setGraphicsBackend(const QString& value);
+    Q_INVOKABLE QStringList availableGraphicsBackends() const;
+
     // Translation settings
     QString translationLanguage() const { return m_translationLanguage; }
     void setTranslationLanguage(const QString& value);
@@ -119,6 +124,7 @@ signals:
     void hardwareAccelerationChanged();
     void useGlobalCacheChanged();
     void enableAnimationsChanged();
+    void graphicsBackendChanged();
     void translationLanguageChanged();
     void isDarkModeChanged();
     void onboardingCompletedChanged();
@@ -143,6 +149,7 @@ private:
     bool m_hardwareAcceleration{true};
     bool m_useGlobalCache{true};
     bool m_enableAnimations{true};
+    QString m_graphicsBackend{"auto"};
 
     // Translation
     QString m_translationLanguage{"tr"};

@@ -14,13 +14,13 @@
 #include <QStandardPaths>
 #include <QDebug>
 #include <QDirIterator>
+#include <QDateTime>
 #include <QtConcurrent>
 
 namespace makineai {
 
-// Known package ID -> Steam AppID mapping
-// Package directories use internal IDs; we map them to Steam AppIDs
-static const QHash<QString, QPair<QString, QString>> s_packageMapping = {
+// Fallback mapping used when manifest.json is not available (transition period)
+static const QHash<QString, QPair<QString, QString>> s_fallbackMapping = {
     // {packageDirName, {steamAppId, gameName}}
     {"ER1080",         {"1245620", "Elden Ring"}},
     {"BMW_10714712",   {"2358720", "Black Myth: Wukong"}},
@@ -49,7 +49,7 @@ static const QHash<QString, QPair<QString, QString>> s_packageMapping = {
     {"TES4OR_04111400",{"22330",   "The Elder Scrolls IV: Oblivion Remastered"}},
     {"COE33_56442",    {"1903340", "Clair Obscur: Expedition 33"}},
     {"JGC_1000",       {"2677660", "Indiana Jones and the Great Circle"}},
-    {"D2R_1471776",    {"990080",  "Hogwarts Legacy"}},
+    {"D2R_1471776",    {"1293830", "Diablo II: Resurrected"}},
     {"TCP_1544020",    {"1544020", "The Callisto Protocol"}},
 };
 
@@ -62,6 +62,7 @@ bool LocalPackageManager::loadFromPath(const QString& translationDataPath)
 {
     m_dataPath = translationDataPath;
     m_packages.clear();
+    m_storeIdToSteamAppId.clear();
 
     QDir baseDir(translationDataPath);
     if (!baseDir.exists()) {
@@ -114,10 +115,27 @@ void LocalPackageManager::loadManifest(const QString& manifestPath)
         QJsonObject pkgObj = it.value().toObject();
         PackageInfo info;
         info.steamAppId = it.key();
+        info.packageId = pkgObj["packageId"].toString();
         info.gameName = pkgObj["gameName"].toString();
         info.engine = pkgObj["engine"].toString();
         info.version = pkgObj["version"].toString();
         info.installType = pkgObj["installType"].toString("overlay");
+
+        // Parse storeIds for cross-store resolution
+        QJsonObject storeIdsObj = pkgObj["storeIds"].toObject();
+        for (auto sit = storeIdsObj.begin(); sit != storeIdsObj.end(); ++sit) {
+            const QString store = sit.key();
+            const QString storeId = sit.value().toString();
+            info.storeIds[store] = storeId;
+
+            // Build reverse index for non-steam stores
+            if (store == "epic") {
+                m_storeIdToSteamAppId["epic_" + storeId] = info.steamAppId;
+            } else if (store == "gog") {
+                m_storeIdToSteamAppId["gog_" + storeId] = info.steamAppId;
+            }
+        }
+
         m_packages[info.steamAppId] = info;
     }
 }
@@ -143,28 +161,52 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
             }
         }
 
-        // Map directory name to Steam AppID
-        auto mappingIt = s_packageMapping.find(dirName);
-        if (mappingIt == s_packageMapping.end()) {
+        // If already loaded from manifest by packageId, update with disk info
+        bool foundInManifest = false;
+        for (auto it = m_packages.begin(); it != m_packages.end(); ++it) {
+            if (it->packageId == dirName) {
+                foundInManifest = true;
+                if (hasExtracted) {
+                    QDirIterator fit(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+                    int count = 0;
+                    qint64 totalSize = 0;
+                    while (fit.hasNext()) {
+                        fit.next();
+                        count++;
+                        totalSize += fit.fileInfo().size();
+                    }
+                    it->fileCount = count;
+                    it->sizeBytes = totalSize;
+                }
+                break;
+            }
+        }
+
+        if (foundInManifest) continue;
+
+        // Fallback: use hardcoded mapping if manifest didn't provide this package
+        auto mappingIt = s_fallbackMapping.find(dirName);
+        if (mappingIt == s_fallbackMapping.end()) {
             continue; // Unknown package, skip
         }
 
         const QString& steamAppId = mappingIt->first;
         const QString& gameName = mappingIt->second;
 
-        // If already loaded from manifest, just verify path exists
+        // Skip if already loaded (e.g. manifest had it by steamAppId)
         if (m_packages.contains(steamAppId)) {
             auto& pkg = m_packages[steamAppId];
-            pkg.packageId = dirName;
-            if (hasExtracted) {
-                // Count files for size estimation
-                QDirIterator it(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+            if (pkg.packageId.isEmpty()) {
+                pkg.packageId = dirName;
+            }
+            if (hasExtracted && pkg.fileCount == 0) {
+                QDirIterator fit(extractedPath, QDir::Files, QDirIterator::Subdirectories);
                 int count = 0;
                 qint64 totalSize = 0;
-                while (it.hasNext()) {
-                    it.next();
+                while (fit.hasNext()) {
+                    fit.next();
                     count++;
-                    totalSize += it.fileInfo().size();
+                    totalSize += fit.fileInfo().size();
                 }
                 pkg.fileCount = count;
                 pkg.sizeBytes = totalSize;
@@ -172,21 +214,22 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
             continue;
         }
 
-        // Create package info from directory scan
+        // Create package info from directory scan + fallback mapping
         PackageInfo info;
         info.packageId = dirName;
         info.steamAppId = steamAppId;
         info.gameName = gameName;
         info.installType = "overlay";
+        info.storeIds["steam"] = steamAppId;
 
         if (hasExtracted) {
-            QDirIterator it(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+            QDirIterator fit(extractedPath, QDir::Files, QDirIterator::Subdirectories);
             int count = 0;
             qint64 totalSize = 0;
-            while (it.hasNext()) {
-                it.next();
+            while (fit.hasNext()) {
+                fit.next();
                 count++;
-                totalSize += it.fileInfo().size();
+                totalSize += fit.fileInfo().size();
             }
             info.fileCount = count;
             info.sizeBytes = totalSize;
@@ -194,6 +237,22 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
 
         m_packages[steamAppId] = info;
     }
+}
+
+QString LocalPackageManager::resolveGameId(const QString& gameId) const
+{
+    // Direct match — already a steamAppId
+    if (m_packages.contains(gameId)) {
+        return gameId;
+    }
+
+    // Reverse lookup via store IDs (epic_xxx, gog_xxx)
+    auto it = m_storeIdToSteamAppId.find(gameId);
+    if (it != m_storeIdToSteamAppId.end()) {
+        return it.value();
+    }
+
+    return {};
 }
 
 QVariantList LocalPackageManager::allPackagesAsList() const
@@ -281,6 +340,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         int total = filesToCopy.size();
         int copied = 0;
         int errors = 0;
+        int lastReported = 0;
+        QStringList installedFiles;
 
         for (const auto& [srcPath, relPath] : filesToCopy) {
             QString destPath = gamePath + "/" + relPath;
@@ -296,20 +357,31 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
             if (QFile::copy(srcPath, destPath)) {
                 copied++;
+                installedFiles.append(relPath);
             } else {
                 qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
                 errors++;
             }
 
-            double progress = static_cast<double>(copied + errors) / total;
-            emit installProgress(progress,
-                tr("%1/%2 dosya kopyalandi").arg(copied).arg(total));
+            // Throttle progress signals: every 20 files or at completion
+            int done = copied + errors;
+            if (done - lastReported >= 20 || done == total) {
+                lastReported = done;
+                double progress = static_cast<double>(done) / total;
+                emit installProgress(progress,
+                    tr("%1/%2 dosya kopyalandi").arg(copied).arg(total));
+            }
         }
 
         if (errors == 0) {
-            // Mark as installed
-            QMetaObject::invokeMethod(this, [this, steamAppId, pkg]() {
-                m_installed[steamAppId] = pkg.version;
+            // Mark as installed with file tracking
+            QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg, installedFiles]() {
+                InstalledPackageInfo instInfo;
+                instInfo.version = pkg.version;
+                instInfo.gamePath = gamePath;
+                instInfo.installedFiles = installedFiles;
+                instInfo.installedAt = QDateTime::currentSecsSinceEpoch();
+                m_installed[steamAppId] = instInfo;
                 saveInstalledState();
             }, Qt::QueuedConnection);
 
@@ -324,8 +396,31 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
 bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath)
 {
-    Q_UNUSED(gamePath)
-    // Uninstall is handled by BackupManager restore
+    auto instIt = m_installed.find(steamAppId);
+    if (instIt == m_installed.end()) {
+        return false;
+    }
+
+    const InstalledPackageInfo& instInfo = instIt.value();
+    const QString basePath = instInfo.gamePath.isEmpty() ? gamePath : instInfo.gamePath;
+
+    // Delete installed files
+    int deleted = 0;
+    int failed = 0;
+    for (const QString& relPath : instInfo.installedFiles) {
+        QString fullPath = basePath + "/" + relPath;
+        if (QFile::exists(fullPath)) {
+            if (QFile::remove(fullPath)) {
+                deleted++;
+            } else {
+                qWarning() << "Failed to remove:" << fullPath;
+                failed++;
+            }
+        }
+    }
+
+    qDebug() << "Uninstall" << steamAppId << ":" << deleted << "files deleted," << failed << "failed";
+
     m_installed.remove(steamAppId);
     saveInstalledState();
     return true;
@@ -344,7 +439,24 @@ void LocalPackageManager::loadInstalledState()
 
     QJsonObject root = doc.object();
     for (auto it = root.begin(); it != root.end(); ++it) {
-        m_installed[it.key()] = it.value().toString();
+        InstalledPackageInfo info;
+
+        if (it.value().isString()) {
+            // Legacy format: steamAppId -> version string
+            info.version = it.value().toString();
+        } else if (it.value().isObject()) {
+            // New format: steamAppId -> { version, gamePath, files, installedAt }
+            QJsonObject obj = it.value().toObject();
+            info.version = obj["version"].toString();
+            info.gamePath = obj["gamePath"].toString();
+            info.installedAt = obj["installedAt"].toInteger();
+            QJsonArray filesArr = obj["files"].toArray();
+            for (const auto& f : filesArr) {
+                info.installedFiles.append(f.toString());
+            }
+        }
+
+        m_installed[it.key()] = info;
     }
 }
 
@@ -355,12 +467,22 @@ void LocalPackageManager::saveInstalledState()
 
     QJsonObject root;
     for (auto it = m_installed.constBegin(); it != m_installed.constEnd(); ++it) {
-        root[it.key()] = it.value();
+        const InstalledPackageInfo& info = it.value();
+        QJsonObject obj;
+        obj["version"] = info.version;
+        obj["gamePath"] = info.gamePath;
+        obj["installedAt"] = info.installedAt;
+        QJsonArray filesArr;
+        for (const QString& f : info.installedFiles) {
+            filesArr.append(f);
+        }
+        obj["files"] = filesArr;
+        root[it.key()] = obj;
     }
 
     QFile file(path);
     if (file.open(QIODevice::WriteOnly)) {
-        file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+        file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
     }
 }
 

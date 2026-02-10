@@ -176,7 +176,7 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
-          modules: 'qtquick3d qtshadertools'
+          modules: 'qtshadertools'
           cache: true
 
       - name: Cache vcpkg

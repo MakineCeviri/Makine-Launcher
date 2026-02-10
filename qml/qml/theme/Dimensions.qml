@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import MakineAI 1.0
 
 /**
  * Dimensions.qml - Design system constants for MakineAI
@@ -116,16 +117,17 @@ QtObject {
     readonly property int cardBorderRadius: radiusStandard
 
     // =========================================================================
-    // ANIMATION DURATIONS (ms)
+    // ANIMATION DURATIONS (ms) — respect user's animation preference
     // =========================================================================
 
-    readonly property int animInstant: 50
-    readonly property int animVeryFast: 100
-    readonly property int animFast: 150
-    readonly property int animNormal: 250
-    readonly property int animSlow: 400
-    readonly property int animVerySlow: 800
-    readonly property int animGradient: 2000
+    readonly property bool _animEnabled: SettingsManager.enableAnimations
+    readonly property int animInstant: _animEnabled ? 50 : 0
+    readonly property int animVeryFast: _animEnabled ? 100 : 0
+    readonly property int animFast: _animEnabled ? 150 : 0
+    readonly property int animNormal: _animEnabled ? 250 : 0
+    readonly property int animSlow: _animEnabled ? 400 : 0
+    readonly property int animVerySlow: _animEnabled ? 800 : 0
+    readonly property int animGradient: _animEnabled ? 2000 : 0
 
     // =========================================================================
     // BLUR
@@ -210,10 +212,10 @@ QtObject {
     // INTERACTION DURATIONS
     // =========================================================================
 
-    readonly property int hoverDuration: 150
-    readonly property int transitionDuration: 200
-    readonly property int fadeTransitionDuration: 300
-    readonly property int splashDuration: 2500
+    readonly property int hoverDuration: _animEnabled ? 150 : 0
+    readonly property int transitionDuration: _animEnabled ? 200 : 0
+    readonly property int fadeTransitionDuration: _animEnabled ? 300 : 0
+    readonly property int splashDuration: _animEnabled ? 2500 : 0
     readonly property int tooltipDelay: 500
     readonly property real pressScale: 0.97   // Scale factor on button press
 

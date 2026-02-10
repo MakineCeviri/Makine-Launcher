@@ -196,7 +196,10 @@ private:
     void doScanEpicReal();
     void doScanGogReal();
     QString detectEngineReal(const QString& gamePath);
+    QString resolveToSteamAppId(const QString& gameId);
+    void buildDetectedGameIndex();
     LocalPackageManager* m_localPkgManager{nullptr};
+    QHash<QString, int> m_steamAppIdToDetectedIndex;
 #else
     std::unique_ptr<class PackageManager> m_packageManager;
     bool m_packageManagerInitialized{false};

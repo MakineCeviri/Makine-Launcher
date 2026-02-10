@@ -150,38 +150,33 @@ void CoreBridge::doScanSteamReal()
         return;
     }
 
-    // Collect library paths
-    QStringList libraryPaths;
+    // Collect library paths (deduplicated)
+    QSet<QString> libraryPathSet;
     const auto* libraryfolders = vdfRoot->find("libraryfolders");
     if (!libraryfolders) libraryfolders = &(*vdfRoot); // root itself might be the node
 
     for (const auto& [key, node] : libraryfolders->children) {
-        // Keys are "0", "1", "2", etc.
+        // Keys are "0", "1", "2", etc. — each is an object with a "path" child
         bool isIndex = false;
-        QString qKey = QString::fromStdString(key);
-        qKey.toInt(&isIndex);
+        QString::fromStdString(key).toInt(&isIndex);
+        if (!isIndex) continue;
 
-        if (isIndex || key == "path") {
-            QString path;
-            if (node.isObject()) {
-                path = QString::fromStdString(node.getString("path"));
-            } else {
-                path = QString::fromStdString(node.value);
-            }
+        if (!node.isObject()) continue;
+        QString path = QString::fromStdString(node.getString("path"));
+        if (path.isEmpty()) continue;
 
-            if (!path.isEmpty()) {
-                path = QDir::cleanPath(path);
-                if (QDir(path + "/steamapps").exists()) {
-                    libraryPaths.append(path);
-                }
-            }
+        path = QDir::cleanPath(path);
+        if (QDir(path + "/steamapps").exists()) {
+            libraryPathSet.insert(path);
         }
     }
 
     // Always include main Steam path
-    if (!libraryPaths.contains(steamPath) && QDir(steamPath + "/steamapps").exists()) {
-        libraryPaths.prepend(steamPath);
+    if (QDir(steamPath + "/steamapps").exists()) {
+        libraryPathSet.insert(steamPath);
     }
+
+    QStringList libraryPaths = libraryPathSet.values();
 
     qDebug() << "Found" << libraryPaths.size() << "Steam library folders";
 
@@ -253,7 +248,7 @@ void CoreBridge::doScanSteamReal()
             emit gameDetected(game.id, game.name);
 
             processed++;
-            if (processed % 10 == 0 && totalGames > 0) {
+            if (processed % 50 == 0 && totalGames > 0) {
                 emit scanProgress(0.1 + 0.5 * (static_cast<qreal>(processed) / totalGames),
                     tr("Steam: %1 oyun bulundu...").arg(m_detectedGames.count()));
             }
@@ -269,10 +264,14 @@ void CoreBridge::doScanEpicReal()
 {
     emit scanProgress(0.65, tr("Epic Games taranıyor..."));
 
-    QString manifestDir = "C:/ProgramData/Epic/EpicGamesLauncher/Data/Manifests";
+    // Find Epic manifest dir on any drive (ProgramData is on the system drive)
+    QString systemDrive = QString::fromLocal8Bit(qgetenv("SystemDrive")); // e.g. "C:"
+    if (systemDrive.isEmpty()) systemDrive = "C:";
+
+    QString manifestDir = systemDrive + "/ProgramData/Epic/EpicGamesLauncher/Data/Manifests";
     QDir dir(manifestDir);
     if (!dir.exists()) {
-        qDebug() << "Epic Games manifest directory not found";
+        qDebug() << "Epic Games manifest directory not found at" << manifestDir;
         return;
     }
 
@@ -494,11 +493,19 @@ void CoreBridge::scanAllLibraries()
             if (game.engine.isEmpty() || game.engine == "Unknown") {
                 game.engine = detectEngineReal(game.installPath);
             }
-            // Check translation availability
-            if (m_localPkgManager && m_localPkgManager->hasPackage(game.steamAppId)) {
-                game.hasTranslation = true;
+            // Check translation availability via ID resolution
+            if (m_localPkgManager) {
+                QString resolved = resolveToSteamAppId(game.id);
+                if (!resolved.isEmpty() && m_localPkgManager->hasPackage(resolved)) {
+                    game.hasTranslation = true;
+                }
             }
         }
+
+        // Build lookup index after scan
+        QMetaObject::invokeMethod(this, [this]() {
+            buildDetectedGameIndex();
+        }, Qt::QueuedConnection);
 
         emit scanProgress(1.0, tr("%1 oyun bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
@@ -577,6 +584,38 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
 }
 
 
+// ========== ID Resolution ==========
+
+QString CoreBridge::resolveToSteamAppId(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+
+    // Direct match
+    if (m_localPkgManager->hasPackage(gameId)) return gameId;
+
+    // Reverse lookup via storeIds
+    return m_localPkgManager->resolveGameId(gameId);
+}
+
+void CoreBridge::buildDetectedGameIndex()
+{
+    m_steamAppIdToDetectedIndex.clear();
+    for (int i = 0; i < m_detectedGames.size(); ++i) {
+        const QString& steamAppId = m_detectedGames[i].steamAppId;
+        if (!steamAppId.isEmpty()) {
+            m_steamAppIdToDetectedIndex[steamAppId] = i;
+        }
+        // Also index by game.id for Epic/GOG (epic_xxx, gog_xxx)
+        const QString& gameId = m_detectedGames[i].id;
+        if (gameId != steamAppId && !gameId.isEmpty()) {
+            QString resolved = resolveToSteamAppId(gameId);
+            if (!resolved.isEmpty()) {
+                m_steamAppIdToDetectedIndex[resolved] = i;
+            }
+        }
+    }
+}
+
 // ========== Supported Games Catalog ==========
 
 QVariantList CoreBridge::allSupportedGames() const
@@ -585,24 +624,19 @@ QVariantList CoreBridge::allSupportedGames() const
 
     QVariantList catalog = m_localPkgManager->allPackagesAsList();
 
-    // Enrich each catalog entry with install status from detected games
+    // Enrich each catalog entry with install status using O(1) hash lookup
     for (int i = 0; i < catalog.size(); ++i) {
         QVariantMap entry = catalog[i].toMap();
         const QString steamAppId = entry["steamAppId"].toString();
 
-        bool found = false;
-        for (const auto& game : m_detectedGames) {
-            if (game.steamAppId == steamAppId) {
-                entry["isInstalled"] = true;
-                entry["installPath"] = game.installPath;
-                entry["id"] = game.id;
-                entry["source"] = game.source;
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
+        auto it = m_steamAppIdToDetectedIndex.find(steamAppId);
+        if (it != m_steamAppIdToDetectedIndex.end()) {
+            const auto& game = m_detectedGames[it.value()];
+            entry["isInstalled"] = true;
+            entry["installPath"] = game.installPath;
+            entry["id"] = game.id;
+            entry["source"] = game.source;
+        } else {
             entry["isInstalled"] = false;
             entry["id"] = steamAppId;
         }
@@ -627,17 +661,20 @@ int CoreBridge::supportedGameCount() const
 
 bool CoreBridge::hasTranslationPackage(const QString& gameId)
 {
-    if (m_localPkgManager) {
-        return m_localPkgManager->hasPackage(gameId);
-    }
-    return false;
+    if (!m_localPkgManager) return false;
+
+    QString resolved = resolveToSteamAppId(gameId);
+    return !resolved.isEmpty() && m_localPkgManager->hasPackage(resolved);
 }
 
 std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString& gameId)
 {
     if (!m_localPkgManager) return std::nullopt;
 
-    auto pkg = m_localPkgManager->getPackage(gameId);
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return std::nullopt;
+
+    auto pkg = m_localPkgManager->getPackage(resolved);
     if (!pkg) return std::nullopt;
 
     TranslationPackageQt qtPkg;
@@ -657,36 +694,30 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
         return;
     }
 
-    // packageId here is the steamAppId or the internal package ID
-    // Try to find by steamAppId first
-    if (m_localPkgManager->hasPackage(packageId)) {
-        m_localPkgManager->installPackage(packageId, gamePath);
+    QString resolved = resolveToSteamAppId(packageId);
+    if (!resolved.isEmpty() && m_localPkgManager->hasPackage(resolved)) {
+        m_localPkgManager->installPackage(resolved, gamePath);
     } else {
-        // Try to resolve from detected games
-        for (const auto& game : m_detectedGames) {
-            if (game.id == packageId && m_localPkgManager->hasPackage(game.steamAppId)) {
-                m_localPkgManager->installPackage(game.steamAppId, gamePath);
-                return;
-            }
-        }
         emit packageInstallCompleted(false, tr("Paket bulunamadı: %1").arg(packageId));
     }
 }
 
 bool CoreBridge::isPackageInstalled(const QString& gameId)
 {
-    if (m_localPkgManager) {
-        return m_localPkgManager->isInstalled(gameId);
-    }
-    return false;
+    if (!m_localPkgManager) return false;
+
+    QString resolved = resolveToSteamAppId(gameId);
+    return !resolved.isEmpty() && m_localPkgManager->isInstalled(resolved);
 }
 
 bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath)
 {
-    if (m_localPkgManager) {
-        return m_localPkgManager->uninstallPackage(gameId, gamePath);
-    }
-    return false;
+    if (!m_localPkgManager) return false;
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return false;
+
+    return m_localPkgManager->uninstallPackage(resolved, gamePath);
 }
 
 void CoreBridge::refreshPackageManifest()

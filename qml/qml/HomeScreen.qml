@@ -889,8 +889,7 @@ Item {
                                     remainingCount: Math.max(0, GameService.supportedGameCount - gamesRepeater.count)
 
                                     onClicked: {
-                                        allGamesDialog.games = GameService.supportedGames
-                                        allGamesDialog.open()
+                                        allGamesDialogLoader.active = true
                                     }
                                 }
                             }
@@ -1699,21 +1698,96 @@ Item {
 
                                     property bool hov: libCardMouse.containsMouse
 
+                                    // Hover lift: Y translate + scale (matches GameCard)
                                     transform: [
-                                        Translate { y: libCard.hov ? -3 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
+                                        Translate { y: libCard.hov ? -4 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
                                         Scale {
                                             origin.x: libCard.width / 2; origin.y: libCard.height / 2
-                                            xScale: libCard.hov ? 1.015 : 1.0; yScale: libCard.hov ? 1.015 : 1.0
+                                            xScale: libCard.hov ? 1.02 : 1.0; yScale: libCard.hov ? 1.02 : 1.0
                                             Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
                                             Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
                                         }
                                     ]
 
                                     Rectangle {
+                                        id: libCardClip
                                         anchors.fill: parent
                                         radius: Dimensions.cardBorderRadius
                                         color: Theme.surface
                                         clip: true
+
+                                        // Animated gradient border phase
+                                        property real borderPhase: 0
+                                        NumberAnimation on borderPhase {
+                                            from: 0; to: 1
+                                            duration: 8000
+                                            loops: Animation.Infinite
+                                            running: libCard.hov
+                                        }
+
+                                        // Animated rainbow gradient border (matches GameCard)
+                                        Canvas {
+                                            anchors.fill: parent
+                                            z: Dimensions.zContent
+                                            property real phase: libCardClip.borderPhase
+                                            onPhaseChanged: if (hov) requestPaint()
+                                            property bool hov: libCard.hov
+                                            onHovChanged: requestPaint()
+
+                                            onPaint: {
+                                                var ctx = getContext("2d")
+                                                ctx.clearRect(0, 0, width, height)
+
+                                                var angle = phase * Math.PI * 2
+                                                var cx = width / 2, cy = height / 2
+                                                var len = Math.max(width, height) * 0.7
+                                                var x1 = cx + Math.cos(angle) * len
+                                                var y1 = cy + Math.sin(angle) * len
+                                                var x2 = cx - Math.cos(angle) * len
+                                                var y2 = cy - Math.sin(angle) * len
+
+                                                var grad = ctx.createLinearGradient(x1, y1, x2, y2)
+                                                var colors = Theme.brandGradient
+                                                for (var i = 0; i < colors.length; i++)
+                                                    grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
+
+                                                var bw = 1.5
+                                                var r = Dimensions.cardBorderRadius - bw / 2
+                                                var px = bw / 2, py = bw / 2
+                                                var w = width - bw, h = height - bw
+
+                                                ctx.beginPath()
+                                                ctx.moveTo(px + r, py)
+                                                ctx.lineTo(px + w - r, py)
+                                                ctx.arcTo(px + w, py, px + w, py + r, r)
+                                                ctx.lineTo(px + w, py + h - r)
+                                                ctx.arcTo(px + w, py + h, px + w - r, py + h, r)
+                                                ctx.lineTo(px + r, py + h)
+                                                ctx.arcTo(px, py + h, px, py + h - r, r)
+                                                ctx.lineTo(px, py + r)
+                                                ctx.arcTo(px, py, px + r, py, r)
+                                                ctx.closePath()
+
+                                                ctx.strokeStyle = grad
+                                                ctx.lineWidth = bw
+                                                ctx.globalAlpha = hov ? 0.8 : 0.0
+                                                ctx.stroke()
+                                            }
+                                        }
+
+                                        // Mask for rounded corners
+                                        Item {
+                                            id: libImgMask
+                                            anchors.fill: parent
+                                            visible: false
+                                            layer.enabled: true
+
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                radius: Dimensions.cardBorderRadius
+                                                color: "white"
+                                            }
+                                        }
 
                                         Image {
                                             id: libImg
@@ -1723,14 +1797,25 @@ Item {
                                             sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
                                             asynchronous: true
                                             cache: true
-                                            visible: status === Image.Ready
+                                            visible: false
+                                        }
+
+                                        // Masked image with brightness on hover
+                                        MultiEffect {
+                                            anchors.fill: libImg
+                                            source: libImg
+                                            maskEnabled: true
+                                            maskSource: libImgMask
+                                            visible: libImg.status === Image.Ready
+                                            brightness: libCard.hov ? 0.06 : 0
+                                            Behavior on brightness { NumberAnimation { duration: Dimensions.animNormal } }
                                         }
 
                                         // Placeholder
                                         Rectangle {
                                             anchors.fill: parent
                                             color: Theme.withAlpha(Theme.textPrimary, 0.04)
-                                            visible: !libImg.visible
+                                            visible: libImg.status !== Image.Ready
 
                                             Text {
                                                 anchors.centerIn: parent
@@ -1813,25 +1898,17 @@ Item {
                                             maximumLineCount: 2
                                             wrapMode: Text.WordWrap
                                         }
-
-                                        // Hover tint
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            color: Theme.withAlpha(Theme.primary, 0.08)
-                                            opacity: libCard.hov ? 1.0 : 0.0
-                                            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
-                                        }
                                     }
 
-                                    // Hover border
+                                    // Focus indicator
                                     Rectangle {
-                                        anchors.fill: parent
-                                        radius: Dimensions.cardBorderRadius
+                                        anchors.fill: libCardClip
+                                        anchors.margins: -2
+                                        radius: libCardClip.radius + 2
                                         color: "transparent"
-                                        border.width: 1
-                                        border.color: Theme.withAlpha(Theme.primary, 0.4)
-                                        opacity: libCard.hov ? 1.0 : 0.0
-                                        Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+                                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                        border.width: 2
+                                        visible: libCard.activeFocus
                                     }
 
                                     MouseArea {
@@ -2286,17 +2363,96 @@ Item {
         }
     }
 
-    // ===== ALL GAMES DIALOG =====
-    AllGamesDialog {
-        id: allGamesDialog
+    // ===== ALL GAMES LOADING OVERLAY =====
+    Rectangle {
+        id: allGamesLoadingOverlay
         parent: Overlay.overlay
+        anchors.fill: parent
+        color: Theme.withAlpha("#000000", 0.4)
+        visible: allGamesDialogLoader.active && allGamesDialogLoader.status !== Loader.Ready
+        z: 999
 
-        onGameSelected: function(gameId) {
-            var gameData = GameService.getGameById(gameId)
-            if (gameData) {
-                root.gameSelected(gameId, gameData.name, gameData.installPath, gameData.engine || "Unknown")
+        // Block clicks while loading
+        MouseArea { anchors.fill: parent }
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 16
+
+            // Spinning arc indicator
+            Item {
+                width: 40; height: 40
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                Rectangle {
+                    id: spinnerRing
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
+                    border.width: 3
+                }
+
+                Canvas {
+                    id: spinnerArc
+                    anchors.fill: parent
+
+                    property real angle: 0
+                    NumberAnimation on angle {
+                        from: 0; to: 360
+                        duration: 1000
+                        loops: Animation.Infinite
+                        running: allGamesLoadingOverlay.visible
+                    }
+                    onAngleChanged: requestPaint()
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        ctx.strokeStyle = Theme.primary
+                        ctx.lineWidth = 3
+                        ctx.lineCap = "round"
+                        var startRad = angle * Math.PI / 180
+                        ctx.beginPath()
+                        ctx.arc(width / 2, height / 2, width / 2 - 2, startRad, startRad + Math.PI * 0.75)
+                        ctx.stroke()
+                    }
+                }
             }
-            close()
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Yükleniyor...")
+                font.pixelSize: Dimensions.fontSM
+                font.weight: Font.Medium
+                color: Theme.textPrimary
+            }
+        }
+    }
+
+    // ===== ALL GAMES DIALOG (lazy-loaded) =====
+    Loader {
+        id: allGamesDialogLoader
+        active: false
+        sourceComponent: Component {
+            AllGamesDialog {
+                parent: Overlay.overlay
+
+                Component.onCompleted: {
+                    games = GameService.supportedGames
+                    open()
+                }
+
+                onGameSelected: function(gameId) {
+                    var gameData = GameService.getGameById(gameId)
+                    if (gameData) {
+                        root.gameSelected(gameId, gameData.name, gameData.installPath, gameData.engine || "Unknown")
+                    }
+                    close()
+                }
+
+                onClosed: allGamesDialogLoader.active = false
+            }
         }
     }
 

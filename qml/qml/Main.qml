@@ -54,8 +54,18 @@ ApplicationWindow {
 
     readonly property int resizeMargin: 6
 
+    // Pending game detail data for lazy-loaded GameDetailScreen
+    property var _pendingGameDetail: null
+
+    // Pending data for lazy-loaded warning dialogs
+    property var _pendingCompatData: null
+    property var _pendingAntiCheatData: null
+
     // Store normal geometry before maximize so restore works on frameless windows
     property rect normalGeometry: Qt.rect(0, 0, 0, 0)
+
+    // Force quit flag — bypasses minimize-to-tray on close
+    property bool _forceQuit: false
 
     Component.onDestruction: pageChangeTimer.stop()
 
@@ -68,7 +78,7 @@ ApplicationWindow {
             SettingsManager.saveWindowGeometry(window.x, window.y, window.width, window.height, true)
         }
 
-        if (SettingsManager.minimizeToTray) {
+        if (SettingsManager.minimizeToTray && !window._forceQuit) {
             close.accepted = false
             window.minimizeToTray()
         } else {
@@ -95,6 +105,7 @@ ApplicationWindow {
             contentStackContainer.navigateTo(1)
         }
         function onQuitRequested() {
+            window._forceQuit = true
             Qt.quit()
         }
     }
@@ -211,8 +222,9 @@ ApplicationWindow {
         }
     }
 
-    // GPU Optimization: Disable animations when window is not visible/active
-    readonly property bool animationsEnabled: window.visible &&
+    // GPU Optimization: Disable animations when window is not visible/active or user disabled them
+    readonly property bool animationsEnabled: SettingsManager.enableAnimations &&
+                                              window.visible &&
                                               window.active &&
                                               window.visibility !== Window.Minimized &&
                                               window.visibility !== Window.Hidden
@@ -244,6 +256,7 @@ ApplicationWindow {
             Layout.preferredHeight: Dimensions.titlebarHeight
             windowRef: window
             translationMode: window.currentNavIndex === 2
+            projectsMode: window.currentNavIndex === 1
 
             onMinimizeClicked: window.showMinimized()
             onMaximizeClicked: {
@@ -426,7 +439,7 @@ ApplicationWindow {
                 switch(index) {
                     case 0: return homeView
                     case 1: return settingsLoader
-                    case 2: return gameDetailView
+                    case 2: return gameDetailLoader
                     default: return null
                 }
             }
@@ -471,17 +484,27 @@ ApplicationWindow {
                 animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
-                    gameDetailView.resetDetails()
-                    gameDetailView.gameName = gameName
-                    gameDetailView.engine = engine
                     var gameData = GameService.getGameById(gameId)
-                    if (gameData) {
-                        gameDetailView.imageUrl = gameData.headerImageUrl || ""
-                        gameDetailView.verified = gameData.isVerified || false
-                        // Set steamAppId before gameId so onSteamAppIdChanged fires with data ready
-                        gameDetailView.steamAppId = gameData.steamAppId || ""
+                    window._pendingGameDetail = {
+                        gameId: gameId,
+                        gameName: gameName,
+                        engine: engine,
+                        imageUrl: (gameData && gameData.headerImageUrl) || "",
+                        verified: (gameData && gameData.isVerified) || false,
+                        steamAppId: (gameData && gameData.steamAppId) || ""
                     }
-                    gameDetailView.gameId = gameId
+                    // If loader already active, apply immediately
+                    if (gameDetailLoader.item) {
+                        var d = window._pendingGameDetail
+                        gameDetailLoader.item.resetDetails()
+                        gameDetailLoader.item.gameName = d.gameName
+                        gameDetailLoader.item.engine = d.engine
+                        gameDetailLoader.item.imageUrl = d.imageUrl
+                        gameDetailLoader.item.verified = d.verified
+                        gameDetailLoader.item.steamAppId = d.steamAppId
+                        gameDetailLoader.item.gameId = d.gameId
+                        window._pendingGameDetail = null
+                    }
                     contentStackContainer.navigateTo(2)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
@@ -502,39 +525,63 @@ ApplicationWindow {
                     }
                 }
             }
-            GameDetailScreen {
-                id: gameDetailView
+            // Lazy-loaded game detail page (only created when navigated to)
+            Loader {
+                id: gameDetailLoader
                 anchors.fill: parent
+                active: contentStackContainer.gameDetailVisible
                 visible: contentStackContainer.gameDetailVisible
-                onBackClicked: {
-                    contentStackContainer.navigateTo(0)
-                    window.currentNavIndex = 0
-                }
-                onTranslateClicked: {
-                    var gameData = GameService.getGameById(gameDetailView.gameId)
+                sourceComponent: Component {
+                    GameDetailScreen {
+                        onBackClicked: {
+                            contentStackContainer.navigateTo(0)
+                            window.currentNavIndex = 0
+                        }
+                        onTranslateClicked: {
+                            var gd = GameService.getGameById(gameId)
 
-                    // Pre-flight 1: Compatibility check
-                    var compat = GameService.checkCompatibility(gameDetailView.gameId)
-                    if (compat && (compat.level === "incompatible" || compat.level === "partial")) {
-                        compatWarningDialog.gameName = gameDetailView.gameName
-                        compatWarningDialog.compatibilityLevel = compat.level
-                        compatWarningDialog.integrityPercent = compat.integrityPercent || 100
-                        compatWarningDialog.modifiedCount = compat.modifiedCount || 0
-                        compatWarningDialog.open()
-                        return
+                            // Pre-flight 1: Compatibility check
+                            var compat = GameService.checkCompatibility(gameId)
+                            if (compat && (compat.level === "incompatible" || compat.level === "partial")) {
+                                window._pendingCompatData = {
+                                    gameName: gameName,
+                                    compatibilityLevel: compat.level,
+                                    integrityPercent: compat.integrityPercent || 100,
+                                    modifiedCount: compat.modifiedCount || 0
+                                }
+                                compatWarningLoader.active = true
+                                return
+                            }
+
+                            // Pre-flight 2: Anti-cheat check
+                            var antiCheat = GameService.checkAntiCheat(gameId)
+                            if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
+                                window._pendingAntiCheatData = {
+                                    gameName: gameName,
+                                    detectedSystems: antiCheat.systems
+                                }
+                                antiCheatWarningLoader.active = true
+                                return
+                            }
+
+                            // All checks passed — install translation package
+                            GameService.installTranslation(gameId)
+                        }
+                        Component.onCompleted: {
+                            // Apply pending game data when loader creates the screen
+                            if (window._pendingGameDetail) {
+                                var d = window._pendingGameDetail
+                                resetDetails()
+                                gameName = d.gameName
+                                engine = d.engine
+                                imageUrl = d.imageUrl
+                                verified = d.verified
+                                steamAppId = d.steamAppId
+                                gameId = d.gameId
+                                window._pendingGameDetail = null
+                            }
+                        }
                     }
-
-                    // Pre-flight 2: Anti-cheat check
-                    var antiCheat = GameService.checkAntiCheat(gameDetailView.gameId)
-                    if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
-                        antiCheatWarningDialog.gameName = gameDetailView.gameName
-                        antiCheatWarningDialog.detectedSystems = antiCheat.systems
-                        antiCheatWarningDialog.open()
-                        return
-                    }
-
-                    // All checks passed — install translation package
-                    GameService.installTranslation(gameDetailView.gameId)
                 }
             }
 
@@ -671,29 +718,54 @@ ApplicationWindow {
         }
     }
 
-    // ===== COMPATIBILITY WARNING DIALOG =====
-    CompatibilityWarningDialog {
-        id: compatWarningDialog
-        parent: Overlay.overlay
-
-        onProceedAnyway: {
-            var gameData = GameService.getGameById(gameDetailView.gameId)
-            gameDetailView.startTranslationWorkflow(gameData)
-        }
-        onRestoreBackup: {
-            // Navigate to game detail screen's backup section
-            contentStackContainer.navigateTo(2)
+    // ===== COMPATIBILITY WARNING DIALOG (lazy) =====
+    Loader {
+        id: compatWarningLoader
+        active: false
+        sourceComponent: Component {
+            CompatibilityWarningDialog {
+                parent: Overlay.overlay
+                onProceedAnyway: {
+                    var gd = gameDetailLoader.item
+                    if (gd) { var gameData = GameService.getGameById(gd.gameId); gd.startTranslationWorkflow(gameData) }
+                }
+                onRestoreBackup: contentStackContainer.navigateTo(2)
+                onClosed: compatWarningLoader.active = false
+                Component.onCompleted: {
+                    if (window._pendingCompatData) {
+                        gameName = window._pendingCompatData.gameName
+                        compatibilityLevel = window._pendingCompatData.compatibilityLevel
+                        integrityPercent = window._pendingCompatData.integrityPercent
+                        modifiedCount = window._pendingCompatData.modifiedCount
+                        window._pendingCompatData = null
+                    }
+                    open()
+                }
+            }
         }
     }
 
-    // ===== ANTI-CHEAT WARNING DIALOG =====
-    AntiCheatWarningDialog {
-        id: antiCheatWarningDialog
-        parent: Overlay.overlay
-
-        onContinueAnyway: {
-            var gameData = GameService.getGameById(gameDetailView.gameId)
-            gameDetailView.startTranslationWorkflow(gameData)
+    // ===== ANTI-CHEAT WARNING DIALOG (lazy) =====
+    Loader {
+        id: antiCheatWarningLoader
+        active: false
+        sourceComponent: Component {
+            AntiCheatWarningDialog {
+                parent: Overlay.overlay
+                onContinueAnyway: {
+                    var gd = gameDetailLoader.item
+                    if (gd) { var gameData = GameService.getGameById(gd.gameId); gd.startTranslationWorkflow(gameData) }
+                }
+                onClosed: antiCheatWarningLoader.active = false
+                Component.onCompleted: {
+                    if (window._pendingAntiCheatData) {
+                        gameName = window._pendingAntiCheatData.gameName
+                        detectedSystems = window._pendingAntiCheatData.detectedSystems
+                        window._pendingAntiCheatData = null
+                    }
+                    open()
+                }
+            }
         }
     }
 
@@ -732,16 +804,19 @@ ApplicationWindow {
         }
     }
 
-    // ===== ONBOARDING WIZARD OVERLAY =====
-    OnboardingWizard {
-        id: onboardingWizard
+    // ===== ONBOARDING WIZARD OVERLAY (lazy: unloaded after completion) =====
+    Loader {
+        id: onboardingLoader
         anchors.fill: parent
-        z: Dimensions.zOverlay
-        visible: !SettingsManager.onboardingCompleted
-        onCompleted: {
-            // Trigger initial game scan if not already done
-            if (GameService.gameCount === 0) {
-                GameService.scanAllLibraries()
+        active: !SettingsManager.onboardingCompleted
+        sourceComponent: Component {
+            OnboardingWizard {
+                z: Dimensions.zOverlay
+                onCompleted: {
+                    if (GameService.gameCount === 0) {
+                        GameService.scanAllLibraries()
+                    }
+                }
             }
         }
     }
@@ -751,6 +826,7 @@ ApplicationWindow {
         id: titleBarRoot
         property var windowRef
         property bool translationMode: false
+        property bool projectsMode: false
         signal minimizeClicked()
         signal maximizeClicked()
         signal closeClicked()
@@ -794,7 +870,7 @@ ApplicationWindow {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
                 radius: Dimensions.radiusStandard
-                visible: titleBarRoot.translationMode
+                visible: titleBarRoot.translationMode || titleBarRoot.projectsMode
                 color: Theme.turkishRed
                 clip: true
 
@@ -836,7 +912,7 @@ ApplicationWindow {
             Image {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
-                visible: !titleBarRoot.translationMode
+                visible: !titleBarRoot.translationMode && !titleBarRoot.projectsMode
                 source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
                 sourceSize: Qt.size(18, 18)
                 fillMode: Image.PreserveAspectFit
@@ -1002,7 +1078,7 @@ ApplicationWindow {
                     width: 52; height: 52
                     active: true
                     animationsEnabled: window.animationsEnabled
-                    opacity: logoMouse.containsMouse ? 0.8
+                    opacity: logoMouse.containsMouse ? 0.9
                            : navBarRoot.currentIndex === 0 ? 0.6
                            : 0.2
                     Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
@@ -1111,7 +1187,7 @@ ApplicationWindow {
                 }
 
                 Canvas {
-                    id: coffeeCanvas
+                    id: heartCanvas
                     anchors.centerIn: parent
                     width: 20; height: 20
                     rotation: donateItem.wobble
@@ -1143,25 +1219,17 @@ ApplicationWindow {
                         ctx.lineCap = "round"
                         ctx.lineJoin = "round"
 
-                        var s = 20 / 24
+                        // Heart shape
+                        var s = width / 20
                         ctx.beginPath()
-                        ctx.arc(17 * s - 0.5, 12 * s, 3.2 * s, -Math.PI / 2, Math.PI / 2)
-                        ctx.stroke()
-
-                        ctx.beginPath()
-                        ctx.moveTo(3 * s, 8 * s)
-                        ctx.lineTo(17 * s, 8 * s)
-                        ctx.lineTo(17 * s, 17 * s)
-                        ctx.quadraticCurveTo(17 * s, 21 * s, 13 * s, 21 * s)
-                        ctx.lineTo(7 * s, 21 * s)
-                        ctx.quadraticCurveTo(3 * s, 21 * s, 3 * s, 17 * s)
+                        ctx.moveTo(10 * s, 17 * s)
+                        ctx.bezierCurveTo(10 * s, 17 * s, 3 * s, 12 * s, 3 * s, 8 * s)
+                        ctx.bezierCurveTo(3 * s, 5 * s, 5.5 * s, 3 * s, 7 * s, 3 * s)
+                        ctx.bezierCurveTo(8.5 * s, 3 * s, 9.5 * s, 4 * s, 10 * s, 5.5 * s)
+                        ctx.bezierCurveTo(10.5 * s, 4 * s, 11.5 * s, 3 * s, 13 * s, 3 * s)
+                        ctx.bezierCurveTo(14.5 * s, 3 * s, 17 * s, 5 * s, 17 * s, 8 * s)
+                        ctx.bezierCurveTo(17 * s, 12 * s, 10 * s, 17 * s, 10 * s, 17 * s)
                         ctx.closePath()
-                        ctx.stroke()
-
-                        ctx.beginPath()
-                        ctx.moveTo(6 * s, 2 * s); ctx.lineTo(6 * s, 4.5 * s)
-                        ctx.moveTo(10 * s, 2 * s); ctx.lineTo(10 * s, 4.5 * s)
-                        ctx.moveTo(14 * s, 2 * s); ctx.lineTo(14 * s, 4.5 * s)
                         ctx.stroke()
                     }
                 }

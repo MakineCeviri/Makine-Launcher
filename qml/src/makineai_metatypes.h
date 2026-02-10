@@ -38,8 +38,7 @@ enum class GameSortOrder {
     NameAsc = 0,
     NameDesc,
     EngineAsc,
-    EngineDesc,
-    RecentFirst
+    EngineDesc
 };
 Q_ENUM_NS(GameSortOrder)
 
