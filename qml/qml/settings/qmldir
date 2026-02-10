@@ -1,8 +1,0 @@
-module MakineAI.settings
-
-AboutSettings 1.0 AboutSettings.qml
-DeveloperSettings 1.0 DeveloperSettings.qml
-GeneralSettings 1.0 GeneralSettings.qml
-PerformanceSettings 1.0 PerformanceSettings.qml
-ProjectsSettings 1.0 ProjectsSettings.qml
-TranslationSettings 1.0 TranslationSettings.qml

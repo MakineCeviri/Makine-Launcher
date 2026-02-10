@@ -1,6 +1,0 @@
-module MakineAI.dialogs
-
-GameDetectorDialog 1.0 GameDetectorDialog.qml
-AllGamesDialog 1.0 AllGamesDialog.qml
-AntiCheatWarningDialog 1.0 AntiCheatWarningDialog.qml
-CompatibilityWarningDialog 1.0 CompatibilityWarningDialog.qml
