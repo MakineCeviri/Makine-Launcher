@@ -52,6 +52,9 @@ class SettingsManager : public QObject
     // Language
     Q_PROPERTY(QString appLanguage READ appLanguage WRITE setAppLanguage NOTIFY appLanguageChanged)
 
+    // Paths
+    Q_PROPERTY(QString translationDataPath READ translationDataPath WRITE setTranslationDataPath NOTIFY translationDataPathChanged)
+
 public:
     explicit SettingsManager(QObject *parent = nullptr);
     ~SettingsManager() override;
@@ -98,6 +101,10 @@ public:
     void setAppLanguage(const QString& value);
     Q_INVOKABLE QStringList availableLanguages() const;
 
+    // Paths
+    QString translationDataPath() const { return m_translationDataPath; }
+    void setTranslationDataPath(const QString& value);
+
     // Q_INVOKABLE methods
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
@@ -116,6 +123,7 @@ signals:
     void isDarkModeChanged();
     void onboardingCompletedChanged();
     void appLanguageChanged();
+    void translationDataPathChanged();
     void settingsChanged();
 
 private:
@@ -147,6 +155,9 @@ private:
 
     // Language
     QString m_appLanguage{"tr"};
+
+    // Paths
+    QString m_translationDataPath{"C:/cedra/translation_data/mc-main"};
 };
 
 } // namespace makineai

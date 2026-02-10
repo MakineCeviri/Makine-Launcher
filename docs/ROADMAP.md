@@ -1,149 +1,149 @@
-# MakineAI Yol Haritası
+# MakineAI Yol Haritasi
 
-**Son Güncelleme:** 2026-02-06
+**Son Guncelleme:** 2026-02-10
 
 ---
 
 ## Genel Durum
 
 ```
-██████████████████░░░░░░░░░░  62%  GENEL TAMAMLANMA
+████████████████░░░░░░░░░░░░  55%  GENEL TAMAMLANMA
 ```
 
-| Bölüm | Tamamlanma | Ağırlık | Durum |
-|-------|-----------|---------|-------|
-| C++ Core Library | %72 | %35 | Altyapı sağlam, parser/download eksik |
-| QML Arayüz | %75 | %25 | Görsel tamam, core entegrasyon yok |
-| Core-UI Entegrasyon | %10 | %20 | **KRİTİK DARBOĞAZ** |
-| Test & QA | %55 | %10 | 120 test var, bazı modüller eksik |
-| CI/CD & DevOps | %70 | %5 | Pipeline var, iyileştirme devam |
-| Dokümantasyon | %85 | %5 | 32 dosya, kapsamlı |
+| Bolum | Tamamlanma | Durum |
+|-------|-----------|-------|
+| Makine: Oyun Tespit & Tarama | %90 | Steam/Epic/GOG gercek tarama calisiyor |
+| Makine: Ceviri Paket Kurulumu | %70 | Yerel paketler kurulabiliyor |
+| Makine: Sunucu & Dagitim | %5 | Henuz baslanmadi |
+| MakineAI: Guncelleme Tespiti | %0 | Tasarim asamasi |
+| MakineAI: Adaptasyon Motoru | %0 | Tasarim asamasi |
+| UI & Kullanici Deneyimi | %80 | Alpha kalitesinde, calisir durumda |
+| CI/CD & DevOps | %75 | Pipeline calisiyor |
 
 ---
 
-## Faz 1: UI Düzeltmeleri ✅ (%90 Tamamlandı)
+## Makine — Ceviri Dagitim Platformu
 
-- [x] Flutter'dan Qt6/QML'e geçiş
-- [x] 80 QML dosyası, 59 bileşen
-- [x] Tema sistemi (dark/light)
-- [x] Animasyonlar ve GPU optimizasyonu
-- [x] Flutter referans temizliği
-- [ ] Küçük UI bug'lar (devam ediyor)
+### Faz 1: Temel Islevsellik ✅ (%85 Tamamlandi)
 
----
+- [x] Steam kutuphanesi tarama (Registry + VDF + ACF)
+- [x] Epic Games tarama (Manifest JSON)
+- [x] GOG tarama (Registry)
+- [x] Oyun motoru tespiti (dosya imzalari)
+- [x] Anti-cheat tespiti (EAC, BattlEye, Vanguard)
+- [x] Ceviri paketi kurma/kaldirma (dosya kopyalama)
+- [x] Yedekleme ve geri yukleme
+- [x] Performans: lazy loading, visibility-aware timers
+- [ ] Hata yonetimi iyilestirmeleri (devam ediyor)
 
-## Faz 2: Core Entegrasyonu 🔄 (Aktif - %10)
+### Faz 2: Dagitim Sistemi (%5)
 
-> **Epic Issue:** [#12](https://github.com/jlceaser/MakineAI/issues/12)
+| Gorev | Durum | Oncelik |
+|-------|-------|---------|
+| Ceviri paketi sunucu formati | Baslanmadi | Kritik |
+| Paket indirme mekanizmasi | Baslanmadi | Kritik |
+| Versiyon kontrolu ve guncelleme | Baslanmadi | Yuksek |
+| Paket imzalama/dogrulama | Baslanmadi | Yuksek |
+| CDN veya GitHub Releases entegrasyonu | Baslanmadi | Orta |
 
-Bu projenin en kritik aşaması. C++ Core ile QML UI'ı birleştirmek.
+### Faz 3: Topluluk (%0)
 
-| # | Görev | Issue | Durum | Öncelik |
-|---|-------|-------|-------|---------|
-| 1 | Build sistemini birleştir | [#13](https://github.com/jlceaser/MakineAI/issues/13) | ❌ Başlamadı | Kritik |
-| 2 | CoreBridge gerçek implementasyon | [#14](https://github.com/jlceaser/MakineAI/issues/14) | ❌ Başlamadı | Kritik |
-| 3 | HTTP client entegrasyonu | [#15](https://github.com/jlceaser/MakineAI/issues/15) | ❌ Başlamadı | Yüksek |
-| 4 | Asset parser gerçek extraction | [#16](https://github.com/jlceaser/MakineAI/issues/16) | ❌ Başlamadı | Yüksek |
-| 5 | Oyun tarama entegrasyonu | [#17](https://github.com/jlceaser/MakineAI/issues/17) | ❌ Başlamadı | Yüksek |
-
-**Bağımlılık Sırası:** #13 → #14 → #17 → #15 → #16
-
----
-
-## Faz 3: Paket Sistemi (%30)
-
-> **Epic Issue:** [#19](https://github.com/jlceaser/MakineAI/issues/19)
-
-| Görev | Durum |
-|-------|-------|
-| Çeviri paketi formatı tanımla | ❌ Başlamadı |
-| Paket indirme mekanizması | ❌ Başlamadı (Faz 2'ye bağlı) |
-| Paket yükleme | Kısmen yazıldı |
-| Uyumluluk kontrolü | Kısmen yazıldı |
-| Geri alma (rollback) | Patch Engine ile mevcut |
+| Gorev | Durum | Oncelik |
+|-------|-------|---------|
+| Cevirmen katki sistemi | Baslanmadi | Orta |
+| Ceviri kalite puanlama | Baslanmadi | Dusuk |
+| Oyun talep sistemi | Baslanmadi | Dusuk |
 
 ---
 
-## Faz 4: Test ve Polish (%20)
+## MakineAI — Adaptasyon Motoru
 
-| Görev | Issue | Durum |
-|-------|-------|-------|
-| Eksik modül testleri | [#18](https://github.com/jlceaser/MakineAI/issues/18) | ❌ Başlamadı |
-| Gerçek oyunlarla e2e test | - | ❌ Başlamadı |
-| Performans optimizasyonu | - | ❌ Başlamadı |
-| Windows installer | [#20](https://github.com/jlceaser/MakineAI/issues/20) | ❌ Başlamadı |
+### Faz A: Guncelleme Tespiti (%0)
+
+> **Gercek Sorun:** Oyun guncellendi → Turkce yama bozuldu
+
+| Gorev | Durum | Aciklama |
+|-------|-------|----------|
+| Dosya hash kaydı | Baslanmadi | Yama kurulurken her dosyanin hash'ini kaydet |
+| Degisiklik tespiti | Baslanmadi | Uygulama acildiginda dosya hash'lerini karsilastir |
+| Steam versiyon kontrolu | Baslanmadi | Steam API'den oyun versiyonunu al |
+| Kullanici bildirimi | Baslanmadi | "Oyun guncellendi, yama kontrol ediliyor" |
+
+### Faz B: Analiz (%0)
+
+| Gorev | Durum | Aciklama |
+|-------|-------|----------|
+| Dosya diff sistemi | Baslanmadi | Eski vs yeni dosya karsilastirmasi |
+| String degisiklik haritasi | Baslanmadi | Hangi stringler eklendi/silindi/tasinidi |
+| Yapi degisikligi tespiti | Baslanmadi | Dosya formati/yapisi degisti mi |
+
+### Faz C: Otomatik Uyarlama (%0)
+
+| Gorev | Durum | Aciklama |
+|-------|-------|----------|
+| Degismeyen dosyalari koru | Baslanmadi | Hash eslesen dosyalara dokunma |
+| Fuzzy string matching | Baslanmadi | Tasinan stringleri bul ve yeniden esle |
+| Yeni string isaretleme | Baslanmadi | Ceviri gerektiren yeni stringleri belirle |
+| Akilli merge | Baslanmadi | Catisan dosyalari birlestir |
+| Adaptasyon dogrulama | Baslanmadi | Uyarlanan yamanin butunlugunu kontrol et |
 
 ---
 
-## Çalışma Modu
+## Kapali / Ertelenmis Ozellikler
 
-### Mod 1: Desteklenen Oyunlar
+Asagidaki ozellikler mevcut yonle uyumsuz veya onceligi dusuk:
+
+| Ozellik | Durum | Neden |
+|---------|-------|-------|
+| Font analizi | **Kapatildi** | Pratik degeri dusuk, motor cesitliligi cok fazla |
+| Genel string extraction (handler) | **Ertelendi** | Motor bazli araclara birakiliyor (BepInEx, UE4SS vb.) |
+| Translation Memory | **Ertelendi** | Adaptasyon motoruna entegre edilecek (Faz C) |
+| QA servisi | **Ertelendi** | Topluluk asamasinda degerlendirilecek |
+| Gaming Companion AI | **v2.0+** | Oncelik degil, temel sorunlar cozmeli |
+
+---
+
+## Oncelik Sirasi
+
 ```
-Kullanıcı oyunu seçer → Uyumluluk kontrolü → Çeviri paketi indir → Dil dosyalarını yükle → Tamamlandı!
+1. Makine Faz 2: Dagitim sistemi (sunucu + indirme)
+   ↓
+2. MakineAI Faz A: Guncelleme tespiti
+   ↓
+3. MakineAI Faz B: Analiz
+   ↓
+4. MakineAI Faz C: Otomatik uyarlama
+   ↓
+5. Makine Faz 3: Topluluk ozellikleri
 ```
-
-### Mod 2: Topluluk Çevirileri
-```
-Kullanıcı oyunu seçer → Topluluk paketi ara → Patch uygula → Tamamlandı!
-```
-
----
-
-## İleri Vizyon (v1.x+)
-
-### Gaming Companion AI
-
-Oyun oynarken yanında bir arkadaş gibi AI asistan.
-
-**Konsept:** F12 ile ekran görüntüsü → AI analiz → Sahneye uygun yorum → Overlay
-
-**Kişilik Sistemi:**
-- Sadece "araştırmış" değil, "yaşamış" gibi konuşsun
-- Soğuk bilgi yerine samimi deneyim paylaşımı
-- Duruma göre ton değişimi (komik/duygusal/heyecanlı)
-
-**Teknik Gereksinimler:**
-- [ ] Screenshot capture (F12) - MEVCUT
-- [ ] Claude API entegrasyonu
-- [ ] Oyun tanımlama sistemi
-- [ ] Overlay mesaj UI
-- [ ] Kişilik/ton motoru
-
-**Hedef:** v1.0 veya sonrası
 
 ---
 
 ## Risk Matrisi
 
-| Risk | Etki | Olasılık | Öncelik |
-|------|------|----------|---------|
-| Core-UI entegrasyonu gecikmesi | Yüksek | Yüksek | **KRİTİK** |
-| Asset parser'ların stub kalması | Yüksek | Orta | Yüksek |
-| HTTP/download sisteminin olmaması | Yüksek | Yüksek | Yüksek |
-| CI pipeline kırılganlığı | Orta | Orta | Orta |
-| Test coverage boşlukları | Orta | Düşük | Düşük |
+| Risk | Etki | Olasilik | Onlem |
+|------|------|----------|-------|
+| Oyun guncelleme formatlari cok cesitli | Yuksek | Yuksek | Motor bazli adaptasyon stratejileri |
+| Sunucu maliyeti | Orta | Orta | GitHub Releases / CDN baslangici |
+| Cevirmen toplulugu yetersiz | Yuksek | Orta | Once mevcut cevirilerle baslangic |
+| Binary dosya formatlari degisken | Yuksek | Yuksek | Metin tabanli dosyalara oncelik ver |
 
 ---
 
-## Araçlar
+## Araclar
 
-### Geliştirme
+### Gelistirme
 - Qt 6.10.1 + MinGW 13.1.0
-- Visual Studio 2022 (Core için MSVC)
+- Visual Studio 2022 (Core icin MSVC)
 - CMake 3.25+ + Ninja
-- vcpkg (18 bağımlılık)
+- vcpkg (18 bagimlilk)
 
 ### DevOps
 - GitHub Actions (CI/CD)
-- CodeQL (güvenlik analizi)
+- CodeQL (guvenlik analizi)
 - clang-format + clang-tidy (kod kalitesi)
-- Dependabot (bağımlılık güncellemeleri)
-
-### Yardımcı
-- GitHub Copilot Pro
-- Claude Code
 
 ---
 
-*Bu doküman aktif olarak güncellenmektedir.*
-*MakineAI - 2026*
+*Bu dokuman aktif olarak guncellenmektedir.*
+*MakineAI — 2026*

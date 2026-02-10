@@ -597,6 +597,7 @@ Popup {
                     width: parent.width
                     height: parent.height - 54
                     clip: true
+                    cacheBuffer: 200
                     model: root.filteredGames
                     spacing: Dimensions.spacingMD
 

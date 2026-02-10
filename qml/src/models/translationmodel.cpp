@@ -384,40 +384,6 @@ void TranslationModel::runQACheck(int index)
     }
 }
 
-void TranslationModel::runAllQAChecks()
-{
-    if (!m_coreBridge) {
-        return;
-    }
-
-    QList<QPair<QString, QString>> entries;
-    for (const auto& entry : m_allEntries) {
-        if (!entry.targetText.isEmpty()) {
-            entries.append({entry.sourceText, entry.targetText});
-        }
-    }
-
-    m_coreBridge->performBatchQA(entries, m_activeGameId);
-}
-
-void TranslationModel::applyTMMatches()
-{
-    if (!m_coreBridge) {
-        return;
-    }
-
-    QStringList sourceTexts;
-    for (const auto& entry : m_allEntries) {
-        if (entry.targetText.isEmpty()) {
-            sourceTexts.append(entry.sourceText);
-        }
-    }
-
-    if (!sourceTexts.isEmpty()) {
-        m_coreBridge->findBatchTMMatches(sourceTexts, m_activeGameId);
-    }
-}
-
 void TranslationModel::applyGlossary(int index)
 {
     if (index < 0 || index >= m_filteredIndices.size()) {
@@ -594,87 +560,6 @@ int TranslationModel::filteredToAllIndex(int filteredIndex) const
 int TranslationModel::allToFilteredIndex(int allIndex) const
 {
     return m_filteredIndices.indexOf(allIndex);
-}
-
-// ========== FilteredTranslationModel ==========
-
-FilteredTranslationModel::FilteredTranslationModel(QObject *parent)
-    : QSortFilterProxyModel(parent)
-{
-    setDynamicSortFilter(true);
-}
-
-void FilteredTranslationModel::setFilterText(const QString& text)
-{
-    if (m_filterText == text) {
-        return;
-    }
-
-    beginFilterChange();
-    m_filterText = text;
-    endFilterChange();
-    emit filterTextChanged();
-}
-
-void FilteredTranslationModel::setShowOnlyUntranslated(bool show)
-{
-    if (m_showOnlyUntranslated == show) {
-        return;
-    }
-
-    beginFilterChange();
-    m_showOnlyUntranslated = show;
-    endFilterChange();
-    emit showOnlyUntranslatedChanged();
-}
-
-void FilteredTranslationModel::setShowOnlyWithIssues(bool show)
-{
-    if (m_showOnlyWithIssues == show) {
-        return;
-    }
-
-    beginFilterChange();
-    m_showOnlyWithIssues = show;
-    endFilterChange();
-    emit showOnlyWithIssuesChanged();
-}
-
-bool FilteredTranslationModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
-{
-    QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
-
-    // Text filter
-    if (!m_filterText.isEmpty()) {
-        QString source = index.data(TranslationModel::SourceTextRole).toString();
-        QString target = index.data(TranslationModel::TargetTextRole).toString();
-        QString key = index.data(TranslationModel::EntryKeyRole).toString();
-
-        bool matches = source.contains(m_filterText, Qt::CaseInsensitive) ||
-                       target.contains(m_filterText, Qt::CaseInsensitive) ||
-                       key.contains(m_filterText, Qt::CaseInsensitive);
-        if (!matches) {
-            return false;
-        }
-    }
-
-    // Untranslated filter
-    if (m_showOnlyUntranslated) {
-        bool isTranslated = index.data(TranslationModel::IsTranslatedRole).toBool();
-        if (isTranslated) {
-            return false;
-        }
-    }
-
-    // Issues filter
-    if (m_showOnlyWithIssues) {
-        bool hasIssues = index.data(TranslationModel::HasIssuesRole).toBool();
-        if (!hasIssues) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 } // namespace makineai

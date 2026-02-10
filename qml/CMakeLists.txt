@@ -97,6 +97,7 @@ set(BACKEND_SOURCES
     src/services/systemtraymanager.cpp
     src/services/integrityservice.cpp
     src/services/batchoperationservice.cpp
+    src/services/localpackagemanager.cpp
 )
 
 set(BACKEND_HEADERS
@@ -109,6 +110,8 @@ set(BACKEND_HEADERS
     src/services/systemtraymanager.h
     src/services/integrityservice.h
     src/services/batchoperationservice.h
+    src/services/localpackagemanager.h
+    src/services/vdfparser.h
 )
 
 # Model sources
@@ -175,6 +178,7 @@ qt_add_qml_module(MakineAI
         qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
         qml/components/GameCardSkeleton.qml
+        qml/components/PatchCard.qml
         qml/components/SettingsCard.qml
 
         # Components - Buttons
@@ -218,12 +222,16 @@ qt_add_qml_module(MakineAI
         qml/components/EmptyStateMessage.qml
         qml/components/BatchOperationsPanel.qml
 
+        # Utilities
+        qml/utils/VersionUtils.js
+
         # Dialogs
         qml/dialogs/GameDetectorDialog.qml
         qml/dialogs/AllGamesDialog.qml
         qml/dialogs/QAResultsDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/CompatibilityWarningDialog.qml
+        qml/dialogs/UninstallConfirmDialog.qml
 
     RESOURCES
         # SVG icons (16 active)

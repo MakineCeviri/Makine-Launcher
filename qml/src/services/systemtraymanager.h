@@ -39,7 +39,13 @@ public:
     Q_INVOKABLE void showNotification(const QString &title, const QString &message,
                                       int durationMs = 5000);
 
+    Q_INVOKABLE void enterServiceMode();
+    Q_INVOKABLE void exitServiceMode();
+
+    bool isServiceMode() const { return m_serviceMode; }
+
 signals:
+    void serviceModeChanged(bool serviceMode);
     void showWindowRequested();
     void settingsRequested();
     void quitRequested();
@@ -59,5 +65,6 @@ private:
     std::unique_ptr<QMenu> m_trayMenu;
     int m_pendingUpdates{0};
     bool m_backgroundCheckEnabled{false};
+    bool m_serviceMode{false};
     QTimer m_updateCheckTimer;
 };

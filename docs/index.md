@@ -4,9 +4,18 @@ Turkce oyun ceviri platformuna hos geldiniz!
 
 ---
 
-## Hizli Baslangic
+## Proje Hakkinda
 
-Yeni misiniz? Bu kilavuzlarla baslayın:
+MakineAI iki parcadan olusur:
+
+- **Makine** — Ceviri dagitim platformu (oyun tespit, paket kur/kaldir, yedekle)
+- **MakineAI** — Adaptasyon motoru (oyun guncelleme tespiti, otomatik ceviri uyarlama)
+
+Detaylar: [Vizyon](VISION.md) | [Yol Haritasi](ROADMAP.md)
+
+---
+
+## Hizli Baslangic
 
 - [Baslangic Kilavuzu](user-guide/getting-started.md) - Ilk cevirinizi 2 dakikada yapin
 - [Kurulum](user-guide/installation.md) - Sistem gereksinimleri ve kurulum
@@ -15,28 +24,8 @@ Yeni misiniz? Bu kilavuzlarla baslayın:
 
 ## Kullanici Kilavuzu
 
-### Desteklenen Oyunlar (Mod 1)
-
-Unity, Unreal, RPG Maker, Ren'Py, GameMaker ve Bethesda motorlu oyunlar icin:
-
-- Direkt dil dosyasi yukleme
-- Oyun dosyalari degismez
-- Aninda geri alma
-
-[Desteklenen Oyunlar →](user-guide/supported-games.md)
-
-### Diger Oyunlar (Mod 2)
-
-Desteklenmeyen oyunlar icin patch sistemi:
-
-- Topluluk ceviri paketleri
-- Otomatik yedekleme
-- Geri alma ozelligi
-
-[Diger Oyunlar →](user-guide/other-games.md)
-
-### Yardim
-
+- [Desteklenen Oyunlar](user-guide/supported-games.md) - Motor bazli ceviri destegi
+- [Diger Oyunlar](user-guide/other-games.md) - Topluluk ceviri paketleri
 - [Sorun Giderme](user-guide/troubleshooting.md) - Sik karsilasilan sorunlar
 - [SSS](user-guide/faq.md) - Sik sorulan sorular
 
@@ -44,14 +33,12 @@ Desteklenmeyen oyunlar icin patch sistemi:
 
 ## Gelistirici Dokumantasyonu
 
-MakineAI'ye katki saglamak istiyorsaniz:
-
-- [Gelistirme Ortami](developer-guide/setup.md)
-- [Mimari](developer-guide/architecture.md)
-- [Core Kutuphane](developer-guide/core-library.md)
-- [QML Arayuz](developer-guide/qml-frontend.md)
-- [Build Sistemi](developer-guide/build-system.md)
-- [Test Yazma](developer-guide/testing.md)
+- [Gelistirme Ortami](developer-guide/setup.md) - Kurulum ve araclar
+- [Mimari](developer-guide/architecture.md) - Sistem tasarimi (Makine + MakineAI)
+- [QML Arayuz](developer-guide/qml-frontend.md) - Tema, bilesenler, state yonetimi
+- [Build Sistemi](developer-guide/build-system.md) - CMake, vcpkg, preset'ler
+- [Test Yazma](developer-guide/testing.md) - GTest, CTest
+- [Core Kutuphane](developer-guide/core-library.md) - Ileri ozellikler (opsiyonel)
 
 ---
 
@@ -63,9 +50,9 @@ MakineAI'ye katki saglamak istiyorsaniz:
 
 ---
 
-## Oyun Motoru Detaylari
+## Oyun Motoru Referansi
 
-Her motor icin detayli teknik bilgi:
+Teknik referans — her motorun dosya yapisi ve ceviri yontemi:
 
 | Motor | Dokuman |
 |-------|---------|
@@ -76,6 +63,9 @@ Her motor icin detayli teknik bilgi:
 | GameMaker | [gamemaker.md](game-engines/gamemaker.md) |
 | Bethesda | [bethesda.md](game-engines/bethesda.md) |
 
+> **Not:** Bu dokulmanlar motor dosya formatlari hakkinda referans bilgi icerir.
+> Adaptasyon motoru bu bilgileri kullanarak guncelleme sonrasi uyarlama yapacaktir.
+
 ---
 
 ## Diger Kaynaklar
@@ -84,13 +74,6 @@ Her motor icin detayli teknik bilgi:
 - [Guvenlik Modeli](security/security-model.md)
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [CHANGELOG.md](../CHANGELOG.md)
-
----
-
-## Topluluk
-
-- [Discord](https://discord.com/invite/QDezpy4QtV) - Soru sorun, yardim alin
-- [Twitter](https://twitter.com/jlceaser) - Guncellemeler
 
 ---
 

@@ -142,6 +142,7 @@ Popup {
                 id: notificationList
                 anchors.fill: parent
                 clip: true
+                cacheBuffer: 200
                 spacing: 0
                 boundsBehavior: Flickable.StopAtBounds
 

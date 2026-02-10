@@ -375,13 +375,6 @@ void TranslationService::resumeTranslation()
     emit isPausedChanged();
 }
 
-void TranslationService::quickTranslate(const QString& gameId, const QString& gameName, const QString& installPath)
-{
-    // Quick translate is the same as regular translation for now
-    // In the future, this could skip certain steps (like QA review)
-    startTranslation(gameId, gameName, installPath);
-}
-
 void TranslationService::setPhase(TranslationPhase phase)
 {
     if (m_phase != phase) {

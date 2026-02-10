@@ -123,6 +123,7 @@ class GameService : public QObject
     Q_PROPERTY(qreal scanProgress READ scanProgress NOTIFY scanProgressChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
     Q_PROPERTY(bool isFetchingSteamDetails READ isFetchingSteamDetails NOTIFY isFetchingSteamDetailsChanged)
+    Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY gamesChanged)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -141,6 +142,7 @@ public:
     qreal scanProgress() const { return m_scanProgress; }
     QString lastError() const { return m_lastError; }
     bool isFetchingSteamDetails() const { return !m_pendingFetches.isEmpty(); }
+    QVariantList gamesWithTranslation() const;
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
@@ -166,6 +168,22 @@ public:
      * @brief Install a local .mkpkg translation package
      */
     Q_INVOKABLE void installLocalPackage(const QString& filePath);
+
+    /**
+     * @brief Install translation package for a supported game
+     * Finds the package, downloads and installs it via CoreBridge
+     */
+    Q_INVOKABLE void installTranslation(const QString& gameId);
+
+    /**
+     * @brief Uninstall translation package from a game
+     */
+    Q_INVOKABLE void uninstallTranslation(const QString& gameId);
+
+    /**
+     * @brief Check if a translation is currently installed for a game
+     */
+    Q_INVOKABLE bool isTranslationInstalled(const QString& gameId);
 
     /**
      * @brief Check translation compatibility after game update
@@ -223,6 +241,10 @@ signals:
     void localPackageError(const QString& filePath, const QString& error);
     void folderDropped(const QString& path, bool isGame);
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
+    void translationInstallStarted(const QString& gameId);
+    void translationInstallProgress(const QString& gameId, double progress, const QString& status);
+    void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
+    void translationUninstalled(const QString& gameId, bool success, const QString& message);
 
 private:
     void loadCachedGames();
@@ -253,6 +275,7 @@ private:
     QString m_scanStatus;
     qreal m_scanProgress{0};
     QString m_lastError;
+    QString m_installingGameId;  // Track which game is being installed
 
     // Cache for QVariantList conversions
     mutable QVariantList m_gamesCache;

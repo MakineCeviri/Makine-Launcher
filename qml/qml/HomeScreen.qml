@@ -5,6 +5,7 @@ import QtQuick.Effects
 import MakineAI 1.0
 import "dialogs"
 import "components"
+import "utils/VersionUtils.js" as VersionUtils
 
 /**
  * HomeScreen.qml - Main home view with game status, announcements, and projects
@@ -50,7 +51,7 @@ Item {
                         var tagName = response.tag_name || ""
                         var remoteVersion = tagName.replace(/^v/, "").replace(/[a-zA-Z-]/g, "")
 
-                        if (compareVersions(remoteVersion, currentVersion) > 0) {
+                        if (VersionUtils.compareVersions(remoteVersion, currentVersion) > 0) {
                             updateAvailable = true
                             latestVersion = tagName
                             downloadUrl = response.html_url || ""
@@ -69,18 +70,6 @@ Item {
         xhr.setRequestHeader("Accept", "application/vnd.github.v3+json")
         xhr.setRequestHeader("User-Agent", "MakineAI-UpdateChecker")
         try { xhr.send() } catch (e) { DebugHelper.warn("HomeScreen", "Update check error: " + e) }
-    }
-
-    function compareVersions(v1, v2) {
-        var parts1 = v1.split(".").map(function(x) { return parseInt(x) || 0 })
-        var parts2 = v2.split(".").map(function(x) { return parseInt(x) || 0 })
-        for (var i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-            var p1 = parts1[i] || 0
-            var p2 = parts2[i] || 0
-            if (p1 > p2) return 1
-            if (p1 < p2) return -1
-        }
-        return 0
     }
 
     function showNotification(message, type) {
@@ -1311,9 +1300,79 @@ Item {
                 }
             }
 
-            // ===== TRANSLATION PAGE (Index 2) =====
+            // ===== TRANSLATION PAGE (Index 2) - Türkçe Yamalar =====
             Item {
                 id: translationPage
+
+                // Filter state: "all", "installed", "available"
+                property string activeFilter: "all"
+
+                // Track installing games
+                property var installingGames: ({})
+                property var installProgressMap: ({})
+
+                function filteredModel() {
+                    var source = GameService.gamesWithTranslation
+                    var result = []
+                    for (var i = 0; i < source.length; i++) {
+                        var game = source[i]
+                        if (translationPage.activeFilter === "installed" && !game.packageInstalled) continue
+                        if (translationPage.activeFilter === "available" && game.packageInstalled) continue
+                        result.push(game)
+                    }
+                    return result
+                }
+
+                function countByFilter(filterKey) {
+                    var source = GameService.gamesWithTranslation
+                    if (filterKey === "all") return source.length
+                    var count = 0
+                    for (var i = 0; i < source.length; i++) {
+                        if (filterKey === "installed" && source[i].packageInstalled) count++
+                        if (filterKey === "available" && !source[i].packageInstalled) count++
+                    }
+                    return count
+                }
+
+                // Uninstall confirm dialog
+                UninstallConfirmDialog {
+                    id: uninstallDialog
+                    parent: Overlay.overlay
+                    onConfirmed: {
+                        GameService.uninstallTranslation(uninstallDialog.gameId)
+                    }
+                }
+
+                Connections {
+                    target: GameService
+                    function onTranslationInstallStarted(gameId) {
+                        var m = translationPage.installingGames
+                        m[gameId] = true
+                        translationPage.installingGames = m
+                        patchRepeater.model = translationPage.filteredModel()
+                    }
+                    function onTranslationInstallProgress(gameId, progress, status) {
+                        var m = translationPage.installProgressMap
+                        m[gameId] = progress
+                        translationPage.installProgressMap = m
+                        patchRepeater.model = translationPage.filteredModel()
+                    }
+                    function onTranslationInstallCompleted(gameId, success, message) {
+                        var m = translationPage.installingGames
+                        delete m[gameId]
+                        translationPage.installingGames = m
+                        var p = translationPage.installProgressMap
+                        delete p[gameId]
+                        translationPage.installProgressMap = p
+                        patchRepeater.model = translationPage.filteredModel()
+                    }
+                    function onTranslationUninstalled(gameId, success, message) {
+                        patchRepeater.model = translationPage.filteredModel()
+                    }
+                    function onGamesChanged() {
+                        patchRepeater.model = translationPage.filteredModel()
+                    }
+                }
 
                 ScrollView {
                     anchors.fill: parent
@@ -1334,7 +1393,7 @@ Item {
                             spacing: Dimensions.spacingMD
 
                             Label {
-                                text: qsTr("Oyun Kütüphanen")
+                                text: qsTr("Türkçe Yamalar")
                                 font.pixelSize: Dimensions.fontXL
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
@@ -1342,311 +1401,286 @@ Item {
 
                             Rectangle {
                                 Layout.preferredHeight: 20
-                                Layout.preferredWidth: libCountLabel.width + 12
+                                Layout.preferredWidth: patchCountLabel.width + 12
                                 radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.primary, 0.10)
                                 Label {
-                                    id: libCountLabel; anchors.centerIn: parent
-                                    text: qsTr("%1 oyun").arg(GameService.gameCount)
-                                    font.pixelSize: Dimensions.fontXS; font.weight: Font.Medium; color: Theme.primary
+                                    id: patchCountLabel
+                                    anchors.centerIn: parent
+                                    text: qsTr("%1 yama").arg(GameService.gamesWithTranslation.length)
+                                    font.pixelSize: Dimensions.fontXS
+                                    font.weight: Font.Medium
+                                    color: Theme.primary
                                 }
                             }
 
                             Item { Layout.fillWidth: true }
+                        }
 
-                            // Oyun Ekle button
-                            Rectangle {
-                                Layout.preferredHeight: 30
-                                Layout.preferredWidth: libAddRow.width + Dimensions.paddingLG * 2
-                                radius: Dimensions.radiusStandard
-                                color: libAddMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.10)
-                                                                 : "transparent"
-                                border.color: libAddMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.30)
-                                                                       : Theme.withAlpha(Theme.textPrimary, 0.10)
-                                Accessible.role: Accessible.Button
-                                Accessible.name: qsTr("Add game manually")
-                                activeFocusOnTab: true
-                                Keys.onReturnPressed: root.manualFolderRequested()
-                                Keys.onSpacePressed: root.manualFolderRequested()
-                                border.width: 1
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+                        // ===== FILTER BUTTONS =====
+                        Row {
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            spacing: Dimensions.spacingSM
 
-                                Row {
-                                    id: libAddRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                            Repeater {
+                                model: [
+                                    { key: "all", label: qsTr("Tümü") },
+                                    { key: "installed", label: qsTr("Kurulu") },
+                                    { key: "available", label: qsTr("Mevcut") }
+                                ]
 
-                                    // Plus icon
-                                    Canvas {
-                                        width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
-                                        property bool hov: libAddMouse.containsMouse
-                                        onHovChanged: requestPaint()
-                                        onPaint: {
-                                            var ctx = getContext("2d")
-                                            ctx.clearRect(0, 0, width, height)
-                                            ctx.strokeStyle = hov ? Theme.primary : Theme.textMuted
-                                            ctx.lineWidth = 1.5; ctx.lineCap = "round"
-                                            ctx.beginPath(); ctx.moveTo(6, 1); ctx.lineTo(6, 11); ctx.stroke()
-                                            ctx.beginPath(); ctx.moveTo(1, 6); ctx.lineTo(11, 6); ctx.stroke()
+                                Rectangle {
+                                    required property var modelData
+                                    required property int index
+
+                                    property int filterCount: translationPage.countByFilter(modelData.key)
+
+                                    width: filterRow.width + Dimensions.paddingLG * 2
+                                    height: 28
+                                    radius: Dimensions.radiusStandard
+                                    color: translationPage.activeFilter === modelData.key
+                                        ? Theme.withAlpha(Theme.primary, 0.12)
+                                        : filterMouse.containsMouse
+                                            ? Theme.withAlpha(Theme.textPrimary, 0.06)
+                                            : "transparent"
+                                    border.color: translationPage.activeFilter === modelData.key
+                                        ? Theme.withAlpha(Theme.primary, 0.30)
+                                        : Theme.withAlpha(Theme.textPrimary, 0.08)
+                                    border.width: 1
+
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: modelData.label
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: {
+                                        translationPage.activeFilter = modelData.key
+                                        patchRepeater.model = translationPage.filteredModel()
+                                    }
+                                    Keys.onSpacePressed: {
+                                        translationPage.activeFilter = modelData.key
+                                        patchRepeater.model = translationPage.filteredModel()
+                                    }
+
+                                    Row {
+                                        id: filterRow
+                                        anchors.centerIn: parent
+                                        spacing: Dimensions.spacingXS
+
+                                        Label {
+                                            text: modelData.label
+                                            font.pixelSize: Dimensions.fontXS
+                                            font.weight: translationPage.activeFilter === modelData.key ? Font.DemiBold : Font.Medium
+                                            color: translationPage.activeFilter === modelData.key
+                                                ? Theme.primary
+                                                : Theme.textSecondary
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                        }
+
+                                        // Count badge
+                                        Rectangle {
+                                            visible: filterCount > 0
+                                            width: countLabel.width + 8
+                                            height: 16
+                                            radius: 8
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            color: translationPage.activeFilter === modelData.key
+                                                ? Theme.withAlpha(Theme.primary, 0.15)
+                                                : Theme.withAlpha(Theme.textPrimary, 0.06)
+
+                                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                            Label {
+                                                id: countLabel
+                                                anchors.centerIn: parent
+                                                text: filterCount
+                                                font.pixelSize: Dimensions.fontMicro
+                                                font.weight: Font.Bold
+                                                color: translationPage.activeFilter === modelData.key
+                                                    ? Theme.primary
+                                                    : Theme.textMuted
+                                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                            }
                                         }
                                     }
 
-                                    Label {
-                                        text: qsTr("Oyun Ekle")
-                                        font.pixelSize: Dimensions.fontXS; font.weight: Font.Medium
-                                        color: libAddMouse.containsMouse ? Theme.primary : Theme.textSecondary
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                    }
-                                }
-                                MouseArea {
-                                    id: libAddMouse; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.manualFolderRequested()
-                                }
-                            }
-
-                            // Yeniden Tara button
-                            Rectangle {
-                                Layout.preferredHeight: 30
-                                Layout.preferredWidth: libRescanRow.width + Dimensions.paddingLG * 2
-                                radius: Dimensions.radiusStandard
-                                color: libRescanMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06)
-                                                                  : "transparent"
-                                border.color: Theme.withAlpha(Theme.textPrimary, 0.10)
-                                border.width: 1
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                Accessible.role: Accessible.Button
-                                Accessible.name: qsTr("Rescan game libraries")
-                                activeFocusOnTab: true
-                                Keys.onReturnPressed: GameService.scanAllLibraries()
-                                Keys.onSpacePressed: GameService.scanAllLibraries()
-
-                                Row {
-                                    id: libRescanRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
-
-                                    // Refresh icon
-                                    Canvas {
-                                        width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
-                                        property bool hov: libRescanMouse.containsMouse
-                                        onHovChanged: requestPaint()
-                                        onPaint: {
-                                            var ctx = getContext("2d")
-                                            ctx.clearRect(0, 0, width, height)
-                                            ctx.strokeStyle = hov ? Theme.textPrimary : Theme.textMuted
-                                            ctx.lineWidth = 1.4; ctx.lineCap = "round"
-                                            // Circular arrow
-                                            ctx.beginPath()
-                                            ctx.arc(6, 6, 4.5, -Math.PI * 0.7, Math.PI * 0.6)
-                                            ctx.stroke()
-                                            // Arrow head
-                                            var ax = 6 + 4.5 * Math.cos(Math.PI * 0.6)
-                                            var ay = 6 + 4.5 * Math.sin(Math.PI * 0.6)
-                                            ctx.beginPath()
-                                            ctx.moveTo(ax - 2.5, ay - 1.5); ctx.lineTo(ax, ay); ctx.lineTo(ax + 0.5, ay - 3)
-                                            ctx.stroke()
+                                    MouseArea {
+                                        id: filterMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            translationPage.activeFilter = modelData.key
+                                            patchRepeater.model = translationPage.filteredModel()
                                         }
                                     }
-
-                                    Label {
-                                        text: GameService.isScanning ? qsTr("Taranıyor...") : qsTr("Yeniden Tara")
-                                        font.pixelSize: Dimensions.fontXS; font.weight: Font.Medium
-                                        color: libRescanMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                    }
-                                }
-                                MouseArea {
-                                    id: libRescanMouse; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: GameService.scanAllLibraries()
                                 }
                             }
                         }
 
                         // Separator
                         Rectangle {
-                            Layout.fillWidth: true; Layout.preferredHeight: 1
-                            Layout.leftMargin: root.contentMargin; Layout.rightMargin: root.contentMargin
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 1
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
                             color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         }
 
-                        // ===== GAME GRID - installed games with logo images =====
+                        // ===== PATCH GRID =====
                         Flow {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             spacing: Dimensions.spacingMD
-                            visible: GameService.gameCount > 0
+                            visible: patchRepeater.count > 0
 
                             Repeater {
-                                id: libGamesRepeater
-                                model: GameService.games
+                                id: patchRepeater
+                                model: translationPage.filteredModel()
 
-                                // Each card: logo image + game name below
-                                Item {
-                                    id: libCard
+                                PatchCard {
                                     required property var modelData
                                     required property int index
 
-                                    width: 150; height: 200
+                                    gameId: modelData.id || ""
+                                    gameName: modelData.name || ""
+                                    imageUrl: modelData.logoImageUrl || modelData.headerImageUrl || ""
+                                    packageInstalled: modelData.packageInstalled || false
+                                    isInstalling: translationPage.installingGames[modelData.id] || false
+                                    installProgress: translationPage.installProgressMap[modelData.id] || 0.0
 
-                                    // Entry animation
-                                    opacity: 0
-                                    Component.onCompleted: libEntryAnim.start()
-                                    SequentialAnimation {
-                                        id: libEntryAnim
-                                        PauseAnimation { duration: libCard.index * 40 }
-                                        NumberAnimation { target: libCard; property: "opacity"; from: 0; to: 1; duration: 250; easing.type: Easing.OutCubic }
+                                    onInstallClicked: {
+                                        GameService.installTranslation(modelData.id)
                                     }
-
-                                    // Image container
-                                    Rectangle {
-                                        id: libImgContainer
-                                        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                                        height: 200
-                                        radius: Dimensions.radiusStandard
-                                        color: Theme.withAlpha(Theme.textPrimary, 0.04)
-                                        border.color: libCardMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.30)
-                                                                                : Theme.withAlpha(Theme.textPrimary, 0.06)
-                                        border.width: 1
-                                        clip: true
-
-                                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                        transform: Translate {
-                                            y: libCardMouse.containsMouse ? -2 : 0
-                                            Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-                                        }
-
-                                        // Skeleton placeholder
-                                        Rectangle {
-                                            anchors.fill: parent; radius: parent.radius
-                                            visible: libGameImg.status !== Image.Ready
-                                            color: Theme.withAlpha(Theme.textPrimary, 0.03)
-
-                                            // Game name as fallback text
-                                            Label {
-                                                anchors.centerIn: parent
-                                                text: libCard.modelData.name || ""
-                                                font.pixelSize: Dimensions.fontXS; font.weight: Font.Medium
-                                                color: Theme.textMuted; width: parent.width - 16
-                                                horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                                                maximumLineCount: 3; elide: Text.ElideRight
-                                            }
-                                        }
-
-                                        // Steam logo image (portrait/capsule)
-                                        Image {
-                                            id: libGameImg
-                                            anchors.fill: parent
-                                            source: libCard.modelData.logoImageUrl || libCard.modelData.headerImageUrl || ""
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true; cache: true
-                                            sourceSize: Qt.size(300, 450)
-                                            opacity: status === Image.Ready ? 1.0 : 0
-                                            Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
-                                        }
-
-                                        // Hover overlay with play button
-                                        Rectangle {
-                                            anchors.fill: parent; radius: parent.radius
-                                            color: Theme.withAlpha(Theme.bgPrimary, 0.30)
-                                            opacity: libCardMouse.containsMouse ? 1.0 : 0
-                                            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
-
-                                            Canvas {
-                                                anchors.centerIn: parent; width: 28; height: 28
-                                                onPaint: {
-                                                    var ctx = getContext("2d")
-                                                    ctx.clearRect(0, 0, width, height)
-                                                    // Circle
-                                                    ctx.beginPath(); ctx.arc(14, 14, 13, 0, Math.PI * 2)
-                                                    ctx.fillStyle = Qt.rgba(1, 1, 1, 0.15); ctx.fill()
-                                                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.5); ctx.lineWidth = 1.2; ctx.stroke()
-                                                    // Play triangle
-                                                    ctx.fillStyle = "#FFFFFF"; ctx.beginPath()
-                                                    ctx.moveTo(11, 8); ctx.lineTo(20, 14); ctx.lineTo(11, 20)
-                                                    ctx.closePath(); ctx.fill()
-                                                }
-                                            }
-                                        }
-
-                                        // TR badge (top-right)
-                                        Rectangle {
-                                            anchors.top: parent.top; anchors.right: parent.right
-                                            anchors.topMargin: 6; anchors.rightMargin: 6
-                                            visible: libCard.modelData.hasTranslation || false
-                                            implicitWidth: libTrLabel.width + 8; implicitHeight: 16
-                                            radius: Dimensions.radiusStandard
-                                            color: Theme.withAlpha(Theme.statusOnline, 0.85)
-                                            Label {
-                                                id: libTrLabel; anchors.centerIn: parent
-                                                text: "TR"; font.pixelSize: Dimensions.fontMini; font.weight: Font.Bold; color: "white"
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            id: libCardMouse; anchors.fill: parent; hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
-                                                var gameId = libCard.modelData.id || ""
-                                                if (gameId && /^\d+$/.test(gameId)) {
-                                                    Qt.openUrlExternally("steam://rungameid/" + gameId)
-                                                } else {
-                                                    root.gameSelected(gameId, libCard.modelData.name || "", libCard.modelData.installPath || "", libCard.modelData.engine || "")
-                                                }
-                                            }
-                                        }
+                                    onUninstallClicked: {
+                                        uninstallDialog.gameId = modelData.id
+                                        uninstallDialog.gameName = modelData.name || ""
+                                        uninstallDialog.open()
                                     }
-
-                                    Accessible.role: Accessible.Button
-                                    Accessible.name: libCard.modelData.name || ""
-                                    activeFocusOnTab: true
-                                    Keys.onReturnPressed: libCardMouse.clicked(null)
-                                    Keys.onSpacePressed: libCardMouse.clicked(null)
+                                    onCardClicked: {
+                                        root.gameSelected(modelData.id, modelData.name || "", modelData.installPath || "", modelData.engine || "")
+                                    }
                                 }
                             }
                         }
 
                         // Empty state
                         Rectangle {
-                            Layout.fillWidth: true; Layout.preferredHeight: 160
-                            Layout.leftMargin: root.contentMargin; Layout.rightMargin: root.contentMargin
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 160
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
                             radius: Dimensions.radiusStandard
                             color: Theme.withAlpha(Theme.textPrimary, 0.02)
-                            border.color: Theme.withAlpha(Theme.textPrimary, 0.06); border.width: 1
-                            visible: GameService.gameCount === 0 && !GameService.isScanning
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                            border.width: 1
+                            visible: patchRepeater.count === 0 && !GameService.isScanning
 
                             ColumnLayout {
-                                anchors.centerIn: parent; spacing: Dimensions.spacingLG
-                                Label { Layout.alignment: Qt.AlignHCenter; text: "\uD83C\uDFAE"; font.pixelSize: Dimensions.fontHero }
+                                anchors.centerIn: parent
+                                spacing: Dimensions.spacingMD
+
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: qsTr("Henüz oyun bulunamadı")
-                                    font.pixelSize: Dimensions.fontBody; font.weight: Font.Medium; color: Theme.textSecondary
+                                    text: "\uD83C\uDF10"
+                                    font.pixelSize: Dimensions.fontHero
                                 }
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: qsTr("Steam veya Epic Games kütüphaneniz taranarak oyunlar otomatik tespit edilir")
-                                    font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
+                                    text: translationPage.activeFilter === "all"
+                                        ? qsTr("Henüz yama bulunamadı")
+                                        : translationPage.activeFilter === "installed"
+                                            ? qsTr("Kurulu yama yok")
+                                            : qsTr("Tüm yamalar kurulu")
+                                    font.pixelSize: Dimensions.fontBody
+                                    font.weight: Font.Medium
+                                    color: Theme.textSecondary
+                                }
+                                Label {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: translationPage.activeFilter === "all"
+                                        ? qsTr("Oyun kütüphanenizi tarattıktan sonra yama mevcut oyunlar burada listelenir")
+                                        : translationPage.activeFilter === "installed"
+                                            ? qsTr("Mevcut yamalardan birini kurmak için Tümü filtresine geçin")
+                                            : qsTr("Tüm yamalar başarıyla kurulmuş durumda")
+                                    font.pixelSize: Dimensions.fontXS
+                                    color: Theme.textMuted
+                                    horizontalAlignment: Text.AlignHCenter
+                                    Layout.maximumWidth: 340
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                // Scan CTA button (only on "all" filter with no games)
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    Layout.topMargin: Dimensions.spacingXS
+                                    visible: translationPage.activeFilter === "all" && GameService.gameCount === 0
+                                    width: scanCtaRow.width + Dimensions.paddingLG * 2
+                                    height: 32
+                                    radius: Dimensions.radiusStandard
+                                    color: scanCtaMouse.containsMouse ? Theme.primaryHover : Theme.primary
+
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Scan game libraries")
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: GameService.scanAllLibraries()
+                                    Keys.onSpacePressed: GameService.scanAllLibraries()
+
+                                    Row {
+                                        id: scanCtaRow
+                                        anchors.centerIn: parent
+                                        spacing: Dimensions.spacingSM
+
+                                        Label {
+                                            text: "\uD83D\uDD0D"
+                                            font.pixelSize: Dimensions.fontXS
+                                            color: "white"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Label {
+                                            text: qsTr("Kütüphaneleri Tara")
+                                            font.pixelSize: Dimensions.fontXS
+                                            font.weight: Font.DemiBold
+                                            color: "white"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: scanCtaMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: GameService.scanAllLibraries()
+                                    }
                                 }
                             }
                         }
 
                         // Scanning indicator
                         Rectangle {
-                            Layout.fillWidth: true; Layout.preferredHeight: 44
-                            Layout.leftMargin: root.contentMargin; Layout.rightMargin: root.contentMargin
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 44
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
                             radius: Dimensions.radiusStandard
                             color: Theme.withAlpha(Theme.textPrimary, 0.03)
                             visible: GameService.isScanning
 
                             Row {
-                                anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                anchors.centerIn: parent
+                                spacing: Dimensions.spacingMD
                                 BusyIndicator { width: 14; height: 14; running: true }
                                 Label {
                                     text: GameService.scanStatus || qsTr("Kütüphaneler taranıyor...")
-                                    font.pixelSize: Dimensions.fontSM; color: Theme.textMuted
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.textMuted
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
@@ -1658,7 +1692,9 @@ Item {
 
                 // Bottom fade gradient
                 Rectangle {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
                     height: 60; z: 1
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: "transparent" }

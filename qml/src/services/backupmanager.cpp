@@ -20,9 +20,12 @@
 
 namespace makineai {
 
+BackupManager* BackupManager::s_instance = nullptr;
+
 BackupManager::BackupManager(QObject *parent)
     : QObject(parent)
 {
+    s_instance = this;
     loadBackups();
 }
 
@@ -36,6 +39,11 @@ BackupManager* BackupManager::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
     Q_UNUSED(qmlEngine)
     Q_UNUSED(jsEngine)
     return new BackupManager();
+}
+
+BackupManager* BackupManager::instance()
+{
+    return s_instance;
 }
 
 QVariantList BackupManager::backups() const
@@ -398,6 +406,73 @@ QString BackupManager::generateBackupId()
 QString BackupManager::getBackupsDirectory()
 {
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/backups";
+}
+
+void BackupManager::createBackupAsync(const QString& gameId, const QString& gameName, const QString& sourcePath)
+{
+    (void)QtConcurrent::run([this, gameId, gameName, sourcePath]() {
+        QDir sourceDir(sourcePath);
+        if (!sourceDir.exists()) {
+            QMetaObject::invokeMethod(this, [this]() {
+                emit backupError(tr("Kaynak klasör bulunamadı"));
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        // Count files first
+        int totalFiles = 0;
+        QDirIterator countIt(sourcePath, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        while (countIt.hasNext()) { countIt.next(); totalFiles++; }
+
+        emit backupProgress(0.0, tr("Yedek hazırlanıyor: %1 dosya").arg(totalFiles));
+
+        const QString backupId = generateBackupId();
+        const QString backupDir = getBackupsDirectory() + "/" + gameId + "/" + backupId;
+        QDir().mkpath(backupDir);
+
+        qint64 totalSize = 0;
+        int copiedFiles = 0;
+
+        QDirIterator it(sourcePath, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            const QString sourceFile = it.next();
+            const QString relativePath = sourceDir.relativeFilePath(sourceFile);
+            const QString destFile = backupDir + "/" + relativePath;
+
+            QDir().mkpath(QFileInfo(destFile).absolutePath());
+
+            if (QFile::copy(sourceFile, destFile)) {
+                totalSize += QFileInfo(destFile).size();
+                copiedFiles++;
+            }
+
+            if (copiedFiles % 20 == 0 && totalFiles > 0) {
+                double progress = static_cast<double>(copiedFiles) / totalFiles;
+                emit backupProgress(progress, tr("Yedekleniyor: %1/%2").arg(copiedFiles).arg(totalFiles));
+            }
+        }
+
+        QMetaObject::invokeMethod(this, [this, backupId, gameId, gameName, backupDir, sourcePath, totalSize, copiedFiles]() {
+            BackupInfo backup;
+            backup.id = backupId;
+            backup.gameId = gameId;
+            backup.gameName = gameName;
+            backup.backupPath = backupDir;
+            backup.originalPath = sourcePath;
+            backup.createdAt = QDateTime::currentDateTime();
+            backup.sizeBytes = totalSize;
+            backup.fileCount = copiedFiles;
+            backup.isValid = true;
+
+            m_backups.append(backup);
+            cleanupOldBackups(gameId);
+            saveBackups();
+
+            emit backupProgress(1.0, tr("Yedek tamamlandı: %1 dosya").arg(copiedFiles));
+            emit backupsChanged();
+            emit backupCreated(gameId);
+        }, Qt::QueuedConnection);
+    });
 }
 
 } // namespace makineai

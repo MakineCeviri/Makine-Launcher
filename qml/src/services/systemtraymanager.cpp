@@ -106,6 +106,22 @@ void SystemTrayManager::onMessageClicked()
     emit showWindowRequested();
 }
 
+void SystemTrayManager::enterServiceMode()
+{
+    if (m_serviceMode) return;
+    m_serviceMode = true;
+    updateTooltip();
+    emit serviceModeChanged(true);
+}
+
+void SystemTrayManager::exitServiceMode()
+{
+    if (!m_serviceMode) return;
+    m_serviceMode = false;
+    updateTooltip();
+    emit serviceModeChanged(false);
+}
+
 void SystemTrayManager::updateTooltip()
 {
     QString tooltip = "MakineAI";

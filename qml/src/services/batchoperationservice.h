@@ -105,11 +105,6 @@ public:
     Q_INVOKABLE void batchRemove(const QVariantList& gameIds);
 
     /**
-     * @brief Check for available translations for all detected games
-     */
-    Q_INVOKABLE void checkAvailableTranslations();
-
-    /**
      * @brief Cancel the current batch operation
      */
     Q_INVOKABLE void cancel();
@@ -118,11 +113,6 @@ public:
      * @brief Clear completed results
      */
     Q_INVOKABLE void clearResults();
-
-    /**
-     * @brief Get games that have available translations
-     */
-    Q_INVOKABLE QVariantList gamesWithAvailableTranslations() const;
 
 signals:
     void isRunningChanged();

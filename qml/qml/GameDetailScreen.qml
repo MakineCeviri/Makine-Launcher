@@ -549,8 +549,43 @@ Item {
                             }
                         }
 
-                        // Translate button
+                        // Translation metadata badge (info only, no action)
                         Rectangle {
+                            visible: root.hasRecipe
+                            Layout.preferredWidth: patchBadgeContent.width + 32
+                            Layout.preferredHeight: 36
+                            radius: Dimensions.radiusStandard
+                            color: Theme.withAlpha(Theme.primary, 0.10)
+                            border.color: Theme.withAlpha(Theme.primary, 0.20)
+                            border.width: 1
+
+                            Row {
+                                id: patchBadgeContent
+                                anchors.centerIn: parent
+                                spacing: Dimensions.spacingSM
+
+                                Text {
+                                    text: "\uD83C\uDF10"
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: root.recipeVersion
+                                        ? qsTr("Türkçe yama mevcut (v%1)").arg(root.recipeVersion)
+                                        : qsTr("Türkçe yama mevcut")
+                                    font.pixelSize: Dimensions.fontSM
+                                    font.weight: Font.Medium
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                        }
+
+                        // Manual translate button (unsupported games or fallback)
+                        Rectangle {
+                            visible: !root.hasRecipe
                             Layout.preferredWidth: translateBtnContent.width + 48
                             Layout.preferredHeight: 48
                             radius: Dimensions.radiusStandard

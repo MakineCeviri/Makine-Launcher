@@ -8,7 +8,6 @@
 
 #include <QAbstractListModel>
 #include <QQmlEngine>
-#include <QSortFilterProxyModel>
 
 #include "../services/corebridge.h"
 #include "../makineai_metatypes.h"
@@ -84,8 +83,6 @@ public:
     Q_INVOKABLE QVariantMap getEntry(int index) const;
     Q_INVOKABLE void setTranslation(int index, const QString& targetText);
     Q_INVOKABLE void runQACheck(int index);
-    Q_INVOKABLE void runAllQAChecks();
-    Q_INVOKABLE void applyTMMatches();
     Q_INVOKABLE void applyGlossary(int index);
     Q_INVOKABLE QList<TMMatchQt> getTMMatches(int index, int limit = 5);
     Q_INVOKABLE QList<GlossaryTermQt> getGlossaryTerms(int index);
@@ -125,46 +122,6 @@ private:
     QString m_activeGamePath;
     QString m_activeEngine;
     double m_averageQAScore{100.0};
-};
-
-/**
- * @brief Filtered Translation Model
- *
- * QSortFilterProxyModel for advanced filtering.
- */
-class FilteredTranslationModel : public QSortFilterProxyModel
-{
-    Q_OBJECT
-    QML_ELEMENT
-
-    Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterTextChanged)
-    Q_PROPERTY(bool showOnlyUntranslated READ showOnlyUntranslated WRITE setShowOnlyUntranslated NOTIFY showOnlyUntranslatedChanged)
-    Q_PROPERTY(bool showOnlyWithIssues READ showOnlyWithIssues WRITE setShowOnlyWithIssues NOTIFY showOnlyWithIssuesChanged)
-
-public:
-    explicit FilteredTranslationModel(QObject *parent = nullptr);
-
-    QString filterText() const { return m_filterText; }
-    void setFilterText(const QString& text);
-
-    bool showOnlyUntranslated() const { return m_showOnlyUntranslated; }
-    void setShowOnlyUntranslated(bool show);
-
-    bool showOnlyWithIssues() const { return m_showOnlyWithIssues; }
-    void setShowOnlyWithIssues(bool show);
-
-signals:
-    void filterTextChanged();
-    void showOnlyUntranslatedChanged();
-    void showOnlyWithIssuesChanged();
-
-protected:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
-
-private:
-    QString m_filterText;
-    bool m_showOnlyUntranslated{false};
-    bool m_showOnlyWithIssues{false};
 };
 
 } // namespace makineai

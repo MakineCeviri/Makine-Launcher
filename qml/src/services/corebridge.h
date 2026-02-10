@@ -19,6 +19,8 @@
 
 namespace makineai {
 
+class LocalPackageManager;
+
 /**
  * @brief Detected game info from core scanners
  */
@@ -395,7 +397,14 @@ private:
     static CoreBridge* s_instance;
     QList<DetectedGame> m_detectedGames;
     QList<TranslationEntryQt> m_extractedStrings;
-#ifndef MAKINEAI_UI_ONLY
+#ifdef MAKINEAI_UI_ONLY
+    // Real scanning helpers for UI_ONLY build (pure Qt, no vcpkg deps)
+    void doScanSteamReal();
+    void doScanEpicReal();
+    void doScanGogReal();
+    QString detectEngineReal(const QString& gamePath);
+    LocalPackageManager* m_localPkgManager{nullptr};
+#else
     std::unique_ptr<class PackageManager> m_packageManager;
     bool m_packageManagerInitialized{false};
 #endif

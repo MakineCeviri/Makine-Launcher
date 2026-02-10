@@ -343,29 +343,4 @@ void BatchOperationService::clearResults()
     emit progressChanged();
 }
 
-void BatchOperationService::checkAvailableTranslations()
-{
-    // Delegate to CoreBridge to check available translations
-    if (!m_coreBridge) return;
-
-    m_statusMessage = tr("Mevcut çeviriler kontrol ediliyor...");
-    emit statusMessageChanged();
-
-    // CoreBridge::checkAvailableTranslations() would be called here
-    // For now, emit completion
-    qDebug() << "Checking available translations for all games";
-}
-
-QVariantList BatchOperationService::gamesWithAvailableTranslations() const
-{
-    QVariantList result;
-
-    if (!m_coreBridge) return result;
-
-    // Would query CoreBridge for games that have matching translation packages
-    // This is populated by checkAvailableTranslations()
-
-    return result;
-}
-
 } // namespace makineai

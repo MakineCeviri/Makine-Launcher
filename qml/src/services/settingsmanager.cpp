@@ -170,6 +170,16 @@ QStringList SettingsManager::availableLanguages() const
     return {"tr", "en"};
 }
 
+void SettingsManager::setTranslationDataPath(const QString& value)
+{
+    if (m_translationDataPath != value) {
+        m_translationDataPath = value;
+        m_settings.setValue("paths/translationData", value);
+        emit translationDataPathChanged();
+        emit settingsChanged();
+    }
+}
+
 void SettingsManager::setOnboardingCompleted(bool value)
 {
     if (m_onboardingCompleted != value) {
@@ -217,6 +227,7 @@ void SettingsManager::loadSettings()
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
     m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();
+    m_translationDataPath = m_settings.value("paths/translationData", "C:/cedra/translation_data/mc-main").toString();
 }
 
 void SettingsManager::saveSettings()
@@ -232,6 +243,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
     m_settings.setValue("general/appLanguage", m_appLanguage);
+    m_settings.setValue("paths/translationData", m_translationDataPath);
     m_settings.sync();
 }
 

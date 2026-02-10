@@ -11,6 +11,18 @@
 #include <QThread>
 #include <QStandardPaths>
 #include <QSet>
+#include <QFileInfo>
+#include <QDirIterator>
+
+#ifdef MAKINEAI_UI_ONLY
+#include "vdfparser.h"
+#include "localpackagemanager.h"
+#include <QSettings>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QFile>
+#endif
 
 #ifndef MAKINEAI_UI_ONLY
 #include <makineai/core.hpp>
@@ -95,84 +107,404 @@ CoreBridge* CoreBridge::instance()
 
 #ifdef MAKINEAI_UI_ONLY
 
-// ========== STUB IMPLEMENTATIONS FOR UI-ONLY BUILD ==========
+// ========== REAL IMPLEMENTATIONS FOR UI-ONLY BUILD (Pure Qt) ==========
+
+// ========== Steam Scanner ==========
+
+void CoreBridge::doScanSteamReal()
+{
+    emit scanProgress(0.05, tr("Steam yolu aranıyor..."));
+
+    // Read Steam path from Windows Registry
+    QSettings steamReg("HKEY_CURRENT_USER\\Software\\Valve\\Steam", QSettings::NativeFormat);
+    QString steamPath = steamReg.value("SteamPath").toString();
+
+    if (steamPath.isEmpty()) {
+        // Try alternate location
+        QSettings steamReg64("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Valve\\Steam", QSettings::NativeFormat);
+        steamPath = steamReg64.value("InstallPath").toString();
+    }
+
+    if (steamPath.isEmpty()) {
+        qDebug() << "Steam not found in registry";
+        return;
+    }
+
+    steamPath = QDir::cleanPath(steamPath);
+    qDebug() << "Steam path:" << steamPath;
+
+    // Parse libraryfolders.vdf to find all library folders
+    QString vdfPath = steamPath + "/steamapps/libraryfolders.vdf";
+    QFile vdfFile(vdfPath);
+    if (!vdfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "Cannot open libraryfolders.vdf:" << vdfPath;
+        return;
+    }
+
+    std::string vdfContent = vdfFile.readAll().toStdString();
+    vdfFile.close();
+
+    auto vdfRoot = makineai::vdf::parse(vdfContent);
+    if (!vdfRoot) {
+        qWarning() << "Failed to parse libraryfolders.vdf";
+        return;
+    }
+
+    // Collect library paths
+    QStringList libraryPaths;
+    const auto* libraryfolders = vdfRoot->find("libraryfolders");
+    if (!libraryfolders) libraryfolders = &(*vdfRoot); // root itself might be the node
+
+    for (const auto& [key, node] : libraryfolders->children) {
+        // Keys are "0", "1", "2", etc.
+        bool isIndex = false;
+        QString qKey = QString::fromStdString(key);
+        qKey.toInt(&isIndex);
+
+        if (isIndex || key == "path") {
+            QString path;
+            if (node.isObject()) {
+                path = QString::fromStdString(node.getString("path"));
+            } else {
+                path = QString::fromStdString(node.value);
+            }
+
+            if (!path.isEmpty()) {
+                path = QDir::cleanPath(path);
+                if (QDir(path + "/steamapps").exists()) {
+                    libraryPaths.append(path);
+                }
+            }
+        }
+    }
+
+    // Always include main Steam path
+    if (!libraryPaths.contains(steamPath) && QDir(steamPath + "/steamapps").exists()) {
+        libraryPaths.prepend(steamPath);
+    }
+
+    qDebug() << "Found" << libraryPaths.size() << "Steam library folders";
+
+    // Known redistributable AppIDs to filter out
+    static const QSet<QString> redistributables = {
+        "228980", "228981", "1070560", "1245620",  // remove 1245620 from redist
+    };
+    // Actually only these are redistributables
+    static const QSet<QString> realRedistributables = {
+        "228980", "228981", "1070560", "1161040", "1493710",
+    };
+
+    int totalGames = 0;
+    int processed = 0;
+
+    // First pass: count ACF files
+    for (const QString& libPath : libraryPaths) {
+        QDir steamappsDir(libPath + "/steamapps");
+        totalGames += steamappsDir.entryList({"appmanifest_*.acf"}, QDir::Files).size();
+    }
+
+    // Second pass: parse each ACF
+    for (const QString& libPath : libraryPaths) {
+        QDir steamappsDir(libPath + "/steamapps");
+        const auto acfFiles = steamappsDir.entryList({"appmanifest_*.acf"}, QDir::Files);
+
+        for (const QString& acfFile : acfFiles) {
+            QFile file(steamappsDir.absoluteFilePath(acfFile));
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
+
+            std::string acfContent = file.readAll().toStdString();
+            file.close();
+
+            auto acfRoot = makineai::vdf::parse(acfContent);
+            if (!acfRoot) continue;
+
+            const auto* appState = acfRoot->find("AppState");
+            if (!appState) appState = &(*acfRoot);
+
+            QString appId = QString::fromStdString(appState->getString("appid"));
+            QString name = QString::fromStdString(appState->getString("name"));
+            QString installDir = QString::fromStdString(appState->getString("installdir"));
+
+            // Skip empty or redistributable entries
+            if (appId.isEmpty() || name.isEmpty() || installDir.isEmpty()) {
+                processed++;
+                continue;
+            }
+
+            if (realRedistributables.contains(appId)) {
+                processed++;
+                continue;
+            }
+
+            // Build install path
+            QString installPath = QDir::cleanPath(libPath + "/steamapps/common/" + installDir);
+            if (!QDir(installPath).exists()) {
+                processed++;
+                continue;
+            }
+
+            DetectedGame game;
+            game.id = appId;
+            game.name = name;
+            game.installPath = installPath;
+            game.source = "steam";
+            game.steamAppId = appId;
+            game.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(appId);
+            game.isVerified = false;
+            game.hasTranslation = false;
+
+            m_detectedGames.append(game);
+            emit gameDetected(game.id, game.name);
+
+            processed++;
+            if (processed % 10 == 0 && totalGames > 0) {
+                emit scanProgress(0.1 + 0.5 * (static_cast<qreal>(processed) / totalGames),
+                    tr("Steam: %1 oyun bulundu...").arg(m_detectedGames.count()));
+            }
+        }
+    }
+
+    qDebug() << "Steam scan complete:" << m_detectedGames.count() << "games found";
+}
+
+// ========== Epic Games Scanner ==========
+
+void CoreBridge::doScanEpicReal()
+{
+    emit scanProgress(0.65, tr("Epic Games taranıyor..."));
+
+    QString manifestDir = "C:/ProgramData/Epic/EpicGamesLauncher/Data/Manifests";
+    QDir dir(manifestDir);
+    if (!dir.exists()) {
+        qDebug() << "Epic Games manifest directory not found";
+        return;
+    }
+
+    const auto itemFiles = dir.entryList({"*.item"}, QDir::Files);
+    for (const QString& itemFile : itemFiles) {
+        QFile file(dir.absoluteFilePath(itemFile));
+        if (!file.open(QIODevice::ReadOnly)) continue;
+
+        QJsonParseError err;
+        QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
+        file.close();
+
+        if (err.error != QJsonParseError::NoError) continue;
+
+        QJsonObject obj = doc.object();
+        QString displayName = obj["DisplayName"].toString();
+        QString installLocation = obj["InstallLocation"].toString();
+        QString catalogItemId = obj["CatalogItemId"].toString();
+
+        if (displayName.isEmpty() || installLocation.isEmpty()) continue;
+        if (!QDir(installLocation).exists()) continue;
+
+        DetectedGame game;
+        game.id = "epic_" + catalogItemId;
+        game.name = displayName;
+        game.installPath = QDir::cleanPath(installLocation);
+        game.source = "epic";
+        game.isVerified = false;
+        game.hasTranslation = false;
+
+        m_detectedGames.append(game);
+        emit gameDetected(game.id, game.name);
+    }
+
+    qDebug() << "Epic scan: found" << itemFiles.size() << "manifests";
+}
+
+// ========== GOG Scanner ==========
+
+void CoreBridge::doScanGogReal()
+{
+    emit scanProgress(0.75, tr("GOG Galaxy taranıyor..."));
+
+    QSettings gogReg("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games", QSettings::NativeFormat);
+    const auto gameKeys = gogReg.childGroups();
+
+    for (const QString& gameKey : gameKeys) {
+        gogReg.beginGroup(gameKey);
+
+        QString gameName = gogReg.value("gameName").toString();
+        QString gamePath = gogReg.value("path").toString();
+
+        gogReg.endGroup();
+
+        if (gameName.isEmpty() || gamePath.isEmpty()) continue;
+        if (!QDir(gamePath).exists()) continue;
+
+        DetectedGame game;
+        game.id = "gog_" + gameKey;
+        game.name = gameName;
+        game.installPath = QDir::cleanPath(gamePath);
+        game.source = "gog";
+        game.isVerified = false;
+        game.hasTranslation = false;
+
+        m_detectedGames.append(game);
+        emit gameDetected(game.id, game.name);
+    }
+
+    qDebug() << "GOG scan: found" << gameKeys.size() << "entries";
+}
+
+// ========== Engine Detection ==========
+
+QString CoreBridge::detectEngineReal(const QString& gamePath)
+{
+    QDir dir(gamePath);
+    if (!dir.exists()) return "Unknown";
+
+    // Unity: UnityPlayer.dll or GameAssembly.dll or *_Data/globalgamemanagers
+    if (QFile::exists(gamePath + "/UnityPlayer.dll") ||
+        QFile::exists(gamePath + "/GameAssembly.dll")) {
+        return "Unity";
+    }
+    // Check for *_Data/globalgamemanagers
+    {
+        const auto entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const QString& entry : entries) {
+            if (entry.endsWith("_Data")) {
+                if (QFile::exists(gamePath + "/" + entry + "/globalgamemanagers")) {
+                    return "Unity";
+                }
+            }
+        }
+    }
+
+    // Unreal: *.pak files in Content/ or Engine/
+    if (QDir(gamePath + "/Engine").exists()) {
+        return "Unreal";
+    }
+    {
+        QDirIterator it(gamePath, {"*.pak"}, QDir::Files, QDirIterator::Subdirectories);
+        int pakCount = 0;
+        while (it.hasNext() && pakCount < 3) {
+            it.next();
+            pakCount++;
+        }
+        if (pakCount > 0) {
+            // Check if it looks Unreal-specific
+            if (QDir(gamePath + "/Content").exists() ||
+                !dir.entryList({"*.uproject"}, QDir::Files).isEmpty()) {
+                return "Unreal";
+            }
+            // Could be other engines, but .pak is Unreal-typical
+            return "Unreal";
+        }
+    }
+
+    // Bethesda: *.ba2, *.esm, *.esp
+    {
+        bool hasBa2 = !dir.entryList({"*.ba2"}, QDir::Files).isEmpty();
+        bool hasEsm = !dir.entryList({"*.esm"}, QDir::Files).isEmpty();
+        bool hasEsp = !dir.entryList({"*.esp"}, QDir::Files).isEmpty();
+        // Also check Data/ subfolder
+        QDir dataDir(gamePath + "/Data");
+        if (dataDir.exists()) {
+            hasBa2 = hasBa2 || !dataDir.entryList({"*.ba2"}, QDir::Files).isEmpty();
+            hasEsm = hasEsm || !dataDir.entryList({"*.esm"}, QDir::Files).isEmpty();
+            hasEsp = hasEsp || !dataDir.entryList({"*.esp"}, QDir::Files).isEmpty();
+        }
+        if (hasBa2 || (hasEsm && hasEsp)) {
+            return "Bethesda";
+        }
+    }
+
+    // Ren'Py: renpy/ directory, *.rpa, *.rpyc
+    if (QDir(gamePath + "/renpy").exists() ||
+        QDir(gamePath + "/game/renpy").exists()) {
+        return "RenPy";
+    }
+    {
+        QDirIterator it(gamePath, {"*.rpa", "*.rpyc"}, QDir::Files, QDirIterator::Subdirectories);
+        if (it.hasNext()) return "RenPy";
+    }
+
+    // RPG Maker MV/MZ: www/ directory, rpg_core.js
+    if (QDir(gamePath + "/www").exists() ||
+        QFile::exists(gamePath + "/www/js/rpg_core.js") ||
+        QFile::exists(gamePath + "/js/rpg_core.js")) {
+        return "RPGMaker";
+    }
+    // RPG Maker VX Ace: *.rvdata2
+    {
+        QDirIterator it(gamePath, {"*.rvdata2"}, QDir::Files);
+        if (it.hasNext()) return "RPGMaker";
+    }
+
+    // GameMaker: data.win
+    if (QFile::exists(gamePath + "/data.win")) {
+        return "GameMaker";
+    }
+
+    // Godot: *.pck
+    {
+        const auto pckFiles = dir.entryList({"*.pck"}, QDir::Files);
+        if (!pckFiles.isEmpty()) return "Godot";
+    }
+
+    // Source Engine: hl2.exe or source engine common files
+    if (QDir(gamePath + "/hl2").exists() ||
+        QFile::exists(gamePath + "/hl2.exe") ||
+        QDir(gamePath + "/platform").exists()) {
+        // Check for Source-specific files
+        if (!dir.entryList({"*.vpk"}, QDir::Files).isEmpty()) {
+            return "Source";
+        }
+    }
+
+    return "Unknown";
+}
+
+// ========== Public API Methods ==========
 
 void CoreBridge::scanAllLibraries()
 {
     emit scanStarted();
     m_detectedGames.clear();
 
-    // Add verified games for UI testing
+    // Initialize LocalPackageManager if needed
+    if (!m_localPkgManager) {
+        m_localPkgManager = new LocalPackageManager(this);
+        // Connect install signals
+        connect(m_localPkgManager, &LocalPackageManager::installProgress,
+                this, &CoreBridge::packageInstallProgress);
+        connect(m_localPkgManager, &LocalPackageManager::installCompleted,
+                this, &CoreBridge::packageInstallCompleted);
+    }
+
+    // Load translation packages
+    QSettings settings("MakineAI", "MakineAI");
+    QString translationPath = settings.value("paths/translationData",
+        "C:/cedra/translation_data/mc-main").toString();
+    m_localPkgManager->loadFromPath(translationPath);
+
     (void)QtConcurrent::run([this]() {
-        emit scanProgress(0.1, tr("Onaylı oyunlar yükleniyor..."));
-        QThread::msleep(200);
+        emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
+        doScanSteamReal();
 
-        // Verified games list (30 games)
-        struct VerifiedGame {
-            QString steamAppId;
-            QString name;
-        };
+        emit scanProgress(0.6, tr("Epic Games taranıyor..."));
+        doScanEpicReal();
 
-        QList<VerifiedGame> verifiedGames = {
-            {"1174180", "Red Dead Redemption 2"},
-            {"1245620", "Elden Ring"},
-            {"3159330", "Assassin's Creed Shadows"},
-            {"2208920", "Assassin's Creed Valhalla"},
-            {"2358720", "Black Myth: Wukong"},
-            {"3035570", "Assassin's Creed Mirage"},
-            {"582160", "Assassin's Creed Origins"},
-            {"812140", "Assassin's Creed Odyssey"},
-            {"1716740", "Starfield"},
-            {"3611110", "Alan Wake 2"},
-            {"949230", "Cities: Skylines II"},
-            {"208650", "Batman: Arkham Knight"},
-            {"1708010", "The Expanse: A Telltale Series"},
-            {"990080", "Hogwarts Legacy"},
-            {"2221920", "Immortals Fenyx Rising"},
-            {"1123770", "Curse of the Dead Gods"},
-            {"668580", "Atomic Heart"},
-            {"373420", "Divinity: Original Sin Enhanced Edition"},
-            {"291650", "Pillars of Eternity"},
-            {"1065310", "Evil West"},
-            {"435150", "Divinity: Original Sin 2"},
-            {"1238000", "Mass Effect: Andromeda"},
-            {"1151340", "Fallout 76"},
-            {"1313140", "Cult of the Lamb"},
-            {"916440", "Anno 1800"},
-            {"22330", "The Elder Scrolls IV: Oblivion Remastered"},
-            {"1903340", "Clair Obscur: Expedition 33"},
-            {"2677660", "Indiana Jones and the Great Circle"},
-            {"2651280", "Marvel's Spider-Man 2"},
-        };
+        emit scanProgress(0.75, tr("GOG Galaxy taranıyor..."));
+        doScanGogReal();
 
-        emit scanProgress(0.3, tr("Steam kütüphanesi taranıyor..."));
-        QThread::msleep(200);
-
-        int count = 0;
-        int total = verifiedGames.size();
-
-        for (const auto& vg : verifiedGames) {
-            DetectedGame game;
-            game.id = vg.steamAppId;
-            game.name = vg.name;
-            game.installPath = QString("C:/Games/%1").arg(vg.name);
-            game.source = "steam";
-            game.steamAppId = vg.steamAppId;
-            game.engine = "Unity";
-            game.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(vg.steamAppId);
-            game.isVerified = true;
-            game.hasTranslation = true;
-            m_detectedGames.append(game);
-
-            count++;
-            if (count % 5 == 0) {
-                emit scanProgress(0.3 + 0.6 * (static_cast<qreal>(count) / total),
-                    tr("%1 oyun yüklendi...").arg(count));
-                QThread::msleep(50);
+        // Detect engines for all found games
+        emit scanProgress(0.85, tr("Oyun motorları tespit ediliyor..."));
+        for (int i = 0; i < m_detectedGames.size(); ++i) {
+            auto& game = m_detectedGames[i];
+            if (game.engine.isEmpty() || game.engine == "Unknown") {
+                game.engine = detectEngineReal(game.installPath);
+            }
+            // Check translation availability
+            if (m_localPkgManager && m_localPkgManager->hasPackage(game.steamAppId)) {
+                game.hasTranslation = true;
             }
         }
 
-        emit scanProgress(1.0, tr("%1 onaylı oyun bulundu").arg(m_detectedGames.count()));
+        emit scanProgress(1.0, tr("%1 oyun bulundu").arg(m_detectedGames.count()));
         emit scanCompleted(m_detectedGames.count());
     });
 }
@@ -180,28 +512,50 @@ void CoreBridge::scanAllLibraries()
 void CoreBridge::scanSteamLibrary()
 {
     emit scanStarted();
-    emit scanProgress(1.0, "Steam tarama (UI test modu)");
-    emit scanCompleted(0);
+    m_detectedGames.clear();
+    (void)QtConcurrent::run([this]() {
+        emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
+        doScanSteamReal();
+        // Detect engines
+        for (auto& game : m_detectedGames) {
+            game.engine = detectEngineReal(game.installPath);
+        }
+        emit scanProgress(1.0, tr("%1 Steam oyunu bulundu").arg(m_detectedGames.count()));
+        emit scanCompleted(m_detectedGames.count());
+    });
 }
 
 void CoreBridge::scanEpicLibrary()
 {
     emit scanStarted();
-    emit scanProgress(1.0, "Epic tarama (UI test modu)");
-    emit scanCompleted(0);
+    m_detectedGames.clear();
+    (void)QtConcurrent::run([this]() {
+        doScanEpicReal();
+        for (auto& game : m_detectedGames) {
+            game.engine = detectEngineReal(game.installPath);
+        }
+        emit scanProgress(1.0, tr("%1 Epic oyunu bulundu").arg(m_detectedGames.count()));
+        emit scanCompleted(m_detectedGames.count());
+    });
 }
 
 void CoreBridge::scanGogLibrary()
 {
     emit scanStarted();
-    emit scanProgress(1.0, "GOG tarama (UI test modu)");
-    emit scanCompleted(0);
+    m_detectedGames.clear();
+    (void)QtConcurrent::run([this]() {
+        doScanGogReal();
+        for (auto& game : m_detectedGames) {
+            game.engine = detectEngineReal(game.installPath);
+        }
+        emit scanProgress(1.0, tr("%1 GOG oyunu bulundu").arg(m_detectedGames.count()));
+        emit scanCompleted(m_detectedGames.count());
+    });
 }
 
 QString CoreBridge::detectEngine(const QString& gamePath)
 {
-    Q_UNUSED(gamePath)
-    return "Unity";  // Default for UI testing
+    return detectEngineReal(gamePath);
 }
 
 void CoreBridge::extractStrings(const QString& gamePath, const QString& engine)
@@ -212,40 +566,9 @@ void CoreBridge::extractStrings(const QString& gamePath, const QString& engine)
     emit extractionStarted();
     m_extractedStrings.clear();
 
-    (void)QtConcurrent::run([this]() {
-        emit extractionProgress(0.2, tr("Dosyalar taranıyor..."));
-        QThread::msleep(500);
-
-        // Sample strings for UI testing
-        QStringList samples = {
-            "Press any key to continue",
-            "New Game",
-            "Continue",
-            "Settings",
-            "Exit",
-            "Are you sure you want to quit?",
-            "Loading...",
-            "Save Game",
-            "Load Game"
-        };
-
-        emit extractionProgress(0.5, tr("Metinler işleniyor..."));
-
-        int index = 0;
-        for (const auto& text : samples) {
-            TranslationEntryQt entry;
-            entry.entryKey = QString("key_%1").arg(index);
-            entry.sourceText = text;
-            entry.filePath = "strings.txt";
-            entry.category = "ui";
-            m_extractedStrings.append(entry);
-            index++;
-        }
-
-        QThread::msleep(500);
-        emit extractionProgress(1.0, tr("%1 metin çıkarıldı").arg(m_extractedStrings.count()));
-        emit extractionCompleted(m_extractedStrings.count());
-    });
+    // String extraction requires core library
+    emit extractionProgress(1.0, tr("Metin çıkarma işlemi core kütüphanesi gerektirir"));
+    emit extractionCompleted(0);
 }
 
 void CoreBridge::applyTranslations(const QString& gamePath, const QString& engine,
@@ -253,19 +576,11 @@ void CoreBridge::applyTranslations(const QString& gamePath, const QString& engin
 {
     Q_UNUSED(gamePath)
     Q_UNUSED(engine)
+    Q_UNUSED(translations)
 
     emit patchStarted();
-
-    (void)QtConcurrent::run([this, translations]() {
-        emit patchProgress(0.3, tr("Yedek oluşturuluyor..."));
-        QThread::msleep(500);
-
-        emit patchProgress(0.7, tr("Çeviriler uygulanıyor..."));
-        QThread::msleep(500);
-
-        emit patchProgress(1.0, tr("%1 çeviri uygulandı").arg(translations.count()));
-        emit patchCompleted(translations.count());
-    });
+    emit patchProgress(1.0, tr("Çeviri uygulama core kütüphanesi gerektirir"));
+    emit patchCompleted(0);
 }
 
 QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
@@ -289,70 +604,41 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
     return true;
 }
 
-QList<TMMatchQt> CoreBridge::findTMMatches(
-    const QString& sourceText,
-    const QString& gameId,
-    const QString& engineType,
-    int limit,
-    double minScore)
-{
-    Q_UNUSED(sourceText)
-    Q_UNUSED(gameId)
-    Q_UNUSED(engineType)
-    Q_UNUSED(limit)
-    Q_UNUSED(minScore)
+// TM/Glossary/QA — these require the core library, return empty honestly
 
-    return {};  // Empty for UI testing
+QList<TMMatchQt> CoreBridge::findTMMatches(
+    const QString& sourceText, const QString& gameId,
+    const QString& engineType, int limit, double minScore)
+{
+    Q_UNUSED(sourceText) Q_UNUSED(gameId) Q_UNUSED(engineType)
+    Q_UNUSED(limit) Q_UNUSED(minScore)
+    return {};
 }
 
 std::optional<TMMatchQt> CoreBridge::findBestTMMatch(
-    const QString& sourceText,
-    const QString& gameId,
-    double minScore)
+    const QString& sourceText, const QString& gameId, double minScore)
 {
-    Q_UNUSED(sourceText)
-    Q_UNUSED(gameId)
-    Q_UNUSED(minScore)
-
+    Q_UNUSED(sourceText) Q_UNUSED(gameId) Q_UNUSED(minScore)
     return std::nullopt;
 }
 
-bool CoreBridge::addTMEntry(
-    const QString& sourceText,
-    const QString& targetText,
-    const QString& gameId,
-    const QString& context)
+bool CoreBridge::addTMEntry(const QString& sourceText, const QString& targetText,
+                            const QString& gameId, const QString& context)
 {
-    Q_UNUSED(sourceText)
-    Q_UNUSED(targetText)
-    Q_UNUSED(gameId)
-    Q_UNUSED(context)
-
-    emit tmEntryAdded(true);
-    return true;
+    Q_UNUSED(sourceText) Q_UNUSED(targetText) Q_UNUSED(gameId) Q_UNUSED(context)
+    return false;
 }
 
-void CoreBridge::findBatchTMMatches(
-    const QStringList& sourceTexts,
-    const QString& gameId,
-    double minScore)
+void CoreBridge::findBatchTMMatches(const QStringList& sourceTexts,
+                                    const QString& gameId, double minScore)
 {
-    Q_UNUSED(sourceTexts)
-    Q_UNUSED(gameId)
-    Q_UNUSED(minScore)
-
+    Q_UNUSED(gameId) Q_UNUSED(minScore)
     emit tmBatchCompleted(0, sourceTexts.size());
 }
 
-void CoreBridge::clearTM()
-{
-    // No-op in UI-only mode
-}
+void CoreBridge::clearTM() {}
 
-QList<GlossaryTermQt> CoreBridge::getAllGlossaryTerms()
-{
-    return {};
-}
+QList<GlossaryTermQt> CoreBridge::getAllGlossaryTerms() { return {}; }
 
 QList<GlossaryTermQt> CoreBridge::getGlossaryTermsForGame(const QString& gameId)
 {
@@ -368,27 +654,16 @@ QString CoreBridge::applyGlossary(const QString& text, const QString& gameId)
 
 QList<GlossaryTermQt> CoreBridge::findTermsInText(const QString& text, const QString& gameId)
 {
-    Q_UNUSED(text)
-    Q_UNUSED(gameId)
+    Q_UNUSED(text) Q_UNUSED(gameId)
     return {};
 }
 
-void CoreBridge::clearGlossary()
-{
-    // No-op in UI-only mode
-}
+void CoreBridge::clearGlossary() {}
 
-QAResultQt CoreBridge::performQACheck(
-    const QString& sourceText,
-    const QString& targetText,
-    const QString& gameId,
-    bool checkGlossary)
+QAResultQt CoreBridge::performQACheck(const QString& sourceText, const QString& targetText,
+                                       const QString& gameId, bool checkGlossary)
 {
-    Q_UNUSED(sourceText)
-    Q_UNUSED(targetText)
-    Q_UNUSED(gameId)
-    Q_UNUSED(checkGlossary)
-
+    Q_UNUSED(sourceText) Q_UNUSED(targetText) Q_UNUSED(gameId) Q_UNUSED(checkGlossary)
     QAResultQt result;
     result.score = 100;
     result.passed = true;
@@ -396,74 +671,83 @@ QAResultQt CoreBridge::performQACheck(
     return result;
 }
 
-void CoreBridge::performBatchQA(
-    const QList<QPair<QString, QString>>& entries,
-    const QString& gameId)
+void CoreBridge::performBatchQA(const QList<QPair<QString, QString>>& entries,
+                                const QString& gameId)
 {
-    Q_UNUSED(entries)
     Q_UNUSED(gameId)
-
     emit qaBatchCompleted(entries.size(), entries.size(), 100.0);
 }
 
+// ========== Package Management (via LocalPackageManager) ==========
+
 bool CoreBridge::hasTranslationPackage(const QString& gameId)
 {
-    // All verified games have translation packages
-    static const QSet<QString> verifiedGameIds = {
-        "2358720", "1245620", "1174180", "3159330", "2208920",
-        "3035570", "582160", "812140", "1716740", "3611110",
-        "949230", "208650", "1708010", "990080", "2221920",
-        "1123770", "668580", "373420", "291650", "1065310",
-        "435150", "1238000", "1151340", "1313140", "916440",
-        "22330", "1903340", "2677660", "2651280"
-    };
-    return verifiedGameIds.contains(gameId);
+    if (m_localPkgManager) {
+        return m_localPkgManager->hasPackage(gameId);
+    }
+    return false;
 }
 
 std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString& gameId)
 {
-    if (gameId == "1245620") {
-        TranslationPackageQt pkg;
-        pkg.packageId = "eldenring-tr-1.0";
-        pkg.gameId = "1245620";
-        pkg.gameName = "Elden Ring";
-        pkg.version = "1.0.0";
-        pkg.sizeBytes = 52428800;  // 50 MB
-        pkg.requiresRuntime = true;
-        return pkg;
-    }
-    return std::nullopt;
+    if (!m_localPkgManager) return std::nullopt;
+
+    auto pkg = m_localPkgManager->getPackage(gameId);
+    if (!pkg) return std::nullopt;
+
+    TranslationPackageQt qtPkg;
+    qtPkg.packageId = pkg->packageId;
+    qtPkg.gameId = pkg->steamAppId;
+    qtPkg.gameName = pkg->gameName;
+    qtPkg.version = pkg->version;
+    qtPkg.sizeBytes = pkg->sizeBytes;
+    qtPkg.requiresRuntime = false;
+    return qtPkg;
 }
 
 void CoreBridge::installPackage(const QString& packageId, const QString& gamePath)
 {
-    Q_UNUSED(gamePath)
+    if (!m_localPkgManager) {
+        emit packageInstallCompleted(false, tr("Paket yöneticisi başlatılamadı"));
+        return;
+    }
 
-    (void)QtConcurrent::run([this, packageId]() {
-        for (int i = 0; i <= 100; i += 10) {
-            emit packageDownloadProgress(i / 100.0, QString("Kuruluyor... %1%").arg(i));
-            QThread::msleep(200);
+    // packageId here is the steamAppId or the internal package ID
+    // Try to find by steamAppId first
+    if (m_localPkgManager->hasPackage(packageId)) {
+        m_localPkgManager->installPackage(packageId, gamePath);
+    } else {
+        // Try to resolve from detected games
+        for (const auto& game : m_detectedGames) {
+            if (game.id == packageId && m_localPkgManager->hasPackage(game.steamAppId)) {
+                m_localPkgManager->installPackage(game.steamAppId, gamePath);
+                return;
+            }
         }
-        emit packageInstalled(packageId);
-    });
+        emit packageInstallCompleted(false, tr("Paket bulunamadı: %1").arg(packageId));
+    }
 }
 
 bool CoreBridge::isPackageInstalled(const QString& gameId)
 {
-    Q_UNUSED(gameId)
+    if (m_localPkgManager) {
+        return m_localPkgManager->isInstalled(gameId);
+    }
     return false;
 }
 
 bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath)
 {
-    Q_UNUSED(gameId)
-    Q_UNUSED(gamePath)
-    return true;
+    if (m_localPkgManager) {
+        return m_localPkgManager->uninstallPackage(gameId, gamePath);
+    }
+    return false;
 }
 
 void CoreBridge::refreshPackageManifest()
 {
-    emit packageManifestRefreshed(5);  // Simulate 5 packages
+    int count = m_localPkgManager ? m_localPkgManager->packageCount() : 0;
+    emit packageManifestRefreshed(count);
 }
 
 #else  // FULL BUILD WITH CORE LIBRARY

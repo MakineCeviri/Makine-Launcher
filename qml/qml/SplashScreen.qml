@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import MakineAI 1.0
+import "utils/VersionUtils.js" as VersionUtils
 
 /**
  * SplashScreen.qml - Animated splash screen with update checker
@@ -105,7 +106,7 @@ Item {
             }
         }
 
-        var hasUpdate = compareVersions(latestVersion, currentVersion) > 0
+        var hasUpdate = VersionUtils.compareVersions(latestVersion, currentVersion) > 0
 
         DebugHelper.log("SplashScreen", "Update check: current=" + currentVersion + ", latest=" + latestVersion + ", hasUpdate=" + hasUpdate)
 
@@ -114,21 +115,6 @@ Item {
         } else {
             onUpdateCheckComplete(false, "", "")
         }
-    }
-
-    function compareVersions(v1, v2) {
-        if (!v1 || !v2) return 0
-
-        var parts1 = v1.split(".").map(function(x) { return parseInt(x) || 0 })
-        var parts2 = v2.split(".").map(function(x) { return parseInt(x) || 0 })
-
-        for (var i = 0; i < 3; i++) {
-            var p1 = i < parts1.length ? parts1[i] : 0
-            var p2 = i < parts2.length ? parts2[i] : 0
-            if (p1 > p2) return 1
-            if (p1 < p2) return -1
-        }
-        return 0
     }
 
     function onUpdateCheckComplete(hasUpdate, version, downloadUrl) {

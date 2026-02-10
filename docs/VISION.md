@@ -6,118 +6,129 @@
 
 ## Tek Cumle
 
-> MakineAI, yaninda oturup oyun izleyen bir arkadas gibi AI asistandir.
+> MakineAI, oyun guncellemelerinde cevirilerin kirilmasini onleyen akilli bir adaptasyon motorudur.
 
 ---
 
-## Temel Felsefe
+## Iki Parca, Bir Butun
 
-### "Arastirmis" degil, "Yasamis"
+### Makine — Urun (Kullaniciya Donuk)
+
+Turk oyuncular icin ceviri kutuphanesi ve dagitim platformu.
 
 ```
-❌ Klasik AI                    ✅ MakineAI
-─────────────────────────────────────────────────
-"Wikipedia'ya gore bu          "Aa bu kisim! Ilk
- boss'un 3 fazi var..."         oynadigimda ben de
-                                burda kaldim ya..."
+Oyuncu: "Elden Ring'i Turkce oynamak istiyorum"
+Makine: Kurulu oyunu tespit et → Ceviri paketini indir → Tek tikla kur → Oyna
 ```
 
-AI soğuk bilgi vermiyor. Sanki o oyunu oynamis, o sahneyi yasamis,
-duygusal bag kurmus bir arkadas gibi konusuyor.
+- Steam, Epic, GOG kutuphanelerini otomatik tara
+- Topluluk cevirilerini kesfe, kur, guncelle
+- Yedekle, geri yukle, guvenli dagitim
+- Katalog deneyimi — oyunlari gorselleriyle goster
+
+### MakineAI — Motor (Arka Plan)
+
+Oyun guncellemelerinden ogrenip cevirileri otomatik uyarlayan sistem.
+
+```
+Sorun:  Assassin's Creed guncellendi → Turkce yama oyunu bozdu
+Cozum:  MakineAI degisikligi tespit etti → Yamayı otomatik uyarladi → Kullanici fark etmedi bile
+```
 
 ---
 
-## Gorunmez Gozlemci
+## Gercek Sorun
+
+Oyun ceviri topluluklarinin en buyuk sorunu:
 
 ```
-┌─────────────────────────────────────────┐
-│  👁️ Arka planda sessizce izliyor        │
-│  🧠 Sessizce ogreniyor                  │
-│  🤫 Hissedilmiyor, entegre degil        │
-│  📸 F12 ile cagrilinca konusuyor        │
-└─────────────────────────────────────────┘
+1. Cevirmen aylarca calisir, yama yayinlar
+2. Oyun studiosu guncelleme cikarir
+3. Yama bozulur
+4. Cevirmen ya tekrar ugrasir ya birakir
+5. Kullanici Turkce oynayamaz
 ```
 
-- Mudahaleci degil
-- Cagrildiginda hazir
-- Yayin izleyen seyirci gibi
+Bu dongu kirılmalı. MakineAI bunu otomatize eder:
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│ Oyun         │────→│ Degisiklik   │────→│ Otomatik     │
+│ Guncellendi  │     │ Analizi      │     │ Adaptasyon   │
+└──────────────┘     └──────────────┘     └──────────────┘
+       │                    │                     │
+       ▼                    ▼                     ▼
+  Hash degisti        Ne degisti?           Yama uyarlandi
+  Versiyon artti      Yeni string?          Kullanici bilgilendirildi
+  Dosyalar farkli     Yapi degisti?         Cevirmen sadece yenilere bakar
+```
+
+---
+
+## Adaptasyon Motoru
+
+### Tespit
+- Yamalanmis oyun dosyalarinin hash'lerini kaydet
+- Uygulama acildiginda veya arka planda kontrol et
+- Steam API'den versiyon bilgisi al
+
+### Analiz
+- Eski ve yeni dosyalari karsilastir (diff)
+- Metin tabanli formatlarda structural diff (JSON, XML, INI)
+- Degismeyen, tasinan, eklenen, silinen string'leri ayir
+
+### Uyarlama
+- Degismeyen string'ler → dokunma
+- Tasinan string'ler → fuzzy match ile yeni konuma tasi
+- Yeni string'ler → "ceviri gerekli" olarak isaretle
+- Catisan dosyalar → akilli merge
+
+### Dogrulama
+- Uyarlanan yamanin dosya butunlugunu kontrol et
+- Bilinen kaliplarla test et
+- Sorun varsa kullaniciyi uyar, yedekten geri don
 
 ---
 
 ## Kulturel Kimlik
 
-MakineAI Turkce konusuyor - sadece dil degil, **kultur**:
+MakineAI Turkce konusuyor — sadece dil degil, **kultur**:
 
-### Korku Ani
 ```
-❌ "A frightening enemy appeared."
-✅ "DUR HASSTULLAH HASBINALLAH! Kalp krizi geciriyodum!"
-```
-
-### Heyecan Ani
-```
-❌ "Congratulations on defeating the boss."
-✅ "HAYIR BE ABI! GECTI GECTI! Mashallah eline saglik!"
+Yama bozuldu:     "Sakin ol, guncelleme yamayı bozmus ama ben hallettim."
+Yama hazir:       "Turkce yama hazir! Iyi oyunlar."
+Ceviri eksik:     "3 yeni string var, cevirmen arkadaslara haber verelim."
 ```
 
-### Sinir Ani
-```
-❌ "You died. Try again."
-✅ "Sakin ol... bir nefes al... 10. kez oldu ama olsun"
-```
-
-### Uyari Ani
-```
-❌ "Enemy approaching from left."
-✅ "SOLA SOLA! Sol diyorum SOOOOL! ...gitti. 🤦"
-```
+Soguk teknik mesajlar degil, samimi bilgilendirme.
 
 ---
 
-## Kisilik Spektrumu
+## Tamamlanma Kriterleri
 
-| Durum | Ton | Ornek |
-|-------|-----|-------|
-| Korku | Samimi panik | "Bismillah... o tarafa gitme dostum" |
-| Basari | Cosku | "Wubba lubba dub dub! Hadi devam!" |
-| Olum | Teselli | "Olur oyle, ben de ayni yerde kalmistim" |
-| Duygusal | Empati | "Dostum... neden boyle olmali ki?" |
-| Komik | Rahat | "Allah Allah bu ne simdi ya" |
-
----
-
-## Teknik Altyapi
-
-| Katman | Durum | Aciklama |
-|--------|-------|----------|
-| Screenshot (F12) | ✅ Mevcut | Temel altyapi hazir |
-| Claude API | ⏳ Planli | Goruntu analizi |
-| Oyun Tanima | ⏳ Planli | Hangi oyun oldugunu anla |
-| Overlay UI | ⏳ Planli | Ekranda mesaj goster |
-| Kisilik Motoru | ⏳ Planli | Duruma gore ton sec |
-| Kultur Veritabani | ⏳ Planli | Turkce ifadeler, tepkiler |
-
----
-
-## Tamamlanma Kriteri
-
-> **Bu ozellikler calistiginda, MakineAI TAMAMLANMISTIR:**
+> **Bu ozellikler calistiginda, v1.0 TAMAMLANMISTIR:**
 >
-> 1. ✅ Oyun sirasinda F12 ile screenshot al
-> 2. ⏳ AI goruntuyu analiz etsin
-> 3. ⏳ Oyunu ve sahneyi tanısin
-> 4. ⏳ Kulturel, samimi, "yasamis gibi" yorum yapsin
-> 5. ⏳ Overlay ile ekranda gostersin
-> 6. ⏳ Arka planda sessizce ogrensin
+> 1. ✅ Oyun kutuphanelerini gercekten tara (Steam/Epic/GOG)
+> 2. ✅ Ceviri paketini kur/kaldir
+> 3. ⏳ Sunucudan ceviri paketi indir
+> 4. ⏳ Oyun guncellemesini tespit et
+> 5. ⏳ Degisiklik analizi yap
+> 6. ⏳ Cevirileri otomatik uyarla
+> 7. ⏳ Uyarlamayi dogrula ve uygula
 
 ---
 
-## Ilham Kaynaklari
+## Ileri Vizyon (v2.0+)
 
-- Twitch chat samimiyeti (ama yapay zeka)
-- Rick & Morty kisilik dinamigi
-- Turk kultur ve dil ozellikleri
-- "Yaninda oturan arkadas" hissi
+### Topluluk Platformu
+- Cevirmenler icin katkı sistemi
+- Ceviri kalite puanlama
+- Otomatik ceviri onerisi (AI destekli)
+
+### Gaming Companion (Gelecek)
+- Oyun sirasinda F12 ile screenshot → AI analiz
+- Sahneye uygun kulturel yorum
+- "Yaninda oturan arkadas" deneyimi
 
 ---
 
@@ -125,14 +136,13 @@ MakineAI Turkce konusuyor - sadece dil degil, **kultur**:
 
 ```
 MakineAI sadece bir ceviri araci degil.
-MakineAI oyun oynarken yaninda olan bir dost.
-Turkce konusan, Turk kulturunu bilen,
-seninle birlikte heyecanlanan, korkan, sevinen bir yoldas.
+Oyun guncellemelerinin cevirileri kirmasini onleyen bir muhendislik cozumu.
+Turk oyuncular icin oyunlari oynanabilir kilan bir makine.
 
 Bu vizyon tamamlandiginda, uygulama BITMISTIR.
 ```
 
 ---
 
-*MakineAI - 2026*
+*MakineAI — 2026*
 *Bu dokuman ASLA silinmemelidir.*

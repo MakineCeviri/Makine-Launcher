@@ -96,6 +96,101 @@ ColumnLayout {
         }
     }
 
+    // Translation data path
+    Rectangle {
+        Layout.fillWidth: true
+        color: Theme.surface
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
+        border.width: 1
+        radius: Dimensions.radiusStandard
+        implicitHeight: dataPathColumn.implicitHeight + 16
+
+        ColumnLayout {
+            id: dataPathColumn
+            anchors.fill: parent
+            anchors.margins: Dimensions.marginSM
+            spacing: 0
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                Layout.leftMargin: Dimensions.marginSM
+                Layout.rightMargin: Dimensions.marginSM
+                spacing: Dimensions.spacingLG
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Dimensions.spacingXXS
+                    Text {
+                        text: qsTr("Çeviri Verileri Yolu")
+                        font.pixelSize: Dimensions.fontBody
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
+                    }
+                    Text {
+                        text: SettingsManager.translationDataPath || qsTr("Yapılandırılmadı")
+                        font.pixelSize: Dimensions.fontXS
+                        color: Theme.textMuted
+                        elide: Text.ElideMiddle
+                        Layout.fillWidth: true
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: browsePathText.width + 24
+                    Layout.preferredHeight: 32
+                    radius: Dimensions.radiusStandard
+                    color: browsePathMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.1) : Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
+                    border.width: 1
+                    Accessible.role: Accessible.Button
+                    Accessible.name: qsTr("Browse translation data path")
+                    activeFocusOnTab: true
+
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                    Text {
+                        id: browsePathText
+                        anchors.centerIn: parent
+                        text: qsTr("Gözat")
+                        font.pixelSize: Dimensions.fontSM
+                        font.weight: Font.Medium
+                        color: Theme.textSecondary
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: -1
+                        radius: parent.radius + 1
+                        color: "transparent"
+                        border.color: Theme.withAlpha(Theme.primary, 0.6)
+                        border.width: 2
+                        visible: parent.activeFocus
+                    }
+
+                    MouseArea {
+                        id: browsePathMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            var dialog = Qt.createQmlObject(
+                                'import QtQuick.Dialogs; FolderDialog { title: qsTr("Çeviri verileri klasörünü seçin") }',
+                                parent, "folderDialog")
+                            dialog.accepted.connect(function() {
+                                var path = dialog.selectedFolder.toString().replace("file:///", "")
+                                SettingsManager.translationDataPath = path
+                                dialog.destroy()
+                            })
+                            dialog.rejected.connect(function() { dialog.destroy() })
+                            dialog.open()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Toggle settings
     Rectangle {
         Layout.fillWidth: true

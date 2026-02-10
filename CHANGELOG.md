@@ -8,6 +8,16 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 ## [Unreleased]
 
 ### Eklenen
+- **Gercek oyun tarama** — Steam (Registry+VDF+ACF), Epic (Manifest JSON), GOG (Registry)
+- **Motor tespiti** — Dosya imzalariyla Unity, Unreal, Bethesda, Ren'Py, RPGMaker, GameMaker, Godot, Source
+- **Anti-cheat tespiti** — EAC, BattlEye, Vanguard dosya/dizin kontrolu
+- **LocalPackageManager** — Yerel ceviri paketi tarama, kurulum, kaldirma
+- **VDF Parser** — Header-only Steam config parser (UI_ONLY build icin)
+- **Async yedekleme** — QtConcurrent ile arka plan yedekleme + progress
+- **Sistem tepsisi servis modu** — Minimize'da azaltilmis kaynak kullanimi
+- **Lazy QML yukleme** — Settings sayfasi talep uzerine yukleniyor
+- **Visibility-aware timers** — Pencere minimize'da ProcessScanner intervali 3s→30s
+- **Ceviri veri yolu ayari** — SettingsManager'da translationDataPath property'si
 - `.editorconfig` - Editörler arası tutarlı kodlama standartları
 - `vcpkg-configuration.json` - Tekrarlanabilir bağımlılık yapıları (baseline pinleme)
 - `.clang-tidy` - Statik analiz yapılandırması (C++23, proje-uyumlu kontroller)
@@ -20,6 +30,13 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - Genişletilmiş PR auto-labeling kuralları
 
 ### Değiştirilen
+- **Proje yonu:** "String extraction + handler pipeline" → "Ceviri dagitim + adaptasyon motoru"
+- **VISION.md:** Gaming Companion AI → Oyun guncelleme adaptasyonu
+- **ROADMAP.md:** Core entegrasyonu odagi → Makine (urun) + MakineAI (motor) ayrimi
+- **README.md:** Guncellenmis proje tanimi ve ozellik listesi
+- **architecture.md:** Iki katmanli yapi (Makine + MakineAI)
+- **docs/index.md:** Yeni yapi ve vizyon yansitildi
+- CoreBridge UI_ONLY: Sahte veriler → gercek Steam/Epic/GOG tarama
 - `docs/ROADMAP.md` güncel durum ve issue bağlantılarıyla yenilendi
 - CI workflow: `permissions`, `concurrency`, paralel static analysis
 - CI workflow: cppcheck `--std=c++23`, `-j $(nproc)`, `--inline-suppr`

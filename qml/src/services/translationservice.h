@@ -62,8 +62,6 @@ public:
     Q_INVOKABLE void stopTranslation();
     Q_INVOKABLE void pauseTranslation();
     Q_INVOKABLE void resumeTranslation();
-    Q_INVOKABLE void quickTranslate(const QString& gameId, const QString& gameName, const QString& installPath);
-
 signals:
     void isActiveChanged();
     void isPausedChanged();

@@ -50,7 +50,7 @@ Rectangle {
         radius: parent.radius + 12
         color: color1
         visible: false
-        layer.enabled: true
+        layer.enabled: root.animationsEnabled
     }
 
     MultiEffect {
@@ -71,7 +71,7 @@ Rectangle {
         radius: parent.radius + 16
         color: color3
         visible: false
-        layer.enabled: true
+        layer.enabled: root.animationsEnabled
     }
 
     MultiEffect {

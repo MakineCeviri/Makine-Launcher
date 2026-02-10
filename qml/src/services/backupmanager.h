@@ -79,6 +79,7 @@ public:
     ~BackupManager() override;
 
     static BackupManager* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
+    static BackupManager* instance();
 
     // Properties
     QVariantList backups() const;
@@ -97,8 +98,10 @@ public:
     Q_INVOKABLE bool hasBackup(const QString& gameId);
     Q_INVOKABLE QString getBackupPath(const QString& gameId);
     Q_INVOKABLE int backupCountForGame(const QString& gameId);
+    Q_INVOKABLE void createBackupAsync(const QString& gameId, const QString& gameName, const QString& sourcePath);
 
 signals:
+    void backupProgress(double progress, const QString& status);
     void backupsChanged();
     void isRestoringChanged();
     void restoreStatusChanged();
@@ -114,6 +117,8 @@ private:
     void cleanupOldBackups(const QString& gameId);
     QString generateBackupId();
     QString getBackupsDirectory();
+
+    static BackupManager* s_instance;
 
     QList<BackupInfo> m_backups;
     bool m_isRestoring{false};

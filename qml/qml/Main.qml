@@ -217,6 +217,21 @@ ApplicationWindow {
                                               window.visibility !== Window.Minimized &&
                                               window.visibility !== Window.Hidden
 
+    // Visibility-aware resource management (Faz 3A)
+    readonly property bool windowActive: window.visible &&
+                                         window.visibility !== Window.Minimized &&
+                                         window.visibility !== Window.Hidden
+
+    onWindowActiveChanged: {
+        if (windowActive) {
+            // Window restored: use normal scan interval
+            ProcessScanner.startWatching(3000)
+        } else {
+            // Window minimized/hidden: reduce scan frequency
+            ProcessScanner.startWatching(30000)
+        }
+    }
+
     ColumnLayout {
         id: mainContent
         anchors.fill: parent
@@ -412,7 +427,7 @@ ApplicationWindow {
             function getPage(index) {
                 switch(index) {
                     case 0: return homeView
-                    case 1: return settingsView
+                    case 1: return settingsLoader
                     case 2: return gameDetailView
                     case 3: return workflowView
                     default: return null
@@ -475,15 +490,22 @@ ApplicationWindow {
                 onManualFolderRequested: manualFolderDialog.open()
             }
 
-            SettingsScreen {
-                id: settingsView
+            // Lazy-loaded settings page (Faz 3B)
+            Loader {
+                id: settingsLoader
                 anchors.fill: parent
+                active: contentStackContainer.settingsVisible
                 visible: contentStackContainer.settingsVisible
-                onBack: {
-                    window.currentNavIndex = 0
-                    contentStackContainer.navigateTo(0)
+                sourceComponent: Component {
+                    SettingsScreen {
+                        onBack: {
+                            window.currentNavIndex = 0
+                            contentStackContainer.navigateTo(0)
+                        }
+                    }
                 }
             }
+            property alias settingsView: settingsLoader
 
             GameDetailScreen {
                 id: gameDetailView
@@ -631,6 +653,42 @@ ApplicationWindow {
                     qsTr("Güncelleme Mevcut"),
                     qsTr("Yeni sürüm mevcut: %1").arg(homeView.latestVersion),
                     "update"
+                )
+            }
+        }
+    }
+
+    // ===== TRANSLATION INSTALL SIGNALS =====
+    Connections {
+        target: GameService
+        function onTranslationInstallStarted(gameId) {
+            window.showNotification(
+                qsTr("Yama Kuruluyor"),
+                qsTr("Türkçe yama indiriliyor ve kuruluyor..."),
+                "translation"
+            )
+        }
+        function onTranslationInstallCompleted(gameId, success, message) {
+            if (success) {
+                window.showNotification(
+                    qsTr("Yama Kuruldu"),
+                    qsTr("Türkçe yama başarıyla kuruldu!"),
+                    "success"
+                )
+            } else {
+                window.showNotification(
+                    qsTr("Yama Hatası"),
+                    message || qsTr("Yama kurulumu başarısız oldu"),
+                    "error"
+                )
+            }
+        }
+        function onTranslationUninstalled(gameId, success, message) {
+            if (success) {
+                window.showNotification(
+                    qsTr("Yama Kaldırıldı"),
+                    qsTr("Türkçe yama başarıyla kaldırıldı"),
+                    "info"
                 )
             }
         }

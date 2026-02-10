@@ -8,7 +8,6 @@
 
 #include <QAbstractListModel>
 #include <QQmlEngine>
-#include <QSortFilterProxyModel>
 
 #include "../services/corebridge.h"
 #include "../makineai_metatypes.h"
@@ -103,41 +102,6 @@ private:
     QString m_filterEngine;
     GameSortOrder m_sortOrder{GameSortOrder::NameAsc};
     bool m_isLoading{false};
-};
-
-/**
- * @brief Filtered Game List Model
- *
- * QSortFilterProxyModel for advanced filtering and sorting.
- */
-class FilteredGameListModel : public QSortFilterProxyModel
-{
-    Q_OBJECT
-    QML_ELEMENT
-
-    Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterTextChanged)
-    Q_PROPERTY(bool showOnlyWithTranslation READ showOnlyWithTranslation WRITE setShowOnlyWithTranslation NOTIFY showOnlyWithTranslationChanged)
-
-public:
-    explicit FilteredGameListModel(QObject *parent = nullptr);
-
-    QString filterText() const { return m_filterText; }
-    void setFilterText(const QString& text);
-
-    bool showOnlyWithTranslation() const { return m_showOnlyWithTranslation; }
-    void setShowOnlyWithTranslation(bool show);
-
-signals:
-    void filterTextChanged();
-    void showOnlyWithTranslationChanged();
-
-protected:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
-    bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
-
-private:
-    QString m_filterText;
-    bool m_showOnlyWithTranslation{false};
 };
 
 } // namespace makineai

@@ -5,6 +5,7 @@
  */
 
 #include "gameservice.h"
+#include "backupmanager.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -127,6 +128,39 @@ void GameService::setupCoreBridge()
                 m_lastError = error;
                 emit lastErrorChanged();
                 emit scanError(error);
+            });
+
+    // Forward package install signals with gameId context
+    connect(m_coreBridge, &CoreBridge::packageInstallProgress,
+            this, [this](double progress, const QString& status) {
+                if (!m_installingGameId.isEmpty()) {
+                    emit translationInstallProgress(m_installingGameId, progress, status);
+                }
+            });
+
+    connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
+            this, [this](bool success, const QString& message) {
+                QString gameId = m_installingGameId;
+                m_installingGameId.clear();
+                if (success && !gameId.isEmpty()) {
+                    // Update game's hasTranslation flag
+                    if (m_gameIdToIndex.contains(gameId)) {
+                        int idx = m_gameIdToIndex[gameId];
+                        if (idx >= 0 && idx < m_games.count()) {
+                            m_games[idx].hasTranslation = true;
+                            invalidateCache();
+                            emit gamesChanged();
+                        }
+                    }
+                }
+                emit translationInstallCompleted(gameId, success, message);
+            });
+
+    connect(m_coreBridge, &CoreBridge::packageInstallError,
+            this, [this](const QString& error) {
+                QString gameId = m_installingGameId;
+                m_installingGameId.clear();
+                emit translationInstallCompleted(gameId, false, error);
             });
 }
 
@@ -477,6 +511,20 @@ int GameService::patchedGamesCount() const
     return count;
 }
 
+QVariantList GameService::gamesWithTranslation() const
+{
+    QVariantList result;
+    for (const auto& game : m_games) {
+        bool hasPackage = m_coreBridge && m_coreBridge->hasTranslationPackage(game.id);
+        if (game.hasTranslation || hasPackage) {
+            QVariantMap map = game.toVariantMap();
+            map["packageInstalled"] = m_coreBridge ? m_coreBridge->isPackageInstalled(game.id) : false;
+            result.append(map);
+        }
+    }
+    return result;
+}
+
 void GameService::loadCachedGames()
 {
     const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/games_cache.json";
@@ -800,6 +848,115 @@ void GameService::installLocalPackage(const QString& filePath) {
     }
 }
 
+// =============================================================================
+// Translation Package Installation (#primary-flow)
+// =============================================================================
+
+void GameService::installTranslation(const QString& gameId)
+{
+    if (!m_coreBridge) {
+        emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
+        return;
+    }
+
+    // Prevent concurrent installs
+    if (!m_installingGameId.isEmpty()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Another installation is in progress"));
+        return;
+    }
+
+    // Look up game info
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
+        emit translationInstallCompleted(gameId, false, tr("Game not found: %1").arg(gameId));
+        return;
+    }
+
+    const GameInfo& game = m_games[*it];
+
+    // Check if package exists for this game
+    auto pkg = m_coreBridge->getPackageForGame(gameId);
+    if (!pkg.has_value()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("No translation package available for this game"));
+        return;
+    }
+
+    // Verify install path exists
+    if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Game install path not found: %1").arg(game.installPath));
+        return;
+    }
+
+    // Backup before install
+    BackupManager* bm = BackupManager::instance();
+    if (bm) {
+        emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
+        bool backupOk = bm->createBackup(gameId, game.name, game.installPath);
+        if (!backupOk) {
+            emit translationInstallCompleted(gameId, false,
+                tr("Yedek oluşturulamadı, kurulum iptal edildi"));
+            return;
+        }
+    }
+
+    m_installingGameId = gameId;
+    emit translationInstallStarted(gameId);
+
+    qDebug() << "Installing translation for" << game.name
+             << "package:" << pkg->packageId
+             << "path:" << game.installPath;
+
+    // Delegate to CoreBridge (handles download + verify + install)
+    m_coreBridge->installPackage(pkg->packageId, game.installPath);
+}
+
+void GameService::uninstallTranslation(const QString& gameId)
+{
+    if (!m_coreBridge) {
+        emit translationUninstalled(gameId, false, tr("Core bridge not available"));
+        return;
+    }
+
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
+        emit translationUninstalled(gameId, false, tr("Game not found"));
+        return;
+    }
+
+    const GameInfo& game = m_games[*it];
+
+    // Restore from backup before uninstall
+    BackupManager* bm = BackupManager::instance();
+    if (bm && bm->hasBackup(gameId)) {
+        auto latest = bm->getLatestBackup(gameId);
+        if (!latest.isEmpty()) {
+            bm->restoreBackup(latest["id"].toString(), game.installPath);
+        }
+    }
+
+    bool success = m_coreBridge->uninstallPackage(gameId, game.installPath);
+
+    if (success) {
+        // Update game's hasTranslation flag
+        m_games[*it].hasTranslation = false;
+        invalidateCache();
+        emit gamesChanged();
+    }
+
+    emit translationUninstalled(gameId, success,
+        success ? tr("Translation removed successfully")
+                : tr("Failed to remove translation"));
+}
+
+bool GameService::isTranslationInstalled(const QString& gameId)
+{
+    if (!m_coreBridge) return false;
+    return m_coreBridge->isPackageInstalled(gameId);
+}
+
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
     Q_UNUSED(gameId)
@@ -894,14 +1051,77 @@ void GameService::uninstallRuntime(const QString& gameId)
 
 QVariantMap GameService::checkAntiCheat(const QString& gameId)
 {
-    Q_UNUSED(gameId)
+    // Look up game install path
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size()) {
+        return {{"hasAntiCheat", false}, {"systems", QVariantList()}};
+    }
 
-    // Delegate to CoreBridge → AntiCheatDetector when core is integrated
-    // Core has full detection for EAC, BattlEye, Vanguard, nProtect, etc.
-    // For now, return no anti-cheat detected
+    const QString& gamePath = m_games[*it].installPath;
+    if (gamePath.isEmpty() || !QDir(gamePath).exists()) {
+        return {{"hasAntiCheat", false}, {"systems", QVariantList()}};
+    }
+
+    QVariantList systems;
+
+    // Check for Easy Anti-Cheat
+    if (QDir(gamePath + "/EasyAntiCheat").exists() ||
+        QFile::exists(gamePath + "/EasyAntiCheat_EOS.sys") ||
+        QFile::exists(gamePath + "/easyanticheat_x64.dll")) {
+        systems.append(QVariantMap{
+            {"name", "Easy Anti-Cheat"},
+            {"shortName", "EAC"},
+            {"severity", "high"},
+            {"warning", tr("EAC aktif oyunlarda çeviri yaması sorunlara yol açabilir")}
+        });
+    }
+
+    // Check for BattlEye
+    if (QDir(gamePath + "/BattlEye").exists() ||
+        QFile::exists(gamePath + "/BEService.exe") ||
+        QFile::exists(gamePath + "/BEClient_x64.dll")) {
+        systems.append(QVariantMap{
+            {"name", "BattlEye"},
+            {"shortName", "BE"},
+            {"severity", "high"},
+            {"warning", tr("BattlEye aktif oyunlarda dosya değişiklikleri engellenir")}
+        });
+    }
+
+    // Check for Denuvo
+    {
+        QDir dir(gamePath);
+        const auto exeFiles = dir.entryList({"*.exe"}, QDir::Files);
+        for (const QString& exe : exeFiles) {
+            QFileInfo fi(gamePath + "/" + exe);
+            // Denuvo executables are typically very large (>100MB)
+            if (fi.size() > 100 * 1024 * 1024) {
+                // Check file for Denuvo signature strings (basic heuristic)
+                QFile f(fi.absoluteFilePath());
+                if (f.open(QIODevice::ReadOnly)) {
+                    // Read first 4KB for header check
+                    QByteArray header = f.read(4096);
+                    f.close();
+                    // This is a very rough heuristic; real detection needs PE analysis
+                }
+            }
+        }
+    }
+
+    // Check for Vanguard (Riot)
+    if (QFile::exists(gamePath + "/vgc.exe") ||
+        QFile::exists(gamePath + "/vanguard.exe")) {
+        systems.append(QVariantMap{
+            {"name", "Riot Vanguard"},
+            {"shortName", "Vanguard"},
+            {"severity", "critical"},
+            {"warning", tr("Vanguard kernel-level anti-cheat, dosya değişikliği kesinlikle önerilmez")}
+        });
+    }
+
     return {
-        {"hasAntiCheat", false},
-        {"systems", QVariantList()}
+        {"hasAntiCheat", !systems.isEmpty()},
+        {"systems", systems}
     };
 }
 
