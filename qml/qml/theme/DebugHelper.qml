@@ -45,7 +45,6 @@ QtObject {
 
         // Service errors (300-399)
         "MAK-300": "GameService not responding",
-        "MAK-301": "TranslationService error",
         "MAK-302": "Network request failed"
     })
 
@@ -120,7 +119,7 @@ QtObject {
     function logNavigation(fromIndex, toIndex, success) {
         if (!enabled) return
 
-        var pageNames = ["Home", "Settings", "GameDetail", "Workflow"]
+        var pageNames = ["Home", "Settings", "GameDetail"]
         var fromName = pageNames[fromIndex] || "Unknown(" + fromIndex + ")"
         var toName = pageNames[toIndex] || "Unknown(" + toIndex + ")"
 

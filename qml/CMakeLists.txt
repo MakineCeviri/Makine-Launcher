@@ -89,7 +89,6 @@ endif()
 # Backend service sources
 set(BACKEND_SOURCES
     src/services/gameservice.cpp
-    src/services/translationservice.cpp
     src/services/settingsmanager.cpp
     src/services/backupmanager.cpp
     src/services/processscanner.cpp
@@ -102,7 +101,6 @@ set(BACKEND_SOURCES
 
 set(BACKEND_HEADERS
     src/services/gameservice.h
-    src/services/translationservice.h
     src/services/settingsmanager.h
     src/services/backupmanager.h
     src/services/processscanner.h
@@ -117,12 +115,10 @@ set(BACKEND_HEADERS
 # Model sources
 set(MODEL_SOURCES
     src/models/gamelistmodel.cpp
-    src/models/translationmodel.cpp
 )
 
 set(MODEL_HEADERS
     src/models/gamelistmodel.h
-    src/models/translationmodel.h
     src/makineai_metatypes.h
 )
 
@@ -155,7 +151,6 @@ qt_add_qml_module(MakineAI
         qml/HomeScreen.qml
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
-        qml/TranslationWorkflowScreen.qml
         qml/SplashScreen.qml
         qml/SplashWindow.qml
         qml/OnboardingWizard.qml
@@ -228,7 +223,6 @@ qt_add_qml_module(MakineAI
         # Dialogs
         qml/dialogs/GameDetectorDialog.qml
         qml/dialogs/AllGamesDialog.qml
-        qml/dialogs/QAResultsDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/CompatibilityWarningDialog.qml
         qml/dialogs/UninstallConfirmDialog.qml

@@ -43,7 +43,6 @@ void logToFile(const QString& msg) {
 
 // Backend services
 #include "services/gameservice.h"
-#include "services/translationservice.h"
 #include "services/settingsmanager.h"
 #include "services/backupmanager.h"
 #include "services/processscanner.h"

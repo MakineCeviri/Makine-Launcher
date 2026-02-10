@@ -38,71 +38,6 @@ struct DetectedGame {
 };
 
 /**
- * @brief Translation entry from core handlers
- */
-struct TranslationEntryQt {
-    QString filePath;
-    QString entryKey;
-    QString sourceText;
-    QString targetText;
-    QString context;
-    QString category;
-    int qaScore{100};
-    bool hasIssues{false};
-    int lineNumber{0};
-};
-
-/**
- * @brief Translation Memory match from core
- */
-struct TMMatchQt {
-    QString sourceText;
-    QString targetText;
-    double similarity;
-    QString matchType;     // exact, nearExact, fuzzy, poor
-    QString gameId;
-    QString context;
-    int qualityScore{100};
-    bool verified{false};
-};
-
-/**
- * @brief Glossary term from core
- */
-struct GlossaryTermQt {
-    qint64 id;
-    QString termSource;
-    QString termTarget;
-    QString termType;
-    QString domain;
-    bool caseSensitive{false};
-    bool exactMatch{false};
-    int priority{50};
-    QString notes;
-    bool doNotTranslate{false};
-};
-
-/**
- * @brief QA issue from core
- */
-struct QAIssueQt {
-    QString code;
-    QString message;
-    QString severity;      // info, warning, major, critical
-    int penaltyPoints;
-};
-
-/**
- * @brief QA result from core
- */
-struct QAResultQt {
-    int score{100};
-    bool passed{true};
-    bool hasCriticalIssues{false};
-    QList<QAIssueQt> issues;
-};
-
-/**
  * @brief Translation package info from core
  */
 struct TranslationPackageQt {
@@ -121,8 +56,7 @@ struct TranslationPackageQt {
  * Provides async operations for:
  * - Game library scanning (Steam, Epic, GOG)
  * - Engine detection
- * - String extraction from game files
- * - Translation application
+ * - Translation package management
  * - Backup/restore operations
  */
 class CoreBridge : public QObject
@@ -168,18 +102,7 @@ public:
      */
     QList<DetectedGame> detectedGames() const { return m_detectedGames; }
 
-    // ========== Translation Operations ==========
-
-    /**
-     * @brief Extract strings from game files
-     */
-    void extractStrings(const QString& gamePath, const QString& engine);
-
-    /**
-     * @brief Apply translations to game files
-     */
-    void applyTranslations(const QString& gamePath, const QString& engine,
-                          const QList<TranslationEntryQt>& translations);
+    // ========== Backup ==========
 
     /**
      * @brief Create backup of game files
@@ -191,112 +114,6 @@ public:
      */
     bool restoreBackup(const QString& gamePath, const QString& engine,
                        const QString& backupId);
-
-    // ========== Extracted Strings ==========
-
-    /**
-     * @brief Get extracted strings
-     */
-    QList<TranslationEntryQt> extractedStrings() const { return m_extractedStrings; }
-
-    // ========== Translation Memory ==========
-
-    /**
-     * @brief Find fuzzy matches in Translation Memory
-     */
-    QList<TMMatchQt> findTMMatches(
-        const QString& sourceText,
-        const QString& gameId = QString(),
-        const QString& engineType = QString(),
-        int limit = 5,
-        double minScore = 40.0
-    );
-
-    /**
-     * @brief Find best TM match for text
-     */
-    std::optional<TMMatchQt> findBestTMMatch(
-        const QString& sourceText,
-        const QString& gameId = QString(),
-        double minScore = 40.0
-    );
-
-    /**
-     * @brief Add entry to Translation Memory
-     */
-    bool addTMEntry(
-        const QString& sourceText,
-        const QString& targetText,
-        const QString& gameId = QString(),
-        const QString& context = QString()
-    );
-
-    /**
-     * @brief Batch find TM matches for multiple strings
-     */
-    void findBatchTMMatches(
-        const QStringList& sourceTexts,
-        const QString& gameId = QString(),
-        double minScore = 40.0
-    );
-
-    /**
-     * @brief Clear all Translation Memory entries
-     */
-    void clearTM();
-
-    // ========== Glossary ==========
-
-    /**
-     * @brief Get all glossary terms
-     */
-    QList<GlossaryTermQt> getAllGlossaryTerms();
-
-    /**
-     * @brief Get glossary terms for a specific game
-     */
-    QList<GlossaryTermQt> getGlossaryTermsForGame(const QString& gameId);
-
-    /**
-     * @brief Apply glossary to text
-     */
-    QString applyGlossary(
-        const QString& text,
-        const QString& gameId = QString()
-    );
-
-    /**
-     * @brief Find glossary terms in text
-     */
-    QList<GlossaryTermQt> findTermsInText(
-        const QString& text,
-        const QString& gameId = QString()
-    );
-
-    /**
-     * @brief Clear all glossary terms
-     */
-    void clearGlossary();
-
-    // ========== QA Service ==========
-
-    /**
-     * @brief Perform QA check on translation
-     */
-    QAResultQt performQACheck(
-        const QString& sourceText,
-        const QString& targetText,
-        const QString& gameId = QString(),
-        bool checkGlossary = false
-    );
-
-    /**
-     * @brief Batch QA check
-     */
-    void performBatchQA(
-        const QList<QPair<QString, QString>>& entries,
-        const QString& gameId = QString()
-    );
 
     // ========== Package Manager ==========
 
@@ -338,31 +155,10 @@ signals:
     void scanError(const QString& error);
     void gameDetected(const QString& gameId, const QString& gameName);
 
-    // Extraction signals
-    void extractionStarted();
-    void extractionProgress(qreal progress, const QString& status);
-    void extractionCompleted(int stringCount);
-    void extractionError(const QString& error);
-
-    // Patching signals
-    void patchStarted();
-    void patchProgress(qreal progress, const QString& status);
-    void patchCompleted(int appliedCount);
-    void patchError(const QString& error);
-
     // Backup signals
     void backupCreated(const QString& backupId);
     void backupRestored();
     void backupError(const QString& error);
-
-    // TM signals
-    void tmMatchFound(int index, const TMMatchQt& match);
-    void tmBatchCompleted(int matchedCount, int totalCount);
-    void tmEntryAdded(bool success);
-
-    // QA signals
-    void qaCheckCompleted(int index, const QAResultQt& result);
-    void qaBatchCompleted(int passedCount, int totalCount, double avgScore);
 
     // Package signals
     void packageManifestRefreshed(int packageCount);
@@ -377,18 +173,6 @@ private:
     void doScanSteam();
     void doScanEpic();
     void doScanGog();
-    void doExtractStrings(const QString& gamePath, const QString& engine);
-    void doApplyTranslations(const QString& gamePath, const QString& engine,
-                            const QList<TranslationEntryQt>& translations);
-    // TM helpers
-    TMMatchQt convertTMMatch(const struct TMMatch& match);
-
-    // Glossary helpers
-    GlossaryTermQt convertGlossaryTerm(const struct GlossaryTerm& term);
-
-    // QA helpers
-    QAResultQt convertQAResult(const struct QAResult& result);
-    QAIssueQt convertQAIssue(const struct QAIssue& issue);
 
     // Package helpers
     TranslationPackageQt convertPackage(const struct TranslationPackage& pkg);
@@ -396,7 +180,6 @@ private:
 
     static CoreBridge* s_instance;
     QList<DetectedGame> m_detectedGames;
-    QList<TranslationEntryQt> m_extractedStrings;
 #ifdef MAKINEAI_UI_ONLY
     // Real scanning helpers for UI_ONLY build (pure Qt, no vcpkg deps)
     void doScanSteamReal();

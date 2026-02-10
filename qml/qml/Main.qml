@@ -390,7 +390,6 @@ ApplicationWindow {
             property bool homeVisible: true
             property bool settingsVisible: false
             property bool gameDetailVisible: false
-            property bool workflowVisible: false
 
             function navigateTo(index) {
                 if (index === currentIndex || transitioning) return
@@ -420,7 +419,6 @@ ApplicationWindow {
                     case 0: homeVisible = visible; break
                     case 1: settingsVisible = visible; break
                     case 2: gameDetailVisible = visible; break
-                    case 3: workflowVisible = visible; break
                 }
             }
 
@@ -429,7 +427,6 @@ ApplicationWindow {
                     case 0: return homeView
                     case 1: return settingsLoader
                     case 2: return gameDetailView
-                    case 3: return workflowView
                     default: return null
                 }
             }
@@ -538,39 +535,8 @@ ApplicationWindow {
                         return
                     }
 
-                    // All checks passed — proceed
-                    startTranslationWorkflow(gameData)
-                }
-
-                function startTranslationWorkflow(gameData) {
-                    workflowView.gameId = gameDetailView.gameId
-                    workflowView.gameName = gameDetailView.gameName
-                    workflowView.gamePath = gameData ? gameData.installPath : ""
-                    workflowView.gameEngine = gameDetailView.engine
-                    workflowView.headerImageUrl = gameDetailView.imageUrl
-                    contentStackContainer.navigateTo(3)
-
-                    TranslationService.startTranslation(
-                        workflowView.gameId,
-                        workflowView.gameName,
-                        workflowView.gamePath
-                    )
-                }
-            }
-
-            TranslationWorkflowScreen {
-                id: workflowView
-                anchors.fill: parent
-                visible: contentStackContainer.workflowVisible
-                onBackClicked: {
-                    contentStackContainer.navigateTo(2)
-                }
-                onCompleted: function(gameId) {
-                    contentStackContainer.navigateTo(0)
-                    window.currentNavIndex = 0
-                }
-                onCancelled: function(gameId) {
-                    contentStackContainer.navigateTo(2)
+                    // All checks passed — install translation package
+                    GameService.installTranslation(gameDetailView.gameId)
                 }
             }
 

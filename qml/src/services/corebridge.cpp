@@ -558,30 +558,6 @@ QString CoreBridge::detectEngine(const QString& gamePath)
     return detectEngineReal(gamePath);
 }
 
-void CoreBridge::extractStrings(const QString& gamePath, const QString& engine)
-{
-    Q_UNUSED(gamePath)
-    Q_UNUSED(engine)
-
-    emit extractionStarted();
-    m_extractedStrings.clear();
-
-    // String extraction requires core library
-    emit extractionProgress(1.0, tr("Metin çıkarma işlemi core kütüphanesi gerektirir"));
-    emit extractionCompleted(0);
-}
-
-void CoreBridge::applyTranslations(const QString& gamePath, const QString& engine,
-                                   const QList<TranslationEntryQt>& translations)
-{
-    Q_UNUSED(gamePath)
-    Q_UNUSED(engine)
-    Q_UNUSED(translations)
-
-    emit patchStarted();
-    emit patchProgress(1.0, tr("Çeviri uygulama core kütüphanesi gerektirir"));
-    emit patchCompleted(0);
-}
 
 QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
 {
@@ -604,79 +580,6 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
     return true;
 }
 
-// TM/Glossary/QA — these require the core library, return empty honestly
-
-QList<TMMatchQt> CoreBridge::findTMMatches(
-    const QString& sourceText, const QString& gameId,
-    const QString& engineType, int limit, double minScore)
-{
-    Q_UNUSED(sourceText) Q_UNUSED(gameId) Q_UNUSED(engineType)
-    Q_UNUSED(limit) Q_UNUSED(minScore)
-    return {};
-}
-
-std::optional<TMMatchQt> CoreBridge::findBestTMMatch(
-    const QString& sourceText, const QString& gameId, double minScore)
-{
-    Q_UNUSED(sourceText) Q_UNUSED(gameId) Q_UNUSED(minScore)
-    return std::nullopt;
-}
-
-bool CoreBridge::addTMEntry(const QString& sourceText, const QString& targetText,
-                            const QString& gameId, const QString& context)
-{
-    Q_UNUSED(sourceText) Q_UNUSED(targetText) Q_UNUSED(gameId) Q_UNUSED(context)
-    return false;
-}
-
-void CoreBridge::findBatchTMMatches(const QStringList& sourceTexts,
-                                    const QString& gameId, double minScore)
-{
-    Q_UNUSED(gameId) Q_UNUSED(minScore)
-    emit tmBatchCompleted(0, sourceTexts.size());
-}
-
-void CoreBridge::clearTM() {}
-
-QList<GlossaryTermQt> CoreBridge::getAllGlossaryTerms() { return {}; }
-
-QList<GlossaryTermQt> CoreBridge::getGlossaryTermsForGame(const QString& gameId)
-{
-    Q_UNUSED(gameId)
-    return {};
-}
-
-QString CoreBridge::applyGlossary(const QString& text, const QString& gameId)
-{
-    Q_UNUSED(gameId)
-    return text;
-}
-
-QList<GlossaryTermQt> CoreBridge::findTermsInText(const QString& text, const QString& gameId)
-{
-    Q_UNUSED(text) Q_UNUSED(gameId)
-    return {};
-}
-
-void CoreBridge::clearGlossary() {}
-
-QAResultQt CoreBridge::performQACheck(const QString& sourceText, const QString& targetText,
-                                       const QString& gameId, bool checkGlossary)
-{
-    Q_UNUSED(sourceText) Q_UNUSED(targetText) Q_UNUSED(gameId) Q_UNUSED(checkGlossary)
-    QAResultQt result;
-    result.score = 100;
-    result.passed = true;
-    result.hasCriticalIssues = false;
-    return result;
-}
-
-void CoreBridge::performBatchQA(const QList<QPair<QString, QString>>& entries,
-                                const QString& gameId)
-{
-    Q_UNUSED(gameId)
-    emit qaBatchCompleted(entries.size(), entries.size(), 100.0);
-}
 
 // ========== Package Management (via LocalPackageManager) ==========
 
