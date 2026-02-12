@@ -10,7 +10,7 @@
 #include <QQmlEngine>
 
 #include "../services/corebridge.h"
-#include "../makineai_metatypes.h"
+#include "../makinaeiMetatypes.h"
 
 namespace makineai {
 

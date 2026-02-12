@@ -1,14 +1,14 @@
-# Mimari Genel Bakis
+# Mimari Genel Bakış
 
-MakineAI'nin sistem mimarisini aciklar.
+MakineAI'nin sistem mimarisini açıklar.
 
 ---
 
-## Iki Katmanli Yapi
+## İki Katmanlı Yapı
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                  Makine (Urun)                        │
+│                  Makine (Ürün)                        │
 │  ┌──────────────────────────────────────────────────┐ │
 │  │              Qt6 QML UI Layer                    │ │
 │  │  Main.qml → HomeScreen → GameDetail → Settings  │ │
@@ -17,74 +17,92 @@ MakineAI'nin sistem mimarisini aciklar.
 │  │             Qt Services Layer                    │ │
 │  │  GameService │ CoreBridge │ SettingsManager      │ │
 │  │  BackupManager │ ProcessScanner │ SystemTray     │ │
-│  │  LocalPackageManager                             │ │
+│  │  LocalPackageManager │ BatchOperationService     │ │
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
 │               MakineAI (Motor)                        │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │  Guncelleme Tespiti   (henuz gelistirilmedi)     │ │
+│  │  Guncelleme Tespiti   (iskelet mevcut)           │ │
 │  │  Degisiklik Analizi   (henuz gelistirilmedi)     │ │
 │  │  Adaptasyon Motoru    (henuz gelistirilmedi)     │ │
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
 │            C++ Core Library (Opsiyonel)                │
 │  GameDetector │ PatchEngine │ PackageManager          │
+│  AssetParser │ VersionTracker │ Security              │
 │  (MSVC, vcpkg — sadece release build)                 │
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Makine: Servis Katmani
+## Makine: Servis Katmanı
 
 ### CoreBridge
-Oyun tarama ve paket yonetiminin merkezi.
+Oyun tarama ve paket yönetiminin merkezi.
 
 **UI_ONLY modda (MinGW, `just dev`):**
 - Steam: Registry + VDF + ACF parse (saf Qt)
 - Epic: Manifest JSON tarama
 - GOG: Registry tarama
-- Motor tespiti: Dosya imzalari (DLL, dizin, uzanti)
-- Paket yonetimi: LocalPackageManager uzerinden
+- Motor tespiti: Dosya imzaları (DLL, dizin, uzantı)
+- Paket yönetimi: LocalPackageManager üzerinden
 
 **Full modda (MSVC, `just release`):**
-- Core kutuphanesi uzerinden tum islemler
+- Core kütüphanesi üzerinden tüm işlemler
 
 ### LocalPackageManager
-Yerel ceviri paketlerini yonetir:
+Yerel çeviri paketlerini yönetir:
 - `translation_data/` dizinini tarar
-- Paket ID → Steam AppID eslestirmesi
+- Paket ID → Steam AppID eşleştirmesi
 - Dosya kopyalama (overlay) kurulum
 - Kurulu paket durumu takibi
 
 ### GameService
-QML ile CoreBridge arasindaki kopru:
-- Oyun listesi yonetimi
-- Anti-cheat kontrolu (EAC, BattlEye, Vanguard)
-- Ceviri durumu sorgulama
+QML ile CoreBridge arasındaki köprü:
+- Oyun listesi yönetimi
+- Anti-cheat kontrolü (EAC, BattlEye, Vanguard)
+- Çeviri durumu sorgulama
 
 ### BackupManager
-Yedekleme ve geri yukleme:
-- Kurulumdan once otomatik yedek
+Yedekleme ve geri yükleme:
+- Kurulumdan önce otomatik yedek
 - Async yedekleme (QtConcurrent)
-- Oyun basina maks yedek siniri
+- Oyun başına maks yedek sınırı
 
 ### ProcessScanner
-Calisan oyunlari tespit eder:
+Çalışan oyunları tespit eder:
 - Windows API ile process tarama
-- Visibility-aware: minimize'da yavas tarar
+- Visibility-aware: minimize'da yavaş tarar
+
+### SystemTrayManager
+Native Win32 sistem tepsisi:
+- Shell_NotifyIconW ile doğrudan entegrasyon
+- Qt6Widgets bağımlılığına gerek yok
+- Context menu: Göster / Ayarlar / Çıkış
 
 ### SettingsManager
-Uygulama ayarlari:
+Uygulama ayarları:
 - Dil, tema, bildirim tercihleri
-- Ceviri veri yolu (`translationDataPath`)
+- Çeviri veri yolu (`translationDataPath`)
 - QSettings ile persist
+
+### IntegrityService
+Binary bütünlük kontrolü:
+- SHA-256 ile executable doğrulama
+- Dev build'de atlanıyor
+
+### UpdateDetectionService (İskelet)
+Oyun güncelleme tespiti:
+- Tier 1: Store metadata kontrol (Steam buildid, Epic manifest)
+- Tier 2: Dosya hash snapshot karşılaştırma
+- Sınıf yapısı ve API tanımlı, implementasyon bekleniyor
 
 ---
 
 ## MakineAI: Adaptasyon Motoru (Planlanan)
 
-### Guncelleme Tespiti
+### Güncelleme Tespiti
 ```
 Yama kurulurken:
   dosya_hash'leri → installed_packages.json'a kaydet
@@ -94,7 +112,7 @@ Uygulama acildiginda:
   Hash uyusmuyorsa → oyun guncellenmis
 ```
 
-### Degisiklik Analizi
+### Değişiklik Analizi
 ```
 Eski dosyalar (yedekten) vs Yeni dosyalar (guncel oyun)
   → Structural diff (metin formatlari icin)
@@ -106,16 +124,16 @@ Eski dosyalar (yedekten) vs Yeni dosyalar (guncel oyun)
 ```
 Degisiklik haritasina gore:
   Degismemis string → koru
-  Tasınan string → fuzzy match ile yeni konuma tasi
+  Tasinan string → fuzzy match ile yeni konuma tasi
   Yeni string → "ceviri gerekli" olarak isaretle
   Silinen string → kaldir
 ```
 
 ---
 
-## Veri Akisi
+## Veri Akışı
 
-### Tipik Kurulum Akisi
+### Tipik Kurulum Akışı
 
 ```
 1. Kullanici oyunu secer (QML)
@@ -133,7 +151,7 @@ Degisiklik haritasina gore:
 5. Sonuc: Oyun Turkce calisiyor
 ```
 
-### Guncelleme Sonrasi Akis (Planlanan)
+### Güncelleme Sonrası Akış (Planlanan)
 
 ```
 1. Uygulama acilir
@@ -148,10 +166,10 @@ Degisiklik haritasina gore:
 4. Analiz: Ne degisti?
        |
        v
-5. Adaptasyon: Yamayı uyarla
+5. Adaptasyon: Yamayi uyarla
        |
        v
-6. Dogrulama: Calisıyor mu?
+6. Dogrulama: Calisiyor mu?
        |
        v
 7. Sonuc: Yama otomatik guncellendi
@@ -159,35 +177,31 @@ Degisiklik haritasina gore:
 
 ---
 
-## Build Modlari
+## Build Modları
 
-| Mod | Derleyici | Ozellikler |
+| Mod | Derleyici | Özellikler |
 |-----|----------|------------|
-| UI_ONLY (`dev`) | MinGW | Gercek oyun tarama, yerel paket kurulumu, saf Qt |
-| Full (`release`) | MSVC | + Core kutuphane, + vcpkg bagimliliklari |
+| UI_ONLY (`dev`) | MinGW | Gerçek oyun tarama, yerel paket kurulumu, saf Qt |
+| Full (`release`) | MSVC | + Core kütüphane, + vcpkg bağımlılıkları |
 
-UI_ONLY modda tum temel ozellikler calisir. Core kutuphane sadece
-ileri adaptasyon ozellikleri icin gereklidir.
+UI_ONLY modda tüm temel özellikler çalışır. Core kütüphane sadece
+ileri adaptasyon özellikleri için gereklidir.
 
 ---
 
 ## Mimari Kararlar (ADR)
 
-| ADR | Baslik | Durum |
+| ADR | Başlık | Durum |
 |-----|--------|-------|
-| [0001](../adr/0001-native-cpp-architecture.md) | Native C++ Architecture | Gecerli |
-| [0002](../adr/0002-result-based-error-handling.md) | Result-based Error Handling | Gecerli |
-| [0003](../adr/0003-translation-pipeline-decision-engine.md) | Translation Pipeline | Gozden gecirilecek |
-| [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Gecerli |
-| [0005](../adr/0005-handler-based-engine-support.md) | Handler-based Engine Support | Gozden gecirilecek |
-
-> **Not:** ADR-0003 ve ADR-0005 yeni vizyon dogrultusunda guncellenmeli.
-> Handler pattern core kutuphanede kalacak ancak onceligi adaptasyon motoruna kaydi.
+| [0001](../adr/0001-native-cpp-architecture.md) | Native C++ Architecture | Geçerli |
+| [0002](../adr/0002-result-based-error-handling.md) | Result-based Error Handling | Geçerli |
+| [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Geçerli |
+| [0006](../adr/0006-adaptation-engine-direction.md) | Adaptation Engine Direction | Geçerli |
 
 ---
 
-## Sonraki Adimlar
+## Sonraki Adımlar
 
-- [QML Arayuz](qml-frontend.md)
+- [QML Arayüz](qml-frontend.md)
 - [Build Sistemi](build-system.md)
-- [Core Kutuphane](core-library.md) (opsiyonel, ileri ozellikler)
+- [Core Kütüphane](core-library.md) (opsiyonel, ileri özellikler)

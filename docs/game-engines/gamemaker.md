@@ -1,28 +1,30 @@
-# GameMaker Destegi
+# GameMaker Desteği
 
-MakineAI GameMaker oyun motoru destegi detaylari.
+GameMaker dosya yapısı ve çeviri yöntemi teknik referansı.
+
+> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
 **Destek Durumu:** Tam Destek
 
-**Desteklenen Surumler:**
+**Desteklenen Sürümler:**
 - GameMaker Studio 2
-- GameMaker Studio 1.x (sinirli)
+- GameMaker Studio 1.x (sınırlı)
 
 ---
 
-## Nasil Calisir
+## Nasıl Çalışır
 
-GameMaker oyunlarinda `data.win` dosyasi duzenlenir:
+GameMaker oyunlarında `data.win` dosyası düzenlenir:
 
 1. STRG (String) chunk parse edilir
-2. Metinler cevirilir
-3. Yeni data.win olusturulur
+2. Metinler çevrilir
+3. Yeni data.win oluşturulur
 
-### Calisma Prensibi
+### Çalışma Prensibi
 
 ```
 data.win
@@ -42,21 +44,21 @@ Yeni data.win Olustur
 
 ---
 
-## Otomatik Algilama
+## Otomatik Algılama
 
-MakineAI GameMaker oyunlarini su dosyalardan tespit eder:
+MakineAI GameMaker oyunlarını şu dosyalardan tespit eder:
 
-| Dosya | Aciklama |
+| Dosya | Açıklama |
 |-------|----------|
-| `data.win` | Ana veri dosyasi |
-| `options.ini` | Oyun ayarlari |
+| `data.win` | Ana veri dosyası |
+| `options.ini` | Oyun ayarları |
 | `runner.exe` | GameMaker runner |
 
 ---
 
-## Ceviri Sureci
+## Çeviri Süreci
 
-### data.win Yapisi
+### data.win Yapısı
 
 ```
 data.win Chunks:
@@ -78,7 +80,7 @@ data.win Chunks:
 
 ### STRG Chunk
 
-String tablosu formati:
+String tablosu formatı:
 ```
 [String Count: 4 bytes]
 [Offset 1: 4 bytes]
@@ -89,7 +91,7 @@ String tablosu formati:
 ...
 ```
 
-### Ceviri Dosyasi
+### Çeviri Dosyası
 
 JSON format:
 ```json
@@ -115,21 +117,21 @@ JSON format:
 
 ### Encoding
 
-- UTF-8 destegi (GMS2)
-- Eski surumlerde ANSI
+- UTF-8 desteği (GMS2)
+- Eski sürümlerde ANSI
 
-### Font Degisimi
+### Font Değişimi
 
 GameMaker font asset'leri:
-- FONT chunk'ta tanimli
-- Glyph bitmap iceriyor
-- Turkce karakter icin yeni font gerekebilir
+- FONT chunk'ta tanımlı
+- Glyph bitmap içeriyor
+- Türkçe karakter için yeni font gerekebilir
 
 ### Texture Metinleri
 
-Sprite icindeki metinler:
+Sprite içindeki metinler:
 - TXTR chunk'ta
-- Gorsel duzenleme gerekir
+- Görsel düzenleme gerekir
 
 ---
 
@@ -137,7 +139,7 @@ Sprite icindeki metinler:
 
 ### Dinamik Metinler
 
-GML script'te olusturulan metinler:
+GML script'te oluşturulan metinler:
 ```gml
 var msg = "You have " + string(gold) + " gold";
 ```
@@ -145,41 +147,41 @@ Bu tarz metinler STRG'de olmayabilir.
 
 ### Hardcoded Metinler
 
-draw_text() ile cizilen:
+draw_text() ile çizilen:
 - STRG'de bulunur
 - Ancak context belirsiz olabilir
 
 ### Font Limiti
 
-Turkce karakterler mevcut font'ta yoksa:
-- Font asset degistirilmeli
+Türkçe karakterler mevcut font'ta yoksa:
+- Font asset değiştirilmeli
 - Veya texture patch gerekli
 
 ---
 
-## Ornek Oyunlar
+## Örnek Oyunlar
 
-| Oyun | Surum | Durum |
+| Oyun | Sürüm | Durum |
 |------|-------|-------|
-| Undertale | GMS1 | Calisiyor |
-| Deltarune | GMS2 | Calisiyor |
-| Hotline Miami | GMS1 | Calisiyor |
-| Hyper Light Drifter | GMS1 | Calisiyor |
+| Undertale | GMS1 | Çalışıyor |
+| Deltarune | GMS2 | Çalışıyor |
+| Hotline Miami | GMS1 | Çalışıyor |
+| Hyper Light Drifter | GMS1 | Çalışıyor |
 
 ---
 
-## Araclar
+## Araçlar
 
 ### UndertaleModTool
 
-Acik kaynak data.win editoru:
-- String duzenleme
-- Kod duzenleme
+Açık kaynak data.win editörü:
+- String düzenleme
+- Kod düzenleme
 - Asset export/import
 
 ### data.win Parser
 
-MakineAI icinde:
+MakineAI içinde:
 ```cpp
 class DataWinParser {
     std::vector<std::string> extractStrings(const std::string& path);
@@ -195,25 +197,25 @@ class DataWinParser {
 
 1. Orijinal yedek al
 2. Dosya boyutu kontrol et
-3. Hash dogrulama yap
+3. Hash doğrulama yap
 
-### Ceviri Gorunmuyor
+### Çeviri Görünmüyor
 
-1. Dogru string index mi kontrol et
+1. Doğru string index mi kontrol et
 2. Encoding UTF-8 mi
 3. Oyun cache temizle
 
-### Oyun Cokuyor
+### Oyun Çöküyor
 
-1. String uzunluklari siniri asiyor mu
-2. data.win yapisi bozulmus mu
+1. String uzunlukları sınırı aşıyor mu
+2. data.win yapısı bozulmuş mu
 3. Font karakterleri mevcut mu
 
 ---
 
-## Kod Ornegi
+## Kod Örneği
 
-### String Cikarma
+### String Çıkarma
 
 ```cpp
 std::vector<std::string> extractStrings(const std::string& dataPath) {

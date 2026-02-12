@@ -1,12 +1,12 @@
-# QML Arayuz
+# QML Arayüz
 
-MakineAI Qt QML arayuzunun detayli aciklamasi.
+MakineAI Qt QML arayüzünün detaylı açıklaması.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
-MakineAI, modern ve performansli bir arayuz icin Qt 6 QML kullanir.
+MakineAI, modern ve performanslı bir arayüz için Qt 6 QML kullanır.
 
 **Teknolojiler:**
 - Qt 6.10+ Quick
@@ -16,21 +16,25 @@ MakineAI, modern ve performansli bir arayuz icin Qt 6 QML kullanir.
 
 ---
 
-## Klasor Yapisi
+## Klasör Yapısı
 
 ```
 qml/
 ├── src/
 │   ├── main.cpp              # Giris noktasi
 │   ├── services/             # Qt servisleri
+│   │   ├── corebridge.h
 │   │   ├── gameservice.h
-│   │   ├── translationservice.h
 │   │   ├── settingsmanager.h
 │   │   ├── backupmanager.h
-│   │   └── corebridge.h
+│   │   ├── localpackagemanager.h
+│   │   ├── processscanner.h
+│   │   ├── systemtraymanager.h
+│   │   ├── integrityservice.h
+│   │   ├── batchoperationservice.h
+│   │   └── updatedetectionservice.h
 │   └── models/               # Qt modelleri
-│       ├── gamelistmodel.h
-│       └── translationmodel.h
+│       └── gamelistmodel.h
 │
 ├── qml/
 │   ├── Main.qml              # Ana pencere
@@ -44,7 +48,7 @@ qml/
 │   │
 │   ├── components/           # Yeniden kullanilabilir
 │   │   ├── GameCard.qml
-│   │   ├── NavBar.qml
+│   │   ├── NavItem.qml
 │   │   └── ...
 │   │
 │   └── dialogs/              # Dialog pencereleri
@@ -62,7 +66,7 @@ qml/
 
 ### Theme.qml (Singleton)
 
-Tum renkler burada tanimlanir:
+Tüm renkler burada tanımlanır:
 
 ```qml
 pragma Singleton
@@ -93,7 +97,7 @@ QtObject {
 
 ### Dimensions.qml (Singleton)
 
-Tum boyutlar burada:
+Tüm boyutlar burada:
 
 ```qml
 pragma Singleton
@@ -122,7 +126,7 @@ QtObject {
 }
 ```
 
-### Kullanim
+### Kullanım
 
 ```qml
 import "theme"
@@ -140,7 +144,7 @@ Rectangle {
 
 ---
 
-## Component Ornekleri
+## Component Örnekleri
 
 ### GameCard.qml
 
@@ -258,7 +262,7 @@ signals:
 };
 ```
 
-### QML'de Kullanim
+### QML'de Kullanım
 
 ```qml
 import MakineAI 1.0
@@ -338,7 +342,7 @@ Rectangle {
 }
 ```
 
-### 2. ID Kullanimin
+### 2. ID Kullanımı
 
 ```qml
 // Sadece gerekli yerlerde
@@ -390,14 +394,14 @@ Button {
 
 ### Qt Creator QML Debugger
 
-1. Debug mode'da calistir
+1. Debug mode'da çalıştır
 2. Debug > Start QML Profiler
-3. Binding loops ve performance sorunlarini gor
+3. Binding loops ve performance sorunlarını gör
 
 ---
 
-## Sonraki Adimlar
+## Sonraki Adımlar
 
 - [Build Sistemi](build-system.md)
 - [Test Yazma](testing.md)
-- [API Referansi](../api-reference/qml-types.md)
+- [API Referansı](../api-reference/services-api.md)

@@ -1,6 +1,6 @@
 # Kurulum
 
-Bu kilavuz MakineAI'nin kurulumunu adim adim anlatmaktadir.
+Bu kılavuz MakineAI'nin kurulumunu adım adım anlatmaktadır.
 
 ---
 
@@ -8,132 +8,131 @@ Bu kilavuz MakineAI'nin kurulumunu adim adim anlatmaktadir.
 
 ### Minimum
 
-| Gereksinim | Deger |
+| Gereksinim | Değer |
 |------------|-------|
-| Isletim Sistemi | Windows 10 (64-bit) |
+| İşletim Sistemi | Windows 10 (64-bit) |
 | RAM | 4 GB |
-| Disk Alani | 500 MB |
+| Disk Alanı | 500 MB |
 | Ekran | 1280x720 |
 
-### Onerilen
+### Önerilen
 
-| Gereksinim | Deger |
+| Gereksinim | Değer |
 |------------|-------|
-| Isletim Sistemi | Windows 11 |
+| İşletim Sistemi | Windows 11 |
 | RAM | 8 GB |
-| Disk Alani | 1 GB |
+| Disk Alanı | 1 GB |
 | Ekran | 1920x1080 |
 
 ---
 
-## Kurulum Adimlari
+## Kurulum Adımları
 
-### Adim 1: Indirme
+### Adım 1: İndirme
 
-Son surumu resmi web sitesinden indirin:
+Son sürümü resmi web sitesinden indirin:
 
 [makineai.com](https://makineai.com)
 
-### Adim 2: Arsivi Acma
+### Adım 2: Arşivi Açma
 
-1. Indirilen ZIP dosyasini sag tiklayin
-2. "Tümünü ayıkla..." secin
-3. Istediginiz konuma cikartin
+1. İndirilen ZIP dosyasını sağ tıklayın
+2. "Tümünü ayıkla..." seçin
+3. İstediğiniz konuma çıkartın
 
-**Onerilen Konum:** `C:\Program Files\MakineAI\` veya `C:\Games\MakineAI\`
+**Önerilen Konum:** `C:\Program Files\MakineAI\` veya `C:\Games\MakineAI\`
 
-### Adim 3: Ilk Calistirma
+### Adım 3: İlk Çalıştırma
 
-1. `MakineAI.exe` dosyasini cift tiklayin
-2. Windows guvenlik uyarisi cikarsa "Yine de calistir" secin
-3. Uygulama acilir ve otomatik tarama baslar
+1. `MakineAI.exe` dosyasını çift tıklayın
+2. Windows güvenlik uyarısı çıkarsa "Yine de çalıştır" seçin
+3. Uygulama açılır ve otomatik tarama başlar
 
 ---
 
 ## Otomatik Oyun Tespiti
 
-MakineAI asagidaki platformlari otomatik tarar:
+MakineAI aşağıdaki platformları otomatik tarar:
 
 ### Steam
 
-- Varsayilan: `C:\Program Files (x86)\Steam\`
-- Kutuphane klasorleri otomatik bulunur
-- Steam API uzerinden oyun listesi alinir
+- Varsayılan: `C:\Program Files (x86)\Steam\`
+- Kütüphane klasörleri otomatik bulunur
+- Steam API üzerinden oyun listesi alınır
 
 ### Epic Games
 
-- Varsayilan: `C:\Program Files\Epic Games\`
-- Manifest dosyalarindan oyun listesi
-- Kurulu oyunlar taranir
+- Varsayılan: `C:\Program Files\Epic Games\`
+- Manifest dosyalarından oyun listesi
+- Kurulu oyunlar taranır
 
 ### GOG Galaxy
 
-- Varsayilan: `C:\Program Files (x86)\GOG Galaxy\`
-- GOG Galaxy veritabanindan liste
+- Varsayılan: `C:\Program Files (x86)\GOG Galaxy\`
+- GOG Galaxy veritabanından liste
 - Standalone kurulumlar da desteklenir
 
 ### Manuel Ekleme
 
-Farkli konumdaki oyunlar icin:
+Farklı konumdaki oyunlar için:
 
-1. Ana ekranda "+" butonuna basin
-2. Oyun klasorunu secin
+1. Ana ekranda "+" butonuna basın
+2. Oyun klasörünü seçin
 3. MakineAI motoru otomatik tespit eder
 
 ---
 
-## Guncelleme
+## Güncelleme
 
-### Otomatik Guncelleme (Planlanan)
+### Otomatik Güncelleme (Planlanan)
 
-Gelecek surumlerde:
-- Baslangiçta guncelleme kontrolu
+Gelecek sürümlerde:
+- Başlangıçta güncelleme kontrolü
 - Arka planda indirme
-- Tek tikla guncelleme
+- Tek tıkla güncelleme
 
-### Manuel Guncelleme
+### Manuel Güncelleme
 
-1. Yeni surumu indirin
-2. Mevcut klasorun ustune cikartin
+1. Yeni sürümü indirin
+2. Mevcut klasörün üstüne çıkartın
 3. Ayarlar ve yedekler korunur
 
 ---
 
 ## Sorun Giderme
 
-### Windows SmartScreen Uyarisi
+### Windows SmartScreen Uyarısı
 
-"Windows bilgisayarinizi korudu" uyarisi cikarsa:
+"Windows bilgisayarınızı korudu" uyarısı çıkarsa:
 
-1. "Daha fazla bilgi" tiklayin
-2. "Yine de calistir" tiklayin
+1. "Daha fazla bilgi" tıklayın
+2. "Yine de çalıştır" tıklayın
 
-### Antivirus Uyarisi
+### Antivirüs Uyarısı
 
-Bazi antivirusler yanlis pozitif verebilir:
+Bazı antivirüsler yanlış pozitif verebilir:
 
-1. MakineAI klasorunu istisna olarak ekleyin
-2. Veya antivirusu gecici olarak devre disi birakin
+1. MakineAI klasörünü istisna olarak ekleyin
+2. Veya antivirüsü geçici olarak devre dışı bırakın
 
-### DLL Hatasi
+### DLL Hatası
 
-"VCRUNTIME140.dll bulunamadi" hatasi icin:
+"VCRUNTIME140.dll bulunamadı" hatası için:
 
 [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) indirip kurun.
 
 ---
 
-## Kaldirma
+## Kaldırma
 
-MakineAI'yi kaldirmak icin:
+MakineAI'yi kaldırmak için:
 
-1. MakineAI klasorunu silin
-2. Ayarlar: `%APPDATA%\MakineAI\` klasorunu silin (opsiyonel)
-3. Yedekler: Oyun klasorlerindeki `MakineAI_Backups` silin (opsiyonel)
+1. MakineAI klasörünü silin
+2. Ayarlar: `%APPDATA%\MakineAI\` klasörünü silin (opsiyonel)
+3. Yedekler: Oyun klasörlerindeki `MakineAI_Backups` silin (opsiyonel)
 
 ---
 
-## Sonraki Adimlar
+## Sonraki Adımlar
 
-- [Hizli Baslangic](getting-started.md)
-- [Desteklenen Oyunlar](supported-games.md)
+- [Hızlı Başlangıç](getting-started.md)

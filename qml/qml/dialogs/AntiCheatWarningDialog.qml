@@ -696,7 +696,7 @@ Dialog {
                         Text {
                             text: "\u26A0"
                             font.pixelSize: Dimensions.fontTitle
-                            color: "white"
+                            color: Theme.textOnColor
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -704,7 +704,7 @@ Dialog {
                             text: qsTr("Yine de Devam Et")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Bold
-                            color: "white"
+                            color: Theme.textOnColor
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }

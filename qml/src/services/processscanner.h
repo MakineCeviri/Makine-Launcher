@@ -49,7 +49,8 @@ public:
     QString antiCheatSummary() const { return m_antiCheatSummary; }
 
     // Q_INVOKABLE methods
-    Q_INVOKABLE void startWatching(int intervalMs = 3000);
+    static constexpr int kDefaultScanIntervalMs = 3000;
+    Q_INVOKABLE void startWatching(int intervalMs = kDefaultScanIntervalMs);
     Q_INVOKABLE void stopWatching();
     Q_INVOKABLE bool checkGameRunning(const QString& gameId);
 signals:

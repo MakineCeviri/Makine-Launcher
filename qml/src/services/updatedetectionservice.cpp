@@ -18,6 +18,10 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QSettings>
+
+namespace {
+constexpr int kMonitorIntervalMs = 30 * 60 * 1000; // 30 minutes
+}
 #include <QStandardPaths>
 #include <QtConcurrent>
 #include <QDebug>
@@ -243,7 +247,7 @@ UpdateDetectionService::UpdateDetectionService(QObject *parent)
     : QObject(parent)
     , m_monitorTimer(new QTimer(this))
 {
-    m_monitorTimer->setInterval(30 * 60 * 1000); // 30 minutes
+    m_monitorTimer->setInterval(kMonitorIntervalMs);
     connect(m_monitorTimer, &QTimer::timeout, this, &UpdateDetectionService::checkAllGamesQuick);
     loadStoreVersions();
 }

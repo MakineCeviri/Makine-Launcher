@@ -52,7 +52,7 @@ Item {
             // ===== LEFT SIDEBAR (280px) =====
             Rectangle {
                 id: sidebar
-                width: 280
+                width: Dimensions.sidebarWidth
                 height: parent.height
                 x: 0
                 color: Theme.withAlpha(Theme.surface, 0.5)
@@ -494,7 +494,7 @@ Item {
                                         Text {
                                             text: "↩"
                                             font.pixelSize: Dimensions.fontSM
-                                            color: "white"
+                                            color: Theme.textOnColor
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
 
@@ -502,7 +502,7 @@ Item {
                                             text: qsTr("Geri Al")
                                             font.pixelSize: Dimensions.fontSM
                                             font.weight: Font.Medium
-                                            color: "white"
+                                            color: Theme.textOnColor
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                     }
@@ -1125,7 +1125,7 @@ Item {
                     width: Dimensions.toggleKnobSize
                     height: Dimensions.toggleKnobSize
                     radius: Dimensions.toggleKnobRadius
-                    color: "white"
+                    color: Theme.textOnColor
                     x: checked ? parent.width - width - 3 : 3
                     anchors.verticalCenter: parent.verticalCenter
 

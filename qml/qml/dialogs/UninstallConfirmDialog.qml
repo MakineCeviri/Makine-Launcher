@@ -383,7 +383,7 @@ Dialog {
                         text: qsTr("Yamayı Kaldır")
                         font.pixelSize: Dimensions.fontSM
                         font.weight: Font.DemiBold
-                        color: "white"
+                        color: Theme.textOnColor
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }

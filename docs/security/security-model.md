@@ -2,6 +2,10 @@
 
 MakineAI güvenlik mimarisi ve politikaları.
 
+> **Durum:** Bu doküman hedef güvenlik mimarisini tanımlar.
+> Paket imzalama, sunucu dağıtımı ve HTTPS entegrasyonu henüz implemente edilmemiştir.
+> Yedekleme, dosya izinleri, anti-cheat tespiti ve audit logging aktiftir.
+
 ---
 
 ## Genel Bakış

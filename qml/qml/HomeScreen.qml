@@ -16,16 +16,16 @@ Item {
     // GPU optimization - propagated from Main.qml
     property bool animationsEnabled: true
 
-    // Live-tunable values for Design Inspector
+    // Layout tuning values
     property real contentMargin: 16
-    property real diCardMargin: 8
-    property real diCardSpacing: 8
-    property real diTopRowHeight: 210
-    property real diTopRowGap: 16
-    property real diGamesSectionGap: 8
-    property real diCardGap: 32
-    property real diSeparatorTopMargin: 4
-    property real diSeparatorBottomMargin: 8
+    property real layoutCardMargin: 8
+    property real layoutCardSpacing: 8
+    property real layoutTopRowHeight: 210
+    property real layoutTopRowGap: 16
+    property real layoutGamesSectionGap: 8
+    property real layoutCardGap: 32
+    property real layoutSepTopMargin: 4
+    property real layoutSepBottomMargin: 8
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
     signal manualFolderRequested()
@@ -310,11 +310,11 @@ Item {
                         RowLayout {
                             id: topRowLayout
                             Layout.fillWidth: true
-                            Layout.preferredHeight: root.diTopRowHeight
-                            Layout.maximumHeight: root.diTopRowHeight
+                            Layout.preferredHeight: root.layoutTopRowHeight
+                            Layout.maximumHeight: root.layoutTopRowHeight
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            spacing: root.diTopRowGap
+                            spacing: root.layoutTopRowGap
 
                             opacity: 0
                             Component.onCompleted: topRowEntryAnim.start()
@@ -334,7 +334,7 @@ Item {
                             Rectangle {
                                 id: gameStatusCard
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: root.diTopRowHeight
+                                Layout.preferredHeight: root.layoutTopRowHeight
                                 radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.textPrimary, 0.03)
                                 border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
@@ -343,8 +343,8 @@ Item {
                                 ColumnLayout {
                                     id: gameStatusCardLayout
                                     anchors.fill: parent
-                                    anchors.margins: root.diCardMargin
-                                    spacing: root.diCardSpacing
+                                    anchors.margins: root.layoutCardMargin
+                                    spacing: root.layoutCardSpacing
 
                                     Row {
                                         Layout.fillWidth: true
@@ -364,7 +364,7 @@ Item {
                                                 x: 7; y: 11
                                                 width: 22; height: 22
                                                 radius: 11
-                                                color: "white"
+                                                color: Theme.textOnColor
                                             }
 
                                             Rectangle {
@@ -568,7 +568,7 @@ Item {
                             Rectangle {
                                 id: announcementCard
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: root.diTopRowHeight
+                                Layout.preferredHeight: root.layoutTopRowHeight
                                 radius: Dimensions.radiusStandard
                                 color: Theme.withAlpha(Theme.textPrimary, 0.03)
                                 border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
@@ -576,8 +576,8 @@ Item {
 
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    anchors.margins: root.diCardMargin
-                                    spacing: root.diCardSpacing
+                                    anchors.margins: root.layoutCardMargin
+                                    spacing: root.layoutCardSpacing
 
                                     // Header
                                     Column {
@@ -763,7 +763,7 @@ Item {
                             Layout.fillWidth: true
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
-                            spacing: root.diGamesSectionGap
+                            spacing: root.layoutGamesSectionGap
 
                             opacity: 0
                             Component.onCompleted: gamesSectionEntryAnim.start()
@@ -804,8 +804,8 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 1
-                                Layout.topMargin: root.diSeparatorTopMargin
-                                Layout.bottomMargin: root.diSeparatorBottomMargin
+                                Layout.topMargin: root.layoutSepTopMargin
+                                Layout.bottomMargin: root.layoutSepBottomMargin
                                 color: Theme.withAlpha(Theme.textPrimary, 0.06)
                             }
 
@@ -828,11 +828,11 @@ Item {
                             Row {
                                 id: gamesRow
                                 Layout.alignment: Qt.AlignHCenter
-                                spacing: root.diCardGap
+                                spacing: root.layoutCardGap
                                 visible: !skeletonFlow.visible
 
                                 readonly property int availableWidth: gamesSectionLayout.width
-                                readonly property int cardTotal: Dimensions.cardWidth + root.diCardGap
+                                readonly property int cardTotal: Dimensions.cardWidth + root.layoutCardGap
                                 readonly property int maxCards: Math.max(1, Math.floor((availableWidth - Dimensions.cardWidth) / cardTotal))
 
                                 Repeater {
@@ -964,7 +964,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.leftMargin: root.contentMargin
                         Layout.rightMargin: root.contentMargin
-                        spacing: root.diGamesSectionGap
+                        spacing: root.layoutGamesSectionGap
 
                         Label {
                             text: qsTr("Topluluk")
@@ -976,8 +976,8 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 1
-                            Layout.topMargin: root.diSeparatorTopMargin
-                            Layout.bottomMargin: root.diSeparatorBottomMargin
+                            Layout.topMargin: root.layoutSepTopMargin
+                            Layout.bottomMargin: root.layoutSepBottomMargin
                             color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         }
 
@@ -1126,7 +1126,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.leftMargin: root.contentMargin
                         Layout.rightMargin: root.contentMargin
-                        spacing: root.diGamesSectionGap
+                        spacing: root.layoutGamesSectionGap
 
                         RowLayout {
                             spacing: Dimensions.spacingLG
@@ -1156,8 +1156,8 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 1
-                            Layout.topMargin: root.diSeparatorTopMargin
-                            Layout.bottomMargin: root.diSeparatorBottomMargin
+                            Layout.topMargin: root.layoutSepTopMargin
+                            Layout.bottomMargin: root.layoutSepBottomMargin
                             color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         }
 
@@ -1543,14 +1543,14 @@ Item {
                                         Label {
                                             text: "\uD83D\uDD0D"
                                             font.pixelSize: Dimensions.fontXS
-                                            color: "white"
+                                            color: Theme.textOnColor
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Label {
                                             text: qsTr("Kütüphaneleri Tara")
                                             font.pixelSize: Dimensions.fontXS
                                             font.weight: Font.DemiBold
-                                            color: "white"
+                                            color: Theme.textOnColor
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                     }
@@ -1785,7 +1785,7 @@ Item {
                                             Rectangle {
                                                 anchors.fill: parent
                                                 radius: Dimensions.cardBorderRadius
-                                                color: "white"
+                                                color: Theme.textOnColor
                                             }
                                         }
 
@@ -2147,13 +2147,13 @@ Item {
                         visible: gameCardRoot.translated
                         width: 20; height: 14; radius: Dimensions.badgeRadius
                         color: Theme.turkishRed; anchors.verticalCenter: parent.verticalCenter
-                        Label { anchors.centerIn: parent; text: "TR"; font.pixelSize: Dimensions.fontMicro; font.weight: Font.Bold; color: "white" }
+                        Label { anchors.centerIn: parent; text: "TR"; font.pixelSize: Dimensions.fontMicro; font.weight: Font.Bold; color: Theme.textOnColor }
                     }
                     Rectangle {
                         visible: gameCardRoot.verified
                         width: 14; height: 14; radius: 7
                         color: Theme.primary; anchors.verticalCenter: parent.verticalCenter
-                        Label { anchors.centerIn: parent; text: "✓"; font.pixelSize: Dimensions.fontMini; font.weight: Font.Bold; color: "white" }
+                        Label { anchors.centerIn: parent; text: "✓"; font.pixelSize: Dimensions.fontMini; font.weight: Font.Bold; color: Theme.textOnColor }
                     }
                 }
             }

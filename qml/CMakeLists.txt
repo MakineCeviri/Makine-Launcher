@@ -119,7 +119,7 @@ set(MODEL_SOURCES
 
 set(MODEL_HEADERS
     src/models/gamelistmodel.h
-    src/makineai_metatypes.h
+    src/makinaeiMetatypes.h
 )
 
 # QML module

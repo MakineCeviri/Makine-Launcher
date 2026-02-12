@@ -60,7 +60,7 @@ Item {
                         text: qsTr("Açık")
                         font.pixelSize: Dimensions.fontSM
                         font.weight: !SettingsManager.isDarkMode ? Font.Medium : Font.Normal
-                        color: !SettingsManager.isDarkMode ? "white" : Theme.textSecondary
+                        color: !SettingsManager.isDarkMode ? Theme.textOnColor : Theme.textSecondary
                     }
 
                     // Focus indicator
@@ -98,7 +98,7 @@ Item {
                         text: qsTr("Koyu")
                         font.pixelSize: Dimensions.fontSM
                         font.weight: SettingsManager.isDarkMode ? Font.Medium : Font.Normal
-                        color: SettingsManager.isDarkMode ? "white" : Theme.textSecondary
+                        color: SettingsManager.isDarkMode ? Theme.textOnColor : Theme.textSecondary
                     }
 
                     // Focus indicator

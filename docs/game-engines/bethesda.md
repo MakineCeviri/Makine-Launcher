@@ -1,10 +1,12 @@
-# Bethesda (Creation Engine) Destegi
+# Bethesda (Creation Engine) Desteği
 
-MakineAI Bethesda Creation Engine oyun motoru destegi detaylari.
+Bethesda Creation Engine dosya yapısı ve çeviri yöntemi teknik referansı.
+
+> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
 **Destek Durumu:** Tam Destek
 
@@ -15,15 +17,15 @@ MakineAI Bethesda Creation Engine oyun motoru destegi detaylari.
 
 ---
 
-## Nasil Calisir
+## Nasıl Çalışır
 
-Creation Engine oyunlarinda lokalizasyon sistemi:
+Creation Engine oyunlarında lokalizasyon sistemi:
 
-1. STRINGS dosyalari (.STRINGS, .ILSTRINGS, .DLSTRINGS)
-2. BA2 arsivleri
+1. STRINGS dosyaları (.STRINGS, .ILSTRINGS, .DLSTRINGS)
+2. BA2 arşivleri
 3. ESP/ESM plugin'leri
 
-### Calisma Prensibi
+### Çalışma Prensibi
 
 ```
 Ceviri Paketi
@@ -43,22 +45,22 @@ Load Order ile Yukle
 
 ---
 
-## Otomatik Algilama
+## Otomatik Algılama
 
-MakineAI Bethesda oyunlarini su dosyalardan tespit eder:
+MakineAI Bethesda oyunlarını şu dosyalardan tespit eder:
 
-| Dosya | Aciklama |
+| Dosya | Açıklama |
 |-------|----------|
-| `Data/*.esm` | Master dosyalari |
-| `Data/*.ba2` | Arsiv dosyalari |
+| `Data/*.esm` | Master dosyaları |
+| `Data/*.ba2` | Arşiv dosyaları |
 | `Data/Strings/` | Lokalizasyon |
 | `SkyrimSE.exe` | Oyun executable |
 
 ---
 
-## Ceviri Sureci
+## Çeviri Süreci
 
-### Klasor Yapisi
+### Klasör Yapısı
 
 ```
 Data/
@@ -85,7 +87,7 @@ Binary format:
 
 ### Farklar
 
-| Uzanti | Icerik |
+| Uzantı | İçerik |
 |--------|--------|
 | .STRINGS | Genel metinler (UTF-8) |
 | .ILSTRINGS | IL string (null-terminated) |
@@ -95,21 +97,21 @@ Binary format:
 
 ## Teknik Detaylar
 
-### BA2 Arsiv
+### BA2 Arşiv
 
-BA2 formati Bethesda Archive:
-- Sikistirilmis dosyalar
-- Texture ve general turleri
+BA2 formatı Bethesda Archive:
+- Sıkıştırılmış dosyalar
+- Texture ve general türleri
 
 ### ESP/ESM Plugin
 
-Eger metin degisikligi kayit gerekiyorsa:
-- Creation Kit ile ESP olustur
-- FormID eşlestirmesi
+Eğer metin değişikliği kayıt gerekiyorsa:
+- Creation Kit ile ESP oluştur
+- FormID eşleştirmesi
 
 ### Load Order
 
-Plugin onceliklendirme:
+Plugin önceliklendirme:
 ```
 # plugins.txt
 *Skyrim.esm
@@ -119,36 +121,36 @@ Plugin onceliklendirme:
 
 ---
 
-## Skyrim Ozel
+## Skyrim Özel
 
-### Ozel Gereksinimler
+### Özel Gereksinimler
 
 - SKSE (Skyrim Script Extender)
-- Skyrim Script Extender ini ayarlari
+- Skyrim Script Extender ini ayarları
 
-### Font Degisimi
+### Font Değişimi
 
-Turkce karakter icin:
+Türkçe karakter için:
 ```
 Data/Interface/fonts_tr.swf
 ```
 
-### SkyUI Uyumlulugu
+### SkyUI Uyumluluğu
 
-SkyUI ile ceviri uyumu:
-- MCM ceviri dosyalari
-- Interface ceviri
+SkyUI ile çeviri uyumu:
+- MCM çeviri dosyaları
+- Interface çeviri
 
 ---
 
-## Fallout 4 Ozel
+## Fallout 4 Özel
 
-### Ozel Gereksinimler
+### Özel Gereksinimler
 
 - F4SE (Fallout 4 Script Extender)
 - Ba2 Tool
 
-### Klasor Yapisi
+### Klasör Yapısı
 
 ```
 Data/
@@ -166,80 +168,80 @@ Data/
 
 ### CC Content
 
-Creation Club icerigi:
-- Ayri STRINGS gerekir
-- DLC bazli ceviriler
+Creation Club içeriği:
+- Ayrı STRINGS gerekir
+- DLC bazlı çeviriler
 
 ### Voice Acting
 
-Seslendirme dosyalari:
+Seslendirme dosyaları:
 - FUZ/XWM format
-- Dubbing ayri islem
+- Dubbing ayrı işlem
 
 ### Font Limiti
 
-Vanilla font sinirliliklari:
-- Turkce ozel karakterler
+Vanilla font sınırlılıkları:
+- Türkçe özel karakterler
 - Font replacement gerekli
 
 ---
 
-## Ornek Oyunlar
+## Örnek Oyunlar
 
-| Oyun | Surum | Durum |
+| Oyun | Sürüm | Durum |
 |------|-------|-------|
-| Skyrim SE | AE 1.6+ | Calisiyor |
-| Skyrim VR | - | Calisiyor |
-| Fallout 4 | Latest | Calisiyor |
+| Skyrim SE | AE 1.6+ | Çalışıyor |
+| Skyrim VR | - | Çalışıyor |
+| Fallout 4 | Latest | Çalışıyor |
 | Starfield | - | Deneysel |
 
 ---
 
-## Araclar
+## Araçlar
 
 ### xEdit (SSEEdit/FO4Edit)
 
-Record duzenleme:
-- STRINGS referanslari
-- FormID yonetimi
+Record düzenleme:
+- STRINGS referansları
+- FormID yönetimi
 
 ### BA2 Extractor
 
-Arsiv cikarma:
+Arşiv çıkarma:
 - Bethesda Archive Extractor
 - BSA Browser
 
 ### Creation Kit
 
-Resmi modlama araci:
-- ESP/ESM olusturma
-- String kayitlari
+Resmi modlama aracı:
+- ESP/ESM oluşturma
+- String kayıtları
 
 ---
 
 ## Troubleshooting
 
-### STRINGS Yuklenmiyor
+### STRINGS Yüklenmiyor
 
-1. Dosya isimlendirmesi dogru mu (GameName_language.STRINGS)
-2. Data/Strings/ klasorunde mi
-3. INI'de sLanguage ayari
+1. Dosya isimlendirmesi doğru mu (GameName_language.STRINGS)
+2. Data/Strings/ klasöründe mi
+3. INI'de sLanguage ayarı
 
-### Bos Metinler
+### Boş Metinler
 
-1. FormID eslestirmesi dogru mu
-2. STRINGS tipi dogru mu (STRINGS vs ILSTRINGS)
-3. Encoding dogru mu
+1. FormID eşleştirmesi doğru mu
+2. STRINGS tipi doğru mu (STRINGS vs ILSTRINGS)
+3. Encoding doğru mu
 
 ### Crash
 
 1. Plugin load order kontrol et
-2. STRINGS butunlugu kontrol et
+2. STRINGS bütünlüğü kontrol et
 3. Eksik master kontrol et
 
 ---
 
-## INI Ayarlari
+## INI Ayarları
 
 ### Skyrim.ini / SkyrimPrefs.ini
 

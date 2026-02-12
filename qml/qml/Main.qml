@@ -55,17 +55,17 @@ ApplicationWindow {
     readonly property int resizeMargin: 6
 
     // Pending game detail data for lazy-loaded GameDetailScreen
-    property var _pendingGameDetail: null
+    property var pendingGameDetail: null
 
     // Pending data for lazy-loaded warning dialogs
-    property var _pendingCompatData: null
-    property var _pendingAntiCheatData: null
+    property var pendingCompatData: null
+    property var pendingAntiCheatData: null
 
     // Store normal geometry before maximize so restore works on frameless windows
     property rect normalGeometry: Qt.rect(0, 0, 0, 0)
 
     // Force quit flag — bypasses minimize-to-tray on close
-    property bool _forceQuit: false
+    property bool forceQuit: false
 
     Component.onDestruction: pageChangeTimer.stop()
 
@@ -78,7 +78,7 @@ ApplicationWindow {
             SettingsManager.saveWindowGeometry(window.x, window.y, window.width, window.height, true)
         }
 
-        if (SettingsManager.minimizeToTray && !window._forceQuit) {
+        if (SettingsManager.minimizeToTray && !window.forceQuit) {
             close.accepted = false
             window.minimizeToTray()
         } else {
@@ -105,7 +105,7 @@ ApplicationWindow {
             contentStackContainer.navigateTo(1)
         }
         function onQuitRequested() {
-            window._forceQuit = true
+            window.forceQuit = true
             Qt.quit()
         }
     }
@@ -485,7 +485,7 @@ ApplicationWindow {
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     var gameData = GameService.getGameById(gameId)
-                    window._pendingGameDetail = {
+                    window.pendingGameDetail = {
                         gameId: gameId,
                         gameName: gameName,
                         engine: engine,
@@ -495,7 +495,7 @@ ApplicationWindow {
                     }
                     // If loader already active, apply immediately
                     if (gameDetailLoader.item) {
-                        var d = window._pendingGameDetail
+                        var d = window.pendingGameDetail
                         gameDetailLoader.item.resetDetails()
                         gameDetailLoader.item.gameName = d.gameName
                         gameDetailLoader.item.engine = d.engine
@@ -503,7 +503,7 @@ ApplicationWindow {
                         gameDetailLoader.item.verified = d.verified
                         gameDetailLoader.item.steamAppId = d.steamAppId
                         gameDetailLoader.item.gameId = d.gameId
-                        window._pendingGameDetail = null
+                        window.pendingGameDetail = null
                     }
                     contentStackContainer.navigateTo(2)
                 }
@@ -543,7 +543,7 @@ ApplicationWindow {
                             // Pre-flight 1: Compatibility check
                             var compat = GameService.checkCompatibility(gameId)
                             if (compat && (compat.level === "incompatible" || compat.level === "partial")) {
-                                window._pendingCompatData = {
+                                window.pendingCompatData = {
                                     gameName: gameName,
                                     compatibilityLevel: compat.level,
                                     integrityPercent: compat.integrityPercent || 100,
@@ -556,7 +556,7 @@ ApplicationWindow {
                             // Pre-flight 2: Anti-cheat check
                             var antiCheat = GameService.checkAntiCheat(gameId)
                             if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
-                                window._pendingAntiCheatData = {
+                                window.pendingAntiCheatData = {
                                     gameName: gameName,
                                     detectedSystems: antiCheat.systems
                                 }
@@ -569,8 +569,8 @@ ApplicationWindow {
                         }
                         Component.onCompleted: {
                             // Apply pending game data when loader creates the screen
-                            if (window._pendingGameDetail) {
-                                var d = window._pendingGameDetail
+                            if (window.pendingGameDetail) {
+                                var d = window.pendingGameDetail
                                 resetDetails()
                                 gameName = d.gameName
                                 engine = d.engine
@@ -578,7 +578,7 @@ ApplicationWindow {
                                 verified = d.verified
                                 steamAppId = d.steamAppId
                                 gameId = d.gameId
-                                window._pendingGameDetail = null
+                                window.pendingGameDetail = null
                             }
                         }
                     }
@@ -732,12 +732,12 @@ ApplicationWindow {
                 onRestoreBackup: contentStackContainer.navigateTo(2)
                 onClosed: compatWarningLoader.active = false
                 Component.onCompleted: {
-                    if (window._pendingCompatData) {
-                        gameName = window._pendingCompatData.gameName
-                        compatibilityLevel = window._pendingCompatData.compatibilityLevel
-                        integrityPercent = window._pendingCompatData.integrityPercent
-                        modifiedCount = window._pendingCompatData.modifiedCount
-                        window._pendingCompatData = null
+                    if (window.pendingCompatData) {
+                        gameName = window.pendingCompatData.gameName
+                        compatibilityLevel = window.pendingCompatData.compatibilityLevel
+                        integrityPercent = window.pendingCompatData.integrityPercent
+                        modifiedCount = window.pendingCompatData.modifiedCount
+                        window.pendingCompatData = null
                     }
                     open()
                 }
@@ -758,10 +758,10 @@ ApplicationWindow {
                 }
                 onClosed: antiCheatWarningLoader.active = false
                 Component.onCompleted: {
-                    if (window._pendingAntiCheatData) {
-                        gameName = window._pendingAntiCheatData.gameName
-                        detectedSystems = window._pendingAntiCheatData.detectedSystems
-                        window._pendingAntiCheatData = null
+                    if (window.pendingAntiCheatData) {
+                        gameName = window.pendingAntiCheatData.gameName
+                        detectedSystems = window.pendingAntiCheatData.detectedSystems
+                        window.pendingAntiCheatData = null
                     }
                     open()
                 }
@@ -878,7 +878,7 @@ ApplicationWindow {
                     x: 3; y: 4.5
                     width: 9; height: 9
                     radius: 4.5
-                    color: "white"
+                    color: Theme.textOnColor
                 }
                 Rectangle {
                     x: 5; y: 5.3
@@ -935,7 +935,7 @@ ApplicationWindow {
                         text: "M"
                         font.pixelSize: Dimensions.fontCaption
                         font.weight: Font.Bold
-                        color: "white"
+                        color: Theme.textOnColor
                     }
                 }
             }
@@ -1010,7 +1010,7 @@ ApplicationWindow {
             text: icon
             font.pixelSize: Dimensions.fontCaption
             font.family: "Segoe MDL2 Assets"
-            color: btnMouse.containsMouse && isClose ? "white" : Theme.textSecondary
+            color: btnMouse.containsMouse && isClose ? Theme.textOnColor : Theme.textSecondary
 
             Behavior on color {
                 ColorAnimation { duration: Dimensions.animFast }
@@ -1118,7 +1118,7 @@ ApplicationWindow {
                             text: "M"
                             font.pixelSize: Dimensions.fontLG
                             font.weight: Font.Bold
-                            color: "white"
+                            color: Theme.textOnColor
                         }
                     }
                 }

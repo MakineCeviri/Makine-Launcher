@@ -89,7 +89,7 @@ Rectangle {
                 radius: Dimensions.toggleKnobRadius
                 x: root.checked ? parent.width - width - 3 : 3
                 y: (parent.height - height) / 2
-                color: "white"
+                color: Theme.textOnColor
 
                 Behavior on x {
                     NumberAnimation {

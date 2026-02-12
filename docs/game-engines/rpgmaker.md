@@ -1,39 +1,41 @@
-# RPG Maker Destegi
+# RPG Maker Desteği
 
-MakineAI RPG Maker oyun motoru destegi detaylari.
+RPG Maker dosya yapısı ve çeviri yöntemi teknik referansı.
+
+> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
 **Destek Durumu:** Tam Destek
 
-**Desteklenen Surumler:**
+**Desteklenen Sürümler:**
 - RPG Maker MV (JavaScript)
 - RPG Maker MZ (JavaScript)
 - RPG Maker VX Ace (Ruby)
 
 ---
 
-## Nasil Calisir
+## Nasıl Çalışır
 
-RPG Maker oyunlari JSON/Ruby tabanli dil dosyalari kullanir:
+RPG Maker oyunları JSON/Ruby tabanlı dil dosyaları kullanır:
 
 ### MV/MZ
 
-1. `www/data/` altindaki JSON dosyalari cevirilir
+1. `www/data/` altındaki JSON dosyaları çevrilir
 2. Plugin sistemi ile hook (opsiyonel)
 
 ### VX Ace
 
-1. `Data/` altindaki `.rvdata2` dosyalari cevirilir
-2. Ruby script degisikligi (opsiyonel)
+1. `Data/` altındaki `.rvdata2` dosyaları çevrilir
+2. Ruby script değişikliği (opsiyonel)
 
 ---
 
-## Otomatik Algilama
+## Otomatik Algılama
 
-MakineAI RPG Maker oyunlarini su dosyalardan tespit eder:
+MakineAI RPG Maker oyunlarını şu dosyalardan tespit eder:
 
 | Motor | Dosya |
 |-------|-------|
@@ -43,26 +45,26 @@ MakineAI RPG Maker oyunlarini su dosyalardan tespit eder:
 
 ---
 
-## Ceviri Sureci (MV/MZ)
+## Çeviri Süreci (MV/MZ)
 
-### JSON Dosyalari
+### JSON Dosyaları
 
 ```
 www/data/
 ├── System.json      # Sistem metinleri
 ├── Actors.json      # Karakter isimleri
-├── Classes.json     # Sinif isimleri
+├── Classes.json     # Sınıf isimleri
 ├── Skills.json      # Yetenek isimleri
-├── Items.json       # Esya isimleri
+├── Items.json       # Eşya isimleri
 ├── Weapons.json     # Silah isimleri
-├── Armors.json      # Zirh isimleri
-├── Enemies.json     # Dusman isimleri
+├── Armors.json      # Zırh isimleri
+├── Enemies.json     # Düşman isimleri
 ├── States.json      # Durum isimleri
 ├── CommonEvents.json # Ortak eventler
-└── MapXXX.json      # Harita diyaloglari
+└── MapXXX.json      # Harita diyalogları
 ```
 
-### Ornek JSON
+### Örnek JSON
 
 ```json
 {
@@ -74,7 +76,7 @@ www/data/
 }
 ```
 
-Cevirilmis:
+Çevrilmiş:
 ```json
 {
   "id": 1,
@@ -87,24 +89,24 @@ Cevirilmis:
 
 ---
 
-## Ceviri Sureci (VX Ace)
+## Çeviri Süreci (VX Ace)
 
-### RGSS3 Dosyalari
+### RGSS3 Dosyaları
 
 ```
 Data/
 ├── System.rvdata2   # Sistem
 ├── Actors.rvdata2   # Karakterler
-├── Classes.rvdata2  # Siniflar
+├── Classes.rvdata2  # Sınıflar
 ├── Skills.rvdata2   # Yetenekler
-├── Items.rvdata2    # Esyalar
+├── Items.rvdata2    # Eşyalar
 ├── Map001.rvdata2   # Harita 1
 └── ...
 ```
 
 ### Ruby Script
 
-Scripts.rvdata2 icindeki Vocab modulu:
+Scripts.rvdata2 içindeki Vocab modülü:
 
 ```ruby
 module Vocab
@@ -125,12 +127,12 @@ end
 
 ### Encoding
 
-- MV/MZ: UTF-8 (varsayilan)
+- MV/MZ: UTF-8 (varsayılan)
 - VX Ace: UTF-8 veya Shift_JIS
 
 ### Plugin Sistemi (MV/MZ)
 
-Opsiyonel plugin ile dinamik ceviri:
+Opsiyonel plugin ile dinamik çeviri:
 
 ```javascript
 // plugins/TurkishTranslation.js
@@ -143,9 +145,9 @@ Opsiyonel plugin ile dinamik ceviri:
 })();
 ```
 
-### Font Degisimi
+### Font Değişimi
 
-Turkce karakter icin font degisimi:
+Türkçe karakter için font değişimi:
 
 ```json
 // System.json
@@ -162,54 +164,54 @@ Turkce karakter icin font degisimi:
 
 ## Bilinen Sorunlar
 
-### Sifreli Oyunlar
+### Şifreli Oyunlar
 
-Bazi oyunlar sifreleme kullaniyor:
-- `*.rpgmvp`, `*.rpgmvo` uzantili
-- Sifre cozme gerekli
+Bazı oyunlar şifreleme kullanıyor:
+- `*.rpgmvp`, `*.rpgmvo` uzantılı
+- Şifre çözme gerekli
 
 ### Hardcoded Metinler
 
-Bazi metinler plugin icinde:
-- Her plugin ayri incelenmeli
+Bazı metinler plugin içinde:
+- Her plugin ayrı incelenmeli
 
 ### Karakter Limiti
 
-Bazi UI elementleri sinirli alan:
-- Ceviri kisaltma gerekebilir
+Bazı UI elementleri sınırlı alan:
+- Çeviri kısaltma gerekebilir
 
 ---
 
-## Ornek Oyunlar
+## Örnek Oyunlar
 
 | Oyun | Motor | Durum |
 |------|-------|-------|
-| Omori | MV | Calisiyor |
-| To the Moon | XP/VX | Calisiyor |
-| OneShot | MV | Calisiyor |
-| Corpse Party | VX Ace | Calisiyor |
+| Omori | MV | Çalışıyor |
+| To the Moon | XP/VX | Çalışıyor |
+| OneShot | MV | Çalışıyor |
+| Corpse Party | VX Ace | Çalışıyor |
 
 ---
 
 ## Troubleshooting
 
-### JSON Parse Hatasi
+### JSON Parse Hatası
 
-1. UTF-8 BOM kontrolu
-2. JSON syntax kontrolu
+1. UTF-8 BOM kontrolü
+2. JSON syntax kontrolü
 3. Escape karakterleri kontrol
 
-### Ceviri Gorunmuyor
+### Çeviri Görünmüyor
 
-1. Dogru dosya duzenlendi mi kontrol et
+1. Doğru dosya düzenlendi mi kontrol et
 2. Oyun cache temizle
-3. www/save/ klasorunu sil (save uyumsuzlugu)
+3. www/save/ klasörünü sil (save uyumsuzluğu)
 
 ### Karakter Bozuk
 
-1. Font dosyasi var mi kontrol et
+1. Font dosyası var mı kontrol et
 2. Encoding UTF-8 mi kontrol et
-3. System.json locale ayari
+3. System.json locale ayarı
 
 ---
 

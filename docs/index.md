@@ -1,60 +1,49 @@
-# MakineAI Dokumantasyonu
+# MakineAI Dokümantasyonu
 
-Turkce oyun ceviri platformuna hos geldiniz!
-
----
-
-## Proje Hakkinda
-
-MakineAI iki parcadan olusur:
-
-- **Makine** — Ceviri dagitim platformu (oyun tespit, paket kur/kaldir, yedekle)
-- **MakineAI** — Adaptasyon motoru (oyun guncelleme tespiti, otomatik ceviri uyarlama)
-
-Detaylar: [Vizyon](VISION.md) | [Yol Haritasi](ROADMAP.md)
+Türkçe oyun çeviri platformuna hoş geldiniz!
 
 ---
 
-## Hizli Baslangic
+## Proje Hakkında
 
-- [Baslangic Kilavuzu](user-guide/getting-started.md) - Ilk cevirinizi 2 dakikada yapin
+MakineAI iki parçadan oluşur:
+
+- **Makine** — Çeviri dağıtım platformu (oyun tespit, paket kur/kaldır, yedekle)
+- **MakineAI** — Adaptasyon motoru (oyun güncelleme tespiti, otomatik çeviri uyarlama)
+
+Detaylar: [Vizyon](VISION.md) | [Yol Haritası](ROADMAP.md)
+
+---
+
+## Hızlı Başlangıç
+
+- [Başlangıç Kılavuzu](user-guide/getting-started.md) - İlk çevirinizi 2 dakikada yapın
 - [Kurulum](user-guide/installation.md) - Sistem gereksinimleri ve kurulum
 
 ---
 
-## Kullanici Kilavuzu
+## Geliştirici Dokümantasyonu
 
-- [Desteklenen Oyunlar](user-guide/supported-games.md) - Motor bazli ceviri destegi
-- [Diger Oyunlar](user-guide/other-games.md) - Topluluk ceviri paketleri
-- [Sorun Giderme](user-guide/troubleshooting.md) - Sik karsilasilan sorunlar
-- [SSS](user-guide/faq.md) - Sik sorulan sorular
-
----
-
-## Gelistirici Dokumantasyonu
-
-- [Gelistirme Ortami](developer-guide/setup.md) - Kurulum ve araclar
-- [Mimari](developer-guide/architecture.md) - Sistem tasarimi (Makine + MakineAI)
-- [QML Arayuz](developer-guide/qml-frontend.md) - Tema, bilesenler, state yonetimi
+- [Geliştirme Ortamı](developer-guide/setup.md) - Kurulum ve araçlar
+- [Mimari](developer-guide/architecture.md) - Sistem tasarımı (Makine + MakineAI)
+- [QML Arayüz](developer-guide/qml-frontend.md) - Tema, bileşenler, state yönetimi
 - [Build Sistemi](developer-guide/build-system.md) - CMake, vcpkg, preset'ler
 - [Test Yazma](developer-guide/testing.md) - GTest, CTest
-- [Core Kutuphane](developer-guide/core-library.md) - Ileri ozellikler (opsiyonel)
+- [Core Kütüphane](developer-guide/core-library.md) - İleri özellikler (opsiyonel)
 
 ---
 
-## API Referansi
+## API Referansı
 
-- [Core API](api-reference/core-api.md) - C++ Core kutuphanesi
-- [Services API](api-reference/services-api.md) - Qt servisleri
-- [QML Types](api-reference/qml-types.md) - QML bilesenleri
+- [Services API](api-reference/services-api.md) - Qt servisleri (CoreBridge, GameService, vb.)
 
 ---
 
-## Oyun Motoru Referansi
+## Oyun Motoru Referansı
 
-Teknik referans — her motorun dosya yapisi ve ceviri yontemi:
+Teknik referans — her motorun dosya yapısı ve çeviri yöntemi:
 
-| Motor | Dokuman |
+| Motor | Doküman |
 |-------|---------|
 | Unity | [unity.md](game-engines/unity.md) |
 | Unreal Engine | [unreal.md](game-engines/unreal.md) |
@@ -63,15 +52,15 @@ Teknik referans — her motorun dosya yapisi ve ceviri yontemi:
 | GameMaker | [gamemaker.md](game-engines/gamemaker.md) |
 | Bethesda | [bethesda.md](game-engines/bethesda.md) |
 
-> **Not:** Bu dokulmanlar motor dosya formatlari hakkinda referans bilgi icerir.
-> Adaptasyon motoru bu bilgileri kullanarak guncelleme sonrasi uyarlama yapacaktir.
+> **Not:** Bu dokümanlar motor dosya formatları hakkında referans bilgi içerir.
+> Adaptasyon motoru bu bilgileri kullanarak güncelleme sonrası uyarlama yapacaktır.
 
 ---
 
-## Diger Kaynaklar
+## Diğer Kaynaklar
 
 - [Mimari Kararlar (ADR)](adr/README.md)
-- [Guvenlik Modeli](security/security-model.md)
+- [Güvenlik Modeli](security/security-model.md)
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [CHANGELOG.md](../CHANGELOG.md)
 

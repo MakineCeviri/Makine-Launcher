@@ -1,28 +1,30 @@
-# Unreal Engine Destegi
+# Unreal Engine Desteği
 
-MakineAI Unreal Engine oyun motoru destegi detaylari.
+Unreal Engine dosya yapısı ve çeviri yöntemi teknik referansı.
+
+> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
 **Destek Durumu:** Tam Destek
 
-**Desteklenen Surumler:**
+**Desteklenen Sürümler:**
 - Unreal Engine 4.x
 - Unreal Engine 5.x
 
 ---
 
-## Nasil Calisir
+## Nasıl Çalışır
 
-MakineAI Unreal oyunlarinda PAK dosya sistemi kullanir:
+MakineAI Unreal oyunlarında PAK dosya sistemi kullanır:
 
-1. Turkce lokalizasyon PAK dosyasi olusturulur
-2. Engine oncelik sistemi ile ustune yazma yapilir
+1. Türkçe lokalizasyon PAK dosyası oluşturulur
+2. Engine öncelik sistemi ile üstüne yazma yapılır
 3. Orijinal dosyalar dokunulmaz
 
-### Calisma Prensibi
+### Çalışma Prensibi
 
 ```
 Ceviri Paketi
@@ -42,22 +44,22 @@ Turkce Metin Goster
 
 ---
 
-## Otomatik Algilama
+## Otomatik Algılama
 
-MakineAI Unreal oyunlarini su dosyalardan tespit eder:
+MakineAI Unreal oyunlarını şu dosyalardan tespit eder:
 
-| Dosya | Aciklama |
+| Dosya | Açıklama |
 |-------|----------|
 | `Engine/Binaries/` | Engine runtime |
-| `Content/Paks/*.pak` | PAK arsivleri |
-| `.uproject` | Proje dosyasi |
+| `Content/Paks/*.pak` | PAK arşivleri |
+| `.uproject` | Proje dosyası |
 | `Manifest_*.txt` | Unreal manifest |
 
 ---
 
-## Ceviri Sureci
+## Çeviri Süreci
 
-### 1. PAK Dosya Yapisi
+### 1. PAK Dosya Yapısı
 
 ```
 [Oyun]/
@@ -68,9 +70,9 @@ MakineAI Unreal oyunlarini su dosyalardan tespit eder:
             └── tr_localization_P.pak       # Ceviri
 ```
 
-### 2. Lokalizasyon Yapisi
+### 2. Lokalizasyon Yapısı
 
-PAK icerigi:
+PAK içeriği:
 ```
 Content/
 └── Localization/
@@ -79,32 +81,32 @@ Content/
         └── Engine.locres
 ```
 
-### 3. Oncelik Sistemi
+### 3. Öncelik Sistemi
 
-`_P` suffix'i en yuksek onceligi verir:
-- `pakchunk0.pak` (oncelik: 0)
-- `tr_localization_P.pak` (oncelik: 100)
+`_P` suffix'i en yüksek önceliği verir:
+- `pakchunk0.pak` (öncelik: 0)
+- `tr_localization_P.pak` (öncelik: 100)
 
 ---
 
 ## Teknik Detaylar
 
-### .locres Formati
+### .locres Formatı
 
 Binary lokalizasyon format:
-- String ID -> Cevirilmis metin
-- Namespace destegi
-- Plural form destegi
+- String ID -> Çevrilmiş metin
+- Namespace desteği
+- Plural form desteği
 
-### PAK Sifreleme
+### PAK Şifreleme
 
-Bazi oyunlar PAK sifreleme kullaniyor:
-- AES sifreleme
-- Anahtar gerekli (cogu oyun icin biliniyor)
+Bazı oyunlar PAK şifreleme kullanıyor:
+- AES şifreleme
+- Anahtar gerekli (çoğu oyun için biliniyor)
 
-### Asset Referanslari
+### Asset Referansları
 
-Bazi metinler asset icinde:
+Bazı metinler asset içinde:
 - DataTable
 - StringTable
 - Blueprint
@@ -113,54 +115,54 @@ Bazi metinler asset icinde:
 
 ## Bilinen Sorunlar
 
-### Sifreli PAK
+### Şifreli PAK
 
-Sifreleme anahtari bilinmiyorsa:
-- Ceviri uygulanamaz
+Şifreleme anahtarı bilinmiyorsa:
+- Çeviri uygulanamaz
 - Topluluktan anahtar istenebilir
 
-### Cook Edilmis Asset
+### Cook Edilmiş Asset
 
-Bazi metinler Cook edilmis:
-- Ayri asset patch gerekebilir
-- Daha kompleks islem
+Bazı metinler Cook edilmiş:
+- Ayrı asset patch gerekebilir
+- Daha kompleks işlem
 
-### Font Sorunlari
+### Font Sorunları
 
-Varsayilan font Turkce karakter icermeyebilir:
+Varsayılan font Türkçe karakter içermeyebilir:
 - Font asset patch gerekebilir
 
 ---
 
-## Ornek Oyunlar
+## Örnek Oyunlar
 
-| Oyun | UE Surum | Durum |
+| Oyun | UE Sürüm | Durum |
 |------|----------|-------|
-| Fortnite | UE5 | Calisiyor (Resmi TR) |
-| PUBG | UE4 | Calisiyor |
-| Dead by Daylight | UE4 | Calisiyor |
-| FF7 Remake | UE4 | Calisiyor |
+| Fortnite | UE5 | Çalışıyor (Resmi TR) |
+| PUBG | UE4 | Çalışıyor |
+| Dead by Daylight | UE4 | Çalışıyor |
+| FF7 Remake | UE4 | Çalışıyor |
 
 ---
 
 ## Troubleshooting
 
-### PAK Yuklenmiyor
+### PAK Yüklenmiyor
 
-1. `~mods` klasoru var mi kontrol et
-2. `_P` suffix'i var mi kontrol et
-3. Dosya boyutu kontrol et (bos olmamalı)
+1. `~mods` klasörü var mı kontrol et
+2. `_P` suffix'i var mı kontrol et
+3. Dosya boyutu kontrol et (boş olmamalı)
 
-### Ceviri Gorunmuyor
+### Çeviri Görünmüyor
 
-1. `.locres` dosya yapisi kontrol et
+1. `.locres` dosya yapısı kontrol et
 2. Namespace uyumlu mu kontrol et
-3. Oyun dil ayarini kontrol et
+3. Oyun dil ayarını kontrol et
 
-### Oyun Cokuyor
+### Oyun Çöküyor
 
-1. PAK butunlugu kontrol et
-2. Engine surumu uyumlu mu kontrol et
+1. PAK bütünlüğü kontrol et
+2. Engine sürümü uyumlu mu kontrol et
 3. Log kontrol et: `[Oyun]/Saved/Logs/`
 
 ---

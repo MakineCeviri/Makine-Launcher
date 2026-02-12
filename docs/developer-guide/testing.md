@@ -1,6 +1,6 @@
 # Test Yazma
 
-MakineAI test stratejisi ve ornekleri.
+MakineAI test stratejisi ve örnekleri.
 
 ---
 
@@ -12,7 +12,7 @@ MakineAI test stratejisi ve ornekleri.
 
 ---
 
-## Test Yapisi
+## Test Yapısı
 
 ```
 core/
@@ -29,7 +29,7 @@ core/
 
 ---
 
-## Unit Test Ornekleri
+## Unit Test Örnekleri
 
 ### Temel Test
 
@@ -50,7 +50,7 @@ TEST(GameDetectorTest, DetectsSteamGames) {
 }
 ```
 
-### Fixture Kullanimi
+### Fixture Kullanımı
 
 ```cpp
 class AssetParserTest : public ::testing::Test {
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 ---
 
-## Mock Kullanimi
+## Mock Kullanımı
 
 ```cpp
 #include <gmock/gmock.h>
@@ -142,9 +142,9 @@ TEST(PatchEngineTest, FailsWhenFileNotFound) {
 
 ---
 
-## Test Calistirma
+## Test Çalıştırma
 
-### Tum Testler
+### Tüm Testler
 
 ```bash
 # just ile
@@ -189,10 +189,10 @@ gcovr --html coverage.html --html-details
 
 ### Coverage Hedefleri
 
-| Modul | Hedef |
+| Modül | Hedef |
 |-------|-------|
 | Core | 80%+ |
-| Handlers | 70%+ |
+| Services | 70%+ |
 | Utils | 90%+ |
 
 ---
@@ -212,7 +212,7 @@ GitHub Actions'da otomatik test:
 
 ## Test Verileri
 
-### Dizin Yapisi
+### Dizin Yapısı
 
 ```
 testdata/
@@ -230,7 +230,7 @@ testdata/
             └── System.json
 ```
 
-### Test Verisi Olusturma
+### Test Verisi Oluşturma
 
 ```cpp
 // Test helper
@@ -244,7 +244,7 @@ void createTestUnityGame(const std::string& path) {
 
 ## Best Practices
 
-### 1. Bagimsiz Testler
+### 1. Bağımsız Testler
 
 ```cpp
 // Her test kendi setup'ini yapmali
@@ -254,7 +254,7 @@ TEST(MyTest, DoSomething) {
 }
 ```
 
-### 2. Descriptive Isimler
+### 2. Descriptive İsimler
 
 ```cpp
 // YANLIS
@@ -284,7 +284,7 @@ TEST(AssetParser, DetectsUnityMono) {
 
 ---
 
-## Sonraki Adimlar
+## Sonraki Adımlar
 
-- [Core Kutuphane](core-library.md)
+- [Core Kütüphane](core-library.md)
 - [Build Sistemi](build-system.md)

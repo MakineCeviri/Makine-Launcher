@@ -117,6 +117,16 @@ QtObject {
     readonly property int cardBorderRadius: radiusStandard
 
     // =========================================================================
+    // LAYOUT CONSTANTS
+    // =========================================================================
+
+    readonly property int sidebarWidth: 280
+    readonly property real borderWidthThin: 1.5
+    readonly property int badgePaddingH: 10
+    readonly property int patchCardExtraWidth: 10
+    readonly property int patchCardExtraHeight: 30
+
+    // =========================================================================
     // ANIMATION DURATIONS (ms) — respect user's animation preference
     // =========================================================================
 

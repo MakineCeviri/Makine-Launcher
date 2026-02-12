@@ -362,7 +362,7 @@ Dialog {
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: Dimensions.cardBorderRadius
-                                    color: "white"
+                                    color: Theme.textOnColor
                                 }
                             }
 

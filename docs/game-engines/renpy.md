@@ -1,28 +1,30 @@
-# Ren'Py Destegi
+# Ren'Py Desteği
 
-MakineAI Ren'Py oyun motoru destegi detaylari.
+Ren'Py dosya yapısı ve çeviri yöntemi teknik referansı.
+
+> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
 **Destek Durumu:** Tam Destek
 
-**Desteklenen Surumler:**
+**Desteklenen Sürümler:**
 - Ren'Py 7.x
 - Ren'Py 8.x
 
 ---
 
-## Nasil Calisir
+## Nasıl Çalışır
 
-Ren'Py native lokalizasyon sistemi kullanir:
+Ren'Py native lokalizasyon sistemi kullanır:
 
-1. `tl/tr/` klasorune ceviri dosyalari eklenir
-2. Oyun icinden dil degistirilebilir
+1. `tl/tr/` klasörüne çeviri dosyaları eklenir
+2. Oyun içinden dil değiştirilebilir
 3. Orijinal dosyalar dokunulmaz
 
-### Calisma Prensibi
+### Çalışma Prensibi
 
 ```
 Ceviri Dosyasi (.rpy)
@@ -42,11 +44,11 @@ Turkce Metin Goster
 
 ---
 
-## Otomatik Algilama
+## Otomatik Algılama
 
-MakineAI Ren'Py oyunlarini su dosyalardan tespit eder:
+MakineAI Ren'Py oyunlarını şu dosyalardan tespit eder:
 
-| Dosya | Aciklama |
+| Dosya | Açıklama |
 |-------|----------|
 | `renpy/` | Ren'Py engine |
 | `game/script.rpy` | Ana script |
@@ -55,23 +57,23 @@ MakineAI Ren'Py oyunlarini su dosyalardan tespit eder:
 
 ---
 
-## Ceviri Sureci
+## Çeviri Süreci
 
-### Klasor Yapisi
+### Klasör Yapısı
 
 ```
 game/
 ├── script.rpy           # Orijinal script
-├── gui.rpy              # GUI tanimlari
+├── gui.rpy              # GUI tanımları
 └── tl/
-    └── tr/              # Turkce ceviri
-        ├── script.rpy   # Script cevirisi
-        ├── gui.rpy      # GUI cevirisi
+    └── tr/              # Türkçe çeviri
+        ├── script.rpy   # Script çevirisi
+        ├── gui.rpy      # GUI çevirisi
         ├── common.rpy   # Ortak metinler
-        └── options.rpy  # Secenekler
+        └── options.rpy  # Seçenekler
 ```
 
-### Ceviri Formati
+### Çeviri Formatı
 
 ```python
 # game/tl/tr/script.rpy
@@ -91,7 +93,7 @@ translate turkish strings:
     new "Ayarlar"
 ```
 
-### Karakter Isimleri
+### Karakter İsimleri
 
 ```python
 translate turkish python:
@@ -109,7 +111,7 @@ translate turkish python:
 - UTF-8 zorunlu
 - BOM olmadan
 
-### Translate Bloklari
+### Translate Blokları
 
 ```python
 # Label cevirisi
@@ -122,14 +124,14 @@ translate turkish strings:
     new "Turkce metin"
 ```
 
-### Style Cevirisi
+### Style Çevirisi
 
 ```python
 translate turkish style default:
     font "DejaVuSans.ttf"
 ```
 
-### Python Bloklari
+### Python Blokları
 
 ```python
 translate turkish python:
@@ -138,9 +140,9 @@ translate turkish python:
 
 ---
 
-## Dil Secimi
+## Dil Seçimi
 
-### Oyun Icinde
+### Oyun İçinde
 
 ```python
 # options.rpy
@@ -162,19 +164,19 @@ init python:
 
 ### Compiled Scripts
 
-`.rpyc` dosyalari compile edilmis:
+`.rpyc` dosyaları compile edilmiş:
 - `.rpy` kaynak yoksa decompile gerekir
-- `unrpyc` araci kullanilabilir
+- `unrpyc` aracı kullanılabilir
 
 ### Image Text
 
-Resim icindeki metinler:
-- Ayri gorsel duzenleme gerekir
+Resim içindeki metinler:
+- Ayrı görsel düzenleme gerekir
 - Photoshop/GIMP ile
 
 ### Conditional Text
 
-Degiskenli metinler:
+Değişkenli metinler:
 ```python
 # Dikkatli cevirilmeli
 "You have [gold] gold pieces."
@@ -184,41 +186,41 @@ Degiskenli metinler:
 
 ---
 
-## Ornek Oyunlar
+## Örnek Oyunlar
 
-| Oyun | Surum | Durum |
+| Oyun | Sürüm | Durum |
 |------|-------|-------|
-| Doki Doki Literature Club | 7.x | Calisiyor |
-| Katawa Shoujo | 6.x | Calisiyor |
-| Long Live the Queen | 6.x | Calisiyor |
+| Doki Doki Literature Club | 7.x | Çalışıyor |
+| Katawa Shoujo | 6.x | Çalışıyor |
+| Long Live the Queen | 6.x | Çalışıyor |
 
 ---
 
 ## Troubleshooting
 
-### Ceviri Yuklenmiyor
+### Çeviri Yüklenmiyor
 
-1. Klasor adi `tl/tr/` mi kontrol et
-2. `.rpy` syntax hatasi var mi kontrol et
-3. `translate turkish` dogru yazilmis mi
+1. Klasör adı `tl/tr/` mi kontrol et
+2. `.rpy` syntax hatası var mı kontrol et
+3. `translate turkish` doğru yazılmış mı
 
 ### Karakter Bozuk
 
-1. Font Turkce karakter destekliyor mu
+1. Font Türkçe karakter destekliyor mu
 2. Encoding UTF-8 mi
-3. gui.rpy'de font tanimli mi
+3. gui.rpy'de font tanımlı mı
 
-### Syntax Hatasi
+### Syntax Hatası
 
 1. Girintileme (indentation) kontrol et
-2. Tirnaklar eslesli mi kontrol et
-3. Python syntax gecerli mi
+2. Tırnaklar eşleşli mi kontrol et
+3. Python syntax geçerli mi
 
 ---
 
-## Hizli Referans
+## Hızlı Referans
 
-### Yeni Ceviri Baslat
+### Yeni Çeviri Başlat
 
 ```bash
 # Ren'Py Launcher ile
@@ -227,7 +229,7 @@ Degiskenli metinler:
 # 3. Dil adi: "turkish"
 ```
 
-### Ceviri Test
+### Çeviri Test
 
 ```python
 # script.rpy'de test

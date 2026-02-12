@@ -28,6 +28,10 @@
 #include <psapi.h>     // EmptyWorkingSet
 #endif
 
+namespace {
+constexpr int kStartupSettleMs = 5000;
+}
+
 // Resolve log file path using platform-appropriate location
 static QString getLogFilePath() {
     QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
@@ -212,15 +216,15 @@ int main(int argc, char *argv[])
     logToFile(QString("Log file: %1").arg(getLogFilePath()));
     logToFile(QString("QSG_RENDER_LOOP: %1").arg(qEnvironmentVariable("QSG_RENDER_LOOP")));
     {
-        QSettings bs("MakineAI", "MakineAI");
-        QString cfgBackend = bs.value("performance/graphicsBackend", "vulkan").toString();
+        QSettings settings("MakineAI", "MakineAI");
+        QString configuredBackend = settings.value("performance/graphicsBackend", "vulkan").toString();
         auto api = QQuickWindow::graphicsApi();
         QString apiName = api == QSGRendererInterface::Direct3D12 ? "D3D12" :
                           api == QSGRendererInterface::Vulkan     ? "Vulkan" :
                           api == QSGRendererInterface::Direct3D11 ? "D3D11" :
                           api == QSGRendererInterface::OpenGL     ? "OpenGL" :
                           "Auto (RHI default)";
-        logToFile(QString("Graphics backend setting: %1 → API: %2").arg(cfgBackend, apiName));
+        logToFile(QString("Graphics backend setting: %1 → API: %2").arg(configuredBackend, apiName));
     }
     logToFile(QString("Swap interval: %1").arg(QSurfaceFormat::defaultFormat().swapInterval()));
 
@@ -277,7 +281,7 @@ int main(int argc, char *argv[])
     // Trim working set after startup settles (DLL init, type registration, QML
     // compilation pages are no longer needed). Hot pages fault back in microseconds.
 #ifdef Q_OS_WIN
-    QTimer::singleShot(5000, [&]() {
+    QTimer::singleShot(kStartupSettleMs, [&]() {
         // Compact heaps: merge free blocks, release unused pages to OS
         HANDLE heaps[32];
         DWORD count = GetProcessHeaps(32, heaps);

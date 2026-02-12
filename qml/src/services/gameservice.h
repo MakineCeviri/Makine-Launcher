@@ -92,9 +92,10 @@ struct SteamDetails {
     QDateTime fetchedAt;
 
     static constexpr int TTL_HOURS = 24;
+    static constexpr int kSecondsPerHour = 3600;
 
     bool isExpired() const {
-        return fetchedAt.isNull() || fetchedAt.secsTo(QDateTime::currentDateTime()) > TTL_HOURS * 3600;
+        return fetchedAt.isNull() || fetchedAt.secsTo(QDateTime::currentDateTime()) > TTL_HOURS * kSecondsPerHour;
     }
 };
 
@@ -154,13 +155,13 @@ public:
     Q_INVOKABLE void scanEpicLibrary();
     Q_INVOKABLE void scanGogLibrary();
     Q_INVOKABLE void addManualGame(const QString& path);
-    Q_INVOKABLE QVariantMap getGameById(const QString& id);
+    Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
     Q_INVOKABLE bool hasRecipe(const QString& gameId);
     Q_INVOKABLE void refreshGameMetadata(const QString& gameId);
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getRecipeInfo(const QString& gameId);
-    Q_INVOKABLE QVariantList searchGames(const QString& query);
+    Q_INVOKABLE QVariantList searchGames(const QString& query) const;
 
     /**
      * @brief Handle files dropped onto the application window

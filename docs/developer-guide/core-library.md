@@ -1,22 +1,25 @@
-# Core Kutuphane
+# Core Kütüphane
 
-MakineAI C++ Core kutuphanesinin detayli aciklamasi.
+MakineAI C++ Core kütüphanesinin detaylı açıklaması.
+
+> **Not:** Core kütüphane henüz UI'ya entegre edilmemiştir. `UI_ONLY` (dev) build'de
+> saf Qt servisleri kullanılır. Core sadece `release` build'de aktiftir.
 
 ---
 
-## Genel Bakis
+## Genel Bakış
 
-Core kutuphane, MakineAI'nin tum is mantigi iceren C++ kutuphanesidir.
+Core kütüphane, MakineAI'nin ileri iş mantığı içeren C++ kütüphanesidir.
 
-**Ozellikler:**
+**Özellikler:**
 - Modern C++20/23
 - Header-only optional libraries
-- Result-based error handling
-- Asenkron operasyon destegi
+- Result-based error handling (ADR-0002)
+- Asenkron operasyon desteği
 
 ---
 
-## Modul Yapisi
+## Modül Yapısı
 
 ```
 core/
@@ -27,7 +30,7 @@ core/
 │   ├── features.hpp       # Ozellik tanimlari
 │   │
 │   ├── logging.hpp        # spdlog wrapper
-│   ├── config.hpp         # Konfigürasyon
+│   ├── config.hpp         # Konfigurasyon
 │   ├── metrics.hpp        # Performans metrikleri
 │   ├── health.hpp         # Sistem sagligi
 │   ├── audit.hpp          # Guvenlik loglama
@@ -40,28 +43,29 @@ core/
 │   ├── patch_engine.hpp   # Patch uygulama
 │   ├── game_detector.hpp  # Oyun tespiti
 │   ├── package_manager.hpp # Paket yonetimi
-│   ├── runtime_manager.hpp # BepInEx/XUnity
+│   ├── version_tracker.hpp # Versiyon takibi
 │   ├── security.hpp       # Imza dogrulama
-│   │
-│   └── handlers/          # Motor handler'lari
-│       ├── unity_handler.hpp
-│       ├── unreal_handler.hpp
-│       └── ...
+│   ├── ssl_pinning.hpp    # SSL pinning
+│   └── sandbox.hpp        # Sandbox islemleri
 │
 └── src/
-    ├── game_detector/     # Implementasyon
-    ├── asset_parser/
-    ├── patch_engine/
-    └── handlers/
+    ├── game_detector/     # Steam, Epic, GOG tarama
+    ├── asset_parser/      # Dosya format analizi
+    ├── patch_engine/      # Patch uygulama/rollback
+    ├── package_manager/   # Paket yonetimi
+    ├── version_tracker/   # Oyun versiyon takibi
+    ├── security/          # Imza, credential, sandbox
+    ├── database/          # SQLite islemleri
+    └── platform/          # Platform-specific kod
 ```
 
 ---
 
-## Temel Siniflar
+## Temel Sınıflar
 
 ### Core (Singleton)
 
-Ana giris noktasi:
+Ana giriş noktası:
 
 ```cpp
 #include <makineai/core.hpp>
@@ -127,7 +131,7 @@ patcher.rollback(game);
 
 ### PackageManager
 
-Ceviri paketi yonetimi:
+Çeviri paketi yönetimi:
 
 ```cpp
 auto& pkgMgr = core.packageManager();
@@ -135,91 +139,13 @@ auto& pkgMgr = core.packageManager();
 // Paket listele
 auto packages = pkgMgr.listAvailable(game.id);
 
-// Paket indir
-auto result = pkgMgr.download(packageId, progress);
-
 // Paket dogrula
 auto valid = pkgMgr.verify(localPath);
 ```
 
 ---
 
-## Utility Siniflari
-
-### Lazy<T>
-
-Thread-safe lazy initialization:
-
-```cpp
-#include <makineai/utils/lazy.hpp>
-
-Lazy<ExpensiveObject> obj([]{
-    return ExpensiveObject();
-});
-
-// Ilk erisimde olusturulur
-auto& instance = obj.get();
-```
-
-### BatchProcessor
-
-Paralel batch isleme:
-
-```cpp
-#include <makineai/utils/batch.hpp>
-
-BatchProcessor<FileInfo> processor;
-processor.setWorkerCount(4);
-processor.setBatchSize(100);
-
-processor.process(files, [](const FileInfo& f) {
-    return processFile(f);
-});
-```
-
-### AuditLogger
-
-Guvenlik loglama:
-
-```cpp
-auto& audit = AuditLogger::instance();
-
-audit.log(AuditEvent::PackageInstall, {
-    {"package_id", pkgId},
-    {"game_id", gameId}
-});
-```
-
-### Metrics
-
-Performans metrikleri:
-
-```cpp
-auto& metrics = Metrics::instance();
-
-metrics.counter("games_scanned").increment();
-metrics.histogram("scan_duration").record(duration);
-
-auto text = metrics.toText();
-```
-
-### HealthChecker
-
-Sistem sagligi:
-
-```cpp
-auto& health = HealthChecker::instance();
-
-health.addCheck("database", [] {
-    return db.isConnected();
-});
-
-auto status = health.check(); // HealthStatus
-```
-
----
-
-## Hata Yonetimi
+## Hata Yönetimi
 
 ### Result<T>
 
@@ -240,103 +166,23 @@ if (!result) {
 auto game = *result;
 ```
 
-### Error Kodlari
-
-```cpp
-enum class ErrorCode {
-    Success = 0,
-    NotFound,
-    AccessDenied,
-    InvalidFormat,
-    NetworkError,
-    DatabaseError,
-    // ...
-};
-```
-
----
-
-## Asenkron API
-
-### AsyncOperation
-
-```cpp
-AsyncOperation<std::vector<GameInfo>> scanGamesAsync(
-    ProgressCallback progress = nullptr
-);
-
-// Kullanim
-auto op = core.scanGamesAsync();
-
-op.then([](auto games) {
-    // Basari
-}).onError([](auto error) {
-    // Hata
-}).onProgress([](float p) {
-    // Ilerleme
-});
-
-// Veya bekle
-auto games = op.get();
-```
-
-### AsyncQueue
-
-```cpp
-auto& queue = core.taskQueue();
-
-queue.enqueue([]{
-    // Arka plan gorevi
-});
-```
-
 ---
 
 ## Konfigürasyon
-
-### CoreConfig
 
 ```cpp
 CoreConfig config;
 config.dataDir = "C:/MakineAI/data";
 config.cacheDir = "C:/MakineAI/cache";
 config.logLevel = LogLevel::Info;
-config.maxCacheSize = 500 * 1024 * 1024; // 500 MB
 
 core.initialize(config);
 ```
 
-### Varsayilan Degerler
-
-```cpp
-auto defaults = CoreConfig::getDefaults();
-// dataDir = %APPDATA%/MakineAI
-// cacheDir = %LOCALAPPDATA%/MakineAI/cache
-// logLevel = Info
-```
-
 ---
 
-## Test Yazma
+## Sonraki Adımlar
 
-```cpp
-#include <gtest/gtest.h>
-#include <makineai/core.hpp>
-
-TEST(GameDetectorTest, DetectUnity) {
-    auto& detector = makineai::Core::instance().gameDetector();
-
-    auto result = detector.detect("testdata/unity_game");
-
-    ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value().engine, EngineType::Unity);
-}
-```
-
----
-
-## Sonraki Adimlar
-
-- [QML Arayuz](qml-frontend.md)
+- [QML Arayüz](qml-frontend.md)
 - [Build Sistemi](build-system.md)
 - [Test Yazma](testing.md)

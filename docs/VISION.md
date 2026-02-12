@@ -1,66 +1,66 @@
 # MakineAI - Nihai Vizyon
 
-**Bu dokuman uygulamanin ruhudur. Asla silinmemeli.**
+**Bu doküman uygulamanın ruhudur. Asla silinmemeli.**
 
 ---
 
-## Tek Cumle
+## Tek Cümle
 
-> MakineAI, oyun guncellemelerinde cevirilerin kirilmasini onleyen akilli bir adaptasyon motorudur.
+> MakineAI, oyun güncellemelerinde çevirilerin kırılmasını önleyen akıllı bir adaptasyon motorudur.
 
 ---
 
-## Iki Parca, Bir Butun
+## İki Parça, Bir Bütün
 
-### Makine — Urun (Kullaniciya Donuk)
+### Makine — Ürün (Kullanıcıya Dönük)
 
-Turk oyuncular icin ceviri kutuphanesi ve dagitim platformu.
+Türk oyuncular için çeviri kütüphanesi ve dağıtım platformu.
 
 ```
-Oyuncu: "Elden Ring'i Turkce oynamak istiyorum"
-Makine: Kurulu oyunu tespit et → Ceviri paketini indir → Tek tikla kur → Oyna
+Oyuncu: "Elden Ring'i Türkçe oynamak istiyorum"
+Makine: Kurulu oyunu tespit et → Çeviri paketini indir → Tek tıkla kur → Oyna
 ```
 
-- Steam, Epic, GOG kutuphanelerini otomatik tara
-- Topluluk cevirilerini kesfe, kur, guncelle
-- Yedekle, geri yukle, guvenli dagitim
-- Katalog deneyimi — oyunlari gorselleriyle goster
+- Steam, Epic, GOG kütüphanelerini otomatik tara
+- Topluluk çevirilerini keşfe, kur, güncelle
+- Yedekle, geri yükle, güvenli dağıtım
+- Katalog deneyimi — oyunları görselleriyle göster
 
 ### MakineAI — Motor (Arka Plan)
 
-Oyun guncellemelerinden ogrenip cevirileri otomatik uyarlayan sistem.
+Oyun güncellemelerinden öğrenip çevirileri otomatik uyarlayan sistem.
 
 ```
-Sorun:  Assassin's Creed guncellendi → Turkce yama oyunu bozdu
-Cozum:  MakineAI degisikligi tespit etti → Yamayı otomatik uyarladi → Kullanici fark etmedi bile
+Sorun:  Assassin's Creed güncellendi → Türkçe yama oyunu bozdu
+Çözüm:  MakineAI değişikliği tespit etti → Yamayı otomatik uyarladı → Kullanıcı fark etmedi bile
 ```
 
 ---
 
-## Gercek Sorun
+## Gerçek Sorun
 
-Oyun ceviri topluluklarinin en buyuk sorunu:
+Oyun çeviri topluluklarının en büyük sorunu:
 
 ```
-1. Cevirmen aylarca calisir, yama yayinlar
-2. Oyun studiosu guncelleme cikarir
+1. Çevirmen aylarca çalışır, yama yayınlar
+2. Oyun stüdyosu güncelleme çıkarır
 3. Yama bozulur
-4. Cevirmen ya tekrar ugrasir ya birakir
-5. Kullanici Turkce oynayamaz
+4. Çevirmen ya tekrar uğraşır ya bırakır
+5. Kullanıcı Türkçe oynayamaz
 ```
 
-Bu dongu kirılmalı. MakineAI bunu otomatize eder:
+Bu döngü kırılmalı. MakineAI bunu otomatize eder:
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ Oyun         │────→│ Degisiklik   │────→│ Otomatik     │
-│ Guncellendi  │     │ Analizi      │     │ Adaptasyon   │
+│ Oyun         │────→│ Değişiklik   │────→│ Otomatik     │
+│ Güncellendi  │     │ Analizi      │     │ Adaptasyon   │
 └──────────────┘     └──────────────┘     └──────────────┘
        │                    │                     │
        ▼                    ▼                     ▼
-  Hash degisti        Ne degisti?           Yama uyarlandi
-  Versiyon artti      Yeni string?          Kullanici bilgilendirildi
-  Dosyalar farkli     Yapi degisti?         Cevirmen sadece yenilere bakar
+  Hash değişti        Ne değişti?           Yama uyarlandı
+  Versiyon arttı      Yeni string?          Kullanıcı bilgilendirildi
+  Dosyalar farklı     Yapı değişti?         Çevirmen sadece yenilere bakar
 ```
 
 ---
@@ -68,81 +68,81 @@ Bu dongu kirılmalı. MakineAI bunu otomatize eder:
 ## Adaptasyon Motoru
 
 ### Tespit
-- Yamalanmis oyun dosyalarinin hash'lerini kaydet
-- Uygulama acildiginda veya arka planda kontrol et
+- Yamalanmış oyun dosyalarının hash'lerini kaydet
+- Uygulama açıldığında veya arka planda kontrol et
 - Steam API'den versiyon bilgisi al
 
 ### Analiz
-- Eski ve yeni dosyalari karsilastir (diff)
-- Metin tabanli formatlarda structural diff (JSON, XML, INI)
-- Degismeyen, tasinan, eklenen, silinen string'leri ayir
+- Eski ve yeni dosyaları karşılaştır (diff)
+- Metin tabanlı formatlarda structural diff (JSON, XML, INI)
+- Değişmeyen, taşınan, eklenen, silinen string'leri ayır
 
 ### Uyarlama
-- Degismeyen string'ler → dokunma
-- Tasinan string'ler → fuzzy match ile yeni konuma tasi
-- Yeni string'ler → "ceviri gerekli" olarak isaretle
-- Catisan dosyalar → akilli merge
+- Değişmeyen string'ler → dokunma
+- Taşınan string'ler → fuzzy match ile yeni konuma taşı
+- Yeni string'ler → "çeviri gerekli" olarak işaretle
+- Çatışan dosyalar → akıllı merge
 
-### Dogrulama
-- Uyarlanan yamanin dosya butunlugunu kontrol et
-- Bilinen kaliplarla test et
-- Sorun varsa kullaniciyi uyar, yedekten geri don
+### Doğrulama
+- Uyarlanan yamanın dosya bütünlüğünü kontrol et
+- Bilinen kalıplarla test et
+- Sorun varsa kullanıcıyı uyar, yedekten geri dön
 
 ---
 
-## Kulturel Kimlik
+## Kültürel Kimlik
 
-MakineAI Turkce konusuyor — sadece dil degil, **kultur**:
+MakineAI Türkçe konuşuyor — sadece dil değil, **kültür**:
 
 ```
-Yama bozuldu:     "Sakin ol, guncelleme yamayı bozmus ama ben hallettim."
-Yama hazir:       "Turkce yama hazir! Iyi oyunlar."
-Ceviri eksik:     "3 yeni string var, cevirmen arkadaslara haber verelim."
+Yama bozuldu:     "Sakin ol, güncelleme yamayı bozmuş ama ben hallettim."
+Yama hazır:       "Türkçe yama hazır! İyi oyunlar."
+Çeviri eksik:     "3 yeni string var, çevirmen arkadaşlara haber verelim."
 ```
 
-Soguk teknik mesajlar degil, samimi bilgilendirme.
+Soğuk teknik mesajlar değil, samimi bilgilendirme.
 
 ---
 
 ## Tamamlanma Kriterleri
 
-> **Bu ozellikler calistiginda, v1.0 TAMAMLANMISTIR:**
+> **Bu özellikler çalıştığında, v1.0 TAMAMLANMIŞTIR:**
 >
-> 1. ✅ Oyun kutuphanelerini gercekten tara (Steam/Epic/GOG)
-> 2. ✅ Ceviri paketini kur/kaldir
-> 3. ⏳ Sunucudan ceviri paketi indir
-> 4. ⏳ Oyun guncellemesini tespit et
-> 5. ⏳ Degisiklik analizi yap
-> 6. ⏳ Cevirileri otomatik uyarla
-> 7. ⏳ Uyarlamayi dogrula ve uygula
+> 1. ✅ Oyun kütüphanelerini gerçekten tara (Steam/Epic/GOG)
+> 2. ✅ Çeviri paketini kur/kaldır
+> 3. ⏳ Sunucudan çeviri paketi indir
+> 4. ⏳ Oyun güncellemesini tespit et
+> 5. ⏳ Değişiklik analizi yap
+> 6. ⏳ Çevirileri otomatik uyarla
+> 7. ⏳ Uyarlamayı doğrula ve uygula
 
 ---
 
-## Ileri Vizyon (v2.0+)
+## İleri Vizyon (v2.0+)
 
 ### Topluluk Platformu
-- Cevirmenler icin katkı sistemi
-- Ceviri kalite puanlama
-- Otomatik ceviri onerisi (AI destekli)
+- Çevirmenler için katkı sistemi
+- Çeviri kalite puanlama
+- Otomatik çeviri önerisi (AI destekli)
 
 ### Gaming Companion (Gelecek)
-- Oyun sirasinda F12 ile screenshot → AI analiz
-- Sahneye uygun kulturel yorum
-- "Yaninda oturan arkadas" deneyimi
+- Oyun sırasında F12 ile screenshot → AI analiz
+- Sahneye uygun kültürel yorum
+- "Yanında oturan arkadaş" deneyimi
 
 ---
 
-## Son Soz
+## Son Söz
 
 ```
-MakineAI sadece bir ceviri araci degil.
-Oyun guncellemelerinin cevirileri kirmasini onleyen bir muhendislik cozumu.
-Turk oyuncular icin oyunlari oynanabilir kilan bir makine.
+MakineAI sadece bir çeviri aracı değil.
+Oyun güncellemelerinin çevirileri kırmasını önleyen bir mühendislik çözümü.
+Türk oyuncular için oyunları oynanabilir kılan bir makine.
 
-Bu vizyon tamamlandiginda, uygulama BITMISTIR.
+Bu vizyon tamamlandığında, uygulama BİTMİŞTİR.
 ```
 
 ---
 
 *MakineAI — 2026*
-*Bu dokuman ASLA silinmemelidir.*
+*Bu doküman ASLA silinmemelidir.*

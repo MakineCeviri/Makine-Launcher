@@ -1,129 +1,192 @@
-<div align="center">
-
 # MakineAI
 
-**Windows oyunlarini Turkce'ye ceviren ve cevirileri guncel tutan masaustu uygulamasi**
+Windows oyunlarını Türkçe'ye çeviren ve çevirileri güncel tutan masaüstü uygulaması.
 
-[![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue?style=flat-square)](https://github.com/jlceaser/MakineAI/releases)
-[![License](https://img.shields.io/badge/license-Proprietary-red?style=flat-square)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/jlceaser/MakineAI/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/jlceaser/MakineAI/actions)
-[![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?style=flat-square&logo=cplusplus)](https://en.cppreference.com/w/cpp/23)
-[![Qt6](https://img.shields.io/badge/Qt-6.10-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
-[![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows)](https://github.com/jlceaser/MakineAI)
+**Durum:** Alpha — oyun tarama ve yerel paket kurulumu çalışıyor. Sunucu dağıtımı ve adaptasyon motoru geliştirme aşamasında.
 
-Steam, Epic, GOG kutuphanenizdeki oyunlari tek tikla Turkce'ye cevirin.
-Oyun guncellendiginde cevirileri otomatik uyarlasin.
+## Mimari
 
-</div>
+Proje iki katmandan oluşur:
 
----
+- **Makine** — Çeviri dağıtım platformu. Oyun tespiti, paket kurulum/kaldırma, katalog yönetimi.
+- **MakineAI** — Adaptasyon motoru. Oyun güncelleme tespiti, çeviri uyarlama, otomatik doğrulama. *(geliştiriliyor)*
 
-## Ne Yapar?
+UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüphanesi vcpkg bağımlılıkları ile gelişmiş dosya işleme sağlar.
 
-**Makine** — Turkce ceviri kutuphanesi ve dagitim platformu
-- Kurulu oyunlari otomatik tespit eder (Steam, Epic, GOG)
-- Topluluk cevirilerini tek tikla kurar
-- Yedekleme ile guvenli kurulum/kaldirma
+## Gereksinimler
 
-**MakineAI** — Akilli adaptasyon motoru
-- Oyun guncellemelerini tespit eder
-- Kirilmis cevirileri otomatik uyarlar
-- Cevirmen mudahalesi olmadan yamalari guncel tutar
+| Araç | Sürüm | Not |
+|------|-------|-----|
+| Windows | 10/11 x64 | Tek desteklenen platform |
+| Qt | 6.10+ | MinGW 13.1.0 veya MSVC 2022 |
+| CMake | 3.28+ | Qt Tools ile gelir |
+| Ninja | — | Qt Tools ile gelir |
+| vcpkg | Güncel | Sadece `release`/`core` preset için |
+| [just](https://github.com/casey/just) | — | Opsiyonel, task runner |
 
----
-
-## Ozellikler
-
-- **Otomatik oyun tespiti** — Steam, Epic Games, GOG kutuphaneleri taranir
-- **Motor tanima** — Unity, Unreal, RPG Maker, Ren'Py, GameMaker, Bethesda, Godot, Source
-- **Tek tikla kurulum** — Ceviri paketini sec, kur, oyna
-- **Guncelleme korumasi** — Oyun guncellense bile ceviri calismaya devam eder *(gelistiriliyor)*
-- **Guvenli yedekleme** — Kurulumdan once otomatik yedek, tek tikla geri yukleme
-- **Native Windows UI** — Qt 6 QML ile hizli, hafif arayuz
-
-> **Not:** Proje alpha asamasindadir. Oyun tarama ve yerel paket kurulumu calisiyor.
-> Sunucu dagitimi ve adaptasyon motoru gelistirme asamasindadir.
-
----
-
-## Hizli Baslangic
-
-### Gereksinimler
-
-| Arac | Surum |
-|------|-------|
-| Windows | 10/11 (64-bit) |
-| Qt | 6.10+ (MinGW 13.1.0 veya MSVC 2022) |
-| CMake | 3.25+ |
-| vcpkg | Guncel |
-| [just](https://github.com/casey/just) | Task runner (istege bagli) |
-
-### Build
+## Kurulum ve Build
 
 ```bash
 git clone https://github.com/jlceaser/MakineAI.git
 cd MakineAI
-
-# Build & calistir
-just run
-
-# veya manuel
-cmake --preset dev
-cmake --build --preset dev
 ```
 
-### Preset'ler
+### Hızlı Geliştirme (MinGW, UI-only)
 
-| Preset | Derleyici | Mod | Aciklama |
-|--------|----------|-----|----------|
-| `dev` | MinGW | UI + gercek tarama | Hizli gelistirme |
-| `debug` | MinGW | UI + gercek tarama | Debug build |
-| `release` | MSVC/vcpkg | Full | Core entegrasyon |
+```bash
+cmake --preset dev
+cmake --build --preset dev
+./qml/build/dev/MakineAI.exe
+```
 
----
+Veya `just` kuruluysa:
 
-## Proje Yapisi
+```bash
+just run
+```
+
+### Debug Build
+
+```bash
+cmake --preset debug
+cmake --build --preset debug
+```
+
+### Full Release (Core + QML, vcpkg gerekli)
+
+```bash
+vcpkg install --triplet x64-windows   # ilk seferde
+cmake --preset release
+cmake --build --preset release
+```
+
+### Core Kütüphanesi (tek başına)
+
+```bash
+cmake --preset core
+cmake --build --preset core
+ctest --preset core-tests              # testleri çalıştır
+```
+
+## Build Preset'leri
+
+| Preset | Derleyici | Mod | Çıktı Dizini |
+|--------|-----------|-----|---------------|
+| `dev` | MinGW | Release, UI-only | `qml/build/dev/` |
+| `debug` | MinGW | Debug, UI-only | `qml/build/debug/` |
+| `release` | MSVC/vcpkg | Full (core+qml) | `build/release/` |
+| `core` | MSVC/vcpkg | Core kütüphane | `core/build/` |
+
+`UI-only` mod (`MAKINEAI_UI_ONLY=ON`): Core kütüphanesine bağımlılık olmadan sadece QML arayüzünü ve Qt servislerini derler. Oyun tarama, paket kurulumu ve UI geliştirme bu modda çalışır.
+
+## Proje Yapısı
 
 ```
 MakineAI/
-├── qml/              # Ana uygulama
-│   ├── src/          # C++ backend (services, models)
-│   ├── qml/          # QML UI (80+ dosya)
-│   └── resources/    # Icons, fonts, images
-├── core/             # C++ core library (ileri ozellikler)
-├── docs/             # Dokumantasyon
-├── recipes/          # Ceviri sablonlari (YAML)
-└── scripts/          # Yardimci araclar
+├── qml/                        # Ana uygulama (Qt6 QML)
+│   ├── src/                    # C++ backend
+│   │   ├── main.cpp            # Uygulama giriş noktası
+│   │   ├── services/           # Backend servisleri
+│   │   │   ├── gameservice     # Oyun tespiti ve yönetimi
+│   │   │   ├── corebridge      # Platform tarayıcıları (Steam/Epic/GOG)
+│   │   │   ├── localpackagemanager  # .mkpkg paket kurulumu
+│   │   │   ├── backupmanager   # Dosya yedekleme/geri yükleme
+│   │   │   ├── settingsmanager # Uygulama ayarları
+│   │   │   ├── processscanner  # Çalışan oyun tespiti (Win32)
+│   │   │   ├── systemtraymanager    # Native Win32 system tray
+│   │   │   ├── integrityservice     # Binary bütünlük doğrulama
+│   │   │   ├── updatedetectionservice # Oyun güncelleme tespiti
+│   │   │   └── batchoperationservice  # Toplu işlemler
+│   │   └── models/             # QML veri modelleri
+│   ├── qml/                    # QML arayüz dosyaları
+│   │   ├── Main.qml            # Ana pencere
+│   │   ├── HomeScreen.qml      # Ana ekran
+│   │   ├── SettingsScreen.qml  # Ayarlar
+│   │   ├── GameDetailScreen.qml # Oyun detay
+│   │   ├── theme/              # Theme.qml, Dimensions.qml
+│   │   ├── components/         # Yeniden kullanılabilir bileşenler
+│   │   └── dialogs/            # Dialog pencereleri
+│   └── resources/              # İkon, font, görsel
+├── core/                       # C++ core kütüphanesi (vcpkg)
+│   ├── include/makineai/       # Public API (.hpp)
+│   ├── src/                    # Implementasyon
+│   │   ├── asset_parser/       # Dosya formatı ayrıştırıcıları
+│   │   ├── game_detector/      # Platform tarayıcıları
+│   │   ├── package_manager/    # Paket yönetimi
+│   │   ├── patch_engine/       # Yama motoru
+│   │   ├── security/           # Güvenlik (sandbox, SSL pinning)
+│   │   └── ...
+│   └── tests/                  # GTest birim testleri
+├── docs/                       # Dokümantasyon
+├── recipes/                    # Çeviri şablonları (YAML)
+├── scripts/                    # Python yardımcı araçları
+├── CMakePresets.json            # Build preset tanımları
+├── justfile                    # Task runner komutları
+└── vcpkg.json                  # Core bağımlılıkları
 ```
 
----
+## Servis Mimarisi
 
-## Teknoloji
+QML singleton olarak kaydedilen C++ servisleri:
 
-| Katman | Teknoloji |
-|--------|----------|
-| UI | Qt 6.10 QML, Quick Controls |
-| Backend | C++23, pure Qt (MinGW) |
-| Core (ileri) | C++23, Boost, OpenSSL, curl, vcpkg |
-| Build | CMake 3.25+, Ninja, vcpkg |
-| CI | GitHub Actions, CodeQL |
+| Servis | Sorumluluk |
+|--------|------------|
+| `GameService` | Oyun kütüphanesi yönetimi, tarama, metadata, çeviri kurulumu |
+| `CoreBridge` | Platform tarayıcıları (Steam Registry+VDF+ACF, Epic JSON, GOG Registry), motor tespiti |
+| `LocalPackageManager` | `.mkpkg` paketlerini ayrıştırma, dosya eşleştirme, kurulum/kaldırma |
+| `BackupManager` | Asenkron dosya yedekleme ve geri yükleme |
+| `SettingsManager` | Uygulama ayarları (QSettings), pencere geometrisi, tema |
+| `ProcessScanner` | Win32 `CreateToolhelp32Snapshot` ile çalışan oyun tespiti |
+| `SystemTrayManager` | Native Win32 `Shell_NotifyIconW` system tray |
+| `IntegrityService` | Binary bütünlük doğrulama |
+| `UpdateDetectionService` | Oyun dosya hash değişiklik tespiti |
+| `BatchOperationService` | Toplu paket kurulum/kaldırma |
 
----
+## Vcpkg Bağımlılıkları (Core)
 
-## Dokumantasyon
+Core kütüphanesi (`release`/`core` preset) şu bağımlılıkları kullanır:
 
-- [Vizyon](docs/VISION.md) — Projenin ruhu ve yonu
-- [Yol Haritasi](docs/ROADMAP.md) — Mevcut durum ve hedefler
-- [Kullanici Kilavuzu](docs/user-guide/) — Baslangic rehberi
-- [Gelistirici Kilavuzu](docs/developer-guide/) — Mimari ve build
-- [API Referansi](docs/api-reference/) — Teknik detaylar
+boost-filesystem, openssl, curl, nlohmann-json, lz4, zlib, zstd, sqlite3, spdlog, bit7z, libarchive, simdjson, efsw, mio, taskflow, concurrentqueue, simdutf, sqlitecpp, libsodium
 
----
+`dev`/`debug` preset'lerinde vcpkg **gerekmez** — sadece Qt yeterlidir.
+
+## Just Komutları
+
+```bash
+just dev            # MinGW UI-only build (hızlı iterasyon)
+just debug          # Debug build
+just release        # Full release (vcpkg + core + qml)
+just core           # Sadece core kütüphanesi
+just run            # Build + çalıştır (dev)
+just test           # Core testleri çalıştır
+just clean          # Build dizinlerini temizle
+just format         # clang-format ile kod biçimlendirme
+just stats          # Proje istatistikleri
+just deploy         # windeployqt ile dağıtım paketi
+```
+
+## Dosya İsimlendirme Kuralları
+
+| Katman | Kural | Uzantı | Örnek |
+|--------|-------|--------|-------|
+| QML | PascalCase | `.qml` | `GameDetailScreen.qml` |
+| QML/UI C++ | camelCase | `.h` / `.cpp` | `gameservice.h` |
+| Core C++ | snake_case | `.hpp` / `.cpp` | `game_detector.hpp` |
+
+## Dokümantasyon
+
+Detaylı dokümantasyon `docs/` dizininde:
+
+- [Vizyon ve Yol Haritası](docs/VISION.md) — Proje yönü ve hedefler
+- [Mimari](docs/developer-guide/architecture.md) — Servis mimarisi ve veri akışı
+- [Geliştirme Ortamı](docs/developer-guide/setup.md) — IDE ve araç kurulumu
+- [QML Frontend](docs/developer-guide/qml-frontend.md) — UI yapısı ve kurallar
+- [Core Kütüphanesi](docs/developer-guide/core-library.md) — Core API ve modüller
+- [Servis API](docs/api-reference/services-api.md) — Backend servis referansı
+- [Oyun Motorları](docs/game-engines/) — Motor bazında çeviri rehberleri
 
 ## Lisans
 
-Proprietary License — MakineAI. Tum haklari saklidir.
+Proprietary — MakineAI. Tüm hakları saklıdır.
 
-Detaylar icin [LICENSE](LICENSE) dosyasina bakin.
-
-*MakineAI — 2026*
+Detaylar için [LICENSE](LICENSE) dosyasına bakın.

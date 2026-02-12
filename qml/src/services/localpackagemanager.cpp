@@ -167,13 +167,13 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
             if (it->packageId == dirName) {
                 foundInManifest = true;
                 if (hasExtracted) {
-                    QDirIterator fit(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+                    QDirIterator fileIter(extractedPath, QDir::Files, QDirIterator::Subdirectories);
                     int count = 0;
                     qint64 totalSize = 0;
-                    while (fit.hasNext()) {
-                        fit.next();
+                    while (fileIter.hasNext()) {
+                        fileIter.next();
                         count++;
-                        totalSize += fit.fileInfo().size();
+                        totalSize += fileIter.fileInfo().size();
                     }
                     it->fileCount = count;
                     it->sizeBytes = totalSize;
@@ -200,13 +200,13 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
                 pkg.packageId = dirName;
             }
             if (hasExtracted && pkg.fileCount == 0) {
-                QDirIterator fit(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+                QDirIterator fileIter(extractedPath, QDir::Files, QDirIterator::Subdirectories);
                 int count = 0;
                 qint64 totalSize = 0;
-                while (fit.hasNext()) {
-                    fit.next();
+                while (fileIter.hasNext()) {
+                    fileIter.next();
                     count++;
-                    totalSize += fit.fileInfo().size();
+                    totalSize += fileIter.fileInfo().size();
                 }
                 pkg.fileCount = count;
                 pkg.sizeBytes = totalSize;
@@ -223,13 +223,13 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
         info.storeIds["steam"] = steamAppId;
 
         if (hasExtracted) {
-            QDirIterator fit(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+            QDirIterator fileIter(extractedPath, QDir::Files, QDirIterator::Subdirectories);
             int count = 0;
             qint64 totalSize = 0;
-            while (fit.hasNext()) {
-                fit.next();
+            while (fileIter.hasNext()) {
+                fileIter.next();
                 count++;
-                totalSize += fit.fileInfo().size();
+                totalSize += fileIter.fileInfo().size();
             }
             info.fileCount = count;
             info.sizeBytes = totalSize;

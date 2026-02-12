@@ -1,5 +1,5 @@
 /**
- * @file makineai_metatypes.h
+ * @file makinaeiMetatypes.h
  * @brief Shared metatypes and enums for MakineAI QML module
  * @copyright (c) 2026 MakineAI Team
  *

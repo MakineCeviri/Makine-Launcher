@@ -1,40 +1,71 @@
-# Qt Services API Referansi
+# Qt Services API Referansı
 
-MakineAI Qt servis siniflarinin API referansi.
+MakineAI Qt servis sınıflarının API referansı.
+
+> **Not:** Bu dökümanlar UI_ONLY (dev) build'de kullanılan saf Qt servislerini tanımlar.
+> Tüm servisler `qml/src/services/` altındadır.
+
+---
+
+## CoreBridge (Singleton)
+
+Oyun tarama ve paket yönetiminin merkezi. UI_ONLY modda gerçek Steam/Epic/GOG
+tarama yapar. Full modda Core kütüphanesine yönlendirir.
+
+```cpp
+class CoreBridge : public QObject {
+    Q_OBJECT
+
+public:
+    static CoreBridge* instance();
+
+    // Oyun tarama
+    Q_INVOKABLE void scanAllLibraries();
+    Q_INVOKABLE void scanSteamLibrary();
+    Q_INVOKABLE void scanEpicLibrary();
+    Q_INVOKABLE void scanGogLibrary();
+
+    // Motor tespiti
+    Q_INVOKABLE QString detectEngine(const QString& gamePath);
+    Q_INVOKABLE bool hasAntiCheat(const QString& gamePath);
+
+    // Paket islemleri
+    Q_INVOKABLE void installTranslation(const QString& gameId, const QString& packagePath);
+    Q_INVOKABLE void uninstallTranslation(const QString& gameId);
+
+    // Tespit edilen oyunlar
+    QList<DetectedGame> detectedGames() const;
+
+signals:
+    void scanStarted();
+    void scanCompleted(int count);
+    void gameDetected(const QString& gameId, const QString& gameName);
+    void translationInstalled(const QString& gameId);
+    void translationUninstalled(const QString& gameId);
+    void error(const QString& message);
+};
+```
 
 ---
 
 ## GameService
 
-Oyun islemleri servisi:
+QML ile CoreBridge arasındaki köprü. Oyun listesi, çeviri kurulum/kaldırma,
+anti-cheat uyarıları yönetir.
 
 ```cpp
 class GameService : public QObject {
     Q_OBJECT
 
-    // Properties
-    Q_PROPERTY(QVariantList games READ games NOTIFY gamesChanged)
     Q_PROPERTY(bool scanning READ isScanning NOTIFY scanningChanged)
-    Q_PROPERTY(int gameCount READ gameCount NOTIFY gamesChanged)
 
 public:
-    // Oyun tarama
     Q_INVOKABLE void scanGames();
-    Q_INVOKABLE void scanGamesAsync();
-    Q_INVOKABLE void cancelScan();
-
-    // Oyun islemleri
     Q_INVOKABLE QVariantMap getGame(const QString& gameId);
-    Q_INVOKABLE void addManualGame(const QString& path);
-    Q_INVOKABLE void removeGame(const QString& gameId);
-    Q_INVOKABLE void refreshGame(const QString& gameId);
-
-    // Ceviri islemleri
     Q_INVOKABLE void applyTranslation(const QString& gameId, const QString& packageId);
     Q_INVOKABLE void removeTranslation(const QString& gameId);
 
 signals:
-    void gamesChanged();
     void scanningChanged();
     void scanProgress(float progress, const QString& message);
     void translationApplied(const QString& gameId);
@@ -45,35 +76,50 @@ signals:
 
 ---
 
-## TranslationService
+## LocalPackageManager
 
-Ceviri paketi servisi:
+Yerel çeviri paketlerini yönetir. `translation_data/` dizinini tarar,
+paket ID → Steam AppID eşleştirmesi yapar.
 
 ```cpp
-class TranslationService : public QObject {
+class LocalPackageManager : public QObject {
     Q_OBJECT
 
-    Q_PROPERTY(QVariantList packages READ packages NOTIFY packagesChanged)
-    Q_PROPERTY(bool downloading READ isDownloading NOTIFY downloadingChanged)
-
 public:
-    // Paket listesi
-    Q_INVOKABLE void fetchPackages(const QString& gameId);
-    Q_INVOKABLE QVariantMap getPackage(const QString& packageId);
-
-    // Indirme
-    Q_INVOKABLE void downloadPackage(const QString& packageId);
-    Q_INVOKABLE void cancelDownload();
-
-    // Yerel paketler
-    Q_INVOKABLE QVariantList getLocalPackages();
-    Q_INVOKABLE void deleteLocalPackage(const QString& packageId);
+    void scanLocalPackages();
+    bool hasPackageForGame(const QString& steamAppId) const;
+    QVariantMap getPackageForGame(const QString& steamAppId) const;
+    bool installPackage(const QString& steamAppId, const QString& gamePath);
+    bool uninstallPackage(const QString& steamAppId, const QString& gamePath);
 
 signals:
     void packagesChanged();
-    void downloadingChanged();
-    void downloadProgress(float progress);
-    void downloadCompleted(const QString& packageId);
+    void packageInstalled(const QString& gameId);
+    void packageUninstalled(const QString& gameId);
+};
+```
+
+---
+
+## BackupManager
+
+Yedekleme ve geri yükleme. Kurulumdan önce otomatik yedek alır,
+async çalışır (QtConcurrent).
+
+```cpp
+class BackupManager : public QObject {
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE void createBackup(const QString& gameId, const QString& gamePath);
+    Q_INVOKABLE void restoreBackup(const QString& backupId);
+    Q_INVOKABLE void deleteBackup(const QString& backupId);
+    Q_INVOKABLE QVariantList getBackups(const QString& gameId);
+
+signals:
+    void backupCreated(const QString& backupId);
+    void backupRestored(const QString& backupId);
+    void backupProgress(float progress);
     void error(const QString& message);
 };
 ```
@@ -82,78 +128,31 @@ signals:
 
 ## SettingsManager
 
-Ayar yonetim servisi:
+Uygulama ayarları. QSettings (Windows Registry) ile persist eder.
 
 ```cpp
 class SettingsManager : public QObject {
     Q_OBJECT
 
-    // Genel ayarlar
     Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY languageChanged)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY themeChanged)
-    Q_PROPERTY(bool autoScan READ autoScan WRITE setAutoScan NOTIFY autoScanChanged)
-    Q_PROPERTY(bool notifications READ notifications WRITE setNotifications NOTIFY notificationsChanged)
-
-    // Yedekleme
-    Q_PROPERTY(bool autoBackup READ autoBackup WRITE setAutoBackup NOTIFY autoBackupChanged)
-    Q_PROPERTY(QString backupPath READ backupPath WRITE setBackupPath NOTIFY backupPathChanged)
-    Q_PROPERTY(int maxBackups READ maxBackups WRITE setMaxBackups NOTIFY maxBackupsChanged)
-
-    // Kutuphane klasorleri
-    Q_PROPERTY(QStringList libraryPaths READ libraryPaths NOTIFY libraryPathsChanged)
+    Q_PROPERTY(bool autoDetectGames READ autoDetectGames WRITE setAutoDetectGames NOTIFY autoDetectGamesChanged)
+    Q_PROPERTY(bool showNotifications READ showNotifications WRITE setShowNotifications NOTIFY showNotificationsChanged)
+    Q_PROPERTY(bool startWithWindows READ startWithWindows WRITE setStartWithWindows NOTIFY startWithWindowsChanged)
+    Q_PROPERTY(bool minimizeToTray READ minimizeToTray WRITE setMinimizeToTray NOTIFY minimizeToTrayChanged)
+    Q_PROPERTY(QString translationDataPath READ translationDataPath WRITE setTranslationDataPath NOTIFY translationDataPathChanged)
 
 public:
-    // Kutuphane yonetimi
-    Q_INVOKABLE void addLibraryPath(const QString& path);
-    Q_INVOKABLE void removeLibraryPath(const QString& path);
-
-    // Kaydet/Yukle
-    Q_INVOKABLE void save();
-    Q_INVOKABLE void load();
-    Q_INVOKABLE void reset();
+    Q_INVOKABLE void resetToDefaults();
 
 signals:
     void languageChanged();
     void themeChanged();
-    void autoScanChanged();
-    void notificationsChanged();
-    void autoBackupChanged();
-    void backupPathChanged();
-    void maxBackupsChanged();
-    void libraryPathsChanged();
-    void settingsChanged();
-};
-```
-
----
-
-## BackupManager
-
-Yedekleme servisi:
-
-```cpp
-class BackupManager : public QObject {
-    Q_OBJECT
-
-    Q_PROPERTY(QVariantList backups READ backups NOTIFY backupsChanged)
-
-public:
-    // Yedek listesi
-    Q_INVOKABLE void fetchBackups(const QString& gameId);
-    Q_INVOKABLE QVariantList getAllBackups();
-
-    // Yedekleme islemleri
-    Q_INVOKABLE void createBackup(const QString& gameId);
-    Q_INVOKABLE void restoreBackup(const QString& backupId);
-    Q_INVOKABLE void deleteBackup(const QString& backupId);
-    Q_INVOKABLE void deleteAllBackups(const QString& gameId);
-
-signals:
-    void backupsChanged();
-    void backupCreated(const QString& backupId);
-    void backupRestored(const QString& backupId);
-    void backupDeleted(const QString& backupId);
-    void error(const QString& message);
+    void autoDetectGamesChanged();
+    void showNotificationsChanged();
+    void startWithWindowsChanged();
+    void minimizeToTrayChanged();
+    void translationDataPathChanged();
 };
 ```
 
@@ -161,167 +160,119 @@ signals:
 
 ## ProcessScanner
 
-Calisanan oyun tespiti:
+Çalışan oyun tespiti. Win32 CreateToolhelp32Snapshot API kullanır.
+Visibility-aware: pencere minimize'da tarama intervali artar (3s → 30s).
 
 ```cpp
 class ProcessScanner : public QObject {
     Q_OBJECT
 
-    Q_PROPERTY(QVariantMap runningGame READ runningGame NOTIFY runningGameChanged)
-    Q_PROPERTY(bool scanning READ isScanning NOTIFY scanningChanged)
+    Q_PROPERTY(bool gameRunning READ isGameRunning NOTIFY gameRunningChanged)
 
 public:
     Q_INVOKABLE void startScanning();
     Q_INVOKABLE void stopScanning();
-    Q_INVOKABLE QVariantMap detectRunningGame();
 
 signals:
-    void runningGameChanged();
-    void scanningChanged();
-    void gameDetected(const QVariantMap& game);
-    void gameClosed(const QString& gameId);
+    void gameRunningChanged();
+    void gameDetected(const QString& processName);
+    void gameClosed(const QString& processName);
 };
 ```
 
 ---
 
-## CoreBridge
+## SystemTrayManager
 
-Core library koprusu:
+Native Win32 sistem tepsisi. Shell_NotifyIconW ile doğrudan entegrasyon,
+Qt6Widgets bağımlılığına gerek yok.
 
 ```cpp
-class CoreBridge : public QObject {
+class SystemTrayManager : public QObject {
     Q_OBJECT
 
-    Q_PROPERTY(bool initialized READ isInitialized NOTIFY initializedChanged)
-    Q_PROPERTY(QString version READ version CONSTANT)
-
 public:
-    static CoreBridge* instance();
-
-    // Lifecycle
-    Q_INVOKABLE bool initialize();
-    Q_INVOKABLE void shutdown();
-
-    // Durum
-    Q_INVOKABLE bool isHealthy();
-    Q_INVOKABLE QVariantMap getMetrics();
-    Q_INVOKABLE QString getVersion();
-
-    // Core erisimi (internal)
-    makineai::Core& core();
+    void initialize(HWND parentWindow);
+    void showNotification(const QString& title, const QString& message);
+    void updateTooltip(const QString& text);
 
 signals:
-    void initializedChanged();
-    void healthChanged(bool healthy);
-    void error(const QString& message);
+    void trayIconClicked();
+    void showRequested();
+    void settingsRequested();
+    void quitRequested();
 };
 ```
 
 ---
 
-## QML Kullanim Ornekleri
+## IntegrityService
 
-### GameService
+Binary bütünlük kontrolü. SHA-256 ile executable'ı doğrular.
+Dev build'de .sha256 dosyası yoksa atlar.
 
-```qml
-import MakineAI 1.0
+```cpp
+class IntegrityService : public QObject {
+    Q_OBJECT
 
-Item {
-    GameService {
-        id: gameService
+public:
+    Q_INVOKABLE void verifyBinaryIntegrity();
 
-        onGamesChanged: {
-            console.log("Games updated:", games.length)
-        }
-
-        onScanProgress: (progress, message) => {
-            progressBar.value = progress
-            statusText.text = message
-        }
-
-        onError: (message) => {
-            errorDialog.show(message)
-        }
-    }
-
-    Button {
-        text: gameService.scanning ? "Taranıyor..." : "Tara"
-        enabled: !gameService.scanning
-        onClicked: gameService.scanGames()
-    }
-
-    ListView {
-        model: gameService.games
-        delegate: GameCard {
-            gameName: modelData.name
-            engineType: modelData.engine
-            onClicked: gameService.applyTranslation(modelData.id, selectedPackage)
-        }
-    }
-}
-```
-
-### SettingsManager
-
-```qml
-import MakineAI 1.0
-
-Item {
-    SettingsManager {
-        id: settings
-    }
-
-    Column {
-        Switch {
-            text: "Otomatik Tarama"
-            checked: settings.autoScan
-            onCheckedChanged: settings.autoScan = checked
-        }
-
-        Switch {
-            text: "Otomatik Yedekleme"
-            checked: settings.autoBackup
-            onCheckedChanged: settings.autoBackup = checked
-        }
-
-        Button {
-            text: "Kaydet"
-            onClicked: settings.save()
-        }
-    }
-}
+signals:
+    void verificationComplete(bool valid);
+    void verificationSkipped();
+};
 ```
 
 ---
 
-## Signal/Slot Ornekleri
+## BatchOperationService
 
-### Connections
+Toplu işlem kuyruğu. Birden fazla oyuna çeviri kurulum/kaldırma
+işlemlerini sıralayarak çalıştırır.
 
-```qml
-Connections {
-    target: gameService
+```cpp
+class BatchOperationService : public QObject {
+    Q_OBJECT
 
-    function onTranslationApplied(gameId) {
-        notificationToast.show("Ceviri uygulandi: " + gameId)
-    }
+    Q_PROPERTY(bool running READ isRunning NOTIFY runningChanged)
+    Q_PROPERTY(float progress READ progress NOTIFY progressChanged)
 
-    function onError(message) {
-        errorDialog.text = message
-        errorDialog.open()
-    }
-}
+public:
+    Q_INVOKABLE void addOperation(const QString& gameId, const QString& operation);
+    Q_INVOKABLE void start();
+    Q_INVOKABLE void cancel();
+
+signals:
+    void runningChanged();
+    void progressChanged();
+    void operationCompleted(const QString& gameId, bool success);
+    void allCompleted();
+};
 ```
 
-### Binding
+---
 
-```qml
-BusyIndicator {
-    running: gameService.scanning || translationService.downloading
-}
+## UpdateDetectionService (İskelet)
 
-Text {
-    text: gameService.gameCount + " oyun bulundu"
-}
+Oyun güncelleme tespiti. Sınıf yapısı ve API tanımlı,
+implementasyon henüz tamamlanmadı.
+
+```cpp
+class UpdateDetectionService : public QObject {
+    Q_OBJECT
+
+public:
+    // Tier 1: Store metadata kontrol
+    Q_INVOKABLE void checkAllGamesQuick();
+    Q_INVOKABLE void checkGameQuick(const QString& gameId);
+
+    // Tier 2: Dosya hash snapshot
+    Q_INVOKABLE void createSnapshot(const QString& gameId);
+    Q_INVOKABLE void checkCompatibility(const QString& gameId);
+
+signals:
+    void updateDetected(const QString& gameId, const QString& details);
+    void compatibilityResult(const QString& gameId, bool compatible);
+};
 ```

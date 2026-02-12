@@ -19,6 +19,10 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 
+namespace {
+constexpr int kAutoScanDelayMs = 500;
+}
+
 namespace makineai {
 
 GameService::GameService(QObject *parent)
@@ -43,7 +47,7 @@ GameService::GameService(QObject *parent)
     // Auto-scan on first launch if no cached games
     if (m_games.isEmpty()) {
         qDebug() << "No cached games found, starting auto-scan...";
-        QTimer::singleShot(500, this, &GameService::scanAllLibraries);
+        QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
     }
 }
 
@@ -156,8 +160,9 @@ void GameService::setupCoreBridge()
                 m_installingGameId.clear();
                 if (success && !gameId.isEmpty()) {
                     // Update game's hasTranslation flag
-                    if (m_gameIdToIndex.contains(gameId)) {
-                        int idx = m_gameIdToIndex[gameId];
+                    auto idxIt = m_gameIdToIndex.constFind(gameId);
+                    if (idxIt != m_gameIdToIndex.constEnd()) {
+                        int idx = *idxIt;
                         if (idx >= 0 && idx < m_games.count()) {
                             m_games[idx].hasTranslation = true;
                             invalidateCache();
@@ -322,10 +327,11 @@ void GameService::addManualGame(const QString& path)
     emit gameDetected(game.id);
 }
 
-QVariantMap GameService::getGameById(const QString& id)
+QVariantMap GameService::getGameById(const QString& id) const
 {
-    if (m_gameIdToIndex.contains(id)) {
-        int index = m_gameIdToIndex[id];
+    auto idxIt = m_gameIdToIndex.constFind(id);
+    if (idxIt != m_gameIdToIndex.constEnd()) {
+        int index = *idxIt;
         if (index >= 0 && index < m_games.count()) {
             return m_games[index].toVariantMap();
         }
@@ -343,8 +349,9 @@ bool GameService::hasRecipe(const QString& gameId)
 
 void GameService::refreshGameMetadata(const QString& gameId)
 {
-    if (m_gameIdToIndex.contains(gameId)) {
-        int idx = m_gameIdToIndex[gameId];
+    auto idxIt = m_gameIdToIndex.constFind(gameId);
+    if (idxIt != m_gameIdToIndex.constEnd()) {
+        int idx = *idxIt;
         if (idx >= 0 && idx < m_games.count()) {
             const QString& appId = m_games[idx].steamAppId;
             if (!appId.isEmpty()) {
@@ -362,8 +369,9 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
     if (m_pendingFetches.contains(steamAppId)) return;
 
     // Check cache (not expired)
-    if (m_steamDetailsCache.contains(steamAppId) && !m_steamDetailsCache[steamAppId].isExpired()) {
-        emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(m_steamDetailsCache[steamAppId]));
+    auto cacheIt = m_steamDetailsCache.constFind(steamAppId);
+    if (cacheIt != m_steamDetailsCache.constEnd() && !cacheIt->isExpired()) {
+        emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(*cacheIt));
         return;
     }
 
@@ -469,8 +477,9 @@ QVariantMap GameService::getSteamDetails(const QString& steamAppId)
 {
     if (steamAppId.isEmpty()) return {};
 
-    if (m_steamDetailsCache.contains(steamAppId) && !m_steamDetailsCache[steamAppId].isExpired()) {
-        return steamDetailsToVariantMap(m_steamDetailsCache[steamAppId]);
+    auto cacheIt = m_steamDetailsCache.constFind(steamAppId);
+    if (cacheIt != m_steamDetailsCache.constEnd() && !cacheIt->isExpired()) {
+        return steamDetailsToVariantMap(*cacheIt);
     }
     return {};
 }
@@ -515,7 +524,7 @@ QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) c
     };
 }
 
-QVariantList GameService::searchGames(const QString& query)
+QVariantList GameService::searchGames(const QString& query) const
 {
     QVariantList result;
 
@@ -746,26 +755,26 @@ void GameService::saveSteamDetailsCache()
 
     QJsonObject root;
     for (auto it = m_steamDetailsCache.constBegin(); it != m_steamDetailsCache.constEnd(); ++it) {
-        const SteamDetails& d = it.value();
-        if (d.isExpired()) continue;
+        const SteamDetails& details = it.value();
+        if (details.isExpired()) continue;
 
         QJsonObject obj;
-        obj["description"] = d.description;
-        obj["releaseDate"] = d.releaseDate;
-        obj["metacriticScore"] = d.metacriticScore;
-        obj["hasWindows"] = d.hasWindows;
-        obj["hasMac"] = d.hasMac;
-        obj["hasLinux"] = d.hasLinux;
-        obj["price"] = d.price;
-        obj["discountPercent"] = d.discountPercent;
-        obj["backgroundUrl"] = d.backgroundUrl;
-        obj["fetchedAt"] = d.fetchedAt.toString(Qt::ISODate);
+        obj["description"] = details.description;
+        obj["releaseDate"] = details.releaseDate;
+        obj["metacriticScore"] = details.metacriticScore;
+        obj["hasWindows"] = details.hasWindows;
+        obj["hasMac"] = details.hasMac;
+        obj["hasLinux"] = details.hasLinux;
+        obj["price"] = details.price;
+        obj["discountPercent"] = details.discountPercent;
+        obj["backgroundUrl"] = details.backgroundUrl;
+        obj["fetchedAt"] = details.fetchedAt.toString(Qt::ISODate);
 
         QJsonArray devArr, pubArr, genreArr, ssArr;
-        for (const auto& v : d.developers) devArr.append(v);
-        for (const auto& v : d.publishers) pubArr.append(v);
-        for (const auto& v : d.genres) genreArr.append(v);
-        for (const auto& v : d.screenshots) ssArr.append(v);
+        for (const auto& v : details.developers) devArr.append(v);
+        for (const auto& v : details.publishers) pubArr.append(v);
+        for (const auto& v : details.genres) genreArr.append(v);
+        for (const auto& v : details.screenshots) ssArr.append(v);
 
         obj["developers"] = devArr;
         obj["publishers"] = pubArr;
@@ -823,10 +832,6 @@ bool GameService::isValidGamePath(const QString& path) const
 
     return true;
 }
-
-// =============================================================================
-// Drop Handling (#60)
-// =============================================================================
 
 void GameService::handleDroppedFiles(const QVariantList& urls) {
     for (const auto& urlVar : urls) {
@@ -912,10 +917,6 @@ void GameService::installLocalPackage(const QString& filePath) {
         m_coreBridge->installPackage(baseName, info.absoluteFilePath());
     }
 }
-
-// =============================================================================
-// Translation Package Installation (#primary-flow)
-// =============================================================================
 
 void GameService::installTranslation(const QString& gameId)
 {

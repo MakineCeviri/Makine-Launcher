@@ -106,6 +106,9 @@ QtObject {
     /// Birincil metin - en parlak
     readonly property color textPrimary: darkMode ? "#FAFAFA" : lightTextPrimary
 
+    /// Renkli/koyu arka plan üzerindeki beyaz metin
+    readonly property color textOnColor: "#FFFFFF"
+
     /// İkincil metin
     readonly property color textSecondary: darkMode ? "#A1A1AA" : lightTextSecondary
 

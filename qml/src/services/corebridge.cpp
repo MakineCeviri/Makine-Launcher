@@ -373,10 +373,10 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
         return "Unreal";
     }
     {
-        QDirIterator it(gamePath, {"*.pak"}, QDir::Files, QDirIterator::Subdirectories);
+        QDirIterator pakIter(gamePath, {"*.pak"}, QDir::Files, QDirIterator::Subdirectories);
         int pakCount = 0;
-        while (it.hasNext() && pakCount < 3) {
-            it.next();
+        while (pakIter.hasNext() && pakCount < 3) {
+            pakIter.next();
             pakCount++;
         }
         if (pakCount > 0) {
@@ -413,8 +413,8 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
         return "RenPy";
     }
     {
-        QDirIterator it(gamePath, {"*.rpa", "*.rpyc"}, QDir::Files, QDirIterator::Subdirectories);
-        if (it.hasNext()) return "RenPy";
+        QDirIterator renpyIter(gamePath, {"*.rpa", "*.rpyc"}, QDir::Files, QDirIterator::Subdirectories);
+        if (renpyIter.hasNext()) return "RenPy";
     }
 
     // RPG Maker MV/MZ: www/ directory, rpg_core.js
@@ -425,8 +425,8 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
     }
     // RPG Maker VX Ace: *.rvdata2
     {
-        QDirIterator it(gamePath, {"*.rvdata2"}, QDir::Files);
-        if (it.hasNext()) return "RPGMaker";
+        QDirIterator rpgmakerIter(gamePath, {"*.rvdata2"}, QDir::Files);
+        if (rpgmakerIter.hasNext()) return "RPGMaker";
     }
 
     // GameMaker: data.win

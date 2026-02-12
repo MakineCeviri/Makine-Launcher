@@ -257,7 +257,7 @@ Rectangle {
                             text: root.isScanning ? qsTr("Taranıyor...") : qsTr("Taramayı Başlat")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.DemiBold
-                            color: "white"
+                            color: Theme.textOnColor
                         }
                         Item { Layout.fillWidth: true }
                     }
@@ -497,7 +497,7 @@ Rectangle {
                     contentItem: Text {
                         text: qsTr("Başlayalım!")
                         font: parent.font
-                        color: "white"
+                        color: Theme.textOnColor
                         horizontalAlignment: Text.AlignHCenter
                     }
 
@@ -590,7 +590,7 @@ Rectangle {
                 contentItem: Text {
                     text: parent.text
                     font: parent.font
-                    color: "white"
+                    color: Theme.textOnColor
                     horizontalAlignment: Text.AlignHCenter
                 }
 

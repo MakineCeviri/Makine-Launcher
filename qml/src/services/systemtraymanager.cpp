@@ -11,10 +11,14 @@
 
 #ifdef Q_OS_WIN
 
-static const UINT WM_TRAYICON = WM_APP + 1;
-static const wchar_t kTrayWindowClass[] = L"MakineAI_TrayMsgWindow";
+namespace {
+constexpr int kUpdateCheckIntervalMs = 6 * 60 * 60 * 1000; // 6 hours
+}
 
-// Static instance pointer for window proc callback
+static const UINT WM_TRAYICON = WM_APP + 1;
+static const wchar_t TrayWindowClassName[] = L"MakineAI_TrayMsgWindow";
+
+// Accessed only from GUI thread (Win32 message pump) — no synchronization needed
 static SystemTrayManager *s_instance = nullptr;
 
 LRESULT CALLBACK SystemTrayManager::trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -67,10 +71,10 @@ void SystemTrayManager::showContextMenu()
 
 HICON SystemTrayManager::qIconToHicon(const QIcon &icon, int size)
 {
-    QPixmap pm = icon.pixmap(size, size);
-    if (pm.isNull()) return nullptr;
+    QPixmap pixmap = icon.pixmap(size, size);
+    if (pixmap.isNull()) return nullptr;
 
-    QImage img = pm.toImage().convertToFormat(QImage::Format_ARGB32);
+    QImage img = pixmap.toImage().convertToFormat(QImage::Format_ARGB32);
     if (img.isNull()) return nullptr;
 
     BITMAPV5HEADER bi{};
@@ -122,11 +126,11 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     wc.cbSize        = sizeof(WNDCLASSEXW);
     wc.lpfnWndProc   = trayWndProc;
     wc.hInstance      = GetModuleHandle(nullptr);
-    wc.lpszClassName  = kTrayWindowClass;
+    wc.lpszClassName  = TrayWindowClassName;
     RegisterClassExW(&wc);
 
     // Create message-only window (HWND_MESSAGE = invisible, no taskbar entry)
-    m_msgWindow = CreateWindowExW(0, kTrayWindowClass, L"MakineAI_TrayMsg",
+    m_msgWindow = CreateWindowExW(0, TrayWindowClassName, L"MakineAI_TrayMsg",
                                    0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
                                    GetModuleHandle(nullptr), nullptr);
 
@@ -146,7 +150,7 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
                 reinterpret_cast<LPCWSTR>(tr("Tamamen Kapat").utf16()));
 
     // Prepare NOTIFYICONDATA
-    memset(&m_nid, 0, sizeof(m_nid));
+    m_nid = NOTIFYICONDATAW{};
     m_nid.cbSize           = sizeof(NOTIFYICONDATAW);
     m_nid.hWnd             = m_msgWindow;
     m_nid.uID              = 1;
@@ -157,7 +161,7 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
 #endif
 
     // Background update check timer (disabled by default)
-    m_updateCheckTimer.setInterval(6 * 60 * 60 * 1000); // 6 hours
+    m_updateCheckTimer.setInterval(kUpdateCheckIntervalMs);
     connect(&m_updateCheckTimer, &QTimer::timeout,
             this, &SystemTrayManager::updateCheckRequested);
 }
@@ -177,7 +181,7 @@ SystemTrayManager::~SystemTrayManager()
     if (m_msgWindow) {
         DestroyWindow(m_msgWindow);
     }
-    UnregisterClassW(kTrayWindowClass, GetModuleHandle(nullptr));
+    UnregisterClassW(TrayWindowClassName, GetModuleHandle(nullptr));
     s_instance = nullptr;
 #endif
 }

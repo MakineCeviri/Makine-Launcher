@@ -28,8 +28,8 @@ Item {
     signal uninstallClicked()
     signal cardClicked()
 
-    width: Dimensions.cardWidth + 10   // 150
-    height: Dimensions.cardHeight + 30 // 230
+    width: Dimensions.cardWidth + Dimensions.patchCardExtraWidth   // 150
+    height: Dimensions.cardHeight + Dimensions.patchCardExtraHeight // 230
 
     property bool isHovered: cardMouse.containsMouse || uninstallBtnMouse.containsMouse
 
@@ -232,7 +232,7 @@ Item {
                 Label {
                     text: root.packageInstalled ? "\u2714" : "\u2B07"
                     font.pixelSize: 8
-                    color: "white"
+                    color: Theme.textOnColor
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
@@ -240,7 +240,7 @@ Item {
                     text: root.packageInstalled ? qsTr("Kurulu") : qsTr("Mevcut")
                     font.pixelSize: Dimensions.fontMini
                     font.weight: Font.Bold
-                    color: "white"
+                    color: Theme.textOnColor
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -337,7 +337,7 @@ Item {
                     Canvas {
                         anchors.centerIn: parent
                         width: 14; height: 14
-                        property color strokeColor: uninstallBtnMouse.containsMouse ? "white" : Theme.error
+                        property color strokeColor: uninstallBtnMouse.containsMouse ? Theme.textOnColor : Theme.error
                         onStrokeColorChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")

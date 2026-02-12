@@ -1,80 +1,63 @@
-# Hizli Baslangic
+# Hızlı Başlangıç
 
-MakineAI'ye hos geldiniz! Bu kilavuz, ilk Turkce cevirinizi 2 dakikada yapmanizi saglayacak.
+MakineAI'ye hoş geldiniz! Bu kılavuz, ilk Türkçe çevirinizi 2 dakikada yapmanızı sağlayacak.
 
 ## MakineAI Nedir?
 
-MakineAI, Windows oyunlarini Turkce'ye cevirmek icin gelistirilmis bir masaustu uygulamasidir. Oyunlarinizi otomatik olarak tespit eder ve tek tikla Turkce ceviri uygular.
+MakineAI, Windows oyunlarını Türkçe'ye çevirmek için geliştirilmiş bir masaüstü uygulamasıdır. Oyunlarınızı otomatik olarak tespit eder ve tek tıkla Türkçe çeviri uygular.
 
-### Temel Ozellikler
+### Temel Özellikler
 
-- **Otomatik Oyun Tespiti** - Steam, Epic Games ve GOG kutuphanelerinizi otomatik tarar
-- **Tek Tik Ceviri** - Karmasik adimlar yok, sadece sec ve cevir
-- **Guvenli Yedekleme** - Orijinal dosyalariniz otomatik yedeklenir
-- **Aninda Geri Alma** - Ceviriyi kaldir, oyunu orijinal haline dondur
+- **Otomatik Oyun Tespiti** - Steam, Epic Games ve GOG kütüphanelerinizi otomatik tarar
+- **Tek Tık Çeviri** - Karmaşık adımlar yok, sadece seç ve çevir
+- **Güvenli Yedekleme** - Orijinal dosyalarınız otomatik yedeklenir
+- **Anında Geri Alma** - Çeviriyi kaldır, oyunu orijinal haline döndür
 
 ---
 
-## Ilk Ceviriniz
+## İlk Çeviriniz
 
-### Adim 1: MakineAI'yi Baslat
+### Adım 1: MakineAI'yi Başlat
 
-`MakineAI.exe` dosyasini calistirin. Uygulama acildiginda otomatik olarak bilgisayarinizdaki oyunlari taramaya baslar.
+`MakineAI.exe` dosyasını çalıştırın. Uygulama açıldığında otomatik olarak bilgisayarınızdaki oyunları taramaya başlar.
 
-### Adim 2: Oyun Sec
+### Adım 2: Oyun Seç
 
-Ana ekranda kutuphane oyunlarinizi goreceksiniz:
+Ana ekranda kütüphane oyunlarınızı göreceksiniz:
 
 - **Tespit Edilen Oyunlar** - Steam, Epic, GOG'dan otomatik bulunan oyunlar
-- **Manuel Ekleme** - Farkli konumdaki oyunlari elle ekleyebilirsiniz
+- **Manuel Ekleme** - Farklı konumdaki oyunları elle ekleyebilirsiniz
 
-Cevirmek istediginiz oyuna tiklayin.
+Çevirmek istediğiniz oyuna tıklayın.
 
-### Adim 3: Ceviriyi Baslat
+### Adım 3: Çeviriyi Başlat
 
-Oyun detay ekraninda:
+Oyun detay ekranında:
 
-1. Mevcut cevirileri gorun
-2. **"Ceviriyi Baslat"** butonuna basin
-3. Islemi bekleyin (genellikle 10-30 saniye)
+1. Mevcut çevirileri görün
+2. **"Çeviriyi Başlat"** butonuna basın
+3. İşlemi bekleyin (genellikle 10-30 saniye)
 
-### Adim 4: Oynayın!
+### Adım 4: Oynayın!
 
-Ceviri tamamlandiginda oyununuz Turkce'ye cevirilmis olacak. Steam/Epic uzerinden oyunu normal sekilde baslatabilirsiniz.
-
----
-
-## Iki Calisma Modu
-
-MakineAI iki farkli modda calisir:
-
-### Mod 1: Desteklenen Oyunlar (Direkt Yukleme)
-
-Desteklenen oyun motorlari icin (Unity, Unreal, RPG Maker, vb.):
-
-- Dil dosyasi direkt olarak oyuna yuklenir
-- Oyun dosyalari degistirilmez
-- Aninda geri alma mumkun
-- En guvenli ve hizli yontem
-
-**Desteklenen Motorlar:** Unity, Unreal Engine, RPG Maker MV/MZ, Ren'Py, GameMaker, Bethesda
-
-[Desteklenen Oyunlar →](supported-games.md)
-
-### Mod 2: Diger Oyunlar (Patch Sistemi)
-
-Desteklenmeyen oyunlar icin:
-
-- Topluluk ceviri paketleri kullanilir
-- Oyun dosyalarina patch uygulanir
-- Orijinal dosyalar yedeklenir
-- Geri alma mevcut
-
-[Diger Oyunlar →](other-games.md)
+Çeviri tamamlandığında oyununuz Türkçe'ye çevrilmiş olacak. Steam/Epic üzerinden oyunu normal şekilde başlatabilirsiniz.
 
 ---
 
-## Arayuz Tanitimi
+## Nasıl Çalışır?
+
+MakineAI topluluk tarafından hazırlanan çeviri paketlerini oyunlara kurar:
+
+1. **Oyun tespiti** — Steam, Epic, GOG kütüphaneleriniz taranır
+2. **Motor tespiti** — Unity, Unreal, RPG Maker, vb. otomatik tespit edilir
+3. **Paket kurulumu** — Çeviri dosyaları oyun klasörüne kopyalanır (overlay)
+4. **Yedekleme** — Orijinal dosyalar otomatik yedeklenir, tek tıkla geri alma
+
+**Tespit Edilen Motorlar:** Unity, Unreal Engine, RPG Maker MV/MZ, Ren'Py, GameMaker, Bethesda, Godot, Source
+
+---
+
+## Arayüz Tanıtımı
 
 ### Ana Ekran
 
@@ -98,25 +81,23 @@ Desteklenmeyen oyunlar icin:
 +--------------------------------------------------+
 ```
 
-### Oyun Detay Ekrani
+### Oyun Detay Ekranı
 
 - **Oyun Bilgileri** - Ad, motor, platform
-- **Ceviri Durumu** - Mevcut/Yok/Kismen
-- **Aksiyon Butonlari** - Cevir, Geri Al, Yedekle
-- **Gecmis** - Onceki islemler
+- **Çeviri Durumu** - Mevcut/Yok/Kısmen
+- **Aksiyon Butonları** - Çevir, Geri Al, Yedekle
+- **Geçmiş** - Önceki işlemler
 
 ---
 
-## Sorun mu Yasiyorsunuz?
+## Sorun mu Yaşıyorsunuz?
 
-- [Sorun Giderme Kilavuzu](troubleshooting.md)
-- [Sik Sorulan Sorular](faq.md)
-- [Discord Toplulugu](https://discord.com/invite/QDezpy4QtV)
+- [Discord Topluluğu](https://discord.com/invite/QDezpy4QtV)
+- [GitHub Issues](https://github.com/jlceaser/MakineAI/issues)
 
 ---
 
-## Sonraki Adimlar
+## Sonraki Adımlar
 
-1. [Desteklenen oyunlari inceleyin](supported-games.md)
-2. [Kurulum detaylari](installation.md)
-3. [Ayarlari yapilandirin](../README.md)
+1. [Kurulum detayları](installation.md)
+2. [Proje hakkında](../../README.md)

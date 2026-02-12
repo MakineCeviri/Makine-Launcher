@@ -236,7 +236,7 @@ Item {
                         text: "TR"
                         font.pixelSize: Dimensions.fontMini
                         font.weight: Font.Bold
-                        color: "white"
+                        color: Theme.textOnColor
                     }
                 }
 
@@ -253,7 +253,7 @@ Item {
                         text: "✓"
                         font.pixelSize: Dimensions.fontCaption
                         font.weight: Font.Bold
-                        color: "white"
+                        color: Theme.textOnColor
                     }
                 }
             }

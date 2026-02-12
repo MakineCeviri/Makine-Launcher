@@ -7,6 +7,27 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### Kaldirilan (2026-02-12 Temizlik)
+- **~32K satir dead code** kaldirildi
+- Engine handler'lar: UnityHandler, UnrealHandler, RPGMakerHandler, RenPyHandler, GameMakerHandler (~6800 satir)
+- TranslationMemory, GlossaryService, QAService, TranslationPipeline servisleri
+- StringClassifier, FontManager, RecipeLoader
+- 13 olu QML bileseni: SplashScreen, SplashWindow, TitleBar, DevButton, WindowButton, GradientText, TranslationProgressBar, BackupListItem, EmptyStateMessage, MakineLogo, GameDetectorDialog, ManualFolderDialog, CedraInteractiveCard
+- Eski ayar sayfalari: GeneralSettings, TranslationSettings, ProjectsSettings, PerformanceSettings, AboutSettings, DeveloperSettings
+- TranslationModel ve TranslationService QML siniflari
+- Handler testleri, fuzz testleri, handler ornekleri
+- Gecersiz dokumanlar (ADR-0003, ADR-0005, core-api, qml-types, 4 kullanici rehberi)
+- Gereksiz recipe dosyalari (gamemaker-generic.yaml, renpy-generic.yaml, unity-il2cpp-generic.yaml)
+
+### Duzeltilen (2026-02-12)
+- D2R fallback mapping hatasi: 990080 (Hogwarts Legacy) → 1293830 (Diablo II: Resurrected)
+- Vulkan probe UB: `PFN_vkCreateInstance` donus tipi `void*` → `int` (VkResult)
+- Islevsiz NVIDIA overlay env vars kaldirildi
+- Kullanilmayan `qtMessageHandler` fonksiyonu kaldirildi
+- Kullanilmayan `createBackupAsync()` metodu kaldirildi
+- Sahte `RecentFirst` sort order kaldirildi (aslinda NameAsc yapiyordu)
+- Build: gereksiz `Version` lib, `qtquick3d` modulu, silinen QML dosya referanslari temizlendi
+
 ### Eklenen
 - **Gercek oyun tarama** — Steam (Registry+VDF+ACF), Epic (Manifest JSON), GOG (Registry)
 - **Motor tespiti** — Dosya imzalariyla Unity, Unreal, Bethesda, Ren'Py, RPGMaker, GameMaker, Godot, Source
