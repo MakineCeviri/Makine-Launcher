@@ -727,7 +727,7 @@ ApplicationWindow {
                 parent: Overlay.overlay
                 onProceedAnyway: {
                     var gd = gameDetailLoader.item
-                    if (gd) { var gameData = GameService.getGameById(gd.gameId); gd.startTranslationWorkflow(gameData) }
+                    if (gd) { GameService.installTranslation(gd.gameId) }
                 }
                 onRestoreBackup: contentStackContainer.navigateTo(2)
                 onClosed: compatWarningLoader.active = false
@@ -754,7 +754,7 @@ ApplicationWindow {
                 parent: Overlay.overlay
                 onContinueAnyway: {
                     var gd = gameDetailLoader.item
-                    if (gd) { var gameData = GameService.getGameById(gd.gameId); gd.startTranslationWorkflow(gameData) }
+                    if (gd) { GameService.installTranslation(gd.gameId) }
                 }
                 onClosed: antiCheatWarningLoader.active = false
                 Component.onCompleted: {

@@ -10,16 +10,14 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QFuture>
-#include <QFutureWatcher>
 #include <QtConcurrent>
 
 #include <optional>
 #include <memory>
 
-namespace makineai {
+#include "localpackagemanager.h"
 
-class LocalPackageManager;
+namespace makineai {
 
 /**
  * @brief Detected game info from core scanners
@@ -165,15 +163,8 @@ signals:
     void scanError(const QString& error);
     void gameDetected(const QString& gameId, const QString& gameName);
 
-    // Backup signals
-    void backupCreated(const QString& backupId);
-    void backupRestored();
-    void backupError(const QString& error);
-
     // Package signals
     void packageManifestRefreshed(int packageCount);
-    void packageDownloadProgress(qreal progress, const QString& status);
-    void packageInstalled(const QString& packageId);
     void packageInstallError(const QString& error);
     void packageInstallProgress(double progress, const QString& status);
     void packageInstallCompleted(bool success, const QString& message);

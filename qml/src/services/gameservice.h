@@ -115,15 +115,9 @@ class GameService : public QObject
     QML_SINGLETON
 
     Q_PROPERTY(QVariantList games READ games NOTIFY gamesChanged)
-    Q_PROPERTY(QVariantList featuredGames READ featuredGames NOTIFY gamesChanged)
-    Q_PROPERTY(QVariantList recentGames READ recentGames NOTIFY gamesChanged)
     Q_PROPERTY(int gameCount READ gameCount NOTIFY gamesChanged)
-    Q_PROPERTY(int patchedGamesCount READ patchedGamesCount NOTIFY gamesChanged)
     Q_PROPERTY(bool isScanning READ isScanning NOTIFY isScanningChanged)
     Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanStatusChanged)
-    Q_PROPERTY(qreal scanProgress READ scanProgress NOTIFY scanProgressChanged)
-    Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
-    Q_PROPERTY(bool isFetchingSteamDetails READ isFetchingSteamDetails NOTIFY isFetchingSteamDetailsChanged)
     Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY gamesChanged)
     Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY gamesChanged)
     Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY gamesChanged)
@@ -136,32 +130,20 @@ public:
 
     // Properties
     QVariantList games() const;
-    QVariantList featuredGames() const;
-    QVariantList recentGames() const;
     int gameCount() const { return m_games.count(); }
-    int patchedGamesCount() const;
     bool isScanning() const { return m_isScanning; }
     QString scanStatus() const { return m_scanStatus; }
-    qreal scanProgress() const { return m_scanProgress; }
-    QString lastError() const { return m_lastError; }
-    bool isFetchingSteamDetails() const { return !m_pendingFetches.isEmpty(); }
     QVariantList gamesWithTranslation() const;
     QVariantList supportedGames() const;
     int supportedGameCount() const;
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
-    Q_INVOKABLE void scanSteamLibrary();
-    Q_INVOKABLE void scanEpicLibrary();
-    Q_INVOKABLE void scanGogLibrary();
     Q_INVOKABLE void addManualGame(const QString& path);
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
-    Q_INVOKABLE bool hasRecipe(const QString& gameId);
-    Q_INVOKABLE void refreshGameMetadata(const QString& gameId);
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getRecipeInfo(const QString& gameId);
-    Q_INVOKABLE QVariantList searchGames(const QString& query) const;
 
     /**
      * @brief Handle files dropped onto the application window
@@ -184,11 +166,6 @@ public:
      * @brief Uninstall translation package from a game
      */
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
-
-    /**
-     * @brief Check if a translation is currently installed for a game
-     */
-    Q_INVOKABLE bool isTranslationInstalled(const QString& gameId);
 
     /**
      * @brief Check translation compatibility after game update
@@ -230,28 +207,15 @@ public:
      */
     Q_INVOKABLE void uninstallRuntime(const QString& gameId);
 
-    /**
-     * @brief Force update check for a single game
-     */
-    Q_INVOKABLE void forceUpdateCheck(const QString& gameId);
-
-    /**
-     * @brief Force update check for all games with translations
-     */
-    Q_INVOKABLE void forceUpdateCheckAll();
-
 signals:
     void gamesChanged();
     void isScanningChanged();
     void scanStatusChanged();
-    void scanProgressChanged();
-    void lastErrorChanged();
     void gameDetected(const QString& gameId);
     void scanCompleted(int count);
     void scanError(const QString& error);
     void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
-    void isFetchingSteamDetailsChanged();
     void localPackageReady(const QString& packageName, const QString& gameName, const QString& filePath);
     void localPackageError(const QString& filePath, const QString& error);
     void folderDropped(const QString& path, bool isGame);
@@ -286,8 +250,6 @@ private:
     QNetworkAccessManager* m_networkManager{nullptr};
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;  // O(1) lookup by ID
-    QSet<QString> m_featuredIds;          // O(1) contains check
-    QSet<QString> m_recentIds;            // O(1) contains check
     QHash<QString, SteamDetails> m_steamDetailsCache;
     QSet<QString> m_pendingFetches;
     bool m_isScanning{false};
@@ -298,8 +260,6 @@ private:
 
     // Cache for QVariantList conversions
     mutable QVariantList m_gamesCache;
-    mutable QVariantList m_featuredGamesCache;
-    mutable QVariantList m_recentGamesCache;
     mutable QVariantList m_supportedGamesCache;
     mutable bool m_cacheValid{false};
 };

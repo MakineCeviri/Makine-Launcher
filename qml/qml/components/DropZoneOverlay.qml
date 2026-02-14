@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 import MakineAI 1.0
 
 /**
@@ -13,7 +12,6 @@ Item {
     id: root
 
     property bool active: false
-    property var droppedUrls: []
     property string dropType: "unknown" // package, archive, folder, unknown
 
     signal filesDropped(var urls)
@@ -212,7 +210,6 @@ Item {
         onDropped: function(drop) {
             root.active = false
             if (drop.urls && drop.urls.length > 0) {
-                root.droppedUrls = drop.urls
                 root.filesDropped(drop.urls)
                 drop.accept()
             }

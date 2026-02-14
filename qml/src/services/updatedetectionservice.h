@@ -13,11 +13,12 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
-#include <QQmlEngine>
 #include <QTimer>
 #include <QHash>
 #include <QList>
 #include <QMutex>
+
+// Note: No QML_ELEMENT/QML_SINGLETON — only used from C++ (GameService)
 
 namespace makineai {
 
@@ -72,8 +73,6 @@ struct EngineProfile {
 class UpdateDetectionService : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     Q_PROPERTY(bool isChecking READ isChecking NOTIFY isCheckingChanged)
     Q_PROPERTY(int gamesWithUpdates READ gamesWithUpdates NOTIFY gamesWithUpdatesChanged)
@@ -82,8 +81,6 @@ class UpdateDetectionService : public QObject
 public:
     explicit UpdateDetectionService(QObject *parent = nullptr);
     ~UpdateDetectionService() override;
-
-    static UpdateDetectionService* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
     // Properties
     bool isChecking() const { return m_isChecking; }

@@ -32,6 +32,25 @@
       }
     },
     {
+      "name": "mingw-static",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64_static",
+        "CMAKE_EXE_LINKER_FLAGS": "-static -static-libgcc -static-libstdc++ -Wl,--gc-sections",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
       "name": "vcpkg-base",
       "hidden": true,
       "inherits": "base",
@@ -84,6 +103,17 @@
       }
     },
     {
+      "name": "release-static",
+      "displayName": "Release Static (Single EXE)",
+      "description": "Single-file static EXE — no DLLs needed for distribution",
+      "inherits": "mingw-static",
+      "binaryDir": "${sourceDir}/qml/build/release-static",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINEAI_UI_ONLY": "ON"
+      }
+    },
+    {
       "name": "core",
       "displayName": "Core Library",
       "description": "Build core library only (for CI/testing)",
@@ -113,6 +143,10 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "release-static",
+      "configurePreset": "release-static"
     },
     {
       "name": "core",

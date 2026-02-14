@@ -146,7 +146,7 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
     const auto entries = pakDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
 
     for (const QString& dirName : entries) {
-        // Check if this directory has an extracted_* subdirectory
+        // Check if this directory has an extracted_* or version subdirectory
         QString fullPath = basePath + "/" + dirName;
         QDir pkgDir(fullPath);
 
@@ -304,7 +304,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
     QDir pkgDir(pkgDirPath);
 
-    // Find extracted directory
+    // Find extracted_* directory
     QString extractedPath;
     const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     for (const QString& sub : subDirs) {

@@ -90,6 +90,24 @@ clean:
 rebuild: clean all
 
 # ============================================================================
+# STATIC BUILD (Single EXE — no DLLs)
+# ============================================================================
+
+# Build static Qt from source (one-time setup, ~1-2 hours)
+# Prerequisite: Install "Qt 6.10.1 > Sources" via Qt Online Installer
+setup-static-qt:
+    powershell -ExecutionPolicy Bypass -File scripts/build_static_qt.ps1
+
+# Build single-file static EXE (no Qt/MinGW DLLs needed)
+release-static:
+    cmake --preset release-static
+    cmake --build --preset release-static
+
+# Run static release build
+run-static: release-static
+    ./qml/build/release-static/MakineAI.exe
+
+# ============================================================================
 # DEPLOYMENT
 # ============================================================================
 
@@ -100,10 +118,18 @@ deploy: release
     powershell -Command "Copy-Item build/release/MakineAI.exe dist/"
     windeployqt --qmldir qml/qml --release dist/MakineAI.exe
 
-# Create release archive
+# Create release archive (shared Qt build — includes DLLs)
 package: deploy
     @echo "Creating release package..."
     powershell -Command "Compress-Archive -Path dist/* -DestinationPath MakineAI-release.zip -Force"
+
+# Create release archive (static build — single EXE)
+package-static: release-static
+    @echo "Creating static release package..."
+    powershell -Command "New-Item -ItemType Directory -Force -Path dist-static | Out-Null"
+    powershell -Command "Copy-Item qml/build/release-static/MakineAI.exe dist-static/"
+    powershell -Command "Compress-Archive -Path dist-static/* -DestinationPath MakineAI-static.zip -Force"
+    @echo "Done: MakineAI-static.zip (single EXE)"
 
 # ============================================================================
 # DEVELOPMENT

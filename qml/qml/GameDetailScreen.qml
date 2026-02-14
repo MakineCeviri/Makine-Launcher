@@ -89,8 +89,6 @@ Item {
 
     signal backClicked()
     signal translateClicked()
-    signal steamStoreClicked()
-    signal restoreClicked()
 
     function resetDetails() {
         description = ""
@@ -352,8 +350,8 @@ Item {
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Open on Steam")
         activeFocusOnTab: true
-        Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
-        Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId); root.steamStoreClicked() }
+        Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
+        Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
         z: Dimensions.zDialog
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -374,7 +372,6 @@ Item {
                 if (root.steamAppId !== "") {
                     Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId)
                 }
-                root.steamStoreClicked()
             }
         }
 
@@ -1706,7 +1703,7 @@ Item {
                     }
                     function onBackupRestored(gId) {
                         if (gId === root.gameId)
-                            root.restoreClicked()
+                            refreshBackups()
                     }
                 }
 

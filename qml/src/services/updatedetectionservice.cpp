@@ -254,13 +254,6 @@ UpdateDetectionService::UpdateDetectionService(QObject *parent)
 
 UpdateDetectionService::~UpdateDetectionService() = default;
 
-UpdateDetectionService* UpdateDetectionService::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
-{
-    Q_UNUSED(qmlEngine)
-    Q_UNUSED(jsEngine)
-    return new UpdateDetectionService();
-}
-
 // =============================================================================
 // Tier 1: Store Metadata Readers (all static/thread-safe)
 // =============================================================================

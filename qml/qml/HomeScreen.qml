@@ -1301,21 +1301,6 @@ Item {
                                 color: Theme.textPrimary
                             }
 
-                            Rectangle {
-                                Layout.preferredHeight: 20
-                                Layout.preferredWidth: patchCountLabel.width + 12
-                                radius: Dimensions.radiusStandard
-                                color: Theme.withAlpha(Theme.primary, 0.10)
-                                Label {
-                                    id: patchCountLabel
-                                    anchors.centerIn: parent
-                                    text: qsTr("%1 kurulu oyunda yama mevcut").arg(GameService.gamesWithTranslation.length)
-                                    font.pixelSize: Dimensions.fontXS
-                                    font.weight: Font.Medium
-                                    color: Theme.primary
-                                }
-                            }
-
                             Item { Layout.fillWidth: true }
                         }
 
@@ -1329,7 +1314,7 @@ Item {
                                 model: [
                                     { key: "all", label: qsTr("Tümü") },
                                     { key: "installed", label: qsTr("Kurulu") },
-                                    { key: "available", label: qsTr("Mevcut") }
+                                    { key: "available", label: qsTr("Kurulu Değil") }
                                 ]
 
                                 Rectangle {
@@ -1508,7 +1493,7 @@ Item {
                                     text: translationPage.activeFilter === "all"
                                         ? qsTr("Bilgisayarınızda çevirisi olan oyun bulunamadı")
                                         : translationPage.activeFilter === "installed"
-                                            ? qsTr("Mevcut yamalardan birini kurmak için Tümü filtresine geçin")
+                                            ? qsTr("Kurulu olmayan yamalardan birini kurmak için Tümü filtresine geçin")
                                             : qsTr("Tüm yamalar başarıyla kurulmuş durumda")
                                     font.pixelSize: Dimensions.fontXS
                                     color: Theme.textMuted

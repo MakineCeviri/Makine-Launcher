@@ -77,40 +77,6 @@ QVariantList GameService::games() const
     return m_gamesCache;
 }
 
-QVariantList GameService::featuredGames() const
-{
-    if (m_cacheValid && !m_featuredGamesCache.isEmpty()) {
-        return m_featuredGamesCache;
-    }
-
-    m_featuredGamesCache.clear();
-    m_featuredGamesCache.reserve(m_featuredIds.size());
-
-    for (const auto& game : m_games) {
-        if (m_featuredIds.contains(game.id)) {
-            m_featuredGamesCache.append(game.toSummary());
-        }
-    }
-    return m_featuredGamesCache;
-}
-
-QVariantList GameService::recentGames() const
-{
-    if (m_cacheValid && !m_recentGamesCache.isEmpty()) {
-        return m_recentGamesCache;
-    }
-
-    m_recentGamesCache.clear();
-    m_recentGamesCache.reserve(m_recentIds.size());
-
-    for (const auto& game : m_games) {
-        if (m_recentIds.contains(game.id)) {
-            m_recentGamesCache.append(game.toSummary());
-        }
-    }
-    return m_recentGamesCache;
-}
-
 void GameService::scanAllLibraries()
 {
     if (m_isScanning) return;
@@ -121,7 +87,6 @@ void GameService::scanAllLibraries()
     m_scanProgress = 0;
     m_scanStatus = tr("Oyun kütüphaneleri taranıyor...");
     emit scanStatusChanged();
-    emit scanProgressChanged();
 
     // Use CoreBridge for actual scanning
     if (m_coreBridge) {
@@ -142,7 +107,6 @@ void GameService::setupCoreBridge()
     connect(m_coreBridge, &CoreBridge::scanError,
             this, [this](const QString& error) {
                 m_lastError = error;
-                emit lastErrorChanged();
                 emit scanError(error);
             });
 
@@ -200,7 +164,6 @@ void GameService::onScanProgress(qreal progress, const QString& status)
         changed = true;
     }
     if (changed) {
-        emit scanProgressChanged();
         emit scanStatusChanged();
     }
 }
@@ -243,48 +206,6 @@ void GameService::onGameDetected(const QString& gameId, const QString& gameName)
 {
     emit gameDetected(gameId);
     qDebug() << "Game detected:" << gameName << "(" << gameId << ")";
-}
-
-void GameService::scanSteamLibrary()
-{
-    if (m_isScanning) return;
-
-    m_isScanning = true;
-    m_scanStatus = tr("Steam kütüphanesi taranıyor...");
-    emit isScanningChanged();
-    emit scanStatusChanged();
-
-    if (m_coreBridge) {
-        m_coreBridge->scanSteamLibrary();
-    }
-}
-
-void GameService::scanEpicLibrary()
-{
-    if (m_isScanning) return;
-
-    m_isScanning = true;
-    m_scanStatus = tr("Epic Games taranıyor...");
-    emit isScanningChanged();
-    emit scanStatusChanged();
-
-    if (m_coreBridge) {
-        m_coreBridge->scanEpicLibrary();
-    }
-}
-
-void GameService::scanGogLibrary()
-{
-    if (m_isScanning) return;
-
-    m_isScanning = true;
-    m_scanStatus = tr("GOG Galaxy taranıyor...");
-    emit isScanningChanged();
-    emit scanStatusChanged();
-
-    if (m_coreBridge) {
-        m_coreBridge->scanGogLibrary();
-    }
 }
 
 void GameService::addManualGame(const QString& path)
@@ -339,28 +260,6 @@ QVariantMap GameService::getGameById(const QString& id) const
     return {};
 }
 
-bool GameService::hasRecipe(const QString& gameId)
-{
-    if (m_coreBridge) {
-        return m_coreBridge->hasTranslationPackage(gameId);
-    }
-    return false;
-}
-
-void GameService::refreshGameMetadata(const QString& gameId)
-{
-    auto idxIt = m_gameIdToIndex.constFind(gameId);
-    if (idxIt != m_gameIdToIndex.constEnd()) {
-        int idx = *idxIt;
-        if (idx >= 0 && idx < m_games.count()) {
-            const QString& appId = m_games[idx].steamAppId;
-            if (!appId.isEmpty()) {
-                fetchSteamDetails(appId);
-            }
-        }
-    }
-}
-
 void GameService::fetchSteamDetails(const QString& steamAppId)
 {
     if (steamAppId.isEmpty()) return;
@@ -376,7 +275,6 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
     }
 
     m_pendingFetches.insert(steamAppId);
-    emit isFetchingSteamDetailsChanged();
 
     QUrl url(QStringLiteral("https://store.steampowered.com/api/appdetails?appids=%1&l=turkish").arg(steamAppId));
     QNetworkRequest request(url);
@@ -386,7 +284,6 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
     connect(reply, &QNetworkReply::finished, this, [this, reply, steamAppId]() {
         reply->deleteLater();
         m_pendingFetches.remove(steamAppId);
-        emit isFetchingSteamDetailsChanged();
 
         if (reply->error() != QNetworkReply::NoError) {
             qWarning() << "Steam API error for" << steamAppId << ":" << reply->errorString();
@@ -524,30 +421,6 @@ QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) c
     };
 }
 
-QVariantList GameService::searchGames(const QString& query) const
-{
-    QVariantList result;
-
-    for (const auto& game : m_games) {
-        if (game.name.contains(query, Qt::CaseInsensitive) ||
-            game.id.contains(query, Qt::CaseInsensitive)) {
-            result.append(game.toSummary());
-        }
-    }
-    return result;
-}
-
-int GameService::patchedGamesCount() const
-{
-    int count = 0;
-    for (const auto& game : m_games) {
-        if (game.hasTranslation) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 QVariantList GameService::supportedGames() const
 {
     if (m_cacheValid && !m_supportedGamesCache.isEmpty()) {
@@ -681,8 +554,6 @@ void GameService::invalidateCache()
 {
     m_cacheValid = false;
     m_gamesCache.clear();
-    m_featuredGamesCache.clear();
-    m_recentGamesCache.clear();
     m_supportedGamesCache.clear();
 }
 
@@ -1021,12 +892,6 @@ void GameService::uninstallTranslation(const QString& gameId)
                 : tr("Failed to remove translation"));
 }
 
-bool GameService::isTranslationInstalled(const QString& gameId)
-{
-    if (!m_coreBridge) return false;
-    return m_coreBridge->isPackageInstalled(gameId);
-}
-
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
     return m_updateService->checkCompatibility(gameId);
@@ -1070,16 +935,6 @@ void GameService::uninstallRuntime(const QString& gameId)
     QTimer::singleShot(100, this, [this, gameId]() {
         emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
     });
-}
-
-void GameService::forceUpdateCheck(const QString& gameId)
-{
-    m_updateService->checkGameQuick(gameId);
-}
-
-void GameService::forceUpdateCheckAll()
-{
-    m_updateService->checkAllGamesQuick();
 }
 
 QVariantMap GameService::checkAntiCheat(const QString& gameId)

@@ -185,6 +185,9 @@ void CoreBridge::doScanSteamReal()
         "228980", "228981", "1070560", "1161040", "1493710",
     };
 
+    // Track seen appIds to avoid duplicates across library folders
+    QSet<QString> seenAppIds;
+
     int totalGames = 0;
     int processed = 0;
 
@@ -226,6 +229,13 @@ void CoreBridge::doScanSteamReal()
                 processed++;
                 continue;
             }
+
+            // Skip duplicate appIds (same game in multiple library folders)
+            if (seenAppIds.contains(appId)) {
+                processed++;
+                continue;
+            }
+            seenAppIds.insert(appId);
 
             // Build install path
             QString installPath = QDir::cleanPath(libPath + "/steamapps/common/" + installDir);
@@ -568,7 +578,6 @@ QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
     Q_UNUSED(engine)
 
     QString backupId = QString::number(QDateTime::currentMSecsSinceEpoch());
-    emit backupCreated(backupId);
     return backupId;
 }
 
@@ -579,7 +588,6 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
     Q_UNUSED(engine)
     Q_UNUSED(backupId)
 
-    emit backupRestored();
     return true;
 }
 
@@ -1043,7 +1051,7 @@ QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
     else if (engine == "RPGMaker") handler = std::make_unique<RpgMakerHandler>();
     else if (engine == "GameMaker") handler = std::make_unique<GameMakerHandler>();
     else {
-        emit backupError(tr("Desteklenmeyen motor: %1").arg(engine));
+        qWarning() << "createBackup: unsupported engine:" << engine;
         return QString();
     }
 
@@ -1053,12 +1061,11 @@ QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
 
     if (!result || !result->success) {
         QString error = result ? QString::fromStdString(result->errorMessage) : tr("Yedek oluşturulamadı");
-        emit backupError(error);
+        qWarning() << "createBackup failed:" << error;
         return QString();
     }
 
     QString qBackupId = QString::fromStdString(result->backupId);
-    emit backupCreated(qBackupId);
     return qBackupId;
 }
 
@@ -1074,18 +1081,17 @@ bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
     else if (engine == "RPGMaker") handler = std::make_unique<RpgMakerHandler>();
     else if (engine == "GameMaker") handler = std::make_unique<GameMakerHandler>();
     else {
-        emit backupError(tr("Desteklenmeyen motor: %1").arg(engine));
+        qWarning() << "restoreBackup: unsupported engine:" << engine;
         return false;
     }
 
     auto result = handler->restoreBackup(path, backupId.toStdString());
     if (!result || !result->success) {
         QString error = result ? QString::fromStdString(result->errorMessage) : tr("Yedek geri yüklenemedi");
-        emit backupError(error);
+        qWarning() << "restoreBackup failed:" << error;
         return false;
     }
 
-    emit backupRestored();
     return true;
 }
 

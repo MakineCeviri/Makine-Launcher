@@ -60,7 +60,6 @@ public:
     QString resolveGameId(const QString& gameId) const;
 
     int packageCount() const { return m_packages.size(); }
-    QStringList availableAppIds() const { return m_packages.keys(); }
     QVariantList allPackagesAsList() const;
 
 signals:

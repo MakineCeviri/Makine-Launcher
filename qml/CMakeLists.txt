@@ -112,29 +112,18 @@ set(BACKEND_HEADERS
     src/services/updatedetectionservice.h
 )
 
-# Model sources
-set(MODEL_SOURCES
-    src/models/gamelistmodel.cpp
-)
-
-set(MODEL_HEADERS
-    src/models/gamelistmodel.h
-    src/makinaeiMetatypes.h
-)
 
 # QML module
 qt_add_executable(MakineAI
     src/main.cpp
     ${BACKEND_SOURCES}
     ${BACKEND_HEADERS}
-    ${MODEL_SOURCES}
-    ${MODEL_HEADERS}
     ${CORE_SOURCES}
 )
 
-# Link pre-compiled Windows icon resource
-if(WIN32 AND EXISTS "${CMAKE_CURRENT_BINARY_DIR}/app_icon.obj")
-    target_link_libraries(MakineAI PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app_icon.obj")
+# Windows resource file: icon, manifest (DPI/UTF-8/visual styles), version info
+if(WIN32)
+    target_sources(MakineAI PRIVATE resources/app.rc)
 endif()
 
 # Mark singleton files BEFORE qt_add_qml_module
@@ -178,7 +167,6 @@ qt_add_qml_module(MakineAI
         # Components - Visual
         qml/components/SkeletonLoader.qml
         qml/components/PerformanceMonitor.qml
-        qml/components/Badge.qml
 
         # Components - Settings UI
         qml/components/ToggleSetting.qml
@@ -193,7 +181,6 @@ qt_add_qml_module(MakineAI
 
         # Components - List Items
         qml/components/CategoryItem.qml
-        qml/components/InfoRow.qml
         qml/components/BatchOperationsPanel.qml
 
         # Utilities
@@ -206,24 +193,12 @@ qt_add_qml_module(MakineAI
         qml/dialogs/UninstallConfirmDialog.qml
 
     RESOURCES
-        # SVG icons (16 active)
+        # SVG icons (7 active)
         resources/icons/arrow_right.svg
-        resources/icons/bell.svg
-        resources/icons/box.svg
-        resources/icons/chevron-right.svg
-        resources/icons/close.svg
-        resources/icons/delete.svg
         resources/icons/discord.svg
-        resources/icons/folder.svg
-        resources/icons/info.svg
         resources/icons/lock.svg
-        resources/icons/maximize.svg
-        resources/icons/minimize.svg
-        resources/icons/rotate-ccw.svg
         resources/icons/shield-check.svg
         resources/icons/shield-check-active.svg
-        resources/icons/star.svg
-        resources/icons/trash.svg
         resources/icons/window-search.svg
         resources/icons/window-search-active.svg
         # PNG images
@@ -235,11 +210,26 @@ qt_add_qml_module(MakineAI
         resources/fonts/Inter-Bold.ttf
 )
 
+# ===== Binary Size Optimization =====
+# GC sections: compile each function/data into separate sections, then
+# discard unreferenced ones at link time. Critical for static Qt builds
+# where unused Qt code would otherwise bloat the binary.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(MakineAI PRIVATE
+        -ffunction-sections          # Each function in its own section
+        -fdata-sections              # Each data object in its own section
+        -fvisibility=hidden          # Hide all symbols by default (smaller export table)
+        -fvisibility-inlines-hidden  # Hide inline functions
+    )
+    target_link_options(MakineAI PRIVATE
+        -Wl,--gc-sections            # Discard unreferenced sections at link time
+    )
+endif()
+
 # Include directories
 target_include_directories(MakineAI PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/models
 )
 
 if(NOT MAKINEAI_UI_ONLY AND NOT TARGET makineai_core)
@@ -261,6 +251,9 @@ target_link_libraries(MakineAI PRIVATE
     Qt6::Svg
     Qt6::Concurrent
 )
+
+# Static Qt: import QML plugins at link time (no-op for shared builds)
+qt_import_qml_plugins(MakineAI)
 
 # Link core dependencies (only for full build)
 if(NOT MAKINEAI_UI_ONLY)
@@ -304,7 +297,7 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN
     )
 
-    # Link Windows libraries for process scanning and system tray
+    # Link Windows libraries for process scanning, system tray, and crypto
     target_link_libraries(MakineAI PRIVATE
         psapi
         Shlwapi
@@ -326,6 +319,32 @@ if(Qt6LinguistTools_FOUND)
     message(STATUS "i18n: Translation files configured (${TS_FILES})")
 else()
     message(STATUS "i18n: Qt6::LinguistTools not found, translations disabled")
+endif()
+
+# Static build: strip debug symbols for smaller binary (~30-40% reduction)
+if(CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
+    add_custom_command(TARGET MakineAI POST_BUILD
+        COMMAND ${CMAKE_STRIP} "$<TARGET_FILE:MakineAI>"
+        COMMENT "Stripping static binary for minimal size"
+        VERBATIM
+    )
+endif()
+
+# Optional: UPX compression for even smaller static binaries (~40-50% reduction)
+# Enable with: cmake -DMAKINEAI_UPX=ON
+option(MAKINEAI_UPX "Compress static binary with UPX" OFF)
+if(MAKINEAI_UPX AND CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
+    find_program(UPX_EXECUTABLE upx)
+    if(UPX_EXECUTABLE)
+        add_custom_command(TARGET MakineAI POST_BUILD
+            COMMAND ${UPX_EXECUTABLE} --best --lzma "$<TARGET_FILE:MakineAI>"
+            COMMENT "UPX compressing static binary (--best --lzma)"
+            VERBATIM
+        )
+        message(STATUS "UPX: Enabled (${UPX_EXECUTABLE})")
+    else()
+        message(WARNING "UPX: Requested but upx not found in PATH")
+    endif()
 endif()
 
 # Post-build: generate SHA-256 hash file for integrity verification

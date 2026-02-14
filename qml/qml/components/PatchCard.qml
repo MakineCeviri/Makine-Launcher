@@ -31,7 +31,7 @@ Item {
     width: Dimensions.cardWidth + Dimensions.patchCardExtraWidth   // 150
     height: Dimensions.cardHeight + Dimensions.patchCardExtraHeight // 230
 
-    property bool isHovered: cardMouse.containsMouse || uninstallBtnMouse.containsMouse
+    property bool isHovered: cardMouse.containsMouse
 
     // Hover transforms: lift + subtle scale
     transform: [
@@ -215,163 +215,128 @@ Item {
             anchors.topMargin: Dimensions.marginSM
             anchors.rightMargin: Dimensions.marginSM
             visible: !root.isInstalling
-            implicitWidth: badgeRow.width + Dimensions.marginSM
-            implicitHeight: 20
-            radius: Dimensions.radiusStandard
+            implicitWidth: badgeText.implicitWidth + 10
+            implicitHeight: 18
+            radius: 9
             color: root.packageInstalled
-                ? Theme.withAlpha(Theme.success, 0.90)
-                : Theme.withAlpha(Theme.primary, 0.90)
+                ? Theme.withAlpha(Theme.success, 0.85)
+                : Theme.withAlpha(Theme.textPrimary, 0.55)
             z: 2
 
-            Row {
-                id: badgeRow
+            Label {
+                id: badgeText
                 anchors.centerIn: parent
-                spacing: 3
-
-                // Checkmark or download icon
-                Label {
-                    text: root.packageInstalled ? "\u2714" : "\u2B07"
-                    font.pixelSize: 8
-                    color: Theme.textOnColor
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Label {
-                    text: root.packageInstalled ? qsTr("Kurulu") : qsTr("Mevcut")
-                    font.pixelSize: Dimensions.fontMini
-                    font.weight: Font.Bold
-                    color: Theme.textOnColor
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                text: root.packageInstalled ? qsTr("Kurulu") : qsTr("Kurulu Değil")
+                font.pixelSize: Dimensions.fontMicro
+                font.weight: Font.Bold
+                color: Theme.textOnColor
             }
         }
 
-        // ===== HOVER OVERLAY: Available (not installed) → download prompt =====
+        // ===== HOVER OVERLAY =====
         Rectangle {
-            id: installOverlay
-            anchors.fill: parent
-            radius: parent.radius
-            color: Theme.withAlpha(Theme.bgPrimary, 0.55)
-            opacity: cardMouse.containsMouse && !root.packageInstalled && !root.isInstalling ? 1.0 : 0
-            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
-
-            ColumnLayout {
-                anchors.centerIn: parent
-                spacing: Dimensions.spacingSM
-
-                // Download circle icon
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 40; height: 40
-                    radius: 20
-                    color: Theme.withAlpha(Theme.primary, 0.20)
-                    border.color: Theme.withAlpha(Theme.primary, 0.40)
-                    border.width: 1
-
-                    Canvas {
-                        anchors.centerIn: parent
-                        width: 18; height: 18
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.clearRect(0, 0, width, height)
-                            ctx.strokeStyle = Theme.primary
-                            ctx.lineWidth = 2
-                            ctx.lineCap = "round"
-                            // Down arrow shaft
-                            ctx.beginPath()
-                            ctx.moveTo(9, 2)
-                            ctx.lineTo(9, 13)
-                            ctx.stroke()
-                            // Arrow head
-                            ctx.beginPath()
-                            ctx.moveTo(5, 10)
-                            ctx.lineTo(9, 14)
-                            ctx.lineTo(13, 10)
-                            ctx.stroke()
-                            // Bottom line
-                            ctx.beginPath()
-                            ctx.moveTo(3, 16)
-                            ctx.lineTo(15, 16)
-                            ctx.stroke()
-                        }
-                    }
-                }
-
-                Label {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: qsTr("Yama Kur")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.primary
-                }
-            }
-        }
-
-        // ===== HOVER OVERLAY: Installed → uninstall option =====
-        Rectangle {
-            id: uninstallOverlay
             anchors.fill: parent
             radius: parent.radius
             color: Theme.withAlpha(Theme.bgPrimary, 0.65)
-            opacity: (cardMouse.containsMouse || uninstallBtnMouse.containsMouse) && root.packageInstalled && !root.isInstalling ? 1.0 : 0
+            opacity: root.isHovered && !root.isInstalling ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
 
             ColumnLayout {
                 anchors.centerIn: parent
                 spacing: Dimensions.spacingSM
 
-                // Red X circle button
-                Rectangle {
-                    id: uninstallBtn
+                // Gradient icon circle
+                Canvas {
                     Layout.alignment: Qt.AlignHCenter
-                    width: 40; height: 40
-                    radius: 20
-                    color: uninstallBtnMouse.containsMouse
-                        ? Theme.error
-                        : Theme.withAlpha(Theme.error, 0.20)
-                    border.color: Theme.withAlpha(Theme.error, 0.50)
-                    border.width: 1
+                    Layout.preferredWidth: 38; Layout.preferredHeight: 38
+                    property bool installed: root.packageInstalled
+                    property real phase: imgContainer.borderPhase
+                    onPhaseChanged: if (root.isHovered) requestPaint()
+                    onInstalledChanged: requestPaint()
 
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var colors = Theme.brandGradient
+                        var cx = width / 2, cy = height / 2, r = 17
 
-                    Canvas {
-                        anchors.centerIn: parent
-                        width: 14; height: 14
-                        property color strokeColor: uninstallBtnMouse.containsMouse ? Theme.textOnColor : Theme.error
-                        onStrokeColorChanged: requestPaint()
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.clearRect(0, 0, width, height)
-                            ctx.strokeStyle = strokeColor
-                            ctx.lineWidth = 2.2
-                            ctx.lineCap = "round"
-                            ctx.beginPath()
-                            ctx.moveTo(3, 3)
-                            ctx.lineTo(11, 11)
-                            ctx.stroke()
-                            ctx.beginPath()
-                            ctx.moveTo(11, 3)
-                            ctx.lineTo(3, 11)
-                            ctx.stroke()
+                        // Rotating gradient
+                        var angle = phase * Math.PI * 2
+                        var len = r * 1.4
+                        var grad = ctx.createLinearGradient(
+                            cx + Math.cos(angle) * len, cy + Math.sin(angle) * len,
+                            cx - Math.cos(angle) * len, cy - Math.sin(angle) * len)
+                        for (var i = 0; i < colors.length; i++)
+                            grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
+
+                        // Circle background
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+                        ctx.fillStyle = Theme.withAlpha(Theme.bgPrimary, 0.50)
+                        ctx.fill()
+
+                        // Circle border with gradient
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+                        ctx.strokeStyle = grad
+                        ctx.lineWidth = 1.5
+                        ctx.stroke()
+
+                        // Icon with gradient stroke
+                        ctx.strokeStyle = grad
+                        ctx.lineWidth = 2
+                        ctx.lineCap = "round"
+                        if (!installed) {
+                            // Download arrow
+                            ctx.beginPath(); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 3); ctx.stroke()
+                            ctx.beginPath(); ctx.moveTo(cx - 4, cy); ctx.lineTo(cx, cy + 4); ctx.lineTo(cx + 4, cy); ctx.stroke()
+                            ctx.beginPath(); ctx.moveTo(cx - 5, cy + 7); ctx.lineTo(cx + 5, cy + 7); ctx.stroke()
+                        } else {
+                            // X mark
+                            ctx.beginPath(); ctx.moveTo(cx - 4, cy - 4); ctx.lineTo(cx + 4, cy + 4); ctx.stroke()
+                            ctx.beginPath(); ctx.moveTo(cx + 4, cy - 4); ctx.lineTo(cx - 4, cy + 4); ctx.stroke()
                         }
-                    }
-
-                    MouseArea {
-                        id: uninstallBtnMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.uninstallClicked()
                     }
                 }
 
-                Label {
+                // Gradient text label
+                Canvas {
+                    id: actionLabel
                     Layout.alignment: Qt.AlignHCenter
-                    text: qsTr("Yamayı Kaldır")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: uninstallBtnMouse.containsMouse ? Theme.error : Theme.textSecondary
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                    Layout.preferredWidth: actionMetrics.width + 2
+                    Layout.preferredHeight: actionMetrics.height + 2
+                    property string actionText: root.packageInstalled ? qsTr("Yamayı Kaldır") : qsTr("Yama Kur")
+                    property real phase: imgContainer.borderPhase
+                    onPhaseChanged: if (root.isHovered) requestPaint()
+                    onActionTextChanged: requestPaint()
+
+                    TextMetrics {
+                        id: actionMetrics
+                        text: actionLabel.actionText
+                        font.pixelSize: Dimensions.fontXS
+                        font.weight: Font.DemiBold
+                    }
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var colors = Theme.brandGradient
+
+                        var angle = phase * Math.PI * 2
+                        var len = width * 0.6
+                        var cx = width / 2, cy = height / 2
+                        var grad = ctx.createLinearGradient(
+                            cx + Math.cos(angle) * len, cy + Math.sin(angle) * len,
+                            cx - Math.cos(angle) * len, cy - Math.sin(angle) * len)
+                        for (var i = 0; i < colors.length; i++)
+                            grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
+
+                        ctx.fillStyle = grad
+                        ctx.font = Font.DemiBold + " " + Dimensions.fontXS + "px sans-serif"
+                        ctx.textAlign = "center"
+                        ctx.textBaseline = "middle"
+                        ctx.fillText(actionText, width / 2, height / 2)
+                    }
                 }
             }
         }
@@ -430,11 +395,10 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
                 if (root.isInstalling) return
-                if (!root.packageInstalled) {
+                if (!root.packageInstalled)
                     root.installClicked()
-                } else {
-                    root.cardClicked()
-                }
+                else
+                    root.uninstallClicked()
             }
         }
     }
@@ -473,7 +437,7 @@ Item {
 
     // ===== ACCESSIBILITY =====
     Accessible.role: Accessible.Button
-    Accessible.name: root.gameName + (root.packageInstalled ? " — " + qsTr("Kurulu") : " — " + qsTr("Mevcut"))
+    Accessible.name: root.gameName + (root.packageInstalled ? " — " + qsTr("Kurulu") : " — " + qsTr("Çevir"))
     Accessible.description: root.isInstalling
         ? qsTr("Installing, %1 percent").arg(Math.round(root.installProgress * 100))
         : ""

@@ -207,54 +207,43 @@ Item {
         }
 
         // COMBINED BADGE (TR + ✓)
-        Rectangle {
+        Row {
             visible: root.translated || root.verified
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.topMargin: Dimensions.marginBase
             anchors.rightMargin: Dimensions.marginBase
-            width: badgeContent.width + 10
-            height: 22
-            radius: Dimensions.badgeRadius
-            color: Theme.withAlpha(Theme.bgPrimary, 0.75)
+            spacing: Dimensions.spacingXS
 
-            Row {
-                id: badgeContent
-                anchors.centerIn: parent
-                spacing: Dimensions.spacingXS
+            Rectangle {
+                visible: root.translated
+                width: 22
+                height: 16
+                radius: Dimensions.badgeRadius
+                color: Theme.turkishRed
 
-                Rectangle {
-                    visible: root.translated
-                    width: 22
-                    height: 16
-                    radius: Dimensions.badgeRadius
-                    color: Theme.turkishRed
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "TR"
-                        font.pixelSize: Dimensions.fontMini
-                        font.weight: Font.Bold
-                        color: Theme.textOnColor
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    text: "TR"
+                    font.pixelSize: Dimensions.fontMini
+                    font.weight: Font.Bold
+                    color: Theme.textOnColor
                 }
+            }
 
-                Rectangle {
-                    visible: root.verified
-                    width: 16
-                    height: 16
-                    radius: 8
-                    color: Theme.primary
-                    anchors.verticalCenter: parent.verticalCenter
+            Rectangle {
+                visible: root.verified
+                width: 16
+                height: 16
+                radius: 8
+                color: Theme.primary
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        font.pixelSize: Dimensions.fontCaption
-                        font.weight: Font.Bold
-                        color: Theme.textOnColor
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    font.pixelSize: Dimensions.fontCaption
+                    font.weight: Font.Bold
+                    color: Theme.textOnColor
                 }
             }
         }
