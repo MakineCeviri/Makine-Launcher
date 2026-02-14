@@ -1228,6 +1228,9 @@ Item {
                 property var installingGames: ({})
                 property var installProgressMap: ({})
 
+                // All detected games for library section
+                property var libGames: GameService.games || []
+
                 function filteredModel() {
                     var source = GameService.gamesWithTranslation
                     var result = []
@@ -1681,8 +1684,6 @@ Item {
                             }
                         }
 
-                        property var filteredLibGames: GameService.games || []
-
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 1
@@ -1701,7 +1702,7 @@ Item {
 
                             Repeater {
                                 id: libraryRepeater
-                                model: filteredLibGames
+                                model: translationPage.libGames
 
                                 Item {
                                     id: libCard

@@ -28,7 +28,7 @@
 #include <psapi.h>     // EmptyWorkingSet
 
 // Native Win32 splash window — shown immediately while QML loads
-// 440×240, rounded corners, brand gradient bars, animated loading dots
+// 440×240, rounded corners, animated smooth gradient bars, loading dots
 class SplashWindow {
 public:
     SplashWindow() = default;
@@ -61,16 +61,29 @@ public:
             nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
 
         if (m_hwnd) {
-            // Rounded corners (12px radius)
             HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, 12, 12);
             SetWindowRgn(m_hwnd, rgn, TRUE);
 
             SetWindowLongPtrW(m_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             ShowWindow(m_hwnd, SW_SHOWNOACTIVATE);
             UpdateWindow(m_hwnd);
+            m_showTime = GetTickCount();
 
-            // Animate loading dots every 450ms
-            SetTimer(m_hwnd, 1, 450, nullptr);
+            // 40ms timer (~25fps) for smooth gradient animation
+            SetTimer(m_hwnd, 1, 40, nullptr);
+        }
+    }
+
+    // Ensure splash is visible for at least minMs, keeping animation alive
+    void waitMinimumDisplay(DWORD minMs) {
+        if (!m_hwnd) return;
+        while ((GetTickCount() - m_showTime) < minMs) {
+            MSG msg;
+            while (PeekMessageW(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            Sleep(1);
         }
     }
 
@@ -89,18 +102,68 @@ private:
         RGB(204, 159, 216), RGB(144, 194, 230), RGB(119, 219, 200),
         RGB(128, 229, 157), RGB(200, 235, 124), RGB(212, 190, 119)
     };
-    static constexpr int kBrandColorCount = 9;
+    static constexpr int kColorCount = 9;
 
-    static void drawBrandBar(HDC hdc, int x, int y, int w, int h) {
-        int seg = w / kBrandColorCount;
-        for (int i = 0; i < kBrandColorCount; ++i) {
-            int x0 = x + i * seg;
-            int x1 = (i == kBrandColorCount - 1) ? x + w : x0 + seg;
-            RECT r = {x0, y, x1, y + h};
-            HBRUSH br = CreateSolidBrush(kBrandColors[i]);
-            FillRect(hdc, &r, br);
-            DeleteObject(br);
+    // Interpolate between two COLORREFs by fraction f (0..1)
+    static COLORREF lerpColor(COLORREF a, COLORREF b, float f) {
+        return RGB(
+            GetRValue(a) + (int)((GetRValue(b) - GetRValue(a)) * f),
+            GetGValue(a) + (int)((GetGValue(b) - GetGValue(a)) * f),
+            GetBValue(a) + (int)((GetBValue(b) - GetBValue(a)) * f)
+        );
+    }
+
+    // Smooth animated gradient bar — colors flow from center outward
+    static void drawAnimatedGradientBar(HDC hdc, int x, int y, int barW, int barH, float phase) {
+        BITMAPINFO bmi{};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = barW;
+        bmi.bmiHeader.biHeight = -barH; // top-down
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        BYTE* pixels = nullptr;
+        HBITMAP dib = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS,
+                                       reinterpret_cast<void**>(&pixels), nullptr, 0);
+        if (!dib || !pixels) return;
+
+        float halfW = barW / 2.0f;
+        for (int px = 0; px < barW; ++px) {
+            // Symmetric distance from center (0 at center, 1 at edges)
+            float dist = (px < halfW)
+                ? (halfW - px) / halfW
+                : (px - halfW) / halfW;
+
+            // Colors flow outward: center shows newest, edges show older
+            float t = phase - dist * 0.65f;
+            t = t - (float)(int)(t); // fast floor for positive
+            if (t < 0.0f) t += 1.0f;
+
+            // Map to color palette with smooth interpolation
+            float colorPos = t * (kColorCount - 1);
+            int idx = (int)colorPos;
+            float frac = colorPos - idx;
+            if (idx >= kColorCount - 1) { idx = kColorCount - 2; frac = 1.0f; }
+
+            COLORREF c = lerpColor(kBrandColors[idx], kBrandColors[idx + 1], frac);
+            BYTE r = GetRValue(c), g = GetGValue(c), b = GetBValue(c);
+
+            for (int py = 0; py < barH; ++py) {
+                int off = (py * barW + px) * 4;
+                pixels[off + 0] = b;  // BGRA byte order
+                pixels[off + 1] = g;
+                pixels[off + 2] = r;
+                pixels[off + 3] = 255;
+            }
         }
+
+        HDC dibDC = CreateCompatibleDC(hdc);
+        HBITMAP oldBmp = (HBITMAP)SelectObject(dibDC, dib);
+        BitBlt(hdc, x, y, barW, barH, dibDC, 0, 0, SRCCOPY);
+        SelectObject(dibDC, oldBmp);
+        DeleteObject(dib);
+        DeleteDC(dibDC);
     }
 
     static void drawLoadingDots(HDC hdc, int cx, int cy, int phase) {
@@ -132,7 +195,7 @@ private:
             GetClientRect(hwnd, &rc);
             int w = rc.right, h = rc.bottom;
 
-            // Double-buffer to prevent flicker during timer repaints
+            // Double-buffer to prevent flicker
             HDC mem = CreateCompatibleDC(hdc);
             HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
             HBITMAP oldBmp = (HBITMAP)SelectObject(mem, bmp);
@@ -161,8 +224,9 @@ private:
             SelectObject(mem, oldPen);
             DeleteObject(nullPen);
 
-            // Top brand gradient bar (3px)
-            drawBrandBar(mem, 0, 0, w, 3);
+            // Animated smooth gradient bar — top (3px)
+            float gp = self ? self->m_gradientPhase : 0.0f;
+            drawAnimatedGradientBar(mem, 0, 0, w, 3, gp);
 
             SetBkMode(mem, TRANSPARENT);
 
@@ -188,8 +252,8 @@ private:
             DeleteObject(tagFont);
 
             // Loading dots (animated)
-            int phase = self ? self->m_dotPhase : 0;
-            drawLoadingDots(mem, w / 2, h - 55, phase);
+            int dotP = self ? self->m_dotPhase : 0;
+            drawLoadingDots(mem, w / 2, h - 55, dotP);
 
             // Version — 9px, bottom-right corner
             HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
@@ -201,8 +265,8 @@ private:
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
 
-            // Bottom brand gradient bar (2px)
-            drawBrandBar(mem, 0, h - 2, w, 2);
+            // Animated smooth gradient bar — bottom (2px)
+            drawAnimatedGradientBar(mem, 0, h - 2, w, 2, gp);
 
             // Blit to screen
             BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
@@ -215,7 +279,16 @@ private:
         }
         case WM_TIMER:
             if (wp == 1 && self) {
-                self->m_dotPhase = (self->m_dotPhase + 1) % 3;
+                // Smooth gradient animation (~25fps)
+                self->m_gradientPhase += 0.005f;
+                if (self->m_gradientPhase >= 1.0f)
+                    self->m_gradientPhase -= 1.0f;
+
+                // Loading dots advance every ~480ms (12 ticks × 40ms)
+                self->m_tickCount++;
+                if (self->m_tickCount % 12 == 0)
+                    self->m_dotPhase = (self->m_dotPhase + 1) % 3;
+
                 InvalidateRect(hwnd, nullptr, FALSE);
             }
             return 0;
@@ -224,7 +297,10 @@ private:
     }
 
     HWND m_hwnd{nullptr};
+    DWORD m_showTime{0};
     int m_dotPhase{0};
+    int m_tickCount{0};
+    float m_gradientPhase{0.0f};
 };
 #endif
 
@@ -471,6 +547,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef Q_OS_WIN
+    splash.waitMinimumDisplay(2000);
     splash.close();
 #endif
 
