@@ -21,11 +21,13 @@ Item {
     property string gameName: ""
     property string imageUrl: ""
     property bool packageInstalled: false
+    property bool hasUpdate: false
     property bool isInstalling: false
     property double installProgress: 0.0
 
     signal installClicked()
     signal uninstallClicked()
+    signal updateClicked()
     signal cardClicked()
 
     width: Dimensions.cardWidth + Dimensions.patchCardExtraWidth   // 150
@@ -218,15 +220,19 @@ Item {
             implicitWidth: badgeText.implicitWidth + 10
             implicitHeight: 18
             radius: 9
-            color: root.packageInstalled
-                ? Theme.withAlpha(Theme.success, 0.85)
-                : Theme.withAlpha(Theme.textPrimary, 0.55)
+            color: root.hasUpdate && root.packageInstalled
+                ? Theme.withAlpha(Theme.warning, 0.85)
+                : root.packageInstalled
+                    ? Theme.withAlpha(Theme.success, 0.85)
+                    : Theme.withAlpha(Theme.textPrimary, 0.55)
             z: 2
 
             Label {
                 id: badgeText
                 anchors.centerIn: parent
-                text: root.packageInstalled ? qsTr("Kurulu") : qsTr("Kurulu Değil")
+                text: root.hasUpdate && root.packageInstalled
+                    ? qsTr("Güncelleme")
+                    : root.packageInstalled ? qsTr("Kurulu") : qsTr("Kurulu Değil")
                 font.pixelSize: Dimensions.fontMicro
                 font.weight: Font.Bold
                 color: Theme.textOnColor
@@ -286,7 +292,16 @@ Item {
                         ctx.strokeStyle = grad
                         ctx.lineWidth = 2
                         ctx.lineCap = "round"
-                        if (!installed) {
+                        if (root.hasUpdate && installed) {
+                            // Refresh circular arrow
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, 6, -Math.PI * 0.7, Math.PI * 0.5)
+                            ctx.stroke()
+                            // Arrowhead
+                            var ax = cx + 6 * Math.cos(Math.PI * 0.5)
+                            var ay = cy + 6 * Math.sin(Math.PI * 0.5)
+                            ctx.beginPath(); ctx.moveTo(ax - 3, ay - 3); ctx.lineTo(ax, ay); ctx.lineTo(ax + 3, ay - 3); ctx.stroke()
+                        } else if (!installed) {
                             // Download arrow
                             ctx.beginPath(); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 3); ctx.stroke()
                             ctx.beginPath(); ctx.moveTo(cx - 4, cy); ctx.lineTo(cx, cy + 4); ctx.lineTo(cx + 4, cy); ctx.stroke()
@@ -305,7 +320,9 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: actionMetrics.width + 2
                     Layout.preferredHeight: actionMetrics.height + 2
-                    property string actionText: root.packageInstalled ? qsTr("Yamayı Kaldır") : qsTr("Yama Kur")
+                    property string actionText: root.hasUpdate && root.packageInstalled
+                        ? qsTr("Güncelle")
+                        : root.packageInstalled ? qsTr("Yamayı Kaldır") : qsTr("Yama Kur")
                     property real phase: imgContainer.borderPhase
                     onPhaseChanged: if (root.isHovered) requestPaint()
                     onActionTextChanged: requestPaint()
@@ -395,7 +412,9 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
                 if (root.isInstalling) return
-                if (!root.packageInstalled)
+                if (root.hasUpdate && root.packageInstalled)
+                    root.updateClicked()
+                else if (!root.packageInstalled)
                     root.installClicked()
                 else
                     root.uninstallClicked()
@@ -437,7 +456,7 @@ Item {
 
     // ===== ACCESSIBILITY =====
     Accessible.role: Accessible.Button
-    Accessible.name: root.gameName + (root.packageInstalled ? " — " + qsTr("Kurulu") : " — " + qsTr("Çevir"))
+    Accessible.name: root.gameName + (root.hasUpdate && root.packageInstalled ? " — " + qsTr("Güncelleme mevcut") : root.packageInstalled ? " — " + qsTr("Kurulu") : " — " + qsTr("Çevir"))
     Accessible.description: root.isInstalling
         ? qsTr("Installing, %1 percent").arg(Math.round(root.installProgress * 100))
         : ""

@@ -281,7 +281,7 @@ Dialog {
 
             // Keyboard hint
             Label {
-                text: "Esc"
+                text: qsTr("Esc")
                 font.pixelSize: Dimensions.fontMicro
                 color: Theme.textMuted
                 opacity: 0.5

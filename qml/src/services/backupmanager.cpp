@@ -97,12 +97,6 @@ QVariantMap BackupManager::getLatestBackup(const QString& gameId)
     return {};
 }
 
-int BackupManager::backupCountForGame(const QString& gameId)
-{
-    return static_cast<int>(std::count_if(m_backups.begin(), m_backups.end(),
-        [&gameId](const BackupInfo& b) { return b.gameId == gameId; }));
-}
-
 bool BackupManager::createBackup(const QString& gameId, const QString& gameName, const QString& sourcePath)
 {
     QDir sourceDir(sourcePath);
@@ -294,17 +288,6 @@ bool BackupManager::hasBackup(const QString& gameId)
 {
     return std::any_of(m_backups.begin(), m_backups.end(),
         [&gameId](const BackupInfo& b) { return b.gameId == gameId && b.isValid; });
-}
-
-QString BackupManager::getBackupPath(const QString& gameId)
-{
-    auto it = std::find_if(m_backups.begin(), m_backups.end(),
-        [&gameId](const BackupInfo& b) { return b.gameId == gameId && b.isValid; });
-
-    if (it != m_backups.end()) {
-        return it->backupPath;
-    }
-    return {};
 }
 
 void BackupManager::loadBackups()

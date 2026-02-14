@@ -29,9 +29,10 @@ LRESULT CALLBACK SystemTrayManager::trayWndProc(HWND hwnd, UINT msg, WPARAM wPar
     }
     if (msg == WM_COMMAND && s_instance) {
         switch (LOWORD(wParam)) {
-        case IdShow:    emit s_instance->showWindowRequested(); break;
-        case IdSettings: emit s_instance->settingsRequested(); break;
-        case IdQuit:    emit s_instance->quitRequested(); break;
+        case IdShow:         emit s_instance->showWindowRequested(); break;
+        case IdCheckUpdates: emit s_instance->updateCheckRequested(); break;
+        case IdSettings:     emit s_instance->settingsRequested(); break;
+        case IdQuit:         emit s_instance->quitRequested(); break;
         }
         return 0;
     }
@@ -99,6 +100,10 @@ HICON SystemTrayManager::qIconToHicon(const QIcon &icon, int size)
     memcpy(bits, img.constBits(), img.sizeInBytes());
 
     HBITMAP hMask = CreateBitmap(img.width(), img.height(), 1, 1, nullptr);
+    if (!hMask) {
+        DeleteObject(hBitmap);
+        return nullptr;
+    }
 
     ICONINFO ii{};
     ii.fIcon    = TRUE;
@@ -143,6 +148,8 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     AppendMenuW(m_contextMenu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(m_contextMenu, MF_STRING, IdShow,
                 reinterpret_cast<LPCWSTR>(tr("MakineAI'ı Aç").utf16()));
+    AppendMenuW(m_contextMenu, MF_STRING, IdCheckUpdates,
+                reinterpret_cast<LPCWSTR>(tr("Güncelleme Kontrolü").utf16()));
     AppendMenuW(m_contextMenu, MF_STRING, IdSettings,
                 reinterpret_cast<LPCWSTR>(tr("Ayarlar").utf16()));
     AppendMenuW(m_contextMenu, MF_SEPARATOR, 0, nullptr);
@@ -157,7 +164,7 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     m_nid.uFlags           = NIF_ICON | NIF_TIP | NIF_MESSAGE | NIF_SHOWTIP;
     m_nid.uCallbackMessage = WM_TRAYICON;
     m_nid.uVersion         = NOTIFYICON_VERSION_4;
-    wcscpy_s(m_nid.szTip, L"MakineAI");
+    wcscpy_s(m_nid.szTip, _countof(m_nid.szTip), L"MakineAI");
 #endif
 
     // Background update check timer (disabled by default)

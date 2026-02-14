@@ -96,8 +96,6 @@ public:
     Q_INVOKABLE bool restoreBackup(const QString& backupId, const QString& targetPath = QString());
     Q_INVOKABLE bool deleteBackup(const QString& backupId);
     Q_INVOKABLE bool hasBackup(const QString& gameId);
-    Q_INVOKABLE QString getBackupPath(const QString& gameId);
-    Q_INVOKABLE int backupCountForGame(const QString& gameId);
 signals:
     void backupProgress(double progress, const QString& status);
     void backupsChanged();

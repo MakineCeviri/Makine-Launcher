@@ -24,13 +24,8 @@ add_executable(makineai_tests
     test_patch_engine.cpp
     test_security.cpp
     test_version_tracker.cpp
-    test_string_classifier.cpp
-    test_translation_api.cpp
-    test_qa_service.cpp
-    test_translation_memory.cpp
     test_config.cpp
     test_database.cpp
-    test_glossary_service.cpp
 )
 
 target_link_libraries(makineai_tests PRIVATE

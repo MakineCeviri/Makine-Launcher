@@ -127,6 +127,12 @@ QString IntegrityService::computeFileHash(const QString& filePath)
         hasher.addData(chunk);
     }
 
+    // Check for I/O errors during read (would produce incorrect hash)
+    if (file.error() != QFileDevice::NoError) {
+        qWarning() << "IntegrityService: I/O error reading" << filePath << file.errorString();
+        return {};
+    }
+
     return hasher.result().toHex().toLower();
 }
 

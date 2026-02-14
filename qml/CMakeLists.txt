@@ -79,7 +79,6 @@ if(NOT MAKINEAI_UI_ONLY)
                 "Build it first or use super-build: cmake --preset release")
         endif()
 
-        get_filename_component(MAKINEAI_CORE_LIB_DIR ${MAKINEAI_CORE_LIB} DIRECTORY)
     endif()
     set(CORE_SOURCES "")
 endif()
@@ -96,6 +95,8 @@ set(BACKEND_SOURCES
     src/services/batchoperationservice.cpp
     src/services/localpackagemanager.cpp
     src/services/updatedetectionservice.cpp
+    src/services/updatechecker.cpp
+    src/services/notificationservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -110,6 +111,8 @@ set(BACKEND_HEADERS
     src/services/localpackagemanager.h
     src/services/vdfparser.h
     src/services/updatedetectionservice.h
+    src/services/updatechecker.h
+    src/services/notificationservice.h
 )
 
 
@@ -183,13 +186,11 @@ qt_add_qml_module(MakineAI
         qml/components/CategoryItem.qml
         qml/components/BatchOperationsPanel.qml
 
-        # Utilities
-        qml/utils/VersionUtils.js
-
         # Dialogs
         qml/dialogs/AllGamesDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/CompatibilityWarningDialog.qml
+        qml/dialogs/ConfirmDialog.qml
         qml/dialogs/UninstallConfirmDialog.qml
 
     RESOURCES

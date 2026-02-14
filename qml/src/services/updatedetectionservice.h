@@ -15,6 +15,7 @@
 #include <QVariantMap>
 #include <QTimer>
 #include <QHash>
+#include <QSet>
 #include <QList>
 #include <QMutex>
 
@@ -103,6 +104,10 @@ public:
     Q_INVOKABLE void recordStoreVersion(const QString& gameId,
                                          const QString& installPath, const QString& source);
 
+    // Update tracking
+    Q_INVOKABLE bool hasUpdate(const QString& gameId) const;
+    Q_INVOKABLE void clearUpdate(const QString& gameId);
+
     // Cleanup
     Q_INVOKABLE void removeSnapshot(const QString& gameId);
     Q_INVOKABLE void removeStoreVersion(const QString& gameId);
@@ -158,6 +163,7 @@ private:
     bool m_monitoringActive{false};
     QTimer* m_monitorTimer{nullptr};
     QHash<QString, StoreVersionRecord> m_storeVersions;
+    QSet<QString> m_updatedGameIds;
     mutable QMutex m_storeVersionsMutex;
 };
 

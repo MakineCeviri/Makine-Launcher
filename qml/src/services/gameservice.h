@@ -121,6 +121,7 @@ class GameService : public QObject
     Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY gamesChanged)
     Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY gamesChanged)
     Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY gamesChanged)
+    Q_PROPERTY(int gameUpdateCount READ gameUpdateCount NOTIFY gameUpdateCountChanged)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -136,6 +137,7 @@ public:
     QVariantList gamesWithTranslation() const;
     QVariantList supportedGames() const;
     int supportedGameCount() const;
+    int gameUpdateCount() const;
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
@@ -166,6 +168,16 @@ public:
      * @brief Uninstall translation package from a game
      */
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
+
+    /**
+     * @brief Enable/disable background game update monitoring
+     */
+    Q_INVOKABLE void setUpdateMonitoringEnabled(bool enabled);
+
+    /**
+     * @brief Check if a game has a detected update (translation may be broken)
+     */
+    Q_INVOKABLE bool hasGameUpdate(const QString& gameId) const;
 
     /**
      * @brief Check translation compatibility after game update
@@ -226,6 +238,7 @@ signals:
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
     void gameUpdateDetected(const QString& gameId, const QString& gameName,
                             const QString& summary);
+    void gameUpdateCountChanged();
 
 private:
     void loadCachedGames();
@@ -255,7 +268,6 @@ private:
     bool m_isScanning{false};
     QString m_scanStatus;
     qreal m_scanProgress{0};
-    QString m_lastError;
     QString m_installingGameId;  // Track which game is being installed
 
     // Cache for QVariantList conversions

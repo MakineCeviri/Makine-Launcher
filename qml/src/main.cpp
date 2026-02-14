@@ -26,6 +26,206 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <psapi.h>     // EmptyWorkingSet
+
+// Native Win32 splash window — shown immediately while QML loads
+// 440×240, rounded corners, brand gradient bars, animated loading dots
+class SplashWindow {
+public:
+    SplashWindow() = default;
+    ~SplashWindow() { close(); }
+    SplashWindow(const SplashWindow&) = delete;
+    SplashWindow& operator=(const SplashWindow&) = delete;
+
+    void show() {
+        static bool classRegistered = false;
+        if (!classRegistered) {
+            WNDCLASSW wc{};
+            wc.lpfnWndProc = wndProc;
+            wc.hInstance = GetModuleHandleW(nullptr);
+            wc.lpszClassName = L"MakineAISplash";
+            wc.hbrBackground = CreateSolidBrush(RGB(10, 10, 15));
+            wc.hCursor = LoadCursorW(nullptr, IDC_APPSTARTING);
+            RegisterClassW(&wc);
+            classRegistered = true;
+        }
+
+        constexpr int w = 440, h = 240;
+        int sx = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
+        int sy = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
+
+        m_hwnd = CreateWindowExW(
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            L"MakineAISplash", L"",
+            WS_POPUP,
+            sx, sy, w, h,
+            nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+
+        if (m_hwnd) {
+            // Rounded corners (12px radius)
+            HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, 12, 12);
+            SetWindowRgn(m_hwnd, rgn, TRUE);
+
+            SetWindowLongPtrW(m_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            ShowWindow(m_hwnd, SW_SHOWNOACTIVATE);
+            UpdateWindow(m_hwnd);
+
+            // Animate loading dots every 450ms
+            SetTimer(m_hwnd, 1, 450, nullptr);
+        }
+    }
+
+    void close() {
+        if (m_hwnd) {
+            KillTimer(m_hwnd, 1);
+            DestroyWindow(m_hwnd);
+            m_hwnd = nullptr;
+        }
+    }
+
+private:
+    // Brand gradient palette (MakineAI official colors)
+    static constexpr COLORREF kBrandColors[] = {
+        RGB(252, 205, 102), RGB(247, 174, 118), RGB(238, 150, 143),
+        RGB(204, 159, 216), RGB(144, 194, 230), RGB(119, 219, 200),
+        RGB(128, 229, 157), RGB(200, 235, 124), RGB(212, 190, 119)
+    };
+    static constexpr int kBrandColorCount = 9;
+
+    static void drawBrandBar(HDC hdc, int x, int y, int w, int h) {
+        int seg = w / kBrandColorCount;
+        for (int i = 0; i < kBrandColorCount; ++i) {
+            int x0 = x + i * seg;
+            int x1 = (i == kBrandColorCount - 1) ? x + w : x0 + seg;
+            RECT r = {x0, y, x1, y + h};
+            HBRUSH br = CreateSolidBrush(kBrandColors[i]);
+            FillRect(hdc, &r, br);
+            DeleteObject(br);
+        }
+    }
+
+    static void drawLoadingDots(HDC hdc, int cx, int cy, int phase) {
+        HPEN nullPen = CreatePen(PS_NULL, 0, 0);
+        HPEN oldPen = (HPEN)SelectObject(hdc, nullPen);
+        for (int i = 0; i < 3; ++i) {
+            int dx = (i - 1) * 16;
+            bool active = (i == phase);
+            COLORREF c = active ? RGB(180, 180, 200) : RGB(50, 50, 65);
+            int r = active ? 4 : 3;
+            HBRUSH br = CreateSolidBrush(c);
+            HBRUSH oldBr = (HBRUSH)SelectObject(hdc, br);
+            Ellipse(hdc, cx + dx - r, cy - r, cx + dx + r, cy + r);
+            SelectObject(hdc, oldBr);
+            DeleteObject(br);
+        }
+        SelectObject(hdc, oldPen);
+        DeleteObject(nullPen);
+    }
+
+    static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+        auto* self = reinterpret_cast<SplashWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+
+        switch (msg) {
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            int w = rc.right, h = rc.bottom;
+
+            // Double-buffer to prevent flicker during timer repaints
+            HDC mem = CreateCompatibleDC(hdc);
+            HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
+            HBITMAP oldBmp = (HBITMAP)SelectObject(mem, bmp);
+
+            // Dark background
+            HBRUSH bg = CreateSolidBrush(RGB(10, 10, 15));
+            FillRect(mem, &rc, bg);
+            DeleteObject(bg);
+
+            // Subtle center glow (concentric ellipses)
+            struct { int rx, ry; COLORREF c; } glows[] = {
+                {140, 70, RGB(15, 15, 24)},
+                {100, 50, RGB(18, 18, 28)},
+                {60,  30, RGB(22, 22, 34)},
+            };
+            int cx = w / 2, cy = h / 2 - 16;
+            HPEN nullPen = CreatePen(PS_NULL, 0, 0);
+            HPEN oldPen = (HPEN)SelectObject(mem, nullPen);
+            for (auto& g : glows) {
+                HBRUSH gbr = CreateSolidBrush(g.c);
+                HBRUSH oldBr = (HBRUSH)SelectObject(mem, gbr);
+                Ellipse(mem, cx - g.rx, cy - g.ry, cx + g.rx, cy + g.ry);
+                SelectObject(mem, oldBr);
+                DeleteObject(gbr);
+            }
+            SelectObject(mem, oldPen);
+            DeleteObject(nullPen);
+
+            // Top brand gradient bar (3px)
+            drawBrandBar(mem, 0, 0, w, 3);
+
+            SetBkMode(mem, TRANSPARENT);
+
+            // App name — 30px Bold
+            HFONT titleFont = CreateFontW(-30, 0, 0, 0, FW_BOLD, 0, 0, 0,
+                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+            HFONT oldFont = (HFONT)SelectObject(mem, titleFont);
+            SetTextColor(mem, RGB(245, 245, 250));
+            RECT titleRc = {0, 55, w, 100};
+            DrawTextW(mem, L"MakineAI", -1, &titleRc, DT_CENTER | DT_SINGLELINE);
+            SelectObject(mem, oldFont);
+            DeleteObject(titleFont);
+
+            // Tagline — 12px Regular
+            HFONT tagFont = CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
+                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+            oldFont = (HFONT)SelectObject(mem, tagFont);
+            SetTextColor(mem, RGB(120, 120, 145));
+            RECT tagRc = {0, 105, w, 130};
+            DrawTextW(mem, L"Oyunlar\u0131n\u0131 T\u00FCrk\u00E7e Oynaman\u0131n En Kolay Yolu",
+                      -1, &tagRc, DT_CENTER | DT_SINGLELINE);
+            SelectObject(mem, oldFont);
+            DeleteObject(tagFont);
+
+            // Loading dots (animated)
+            int phase = self ? self->m_dotPhase : 0;
+            drawLoadingDots(mem, w / 2, h - 55, phase);
+
+            // Version — 9px, bottom-right corner
+            HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
+                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+            oldFont = (HFONT)SelectObject(mem, verFont);
+            SetTextColor(mem, RGB(60, 60, 75));
+            RECT verRc = {0, h - 24, w - 14, h - 8};
+            DrawTextW(mem, L"v0.1.0-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
+            SelectObject(mem, oldFont);
+            DeleteObject(verFont);
+
+            // Bottom brand gradient bar (2px)
+            drawBrandBar(mem, 0, h - 2, w, 2);
+
+            // Blit to screen
+            BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
+            SelectObject(mem, oldBmp);
+            DeleteObject(bmp);
+            DeleteDC(mem);
+
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+        case WM_TIMER:
+            if (wp == 1 && self) {
+                self->m_dotPhase = (self->m_dotPhase + 1) % 3;
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            return 0;
+        }
+        return DefWindowProcW(hwnd, msg, wp, lp);
+    }
+
+    HWND m_hwnd{nullptr};
+    int m_dotPhase{0};
+};
 #endif
 
 namespace {
@@ -60,6 +260,8 @@ void logToFile(const QString& msg) {
 #include "services/processscanner.h"
 #include "services/systemtraymanager.h"
 #include "services/integrityservice.h"
+#include "services/updatechecker.h"
+#include "services/notificationservice.h"
 
 int main(int argc, char *argv[])
 {
@@ -74,6 +276,12 @@ int main(int argc, char *argv[])
     if (qEnvironmentVariableIsEmpty("QSG_RHI_BACKEND")) {
         QSettings backendSettings("MakineAI", "MakineAI");
         QString backend = backendSettings.value("performance/graphicsBackend", "vulkan").toString();
+#ifdef QT_STATIC
+        // Static Qt builds: Vulkan RHI backend hangs during QML loading,
+        // force D3D11 regardless of saved setting.
+        if (backend == "vulkan")
+            backend = "d3d11";
+#endif
         // Migrate: "auto" from earlier versions → vulkan
         if (backend == "auto") {
             backend = "vulkan";
@@ -181,6 +389,11 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
+#ifdef Q_OS_WIN
+    SplashWindow splash;
+    splash.show();
+#endif
+
     app.setQuitOnLastWindowClosed(false);
     app.setApplicationName("MakineAI");
     app.setApplicationVersion("0.1.0-alpha");
@@ -189,10 +402,10 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
     QQuickStyle::setStyle("Basic");
 
-    int interRegular = QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Regular.ttf");
-    QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Medium.ttf");
-    QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-SemiBold.ttf");
-    QFontDatabase::addApplicationFont(":/MakineAI/fonts/Inter-Bold.ttf");
+    int interRegular = QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Medium.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-SemiBold.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Bold.ttf");
 
     QString fontFamily = interRegular >= 0 ? "Inter" : "Segoe UI";
     QFont defaultFont(fontFamily, 10);
@@ -251,8 +464,15 @@ int main(int argc, char *argv[])
 
     if (engine.rootObjects().isEmpty()) {
         logToFile("ERROR: No root objects loaded! Application will exit.");
+#ifdef Q_OS_WIN
+        splash.close();
+#endif
         return -1;
     }
+
+#ifdef Q_OS_WIN
+    splash.close();
+#endif
 
     // Release GPU resources when window is hidden/minimized (reclaimed on show)
     auto *window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());

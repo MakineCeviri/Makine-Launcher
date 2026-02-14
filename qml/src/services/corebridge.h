@@ -183,9 +183,10 @@ private:
     QList<DetectedGame> m_detectedGames;
 #ifdef MAKINEAI_UI_ONLY
     // Real scanning helpers for UI_ONLY build (pure Qt, no vcpkg deps)
-    void doScanSteamReal();
-    void doScanEpicReal();
-    void doScanGogReal();
+    // Accept output list to avoid data race on m_detectedGames from worker thread
+    void doScanSteamReal(QList<DetectedGame>& outGames);
+    void doScanEpicReal(QList<DetectedGame>& outGames);
+    void doScanGogReal(QList<DetectedGame>& outGames);
     QString detectEngineReal(const QString& gamePath);
     QString resolveToSteamAppId(const QString& gameId);
     void buildDetectedGameIndex();

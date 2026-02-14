@@ -343,12 +343,25 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         int lastReported = 0;
         QStringList installedFiles;
 
+        const QString canonGamePath = QDir(gamePath).canonicalPath();
+
         for (const auto& [srcPath, relPath] : filesToCopy) {
-            QString destPath = gamePath + "/" + relPath;
+            QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
+
+            // Prevent path traversal: ensure destination stays within game directory
+            if (!destPath.startsWith(canonGamePath)) {
+                qWarning() << "Path traversal blocked during install:" << relPath;
+                errors++;
+                continue;
+            }
 
             // Ensure destination directory exists
             QFileInfo destInfo(destPath);
-            QDir().mkpath(destInfo.absolutePath());
+            if (!QDir().mkpath(destInfo.absolutePath())) {
+                qWarning() << "Failed to create directory:" << destInfo.absolutePath();
+                errors++;
+                continue;
+            }
 
             // Copy file (overwrite if exists)
             if (QFile::exists(destPath)) {
@@ -404,11 +417,17 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     const InstalledPackageInfo& instInfo = instIt.value();
     const QString basePath = instInfo.gamePath.isEmpty() ? gamePath : instInfo.gamePath;
 
-    // Delete installed files
+    // Delete installed files (with path traversal protection)
+    const QString canonBase = QDir(basePath).canonicalPath();
     int deleted = 0;
     int failed = 0;
     for (const QString& relPath : instInfo.installedFiles) {
-        QString fullPath = basePath + "/" + relPath;
+        QString fullPath = QDir::cleanPath(basePath + "/" + relPath);
+        // Prevent path traversal: ensure resolved path stays within game directory
+        if (!fullPath.startsWith(canonBase)) {
+            qWarning() << "Path traversal blocked:" << relPath;
+            continue;
+        }
         if (QFile::exists(fullPath)) {
             if (QFile::remove(fullPath)) {
                 deleted++;

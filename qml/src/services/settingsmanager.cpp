@@ -10,6 +10,7 @@
 #include <QStandardPaths>
 #include <QTranslator>
 #include <QQmlEngine>
+#include <QQuickWindow>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -77,6 +78,16 @@ void SettingsManager::setShowNotifications(bool value)
     }
 }
 
+void SettingsManager::setGameUpdateMonitoring(bool value)
+{
+    if (m_gameUpdateMonitoring != value) {
+        m_gameUpdateMonitoring = value;
+        m_settings.setValue("general/gameUpdateMonitoring", value);
+        emit gameUpdateMonitoringChanged();
+        emit settingsChanged();
+    }
+}
+
 void SettingsManager::setHardwareAcceleration(bool value)
 {
     if (m_hardwareAcceleration != value) {
@@ -115,11 +126,6 @@ void SettingsManager::setGraphicsBackend(const QString& value)
         emit graphicsBackendChanged();
         emit settingsChanged();
     }
-}
-
-QStringList SettingsManager::availableGraphicsBackends() const
-{
-    return {"auto", "vulkan", "d3d11", "opengl"};
 }
 
 void SettingsManager::setTranslationLanguage(const QString& value)
@@ -180,11 +186,6 @@ void SettingsManager::setAppLanguage(const QString& value)
     }
 }
 
-QStringList SettingsManager::availableLanguages() const
-{
-    return {"tr", "en"};
-}
-
 void SettingsManager::setTranslationDataPath(const QString& value)
 {
     if (m_translationDataPath != value) {
@@ -211,12 +212,14 @@ void SettingsManager::resetToDefaults()
     setStartWithWindows(false);
     setMinimizeToTray(true);
     setShowNotifications(true);
+    setGameUpdateMonitoring(true);
     setHardwareAcceleration(true);
     setUseGlobalCache(true);
     setEnableAnimations(true);
     setGraphicsBackend("vulkan");
     setTranslationLanguage("tr");
     setIsDarkMode(true);
+    emit settingsResetCompleted();
 }
 
 void SettingsManager::clearCache()
@@ -225,8 +228,11 @@ void SettingsManager::clearCache()
     QDir cacheDir(cachePath);
 
     if (cacheDir.exists()) {
-        cacheDir.removeRecursively();
+        bool ok = cacheDir.removeRecursively();
         cacheDir.mkpath(".");
+        emit cacheClearCompleted(ok, ok ? tr("Önbellek temizlendi") : tr("Önbellek temizlenemedi"));
+    } else {
+        emit cacheClearCompleted(true, tr("Önbellek zaten boş"));
     }
 }
 
@@ -236,6 +242,7 @@ void SettingsManager::loadSettings()
     m_startWithWindows = m_settings.value("general/startWithWindows", false).toBool();
     m_minimizeToTray = m_settings.value("general/minimizeToTray", true).toBool();
     m_showNotifications = m_settings.value("general/showNotifications", true).toBool();
+    m_gameUpdateMonitoring = m_settings.value("general/gameUpdateMonitoring", true).toBool();
     m_hardwareAcceleration = m_settings.value("performance/hardwareAcceleration", true).toBool();
     m_useGlobalCache = m_settings.value("performance/useGlobalCache", true).toBool();
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
@@ -258,6 +265,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("general/startWithWindows", m_startWithWindows);
     m_settings.setValue("general/minimizeToTray", m_minimizeToTray);
     m_settings.setValue("general/showNotifications", m_showNotifications);
+    m_settings.setValue("general/gameUpdateMonitoring", m_gameUpdateMonitoring);
     m_settings.setValue("performance/hardwareAcceleration", m_hardwareAcceleration);
     m_settings.setValue("performance/useGlobalCache", m_useGlobalCache);
     m_settings.setValue("performance/enableAnimations", m_enableAnimations);
@@ -288,6 +296,22 @@ QVariantMap SettingsManager::windowGeometry() const
     geo["height"] = m_settings.value("window/height", -1).toInt();
     geo["maximized"] = m_settings.value("window/maximized", false).toBool();
     return geo;
+}
+
+QString SettingsManager::qtVersion() const
+{
+    return QString::fromLatin1(qVersion());
+}
+
+QString SettingsManager::activeGraphicsApi() const
+{
+    switch (QQuickWindow::graphicsApi()) {
+    case QSGRendererInterface::VulkanRhi:  return QStringLiteral("Vulkan");
+    case QSGRendererInterface::Direct3D11Rhi: return QStringLiteral("Direct3D 11");
+    case QSGRendererInterface::OpenGLRhi:  return QStringLiteral("OpenGL");
+    case QSGRendererInterface::MetalRhi:   return QStringLiteral("Metal");
+    default: return QStringLiteral("Unknown");
+    }
 }
 
 void SettingsManager::setupAutoStart(bool enable)

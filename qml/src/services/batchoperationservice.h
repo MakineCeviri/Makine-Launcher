@@ -87,24 +87,6 @@ public:
     bool canCancel() const { return m_isRunning.load(); }
 
     /**
-     * @brief Start batch install translations for selected games
-     * @param gameIds List of game IDs to install translations for
-     */
-    Q_INVOKABLE void batchInstall(const QVariantList& gameIds);
-
-    /**
-     * @brief Start batch update translations for selected games
-     * @param gameIds List of game IDs to update
-     */
-    Q_INVOKABLE void batchUpdate(const QVariantList& gameIds);
-
-    /**
-     * @brief Start batch remove translations for selected games
-     * @param gameIds List of game IDs to remove translations from
-     */
-    Q_INVOKABLE void batchRemove(const QVariantList& gameIds);
-
-    /**
      * @brief Cancel the current batch operation
      */
     Q_INVOKABLE void cancel();

@@ -39,8 +39,8 @@ qreal BatchOperationService::overallProgress() const
 
     // Overall = (completed items + current item progress) / total
     qreal completedPortion = static_cast<qreal>(m_completedItems) / m_totalItems;
-    qreal currentPortion = m_currentItemProgress / m_totalItems;
-    return completedPortion + currentPortion;
+    qreal currentPortion = qBound(0.0, m_currentItemProgress, 1.0) / m_totalItems;
+    return qBound(0.0, completedPortion + currentPortion, 1.0);
 }
 
 QVariantList BatchOperationService::queue() const
@@ -73,21 +73,6 @@ QVariantList BatchOperationService::results() const
         });
     }
     return list;
-}
-
-void BatchOperationService::batchInstall(const QVariantList& gameIds)
-{
-    startBatch(BatchOperationType::Install, gameIds);
-}
-
-void BatchOperationService::batchUpdate(const QVariantList& gameIds)
-{
-    startBatch(BatchOperationType::Update, gameIds);
-}
-
-void BatchOperationService::batchRemove(const QVariantList& gameIds)
-{
-    startBatch(BatchOperationType::Remove, gameIds);
 }
 
 void BatchOperationService::startBatch(BatchOperationType type, const QVariantList& gameIds)

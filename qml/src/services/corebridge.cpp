@@ -111,7 +111,7 @@ CoreBridge* CoreBridge::instance()
 
 // ========== Steam Scanner ==========
 
-void CoreBridge::doScanSteamReal()
+void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
 {
     emit scanProgress(0.05, tr("Steam yolu aranıyor..."));
 
@@ -254,23 +254,23 @@ void CoreBridge::doScanSteamReal()
             game.isVerified = false;
             game.hasTranslation = false;
 
-            m_detectedGames.append(game);
+            outGames.append(game);
             emit gameDetected(game.id, game.name);
 
             processed++;
             if (processed % 50 == 0 && totalGames > 0) {
                 emit scanProgress(0.1 + 0.5 * (static_cast<qreal>(processed) / totalGames),
-                    tr("Steam: %1 oyun bulundu...").arg(m_detectedGames.count()));
+                    tr("Steam: %1 oyun bulundu...").arg(outGames.count()));
             }
         }
     }
 
-    qDebug() << "Steam scan complete:" << m_detectedGames.count() << "games found";
+    qDebug() << "Steam scan complete:" << outGames.count() << "games found";
 }
 
 // ========== Epic Games Scanner ==========
 
-void CoreBridge::doScanEpicReal()
+void CoreBridge::doScanEpicReal(QList<DetectedGame>& outGames)
 {
     emit scanProgress(0.65, tr("Epic Games taranıyor..."));
 
@@ -312,7 +312,7 @@ void CoreBridge::doScanEpicReal()
         game.isVerified = false;
         game.hasTranslation = false;
 
-        m_detectedGames.append(game);
+        outGames.append(game);
         emit gameDetected(game.id, game.name);
     }
 
@@ -321,7 +321,7 @@ void CoreBridge::doScanEpicReal()
 
 // ========== GOG Scanner ==========
 
-void CoreBridge::doScanGogReal()
+void CoreBridge::doScanGogReal(QList<DetectedGame>& outGames)
 {
     emit scanProgress(0.75, tr("GOG Galaxy taranıyor..."));
 
@@ -347,7 +347,7 @@ void CoreBridge::doScanGogReal()
         game.isVerified = false;
         game.hasTranslation = false;
 
-        m_detectedGames.append(game);
+        outGames.append(game);
         emit gameDetected(game.id, game.name);
     }
 
@@ -486,39 +486,47 @@ void CoreBridge::scanAllLibraries()
         "C:/cedra/translation_data/mc-main").toString();
     m_localPkgManager->loadFromPath(translationPath);
 
-    (void)QtConcurrent::run([this]() {
+    // Capture raw pointer for thread-safe package lookups (manager lives on main thread)
+    LocalPackageManager* pkgMgr = m_localPkgManager;
+
+    (void)QtConcurrent::run([this, pkgMgr]() {
+        // Collect games in a thread-local list to avoid data race on m_detectedGames
+        QList<DetectedGame> games;
+
         emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
-        doScanSteamReal();
+        doScanSteamReal(games);
 
         emit scanProgress(0.6, tr("Epic Games taranıyor..."));
-        doScanEpicReal();
+        doScanEpicReal(games);
 
         emit scanProgress(0.75, tr("GOG Galaxy taranıyor..."));
-        doScanGogReal();
+        doScanGogReal(games);
 
         // Detect engines for all found games
         emit scanProgress(0.85, tr("Oyun motorları tespit ediliyor..."));
-        for (int i = 0; i < m_detectedGames.size(); ++i) {
-            auto& game = m_detectedGames[i];
+        for (auto& game : games) {
             if (game.engine.isEmpty() || game.engine == "Unknown") {
                 game.engine = detectEngineReal(game.installPath);
             }
             // Check translation availability via ID resolution
-            if (m_localPkgManager) {
+            if (pkgMgr) {
                 QString resolved = resolveToSteamAppId(game.id);
-                if (!resolved.isEmpty() && m_localPkgManager->hasPackage(resolved)) {
+                if (!resolved.isEmpty() && pkgMgr->hasPackage(resolved)) {
                     game.hasTranslation = true;
                 }
             }
         }
 
-        // Build lookup index after scan
-        QMetaObject::invokeMethod(this, [this]() {
+        const int count = games.count();
+
+        // Move results to main thread
+        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
+            m_detectedGames = std::move(games);
             buildDetectedGameIndex();
         }, Qt::QueuedConnection);
 
-        emit scanProgress(1.0, tr("%1 oyun bulundu").arg(m_detectedGames.count()));
-        emit scanCompleted(m_detectedGames.count());
+        emit scanProgress(1.0, tr("%1 oyun bulundu").arg(count));
+        emit scanCompleted(count);
     });
 }
 
@@ -527,14 +535,19 @@ void CoreBridge::scanSteamLibrary()
     emit scanStarted();
     m_detectedGames.clear();
     (void)QtConcurrent::run([this]() {
+        QList<DetectedGame> games;
         emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
-        doScanSteamReal();
-        // Detect engines
-        for (auto& game : m_detectedGames) {
+        doScanSteamReal(games);
+        for (auto& game : games) {
             game.engine = detectEngineReal(game.installPath);
         }
-        emit scanProgress(1.0, tr("%1 Steam oyunu bulundu").arg(m_detectedGames.count()));
-        emit scanCompleted(m_detectedGames.count());
+        const int count = games.count();
+        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
+            m_detectedGames = std::move(games);
+            buildDetectedGameIndex();
+        }, Qt::QueuedConnection);
+        emit scanProgress(1.0, tr("%1 Steam oyunu bulundu").arg(count));
+        emit scanCompleted(count);
     });
 }
 
@@ -543,12 +556,18 @@ void CoreBridge::scanEpicLibrary()
     emit scanStarted();
     m_detectedGames.clear();
     (void)QtConcurrent::run([this]() {
-        doScanEpicReal();
-        for (auto& game : m_detectedGames) {
+        QList<DetectedGame> games;
+        doScanEpicReal(games);
+        for (auto& game : games) {
             game.engine = detectEngineReal(game.installPath);
         }
-        emit scanProgress(1.0, tr("%1 Epic oyunu bulundu").arg(m_detectedGames.count()));
-        emit scanCompleted(m_detectedGames.count());
+        const int count = games.count();
+        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
+            m_detectedGames = std::move(games);
+            buildDetectedGameIndex();
+        }, Qt::QueuedConnection);
+        emit scanProgress(1.0, tr("%1 Epic oyunu bulundu").arg(count));
+        emit scanCompleted(count);
     });
 }
 
@@ -557,12 +576,18 @@ void CoreBridge::scanGogLibrary()
     emit scanStarted();
     m_detectedGames.clear();
     (void)QtConcurrent::run([this]() {
-        doScanGogReal();
-        for (auto& game : m_detectedGames) {
+        QList<DetectedGame> games;
+        doScanGogReal(games);
+        for (auto& game : games) {
             game.engine = detectEngineReal(game.installPath);
         }
-        emit scanProgress(1.0, tr("%1 GOG oyunu bulundu").arg(m_detectedGames.count()));
-        emit scanCompleted(m_detectedGames.count());
+        const int count = games.count();
+        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
+            m_detectedGames = std::move(games);
+            buildDetectedGameIndex();
+        }, Qt::QueuedConnection);
+        emit scanProgress(1.0, tr("%1 GOG oyunu bulundu").arg(count));
+        emit scanCompleted(count);
     });
 }
 

@@ -34,6 +34,7 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool startWithWindows READ startWithWindows WRITE setStartWithWindows NOTIFY startWithWindowsChanged)
     Q_PROPERTY(bool minimizeToTray READ minimizeToTray WRITE setMinimizeToTray NOTIFY minimizeToTrayChanged)
     Q_PROPERTY(bool showNotifications READ showNotifications WRITE setShowNotifications NOTIFY showNotificationsChanged)
+    Q_PROPERTY(bool gameUpdateMonitoring READ gameUpdateMonitoring WRITE setGameUpdateMonitoring NOTIFY gameUpdateMonitoringChanged)
 
     // Performance settings
     Q_PROPERTY(bool hardwareAcceleration READ hardwareAcceleration WRITE setHardwareAcceleration NOTIFY hardwareAccelerationChanged)
@@ -75,6 +76,9 @@ public:
     bool showNotifications() const { return m_showNotifications; }
     void setShowNotifications(bool value);
 
+    bool gameUpdateMonitoring() const { return m_gameUpdateMonitoring; }
+    void setGameUpdateMonitoring(bool value);
+
     // Performance settings
     bool hardwareAcceleration() const { return m_hardwareAcceleration; }
     void setHardwareAcceleration(bool value);
@@ -87,8 +91,6 @@ public:
 
     QString graphicsBackend() const { return m_graphicsBackend; }
     void setGraphicsBackend(const QString& value);
-    Q_INVOKABLE QStringList availableGraphicsBackends() const;
-
     // Translation settings
     QString translationLanguage() const { return m_translationLanguage; }
     void setTranslationLanguage(const QString& value);
@@ -104,8 +106,6 @@ public:
     // Language
     QString appLanguage() const { return m_appLanguage; }
     void setAppLanguage(const QString& value);
-    Q_INVOKABLE QStringList availableLanguages() const;
-
     // Paths
     QString translationDataPath() const { return m_translationDataPath; }
     void setTranslationDataPath(const QString& value);
@@ -115,12 +115,15 @@ public:
     Q_INVOKABLE void clearCache();
     Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
     Q_INVOKABLE QVariantMap windowGeometry() const;
+    Q_INVOKABLE QString qtVersion() const;
+    Q_INVOKABLE QString activeGraphicsApi() const;
 
 signals:
     void autoDetectGamesChanged();
     void startWithWindowsChanged();
     void minimizeToTrayChanged();
     void showNotificationsChanged();
+    void gameUpdateMonitoringChanged();
     void hardwareAccelerationChanged();
     void useGlobalCacheChanged();
     void enableAnimationsChanged();
@@ -131,6 +134,8 @@ signals:
     void appLanguageChanged();
     void translationDataPathChanged();
     void settingsChanged();
+    void cacheClearCompleted(bool success, const QString& message);
+    void settingsResetCompleted();
 
 private:
     void loadSettings();
@@ -144,6 +149,7 @@ private:
     bool m_startWithWindows{false};
     bool m_minimizeToTray{true};
     bool m_showNotifications{true};
+    bool m_gameUpdateMonitoring{true};
 
     // Performance
     bool m_hardwareAcceleration{true};

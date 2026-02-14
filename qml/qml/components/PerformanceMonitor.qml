@@ -199,28 +199,28 @@ Rectangle {
 
             // Frame time
             MetricRow {
-                label: "Frame"
+                label: qsTr("Frame")
                 value: root.avgFrameTime.toFixed(2) + " ms"
                 valueColor: root.avgFrameTime <= root.targetFrameTime ? Theme.statusOnline : Theme.warning
             }
 
             // Min/Max frame time
             MetricRow {
-                label: "Min/Max"
+                label: qsTr("Min/Max")
                 value: root.minFrameTime.toFixed(1) + "/" + root.maxFrameTime.toFixed(1) + " ms"
                 valueColor: Theme.textMuted
             }
 
             // Dropped frames
             MetricRow {
-                label: "Dropped"
+                label: qsTr("Dropped")
                 value: root.droppedFrames.toString()
                 valueColor: root.droppedFrames > 0 ? Theme.error : Theme.statusOnline
             }
 
             // Frame count
             MetricRow {
-                label: "Frames"
+                label: qsTr("Frames")
                 value: root.frameCount.toString()
                 valueColor: Theme.textMuted
             }

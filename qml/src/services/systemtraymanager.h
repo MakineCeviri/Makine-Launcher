@@ -69,7 +69,7 @@ private:
     HICON m_hIcon{nullptr};
     bool m_visible{false};
 
-    enum MenuId { IdShow = 1, IdSettings, IdQuit };
+    enum MenuId { IdShow = 1, IdCheckUpdates, IdSettings, IdQuit };
 #endif
 
     int m_pendingUpdates{0};

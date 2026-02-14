@@ -60,21 +60,22 @@ ProcessScanner* ProcessScanner::create(QQmlEngine *qmlEngine, QJSEngine *jsEngin
 
 void ProcessScanner::startWatching(int intervalMs)
 {
-    if (m_isWatching) return;
-
     if (!m_scanTimer) {
         m_scanTimer = new QTimer(this);
         connect(m_scanTimer, &QTimer::timeout, this, &ProcessScanner::performScan);
     }
 
+    // Update interval even if already watching (e.g. 3000ms → 30000ms on minimize)
+    if (m_isWatching && m_scanTimer->interval() == intervalMs)
+        return;
+
     m_scanTimer->start(intervalMs);
-    m_isWatching = true;
-    emit isWatchingChanged();
 
-    // Perform initial scan
-    performScan();
-
-    qDebug() << "Process scanner started with interval:" << intervalMs << "ms";
+    if (!m_isWatching) {
+        m_isWatching = true;
+        emit isWatchingChanged();
+        performScan();
+    }
 }
 
 void ProcessScanner::stopWatching()
@@ -89,11 +90,6 @@ void ProcessScanner::stopWatching()
     emit isWatchingChanged();
 
     qDebug() << "Process scanner stopped";
-}
-
-bool ProcessScanner::checkGameRunning(const QString& gameId)
-{
-    return m_gameRunning && m_runningGameId == gameId;
 }
 
 void ProcessScanner::performScan()

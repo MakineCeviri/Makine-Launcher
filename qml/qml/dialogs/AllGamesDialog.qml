@@ -52,6 +52,9 @@ Dialog {
         border.width: 1
     }
 
+    onOpened: searchField.forceActiveFocus()
+    onClosed: { searchField.text = ""; searchText = ""; activeSearchText = "" }
+
     header: null
     footer: null
 
@@ -119,7 +122,7 @@ Dialog {
 
                         Text {
                             anchors.fill: parent
-                            text: qsTr("Ara...")
+                            text: qsTr("Ara...  (Ctrl+K)")
                             font.pixelSize: Dimensions.fontSM
                             color: Theme.textMuted
                             visible: !searchField.text && !searchField.activeFocus
@@ -507,7 +510,64 @@ Dialog {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: card.cardAction()
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: function(mouse) {
+                                if (mouse.button === Qt.RightButton)
+                                    cardCtxMenu.popup()
+                                else
+                                    card.cardAction()
+                            }
+                        }
+
+                        Menu {
+                            id: cardCtxMenu
+
+                            Overlay.modal: Rectangle { color: "transparent" }
+
+                            background: Rectangle {
+                                implicitWidth: 200
+                                radius: Dimensions.radiusMD
+                                color: Theme.glassBackground
+                                border.color: Theme.glassBorder
+                                border.width: 1
+                            }
+
+                            MenuItem {
+                                text: qsTr("Detaylar")
+                                onTriggered: card.cardAction()
+                                contentItem: Label {
+                                    text: parent.text
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.textPrimary
+                                    leftPadding: Dimensions.paddingSM
+                                }
+                                background: Rectangle {
+                                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+                                }
+                            }
+
+                            MenuSeparator {
+                                contentItem: Rectangle {
+                                    implicitHeight: 1
+                                    color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                                }
+                            }
+
+                            MenuItem {
+                                text: qsTr("Steam'de Aç")
+                                visible: (modelData.steamAppId || "") !== ""
+                                height: visible ? implicitHeight : 0
+                                onTriggered: Qt.openUrlExternally("https://store.steampowered.com/app/" + modelData.steamAppId)
+                                contentItem: Label {
+                                    text: parent.text
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.textPrimary
+                                    leftPadding: Dimensions.paddingSM
+                                }
+                                background: Rectangle {
+                                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+                                }
+                            }
                         }
                     }
                 }

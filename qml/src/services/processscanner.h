@@ -51,8 +51,7 @@ public:
     // Q_INVOKABLE methods
     static constexpr int kDefaultScanIntervalMs = 3000;
     Q_INVOKABLE void startWatching(int intervalMs = kDefaultScanIntervalMs);
-    Q_INVOKABLE void stopWatching();
-    Q_INVOKABLE bool checkGameRunning(const QString& gameId);
+    void stopWatching();
 signals:
     void isWatchingChanged();
     void gameRunningChanged();

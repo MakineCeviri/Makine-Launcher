@@ -45,6 +45,18 @@ if (-not (Test-Path "$MinGW\bin\g++.exe")) {
     exit 1
 }
 
+if (-not $env:VULKAN_SDK -or -not (Test-Path "$env:VULKAN_SDK\Include\vulkan\vulkan.h")) {
+    Write-Host ""
+    Write-Host "ERROR: Vulkan SDK not found!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Vulkan SDK is required for the Vulkan rendering backend." -ForegroundColor Yellow
+    Write-Host "  1. Download from: https://vulkan.lunarg.com/sdk/home" -ForegroundColor Yellow
+    Write-Host "  2. Run the installer (sets VULKAN_SDK automatically)" -ForegroundColor Yellow
+    Write-Host "  3. Re-open PowerShell and run this script again" -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
 if (Test-Path $Prefix) {
     Write-Host "WARNING: $Prefix already exists." -ForegroundColor Yellow
     $reply = Read-Host "Delete and rebuild? (y/N)"
@@ -115,6 +127,7 @@ $configArgs = @(
     "-skip", "qtcoap"
     "-skip", "qtconnectivity"
     "-skip", "qtdatavis3d"
+    "-skip", "qtgraphs"
     "-skip", "qtgrpc"
     "-skip", "qthttpserver"
     "-skip", "qtlocation"
@@ -125,7 +138,6 @@ $configArgs = @(
     "-skip", "qtpositioning"
     "-skip", "qtquick3d"
     "-skip", "qtquick3dphysics"
-    "-skip", "qtquickeffects"
     "-skip", "qtquicktimeline"
     "-skip", "qtremoteobjects"
     "-skip", "qtscxml"
@@ -157,6 +169,9 @@ $configArgs = @(
     "--", "-G", "Ninja"
     "-DCMAKE_C_COMPILER=$MinGW/bin/gcc.exe"
     "-DCMAKE_CXX_COMPILER=$MinGW/bin/g++.exe"
+    # Vulkan SDK (required for Vulkan RHI backend in static builds)
+    "-DVulkan_INCLUDE_DIR=$env:VULKAN_SDK/Include"
+    "-DVulkan_LIBRARY=$env:VULKAN_SDK/Lib/vulkan-1.lib"
 )
 
 Push-Location $BuildDir

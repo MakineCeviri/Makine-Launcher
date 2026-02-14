@@ -38,6 +38,8 @@ GameService::GameService(QObject *parent)
     // Forward update detection signals
     connect(m_updateService, &UpdateDetectionService::gameUpdateDetected,
             this, &GameService::gameUpdateDetected);
+    connect(m_updateService, &UpdateDetectionService::gamesWithUpdatesChanged,
+            this, &GameService::gameUpdateCountChanged);
 
     // Start monitoring after first scan completes
     connect(this, &GameService::scanCompleted, this, [this](int) {
@@ -105,10 +107,7 @@ void GameService::setupCoreBridge()
     connect(m_coreBridge, &CoreBridge::gameDetected,
             this, &GameService::onGameDetected);
     connect(m_coreBridge, &CoreBridge::scanError,
-            this, [this](const QString& error) {
-                m_lastError = error;
-                emit scanError(error);
-            });
+            this, &GameService::scanError);
 
     // Forward package install signals with gameId context
     connect(m_coreBridge, &CoreBridge::packageInstallProgress,
@@ -138,6 +137,7 @@ void GameService::setupCoreBridge()
                             QString patchVer = pkg.has_value() ? pkg->version : "unknown";
                             m_updateService->recordStoreVersion(gameId, game.installPath, game.source);
                             m_updateService->takeSnapshot(gameId, patchVer, game.installPath, game.engine);
+                            m_updateService->clearUpdate(gameId);
                         }
                     }
                 }
@@ -869,8 +869,12 @@ void GameService::uninstallTranslation(const QString& gameId)
     BackupManager* bm = BackupManager::instance();
     if (bm && bm->hasBackup(gameId)) {
         auto latest = bm->getLatestBackup(gameId);
-        if (!latest.isEmpty()) {
-            bm->restoreBackup(latest["id"].toString(), game.installPath);
+        if (!latest.isEmpty() && latest.contains("id")) {
+            bool restored = bm->restoreBackup(latest["id"].toString(), game.installPath);
+            if (!restored) {
+                qWarning() << "Backup restoration failed for" << gameId
+                           << "- proceeding with uninstall anyway";
+            }
         }
     }
 
@@ -890,6 +894,24 @@ void GameService::uninstallTranslation(const QString& gameId)
     emit translationUninstalled(gameId, success,
         success ? tr("Translation removed successfully")
                 : tr("Failed to remove translation"));
+}
+
+void GameService::setUpdateMonitoringEnabled(bool enabled)
+{
+    if (enabled)
+        m_updateService->startMonitoring();
+    else
+        m_updateService->stopMonitoring();
+}
+
+int GameService::gameUpdateCount() const
+{
+    return m_updateService->gamesWithUpdates();
+}
+
+bool GameService::hasGameUpdate(const QString& gameId) const
+{
+    return m_updateService->hasUpdate(gameId);
 }
 
 QVariantMap GameService::checkCompatibility(const QString& gameId)

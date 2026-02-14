@@ -505,22 +505,26 @@ void UpdateDetectionService::checkAllGamesQuick()
         StoreVersionRecord saved;
     };
 
-    QList<GameCheckInfo> checkList;
+    // Copy store versions under lock, then release lock before calling external code
+    QHash<QString, StoreVersionRecord> storeVersionsCopy;
     {
         QMutexLocker lock(&m_storeVersionsMutex);
-        for (auto it = m_storeVersions.constBegin(); it != m_storeVersions.constEnd(); ++it) {
-            QVariantMap data = m_gameService->getGameById(it.key());
-            if (data.isEmpty()) continue;
+        storeVersionsCopy = m_storeVersions;
+    }
 
-            GameCheckInfo info;
-            info.gameId = it.key();
-            info.installPath = data["installPath"].toString();
-            info.source = data["source"].toString();
-            info.gameName = data["name"].toString();
-            info.steamAppId = data["steamAppId"].toString();
-            info.saved = it.value();
-            checkList.append(info);
-        }
+    QList<GameCheckInfo> checkList;
+    for (auto it = storeVersionsCopy.constBegin(); it != storeVersionsCopy.constEnd(); ++it) {
+        QVariantMap data = m_gameService->getGameById(it.key());
+        if (data.isEmpty()) continue;
+
+        GameCheckInfo info;
+        info.gameId = it.key();
+        info.installPath = data["installPath"].toString();
+        info.source = data["source"].toString();
+        info.gameName = data["name"].toString();
+        info.steamAppId = data["steamAppId"].toString();
+        info.saved = it.value();
+        checkList.append(info);
     }
 
     // Do all file I/O in background thread
@@ -577,7 +581,10 @@ void UpdateDetectionService::checkAllGamesQuick()
 
         // Emit results on main thread
         QMetaObject::invokeMethod(this, [this, updates]() {
-            m_gamesWithUpdates = updates.size();
+            for (const auto& u : updates) {
+                m_updatedGameIds.insert(u.gameId);
+            }
+            m_gamesWithUpdates = m_updatedGameIds.size();
             emit gamesWithUpdatesChanged();
 
             for (const auto& u : updates) {
@@ -661,6 +668,19 @@ void UpdateDetectionService::takeSnapshot(const QString& gameId, const QString& 
 bool UpdateDetectionService::hasSnapshot(const QString& gameId)
 {
     return QFile::exists(dataDir() + "/snapshots/" + gameId + ".json");
+}
+
+bool UpdateDetectionService::hasUpdate(const QString& gameId) const
+{
+    return m_updatedGameIds.contains(gameId);
+}
+
+void UpdateDetectionService::clearUpdate(const QString& gameId)
+{
+    if (m_updatedGameIds.remove(gameId)) {
+        m_gamesWithUpdates = m_updatedGameIds.size();
+        emit gamesWithUpdatesChanged();
+    }
 }
 
 void UpdateDetectionService::removeSnapshot(const QString& gameId)

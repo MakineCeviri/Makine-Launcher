@@ -1,23 +1,20 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * GameDetailScreen.qml
+ * GameDetailScreen.qml — Modern cinematic game detail page
  *
- * Features:
- * - Blurred background hero image
- * - Cover image 280x130, borderRadius 16
- * - Steam details (description, metacritic, platforms)
- * - Recipe info with quality badges
- * - Backup management section
- * - Screenshots horizontal scroll (180px height)
+ * Layout: Full-width hero with parallax → glass cards below
+ * Sections: Hero, Quick Stats, About, Screenshots, Translation Status,
+ *           Runtime (Unity), Backup Management
  */
 Item {
     id: root
 
-    // Game data properties
+    // ===== INPUT PROPERTIES (set by Main.qml) =====
     property string gameId: ""
     property string gameName: "Game Name"
     property string steamAppId: ""
@@ -26,7 +23,7 @@ Item {
     property bool verified: false
     property string engine: ""
 
-    // Steam details
+    // ===== STEAM DATA =====
     property string description: ""
     property var developers: []
     property var publishers: []
@@ -39,8 +36,12 @@ Item {
     property string price: ""
     property int discountPercent: 0
     property bool hasSteamDetails: false
+    property var screenshots: []
+    property bool isLoadingSteamDetails: false
+    property bool steamFetchFailed: false
 
-    // Recipe info
+    // ===== RECIPE DATA =====
+    property bool hasRecipe: false
     property string recipeEngine: ""
     property string recipeQuality: ""
     property int qualityScore: 0
@@ -49,16 +50,8 @@ Item {
     property string coverage: ""
     property int fileCount: 0
     property string author: ""
-    property bool hasRecipe: false
 
-    // Screenshots
-    property var screenshots: []
-
-    // Loading state
-    property bool isLoadingSteamDetails: false
-    property bool steamFetchFailed: false
-
-    // Font analysis
+    // ===== FONT ANALYSIS =====
     property bool hasFontAnalysis: false
     property int totalFonts: 0
     property int turkishSupportCount: 0
@@ -66,78 +59,65 @@ Item {
     property string fontSummary: ""
     property var fontsList: []
 
-    // Compatibility tracking
-    property string compatibilityLevel: "unknown"  // compatible, partial, incompatible, unknown
+    // ===== COMPATIBILITY =====
+    property string compatibilityLevel: "unknown"
     property int integrityPercent: 100
     property int modifiedCount: 0
     property int addedCount: 0
     property int removedCount: 0
     property string compatibilitySummary: ""
 
-    // Runtime (BepInEx/XUnity) status - Unity games only
+    // ===== RUNTIME (BepInEx) =====
     property bool isUnityGame: false
     property bool runtimeNeeded: false
     property bool runtimeInstalled: false
     property bool runtimeUpToDate: false
     property string bepinexVersion: ""
     property string xunityVersion: ""
-    property string unityBackend: ""  // mono, il2cpp, unknown
+    property string unityBackend: ""
     property string unityVersion: ""
     property bool hasAntiCheat: false
     property string antiCheatName: ""
     property bool isInstallingRuntime: false
 
+    // ===== MANUAL GAME FLAG =====
+    property bool isManualGame: false
+
+    // ===== INSTALL STATE =====
+    property bool isInstallingTranslation: false
+    property real installProgress: 0
+    property string installStatus: ""
+
+    // ===== UI STATE =====
+    property bool descriptionExpanded: false
+    property real scrollY: 0
+    property int _reveal: -1
+
     signal backClicked()
     signal translateClicked()
 
+    // ===== DATA LOGIC =====
+
     function resetDetails() {
-        description = ""
-        developers = []
-        publishers = []
-        releaseDate = ""
-        genres = []
-        metacriticScore = 0
-        hasWindows = true
-        hasMac = false
-        hasLinux = false
-        price = ""
-        discountPercent = 0
-        hasSteamDetails = false
-        screenshots = []
-        isLoadingSteamDetails = false
-        steamFetchFailed = false
-        hasRecipe = false
-        recipeEngine = ""
-        recipeQuality = ""
-        qualityScore = 0
-        recipeVersion = ""
-        stringCount = 0
-        coverage = ""
-        fileCount = 0
-        author = ""
-        hasFontAnalysis = false
-        totalFonts = 0
-        turkishSupportCount = 0
-        missingChars = []
-        fontSummary = ""
-        fontsList = []
-        compatibilityLevel = "unknown"
-        integrityPercent = 100
-        modifiedCount = 0
-        addedCount = 0
-        removedCount = 0
-        compatibilitySummary = ""
-        isUnityGame = false
-        runtimeNeeded = false
-        runtimeInstalled = false
-        runtimeUpToDate = false
-        bepinexVersion = ""
-        xunityVersion = ""
-        unityBackend = ""
-        unityVersion = ""
-        hasAntiCheat = false
-        antiCheatName = ""
-        isInstallingRuntime = false
+        description = ""; developers = []; publishers = []
+        releaseDate = ""; genres = []; metacriticScore = 0
+        hasWindows = true; hasMac = false; hasLinux = false
+        price = ""; discountPercent = 0; hasSteamDetails = false
+        screenshots = []; isLoadingSteamDetails = false; steamFetchFailed = false
+        hasRecipe = false; recipeEngine = ""; recipeQuality = ""
+        qualityScore = 0; recipeVersion = ""; stringCount = 0
+        coverage = ""; fileCount = 0; author = ""
+        hasFontAnalysis = false; totalFonts = 0; turkishSupportCount = 0
+        missingChars = []; fontSummary = ""; fontsList = []
+        compatibilityLevel = "unknown"; integrityPercent = 100
+        modifiedCount = 0; addedCount = 0; removedCount = 0; compatibilitySummary = ""
+        isUnityGame = false; runtimeNeeded = false; runtimeInstalled = false
+        runtimeUpToDate = false; bepinexVersion = ""; xunityVersion = ""
+        unityBackend = ""; unityVersion = ""; hasAntiCheat = false
+        antiCheatName = ""; isInstallingRuntime = false
+        isInstallingTranslation = false; installProgress = 0; installStatus = ""
+        isManualGame = false
+        descriptionExpanded = false
     }
 
     function populateSteamDetails(details) {
@@ -161,29 +141,28 @@ Item {
 
     onSteamAppIdChanged: {
         if (steamAppId === "") return
-
-        // Try sync cache first
         var cached = GameService.getSteamDetails(steamAppId)
-        if (cached && cached.description !== undefined) {
+        if (cached && cached.description !== undefined)
             populateSteamDetails(cached)
-        } else {
+        else
             isLoadingSteamDetails = true
-        }
-
-        // Always fetch async (will no-op if cache is fresh)
         GameService.fetchSteamDetails(steamAppId)
     }
 
     onGameIdChanged: {
         if (gameId === "") return
-
         var recipe = GameService.getRecipeInfo(gameId)
         if (recipe && recipe.hasRecipe) {
             hasRecipe = true
             recipeVersion = recipe.version || ""
+            recipeEngine = recipe.engine || ""
+            recipeQuality = recipe.quality || ""
+            qualityScore = recipe.qualityScore || 0
+            stringCount = recipe.stringCount || 0
+            coverage = recipe.coverage || ""
+            fileCount = recipe.fileCount || 0
+            author = recipe.author || ""
         }
-
-        // Analyze fonts for Turkish character support
         var fontResult = GameService.analyzeFonts(gameId)
         if (fontResult && fontResult.hasFontAnalysis) {
             hasFontAnalysis = true
@@ -193,8 +172,6 @@ Item {
             fontSummary = fontResult.summary || ""
             fontsList = fontResult.fonts || []
         }
-
-        // Check translation compatibility
         var compat = GameService.checkCompatibility(gameId)
         if (compat) {
             compatibilityLevel = compat.level || "unknown"
@@ -204,8 +181,6 @@ Item {
             removedCount = compat.removedCount || 0
             compatibilitySummary = compat.summary || ""
         }
-
-        // Check BepInEx/XUnity runtime status for Unity games
         var runtime = GameService.getRuntimeStatus(gameId)
         if (runtime && runtime.isUnity) {
             isUnityGame = true
@@ -219,14 +194,19 @@ Item {
             hasAntiCheat = runtime.hasAntiCheat || false
             antiCheatName = runtime.antiCheatName || ""
         }
+
+        // Reset scroll and start staggered entrance
+        mainFlick.contentY = 0
+        root._reveal = -1
+        _contentSlide.y = 20
+        _slideAnim.restart()
+        _stagger.restart()
     }
 
     Connections {
         target: GameService
         function onSteamDetailsFetched(appId, details) {
-            if (appId === root.steamAppId) {
-                root.populateSteamDetails(details)
-            }
+            if (appId === root.steamAppId) root.populateSteamDetails(details)
         }
         function onSteamDetailsFetchError(appId, error) {
             if (appId === root.steamAppId) {
@@ -238,20 +218,59 @@ Item {
             if (gId === root.gameId) {
                 root.isInstallingRuntime = false
                 if (success) {
-                    // Refresh runtime status
-                    var runtime = GameService.getRuntimeStatus(root.gameId)
-                    if (runtime) {
-                        root.runtimeInstalled = runtime.installed || false
-                        root.runtimeUpToDate = runtime.upToDate || false
-                        root.bepinexVersion = runtime.bepinexVersion || ""
-                        root.xunityVersion = runtime.xunityVersion || ""
+                    var rt = GameService.getRuntimeStatus(root.gameId)
+                    if (rt) {
+                        root.runtimeInstalled = rt.installed || false
+                        root.runtimeUpToDate = rt.upToDate || false
+                        root.bepinexVersion = rt.bepinexVersion || ""
+                        root.xunityVersion = rt.xunityVersion || ""
                     }
                 }
             }
         }
+        function onTranslationInstallStarted(gId) {
+            if (gId === root.gameId) {
+                root.isInstallingTranslation = true
+                root.installProgress = 0
+                root.installStatus = qsTr("Kuruluyor...")
+            }
+        }
+        function onTranslationInstallProgress(gId, progress, status) {
+            if (gId === root.gameId) {
+                root.installProgress = progress
+                root.installStatus = status || qsTr("Kuruluyor...")
+            }
+        }
+        function onTranslationInstallCompleted(gId, success, message) {
+            if (gId === root.gameId) {
+                root.isInstallingTranslation = false
+                root.installProgress = 0
+                root.installStatus = ""
+                if (success) {
+                    var compat = GameService.checkCompatibility(root.gameId)
+                    if (compat) {
+                        root.compatibilityLevel = compat.level || "unknown"
+                        root.integrityPercent = compat.integrityPercent !== undefined ? compat.integrityPercent : 100
+                        root.modifiedCount = compat.modifiedCount || 0
+                        root.addedCount = compat.addedCount || 0
+                        root.removedCount = compat.removedCount || 0
+                        root.compatibilitySummary = compat.summary || ""
+                    }
+                }
+            }
+        }
+        function onTranslationUninstalled(gId, success, message) {
+            if (gId === root.gameId && success) {
+                root.compatibilityLevel = "unknown"
+                root.integrityPercent = 100
+                root.modifiedCount = 0
+                root.addedCount = 0
+                root.removedCount = 0
+                root.compatibilitySummary = ""
+            }
+        }
     }
 
-    // Quality color helper
     function getQualityColor(score) {
         if (score >= 90) return Theme.scoreExcellent
         if (score >= 75) return Theme.scoreGood
@@ -259,7 +278,6 @@ Item {
         return Theme.scorePoor
     }
 
-    // Quality label helper
     function getQualityLabel(quality) {
         var lower = quality.toLowerCase()
         if (lower === "professional") return qsTr("Profesyonel")
@@ -269,1411 +287,995 @@ Item {
         return quality
     }
 
-    // ===== BACKGROUND WITH BLUR =====
+    function getCompatColor() {
+        if (compatibilityLevel === "compatible") return Theme.success
+        if (compatibilityLevel === "partial") return Theme.warning
+        if (compatibilityLevel === "incompatible") return Theme.destructive
+        return Theme.textMuted
+    }
+
+    // =========================================================================
+    // BACKGROUND — Hero image with parallax + gradient overlay
+    // =========================================================================
+
     Rectangle {
         anchors.fill: parent
         color: Theme.bgPrimary
 
-        // Hero background image (blurred)
         Image {
             id: heroBackground
             anchors.fill: parent
-            source: root.heroImageUrl
+            source: root.heroImageUrl !== "" ? root.heroImageUrl : root.imageUrl
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
-            opacity: 0.3
-            visible: root.heroImageUrl !== ""
+            opacity: 0.30
+            visible: source !== ""
+            transform: Translate { y: -root.scrollY * 0.15 }
         }
 
-        // Gradient overlay
+        // 3-stop gradient: hero visible at top, fades to solid
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.bgPrimary, 0.3) }
-                GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.85) }
-                GradientStop { position: 1.0; color: Theme.bgPrimary }
+                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.bgPrimary, 0.15) }
+                GradientStop { position: 0.35; color: Theme.withAlpha(Theme.bgPrimary, 0.75) }
+                GradientStop { position: 0.65; color: Theme.bgPrimary }
             }
         }
     }
 
-    // ===== FLOATING APP BAR BUTTONS =====
-    // Back button
+    // =========================================================================
+    // FLOATING BACK BUTTON
+    // =========================================================================
+
     Rectangle {
-        id: backButton
-        x: 16
-        y: 16
-        width: 40
-        height: 40
+        x: Dimensions.marginMD; y: Dimensions.marginMD
+        width: 40; height: 40
         radius: Dimensions.radiusStandard
-        color: backBtnMouse.containsMouse ? Theme.withAlpha(Theme.bgPrimary, 0.5) : Theme.withAlpha(Theme.bgPrimary, 0.3)
+        color: backMouse.containsMouse
+            ? Theme.withAlpha(Theme.bgPrimary, 0.75)
+            : Theme.withAlpha(Theme.bgPrimary, 0.45)
+        border.color: Theme.glassBorder; border.width: 1
+        z: Dimensions.zDialog
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
         Accessible.role: Accessible.Button
-        Accessible.name: qsTr("Back")
+        Accessible.name: qsTr("Geri")
         activeFocusOnTab: true
         Keys.onReturnPressed: root.backClicked()
         Keys.onSpacePressed: root.backClicked()
-        z: Dimensions.zDialog
-
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
         Text {
             anchors.centerIn: parent
-            text: "\u2190"  // Left arrow
+            text: "\u2190"
             font.pixelSize: Dimensions.fontXL
             color: Theme.textPrimary
         }
-
         MouseArea {
-            id: backBtnMouse
+            id: backMouse
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.backClicked()
         }
+    }
 
-        ToolTip {
-            visible: backBtnMouse.containsMouse
-            text: qsTr("Back")
-            delay: 400
+    // =========================================================================
+    // CONTENT ENTRANCE ANIMATION
+    // =========================================================================
+
+    // Global slide + per-section staggered fade
+    NumberAnimation {
+        id: _slideAnim
+        target: _contentSlide; property: "y"
+        from: 20; to: 0; duration: Dimensions.animSlow
+        easing.type: Easing.OutCubic
+    }
+
+    Timer {
+        id: _stagger
+        interval: 80; repeat: true
+        onTriggered: {
+            root._reveal++
+            if (root._reveal >= 6) stop()
         }
     }
 
-    // Open in new button
-    Rectangle {
-        id: openInNewButton
-        x: parent.width - 56
-        y: 16
-        width: 40
-        height: 40
-        radius: Dimensions.radiusStandard
-        color: openNewMouse.containsMouse ? Theme.withAlpha(Theme.bgPrimary, 0.5) : Theme.withAlpha(Theme.bgPrimary, 0.3)
-        Accessible.role: Accessible.Button
-        Accessible.name: qsTr("Open on Steam")
-        activeFocusOnTab: true
-        Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
-        Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
-        z: Dimensions.zDialog
+    // =========================================================================
+    // MAIN CONTENT
+    // =========================================================================
 
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-        Text {
-            anchors.centerIn: parent
-            text: "\u2197"  // Arrow upper right
-            font.pixelSize: Dimensions.fontTitle
-            color: Theme.textPrimary
-        }
-
-        MouseArea {
-            id: openNewMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                if (root.steamAppId !== "") {
-                    Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId)
-                }
-            }
-        }
-
-        ToolTip {
-            visible: openNewMouse.containsMouse
-            text: qsTr("Open on Steam")
-            delay: 400
-        }
-    }
-
-    // ===== MAIN SCROLL CONTENT =====
-    ScrollView {
+    Flickable {
+        id: mainFlick
         anchors.fill: parent
-        contentWidth: availableWidth
+        contentWidth: width
+        contentHeight: contentCol.height
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        onContentYChanged: root.scrollY = contentY
 
         ScrollBar.vertical: ScrollBar {
             policy: ScrollBar.AsNeeded
             background: Rectangle { color: "transparent" }
             contentItem: Rectangle {
-                implicitWidth: 8
-                radius: Dimensions.radiusStandard
-                color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.25) : Theme.withAlpha(Theme.textPrimary, 0.15)
+                implicitWidth: 6; radius: 3
+                color: parent.pressed ? Theme.scrollbarThumbHover : Theme.scrollbarThumb
             }
         }
 
         ColumnLayout {
-            width: parent.width
-            spacing: 40
+            id: contentCol
+            width: mainFlick.width
+            spacing: 0
+            transform: Translate { id: _contentSlide }
 
-            Item { Layout.preferredHeight: 80 }
+            // =================================================================
+            // HERO SECTION
+            // =================================================================
 
-            // ===== HERO SECTION =====
-            RowLayout {
+            Item {
                 Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                spacing: Dimensions.spacingPage
+                Layout.preferredHeight: 360
+                opacity: root._reveal >= 0 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
-                // Cover image
+                // Cover image (tall, left side, overlaps below)
                 Rectangle {
-                    Layout.preferredWidth: 280
-                    Layout.preferredHeight: 130
+                    id: coverFrame
+                    anchors.left: parent.left
+                    anchors.leftMargin: Dimensions.marginXL
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: -40
+                    width: 240; height: 340
                     radius: Dimensions.radiusStandard
                     color: Theme.surfaceActive
                     clip: true
+                    z: 2
 
                     Image {
+                        id: coverImg
                         anchors.fill: parent
                         source: root.imageUrl
                         fillMode: Image.PreserveAspectCrop
-                        sourceSize: Qt.size(300, 260)
-                        asynchronous: true
-                        cache: true
-                        visible: root.imageUrl !== ""
+                        sourceSize: Qt.size(440, 620)
+                        asynchronous: true; cache: true
+                        visible: false
+                    }
+
+                    // Rounded mask
+                    Item {
+                        id: coverMask
+                        anchors.fill: parent; visible: false; layer.enabled: true
+                        Rectangle { anchors.fill: parent; radius: Dimensions.radiusStandard; color: "white" }
+                    }
+
+                    MultiEffect {
+                        anchors.fill: parent
+                        source: coverImg
+                        maskEnabled: true; maskSource: coverMask
+                        brightness: coverMouse.containsMouse ? 0.06 : 0
+                        Behavior on brightness { NumberAnimation { duration: Dimensions.animNormal } }
+                        opacity: 0
+                        states: State {
+                            name: "loaded"; when: coverImg.status === Image.Ready
+                            PropertyChanges { target: parent.children[2]; opacity: 1.0 }
+                        }
                     }
 
                     // Placeholder
                     Text {
                         anchors.centerIn: parent
-                        text: gameName.substring(0, 2).toUpperCase()
-                        font.pixelSize: Dimensions.fontBanner
+                        visible: coverImg.status !== Image.Ready
+                        text: root.gameName.length >= 2 ? root.gameName.substring(0, 2).toUpperCase() : "?"
+                        font.pixelSize: Dimensions.fontHero
                         font.weight: Font.Bold
                         color: Theme.textMuted
-                        visible: root.imageUrl === ""
                     }
-                }
 
-                // Info column
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
+                    // Rainbow border on hover
+                    property real borderPhase: 0
+                    NumberAnimation on borderPhase {
+                        from: 0; to: 1; duration: 8000
+                        loops: Animation.Infinite
+                        running: coverMouse.containsMouse
+                    }
 
-                    // Verified badge
-                    Rectangle {
-                        visible: root.verified
-                        Layout.preferredWidth: verifiedRow.width + 24
-                        Layout.preferredHeight: 32
-                        radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(Theme.primary, 0.15)
-                        border.color: Theme.withAlpha(Theme.primary, 0.3)
-                        border.width: 1
-
-                        Row {
-                            id: verifiedRow
-                            anchors.centerIn: parent
-                            spacing: Dimensions.spacingSM
-
-                            Text {
-                                text: "\u2713"
-                                font.pixelSize: Dimensions.fontMD
-                                color: Theme.primary
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Text {
-                                text: qsTr("Onaylı Türkçe Çeviri")
-                                font.pixelSize: Dimensions.fontBody
-                                font.weight: Font.DemiBold
-                                color: Theme.primary
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
+                    Canvas {
+                        anchors.fill: parent; z: 5
+                        property real phase: coverFrame.borderPhase
+                        property bool hov: coverMouse.containsMouse
+                        onPhaseChanged: if (hov) requestPaint()
+                        onHovChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            var angle = phase * Math.PI * 2
+                            var cx = width / 2, cy = height / 2
+                            var len = Math.max(width, height) * 0.7
+                            var grad = ctx.createLinearGradient(
+                                cx + Math.cos(angle) * len, cy + Math.sin(angle) * len,
+                                cx - Math.cos(angle) * len, cy - Math.sin(angle) * len)
+                            var colors = Theme.brandGradient
+                            for (var i = 0; i < colors.length; i++)
+                                grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
+                            var r = Dimensions.radiusStandard, bw = 1.5
+                            var px = bw / 2, py = bw / 2, w = width - bw, h = height - bw
+                            ctx.beginPath()
+                            ctx.moveTo(px + r, py)
+                            ctx.lineTo(px + w - r, py); ctx.arcTo(px + w, py, px + w, py + r, r)
+                            ctx.lineTo(px + w, py + h - r); ctx.arcTo(px + w, py + h, px + w - r, py + h, r)
+                            ctx.lineTo(px + r, py + h); ctx.arcTo(px, py + h, px, py + h - r, r)
+                            ctx.lineTo(px, py + r); ctx.arcTo(px, py, px + r, py, r)
+                            ctx.closePath()
+                            ctx.globalAlpha = hov ? 0.7 : 0.0
+                            ctx.strokeStyle = grad; ctx.lineWidth = bw; ctx.stroke()
                         }
                     }
 
-                    Item { Layout.preferredHeight: root.verified ? 16 : 0 }
+                    // Glass border (subtle, always visible)
+                    Rectangle {
+                        anchors.fill: parent; radius: parent.radius
+                        color: "transparent"
+                        border.color: Theme.glassBorder; border.width: 1
+                    }
+
+                    MouseArea {
+                        id: coverMouse
+                        anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton
+                    }
+                }
+
+                // Info column (right of cover, bottom-aligned)
+                ColumnLayout {
+                    anchors.left: coverFrame.right
+                    anchors.leftMargin: Dimensions.marginLG
+                    anchors.right: parent.right
+                    anchors.rightMargin: Dimensions.marginXL
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Dimensions.marginMD
+                    spacing: Dimensions.spacingLG
+
+                    // Badge row
+                    Row {
+                        spacing: Dimensions.spacingMD
+
+                        // Verified badge
+                        Rectangle {
+                            visible: root.verified
+                            width: verifiedRow.width + 20; height: 26
+                            radius: Dimensions.radiusFull
+                            color: Theme.verifiedBg
+
+                            Row {
+                                id: verifiedRow
+                                anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                                Text { text: "\u2713"; font.pixelSize: Dimensions.fontSM; color: Theme.verifiedText; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: qsTr("Onaylı Çeviri"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.verifiedText; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                        }
+
+                        // Engine badge
+                        Rectangle {
+                            visible: root.engine !== ""
+                            width: engineLbl.width + 16; height: 26
+                            radius: Dimensions.radiusFull
+                            color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.12); border.width: 1
+
+                            Text {
+                                id: engineLbl
+                                anchors.centerIn: parent
+                                text: root.engine
+                                font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium
+                                color: Theme.textSecondary
+                            }
+                        }
+                    }
 
                     // Game name
                     Text {
                         Layout.fillWidth: true
                         text: root.gameName
-                        font.pixelSize: Dimensions.displayMedium
+                        font.pixelSize: Dimensions.fontHero
                         font.weight: Font.Bold
                         font.letterSpacing: Dimensions.letterSpacingHeadline
                         color: Theme.textPrimary
                         wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
                     }
-
-                    Item { Layout.preferredHeight: 24 }
 
                     // Action buttons
                     RowLayout {
                         spacing: Dimensions.spacingLG
 
-                        // Steam button
+                        // Primary CTA (only for manually selected games with translation package)
                         Rectangle {
-                            Layout.preferredWidth: steamBtnContent.width + 48
-                            Layout.preferredHeight: 48
+                            id: ctaBtn
+                            visible: root.isManualGame && root.hasRecipe
+                            implicitWidth: ctaRow.width + 36; implicitHeight: 42
                             radius: Dimensions.radiusStandard
-                            color: steamBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.15) : Theme.withAlpha(Theme.textPrimary, 0.1)
-                            border.color: Theme.withAlpha(Theme.textPrimary, 0.2)
-                            border.width: 1
-                            Accessible.role: Accessible.Button
-                            Accessible.name: qsTr("Open on Steam")
-                            activeFocusOnTab: true
-                            Keys.onReturnPressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
-                            Keys.onSpacePressed: { if (root.steamAppId !== "") Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId) }
-
+                            color: root.isInstallingTranslation
+                                ? Theme.withAlpha(Theme.primary, 0.7)
+                                : (ctaMouse.containsMouse ? Theme.primaryHover : Theme.primary)
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                            Row {
-                                id: steamBtnContent
-                                anchors.centerIn: parent
-                                spacing: Dimensions.spacingMD
-
-                                Text {
-                                    text: "\uD83D\uDECD"  // Storefront
-                                    font.pixelSize: Dimensions.fontTitle
-                                    color: Theme.textPrimary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    text: qsTr("Steam'de Aç")
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.DemiBold
-                                    color: Theme.textPrimary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-
-                            MouseArea {
-                                id: steamBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (root.steamAppId !== "") {
-                                        Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Translation metadata badge (info only, no action)
-                        Rectangle {
-                            visible: root.hasRecipe
-                            Layout.preferredWidth: patchBadgeContent.width + 32
-                            Layout.preferredHeight: 36
-                            radius: Dimensions.radiusStandard
-                            color: Theme.withAlpha(Theme.primary, 0.10)
-                            border.color: Theme.withAlpha(Theme.primary, 0.20)
-                            border.width: 1
-
-                            Row {
-                                id: patchBadgeContent
-                                anchors.centerIn: parent
-                                spacing: Dimensions.spacingSM
-
-                                Text {
-                                    text: "\uD83C\uDF10"
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: Theme.primary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    text: root.recipeVersion
-                                        ? qsTr("Türkçe yama mevcut (v%1)").arg(root.recipeVersion)
-                                        : qsTr("Türkçe yama mevcut")
-                                    font.pixelSize: Dimensions.fontSM
-                                    font.weight: Font.Medium
-                                    color: Theme.primary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-                        }
-
-                        // Manual translate button (unsupported games or fallback)
-                        Rectangle {
-                            visible: !root.hasRecipe
-                            Layout.preferredWidth: translateBtnContent.width + 48
-                            Layout.preferredHeight: 48
-                            radius: Dimensions.radiusStandard
-                            color: translateBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
                             Accessible.role: Accessible.Button
-                            Accessible.name: qsTr("Start translation")
-                            activeFocusOnTab: true
-                            Keys.onReturnPressed: root.translateClicked()
-                            Keys.onSpacePressed: root.translateClicked()
+                            Accessible.name: root.isInstallingTranslation
+                                ? root.installStatus
+                                : (root.hasRecipe ? qsTr("Çeviriyi Kur") : qsTr("Çeviriyi Başlat"))
 
-                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                            Row {
-                                id: translateBtnContent
-                                anchors.centerIn: parent
-                                spacing: Dimensions.spacingMD
-
-                                Text {
-                                    text: "\uD83C\uDF10"  // Globe
-                                    font.pixelSize: Dimensions.fontTitle
-                                    color: Theme.textPrimary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    text: qsTr("Çeviriyi Başlat")
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.DemiBold
-                                    color: Theme.textPrimary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
+                            // Progress underlay
+                            Rectangle {
+                                visible: root.isInstallingTranslation
+                                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                                width: parent.width * root.installProgress
+                                radius: parent.radius
+                                color: Theme.primary
+                                Behavior on width { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
                             }
 
+                            Row {
+                                id: ctaRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                Text {
+                                    text: root.isInstallingTranslation ? "\u23F3" : (root.hasRecipe ? "\uD83C\uDF10" : "\u270F")
+                                    font.pixelSize: Dimensions.fontMD; color: Theme.textOnColor
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: root.isInstallingTranslation
+                                        ? (root.installProgress > 0 ? qsTr("%1%").arg(Math.round(root.installProgress * 100)) : root.installStatus)
+                                        : (root.hasRecipe ? qsTr("Çeviriyi Kur") : qsTr("Çeviriyi Başlat"))
+                                    font.pixelSize: Dimensions.fontMD; font.weight: Font.DemiBold
+                                    color: Theme.textOnColor; anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
                             MouseArea {
-                                id: translateBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
+                                id: ctaMouse; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: root.isInstallingTranslation ? Qt.WaitCursor : Qt.PointingHandCursor
+                                enabled: !root.isInstallingTranslation
                                 onClicked: root.translateClicked()
                             }
                         }
-                    }
 
-                    Item { Layout.fillHeight: true }
+                        // No translation available notice (manual games without package)
+                        Rectangle {
+                            visible: root.isManualGame && !root.hasRecipe
+                            implicitWidth: noTransRow.width + 36; implicitHeight: 42
+                            radius: Dimensions.radiusStandard
+                            color: Theme.withAlpha(Theme.textMuted, 0.08)
+                            border.color: Theme.withAlpha(Theme.textMuted, 0.15); border.width: 1
+
+                            Row {
+                                id: noTransRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                Text {
+                                    text: "\u26A0"
+                                    font.pixelSize: Dimensions.fontMD; color: Theme.textMuted
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: qsTr("Bu oyun için Türkçe yama mevcut değil")
+                                    font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
+                                    color: Theme.textMuted
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                        }
+
+                        // Steam link
+                        Rectangle {
+                            visible: root.steamAppId !== ""
+                            implicitWidth: steamRow.width + 32; implicitHeight: 42
+                            radius: Dimensions.radiusStandard
+                            color: steamMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.12) : Theme.withAlpha(Theme.textPrimary, 0.06)
+                            border.color: Theme.withAlpha(Theme.textPrimary, 0.10); border.width: 1
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                            Accessible.role: Accessible.Link
+                            Accessible.name: qsTr("Steam'de Aç")
+
+                            Row {
+                                id: steamRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                Text { text: "\u2197"; font.pixelSize: Dimensions.fontMD; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: qsTr("Steam'de Aç"); font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            MouseArea {
+                                id: steamMouse; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Qt.openUrlExternally("https://store.steampowered.com/app/" + root.steamAppId)
+                            }
+                        }
+
+                        // Version badge
+                        Rectangle {
+                            visible: root.hasRecipe && root.recipeVersion !== ""
+                            width: vBadgeRow.width + 16; height: 30
+                            radius: Dimensions.radiusFull
+                            color: Theme.withAlpha(Theme.success, 0.10)
+                            border.color: Theme.withAlpha(Theme.success, 0.20); border.width: 1
+
+                            Row {
+                                id: vBadgeRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                                Text { text: "v" + root.recipeVersion; font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.success }
+                            }
+                        }
+                    }
                 }
             }
 
-            // ===== STEAM DETAILS SECTION =====
+            // =================================================================
+            // QUICK STATS ROW
+            // =================================================================
+
+            Item { Layout.preferredHeight: 56; Layout.fillWidth: true }
+
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
+                spacing: Dimensions.spacingMD
+                visible: root.hasSteamDetails
+                opacity: root._reveal >= 1 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+
+                // Metacritic
+                Rectangle {
+                    visible: root.metacriticScore > 0
+                    width: mcRow.width + 20; height: 30
+                    radius: Dimensions.radiusFull
+                    property color mc: root.metacriticScore >= 75 ? Theme.scoreExcellent : root.metacriticScore >= 50 ? Theme.scoreFair : Theme.scorePoor
+                    color: Theme.withAlpha(mc, 0.10)
+                    border.color: Theme.withAlpha(mc, 0.20); border.width: 1
+                    Row {
+                        id: mcRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                        Text { text: "Metacritic"; font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: root.metacriticScore.toString(); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: parent.parent.mc; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                }
+
+                // Price
+                Rectangle {
+                    visible: root.price !== ""
+                    width: priceRow.width + 20; height: 30
+                    radius: Dimensions.radiusFull
+                    property color pc: root.discountPercent > 0 ? Theme.success : Theme.textSecondary
+                    color: Theme.withAlpha(pc, 0.10)
+                    border.color: Theme.withAlpha(pc, 0.20); border.width: 1
+                    Row {
+                        id: priceRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                        Text { visible: root.discountPercent > 0; text: "-" + root.discountPercent + "%"; font.pixelSize: Dimensions.fontCaption; font.weight: Font.Bold; color: Theme.success; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: root.price; font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: parent.parent.pc; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                }
+
+                // Genres
+                Rectangle {
+                    visible: root.genres.length > 0
+                    width: genreText.width + 20; height: 30
+                    radius: Dimensions.radiusFull
+                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.08); border.width: 1
+                    Text { id: genreText; anchors.centerIn: parent; text: root.genres.slice(0, 2).join(", "); font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
+                }
+
+                // Platforms
+                Rectangle {
+                    visible: root.hasWindows || root.hasMac || root.hasLinux
+                    width: platText.width + 20; height: 30
+                    radius: Dimensions.radiusFull
+                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.08); border.width: 1
+                    Text {
+                        id: platText; anchors.centerIn: parent
+                        text: { var p = []; if (root.hasWindows) p.push("Win"); if (root.hasMac) p.push("Mac"); if (root.hasLinux) p.push("Linux"); return p.join(" / ") }
+                        font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary
+                    }
+                }
+            }
+
+            // =================================================================
+            // ABOUT SECTION
+            // =================================================================
+
+            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.marginXL
                 Layout.rightMargin: Dimensions.marginXL
-                spacing: Dimensions.spacingPage
-                visible: root.hasSteamDetails || root.isLoadingSteamDetails || root.steamFetchFailed
+                spacing: Dimensions.spacingLG
+                visible: root.description !== "" || root.developers.length > 0
+                opacity: root._reveal >= 2 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
-                // Loading indicator
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: Dimensions.spacingLG
-                    visible: root.isLoadingSteamDetails && !root.hasSteamDetails
-
-                    BusyIndicator {
-                        Layout.preferredWidth: 32
-                        Layout.preferredHeight: 32
-                        running: visible
-                    }
-
-                    Text {
-                        text: qsTr("Steam bilgileri yükleniyor...")
-                        font.pixelSize: Dimensions.fontMD
-                        color: Theme.textMuted
-                    }
+                Text {
+                    text: qsTr("Hakkında")
+                    font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
+                    color: Theme.textPrimary
                 }
 
-                // Fetch error with retry
-                RowLayout {
+                // Description card
+                Rectangle {
                     Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: Dimensions.spacingLG
-                    visible: root.steamFetchFailed && !root.hasSteamDetails && !root.isLoadingSteamDetails
-
-                    Text {
-                        text: qsTr("Steam bilgileri yüklenemedi")
-                        font.pixelSize: Dimensions.fontMD
-                        color: Theme.textMuted
-                    }
-
-                    Rectangle {
-                        width: retryText.width + 20
-                        height: 28
-                        radius: Dimensions.radiusStandard
-                        color: retryMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.15) : Theme.withAlpha(Theme.primary, 0.08)
-                        Accessible.role: Accessible.Button
-                        Accessible.name: qsTr("Tekrar Dene")
-                        activeFocusOnTab: true
-                        Keys.onReturnPressed: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) }
-                        Keys.onSpacePressed: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) }
-
-                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                        Text {
-                            id: retryText
-                            anchors.centerIn: parent
-                            text: qsTr("Tekrar Dene")
-                            font.pixelSize: Dimensions.fontSM
-                            font.weight: Font.Medium
-                            color: Theme.primary
-                        }
-
-                        MouseArea {
-                            id: retryMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.steamFetchFailed = false
-                                root.isLoadingSteamDetails = true
-                                GameService.fetchSteamDetails(root.steamAppId)
-                            }
-                        }
-                    }
-                }
-
-                // About section
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: Dimensions.spacingLG
                     visible: root.description !== ""
+                    implicitHeight: aboutCol.height + Dimensions.marginML * 2
+                    radius: Dimensions.radiusStandard
+                    color: Theme.glassBackground
+                    border.color: Theme.glassBorder; border.width: 1
 
-                    // Section title
-                    Text {
-                        text: qsTr("Hakkında")
-                        font.pixelSize: Dimensions.fontTitle
-                        font.weight: Font.DemiBold
-                        color: Theme.textPrimary
-                    }
-
-                    // Glass card
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: descriptionText.height + 40
-                        radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(Theme.textPrimary, 0.05)
-                        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                        border.width: 1
+                    ColumnLayout {
+                        id: aboutCol
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top; anchors.margins: Dimensions.marginML
+                        spacing: Dimensions.spacingMD
 
                         Text {
-                            id: descriptionText
-                            anchors.fill: parent
-                            anchors.margins: Dimensions.marginML
+                            Layout.fillWidth: true
                             text: root.description
-                            font.pixelSize: Dimensions.fontMD
+                            font.pixelSize: Dimensions.fontBody
                             color: Theme.textSecondary
-                            wrapMode: Text.WordWrap
-                            lineHeight: 1.6
+                            wrapMode: Text.WordWrap; lineHeight: 1.6
+                            maximumLineCount: root.descriptionExpanded ? 9999 : 4
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            visible: !root.descriptionExpanded
+                            text: qsTr("Daha fazla göster...")
+                            font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium
+                            color: Theme.primary
+                            opacity: expandMouse.containsMouse ? 1.0 : 0.7
+                            MouseArea {
+                                id: expandMouse; anchors.fill: parent; anchors.margins: -4
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.descriptionExpanded = true
+                            }
                         }
                     }
                 }
 
-                // Details and Rating row
-                RowLayout {
+                // Details card (developer, publisher, etc.)
+                Rectangle {
                     Layout.fillWidth: true
-                    spacing: Dimensions.spacingSection
+                    visible: root.developers.length > 0 || root.publishers.length > 0
+                    implicitHeight: detailsCol.height + Dimensions.marginML * 2
+                    radius: Dimensions.radiusStandard
+                    color: Theme.glassBackground
+                    border.color: Theme.glassBorder; border.width: 1
 
-                    // Left - Details
                     ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Dimensions.spacingLG
+                        id: detailsCol
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top; anchors.margins: Dimensions.marginML
+                        spacing: 0
 
-                        Text {
-                            text: qsTr("Detaylar")
-                            font.pixelSize: Dimensions.fontTitle
-                            font.weight: Font.DemiBold
-                            color: Theme.textPrimary
+                        DetailRow { label: qsTr("Geliştirici"); value: root.developers.join(", "); visible: root.developers.length > 0 }
+                        DetailRow { label: qsTr("Yayıncı"); value: root.publishers.join(", "); visible: root.publishers.length > 0 }
+                        DetailRow { label: qsTr("Çıkış Tarihi"); value: root.releaseDate; visible: root.releaseDate !== "" }
+                        DetailRow { label: qsTr("Motor"); value: root.engine; visible: root.engine !== "" }
+                        DetailRow { label: qsTr("Türler"); value: root.genres.join(", "); visible: root.genres.length > 0 }
+                    }
+                }
+            }
+
+            // =================================================================
+            // SCREENSHOTS
+            // =================================================================
+
+            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true; visible: root.screenshots.length > 0 }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Dimensions.spacingLG
+                visible: root.screenshots.length > 0
+                opacity: root._reveal >= 3 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+
+                Text {
+                    Layout.leftMargin: Dimensions.marginXL
+                    text: qsTr("Ekran Görüntüleri")
+                    font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                }
+
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 220
+                    orientation: ListView.Horizontal
+                    spacing: Dimensions.spacingLG; clip: true
+                    leftMargin: Dimensions.marginXL; rightMargin: Dimensions.marginXL
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: root.screenshots
+
+                    delegate: Rectangle {
+                        required property string modelData
+                        width: 380; height: 214
+                        radius: Dimensions.radiusStandard
+                        color: Theme.surfaceActive; clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            source: modelData
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize: Qt.size(760, 428)
+                            asynchronous: true; cache: true
                         }
-
                         Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: detailsColumn.height + 40
-                            radius: Dimensions.radiusStandard
-                            color: Theme.withAlpha(Theme.textPrimary, 0.05)
-                            border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                            border.width: 1
-
-                            ColumnLayout {
-                                id: detailsColumn
-                                anchors.fill: parent
-                                anchors.margins: Dimensions.marginML
-                                spacing: 0
-
-                                InfoRow {
-                                    label: qsTr("Geliştirici")
-                                    value: root.developers.join(", ")
-                                    visible: root.developers.length > 0
-                                }
-
-                                InfoRow {
-                                    label: qsTr("Yayıncı")
-                                    value: root.publishers.join(", ")
-                                    visible: root.publishers.length > 0
-                                }
-
-                                InfoRow {
-                                    label: qsTr("Çıkış Tarihi")
-                                    value: root.releaseDate
-                                    visible: root.releaseDate !== ""
-                                }
-
-                                InfoRow {
-                                    label: qsTr("Türler")
-                                    value: root.genres.join(", ")
-                                    visible: root.genres.length > 0
-                                }
-
-                                InfoRow {
-                                    label: qsTr("Motor")
-                                    value: root.engine
-                                    visible: root.engine !== ""
-                                }
-                            }
+                            anchors.fill: parent; radius: parent.radius
+                            color: "transparent"
+                            border.color: Theme.glassBorder; border.width: 1
                         }
                     }
+                }
+            }
 
-                    // Right - Rating
+            // =================================================================
+            // TRANSLATION STATUS (merged: recipe + compatibility + fonts)
+            // =================================================================
+
+            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
+                spacing: Dimensions.spacingLG
+                opacity: root._reveal >= 4 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+
+                Text {
+                    text: qsTr("Çeviri Durumu")
+                    font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                }
+
+                // Main translation card (when recipe exists)
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: root.hasRecipe
+                    implicitHeight: transContent.height + Dimensions.marginML * 2
+                    radius: Dimensions.radiusStandard
+                    color: Theme.glassBackground
+                    border.color: Theme.glassBorder; border.width: 1
+
                     ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Dimensions.spacingLG
+                        id: transContent
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top; anchors.margins: Dimensions.marginML
+                        spacing: Dimensions.marginMD
 
-                        Text {
-                            text: qsTr("Değerlendirme")
-                            font.pixelSize: Dimensions.fontTitle
-                            font.weight: Font.DemiBold
-                            color: Theme.textPrimary
-                        }
-
-                        Rectangle {
+                        // TOP: Quality (left) | Compatibility (right)
+                        RowLayout {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: ratingColumn.height + 40
-                            radius: Dimensions.radiusStandard
-                            color: Theme.withAlpha(Theme.textPrimary, 0.05)
-                            border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                            border.width: 1
+                            spacing: Dimensions.marginMD
 
+                            // LEFT: Quality
                             ColumnLayout {
-                                id: ratingColumn
-                                anchors.fill: parent
-                                anchors.margins: Dimensions.marginML
-                                spacing: Dimensions.spacingXL
+                                Layout.fillWidth: true
+                                spacing: Dimensions.spacingMD
 
-                                // Metacritic
                                 RowLayout {
                                     spacing: Dimensions.spacingLG
 
                                     Rectangle {
-                                        Layout.preferredWidth: 48
-                                        Layout.preferredHeight: 48
+                                        width: 48; height: 48
                                         radius: Dimensions.radiusStandard
-                                        color: {
-                                            if (root.metacriticScore >= 75) return Theme.scoreExcellent
-                                            if (root.metacriticScore >= 50) return Theme.scoreFair
-                                            if (root.metacriticScore > 0) return Theme.scoreBad
-                                            return Theme.textMuted
-                                        }
-
+                                        color: Theme.withAlpha(getQualityColor(root.qualityScore), 0.15)
                                         Text {
                                             anchors.centerIn: parent
-                                            text: root.metacriticScore > 0 ? root.metacriticScore : "--"
-                                            font.pixelSize: Dimensions.fontXL
-                                            font.weight: Font.Bold
-                                            color: Theme.textPrimary
+                                            text: root.qualityScore > 0 ? root.qualityScore.toString() : "--"
+                                            font.pixelSize: Dimensions.fontXL; font.weight: Font.Bold
+                                            color: getQualityColor(root.qualityScore)
                                         }
                                     }
 
                                     ColumnLayout {
                                         spacing: Dimensions.spacingXXS
-
-                                        Text {
-                                            text: "Metacritic"
-                                            font.pixelSize: Dimensions.fontMD
-                                            font.weight: Font.DemiBold
-                                            color: Theme.textPrimary
-                                        }
-
-                                        Text {
-                                            text: {
-                                                if (root.metacriticScore >= 75) return qsTr("Çok Olumlu")
-                                                if (root.metacriticScore >= 50) return qsTr("Karışık")
-                                                if (root.metacriticScore > 0) return qsTr("Olumsuz")
-                                                return qsTr("Puan yok")
-                                            }
-                                            font.pixelSize: Dimensions.fontSM
-                                            color: Theme.textMuted
-                                        }
+                                        Text { text: getQualityLabel(root.recipeQuality); font.pixelSize: Dimensions.fontMD; font.weight: Font.DemiBold; color: getQualityColor(root.qualityScore) }
+                                        Text { text: qsTr("Çeviri Kalitesi"); font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted }
                                     }
                                 }
 
-                                // Platforms
+                                DetailRow { label: qsTr("Sürüm"); value: "v" + root.recipeVersion }
+                                DetailRow { label: qsTr("Kapsam"); value: root.coverage }
+                                DetailRow { label: qsTr("Metin"); value: qsTr("%1 adet").arg(root.stringCount) }
+                                DetailRow { label: qsTr("Dosya"); value: qsTr("%1 dosya").arg(root.fileCount) }
+                                DetailRow { label: qsTr("Hazırlayan"); value: root.author; visible: root.author !== "" }
+                            }
+
+                            // Separator
+                            Rectangle {
+                                Layout.fillHeight: true; Layout.preferredWidth: 1
+                                color: Theme.glassBorder
+                                visible: root.compatibilityLevel !== "unknown"
+                            }
+
+                            // RIGHT: Compatibility
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Dimensions.spacingMD
+                                visible: root.compatibilityLevel !== "unknown"
+
                                 RowLayout {
                                     spacing: Dimensions.spacingLG
 
-                                    Text {
-                                        text: qsTr("Platformlar:")
-                                        font.pixelSize: Dimensions.fontBody
-                                        color: Theme.textMuted
-                                    }
-
-                                    Text {
-                                        text: "\uD83D\uDDA5"  // Windows
-                                        font.pixelSize: Dimensions.fontTitle
-                                        visible: root.hasWindows
-                                    }
-
-                                    Text {
-                                        text: "\uD83C\uDF4E"  // Apple
-                                        font.pixelSize: Dimensions.fontTitle
-                                        visible: root.hasMac
-                                    }
-
-                                    Text {
-                                        text: "\uD83D\uDCBB"  // Linux
-                                        font.pixelSize: Dimensions.fontTitle
-                                        visible: root.hasLinux
-                                    }
-                                }
-
-                                // Price
-                                RowLayout {
-                                    visible: root.price !== ""
-                                    spacing: Dimensions.spacingMD
-
                                     Rectangle {
-                                        visible: root.discountPercent > 0
-                                        Layout.preferredWidth: discountText.width + 16
-                                        Layout.preferredHeight: 24
-                                        radius: Dimensions.radiusStandard
-                                        color: Theme.success
-
+                                        width: 48; height: 48; radius: 24
+                                        color: Theme.withAlpha(getCompatColor(), 0.15)
                                         Text {
-                                            id: discountText
                                             anchors.centerIn: parent
-                                            text: "-" + root.discountPercent + "%"
-                                            font.pixelSize: Dimensions.fontSM
-                                            font.weight: Font.Bold
-                                            color: Theme.textPrimary
+                                            text: {
+                                                if (compatibilityLevel === "compatible") return "\u2713"
+                                                if (compatibilityLevel === "partial") return "\u26A0"
+                                                if (compatibilityLevel === "incompatible") return "\u2717"
+                                                return "?"
+                                            }
+                                            font.pixelSize: Dimensions.fontXL; font.weight: Font.Bold
+                                            color: getCompatColor()
                                         }
                                     }
 
-                                    Text {
-                                        text: root.price === "" ? qsTr("Ücretsiz") : root.price
-                                        font.pixelSize: Dimensions.fontLG
-                                        font.weight: Font.Bold
-                                        color: root.discountPercent > 0 ? Theme.success : Theme.textPrimary
+                                    ColumnLayout {
+                                        spacing: Dimensions.spacingXXS
+                                        Text {
+                                            text: {
+                                                if (compatibilityLevel === "compatible") return qsTr("Tam Uyumlu")
+                                                if (compatibilityLevel === "partial") return qsTr("Kısmi Uyumlu")
+                                                if (compatibilityLevel === "incompatible") return qsTr("Uyumsuz")
+                                                return qsTr("Bilinmiyor")
+                                            }
+                                            font.pixelSize: Dimensions.fontMD; font.weight: Font.DemiBold
+                                            color: getCompatColor()
+                                        }
+                                        Text { text: qsTr("Bütünlük: %1%").arg(root.integrityPercent); font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted }
                                     }
+                                }
+
+                                // Integrity bar
+                                Rectangle {
+                                    Layout.fillWidth: true; height: 4; radius: 2
+                                    color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                                    Rectangle {
+                                        width: parent.width * Math.min(root.integrityPercent / 100, 1)
+                                        height: parent.height; radius: 2
+                                        color: root.integrityPercent >= 95 ? Theme.success : root.integrityPercent >= 70 ? Theme.warning : Theme.destructive
+                                        Behavior on width { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                                    }
+                                }
+
+                                // File change stats
+                                Flow {
+                                    Layout.fillWidth: true; spacing: Dimensions.spacingMD
+                                    visible: root.modifiedCount > 0 || root.addedCount > 0 || root.removedCount > 0
+                                    Text { visible: root.modifiedCount > 0; text: qsTr("%1 değiştirilmiş").arg(root.modifiedCount); font.pixelSize: Dimensions.fontCaption; color: Theme.warning }
+                                    Text { visible: root.addedCount > 0; text: qsTr("+%1 yeni").arg(root.addedCount); font.pixelSize: Dimensions.fontCaption; color: Theme.primary }
+                                    Text { visible: root.removedCount > 0; text: qsTr("-%1 silinen").arg(root.removedCount); font.pixelSize: Dimensions.fontCaption; color: Theme.destructive }
                                 }
                             }
                         }
-                    }
-                }
-            }
 
-            // ===== RECIPE SECTION =====
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                spacing: Dimensions.spacingLG
+                        // Divider before font info
+                        Rectangle {
+                            Layout.fillWidth: true; height: 1
+                            color: Theme.glassBorder
+                            visible: root.hasFontAnalysis
+                        }
 
-                Text {
-                    text: qsTr("Çeviri Bilgileri")
-                    font.pixelSize: Dimensions.fontTitle
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-
-                // Recipe card (when recipe exists)
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: recipeContent.height + 40
-                    radius: Dimensions.radiusStandard
-                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
-                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                    border.width: 1
-                    visible: root.hasRecipe
-
-                    ColumnLayout {
-                        id: recipeContent
-                        anchors.fill: parent
-                        anchors.margins: Dimensions.marginML
-                        spacing: Dimensions.spacingXL
-
-                        // Badges row
+                        // Font support summary (inline)
                         RowLayout {
-                            spacing: Dimensions.spacingMD
-
-                            // Engine badge
-                            Rectangle {
-                                Layout.preferredWidth: engineBadgeRow.width + 20
-                                Layout.preferredHeight: 28
-                                radius: Dimensions.radiusStandard
-                                color: Theme.withAlpha(Theme.primary, 0.15)
-
-                                Row {
-                                    id: engineBadgeRow
-                                    anchors.centerIn: parent
-                                    spacing: Dimensions.spacingSM
-
-                                    Text {
-                                        text: "\u2728"
-                                        font.pixelSize: Dimensions.fontSM
-                                        color: Theme.primary
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-
-                                    Text {
-                                        text: root.recipeEngine
-                                        font.pixelSize: Dimensions.fontSM
-                                        font.weight: Font.DemiBold
-                                        color: Theme.primary
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                }
-                            }
-
-                            // Quality badge
-                            Rectangle {
-                                Layout.preferredWidth: qualityBadgeText.width + 20
-                                Layout.preferredHeight: 28
-                                radius: Dimensions.radiusStandard
-                                color: Theme.withAlpha(getQualityColor(root.qualityScore), 0.15)
-
-                                Text {
-                                    id: qualityBadgeText
-                                    anchors.centerIn: parent
-                                    text: getQualityLabel(root.recipeQuality)
-                                    font.pixelSize: Dimensions.fontSM
-                                    font.weight: Font.DemiBold
-                                    color: getQualityColor(root.qualityScore)
-                                }
-                            }
-                        }
-
-                        InfoRow { label: qsTr("Reçete Sürümü"); value: "v" + root.recipeVersion }
-                        InfoRow { label: qsTr("Metin Sayısı"); value: qsTr("%1 adet").arg(root.stringCount) }
-                        InfoRow { label: qsTr("Kapsam"); value: root.coverage }
-                        InfoRow { label: qsTr("Dosya Sayısı"); value: qsTr("%1 dosya").arg(root.fileCount) }
-                        InfoRow { label: qsTr("Hazırlayan"); value: root.author; visible: root.author !== "" }
-                    }
-                }
-
-                // No recipe card
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 56
-                    radius: Dimensions.radiusStandard
-                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
-                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                    border.width: 1
-                    visible: !root.hasRecipe
-
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: Dimensions.spacingLG
-
-                        Text {
-                            text: "\u2139"
-                            font.pixelSize: Dimensions.fontTitle
-                            color: Theme.textMuted
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Text {
-                            text: qsTr("Bu oyun için henüz çeviri reçetesi bulunmuyor.")
-                            font.pixelSize: Dimensions.fontBody
-                            color: Theme.textMuted
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
-            }
-
-            // ===== FONT SUPPORT SECTION =====
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                spacing: Dimensions.spacingLG
-                visible: root.hasFontAnalysis
-
-                Text {
-                    text: qsTr("Yazı Tipi Desteği")
-                    font.pixelSize: Dimensions.fontTitle
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: fontContent.height + 32
-                    radius: Dimensions.radiusStandard
-                    color: {
-                        if (totalFonts === 0) return Theme.withAlpha(Theme.textPrimary, 0.03)
-                        if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.06)
-                        if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.06)
-                        return Theme.withAlpha(Theme.destructive, 0.06)
-                    }
-                    border.color: {
-                        if (totalFonts === 0) return Theme.withAlpha(Theme.textPrimary, 0.08)
-                        if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.3)
-                        if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.3)
-                        return Theme.withAlpha(Theme.destructive, 0.3)
-                    }
-                    border.width: 1
-
-                    ColumnLayout {
-                        id: fontContent
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: Dimensions.marginMD
-                        spacing: Dimensions.spacingLG
-
-                        // Summary row
-                        RowLayout {
-                            spacing: Dimensions.spacingBase
+                            Layout.fillWidth: true
+                            spacing: Dimensions.spacingLG
+                            visible: root.hasFontAnalysis
 
                             Rectangle {
-                                Layout.preferredWidth: 28
-                                Layout.preferredHeight: 28
-                                radius: 14
-                                color: {
-                                    if (turkishSupportCount === totalFonts) return Theme.withAlpha(Theme.success, 0.15)
-                                    if (turkishSupportCount > 0) return Theme.withAlpha(Theme.warning, 0.15)
-                                    return Theme.withAlpha(Theme.destructive, 0.15)
+                                width: 28; height: 28; radius: 14
+                                property color fc: {
+                                    if (turkishSupportCount === totalFonts && totalFonts > 0) return Theme.success
+                                    if (turkishSupportCount > 0) return Theme.warning
+                                    return Theme.destructive
                                 }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "A"
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.Bold
-                                    color: {
-                                        if (turkishSupportCount === totalFonts) return Theme.success
-                                        if (turkishSupportCount > 0) return Theme.warning
-                                        return Theme.destructive
-                                    }
-                                }
+                                color: Theme.withAlpha(fc, 0.15)
+                                Text { anchors.centerIn: parent; text: "A"; font.pixelSize: Dimensions.fontSM; font.weight: Font.Bold; color: parent.fc }
                             }
 
                             ColumnLayout {
-                                spacing: Dimensions.spacingXXS
-
+                                Layout.fillWidth: true; spacing: Dimensions.spacingXXS
                                 Text {
                                     text: {
-                                        if (turkishSupportCount === totalFonts)
-                                            return qsTr("Türkçe Karakter Desteği Tam")
-                                        if (turkishSupportCount > 0)
-                                            return qsTr("Kısmi Türkçe Karakter Desteği")
+                                        if (turkishSupportCount === totalFonts && totalFonts > 0) return qsTr("Türkçe Karakter Desteği Tam")
+                                        if (turkishSupportCount > 0) return qsTr("Kısmi Türkçe Karakter Desteği")
                                         return qsTr("Türkçe Karakter Desteği Yok")
                                     }
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.DemiBold
+                                    font.pixelSize: Dimensions.fontBody; font.weight: Font.Medium
                                     color: {
-                                        if (turkishSupportCount === totalFonts) return Theme.success
+                                        if (turkishSupportCount === totalFonts && totalFonts > 0) return Theme.success
                                         if (turkishSupportCount > 0) return Theme.warning
                                         return Theme.destructive
                                     }
                                 }
-
-                                Text {
-                                    text: qsTr("%1/%2 yazı tipi Türkçe karakterleri destekliyor").arg(turkishSupportCount).arg(totalFonts)
-                                    font.pixelSize: Dimensions.fontXS
-                                    color: Theme.textSecondary
-                                }
+                                Text { text: qsTr("%1/%2 font destekliyor").arg(turkishSupportCount).arg(totalFonts); font.pixelSize: Dimensions.fontCaption; color: Theme.textSecondary }
                             }
 
-                            Item { Layout.fillWidth: true }
-
-                            // Font count badge
-                            Rectangle {
-                                Layout.preferredWidth: fontCountLabel.width + 16
-                                Layout.preferredHeight: 24
-                                radius: Dimensions.badgeRadius
-                                color: Theme.withAlpha(Theme.textPrimary, 0.06)
-
-                                Text {
-                                    id: fontCountLabel
-                                    anchors.centerIn: parent
-                                    text: qsTr("%1 font").arg(totalFonts)
-                                    font.pixelSize: Dimensions.fontXS
-                                    font.weight: Font.Medium
-                                    color: Theme.textMuted
-                                }
-                            }
-                        }
-
-                        // Missing chars display
-                        RowLayout {
-                            spacing: Dimensions.spacingSM
-                            visible: missingChars.length > 0
-
-                            Text {
-                                text: qsTr("Eksik karakterler:")
-                                font.pixelSize: Dimensions.fontXS
-                                color: Theme.textMuted
-                            }
-
-                            Repeater {
-                                model: missingChars.slice(0, 12)
-
-                                Rectangle {
-                                    required property var modelData
-                                    width: 24
-                                    height: 24
-                                    radius: 4
-                                    color: Theme.withAlpha(Theme.destructive, 0.1)
-                                    border.color: Theme.withAlpha(Theme.destructive, 0.2)
-                                    border.width: 1
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData
-                                        font.pixelSize: Dimensions.fontBody
-                                        font.weight: Font.DemiBold
-                                        color: Theme.destructive
+                            // Missing chars inline
+                            Row {
+                                spacing: Dimensions.spacingXS; visible: missingChars.length > 0
+                                Repeater {
+                                    model: missingChars.slice(0, 8)
+                                    Rectangle {
+                                        required property var modelData
+                                        width: 22; height: 22; radius: 3
+                                        color: Theme.withAlpha(Theme.destructive, 0.10)
+                                        Text { anchors.centerIn: parent; text: modelData; font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.destructive }
                                     }
                                 }
                             }
-                        }
-
-                        // Font list (max 3 shown)
-                        Repeater {
-                            model: fontsList.slice(0, 3)
-
-                            RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: Dimensions.spacingMD
-
-                                Text {
-                                    text: modelData.family || modelData.name || ""
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: Theme.textPrimary
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                }
-
-                                Rectangle {
-                                    visible: (modelData.format || "") !== ""
-                                    Layout.preferredWidth: fmtLabel.width + 10
-                                    Layout.preferredHeight: 18
-                                    radius: Dimensions.badgeRadius
-                                    color: Theme.withAlpha(Theme.textPrimary, 0.06)
-
-                                    Text {
-                                        id: fmtLabel
-                                        anchors.centerIn: parent
-                                        text: modelData.format || ""
-                                        font.pixelSize: Dimensions.fontMini
-                                        color: Theme.textMuted
-                                    }
-                                }
-
-                                Text {
-                                    text: modelData.turkishSupport ? "\u2713" : "\u2717"
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: modelData.turkishSupport ? Theme.success : Theme.destructive
-                                }
-                            }
-                        }
-
-                        // "N more fonts" indicator
-                        Text {
-                            visible: fontsList.length > 3
-                            text: qsTr("+%1 daha fazla yazı tipi").arg(fontsList.length - 3)
-                            font.pixelSize: Dimensions.fontXS
-                            color: Theme.textMuted
                         }
                     }
                 }
-            }
 
-            // ===== COMPATIBILITY STATUS =====
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                spacing: Dimensions.spacingLG
-                visible: root.hasRecipe && root.compatibilityLevel !== "unknown"
-
-                Text {
-                    text: qsTr("Uyumluluk Durumu")
-                    font.pixelSize: Dimensions.fontTitle
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-
+                // No recipe placeholder
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: compatContent.height + 32
-                    radius: Dimensions.radiusStandard
-                    color: {
-                        if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.06)
-                        if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.06)
-                        if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.06)
-                        return Theme.withAlpha(Theme.textPrimary, 0.03)
-                    }
-                    border.color: {
-                        if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.3)
-                        if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.3)
-                        if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.3)
-                        return Theme.withAlpha(Theme.textPrimary, 0.08)
-                    }
-                    border.width: 1
-
-                    ColumnLayout {
-                        id: compatContent
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: Dimensions.marginMD
-                        spacing: Dimensions.spacingLG
-
-                        // Status row
-                        RowLayout {
-                            spacing: Dimensions.spacingBase
-
-                            // Status icon
-                            Rectangle {
-                                Layout.preferredWidth: 28
-                                Layout.preferredHeight: 28
-                                radius: 14
-                                color: {
-                                    if (compatibilityLevel === "compatible") return Theme.withAlpha(Theme.success, 0.15)
-                                    if (compatibilityLevel === "partial") return Theme.withAlpha(Theme.warning, 0.15)
-                                    if (compatibilityLevel === "incompatible") return Theme.withAlpha(Theme.destructive, 0.15)
-                                    return Theme.withAlpha(Theme.textPrimary, 0.08)
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: {
-                                        if (compatibilityLevel === "compatible") return "\u2713"
-                                        if (compatibilityLevel === "partial") return "\u26A0"
-                                        if (compatibilityLevel === "incompatible") return "\u2717"
-                                        return "?"
-                                    }
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.Bold
-                                    color: {
-                                        if (compatibilityLevel === "compatible") return Theme.success
-                                        if (compatibilityLevel === "partial") return Theme.warning
-                                        if (compatibilityLevel === "incompatible") return Theme.destructive
-                                        return Theme.textMuted
-                                    }
-                                }
-                            }
-
-                            ColumnLayout {
-                                spacing: Dimensions.spacingXXS
-
-                                Text {
-                                    text: {
-                                        if (compatibilityLevel === "compatible") return qsTr("Tam Uyumlu")
-                                        if (compatibilityLevel === "partial") return qsTr("Kısmi Uyumlu")
-                                        if (compatibilityLevel === "incompatible") return qsTr("Uyumsuz")
-                                        return qsTr("Bilinmiyor")
-                                    }
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.DemiBold
-                                    color: {
-                                        if (compatibilityLevel === "compatible") return Theme.success
-                                        if (compatibilityLevel === "partial") return Theme.warning
-                                        if (compatibilityLevel === "incompatible") return Theme.destructive
-                                        return Theme.textMuted
-                                    }
-                                }
-
-                                Text {
-                                    text: compatibilitySummary
-                                    font.pixelSize: Dimensions.fontXS
-                                    color: Theme.textSecondary
-                                    visible: compatibilitySummary !== ""
-                                }
-                            }
-
-                            Item { Layout.fillWidth: true }
-
-                            // Integrity percentage
-                            Text {
-                                text: integrityPercent + "%"
-                                font.pixelSize: Dimensions.fontXL
-                                font.weight: Font.Bold
-                                color: {
-                                    if (integrityPercent >= 95) return Theme.success
-                                    if (integrityPercent >= 70) return Theme.warning
-                                    return Theme.destructive
-                                }
-                            }
-                        }
-
-                        // Integrity bar
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 4
-                            radius: 2
-                            color: Theme.withAlpha(Theme.textPrimary, 0.06)
-
-                            Rectangle {
-                                width: parent.width * (integrityPercent / 100)
-                                height: parent.height
-                                radius: 2
-                                color: {
-                                    if (integrityPercent >= 95) return Theme.success
-                                    if (integrityPercent >= 70) return Theme.warning
-                                    return Theme.destructive
-                                }
-                            }
-                        }
-
-                        // File change stats (only if there are changes)
-                        RowLayout {
-                            spacing: Dimensions.spacingXL
-                            visible: modifiedCount > 0 || addedCount > 0 || removedCount > 0
-
-                            Text {
-                                visible: modifiedCount > 0
-                                text: qsTr("%1 değiştirilmiş").arg(modifiedCount)
-                                font.pixelSize: Dimensions.fontXS
-                                color: Theme.warning
-                            }
-                            Text {
-                                visible: addedCount > 0
-                                text: qsTr("%1 yeni dosya").arg(addedCount)
-                                font.pixelSize: Dimensions.fontXS
-                                color: Theme.primary
-                            }
-                            Text {
-                                visible: removedCount > 0
-                                text: qsTr("%1 silinen dosya").arg(removedCount)
-                                font.pixelSize: Dimensions.fontXS
-                                color: Theme.destructive
-                            }
-                        }
+                    Layout.fillWidth: true; visible: !root.hasRecipe
+                    implicitHeight: 56; radius: Dimensions.radiusStandard
+                    color: Theme.glassBackground; border.color: Theme.glassBorder; border.width: 1
+                    Row {
+                        anchors.centerIn: parent; spacing: Dimensions.spacingLG
+                        Text { text: "\u2139"; font.pixelSize: Dimensions.fontTitle; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: qsTr("Bu oyun için henüz çeviri reçetesi bulunmuyor."); font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
                     }
                 }
             }
 
-            // ===== RUNTIME STATUS (BepInEx/XUnity) =====
+            // =================================================================
+            // RUNTIME (Unity BepInEx) — conditional
+            // =================================================================
+
+            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true; visible: root.isUnityGame && root.runtimeNeeded }
+
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
+                Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
                 visible: root.isUnityGame && root.runtimeNeeded
+                opacity: root._reveal >= 5 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
                 Text {
                     text: qsTr("Çeviri Çalışma Ortamı")
-                    font.pixelSize: Dimensions.fontTitle
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
+                    font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold; color: Theme.textPrimary
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: runtimeContent.height + 32
+                    implicitHeight: runtimeCol.height + Dimensions.marginML * 2
                     radius: Dimensions.radiusStandard
-                    color: {
-                        if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.06)
-                        if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.06)
-                        return Theme.withAlpha(Theme.textPrimary, 0.03)
-                    }
-                    border.color: {
-                        if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.3)
-                        if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.3)
-                        return Theme.withAlpha(Theme.textPrimary, 0.08)
-                    }
-                    border.width: 1
+                    color: Theme.glassBackground; border.color: Theme.glassBorder; border.width: 1
 
                     ColumnLayout {
-                        id: runtimeContent
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: Dimensions.marginMD
+                        id: runtimeCol
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top; anchors.margins: Dimensions.marginML
                         spacing: Dimensions.spacingLG
 
                         // Status header
                         RowLayout {
-                            spacing: Dimensions.spacingBase
+                            spacing: Dimensions.spacingLG
 
                             Rectangle {
-                                Layout.preferredWidth: 28
-                                Layout.preferredHeight: 28
-                                radius: 14
-                                color: {
-                                    if (runtimeInstalled && runtimeUpToDate) return Theme.withAlpha(Theme.success, 0.15)
-                                    if (runtimeInstalled) return Theme.withAlpha(Theme.warning, 0.15)
-                                    return Theme.withAlpha(Theme.textPrimary, 0.08)
-                                }
-
+                                width: 40; height: 40; radius: 20
+                                color: Theme.withAlpha(root.runtimeInstalled ? Theme.success : Theme.textPrimary, 0.12)
                                 Text {
                                     anchors.centerIn: parent
-                                    text: runtimeInstalled ? "\u2713" : "\u2193"
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.Bold
-                                    color: {
-                                        if (runtimeInstalled && runtimeUpToDate) return Theme.success
-                                        if (runtimeInstalled) return Theme.warning
-                                        return Theme.textMuted
-                                    }
+                                    text: root.runtimeInstalled ? "\u2713" : "\u2193"
+                                    font.pixelSize: Dimensions.fontTitle; font.weight: Font.Bold
+                                    color: root.runtimeInstalled ? Theme.success : Theme.textMuted
                                 }
                             }
 
                             ColumnLayout {
-                                spacing: Dimensions.spacingXXS
-
+                                Layout.fillWidth: true; spacing: Dimensions.spacingXXS
                                 Text {
-                                    text: {
-                                        if (runtimeInstalled && runtimeUpToDate) return qsTr("BepInEx Kurulu")
-                                        if (runtimeInstalled) return qsTr("BepInEx Güncellenmeli")
-                                        return qsTr("BepInEx Gerekli")
-                                    }
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.DemiBold
-                                    color: {
-                                        if (runtimeInstalled && runtimeUpToDate) return Theme.success
-                                        if (runtimeInstalled) return Theme.warning
-                                        return Theme.textSecondary
-                                    }
+                                    text: root.runtimeInstalled
+                                        ? (root.runtimeUpToDate ? qsTr("BepInEx Kurulu ve Güncel") : qsTr("BepInEx Güncelleme Mevcut"))
+                                        : qsTr("BepInEx Kurulu Değil")
+                                    font.pixelSize: Dimensions.fontMD; font.weight: Font.DemiBold
+                                    color: root.runtimeInstalled ? Theme.success : Theme.textSecondary
                                 }
-
                                 Text {
-                                    text: qsTr("Unity çevirileri için BepInEx + XUnity.AutoTranslator gereklidir")
-                                    font.pixelSize: Dimensions.fontXS
-                                    color: Theme.textMuted
-                                    visible: !runtimeInstalled
+                                    visible: root.runtimeInstalled && root.bepinexVersion !== ""
+                                    text: "BepInEx " + root.bepinexVersion
+                                    font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
                                 }
-
                                 Text {
-                                    text: {
-                                        var parts = []
-                                        if (bepinexVersion) parts.push("BepInEx " + bepinexVersion)
-                                        if (xunityVersion) parts.push("XUnity " + xunityVersion)
-                                        return parts.join("  •  ")
-                                    }
-                                    font.pixelSize: Dimensions.fontXS
-                                    color: Theme.textSecondary
-                                    visible: runtimeInstalled && (bepinexVersion || xunityVersion)
+                                    visible: !root.runtimeInstalled
+                                    text: qsTr("Çevirinin çalışması için BepInEx gereklidir")
+                                    font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
                                 }
                             }
 
-                            Item { Layout.fillWidth: true }
-
                             // Backend badge
                             Rectangle {
-                                Layout.preferredWidth: backendLabel.width + 16
-                                Layout.preferredHeight: 22
-                                radius: 4
+                                visible: root.unityBackend !== "" && root.unityBackend !== "unknown"
+                                width: backendLbl.width + 12; height: 24
+                                radius: Dimensions.radiusFull
                                 color: Theme.withAlpha(Theme.textPrimary, 0.06)
-                                visible: unityBackend !== "" && unityBackend !== "unknown"
-
-                                Text {
-                                    id: backendLabel
-                                    anchors.centerIn: parent
-                                    text: unityBackend === "il2cpp" ? "IL2CPP" : "Mono"
-                                    font.pixelSize: Dimensions.fontCaption
-                                    font.weight: Font.Medium
-                                    color: Theme.textSecondary
-                                }
+                                Text { id: backendLbl; anchors.centerIn: parent; text: root.unityBackend; font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
                             }
                         }
 
                         // Anti-cheat warning
                         Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: acRow.height + 16
-                            radius: 8
+                            Layout.fillWidth: true; visible: root.hasAntiCheat
+                            implicitHeight: acRow.height + Dimensions.marginSM * 2
+                            radius: Dimensions.radiusStandard
                             color: Theme.withAlpha(Theme.destructive, 0.08)
-                            border.color: Theme.withAlpha(Theme.destructive, 0.2)
-                            border.width: 1
-                            visible: hasAntiCheat
+                            border.color: Theme.withAlpha(Theme.destructive, 0.20); border.width: 1
 
                             RowLayout {
                                 id: acRow
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.margins: Dimensions.marginMS
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.top: parent.top; anchors.margins: Dimensions.marginSM
                                 spacing: Dimensions.spacingMD
-
-                                Text {
-                                    text: "\u26A0"
-                                    font.pixelSize: Dimensions.fontMD
-                                    color: Theme.destructive
-                                }
-
+                                Text { text: "\u26A0"; font.pixelSize: Dimensions.fontTitle; color: Theme.destructive }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: qsTr("Bu oyun %1 anti-cheat kullanıyor. BepInEx kurulumu online özelliklerle çakışabilir.").arg(antiCheatName || "Anti-Cheat")
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: Theme.destructive
+                                    text: qsTr("Bu oyunda %1 tespit edildi. BepInEx ile uyumsuz olabilir.").arg(root.antiCheatName)
+                                    font.pixelSize: Dimensions.fontBody; color: Theme.destructive
                                     wrapMode: Text.WordWrap
-                                    lineHeight: 1.3
                                 }
                             }
                         }
 
                         // Action buttons
                         RowLayout {
-                            spacing: Dimensions.spacingBase
+                            spacing: Dimensions.spacingLG
 
-                            // Install / Update button
+                            // Install/Update
                             Rectangle {
-                                Layout.preferredWidth: runtimeBtnText.width + 32
-                                Layout.preferredHeight: 34
+                                implicitWidth: rtBtnRow.width + 32; implicitHeight: 38
                                 radius: Dimensions.radiusStandard
-                                color: runtimeBtnMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.2) : Theme.withAlpha(Theme.primary, 0.12)
-                                visible: !runtimeInstalled || !runtimeUpToDate
-                                opacity: isInstallingRuntime ? 0.6 : 1
-                                Accessible.role: Accessible.Button
-                                Accessible.name: runtimeInstalled ? qsTr("Update runtime") : qsTr("Install BepInEx")
-                                activeFocusOnTab: true
-                                Keys.onReturnPressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.installRuntime(root.gameId) } }
-                                Keys.onSpacePressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.installRuntime(root.gameId) } }
-
+                                color: rtBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
+                                opacity: root.isInstallingRuntime ? 0.6 : 1.0
                                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                                Text {
-                                    id: runtimeBtnText
-                                    anchors.centerIn: parent
-                                    text: {
-                                        if (isInstallingRuntime) return qsTr("Kuruluyor...")
-                                        if (runtimeInstalled) return qsTr("Güncelle")
-                                        return qsTr("BepInEx Kur")
-                                    }
-                                    font.pixelSize: Dimensions.fontSM
-                                    font.weight: Font.DemiBold
-                                    color: Theme.primary
-                                }
+                                Accessible.role: Accessible.Button
+                                Accessible.name: root.isInstallingRuntime ? qsTr("Kuruluyor...") : (!root.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
 
-                                MouseArea {
-                                    id: runtimeBtnMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    enabled: !isInstallingRuntime
-                                    onClicked: {
-                                        isInstallingRuntime = true
-                                        GameService.installRuntime(root.gameId)
+                                Row {
+                                    id: rtBtnRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                    Text {
+                                        text: root.isInstallingRuntime ? qsTr("Kuruluyor...") : (!root.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
+                                        font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textOnColor
+                                        anchors.verticalCenter: parent.verticalCenter
                                     }
+                                }
+                                MouseArea {
+                                    id: rtBtnMouse; anchors.fill: parent; hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor; enabled: !root.isInstallingRuntime
+                                    onClicked: { root.isInstallingRuntime = true; GameService.installRuntime(root.gameId) }
                                 }
                             }
 
-                            // Uninstall button
+                            // Uninstall
                             Rectangle {
-                                Layout.preferredWidth: uninstallBtnText.width + 32
-                                Layout.preferredHeight: 34
+                                visible: root.runtimeInstalled
+                                implicitWidth: rtUnRow.width + 32; implicitHeight: 38
                                 radius: Dimensions.radiusStandard
-                                color: uninstallMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
-                                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
-                                border.width: 1
-                                visible: runtimeInstalled
-                                opacity: isInstallingRuntime ? 0.6 : 1
-                                Accessible.role: Accessible.Button
-                                Accessible.name: qsTr("Uninstall runtime")
-                                activeFocusOnTab: true
-                                Keys.onReturnPressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.uninstallRuntime(root.gameId) } }
-                                Keys.onSpacePressed: { if (!isInstallingRuntime) { isInstallingRuntime = true; GameService.uninstallRuntime(root.gameId) } }
-
+                                color: rtUnMouse.containsMouse ? Theme.withAlpha(Theme.destructive, 0.15) : Theme.withAlpha(Theme.textPrimary, 0.06)
+                                border.color: Theme.withAlpha(Theme.textPrimary, 0.10); border.width: 1
                                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                                Text {
-                                    id: uninstallBtnText
-                                    anchors.centerIn: parent
-                                    text: qsTr("Kaldır")
-                                    font.pixelSize: Dimensions.fontSM
-                                    font.weight: Font.Medium
-                                    color: Theme.textSecondary
+                                Accessible.role: Accessible.Button
+                                Accessible.name: qsTr("BepInEx Kaldır")
+                                Row {
+                                    id: rtUnRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                    Text { text: qsTr("Kaldır"); font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
                                 }
-
                                 MouseArea {
-                                    id: uninstallMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
+                                    id: rtUnMouse; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    enabled: !isInstallingRuntime
-                                    onClicked: {
-                                        isInstallingRuntime = true
-                                        GameService.uninstallRuntime(root.gameId)
-                                    }
+                                    onClicked: GameService.uninstallRuntime(root.gameId)
                                 }
                             }
                         }
@@ -1681,371 +1283,264 @@ Item {
                 }
             }
 
-            // ===== BACKUP SECTION =====
+            // =================================================================
+            // BACKUP MANAGEMENT
+            // =================================================================
+
+            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+
             ColumnLayout {
                 id: backupSection
                 Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
+                Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
                 spacing: Dimensions.spacingLG
+                opacity: root._reveal >= 6 ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
-                // Backup data from BackupManager
-                property var gameBackups: root.gameId !== "" ? BackupManager.getBackupsForGame(root.gameId) : []
+                property var gameBackups: BackupManager.getBackupsForGame(root.gameId)
                 property bool hasBackups: gameBackups.length > 0
-                property var latestBackup: root.gameId !== "" ? BackupManager.getLatestBackup(root.gameId) : ({})
+                property var latestBackup: BackupManager.getLatestBackup(root.gameId)
 
                 Connections {
                     target: BackupManager
                     function onBackupsChanged() {
-                        backupSection.gameBackups = root.gameId !== "" ? BackupManager.getBackupsForGame(root.gameId) : []
-                        backupSection.latestBackup = root.gameId !== "" ? BackupManager.getLatestBackup(root.gameId) : ({})
-                        backupSection.hasBackups = backupSection.gameBackups.length > 0
+                        backupSection.gameBackups = BackupManager.getBackupsForGame(root.gameId)
+                        backupSection.latestBackup = BackupManager.getLatestBackup(root.gameId)
                     }
                     function onBackupRestored(gId) {
-                        if (gId === root.gameId)
-                            refreshBackups()
+                        if (gId === root.gameId) {
+                            backupSection.gameBackups = BackupManager.getBackupsForGame(root.gameId)
+                            backupSection.latestBackup = BackupManager.getLatestBackup(root.gameId)
+                        }
                     }
                 }
 
                 Text {
                     text: qsTr("Yedekleme Yönetimi")
-                    font.pixelSize: Dimensions.fontTitle
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
+                    font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold; color: Theme.textPrimary
                 }
 
-                // Main backup card
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: backupContent.height + 40
+                    implicitHeight: backupContent.height + Dimensions.marginML * 2
                     radius: Dimensions.radiusStandard
-                    color: Theme.withAlpha(Theme.textPrimary, 0.05)
-                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                    border.width: 1
+                    color: Theme.glassBackground; border.color: Theme.glassBorder; border.width: 1
 
                     ColumnLayout {
                         id: backupContent
-                        anchors.fill: parent
-                        anchors.margins: Dimensions.marginML
-                        spacing: Dimensions.spacingXL
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top; anchors.margins: Dimensions.marginML
+                        spacing: Dimensions.spacingLG
 
                         Text {
                             Layout.fillWidth: true
                             text: qsTr("Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir.")
-                            font.pixelSize: Dimensions.fontBody
-                            color: Theme.textMuted
-                            wrapMode: Text.WordWrap
+                            font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; wrapMode: Text.WordWrap
                         }
 
-                        // Restore in progress indicator
+                        // Restore in progress
                         RowLayout {
                             visible: BackupManager.isRestoring
-                            spacing: Dimensions.spacingLG
-
-                            BusyIndicator {
-                                Layout.preferredWidth: 24
-                                Layout.preferredHeight: 24
-                                running: visible
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: BackupManager.restoreStatus
-                                font.pixelSize: Dimensions.fontBody
-                                color: Theme.primary
-                                elide: Text.ElideRight
-                            }
+                            spacing: Dimensions.spacingMD
+                            BusyIndicator { width: 20; height: 20; running: visible }
+                            Text { text: BackupManager.restoreStatus; font.pixelSize: Dimensions.fontBody; color: Theme.primary }
                         }
 
-                        // Has backups state
+                        // Has backups
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: Dimensions.spacingLG
                             visible: backupSection.hasBackups && !BackupManager.isRestoring
+                            spacing: Dimensions.spacingLG
 
                             // Latest backup info
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: latestInfoCol.height + 24
-                                radius: Dimensions.radiusStandard
-                                color: Theme.withAlpha(Theme.textPrimary, 0.04)
+                            RowLayout {
+                                Layout.fillWidth: true; spacing: Dimensions.spacingLG
+
+                                Rectangle {
+                                    width: 40; height: 40; radius: 20
+                                    color: Theme.withAlpha(Theme.success, 0.12)
+                                    Text { anchors.centerIn: parent; text: "\u2713"; font.pixelSize: Dimensions.fontTitle; color: Theme.success }
+                                }
 
                                 ColumnLayout {
-                                    id: latestInfoCol
-                                    anchors.fill: parent
-                                    anchors.margins: Dimensions.marginMS
-                                    spacing: Dimensions.spacingSM
-
-                                    RowLayout {
-                                        spacing: Dimensions.spacingMD
-
-                                        Rectangle {
-                                            Layout.preferredWidth: latestBadgeText.width + 16
-                                            Layout.preferredHeight: 22
-                                            radius: Dimensions.radiusStandard
-                                            color: Theme.withAlpha(Theme.success, 0.15)
-
-                                            Text {
-                                                id: latestBadgeText
-                                                anchors.centerIn: parent
-                                                text: qsTr("Son Yedek")
-                                                font.pixelSize: Dimensions.fontXS
-                                                font.weight: Font.DemiBold
-                                                color: Theme.success
-                                            }
-                                        }
-
-                                        Text {
-                                            text: backupSection.latestBackup.date || ""
-                                            font.pixelSize: Dimensions.fontSM
-                                            color: Theme.textMuted
-                                        }
+                                    Layout.fillWidth: true; spacing: Dimensions.spacingXXS
+                                    Text {
+                                        text: qsTr("Son Yedek")
+                                        font.pixelSize: Dimensions.fontBody; font.weight: Font.DemiBold; color: Theme.textPrimary
                                     }
-
-                                    RowLayout {
-                                        spacing: Dimensions.spacingXL
-
-                                        Text {
-                                            text: (backupSection.latestBackup.sizeFormatted || "0 B")
-                                            font.pixelSize: Dimensions.fontSM
-                                            color: Theme.textSecondary
+                                    Text {
+                                        text: {
+                                            var b = backupSection.latestBackup
+                                            if (!b || !b.date) return ""
+                                            var parts = []
+                                            parts.push(b.date)
+                                            if (b.sizeFormatted) parts.push(b.sizeFormatted)
+                                            if (b.fileCount) parts.push(qsTr("%1 dosya").arg(b.fileCount))
+                                            return parts.join(" \u2022 ")
                                         }
-
-                                        Text {
-                                            property int fc: backupSection.latestBackup.fileCount || 0
-                                            text: qsTr("%1 dosya").arg(fc)
-                                            font.pixelSize: Dimensions.fontSM
-                                            color: Theme.textSecondary
-                                            visible: fc > 0
-                                        }
-
-                                        Text {
-                                            property int bc: backupSection.gameBackups.length
-                                            text: qsTr("%1 yedek mevcut").arg(bc)
-                                            font.pixelSize: Dimensions.fontSM
-                                            color: Theme.textMuted
-                                        }
+                                        font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
                                     }
+                                }
+
+                                // Count badge
+                                Rectangle {
+                                    width: countLbl.width + 12; height: 22
+                                    radius: Dimensions.radiusFull
+                                    color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                                    Text { id: countLbl; anchors.centerIn: parent; text: qsTr("%1 yedek").arg(backupSection.gameBackups.length); font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
                                 }
                             }
 
-                            // Action buttons
+                            // Buttons
                             RowLayout {
                                 spacing: Dimensions.spacingLG
 
-                                // Restore latest button
+                                // Restore
                                 Rectangle {
-                                    Layout.preferredWidth: restoreBtnContent.width + 40
-                                    Layout.preferredHeight: 44
+                                    implicitWidth: restoreRow.width + 32; implicitHeight: 38
                                     radius: Dimensions.radiusStandard
-                                    color: restoreBtnMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.2) : Theme.withAlpha(Theme.warning, 0.1)
-                                    border.color: Theme.withAlpha(Theme.warning, restoreBtnMouse.containsMouse ? 0.4 : 0.2)
-                                    border.width: 1
-
+                                    color: restoreMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.20) : Theme.withAlpha(Theme.warning, 0.10)
+                                    border.color: Theme.withAlpha(Theme.warning, 0.30); border.width: 1
                                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                    Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Accessible.role: Accessible.Button
-                                    Accessible.name: qsTr("Restore latest backup")
-                                    activeFocusOnTab: true
-                                    Keys.onReturnPressed: { var latest = BackupManager.getLatestBackup(root.gameId); if (latest && latest.id) BackupManager.restoreBackup(latest.id) }
-                                    Keys.onSpacePressed: { var latest = BackupManager.getLatestBackup(root.gameId); if (latest && latest.id) BackupManager.restoreBackup(latest.id) }
+                                    Accessible.name: qsTr("Orijinale Dön")
 
                                     Row {
-                                        id: restoreBtnContent
-                                        anchors.centerIn: parent
-                                        spacing: Dimensions.spacingMD
-
-                                        Text {
-                                            text: "\u21BA"
-                                            font.pixelSize: Dimensions.fontLG
-                                            color: Theme.warning
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-
-                                        Text {
-                                            text: qsTr("Orijinale Dön")
-                                            font.pixelSize: Dimensions.fontBody
-                                            font.weight: Font.Medium
-                                            color: Theme.warning
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
+                                        id: restoreRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                        Text { text: "\u21BB"; font.pixelSize: Dimensions.fontSM; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                                        Text { text: qsTr("Orijinale Dön"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
                                     }
-
                                     MouseArea {
-                                        id: restoreBtnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
+                                        id: restoreMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            var latest = BackupManager.getLatestBackup(root.gameId)
-                                            if (latest && latest.id) {
-                                                BackupManager.restoreBackup(latest.id)
-                                            }
+                                            var b = backupSection.latestBackup
+                                            if (b && b.id) BackupManager.restoreBackup(b.id)
                                         }
                                     }
                                 }
 
-                                // Delete all backups button
+                                // Delete all
                                 Rectangle {
-                                    Layout.preferredWidth: deleteBtnContent.width + 40
-                                    Layout.preferredHeight: 44
+                                    implicitWidth: deleteRow.width + 32; implicitHeight: 38
                                     radius: Dimensions.radiusStandard
-                                    color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
-                                    border.color: Theme.withAlpha(Theme.textPrimary, deleteBtnMouse.containsMouse ? 0.15 : 0.08)
-                                    border.width: 1
-
+                                    color: deleteMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : Theme.withAlpha(Theme.textPrimary, 0.04)
                                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                                     Accessible.role: Accessible.Button
-                                    Accessible.name: qsTr("Delete all backups")
-                                    activeFocusOnTab: true
-                                    Keys.onReturnPressed: { var backups = BackupManager.getBackupsForGame(root.gameId); for (var i = 0; i < backups.length; i++) BackupManager.deleteBackup(backups[i].id) }
-                                    Keys.onSpacePressed: { var backups = BackupManager.getBackupsForGame(root.gameId); for (var i = 0; i < backups.length; i++) BackupManager.deleteBackup(backups[i].id) }
+                                    Accessible.name: qsTr("Yedekleri Sil")
 
                                     Row {
-                                        id: deleteBtnContent
-                                        anchors.centerIn: parent
-                                        spacing: Dimensions.spacingMD
-
-                                        Text {
-                                            text: "\uD83D\uDDD1"
-                                            font.pixelSize: Dimensions.fontMD
-                                            color: Theme.textMuted
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-
-                                        Text {
-                                            text: qsTr("Yedekleri Sil")
-                                            font.pixelSize: Dimensions.fontBody
-                                            font.weight: Font.Medium
-                                            color: Theme.textMuted
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
+                                        id: deleteRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                        Text { text: qsTr("Yedekleri Sil"); font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
                                     }
-
                                     MouseArea {
-                                        id: deleteBtnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            var backups = BackupManager.getBackupsForGame(root.gameId)
-                                            for (var i = 0; i < backups.length; i++) {
-                                                BackupManager.deleteBackup(backups[i].id)
-                                            }
-                                        }
+                                        id: deleteMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: deleteBackupsConfirm.open()
                                     }
                                 }
                             }
                         }
 
-                        // No backups state
-                        RowLayout {
+                        // No backups
+                        Row {
                             visible: !backupSection.hasBackups && !BackupManager.isRestoring
-                            spacing: Dimensions.spacingMD
-
-                            Text {
-                                text: "\u2139"
-                                font.pixelSize: Dimensions.fontLG
-                                color: Theme.textMuted
-                                Layout.alignment: Qt.AlignTop
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: qsTr("Bu oyun için henüz yedek bulunmuyor. Çeviri uygulandığında otomatik olarak oluşturulacak.")
-                                font.pixelSize: Dimensions.fontBody
-                                color: Theme.textMuted
-                                wrapMode: Text.WordWrap
-                            }
+                            spacing: Dimensions.spacingLG
+                            Text { text: "\u2139"; font.pixelSize: Dimensions.fontTitle; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: qsTr("Bu oyun için henüz yedek bulunmuyor."); font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
                 }
             }
 
-            // ===== SCREENSHOTS SECTION =====
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                spacing: Dimensions.spacingLG
-                visible: root.screenshots.length > 0
+            // Bottom spacer
+            Item { Layout.preferredHeight: Dimensions.marginXXL; Layout.fillWidth: true }
 
-                Text {
-                    text: qsTr("Ekran Görüntüleri")
-                    font.pixelSize: Dimensions.fontTitle
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
+        } // end contentCol
+    } // end Flickable
 
-                // Horizontal scroll
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 192
-                    clip: true
+    // =========================================================================
+    // LOADING OVERLAY (Steam details)
+    // =========================================================================
 
-                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                    ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: parent.height * 0.45
+        width: loadingRow.width + 40; height: 44
+        radius: Dimensions.radiusFull
+        color: Theme.withAlpha(Theme.surface, 0.92)
+        border.color: Theme.glassBorder; border.width: 1
+        visible: root.isLoadingSteamDetails && !root.hasSteamDetails
+        z: 5
 
-                    Row {
-                        spacing: Dimensions.spacingLG
-
-                        Repeater {
-                            model: root.screenshots
-
-                            Rectangle {
-                                width: 320
-                                height: 180
-                                radius: Dimensions.radiusStandard
-                                color: Theme.surfaceActive
-                                clip: true
-
-                                Image {
-                                    anchors.fill: parent
-                                    source: modelData
-                                    fillMode: Image.PreserveAspectCrop
-                                    sourceSize: Qt.size(640, 360)
-                                    asynchronous: true
-                                    cache: true
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Item { Layout.preferredHeight: 32 }
+        RowLayout {
+            id: loadingRow; anchors.centerIn: parent; spacing: Dimensions.spacingLG
+            BusyIndicator { width: 20; height: 20; running: visible }
+            Text { text: qsTr("Steam bilgileri yükleniyor..."); font.pixelSize: Dimensions.fontBody; color: Theme.textSecondary }
         }
     }
 
-    // ===== INFO ROW COMPONENT =====
-    component InfoRow: Item {
-        property string label: ""
-        property string value: ""
+    // Error + Retry
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: parent.height * 0.45
+        width: errorCol.width + 40; height: errorCol.height + 24
+        radius: Dimensions.radiusStandard
+        color: Theme.withAlpha(Theme.surface, 0.92)
+        border.color: Theme.glassBorder; border.width: 1
+        visible: root.steamFetchFailed && !root.hasSteamDetails
+        z: 5
 
-        Layout.fillWidth: true
-        Layout.preferredHeight: 32
+        ColumnLayout {
+            id: errorCol; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+            Text { text: qsTr("Steam bilgileri alınamadı"); font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; Layout.alignment: Qt.AlignHCenter }
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                implicitWidth: retryLbl.width + 24; implicitHeight: 30
+                radius: Dimensions.radiusStandard
+                color: retryMouse.containsMouse ? Theme.primaryHover : Theme.primary
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-        RowLayout {
-            anchors.fill: parent
-            spacing: 0
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Tekrar Dene")
 
-            Text {
-                Layout.preferredWidth: 100
-                text: label
-                font.pixelSize: Dimensions.fontBody
-                color: Theme.textMuted
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: value
-                font.pixelSize: Dimensions.fontBody
-                font.weight: Font.Medium
-                color: Theme.textPrimary
-                wrapMode: Text.WordWrap
+                Text { id: retryLbl; anchors.centerIn: parent; text: qsTr("Tekrar Dene"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textOnColor }
+                MouseArea { id: retryMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) } }
             }
         }
+    }
+
+    // =========================================================================
+    // FOCUS INDICATOR
+    // =========================================================================
+
+    Accessible.role: Accessible.Pane
+    Accessible.name: root.gameName
+
+    // ===== CONFIRM DIALOGS =====
+    ConfirmDialog {
+        id: deleteBackupsConfirm
+        parent: Overlay.overlay
+        title: qsTr("Yedekleri Sil")
+        message: qsTr("Bu oyuna ait tüm yedek dosyaları kalıcı olarak silinecek. Bu işlem geri alınamaz.")
+        confirmText: qsTr("Sil")
+        onConfirmed: {
+            var all = backupSection.gameBackups
+            for (var i = 0; i < all.length; i++)
+                BackupManager.deleteBackup(all[i].id)
+        }
+    }
+
+    // =========================================================================
+    // INLINE COMPONENTS
+    // =========================================================================
+
+    component DetailRow: RowLayout {
+        property string label: ""
+        property string value: ""
+        Layout.fillWidth: true
+        height: 28; spacing: 0
+        Text { Layout.preferredWidth: 110; text: label; font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; elide: Text.ElideRight }
+        Text { Layout.fillWidth: true; text: value; font.pixelSize: Dimensions.fontBody; font.weight: Font.Medium; color: Theme.textPrimary; wrapMode: Text.WordWrap }
     }
 }

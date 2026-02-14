@@ -5,7 +5,6 @@ import QtQuick.Effects
 import MakineAI 1.0
 import "dialogs"
 import "components"
-import "utils/VersionUtils.js" as VersionUtils
 
 /**
  * HomeScreen.qml - Main home view with game status, announcements, and projects
@@ -29,47 +28,22 @@ Item {
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
     signal manualFolderRequested()
+    signal settingsRequested()
 
-    // ===== UPDATE CHECKER =====
-    property bool updateAvailable: false
-    property string latestVersion: ""
-    property string downloadUrl: ""
+    // ===== UPDATE CHECKER (C++ backend) =====
+    property bool updateAvailable: UpdateChecker.updateAvailable
+    property string latestVersion: UpdateChecker.latestVersion
     property string notificationMessage: ""
     property string notificationType: "info"  // info, warning, error, update
 
-    readonly property string githubOwner: Dimensions.githubOwner
-    readonly property string githubRepo: Dimensions.githubRepo
-    readonly property string currentVersion: Dimensions.appVersion.replace(/[a-zA-Z]/g, "")
-
-    function checkForUpdates() {
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var response = JSON.parse(xhr.responseText)
-                        var tagName = response.tag_name || ""
-                        var remoteVersion = tagName.replace(/^v/, "").replace(/[a-zA-Z-]/g, "")
-
-                        if (VersionUtils.compareVersions(remoteVersion, currentVersion) > 0) {
-                            updateAvailable = true
-                            latestVersion = tagName
-                            downloadUrl = response.html_url || ""
-                            notificationMessage = qsTr("Yeni sürüm mevcut: %1").arg(tagName)
-                            notificationType = "update"
-                        }
-                    } catch (e) {
-                        DebugHelper.warn("HomeScreen", "Update check parse error: " + e)
-                    }
-                }
+    Connections {
+        target: UpdateChecker
+        function onCheckCompleted(hasUpdate, version, url) {
+            if (hasUpdate) {
+                notificationMessage = qsTr("Yeni sürüm mevcut: %1").arg(version)
+                notificationType = "update"
             }
         }
-
-        var url = Dimensions.githubReleasesUrl
-        xhr.open("GET", url)
-        xhr.setRequestHeader("Accept", "application/vnd.github.v3+json")
-        xhr.setRequestHeader("User-Agent", "MakineAI-UpdateChecker")
-        try { xhr.send() } catch (e) { DebugHelper.warn("HomeScreen", "Update check error: " + e) }
     }
 
     function showNotification(message, type) {
@@ -100,7 +74,8 @@ Item {
 
     Component.onCompleted: {
         GameService.scanAllLibraries()
-        checkForUpdates()
+        if (SettingsManager.showNotifications)
+            UpdateChecker.checkForUpdatesIfNeeded()
     }
 
     function showHomePage() {
@@ -222,17 +197,17 @@ Item {
                                 }
 
                                 Rectangle {
-                                    visible: notificationType === "update" && downloadUrl
+                                    visible: notificationType === "update"
                                     width: updateBtnText.width + 16
                                     height: 28
                                     radius: Dimensions.radiusStandard
                                     color: updateBtnMouse.containsMouse ? Theme.withAlpha(Theme.notificationUpdate, 0.3) : Theme.withAlpha(Theme.notificationUpdate, 0.2)
                                     scale: updateBtnMouse.pressed ? 0.94 : 1.0
                                     Accessible.role: Accessible.Button
-                                    Accessible.name: qsTr("Download update")
+                                    Accessible.name: qsTr("Go to settings")
                                     activeFocusOnTab: true
-                                    Keys.onReturnPressed: Qt.openUrlExternally(downloadUrl)
-                                    Keys.onSpacePressed: Qt.openUrlExternally(downloadUrl)
+                                    Keys.onReturnPressed: root.settingsRequested()
+                                    Keys.onSpacePressed: root.settingsRequested()
 
                                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -240,7 +215,7 @@ Item {
                                     Text {
                                         id: updateBtnText
                                         anchors.centerIn: parent
-                                        text: qsTr("İndir")
+                                        text: qsTr("Ayarlara Git")
                                         font.pixelSize: Dimensions.fontSM
                                         font.weight: Font.Medium
                                         color: Theme.notificationUpdate
@@ -262,7 +237,7 @@ Item {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Qt.openUrlExternally(downloadUrl)
+                                        onClicked: root.settingsRequested()
                                     }
                                 }
 
@@ -301,6 +276,37 @@ Item {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: hideNotification()
+                                    }
+                                }
+                            }
+                        }
+
+                        // ===== UPDATE STATUS PILL =====
+                        Row {
+                            Layout.leftMargin: root.contentMargin
+                            Layout.rightMargin: root.contentMargin
+                            spacing: 6
+                            visible: UpdateChecker.statusType === "upToDate" || UpdateChecker.statusType === "updateAvailable"
+
+                            Rectangle {
+                                width: 6; height: 6; radius: 3
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: UpdateChecker.statusType === "updateAvailable" ? Theme.warning : Theme.success
+                            }
+
+                            Text {
+                                text: UpdateChecker.statusType === "updateAvailable"
+                                      ? qsTr("%1 mevcut").arg(UpdateChecker.latestVersion)
+                                      : qsTr("Güncel")
+                                font.pixelSize: Dimensions.fontXS
+                                color: UpdateChecker.statusType === "updateAvailable" ? Theme.warning : Theme.textMuted
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: UpdateChecker.statusType === "updateAvailable" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: {
+                                        if (UpdateChecker.statusType === "updateAvailable")
+                                            root.settingsRequested()
                                     }
                                 }
                             }
@@ -847,6 +853,9 @@ Item {
                                         imageUrl: modelData.headerImageUrl || ""
                                         verified: modelData.isVerified || false
                                         translated: modelData.hasTranslation || false
+                                        gameId: modelData.id || ""
+                                        installPath: modelData.installPath || ""
+                                        steamAppId: modelData.steamAppId || ""
 
                                         // Staggered fade-in (no transform - fixes click issues)
                                         opacity: 0
@@ -880,6 +889,12 @@ Item {
                                                 modelData.installPath || "",
                                                 modelData.engine || ""
                                             )
+                                        }
+                                        onContextAction: function(action) {
+                                            if (action === "openFolder")
+                                                Qt.openUrlExternally("file:///" + modelData.installPath)
+                                            else if (action === "openSteam")
+                                                Qt.openUrlExternally("steam://nav/games/details/" + modelData.steamAppId)
                                         }
                                     }
                                 }
@@ -1220,6 +1235,7 @@ Item {
                         var game = source[i]
                         if (translationPage.activeFilter === "installed" && !game.packageInstalled) continue
                         if (translationPage.activeFilter === "available" && game.packageInstalled) continue
+                        if (translationPage.activeFilter === "update" && !(game.packageInstalled && GameService.hasGameUpdate(game.id))) continue
                         result.push(game)
                     }
                     return result
@@ -1232,6 +1248,7 @@ Item {
                     for (var i = 0; i < source.length; i++) {
                         if (filterKey === "installed" && source[i].packageInstalled) count++
                         if (filterKey === "available" && !source[i].packageInstalled) count++
+                        if (filterKey === "update" && source[i].packageInstalled && GameService.hasGameUpdate(source[i].id)) count++
                     }
                     return count
                 }
@@ -1314,7 +1331,8 @@ Item {
                                 model: [
                                     { key: "all", label: qsTr("Tümü") },
                                     { key: "installed", label: qsTr("Kurulu") },
-                                    { key: "available", label: qsTr("Kurulu Değil") }
+                                    { key: "available", label: qsTr("Kurulu Değil") },
+                                    { key: "update", label: qsTr("Güncelleme") }
                                 ]
 
                                 Rectangle {
@@ -1437,10 +1455,14 @@ Item {
                                     gameName: modelData.name || ""
                                     imageUrl: modelData.logoImageUrl || modelData.headerImageUrl || ""
                                     packageInstalled: modelData.packageInstalled || false
+                                    hasUpdate: { GameService.gameUpdateCount; return modelData.id ? GameService.hasGameUpdate(modelData.id) : false }
                                     isInstalling: translationPage.installingGames[modelData.id] || false
                                     installProgress: translationPage.installProgressMap[modelData.id] || 0.0
 
                                     onInstallClicked: {
+                                        GameService.installTranslation(modelData.id)
+                                    }
+                                    onUpdateClicked: {
                                         GameService.installTranslation(modelData.id)
                                     }
                                     onUninstallClicked: {
@@ -1479,22 +1501,28 @@ Item {
                                 }
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: translationPage.activeFilter === "all"
-                                        ? qsTr("Henüz yama bulunamadı")
-                                        : translationPage.activeFilter === "installed"
-                                            ? qsTr("Kurulu yama yok")
-                                            : qsTr("Tüm yamalar kurulu")
+                                    text: {
+                                        switch(translationPage.activeFilter) {
+                                            case "all": return qsTr("Henüz yama bulunamadı")
+                                            case "installed": return qsTr("Kurulu yama yok")
+                                            case "update": return qsTr("Güncelleme bekleyen yama yok")
+                                            default: return qsTr("Tüm yamalar kurulu")
+                                        }
+                                    }
                                     font.pixelSize: Dimensions.fontBody
                                     font.weight: Font.Medium
                                     color: Theme.textSecondary
                                 }
                                 Label {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: translationPage.activeFilter === "all"
-                                        ? qsTr("Bilgisayarınızda çevirisi olan oyun bulunamadı")
-                                        : translationPage.activeFilter === "installed"
-                                            ? qsTr("Kurulu olmayan yamalardan birini kurmak için Tümü filtresine geçin")
-                                            : qsTr("Tüm yamalar başarıyla kurulmuş durumda")
+                                    text: {
+                                        switch(translationPage.activeFilter) {
+                                            case "all": return qsTr("Bilgisayarınızda çevirisi olan oyun bulunamadı")
+                                            case "installed": return qsTr("Kurulu olmayan yamalardan birini kurmak için Tümü filtresine geçin")
+                                            case "update": return qsTr("Tüm yamalar güncel durumda")
+                                            default: return qsTr("Tüm yamalar başarıyla kurulmuş durumda")
+                                        }
+                                    }
                                     font.pixelSize: Dimensions.fontXS
                                     color: Theme.textMuted
                                     horizontalAlignment: Text.AlignHCenter
@@ -1653,6 +1681,8 @@ Item {
                             }
                         }
 
+                        property var filteredLibGames: GameService.games || []
+
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 1
@@ -1671,7 +1701,7 @@ Item {
 
                             Repeater {
                                 id: libraryRepeater
-                                model: GameService.games
+                                model: filteredLibGames
 
                                 Item {
                                     id: libCard
@@ -1901,13 +1931,49 @@ Item {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            root.gameSelected(
-                                                libCard.modelData.id || "",
-                                                libCard.modelData.name || "",
-                                                libCard.modelData.installPath || "",
-                                                libCard.modelData.engine || ""
-                                            )
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                        onClicked: function(mouse) {
+                                            if (mouse.button === Qt.RightButton) {
+                                                libContextMenu.popup()
+                                            } else {
+                                                root.gameSelected(
+                                                    libCard.modelData.id || "",
+                                                    libCard.modelData.name || "",
+                                                    libCard.modelData.installPath || "",
+                                                    libCard.modelData.engine || ""
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Menu {
+                                        id: libContextMenu
+                                        Overlay.modal: Rectangle { color: "transparent" }
+                                        background: Rectangle {
+                                            implicitWidth: 200; radius: Dimensions.radiusMD
+                                            color: Theme.glassBackground; border.color: Theme.glassBorder; border.width: 1
+                                        }
+                                        MenuItem {
+                                            text: qsTr("Detaylar")
+                                            onTriggered: root.gameSelected(libCard.modelData.id || "", libCard.modelData.name || "", libCard.modelData.installPath || "", libCard.modelData.engine || "")
+                                            contentItem: Label { text: parent.text; font.pixelSize: Dimensions.fontSM; color: Theme.textPrimary; leftPadding: Dimensions.paddingSM }
+                                            background: Rectangle { color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent" }
+                                        }
+                                        MenuSeparator { contentItem: Rectangle { implicitHeight: 1; color: Theme.withAlpha(Theme.textPrimary, 0.08) } }
+                                        MenuItem {
+                                            text: qsTr("Klasörü Aç")
+                                            enabled: (libCard.modelData.installPath || "") !== ""
+                                            onTriggered: Qt.openUrlExternally("file:///" + libCard.modelData.installPath)
+                                            contentItem: Label { text: parent.text; font.pixelSize: Dimensions.fontSM; color: parent.enabled ? Theme.textPrimary : Theme.textMuted; leftPadding: Dimensions.paddingSM }
+                                            background: Rectangle { color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent" }
+                                        }
+                                        MenuItem {
+                                            text: qsTr("Steam'de Aç")
+                                            visible: (libCard.modelData.steamAppId || "") !== ""
+                                            height: visible ? implicitHeight : 0
+                                            onTriggered: Qt.openUrlExternally("steam://nav/games/details/" + libCard.modelData.steamAppId)
+                                            contentItem: Label { text: parent.text; font.pixelSize: Dimensions.fontSM; color: Theme.textPrimary; leftPadding: Dimensions.paddingSM }
+                                            background: Rectangle { color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent" }
                                         }
                                     }
                                 }
@@ -1971,8 +2037,11 @@ Item {
         property string imageUrl: ""
         property bool verified: false
         property bool translated: false
-
+        property string gameId: ""
+        property string installPath: ""
+        property string steamAppId: ""
         signal clicked()
+        signal contextAction(string action)
 
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
@@ -2164,7 +2233,79 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: gameCardRoot.clicked()
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: function(mouse) {
+                if (mouse.button === Qt.RightButton)
+                    gameContextMenu.popup()
+                else
+                    gameCardRoot.clicked()
+            }
+        }
+
+        Menu {
+            id: gameContextMenu
+
+            Overlay.modal: Rectangle { color: "transparent" }
+
+            background: Rectangle {
+                implicitWidth: 200
+                radius: Dimensions.radiusMD
+                color: Theme.glassBackground
+                border.color: Theme.glassBorder
+                border.width: 1
+            }
+
+            MenuItem {
+                text: qsTr("Detaylar")
+                onTriggered: gameCardRoot.clicked()
+                contentItem: Label {
+                    text: parent.text
+                    font.pixelSize: Dimensions.fontSM
+                    color: Theme.textPrimary
+                    leftPadding: Dimensions.paddingSM
+                }
+                background: Rectangle {
+                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+                }
+            }
+
+            MenuSeparator {
+                contentItem: Rectangle {
+                    implicitHeight: 1
+                    color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                }
+            }
+
+            MenuItem {
+                text: qsTr("Klasörü Aç")
+                enabled: gameCardRoot.installPath !== ""
+                onTriggered: gameCardRoot.contextAction("openFolder")
+                contentItem: Label {
+                    text: parent.text
+                    font.pixelSize: Dimensions.fontSM
+                    color: parent.enabled ? Theme.textPrimary : Theme.textMuted
+                    leftPadding: Dimensions.paddingSM
+                }
+                background: Rectangle {
+                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+                }
+            }
+
+            MenuItem {
+                text: qsTr("Steam'de Aç")
+                visible: gameCardRoot.steamAppId !== ""
+                height: visible ? implicitHeight : 0
+                onTriggered: gameCardRoot.contextAction("openSteam")
+                contentItem: Label {
+                    text: parent.text
+                    font.pixelSize: Dimensions.fontSM
+                    color: Theme.textPrimary
+                    leftPadding: Dimensions.paddingSM
+                }
+                background: Rectangle {
+                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+                }
+            }
         }
     }
 
@@ -2412,6 +2553,15 @@ Item {
                 font.weight: Font.Medium
                 color: Theme.textPrimary
             }
+        }
+    }
+
+    // Quick search shortcut
+    Shortcut {
+        sequence: "Ctrl+K"
+        onActivated: {
+            if (!allGamesDialogLoader.active)
+                allGamesDialogLoader.active = true
         }
     }
 

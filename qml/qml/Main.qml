@@ -40,18 +40,6 @@ ApplicationWindow {
     property int currentNavIndex: 0
     property bool notificationPanelOpen: false
 
-    property QtObject notificationModel: QtObject {
-        property int unreadCount: 0
-        property ListModel items: ListModel { id: notificationListModel }
-        function addNotification(title, message, type) {
-            items.insert(0, { "title": title, "message": message, "type": type || "info", "time": Qt.formatTime(new Date(), "HH:mm"), "read": false })
-            unreadCount++
-        }
-        function markAllAsRead() { for (var i = 0; i < items.count; i++) items.setProperty(i, "read", true); unreadCount = 0 }
-        function markAsRead(index) { if (index >= 0 && index < items.count && !items.get(index).read) { items.setProperty(index, "read", true); unreadCount = Math.max(0, unreadCount - 1) } }
-        function clear() { items.clear(); unreadCount = 0 }
-    }
-
     readonly property int resizeMargin: 6
 
     // Pending game detail data for lazy-loaded GameDetailScreen
@@ -107,6 +95,37 @@ ApplicationWindow {
         function onQuitRequested() {
             window.forceQuit = true
             Qt.quit()
+        }
+        function onUpdateCheckRequested() {
+            UpdateChecker.checkForUpdates()
+        }
+    }
+
+    // Auto-update download/install notifications
+    Connections {
+        target: UpdateChecker
+        function onDownloadCompleted() {
+            window.showNotification(
+                qsTr("İndirme Tamamlandı"),
+                qsTr("Güncelleme kurulmaya hazır"),
+                "success"
+            )
+        }
+        function onInstallStarted() {
+            window.showNotification(
+                qsTr("Kurulum Başlatılıyor"),
+                qsTr("Uygulama yeniden başlatılacak..."),
+                "update"
+            )
+        }
+        function onDownloadErrorChanged() {
+            if (UpdateChecker.downloadError) {
+                window.showNotification(
+                    qsTr("İndirme Hatası"),
+                    UpdateChecker.downloadError,
+                    "error"
+                )
+            }
         }
     }
 
@@ -219,6 +238,58 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+,"
+        onActivated: {
+            window.currentNavIndex = 3
+            contentStackContainer.navigateTo(1)
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+H"
+        onActivated: {
+            window.currentNavIndex = 0
+            contentStackContainer.navigateTo(0)
+            homeView.showHomePage()
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+1"
+        onActivated: {
+            window.currentNavIndex = 0
+            contentStackContainer.navigateTo(0)
+            homeView.showHomePage()
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+2"
+        onActivated: {
+            window.currentNavIndex = 2
+            contentStackContainer.navigateTo(0)
+            homeView.showTranslationPage()
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+3"
+        onActivated: {
+            window.currentNavIndex = 1
+            contentStackContainer.navigateTo(0)
+            homeView.showProjectsPage()
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+N"
+        onActivated: {
+            if (window.notificationPanelOpen) {
+                notificationPanel.close()
+            } else {
+                window.notificationPanelOpen = true
+                notificationPanel.x = window.width - notificationPanel.width - 80
+                notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
+                notificationPanel.open()
+            }
         }
     }
 
@@ -387,6 +458,16 @@ ApplicationWindow {
                 homeView.showTranslationPage()
             }
             onDonateClicked: Qt.openUrlExternally(Dimensions.donatePageUrl)
+            onNotificationClicked: {
+                if (window.notificationPanelOpen) {
+                    notificationPanel.close()
+                } else {
+                    window.notificationPanelOpen = true
+                    notificationPanel.x = window.width - notificationPanel.width - 80
+                    notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
+                    notificationPanel.open()
+                }
+            }
         }
 
         // ===== CONTENT STACK - Simple crossfade transitions =====
@@ -485,13 +566,15 @@ ApplicationWindow {
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     var gameData = GameService.getGameById(gameId)
+                    var isManual = (gameId === "manual")
                     window.pendingGameDetail = {
                         gameId: gameId,
                         gameName: gameName,
                         engine: engine,
                         imageUrl: (gameData && gameData.headerImageUrl) || "",
                         verified: (gameData && gameData.isVerified) || false,
-                        steamAppId: (gameData && gameData.steamAppId) || ""
+                        steamAppId: (gameData && gameData.steamAppId) || "",
+                        isManualGame: isManual
                     }
                     // If loader already active, apply immediately
                     if (gameDetailLoader.item) {
@@ -503,6 +586,7 @@ ApplicationWindow {
                         gameDetailLoader.item.verified = d.verified
                         gameDetailLoader.item.steamAppId = d.steamAppId
                         gameDetailLoader.item.gameId = d.gameId
+                        gameDetailLoader.item.isManualGame = d.isManualGame
                         window.pendingGameDetail = null
                     }
                     contentStackContainer.navigateTo(2)
@@ -578,6 +662,7 @@ ApplicationWindow {
                                 verified = d.verified
                                 steamAppId = d.steamAppId
                                 gameId = d.gameId
+                                isManualGame = d.isManualGame || false
                                 window.pendingGameDetail = null
                             }
                         }
@@ -592,16 +677,16 @@ ApplicationWindow {
     NotificationPanel {
         id: notificationPanel
         parent: Overlay.overlay
-        model: window.notificationModel.items
+        model: NotificationService
         z: Dimensions.zNavigation
 
         onClosed: window.notificationPanelOpen = false
         onNotificationClicked: function(index) {
-            window.notificationModel.markAsRead(index)
+            NotificationService.markAsRead(index)
         }
-        onMarkAllRead: window.notificationModel.markAllAsRead()
+        onMarkAllRead: NotificationService.markAllAsRead()
         onClearAll: {
-            window.notificationModel.clear()
+            NotificationService.clear()
             notificationPanel.close()
         }
     }
@@ -636,7 +721,7 @@ ApplicationWindow {
 
     // Convenience function to show notifications from anywhere
     function showNotification(title, message, type) {
-        window.notificationModel.addNotification(title, message, type)
+        NotificationService.addNotification(title, message, type)
         notificationToast.show(title, message, type, 5000)
     }
 
@@ -651,6 +736,10 @@ ApplicationWindow {
                     "update"
                 )
             }
+        }
+        function onSettingsRequested() {
+            window.currentNavIndex = 3
+            contentStackContainer.navigateTo(1)
         }
     }
 
@@ -690,6 +779,81 @@ ApplicationWindow {
         }
     }
 
+    // ===== BACKUP MANAGER SIGNALS =====
+    Connections {
+        target: BackupManager
+        function onBackupCreated(gameId) {
+            window.showNotification(
+                qsTr("Yedek Oluşturuldu"),
+                qsTr("Orijinal dosyalar başarıyla yedeklendi"),
+                "success"
+            )
+        }
+        function onBackupRestored(gameId) {
+            window.showNotification(
+                qsTr("Yedek Geri Yüklendi"),
+                qsTr("Orijinal dosyalar başarıyla geri yüklendi"),
+                "success"
+            )
+        }
+        function onBackupDeleted(backupId) {
+            window.showNotification(
+                qsTr("Yedek Silindi"),
+                qsTr("Yedek dosyaları başarıyla silindi"),
+                "info"
+            )
+        }
+        function onBackupError(error) {
+            window.showNotification(
+                qsTr("Yedekleme Hatası"),
+                error,
+                "error"
+            )
+        }
+    }
+
+    // ===== SETTINGS MANAGER SIGNALS =====
+    Connections {
+        target: SettingsManager
+        function onCacheClearCompleted(success, message) {
+            window.showNotification(
+                success ? qsTr("Önbellek Temizlendi") : qsTr("Önbellek Hatası"),
+                message,
+                success ? "success" : "error"
+            )
+        }
+        function onSettingsResetCompleted() {
+            window.showNotification(
+                qsTr("Ayarlar Sıfırlandı"),
+                qsTr("Tüm ayarlar varsayılan değerlere döndürüldü"),
+                "info"
+            )
+        }
+        function onGameUpdateMonitoringChanged() {
+            GameService.setUpdateMonitoringEnabled(SettingsManager.gameUpdateMonitoring)
+        }
+    }
+
+    // ===== RUNTIME INSTALL SIGNALS =====
+    Connections {
+        target: GameService
+        function onRuntimeInstallFinished(gameId, success, error) {
+            if (success) {
+                window.showNotification(
+                    qsTr("Runtime Kuruldu"),
+                    qsTr("Runtime başarıyla kuruldu/kaldırıldı"),
+                    "success"
+                )
+            } else {
+                window.showNotification(
+                    qsTr("Runtime Hatası"),
+                    error || qsTr("Runtime işlemi başarısız oldu"),
+                    "error"
+                )
+            }
+        }
+    }
+
     // ===== DROP HANDLER SIGNALS =====
     Connections {
         target: GameService
@@ -715,6 +879,34 @@ ApplicationWindow {
                     "info"
                 )
             }
+        }
+        function onGameUpdateDetected(gameId, gameName, summary) {
+            window.showNotification(
+                qsTr("Oyun Güncellendi: %1").arg(gameName),
+                summary,
+                "warning"
+            )
+        }
+        function onScanCompleted(count) {
+            window.showNotification(
+                qsTr("Tarama Tamamlandı"),
+                qsTr("%1 desteklenen oyun bulundu").arg(count),
+                "info"
+            )
+        }
+        function onTranslationInstallCompleted(gameId, success, message) {
+            window.showNotification(
+                success ? qsTr("Çeviri Kuruldu") : qsTr("Çeviri Hatası"),
+                message,
+                success ? "success" : "error"
+            )
+        }
+        function onTranslationUninstalled(gameId, success, message) {
+            window.showNotification(
+                success ? qsTr("Çeviri Kaldırıldı") : qsTr("Kaldırma Hatası"),
+                message,
+                success ? "info" : "error"
+            )
         }
     }
 
@@ -947,6 +1139,14 @@ ApplicationWindow {
                 color: Theme.textSecondary
             }
 
+            Label {
+                text: Dimensions.appVersionFull
+                font.pixelSize: Dimensions.fontMicro
+                font.weight: Font.Medium
+                color: Theme.textMuted
+                opacity: 0.6
+            }
+
             Item { Layout.fillWidth: true }
 
             Row {
@@ -1041,6 +1241,7 @@ ApplicationWindow {
         signal translationClicked()
         signal settingsClicked()
         signal donateClicked()
+        signal notificationClicked()
 
         color: Theme.withAlpha(Theme.surface, 0.7)
 
@@ -1292,6 +1493,103 @@ ApplicationWindow {
                 ToolTip {
                     visible: discordMouse.containsMouse
                     text: "Discord"
+                    delay: 400
+                }
+            }
+
+            // Notification bell icon
+            Item {
+                id: notifBellItem
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                Layout.alignment: Qt.AlignVCenter
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Bildirimler")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: navBarRoot.notificationClicked()
+                Keys.onSpacePressed: navBarRoot.notificationClicked()
+
+                property bool hovered: bellMouse.containsMouse
+                scale: hovered ? 1.1 : 1.0
+                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
+
+                Canvas {
+                    id: bellCanvas
+                    anchors.centerIn: parent
+                    width: 18; height: 18
+                    property bool hov: notifBellItem.hovered
+                    property int uc: NotificationService.unreadCount
+                    onHovChanged: requestPaint()
+                    onUcChanged: requestPaint()
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+
+                        var c = hov ? Theme.textPrimary : Theme.textMuted
+                        ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, hov ? 0.9 : 0.6)
+                        ctx.lineWidth = 1.5
+                        ctx.lineCap = "round"
+                        ctx.lineJoin = "round"
+
+                        // Bell shape
+                        ctx.beginPath()
+                        ctx.moveTo(4, 12)
+                        ctx.quadraticCurveTo(4, 6, 9, 3)
+                        ctx.quadraticCurveTo(14, 6, 14, 12)
+                        ctx.lineTo(15, 13)
+                        ctx.lineTo(3, 13)
+                        ctx.closePath()
+                        ctx.stroke()
+
+                        // Clapper
+                        ctx.beginPath()
+                        ctx.moveTo(7, 14)
+                        ctx.quadraticCurveTo(9, 17, 11, 14)
+                        ctx.stroke()
+
+                        // Top nub
+                        ctx.beginPath()
+                        ctx.arc(9, 2.5, 1, 0, Math.PI * 2)
+                        ctx.stroke()
+                    }
+                }
+
+                // Unread count badge
+                Rectangle {
+                    visible: NotificationService.unreadCount > 0
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.topMargin: 2
+                    anchors.rightMargin: 2
+                    width: Math.max(14, unreadLbl.width + 6)
+                    height: 14
+                    radius: 7
+                    color: Theme.destructive
+
+                    Text {
+                        id: unreadLbl
+                        anchors.centerIn: parent
+                        text: NotificationService.unreadCount > 9 ? "9+" : NotificationService.unreadCount.toString()
+                        font.pixelSize: 8
+                        font.weight: Font.Bold
+                        color: Theme.textOnColor
+                    }
+                }
+
+                MouseArea {
+                    id: bellMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: navBarRoot.notificationClicked()
+                }
+
+                ToolTip {
+                    visible: bellMouse.containsMouse
+                    text: NotificationService.unreadCount > 0
+                        ? qsTr("Bildirimler (%1)").arg(NotificationService.unreadCount)
+                        : qsTr("Bildirimler")
                     delay: 400
                 }
             }
