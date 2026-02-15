@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <chrono>
+#include <set>
 #include <thread>
 #include <mutex>
 #include <condition_variable>

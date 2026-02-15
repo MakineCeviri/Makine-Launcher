@@ -16,16 +16,15 @@ default:
 # SETUP
 # ============================================================================
 
-# Install vcpkg dependencies
+# Install vcpkg dependencies (MinGW)
 setup:
-    @echo "Installing vcpkg dependencies..."
-    vcpkg install --triplet x64-windows
+    @echo "Installing vcpkg dependencies (MinGW)..."
+    vcpkg install boost-filesystem:x64-mingw-dynamic openssl:x64-mingw-dynamic curl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic lz4:x64-mingw-dynamic zlib:x64-mingw-dynamic zstd:x64-mingw-dynamic sqlite3:x64-mingw-dynamic spdlog:x64-mingw-dynamic simdjson:x64-mingw-dynamic mio:x64-mingw-dynamic taskflow:x64-mingw-dynamic concurrentqueue:x64-mingw-dynamic simdutf:x64-mingw-dynamic sqlitecpp:x64-mingw-dynamic libsodium:x64-mingw-dynamic libarchive:x64-mingw-dynamic bit7z:x64-mingw-dynamic efsw:x64-mingw-dynamic
 
 # Install vcpkg dependencies with tests
-setup-tests:
-    @echo "Installing vcpkg dependencies with tests..."
-    vcpkg install --triplet x64-windows
-    vcpkg install gtest:x64-windows
+setup-tests: setup
+    @echo "Installing test dependencies..."
+    vcpkg install gtest:x64-mingw-dynamic
 
 # ============================================================================
 # CORE LIBRARY (vcpkg, Release)
@@ -40,12 +39,17 @@ core:
 # QML APPLICATION
 # ============================================================================
 
-# Build QML app - fast dev (MinGW, Release, UI-only)
+# Build full app (Core + UI, MinGW, Release)
 dev:
     cmake --preset dev
     cmake --build --preset dev
 
-# Build QML app - debug (MinGW, Debug, UI-only)
+# Build UI-only (fast, no vcpkg deps)
+dev-ui:
+    cmake --preset dev-ui
+    cmake --build --preset dev-ui
+
+# Build full app debug (Core + UI, MinGW, Debug)
 debug:
     cmake --preset debug
     cmake --build --preset debug
@@ -71,8 +75,8 @@ test-verbose: core
 # ALL BUILDS
 # ============================================================================
 
-# Build everything (core + dev)
-all: core dev
+# Build everything (core + UI)
+all: dev
 
 # Build full release (super-build handles both core + qml)
 all-release: release
@@ -135,9 +139,9 @@ package-static: release-static
 # DEVELOPMENT
 # ============================================================================
 
-# Run the app (dev - fast)
+# Run the app (dev)
 run: dev
-    ./qml/build/dev/MakineAI.exe
+    ./build/dev/MakineAI.exe
 
 # Run the app (debug)
 run-debug: debug

@@ -260,7 +260,7 @@ struct PackageDiffResult {
  *
  * // Validate before building
  * auto validation = builder.validate(manifest);
- * if (!validation.valid) { /* fix issues */ }
+ * if (!validation.valid) { ... fix issues ... }
  * @endcode
  */
 class PackageBuilder {

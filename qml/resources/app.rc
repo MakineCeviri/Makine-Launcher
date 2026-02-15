@@ -28,7 +28,7 @@ BEGIN
             VALUE "LegalCopyright",   "\x00A9 2026 MakineAI Team"
             VALUE "OriginalFilename", "MakineAI.exe"
             VALUE "ProductName",      "MakineAI"
-            VALUE "ProductVersion",   "0.1.0-alpha"
+            VALUE "ProductVersion",   "0.1.0pre-alpha"
         END
     END
     BLOCK "VarFileInfo"

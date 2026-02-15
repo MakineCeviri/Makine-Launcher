@@ -157,7 +157,7 @@ Result<PackageBuildResult> PackageBuilder::build(
     // Fill build metadata
     auto buildManifest = manifest;
     buildManifest.builtAt = nowEpoch();
-    buildManifest.builderVersion = "MakineAI 0.1.0";
+    buildManifest.builderVersion = "MakineAI 0.1.0pre-alpha";
 
     // Compute file hashes
     SecurityManager security;
@@ -1242,7 +1242,7 @@ Result<PackageBuildManifest> PackageBuilder::loadManifestYaml(const fs::path& ya
 
     auto getValue = [&](const std::string& key) -> std::string {
         // Match "key: value" or "key: \"value\""
-        std::regex pattern(key + R"(:\s*"?([^"\n]*)"?)");
+        std::regex pattern(key + R"RE(:\s*"?([^"\n]*)"?)RE");
         std::smatch match;
         if (std::regex_search(content, match, pattern)) {
             return match[1].str();
