@@ -28,6 +28,17 @@ Item {
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
     signal manualFolderRequested()
+
+    // Open all-games dialog (reuse existing if already created)
+    function openAllGamesDialog() {
+        if (allGamesDialogLoader.item) {
+            allGamesDialogLoader.item.games = GameService.supportedGames
+            allGamesDialogLoader.item.open()
+        } else {
+            allGamesDialogLoader.shouldOpen = true
+            allGamesDialogLoader.active = true
+        }
+    }
     signal settingsRequested()
 
     // ===== UPDATE CHECKER (C++ backend) =====
@@ -903,9 +914,7 @@ Item {
                                     id: viewAllCardItem
                                     remainingCount: Math.max(0, GameService.supportedGameCount - gamesRepeater.count)
 
-                                    onClicked: {
-                                        allGamesDialogLoader.active = true
-                                    }
+                                    onClicked: root.openAllGamesDialog()
                                 }
                             }
 
@@ -2496,7 +2505,7 @@ Item {
         parent: Overlay.overlay
         anchors.fill: parent
         color: Theme.withAlpha("#000000", 0.4)
-        visible: allGamesDialogLoader.active && allGamesDialogLoader.status !== Loader.Ready
+        visible: allGamesDialogLoader.shouldOpen && allGamesDialogLoader.status !== Loader.Ready
         z: 999
 
         // Block clicks while loading
@@ -2560,23 +2569,36 @@ Item {
     // Quick search shortcut
     Shortcut {
         sequence: "Ctrl+K"
-        onActivated: {
+        onActivated: root.openAllGamesDialog()
+    }
+
+    // Pre-warm dialog after startup idle (creates component in background)
+    Timer {
+        interval: 2000
+        running: true
+        repeat: false
+        onTriggered: {
             if (!allGamesDialogLoader.active)
                 allGamesDialogLoader.active = true
         }
     }
 
-    // ===== ALL GAMES DIALOG (lazy-loaded) =====
+    // ===== ALL GAMES DIALOG (kept alive after first creation) =====
     Loader {
         id: allGamesDialogLoader
         active: false
+        property bool shouldOpen: false
+
         sourceComponent: Component {
             AllGamesDialog {
                 parent: Overlay.overlay
 
                 Component.onCompleted: {
                     games = GameService.supportedGames
-                    open()
+                    if (allGamesDialogLoader.shouldOpen) {
+                        allGamesDialogLoader.shouldOpen = false
+                        open()
+                    }
                 }
 
                 onGameSelected: function(gameId) {
@@ -2587,7 +2609,7 @@ Item {
                     close()
                 }
 
-                onClosed: allGamesDialogLoader.active = false
+                // Dialog stays alive — no deactivation on close
             }
         }
     }

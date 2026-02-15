@@ -24,8 +24,6 @@ namespace makineai {
 class ProcessScanner : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     Q_PROPERTY(bool isWatching READ isWatching NOTIFY isWatchingChanged)
     Q_PROPERTY(bool gameRunning READ gameRunning NOTIFY gameRunningChanged)

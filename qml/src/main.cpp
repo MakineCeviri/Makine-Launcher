@@ -74,15 +74,22 @@ public:
         }
     }
 
+    // Pump pending Win32 messages so splash animation stays alive
+    // Call between heavy init steps to prevent freeze
+    void pumpMessages() {
+        if (!m_hwnd) return;
+        MSG msg;
+        while (PeekMessageW(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+    }
+
     // Ensure splash is visible for at least minMs, keeping animation alive
     void waitMinimumDisplay(DWORD minMs) {
         if (!m_hwnd) return;
         while ((GetTickCount() - m_showTime) < minMs) {
-            MSG msg;
-            while (PeekMessageW(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
-                TranslateMessage(&msg);
-                DispatchMessageW(&msg);
-            }
+            pumpMessages();
             Sleep(1);
         }
     }
@@ -261,7 +268,7 @@ private:
             oldFont = (HFONT)SelectObject(mem, verFont);
             SetTextColor(mem, RGB(60, 60, 75));
             RECT verRc = {0, h - 24, w - 14, h - 8};
-            DrawTextW(mem, L"v0.1.0-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
+            DrawTextW(mem, L"v0.1.0pre-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
 
@@ -336,6 +343,7 @@ void logToFile(const QString& msg) {
 #include "services/processscanner.h"
 #include "services/systemtraymanager.h"
 #include "services/integrityservice.h"
+#include "services/batchoperationservice.h"
 #include "services/updatechecker.h"
 #include "services/notificationservice.h"
 
@@ -431,6 +439,12 @@ int main(int argc, char *argv[])
         // "auto" = no explicit call, Qt chooses best available
     }
 
+    // === RELEASE SECURITY ===
+#ifdef NDEBUG
+    qputenv("QT_QML_NO_DEBUGGER", "1");   // Disable QML debugger in release
+    qputenv("QML_DISABLE_DISK_CACHE", "0");
+#endif
+
     // Disable RHI debug/validation layers (saves ~10 MB + CPU)
     qputenv("QSG_RHI_DEBUG_LAYER", "0");
 
@@ -472,7 +486,7 @@ int main(int argc, char *argv[])
 
     app.setQuitOnLastWindowClosed(false);
     app.setApplicationName("MakineAI");
-    app.setApplicationVersion("0.1.0-alpha");
+    app.setApplicationVersion("0.1.0pre-alpha");
     app.setOrganizationName("MakineAI");
     app.setOrganizationDomain("makineai.com");
     app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
@@ -494,10 +508,52 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    // ===== Register backend singletons for QML access =====
+    // Manual registration — works in both shared and static Qt builds.
+    // (QML_ELEMENT/QML_SINGLETON relies on linker keeping registration code,
+    //  which --gc-sections strips in static builds.)
+    using namespace makineai;
+
+    auto* settingsManager = new SettingsManager(&app);
+    engine.rootContext()->setContextProperty("SettingsManager", settingsManager);
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
+
+    auto* gameService = new GameService(&app);  // Heavy: loads cached games, Steam details, CoreBridge
+    engine.rootContext()->setContextProperty("GameService", gameService);
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
+
+    auto* backupManager = new BackupManager(&app);
+    engine.rootContext()->setContextProperty("BackupManager", backupManager);
+
+    auto* processScanner = new ProcessScanner(&app);
+    engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
+
+    auto* integrityService = new IntegrityService(&app);
+    engine.rootContext()->setContextProperty("IntegrityService", integrityService);
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
+
+    auto* batchService = new BatchOperationService(&app);
+    engine.rootContext()->setContextProperty("BatchOperationService", batchService);
+
+    auto* notificationService = new NotificationService(&app);
+    engine.rootContext()->setContextProperty("NotificationService", notificationService);
+
+    auto* updateChecker = new UpdateChecker(&app);
+    engine.rootContext()->setContextProperty("UpdateChecker", updateChecker);
+
     SystemTrayManager trayManager;
     trayManager.setIcon(app.windowIcon());
     trayManager.show();
     engine.rootContext()->setContextProperty("SystemTrayManager", &trayManager);
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
 
     logToFile("=== MakineAI Starting ===");
     logToFile(QString("App version: %1").arg(app.applicationVersion()));
@@ -535,7 +591,13 @@ int main(int argc, char *argv[])
     );
 
     logToFile("Loading QML module MakineAI.Main...");
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
     engine.loadFromModule("MakineAI", "Main");
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
     logToFile("QML module loaded, checking root objects...");
 
     if (engine.rootObjects().isEmpty()) {

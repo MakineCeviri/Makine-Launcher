@@ -1501,6 +1501,23 @@ Item {
                     }
                 }
             }
+
+            // Support card
+            SettingsCard {
+                Layout.fillWidth: true
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    ClickableRow {
+                        title: qsTr("Destekçi Ol")
+                        subtitle: qsTr("MakineAI'yı geliştirmemize destek olun")
+                        icon: "\u2764"  // ❤
+                        onClicked: Qt.openUrlExternally(Dimensions.donatePageUrl)
+                    }
+                }
+            }
         }
     }
 

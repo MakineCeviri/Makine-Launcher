@@ -50,8 +50,6 @@ enum class BatchItemStatus {
 class BatchOperationService : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     Q_PROPERTY(bool isRunning READ isRunning NOTIFY isRunningChanged)
     Q_PROPERTY(int totalItems READ totalItems NOTIFY queueChanged)

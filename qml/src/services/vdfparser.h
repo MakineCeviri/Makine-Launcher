@@ -76,7 +76,11 @@ inline std::optional<std::string> parseQuotedString(const std::string& s, size_t
     return result;
 }
 
-inline void parseKeyValues(const std::string& s, size_t& pos, Node& node) {
+static constexpr int kMaxRecursionDepth = 32;
+static constexpr size_t kMaxVdfFileSize = 10 * 1024 * 1024; // 10 MB
+
+inline void parseKeyValues(const std::string& s, size_t& pos, Node& node, int depth = 0) {
+    if (depth > kMaxRecursionDepth) return;
     while (pos < s.size()) {
         skipWhitespace(s, pos);
         if (pos >= s.size() || s[pos] == '}') break;
@@ -90,7 +94,7 @@ inline void parseKeyValues(const std::string& s, size_t& pos, Node& node) {
         if (s[pos] == '{') {
             ++pos;
             Node child;
-            parseKeyValues(s, pos, child);
+            parseKeyValues(s, pos, child, depth + 1);
             skipWhitespace(s, pos);
             if (pos < s.size() && s[pos] == '}') ++pos;
             node.children[std::move(*key)] = std::move(child);

@@ -65,8 +65,6 @@ struct BackupInfo {
 class BackupManager : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     Q_PROPERTY(QVariantList backups READ backups NOTIFY backupsChanged)
     Q_PROPERTY(bool isRestoring READ isRestoring NOTIFY isRestoringChanged)

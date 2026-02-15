@@ -11,8 +11,8 @@ QtObject {
     // THEME MODE
     // =========================================================================
 
-    /// Karanlık mod aktif mi (SettingsManager'dan okunur)
-    property bool darkMode: SettingsManager.isDarkMode
+    /// Dark mode active (default true when SettingsManager unavailable)
+    property bool darkMode: typeof SettingsManager !== "undefined" ? SettingsManager.isDarkMode : true
 
     // =========================================================================
     // BACKGROUND COLORS

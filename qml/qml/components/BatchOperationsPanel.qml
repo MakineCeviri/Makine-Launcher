@@ -69,10 +69,8 @@ Rectangle {
                 text: {
                     if (BatchOperationService.isRunning)
                         return qsTr("Toplu İşlem Devam Ediyor")
-                    var results = BatchOperationService.results
-                    var failed = results.filter(function(r) { return !r.success }).length
-                    if (failed > 0)
-                        return qsTr("Toplu İşlem Tamamlandı — %1 hata").arg(failed)
+                    if (BatchOperationService.failedItems > 0)
+                        return qsTr("Toplu İşlem Tamamlandı — %1 hata").arg(BatchOperationService.failedItems)
                     return qsTr("Toplu İşlem Tamamlandı")
                 }
                 font.pixelSize: Dimensions.fontBody

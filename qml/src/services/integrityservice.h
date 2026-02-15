@@ -19,8 +19,6 @@ namespace makineai {
 class IntegrityService : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     Q_PROPERTY(bool verified READ verified NOTIFY verificationComplete)
     Q_PROPERTY(bool checking READ checking NOTIFY checkingChanged)

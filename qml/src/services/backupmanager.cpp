@@ -5,6 +5,7 @@
  */
 
 #include "backupmanager.h"
+#include "pathsecurity.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -215,12 +216,19 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
 
         // Restore files from backup to target directory
         int restoredCount = 0;
+        const QString canonRestoreDir = QDir(restoreDir).canonicalPath();
         QDirIterator it2(backupDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
 
         while (it2.hasNext()) {
             const QString backupFile = it2.next();
             const QString relativePath = sourceDir.relativeFilePath(backupFile);
-            const QString destFile = restoreDir + "/" + relativePath;
+            const QString destFile = QDir::cleanPath(restoreDir + "/" + relativePath);
+
+            // Prevent path traversal: ensure destination stays within restore directory
+            if (!security::isPathContained(canonRestoreDir, destFile)) {
+                qWarning() << "Path traversal blocked during restore:" << relativePath;
+                continue;
+            }
 
             // Ensure target directory exists
             QDir().mkpath(QFileInfo(destFile).absolutePath());

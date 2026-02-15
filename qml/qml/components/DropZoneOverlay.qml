@@ -19,24 +19,7 @@ Item {
     visible: active
     z: Dimensions.zDialog
 
-    // Determine drop type from file extensions
-    function classifyDrop(urls) {
-        if (!urls || urls.length === 0) return "unknown"
-
-        for (var i = 0; i < urls.length; i++) {
-            var url = urls[i].toString().toLowerCase()
-            if (url.endsWith(".mkpkg")) return "package"
-            if (url.endsWith(".zip") || url.endsWith(".rar") || url.endsWith(".7z")) return "archive"
-        }
-
-        // Check if it might be a folder (no extension in the URL)
-        var first = urls[0].toString()
-        if (first.indexOf(".") === -1 || first.endsWith("/") || first.endsWith("\\")) {
-            return "folder"
-        }
-
-        return "unknown"
-    }
+    // File classification delegated to C++ backend (GameService.classifyDroppedUrls)
 
     // Background dimmer
     Rectangle {
@@ -199,7 +182,7 @@ Item {
 
         onEntered: function(drag) {
             root.active = true
-            root.dropType = root.classifyDrop(drag.urls)
+            root.dropType = GameService.classifyDroppedUrls(drag.urls)
         }
 
         onExited: {

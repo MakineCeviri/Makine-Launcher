@@ -11,8 +11,8 @@ QtObject {
     // =========================================================================
 
     readonly property string appName: "MakineAI"
-    readonly property string appVersion: "0.1.0alpha"
-    readonly property string appVersionFull: "v0.1.0alpha"
+    readonly property string appVersion: "0.1.0pre-alpha"
+    readonly property string appVersionFull: "v0.1.0pre-alpha"
 
     // =========================================================================
     // EXTERNAL LINKS
@@ -109,7 +109,7 @@ QtObject {
     // ANIMATION DURATIONS (ms) — respect user's animation preference
     // =========================================================================
 
-    readonly property bool _animEnabled: SettingsManager.enableAnimations
+    readonly property bool _animEnabled: typeof SettingsManager !== "undefined" ? SettingsManager.enableAnimations : true
     readonly property int animInstant: _animEnabled ? 50 : 0
     readonly property int animVeryFast: _animEnabled ? 100 : 0
     readonly property int animFast: _animEnabled ? 150 : 0

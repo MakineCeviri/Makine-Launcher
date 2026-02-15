@@ -17,18 +17,18 @@ Dialog {
 
     signal gameSelected(string gameId)
 
+    // Shared context menu data (one Menu for all cards instead of per-delegate)
+    property var _ctxGameData: null
+
     Timer {
         id: searchDebounce
         interval: 200
         onTriggered: root.activeSearchText = root.searchText
     }
 
-    property var filteredGames: {
-        if (activeSearchText.length === 0)
-            return root.games
-        var search = activeSearchText.toLowerCase()
-        return root.games.filter(g => (g.name || "").toLowerCase().includes(search))
-    }
+    property var filteredGames: activeSearchText.length === 0
+        ? root.games
+        : GameService.filterGames(activeSearchText)
 
     title: qsTr("Tüm Desteklenen Oyunlar")
     modal: true
@@ -57,6 +57,63 @@ Dialog {
 
     header: null
     footer: null
+
+    // Shared context menu — ONE instance for all cards (not per-delegate)
+    Menu {
+        id: sharedContextMenu
+
+        Overlay.modal: Rectangle { color: "transparent" }
+
+        background: Rectangle {
+            implicitWidth: 200
+            radius: Dimensions.radiusMD
+            color: Theme.glassBackground
+            border.color: Theme.glassBorder
+            border.width: 1
+        }
+
+        MenuItem {
+            text: qsTr("Detaylar")
+            onTriggered: {
+                if (root._ctxGameData) {
+                    root.gameSelected(root._ctxGameData.id)
+                    root.close()
+                }
+            }
+            contentItem: Label {
+                text: parent.text
+                font.pixelSize: Dimensions.fontSM
+                color: Theme.textPrimary
+                leftPadding: Dimensions.paddingSM
+            }
+            background: Rectangle {
+                color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+            }
+        }
+
+        MenuSeparator {
+            contentItem: Rectangle {
+                implicitHeight: 1
+                color: Theme.withAlpha(Theme.textPrimary, 0.08)
+            }
+        }
+
+        MenuItem {
+            text: qsTr("Steam'de Aç")
+            visible: root._ctxGameData && (root._ctxGameData.steamAppId || "") !== ""
+            height: visible ? implicitHeight : 0
+            onTriggered: Qt.openUrlExternally("https://store.steampowered.com/app/" + root._ctxGameData.steamAppId)
+            contentItem: Label {
+                text: parent.text
+                font.pixelSize: Dimensions.fontSM
+                color: Theme.textPrimary
+                leftPadding: Dimensions.paddingSM
+            }
+            background: Rectangle {
+                color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
+            }
+        }
+    }
 
     contentItem: ColumnLayout {
         spacing: 0
@@ -239,7 +296,7 @@ Dialog {
                 clip: true
                 cellWidth: parent.effectiveCellW
                 cellHeight: parent.effectiveCellH
-                cacheBuffer: 800
+                cacheBuffer: 300
                 boundsBehavior: Flickable.StopAtBounds
                 model: root.filteredGames
 
@@ -512,60 +569,11 @@ Dialog {
                             cursorShape: Qt.PointingHandCursor
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: function(mouse) {
-                                if (mouse.button === Qt.RightButton)
-                                    cardCtxMenu.popup()
-                                else
+                                if (mouse.button === Qt.RightButton) {
+                                    root._ctxGameData = modelData
+                                    sharedContextMenu.popup()
+                                } else {
                                     card.cardAction()
-                            }
-                        }
-
-                        Menu {
-                            id: cardCtxMenu
-
-                            Overlay.modal: Rectangle { color: "transparent" }
-
-                            background: Rectangle {
-                                implicitWidth: 200
-                                radius: Dimensions.radiusMD
-                                color: Theme.glassBackground
-                                border.color: Theme.glassBorder
-                                border.width: 1
-                            }
-
-                            MenuItem {
-                                text: qsTr("Detaylar")
-                                onTriggered: card.cardAction()
-                                contentItem: Label {
-                                    text: parent.text
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: Theme.textPrimary
-                                    leftPadding: Dimensions.paddingSM
-                                }
-                                background: Rectangle {
-                                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
-                                }
-                            }
-
-                            MenuSeparator {
-                                contentItem: Rectangle {
-                                    implicitHeight: 1
-                                    color: Theme.withAlpha(Theme.textPrimary, 0.08)
-                                }
-                            }
-
-                            MenuItem {
-                                text: qsTr("Steam'de Aç")
-                                visible: (modelData.steamAppId || "") !== ""
-                                height: visible ? implicitHeight : 0
-                                onTriggered: Qt.openUrlExternally("https://store.steampowered.com/app/" + modelData.steamAppId)
-                                contentItem: Label {
-                                    text: parent.text
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: Theme.textPrimary
-                                    leftPadding: Dimensions.paddingSM
-                                }
-                                background: Rectangle {
-                                    color: parent.highlighted ? Theme.withAlpha(Theme.primary, 0.12) : "transparent"
                                 }
                             }
                         }
