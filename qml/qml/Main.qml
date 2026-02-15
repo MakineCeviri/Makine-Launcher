@@ -24,13 +24,19 @@ ApplicationWindow {
 
     // Restore saved window position/size or center on screen
     Component.onCompleted: {
-        var geo = SettingsManager.windowGeometry()
-        if (geo.width > 0 && geo.height > 0) {
-            window.x = geo.x
-            window.y = geo.y
-            window.width = Math.max(geo.width, minimumWidth)
-            window.height = Math.max(geo.height, minimumHeight)
-            if (geo.maximized) window.showMaximized()
+        if (typeof SettingsManager !== "undefined") {
+            var geo = SettingsManager.windowGeometry()
+            if (geo.width > 0 && geo.height > 0) {
+                window.x = geo.x
+                window.y = geo.y
+                window.width = Math.max(geo.width, minimumWidth)
+                window.height = Math.max(geo.height, minimumHeight)
+                if (geo.maximized) window.showMaximized()
+            } else {
+                window.x = (Screen.width - width) / 2
+                window.y = (Screen.height - height) / 2
+            }
+            window._onboardingActive = !SettingsManager.onboardingCompleted
         } else {
             window.x = (Screen.width - width) / 2
             window.y = (Screen.height - height) / 2
@@ -46,14 +52,17 @@ ApplicationWindow {
     property var pendingGameDetail: null
 
     // Pending data for lazy-loaded warning dialogs
-    property var pendingCompatData: null
     property var pendingAntiCheatData: null
+    property var pendingVariantData: null
 
     // Store normal geometry before maximize so restore works on frameless windows
     property rect normalGeometry: Qt.rect(0, 0, 0, 0)
 
     // Force quit flag — bypasses minimize-to-tray on close
     property bool forceQuit: false
+
+    // Onboarding: local flag so Loader doesn't depend on SettingsManager binding
+    property bool _onboardingActive: true
 
     Component.onDestruction: pageChangeTimer.stop()
 
@@ -457,7 +466,6 @@ ApplicationWindow {
                 contentStackContainer.navigateTo(0)
                 homeView.showTranslationPage()
             }
-            onDonateClicked: Qt.openUrlExternally(Dimensions.donatePageUrl)
             onNotificationClicked: {
                 if (window.notificationPanelOpen) {
                     notificationPanel.close()
@@ -567,13 +575,21 @@ ApplicationWindow {
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     var gameData = GameService.getGameById(gameId)
                     var isManual = (gameId === "manual")
+                    var resolvedSteamAppId = (gameData && gameData.steamAppId) || ""
+                    // For catalog-only games, gameId IS the steamAppId
+                    if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
+                        resolvedSteamAppId = gameId
+                    var resolvedImageUrl = (gameData && gameData.headerImageUrl) || ""
+                    if (resolvedImageUrl === "" && resolvedSteamAppId !== "")
+                        resolvedImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
                     window.pendingGameDetail = {
                         gameId: gameId,
                         gameName: gameName,
                         engine: engine,
-                        imageUrl: (gameData && gameData.headerImageUrl) || "",
+                        imageUrl: resolvedImageUrl,
                         verified: (gameData && gameData.isVerified) || false,
-                        steamAppId: (gameData && gameData.steamAppId) || "",
+                        steamAppId: resolvedSteamAppId,
+                        hasTranslation: (gameData && gameData.hasTranslation) || false,
                         isManualGame: isManual
                     }
                     // If loader already active, apply immediately
@@ -585,6 +601,7 @@ ApplicationWindow {
                         gameDetailLoader.item.imageUrl = d.imageUrl
                         gameDetailLoader.item.verified = d.verified
                         gameDetailLoader.item.steamAppId = d.steamAppId
+                        gameDetailLoader.item.hasTranslation = d.hasTranslation
                         gameDetailLoader.item.gameId = d.gameId
                         gameDetailLoader.item.isManualGame = d.isManualGame
                         window.pendingGameDetail = null
@@ -622,22 +639,7 @@ ApplicationWindow {
                             window.currentNavIndex = 0
                         }
                         onTranslateClicked: {
-                            var gd = GameService.getGameById(gameId)
-
-                            // Pre-flight 1: Compatibility check
-                            var compat = GameService.checkCompatibility(gameId)
-                            if (compat && (compat.level === "incompatible" || compat.level === "partial")) {
-                                window.pendingCompatData = {
-                                    gameName: gameName,
-                                    compatibilityLevel: compat.level,
-                                    integrityPercent: compat.integrityPercent || 100,
-                                    modifiedCount: compat.modifiedCount || 0
-                                }
-                                compatWarningLoader.active = true
-                                return
-                            }
-
-                            // Pre-flight 2: Anti-cheat check
+                            // Pre-flight: Anti-cheat check
                             var antiCheat = GameService.checkAntiCheat(gameId)
                             if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
                                 window.pendingAntiCheatData = {
@@ -645,6 +647,18 @@ ApplicationWindow {
                                     detectedSystems: antiCheat.systems
                                 }
                                 antiCheatWarningLoader.active = true
+                                return
+                            }
+
+                            // Pre-flight: Variant check
+                            var variants = GameService.getVariants(gameId)
+                            if (variants && variants.length > 0) {
+                                window.pendingVariantData = {
+                                    gameId: gameId,
+                                    variants: variants,
+                                    variantType: GameService.getVariantType(gameId)
+                                }
+                                variantSelectionLoader.active = true
                                 return
                             }
 
@@ -661,6 +675,7 @@ ApplicationWindow {
                                 imageUrl = d.imageUrl
                                 verified = d.verified
                                 steamAppId = d.steamAppId
+                                hasTranslation = d.hasTranslation || false
                                 gameId = d.gameId
                                 isManualGame = d.isManualGame || false
                                 window.pendingGameDetail = null
@@ -910,33 +925,6 @@ ApplicationWindow {
         }
     }
 
-    // ===== COMPATIBILITY WARNING DIALOG (lazy) =====
-    Loader {
-        id: compatWarningLoader
-        active: false
-        sourceComponent: Component {
-            CompatibilityWarningDialog {
-                parent: Overlay.overlay
-                onProceedAnyway: {
-                    var gd = gameDetailLoader.item
-                    if (gd) { GameService.installTranslation(gd.gameId) }
-                }
-                onRestoreBackup: contentStackContainer.navigateTo(2)
-                onClosed: compatWarningLoader.active = false
-                Component.onCompleted: {
-                    if (window.pendingCompatData) {
-                        gameName = window.pendingCompatData.gameName
-                        compatibilityLevel = window.pendingCompatData.compatibilityLevel
-                        integrityPercent = window.pendingCompatData.integrityPercent
-                        modifiedCount = window.pendingCompatData.modifiedCount
-                        window.pendingCompatData = null
-                    }
-                    open()
-                }
-            }
-        }
-    }
-
     // ===== ANTI-CHEAT WARNING DIALOG (lazy) =====
     Loader {
         id: antiCheatWarningLoader
@@ -946,7 +934,20 @@ ApplicationWindow {
                 parent: Overlay.overlay
                 onContinueAnyway: {
                     var gd = gameDetailLoader.item
-                    if (gd) { GameService.installTranslation(gd.gameId) }
+                    if (gd) {
+                        // Check for variants before installing
+                        var variants = GameService.getVariants(gd.gameId)
+                        if (variants && variants.length > 0) {
+                            window.pendingVariantData = {
+                                gameId: gd.gameId,
+                                variants: variants,
+                                variantType: GameService.getVariantType(gd.gameId)
+                            }
+                            variantSelectionLoader.active = true
+                        } else {
+                            GameService.installTranslation(gd.gameId)
+                        }
+                    }
                 }
                 onClosed: antiCheatWarningLoader.active = false
                 Component.onCompleted: {
@@ -961,6 +962,32 @@ ApplicationWindow {
         }
     }
 
+    // ===== VARIANT SELECTION DIALOG (lazy) =====
+    Loader {
+        id: variantSelectionLoader
+        active: false
+        sourceComponent: Component {
+            VariantSelectionDialog {
+                parent: Overlay.overlay
+                onVariantSelected: function(variant) {
+                    if (window.pendingVariantData) {
+                        GameService.installTranslation(window.pendingVariantData.gameId, variant)
+                        window.pendingVariantData = null
+                    }
+                }
+                onCancelled: { window.pendingVariantData = null }
+                onClosed: variantSelectionLoader.active = false
+                Component.onCompleted: {
+                    if (window.pendingVariantData) {
+                        variants = window.pendingVariantData.variants
+                        variantType = window.pendingVariantData.variantType || "version"
+                    }
+                    open()
+                }
+            }
+        }
+    }
+
     // ===== DROP ZONE OVERLAY =====
     DropZoneOverlay {
         id: dropZoneOverlay
@@ -968,7 +995,7 @@ ApplicationWindow {
         z: Dimensions.zHeader
 
         onFilesDropped: function(urls) {
-            var type = dropZoneOverlay.classifyDrop(urls)
+            var type = GameService.classifyDroppedUrls(urls)
             DebugHelper.log("DropZone", "Files dropped: " + urls.length + " (" + type + ")")
 
             if (type === "package") {
@@ -1000,13 +1027,20 @@ ApplicationWindow {
     Loader {
         id: onboardingLoader
         anchors.fill: parent
-        active: !SettingsManager.onboardingCompleted
+        active: window._onboardingActive
         sourceComponent: Component {
             OnboardingWizard {
                 z: Dimensions.zOverlay
-                onCompleted: {
-                    if (GameService.gameCount === 0) {
+                onWizardFinished: {
+                    // Dismiss wizard immediately via local property (always works)
+                    window._onboardingActive = false
+                    // Scan if no games found yet
+                    if (typeof GameService !== "undefined" && GameService.gameCount === 0) {
                         GameService.scanAllLibraries()
+                    }
+                    // Persist so wizard won't show on next launch
+                    if (typeof SettingsManager !== "undefined") {
+                        SettingsManager.onboardingCompleted = true
                     }
                 }
             }
@@ -1240,7 +1274,6 @@ ApplicationWindow {
         signal projectsClicked()
         signal translationClicked()
         signal settingsClicked()
-        signal donateClicked()
         signal notificationClicked()
 
         color: Theme.withAlpha(Theme.surface, 0.7)
@@ -1353,102 +1386,6 @@ ApplicationWindow {
             }
 
             Item { Layout.fillWidth: true }
-
-            Item {
-                id: donateItem
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                Layout.alignment: Qt.AlignVCenter
-                Layout.rightMargin: -8
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Support Us")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: navBarRoot.donateClicked()
-                Keys.onSpacePressed: navBarRoot.donateClicked()
-
-                property bool hovered: donateMouse.containsMouse
-                scale: hovered ? 1.1 : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-
-                property real wobble: 0
-                SequentialAnimation on wobble {
-                    loops: Animation.Infinite
-                    running: window.animationsEnabled
-                    NumberAnimation { from: 0; to: 6; duration: 1800; easing.type: Easing.InOutSine }
-                    NumberAnimation { from: 6; to: -6; duration: 3600; easing.type: Easing.InOutSine }
-                    NumberAnimation { from: -6; to: 0; duration: 1800; easing.type: Easing.InOutSine }
-                }
-
-                property real colorPhase: 0
-                NumberAnimation on colorPhase {
-                    from: 0; to: 1
-                    duration: 8000
-                    loops: Animation.Infinite
-                    running: window.animationsEnabled
-                }
-
-                Canvas {
-                    id: heartCanvas
-                    anchors.centerIn: parent
-                    width: 20; height: 20
-                    rotation: donateItem.wobble
-                    opacity: donateItem.hovered ? 1.0 : 0.7
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration } }
-
-                    property real phase: donateItem.colorPhase
-                    onPhaseChanged: if (donateItem.hovered) requestPaint()
-
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-
-                        var angle = phase * Math.PI * 2
-                        var cx = width / 2, cy = height / 2
-                        var len = 14
-                        var x1 = cx + Math.cos(angle) * len
-                        var y1 = cy + Math.sin(angle) * len
-                        var x2 = cx - Math.cos(angle) * len
-                        var y2 = cy - Math.sin(angle) * len
-
-                        var grad = ctx.createLinearGradient(x1, y1, x2, y2)
-                        var colors = Theme.brandGradient
-                        for (var i = 0; i < colors.length; i++)
-                            grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
-
-                        ctx.strokeStyle = grad
-                        ctx.lineWidth = 1.6
-                        ctx.lineCap = "round"
-                        ctx.lineJoin = "round"
-
-                        // Heart shape
-                        var s = width / 20
-                        ctx.beginPath()
-                        ctx.moveTo(10 * s, 17 * s)
-                        ctx.bezierCurveTo(10 * s, 17 * s, 3 * s, 12 * s, 3 * s, 8 * s)
-                        ctx.bezierCurveTo(3 * s, 5 * s, 5.5 * s, 3 * s, 7 * s, 3 * s)
-                        ctx.bezierCurveTo(8.5 * s, 3 * s, 9.5 * s, 4 * s, 10 * s, 5.5 * s)
-                        ctx.bezierCurveTo(10.5 * s, 4 * s, 11.5 * s, 3 * s, 13 * s, 3 * s)
-                        ctx.bezierCurveTo(14.5 * s, 3 * s, 17 * s, 5 * s, 17 * s, 8 * s)
-                        ctx.bezierCurveTo(17 * s, 12 * s, 10 * s, 17 * s, 10 * s, 17 * s)
-                        ctx.closePath()
-                        ctx.stroke()
-                    }
-                }
-
-                MouseArea {
-                    id: donateMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: navBarRoot.donateClicked()
-                }
-
-                ToolTip {
-                    visible: donateMouse.containsMouse
-                    text: qsTr("Destekçi Ol")
-                    delay: 400
-                }
-            }
 
             Item {
                 id: discordItem

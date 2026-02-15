@@ -111,8 +111,6 @@ struct SteamDetails {
 class GameService : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     Q_PROPERTY(QVariantList games READ games NOTIFY gamesChanged)
     Q_PROPERTY(int gameCount READ gameCount NOTIFY gamesChanged)
@@ -148,6 +146,24 @@ public:
     Q_INVOKABLE QVariantMap getRecipeInfo(const QString& gameId);
 
     /**
+     * @brief Filter games by name (case-insensitive)
+     * Replaces JS Array.filter() in AllGamesDialog
+     */
+    Q_INVOKABLE QVariantList filterGames(const QString& query) const;
+
+    /**
+     * @brief Classify dropped URLs by file extension
+     * @return "package", "archive", "folder", or "unknown"
+     */
+    Q_INVOKABLE QString classifyDroppedUrls(const QVariantList& urls) const;
+
+    /**
+     * @brief Get all game details in a single call
+     * Combines recipe info, font analysis, compatibility, and runtime status
+     */
+    Q_INVOKABLE QVariantMap getGameDetails(const QString& gameId);
+
+    /**
      * @brief Handle files dropped onto the application window
      * Dispatches to appropriate handler based on file type
      */
@@ -159,10 +175,22 @@ public:
     Q_INVOKABLE void installLocalPackage(const QString& filePath);
 
     /**
+     * @brief Get available variants for a game (versions or platforms)
+     * @return List of variant strings, empty if no variants
+     */
+    Q_INVOKABLE QVariantList getVariants(const QString& gameId);
+
+    /**
+     * @brief Get variant type for a game ("version" or "platform")
+     */
+    Q_INVOKABLE QString getVariantType(const QString& gameId);
+
+    /**
      * @brief Install translation package for a supported game
      * Finds the package, downloads and installs it via CoreBridge
      */
-    Q_INVOKABLE void installTranslation(const QString& gameId);
+    Q_INVOKABLE void installTranslation(const QString& gameId,
+                                         const QString& variant = {});
 
     /**
      * @brief Uninstall translation package from a game
@@ -274,6 +302,7 @@ private:
     mutable QVariantList m_gamesCache;
     mutable QVariantList m_supportedGamesCache;
     mutable bool m_cacheValid{false};
+    mutable bool m_supportedCacheValid{false};
 };
 
 } // namespace makineai

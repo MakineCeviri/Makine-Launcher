@@ -113,6 +113,7 @@ set(BACKEND_HEADERS
     src/services/updatedetectionservice.h
     src/services/updatechecker.h
     src/services/notificationservice.h
+    src/services/pathsecurity.h
 )
 
 
@@ -192,14 +193,16 @@ qt_add_qml_module(MakineAI
         qml/dialogs/CompatibilityWarningDialog.qml
         qml/dialogs/ConfirmDialog.qml
         qml/dialogs/UninstallConfirmDialog.qml
+        qml/dialogs/VariantSelectionDialog.qml
 
     RESOURCES
-        # SVG icons (7 active)
+        # SVG icons (8 active)
         resources/icons/arrow_right.svg
         resources/icons/discord.svg
         resources/icons/lock.svg
         resources/icons/shield-check.svg
         resources/icons/shield-check-active.svg
+        resources/icons/steam.svg
         resources/icons/window-search.svg
         resources/icons/window-search-active.svg
         # PNG images
@@ -215,15 +218,33 @@ qt_add_qml_module(MakineAI
 # GC sections: compile each function/data into separate sections, then
 # discard unreferenced ones at link time. Critical for static Qt builds
 # where unused Qt code would otherwise bloat the binary.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(MSVC)
+    target_compile_options(MakineAI PRIVATE
+        /GS           # Buffer security check (stack cookies)
+        /guard:cf     # Control Flow Guard
+        /sdl          # Additional security checks
+    )
+    target_link_options(MakineAI PRIVATE
+        /DYNAMICBASE          # ASLR
+        /NXCOMPAT             # DEP (Data Execution Prevention)
+        /HIGHENTROPYVA        # 64-bit ASLR
+        /CETCOMPAT            # Intel CET shadow stack
+    )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(MakineAI PRIVATE
         -ffunction-sections          # Each function in its own section
         -fdata-sections              # Each data object in its own section
         -fvisibility=hidden          # Hide all symbols by default (smaller export table)
         -fvisibility-inlines-hidden  # Hide inline functions
+        -fstack-protector-strong     # Stack smashing protection
+        -D_FORTIFY_SOURCE=2          # Buffer overflow detection
+        -Wformat -Wformat-security   # Format string warnings
     )
     target_link_options(MakineAI PRIVATE
         -Wl,--gc-sections            # Discard unreferenced sections at link time
+        -Wl,--dynamicbase            # ASLR
+        -Wl,--nxcompat               # DEP
+        -Wl,--high-entropy-va        # 64-bit ASLR
     )
 endif()
 
@@ -304,6 +325,7 @@ if(WIN32)
         Shlwapi
         Advapi32
         User32
+        Crypt32
     )
 endif()
 

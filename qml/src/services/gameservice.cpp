@@ -18,9 +18,11 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
+constexpr qint64 kMaxSteamResponseBytes = 5 * 1024 * 1024; // 5 MB
 }
 
 namespace makineai {
@@ -250,6 +252,7 @@ void GameService::addManualGame(const QString& path)
 
 QVariantMap GameService::getGameById(const QString& id) const
 {
+    // First check installed games
     auto idxIt = m_gameIdToIndex.constFind(id);
     if (idxIt != m_gameIdToIndex.constEnd()) {
         int index = *idxIt;
@@ -257,12 +260,98 @@ QVariantMap GameService::getGameById(const QString& id) const
             return m_games[index].toVariantMap();
         }
     }
+
+    // Fallback: search supported games catalog (non-installed games with translation packages)
+    if (m_coreBridge) {
+        const QVariantList catalog = m_coreBridge->allSupportedGames();
+        for (const auto& entry : catalog) {
+            QVariantMap map = entry.toMap();
+            if (map.value("id").toString() == id || map.value("steamAppId").toString() == id) {
+                return map;
+            }
+        }
+    }
+
     return {};
+}
+
+QVariantList GameService::filterGames(const QString& query) const
+{
+    if (query.isEmpty())
+        return supportedGames();
+
+    const QVariantList allGames = supportedGames();
+    QVariantList result;
+    result.reserve(allGames.size() / 4); // rough estimate
+    for (const auto& entry : allGames) {
+        const QVariantMap map = entry.toMap();
+        const QString name = map.value("name").toString();
+        if (name.contains(query, Qt::CaseInsensitive))
+            result.append(entry);
+    }
+    return result;
+}
+
+QString GameService::classifyDroppedUrls(const QVariantList& urls) const
+{
+    if (urls.isEmpty())
+        return QStringLiteral("unknown");
+
+    for (const auto& urlVar : urls) {
+        const QString urlStr = urlVar.toString().toLower();
+        if (urlStr.endsWith(QLatin1String(".mkpkg")))
+            return QStringLiteral("package");
+        if (urlStr.endsWith(QLatin1String(".zip")) ||
+            urlStr.endsWith(QLatin1String(".rar")) ||
+            urlStr.endsWith(QLatin1String(".7z")))
+            return QStringLiteral("archive");
+    }
+
+    // Check if first URL looks like a folder (no extension)
+    const QString first = urls.first().toString();
+    if (!first.contains(QLatin1Char('.')) ||
+        first.endsWith(QLatin1Char('/')) ||
+        first.endsWith(QLatin1Char('\\')))
+        return QStringLiteral("folder");
+
+    return QStringLiteral("unknown");
+}
+
+QVariantMap GameService::getGameDetails(const QString& gameId)
+{
+    QVariantMap result;
+
+    // Contributors (placeholder — will be populated from package metadata)
+    result["contributors"] = QVariantList{};
+
+    // Runtime status
+    QVariantMap runtime = getRuntimeStatus(gameId);
+    if (runtime.value("isUnity").toBool()) {
+        result["isUnityGame"] = true;
+        result["runtimeNeeded"] = runtime.value("needsRuntime");
+        result["runtimeInstalled"] = runtime.value("installed");
+        result["runtimeUpToDate"] = runtime.value("upToDate");
+        result["bepinexVersion"] = runtime.value("bepinexVersion");
+        result["xunityVersion"] = runtime.value("xunityVersion");
+        result["unityBackend"] = runtime.value("backend", "unknown");
+        result["unityVersion"] = runtime.value("unityVersion");
+        result["hasAntiCheat"] = runtime.value("hasAntiCheat");
+        result["antiCheatName"] = runtime.value("antiCheatName");
+    }
+
+    return result;
 }
 
 void GameService::fetchSteamDetails(const QString& steamAppId)
 {
     if (steamAppId.isEmpty()) return;
+
+    // Validate: must be numeric, max 10 digits (prevents URL injection)
+    static const QRegularExpression numericOnly(QStringLiteral("^\\d{1,10}$"));
+    if (!numericOnly.match(steamAppId).hasMatch()) {
+        qWarning() << "Invalid steamAppId format:" << steamAppId;
+        return;
+    }
 
     // Prevent duplicate requests
     if (m_pendingFetches.contains(steamAppId)) return;
@@ -281,6 +370,15 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
     request.setHeader(QNetworkRequest::UserAgentHeader, "MakineAI/0.1");
 
     QNetworkReply* reply = m_networkManager->get(request);
+
+    // Abort if response exceeds size limit (prevents memory exhaustion)
+    connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
+        if (received > kMaxSteamResponseBytes) {
+            qWarning() << "Steam API response too large, aborting";
+            reply->abort();
+        }
+    });
+
     connect(reply, &QNetworkReply::finished, this, [this, reply, steamAppId]() {
         reply->deleteLater();
         m_pendingFetches.remove(steamAppId);
@@ -423,7 +521,7 @@ QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) c
 
 QVariantList GameService::supportedGames() const
 {
-    if (m_cacheValid && !m_supportedGamesCache.isEmpty()) {
+    if (m_supportedCacheValid && !m_supportedGamesCache.isEmpty()) {
         return m_supportedGamesCache;
     }
 
@@ -438,6 +536,8 @@ QVariantList GameService::supportedGames() const
         entry["packageInstalled"] = m_coreBridge->isPackageInstalled(steamAppId);
         m_supportedGamesCache[i] = entry;
     }
+
+    m_supportedCacheValid = true;
 
     return m_supportedGamesCache;
 }
@@ -553,6 +653,7 @@ void GameService::saveCachedGames()
 void GameService::invalidateCache()
 {
     m_cacheValid = false;
+    m_supportedCacheValid = false;
     m_gamesCache.clear();
     m_supportedGamesCache.clear();
 }
@@ -789,7 +890,19 @@ void GameService::installLocalPackage(const QString& filePath) {
     }
 }
 
-void GameService::installTranslation(const QString& gameId)
+QVariantList GameService::getVariants(const QString& gameId)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getVariantsForGame(gameId);
+}
+
+QString GameService::getVariantType(const QString& gameId)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getVariantTypeForGame(gameId);
+}
+
+void GameService::installTranslation(const QString& gameId, const QString& variant)
 {
     if (!m_coreBridge) {
         emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
@@ -844,10 +957,11 @@ void GameService::installTranslation(const QString& gameId)
 
     qDebug() << "Installing translation for" << game.name
              << "package:" << pkg->packageId
+             << "variant:" << (variant.isEmpty() ? "(none)" : variant)
              << "path:" << game.installPath;
 
     // Delegate to CoreBridge (handles download + verify + install)
-    m_coreBridge->installPackage(pkg->packageId, game.installPath);
+    m_coreBridge->installPackage(pkg->packageId, game.installPath, variant);
 }
 
 void GameService::uninstallTranslation(const QString& gameId)

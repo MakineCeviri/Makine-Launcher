@@ -70,22 +70,21 @@ bool LocalPackageManager::loadFromPath(const QString& translationDataPath)
         return false;
     }
 
-    // Check for pak/ subdirectory
-    QString pakPath = translationDataPath + "/pak";
-    QDir pakDir(pakPath);
-    if (!pakDir.exists()) {
-        qWarning() << "No pak/ directory in:" << translationDataPath;
-        return false;
-    }
-
     // Try loading manifest.json first
     QString manifestPath = translationDataPath + "/manifest.json";
     if (QFile::exists(manifestPath)) {
         loadManifest(manifestPath);
     }
 
-    // Scan pak/ directories for packages
-    scanPackageDirectories(pakPath);
+    // Scan pak/ directories for legacy packages (mc-main format)
+    QString pakPath = translationDataPath + "/pak";
+    QDir pakDir(pakPath);
+    if (pakDir.exists()) {
+        scanPackageDirectories(pakPath);
+    }
+
+    // Scan root-level game-name directories (new format)
+    scanGameNameDirectories(translationDataPath);
 
     // Load installed state
     loadInstalledState();
@@ -120,6 +119,14 @@ void LocalPackageManager::loadManifest(const QString& manifestPath)
         info.engine = pkgObj["engine"].toString();
         info.version = pkgObj["version"].toString();
         info.installType = pkgObj["installType"].toString("overlay");
+        info.dirName = pkgObj["dirName"].toString();
+        info.variantType = pkgObj["variantType"].toString();
+
+        // Parse variants array
+        QJsonArray variantsArr = pkgObj["variants"].toArray();
+        for (const auto& v : variantsArr) {
+            info.variants.append(v.toString());
+        }
 
         // Parse storeIds for cross-store resolution
         QJsonObject storeIdsObj = pkgObj["storeIds"].toObject();
@@ -239,6 +246,50 @@ void LocalPackageManager::scanPackageDirectories(const QString& basePath)
     }
 }
 
+void LocalPackageManager::scanGameNameDirectories(const QString& basePath)
+{
+    QDir baseDir(basePath);
+    const auto entries = baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    // Skip known non-package directories
+    static const QSet<QString> skipDirs = {"pak", "mc-main", ".git"};
+
+    for (const QString& dirName : entries) {
+        if (skipDirs.contains(dirName)) continue;
+
+        // Find manifest entry that matches this dirName
+        bool found = false;
+        for (auto it = m_packages.begin(); it != m_packages.end(); ++it) {
+            if (it->dirName == dirName) {
+                found = true;
+                // Update file stats if not already set
+                if (it->fileCount == 0) {
+                    QString scanPath = basePath + "/" + dirName;
+                    // If has variants, count files in first variant
+                    if (!it->variants.isEmpty()) {
+                        scanPath = basePath + "/" + dirName + "/" + it->variants.first();
+                    }
+                    QDirIterator fileIter(scanPath, QDir::Files, QDirIterator::Subdirectories);
+                    int count = 0;
+                    qint64 totalSize = 0;
+                    while (fileIter.hasNext()) {
+                        fileIter.next();
+                        count++;
+                        totalSize += fileIter.fileInfo().size();
+                    }
+                    it->fileCount = count;
+                    it->sizeBytes = totalSize;
+                }
+                break;
+            }
+        }
+
+        if (!found) {
+            qDebug() << "scanGameNameDirectories: unrecognized directory" << dirName;
+        }
+    }
+}
+
 QString LocalPackageManager::resolveGameId(const QString& gameId) const
 {
     // Direct match — already a steamAppId
@@ -273,6 +324,26 @@ QVariantList LocalPackageManager::allPackagesAsList() const
     return result;
 }
 
+QVariantList LocalPackageManager::getVariants(const QString& steamAppId) const
+{
+    auto it = m_packages.find(steamAppId);
+    if (it == m_packages.end()) return {};
+
+    QVariantList result;
+    result.reserve(it->variants.size());
+    for (const QString& v : it->variants) {
+        result.append(v);
+    }
+    return result;
+}
+
+QString LocalPackageManager::getVariantType(const QString& steamAppId) const
+{
+    auto it = m_packages.find(steamAppId);
+    if (it == m_packages.end()) return {};
+    return it->variantType;
+}
+
 bool LocalPackageManager::hasPackage(const QString& steamAppId) const
 {
     return m_packages.contains(steamAppId);
@@ -292,7 +363,8 @@ bool LocalPackageManager::isInstalled(const QString& steamAppId) const
     return m_installed.contains(steamAppId);
 }
 
-void LocalPackageManager::installPackage(const QString& steamAppId, const QString& gamePath)
+void LocalPackageManager::installPackage(const QString& steamAppId, const QString& gamePath,
+                                         const QString& variant)
 {
     auto pkgIt = m_packages.find(steamAppId);
     if (pkgIt == m_packages.end()) {
@@ -301,26 +373,40 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     }
 
     const PackageInfo& pkg = *pkgIt;
-    QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
-    QDir pkgDir(pkgDirPath);
+    QString sourcePath;
 
-    // Find extracted_* directory
-    QString extractedPath;
-    const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QString& sub : subDirs) {
-        if (sub.startsWith("extracted_")) {
-            extractedPath = pkgDirPath + "/" + sub;
-            break;
+    // Try new game-name directory format first
+    if (!pkg.dirName.isEmpty()) {
+        if (!variant.isEmpty()) {
+            sourcePath = m_dataPath + "/" + pkg.dirName + "/" + variant;
+        } else {
+            sourcePath = m_dataPath + "/" + pkg.dirName;
         }
     }
 
-    if (extractedPath.isEmpty()) {
-        emit installCompleted(false, tr("No extracted data found for: %1").arg(pkg.gameName));
+    // Fall back to legacy pak/ format if game-name dir doesn't exist
+    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+        QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
+        QDir pkgDir(pkgDirPath);
+        if (pkgDir.exists()) {
+            const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+            for (const QString& sub : subDirs) {
+                if (sub.startsWith("extracted_")) {
+                    sourcePath = pkgDirPath + "/" + sub;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+        emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
         return;
     }
 
     // Run installation in background thread
-    (void)QtConcurrent::run([this, steamAppId, gamePath, extractedPath, pkg]() {
+    (void)QtConcurrent::run([this, steamAppId, gamePath, sourcePath, pkg]() {
+        const QString extractedPath = sourcePath;
         emit installProgress(0.0, tr("Dosyalar hazirlanyor..."));
 
         // Collect all files to copy

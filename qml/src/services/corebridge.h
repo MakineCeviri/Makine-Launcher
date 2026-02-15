@@ -138,7 +138,18 @@ public:
     /**
      * @brief Download and install translation package
      */
-    void installPackage(const QString& packageId, const QString& gamePath);
+    void installPackage(const QString& packageId, const QString& gamePath,
+                        const QString& variant = {});
+
+    /**
+     * @brief Get available variants for a game
+     */
+    QVariantList getVariantsForGame(const QString& gameId);
+
+    /**
+     * @brief Get variant type label for a game ("version" or "platform")
+     */
+    QString getVariantTypeForGame(const QString& gameId);
 
     /**
      * @brief Check if package is installed for game
@@ -170,20 +181,9 @@ signals:
     void packageInstallCompleted(bool success, const QString& message);
 
 private:
-#ifndef MAKINEAI_UI_ONLY
-    void doScanSteam();
-    void doScanEpic();
-    void doScanGog();
-
-    // Package helpers
-    TranslationPackageQt convertPackage(const struct TranslationPackage& pkg);
-#endif
-
     static CoreBridge* s_instance;
     QList<DetectedGame> m_detectedGames;
-#ifdef MAKINEAI_UI_ONLY
-    // Real scanning helpers for UI_ONLY build (pure Qt, no vcpkg deps)
-    // Accept output list to avoid data race on m_detectedGames from worker thread
+    // Scanning helpers (pure Qt, no vcpkg deps)
     void doScanSteamReal(QList<DetectedGame>& outGames);
     void doScanEpicReal(QList<DetectedGame>& outGames);
     void doScanGogReal(QList<DetectedGame>& outGames);
@@ -192,10 +192,6 @@ private:
     void buildDetectedGameIndex();
     LocalPackageManager* m_localPkgManager{nullptr};
     QHash<QString, int> m_steamAppIdToDetectedIndex;
-#else
-    std::unique_ptr<class PackageManager> m_packageManager;
-    bool m_packageManagerInitialized{false};
-#endif
 };
 
 } // namespace makineai

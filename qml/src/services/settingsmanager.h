@@ -26,8 +26,6 @@ namespace makineai {
 class SettingsManager : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
-    QML_SINGLETON
 
     // General settings
     Q_PROPERTY(bool autoDetectGames READ autoDetectGames WRITE setAutoDetectGames NOTIFY autoDetectGamesChanged)
@@ -142,6 +140,10 @@ private:
     void saveSettings();
     void setupAutoStart(bool enable);
 
+    // DPAPI encryption for sensitive path data (Windows only)
+    static QByteArray protectData(const QByteArray& plaintext);
+    static QByteArray unprotectData(const QByteArray& encrypted);
+
     QSettings m_settings;
 
     // General
@@ -170,7 +172,7 @@ private:
     QString m_appLanguage{"tr"};
 
     // Paths
-    QString m_translationDataPath{"C:/cedra/translation_data/mc-main"};
+    QString m_translationDataPath{"C:/cedra/translation_data"};
 };
 
 } // namespace makineai

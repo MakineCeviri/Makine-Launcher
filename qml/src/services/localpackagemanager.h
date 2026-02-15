@@ -30,6 +30,9 @@ struct PackageInfo {
     qint64 sizeBytes{0};
     int fileCount{0};
     QHash<QString, QString> storeIds; // store -> id (e.g. "epic" -> "abc123")
+    QString dirName;                // filesystem directory name in translation_data
+    QStringList variants;           // ["1.00", "1.04"] or ["Steam", "Gamepass"]
+    QString variantType;            // "version" or "platform" (for UI label)
 };
 
 struct InstalledPackageInfo {
@@ -53,11 +56,16 @@ public:
 
     bool isInstalled(const QString& steamAppId) const;
 
-    void installPackage(const QString& steamAppId, const QString& gamePath);
+    void installPackage(const QString& steamAppId, const QString& gamePath,
+                        const QString& variant = {});
     bool uninstallPackage(const QString& steamAppId, const QString& gamePath);
 
     // Resolve any store ID (epic_xxx, gog_xxx, steamAppId) to canonical steamAppId
     QString resolveGameId(const QString& gameId) const;
+
+    // Variant support
+    QVariantList getVariants(const QString& steamAppId) const;
+    QString getVariantType(const QString& steamAppId) const;
 
     int packageCount() const { return m_packages.size(); }
     QVariantList allPackagesAsList() const;
@@ -69,6 +77,7 @@ signals:
 private:
     void loadManifest(const QString& manifestPath);
     void scanPackageDirectories(const QString& basePath);
+    void scanGameNameDirectories(const QString& basePath);
     void loadInstalledState();
     void saveInstalledState();
     QString installedStatePath() const;

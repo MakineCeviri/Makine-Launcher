@@ -14,6 +14,7 @@
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#include <dpapi.h>
 #endif
 
 namespace makineai {
@@ -190,7 +191,17 @@ void SettingsManager::setTranslationDataPath(const QString& value)
 {
     if (m_translationDataPath != value) {
         m_translationDataPath = value;
-        m_settings.setValue("paths/translationData", value);
+
+        // Store encrypted via DPAPI
+        QByteArray encrypted = protectData(value.toUtf8());
+        if (!encrypted.isEmpty()) {
+            m_settings.setValue("paths/translationData_enc", encrypted.toBase64());
+            m_settings.remove("paths/translationData"); // Remove plaintext
+        } else {
+            // DPAPI unavailable (non-Windows), fall back to plaintext
+            m_settings.setValue("paths/translationData", value);
+        }
+
         emit translationDataPathChanged();
         emit settingsChanged();
     }
@@ -256,7 +267,29 @@ void SettingsManager::loadSettings()
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
     m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();
-    m_translationDataPath = m_settings.value("paths/translationData", "C:/cedra/translation_data/mc-main").toString();
+    // translationDataPath: prefer DPAPI-encrypted, migrate from plaintext
+    if (m_settings.contains("paths/translationData_enc")) {
+        QByteArray encrypted = QByteArray::fromBase64(
+            m_settings.value("paths/translationData_enc").toByteArray());
+        QByteArray decrypted = unprotectData(encrypted);
+        if (!decrypted.isEmpty()) {
+            m_translationDataPath = QString::fromUtf8(decrypted);
+        } else {
+            // Decryption failed — use default
+            m_translationDataPath = QStringLiteral("C:/cedra/translation_data");
+        }
+    } else {
+        // Legacy plaintext or first run — load and migrate
+        m_translationDataPath = m_settings.value("paths/translationData",
+            "C:/cedra/translation_data").toString();
+
+        // Migrate to encrypted storage
+        QByteArray encrypted = protectData(m_translationDataPath.toUtf8());
+        if (!encrypted.isEmpty()) {
+            m_settings.setValue("paths/translationData_enc", encrypted.toBase64());
+            m_settings.remove("paths/translationData");
+        }
+    }
 }
 
 void SettingsManager::saveSettings()
@@ -274,7 +307,16 @@ void SettingsManager::saveSettings()
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
     m_settings.setValue("general/appLanguage", m_appLanguage);
-    m_settings.setValue("paths/translationData", m_translationDataPath);
+
+    // Save translationDataPath with DPAPI encryption
+    QByteArray encrypted = protectData(m_translationDataPath.toUtf8());
+    if (!encrypted.isEmpty()) {
+        m_settings.setValue("paths/translationData_enc", encrypted.toBase64());
+        m_settings.remove("paths/translationData");
+    } else {
+        m_settings.setValue("paths/translationData", m_translationDataPath);
+    }
+
     m_settings.sync();
 }
 
@@ -312,6 +354,52 @@ QString SettingsManager::activeGraphicsApi() const
     case QSGRendererInterface::MetalRhi:   return QStringLiteral("Metal");
     default: return QStringLiteral("Unknown");
     }
+}
+
+QByteArray SettingsManager::protectData(const QByteArray& plaintext)
+{
+#ifdef Q_OS_WIN
+    DATA_BLOB input{};
+    input.pbData = reinterpret_cast<BYTE*>(const_cast<char*>(plaintext.data()));
+    input.cbData = static_cast<DWORD>(plaintext.size());
+
+    DATA_BLOB output{};
+    if (CryptProtectData(&input, nullptr, nullptr, nullptr, nullptr,
+                         CRYPTPROTECT_UI_FORBIDDEN, &output)) {
+        QByteArray result(reinterpret_cast<const char*>(output.pbData),
+                          static_cast<int>(output.cbData));
+        SecureZeroMemory(output.pbData, output.cbData);
+        LocalFree(output.pbData);
+        return result;
+    }
+    return {};
+#else
+    Q_UNUSED(plaintext)
+    return {};
+#endif
+}
+
+QByteArray SettingsManager::unprotectData(const QByteArray& encrypted)
+{
+#ifdef Q_OS_WIN
+    DATA_BLOB input{};
+    input.pbData = reinterpret_cast<BYTE*>(const_cast<char*>(encrypted.data()));
+    input.cbData = static_cast<DWORD>(encrypted.size());
+
+    DATA_BLOB output{};
+    if (CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
+                           CRYPTPROTECT_UI_FORBIDDEN, &output)) {
+        QByteArray result(reinterpret_cast<const char*>(output.pbData),
+                          static_cast<int>(output.cbData));
+        SecureZeroMemory(output.pbData, output.cbData);
+        LocalFree(output.pbData);
+        return result;
+    }
+    return {};
+#else
+    Q_UNUSED(encrypted)
+    return {};
+#endif
 }
 
 void SettingsManager::setupAutoStart(bool enable)
