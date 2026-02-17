@@ -5,6 +5,7 @@
  */
 
 #include "corebridge.h"
+#include "appprotection.h"
 
 #include <QDebug>
 #include <QDir>
@@ -16,6 +17,7 @@
 
 #include "vdfparser.h"
 #include "localpackagemanager.h"
+#include "operationjournal.h"
 #include <QSettings>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -90,6 +92,13 @@ CoreBridge* CoreBridge::instance()
         s_instance = new CoreBridge();
     }
     return s_instance;
+}
+
+void CoreBridge::setJournal(OperationJournal* journal)
+{
+    m_journal = journal;
+    if (m_localPkgManager)
+        m_localPkgManager->setJournal(journal);
 }
 
 // ========== GAME SCANNING (Pure Qt) ==========
@@ -456,12 +465,14 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
 
 void CoreBridge::scanAllLibraries()
 {
+    INTEGRITY_GATE();
     emit scanStarted();
     m_detectedGames.clear();
 
     // Initialize LocalPackageManager if needed
     if (!m_localPkgManager) {
         m_localPkgManager = new LocalPackageManager(this);
+        if (m_journal) m_localPkgManager->setJournal(m_journal);
         // Connect install signals
         connect(m_localPkgManager, &LocalPackageManager::installProgress,
                 this, &CoreBridge::packageInstallProgress);
@@ -469,20 +480,23 @@ void CoreBridge::scanAllLibraries()
                 this, &CoreBridge::packageInstallCompleted);
     }
 
-    // Load translation packages
-    QSettings settings("MakineAI", "MakineAI");
-    QString translationPath = settings.value("paths/translationData",
-        "C:/cedra/translation_data").toString();
-    m_localPkgManager->loadFromPath(translationPath);
-
     // Capture raw pointer for thread-safe package lookups (manager lives on main thread)
     LocalPackageManager* pkgMgr = m_localPkgManager;
 
-    (void)QtConcurrent::run([this, pkgMgr]() {
+    // Load translation packages path (actual loading happens in background)
+    QSettings settings("MakineAI", "MakineAI");
+    QString translationPath = settings.value("paths/translationData",
+        "C:/cedra/translation_data").toString();
+
+    (void)QtConcurrent::run([this, pkgMgr, translationPath]() {
+        // Load translation packages directly in background thread (avoid main-thread block)
+        emit scanProgress(0.0, tr("Çeviri paketleri yükleniyor..."));
+        pkgMgr->loadFromPath(translationPath);
+
         // Collect games in a thread-local list to avoid data race on m_detectedGames
         QList<DetectedGame> games;
 
-        emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
+        emit scanProgress(0.1, tr("Steam kütüphanesi taranıyor..."));
         doScanSteamReal(games);
 
         emit scanProgress(0.6, tr("Epic Games taranıyor..."));
@@ -585,15 +599,6 @@ QString CoreBridge::detectEngine(const QString& gamePath)
     return detectEngineReal(gamePath);
 }
 
-
-QString CoreBridge::createBackup(const QString& gamePath, const QString& engine)
-{
-    Q_UNUSED(gamePath)
-    Q_UNUSED(engine)
-
-    QString backupId = QString::number(QDateTime::currentMSecsSinceEpoch());
-    return backupId;
-}
 
 bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
                                const QString& backupId)
@@ -706,6 +711,7 @@ std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString&
     qtPkg.version = pkg->version;
     qtPkg.sizeBytes = pkg->sizeBytes;
     qtPkg.requiresRuntime = false;
+    qtPkg.contributors = pkg->contributors;
     return qtPkg;
 }
 
@@ -743,6 +749,35 @@ QString CoreBridge::getVariantTypeForGame(const QString& gameId)
     if (resolved.isEmpty()) return {};
 
     return m_localPkgManager->getVariantType(resolved);
+}
+
+QString CoreBridge::getInstallNotesForGame(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return {};
+
+    auto pkg = m_localPkgManager->getPackage(resolved);
+    if (!pkg) return {};
+
+    return pkg->installNotes;
+}
+
+QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString& variant)
+{
+    if (!m_localPkgManager) return {};
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return {};
+
+    return m_localPkgManager->getPackageFileList(resolved, variant);
+}
+
+QString CoreBridge::findMatchingAppId(const QString& folderName)
+{
+    if (!m_localPkgManager) return {};
+    return m_localPkgManager->findMatchingAppId(folderName);
 }
 
 bool CoreBridge::isPackageInstalled(const QString& gameId)

@@ -8,12 +8,15 @@
 
 #include <QObject>
 #include <QString>
+#include <QHash>
 #include <QDateTime>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QQmlEngine>
 
 namespace makineai {
+
+class OperationJournal;
 
 /**
  * @brief Backup info structure
@@ -90,12 +93,25 @@ public:
     // Q_INVOKABLE methods
     Q_INVOKABLE QVariantList getBackupsForGame(const QString& gameId);
     Q_INVOKABLE QVariantMap getLatestBackup(const QString& gameId);
-    Q_INVOKABLE bool createBackup(const QString& gameId, const QString& gameName, const QString& sourcePath);
     Q_INVOKABLE bool restoreBackup(const QString& backupId, const QString& targetPath = QString());
     Q_INVOKABLE bool deleteBackup(const QString& backupId);
     Q_INVOKABLE bool hasBackup(const QString& gameId);
+
+    void setJournal(OperationJournal* journal) { m_journal = journal; }
+
+    /**
+     * @brief Selective async backup — only backs up files that will be overwritten
+     * @param gameId Steam app ID
+     * @param gameName Display name
+     * @param gamePath Game install directory
+     * @param filesToOverwrite Relative paths of files the translation will overwrite
+     */
+    void createSelectiveBackupAsync(const QString& gameId, const QString& gameName,
+                                     const QString& gamePath, const QStringList& filesToOverwrite);
+
 signals:
     void backupProgress(double progress, const QString& status);
+    void selectiveBackupCompleted(const QString& gameId, bool success);
     void backupsChanged();
     void isRestoringChanged();
     void restoreStatusChanged();
@@ -114,10 +130,14 @@ private:
 
     static BackupManager* s_instance;
 
+    void rebuildBackupIndex();
+
     QList<BackupInfo> m_backups;
+    QHash<QString, int> m_backupIdToIndex;  // O(1) lookup by backup ID
     bool m_isRestoring{false};
     QString m_restoreStatus;
     int m_maxBackupsPerGame{3};
+    OperationJournal* m_journal{nullptr};
 };
 
 } // namespace makineai

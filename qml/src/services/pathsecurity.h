@@ -57,3 +57,23 @@ inline bool isPathSafe(const QString& path) {
 }
 
 } // namespace makineai::security
+
+namespace makineai::fileutils {
+
+// Write data to path atomically: write .tmp then rename
+inline bool atomicWriteJson(const QString& path, const QByteArray& data) {
+    const QString tmpPath = path + ".tmp";
+    QFile tmpFile(tmpPath);
+    if (!tmpFile.open(QIODevice::WriteOnly)) return false;
+    if (tmpFile.write(data) != data.size()) {
+        tmpFile.close();
+        QFile::remove(tmpPath);
+        return false;
+    }
+    tmpFile.close();
+    // Windows: rename fails if target exists
+    if (QFile::exists(path)) QFile::remove(path);
+    return QFile::rename(tmpPath, path);
+}
+
+} // namespace makineai::fileutils

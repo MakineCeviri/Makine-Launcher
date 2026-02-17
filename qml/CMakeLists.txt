@@ -97,6 +97,9 @@ set(BACKEND_SOURCES
     src/services/updatedetectionservice.cpp
     src/services/updatechecker.cpp
     src/services/notificationservice.cpp
+    src/services/operationjournal.cpp
+    src/services/appprotection.cpp
+    src/services/imagecachemanager.cpp
 )
 
 set(BACKEND_HEADERS
@@ -114,6 +117,11 @@ set(BACKEND_HEADERS
     src/services/updatechecker.h
     src/services/notificationservice.h
     src/services/pathsecurity.h
+    src/services/operationjournal.h
+    src/services/appprotection.h
+    src/services/obfstring.h
+    src/services/imagecachemanager.h
+    src/services/apppaths.h
 )
 
 
@@ -135,6 +143,12 @@ set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE
 set_source_files_properties(qml/theme/Dimensions.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/theme/DebugHelper.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
+# Showcase images (validated game headers, embedded in binary)
+file(GLOB SHOWCASE_IMAGES CONFIGURE_DEPENDS
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    "resources/showcase/*.jpg"
+)
+
 qt_add_qml_module(MakineAI
     URI MakineAI
     VERSION 1.0
@@ -146,6 +160,33 @@ qt_add_qml_module(MakineAI
         qml/GameDetailScreen.qml
         qml/OnboardingWizard.qml
 
+        # Screens - Home Pages
+        qml/screens/HomePage.qml
+        qml/screens/ProjectsPage.qml
+        qml/screens/TranslationLibraryPage.qml
+
+        # Screens - Game Detail Sections
+        qml/screens/detail/HeroSection.qml
+        qml/screens/detail/QuickStatsRow.qml
+        qml/screens/detail/AboutSection.qml
+        qml/screens/detail/ScreenshotCarousel.qml
+        qml/screens/detail/ContributorsSection.qml
+        qml/screens/detail/RuntimeSection.qml
+        qml/screens/detail/BackupSection.qml
+
+        # Screens - Settings Panels
+        qml/screens/settings/GeneralSettings.qml
+        qml/screens/settings/TranslationSettings.qml
+        qml/screens/settings/BackupsSettings.qml
+        qml/screens/settings/PerformanceSettings.qml
+        qml/screens/settings/AboutSettings.qml
+        qml/screens/settings/DeveloperSettings.qml
+
+        # Screens - Onboarding Steps
+        qml/screens/onboarding/WelcomeStep.qml
+        qml/screens/onboarding/ScanStep.qml
+        qml/screens/onboarding/ReadyStep.qml
+
         # Theme (singletons)
         qml/theme/Theme.qml
         qml/theme/Dimensions.qml
@@ -155,15 +196,23 @@ qt_add_qml_module(MakineAI
         qml/components/AnimatedGradientGlow.qml
         qml/components/GameCard.qml
         qml/components/GameCardSkeleton.qml
+        qml/components/GameStatusCard.qml
+        qml/components/AnnouncementCard.qml
         qml/components/PatchCard.qml
         qml/components/SettingsCard.qml
 
-        # Components - Navigation
+        # Components - Navigation & Layout
+        qml/components/TitleBar.qml
+        qml/components/TurkishFlagBadge.qml
+        qml/components/NavBar.qml
         qml/components/NavItem.qml
+        qml/components/WindowResizeHandles.qml
+        qml/components/SettingsSidebar.qml
 
         # Components - Notifications
         qml/components/NotificationPanel.qml
         qml/components/NotificationToast.qml
+        qml/components/NotificationBanner.qml
 
         # Components - Drag & Drop
         qml/components/DropZoneOverlay.qml
@@ -171,6 +220,7 @@ qt_add_qml_module(MakineAI
         # Components - Visual
         qml/components/SkeletonLoader.qml
         qml/components/PerformanceMonitor.qml
+        qml/components/GradientBorderCanvas.qml
 
         # Components - Settings UI
         qml/components/ToggleSetting.qml
@@ -190,10 +240,10 @@ qt_add_qml_module(MakineAI
         # Dialogs
         qml/dialogs/AllGamesDialog.qml
         qml/dialogs/AntiCheatWarningDialog.qml
-        qml/dialogs/CompatibilityWarningDialog.qml
         qml/dialogs/ConfirmDialog.qml
         qml/dialogs/UninstallConfirmDialog.qml
         qml/dialogs/VariantSelectionDialog.qml
+        qml/dialogs/InstallNotesDialog.qml
 
     RESOURCES
         # SVG icons (8 active)
@@ -207,6 +257,8 @@ qt_add_qml_module(MakineAI
         resources/icons/window-search-active.svg
         # PNG images
         resources/images/logo.png
+        # Showcase images (validated game headers, embedded in binary)
+        ${SHOWCASE_IMAGES}
         # Fonts (Inter - Google Fonts)
         resources/fonts/Inter-Regular.ttf
         resources/fonts/Inter-Medium.ttf
@@ -344,11 +396,11 @@ else()
     message(STATUS "i18n: Qt6::LinguistTools not found, translations disabled")
 endif()
 
-# Static build: strip debug symbols for smaller binary (~30-40% reduction)
-if(CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
+# Strip debug symbols in release builds (all configs, not just static)
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MSVC)
     add_custom_command(TARGET MakineAI POST_BUILD
         COMMAND ${CMAKE_STRIP} "$<TARGET_FILE:MakineAI>"
-        COMMENT "Stripping static binary for minimal size"
+        COMMENT "Stripping release binary for minimal size"
         VERBATIM
     )
 endif()

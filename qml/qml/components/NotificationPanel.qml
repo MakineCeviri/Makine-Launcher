@@ -149,6 +149,15 @@ Popup {
                 ScrollBar.vertical: ScrollBar {
                     policy: notificationList.contentHeight > notificationList.height
                         ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                    background: Rectangle { color: "transparent" }
+                    contentItem: Rectangle {
+                        implicitWidth: parent.pressed ? 5 : 3; radius: implicitWidth / 2
+                        color: parent.pressed ? Theme.scrollbarThumbHover
+                             : parent.hovered ? Theme.scrollbarThumbHover : Theme.scrollbarThumb
+                        opacity: parent.active ? 1.0 : 0.0
+                        Behavior on implicitWidth { NumberAnimation { duration: 120 } }
+                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                    }
                 }
 
                 delegate: Rectangle {

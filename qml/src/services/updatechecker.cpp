@@ -5,6 +5,7 @@
  */
 
 #include "updatechecker.h"
+#include "apppaths.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -201,8 +202,7 @@ void UpdateChecker::downloadUpdate()
     emit readyToInstallChanged();
 
     // Prepare temp directory
-    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
-                      + QStringLiteral("/MakineAI-update");
+    QString tempDir = AppPaths::updateTempDir();
     QDir().mkpath(tempDir);
 
     QString fileName = QUrl(m_installerUrl).fileName();

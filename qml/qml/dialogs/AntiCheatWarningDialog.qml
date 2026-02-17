@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 import MakineAI 1.0
 
 /**
@@ -365,9 +364,12 @@ Dialog {
                 policy: ScrollBar.AsNeeded
                 background: Rectangle { color: "transparent" }
                 contentItem: Rectangle {
-                    implicitWidth: 6
-                    radius: 3
-                    color: parent.pressed ? Theme.withAlpha(Theme.textPrimary, 0.2) : Theme.withAlpha(Theme.textPrimary, 0.1)
+                    implicitWidth: parent.pressed ? 5 : 3; radius: implicitWidth / 2
+                    color: parent.pressed ? Theme.scrollbarThumbHover
+                         : parent.hovered ? Theme.scrollbarThumbHover : Theme.scrollbarThumb
+                    opacity: parent.active ? 1.0 : 0.0
+                    Behavior on implicitWidth { NumberAnimation { duration: 120 } }
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
             }
 

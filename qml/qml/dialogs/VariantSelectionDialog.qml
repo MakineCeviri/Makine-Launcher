@@ -65,6 +65,7 @@ Dialog {
 
     Overlay.modal: Rectangle {
         color: Theme.withAlpha(Theme.bgPrimary, 0.60)
+        Behavior on opacity { NumberAnimation { duration: 200 } }
     }
 
     header: Item {

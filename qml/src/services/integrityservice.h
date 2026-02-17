@@ -3,9 +3,10 @@
  * @brief Binary self-integrity verification service
  * @copyright (c) 2026 MakineAI Team
  *
+ * Thin Qt wrapper around makineai::integrity core module.
  * Verifies that the application binary has not been tampered with by
  * comparing its SHA-256 hash against a known-good hash generated at
- * build time. Uses Qt's QCryptographicHash (no core library dependency).
+ * build time.
  */
 
 #pragma once
@@ -42,9 +43,6 @@ signals:
 
 private:
     void performCheck();
-
-    static QString computeFileHash(const QString& filePath);
-    static QString readExpectedHash(const QString& hashFilePath);
 
     bool m_verified{true};
     bool m_checking{false};

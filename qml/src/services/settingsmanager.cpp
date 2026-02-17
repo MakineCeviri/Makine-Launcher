@@ -5,12 +5,15 @@
  */
 
 #include "settingsmanager.h"
+#include "imagecachemanager.h"
+#include "apppaths.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QStandardPaths>
 #include <QTranslator>
 #include <QQmlEngine>
 #include <QQuickWindow>
+#include <memory>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -156,28 +159,26 @@ void SettingsManager::setAppLanguage(const QString& value)
         m_settings.setValue("general/appLanguage", value);
 
         // Load new translation at runtime
-        static QTranslator *currentTranslator = nullptr;
+        static std::unique_ptr<QTranslator> currentTranslator;
         auto *app = QCoreApplication::instance();
 
         if (currentTranslator) {
-            app->removeTranslator(currentTranslator);
-            delete currentTranslator;
-            currentTranslator = nullptr;
+            app->removeTranslator(currentTranslator.get());
+            currentTranslator.reset();
         }
 
         // "tr" is the source language, no translation file needed
         if (value != "tr") {
-            currentTranslator = new QTranslator(app);
+            auto translator = std::make_unique<QTranslator>();
             QString path = QCoreApplication::applicationDirPath() + "/i18n";
-            if (currentTranslator->load("makineai_" + value, path)) {
-                app->installTranslator(currentTranslator);
+            if (translator->load("makineai_" + value, path)) {
+                app->installTranslator(translator.get());
+                currentTranslator = std::move(translator);
             } else {
                 // Try from qrc
-                if (currentTranslator->load(":/i18n/makineai_" + value)) {
-                    app->installTranslator(currentTranslator);
-                } else {
-                    delete currentTranslator;
-                    currentTranslator = nullptr;
+                if (translator->load(":/i18n/makineai_" + value)) {
+                    app->installTranslator(translator.get());
+                    currentTranslator = std::move(translator);
                 }
             }
         }
@@ -235,16 +236,29 @@ void SettingsManager::resetToDefaults()
 
 void SettingsManager::clearCache()
 {
-    const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    QDir cacheDir(cachePath);
+    bool ok = true;
 
+    // Clear organized cache directory
+    QDir cacheDir(AppPaths::cacheDir());
     if (cacheDir.exists()) {
-        bool ok = cacheDir.removeRecursively();
+        ok = cacheDir.removeRecursively();
         cacheDir.mkpath(".");
-        emit cacheClearCompleted(ok, ok ? tr("Önbellek temizlendi") : tr("Önbellek temizlenemedi"));
-    } else {
-        emit cacheClearCompleted(true, tr("Önbellek zaten boş"));
     }
+
+    // Clear Qt standard cache location
+    const QString qtCachePath = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QDir qtCacheDir(qtCachePath);
+    if (qtCacheDir.exists()) {
+        qtCacheDir.removeRecursively();
+        qtCacheDir.mkpath(".");
+    }
+
+    // Clear image cache (temp dir)
+    auto* imgCache = qApp->findChild<ImageCacheManager*>();
+    if (imgCache)
+        imgCache->clearCache();
+
+    emit cacheClearCompleted(ok, ok ? tr("Önbellek temizlendi") : tr("Önbellek temizlenemedi"));
 }
 
 void SettingsManager::loadSettings()

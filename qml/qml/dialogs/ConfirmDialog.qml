@@ -64,6 +64,7 @@ Dialog {
 
     Overlay.modal: Rectangle {
         color: Theme.withAlpha(Theme.bgPrimary, 0.60)
+        Behavior on opacity { NumberAnimation { duration: 200 } }
     }
 
     header: Item {
@@ -202,7 +203,9 @@ Dialog {
                 color: _cancelMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
                 border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
                 border.width: 1
+                scale: _cancelMouse.pressed ? Dimensions.pressScale : 1.0
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
 
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Cancel")

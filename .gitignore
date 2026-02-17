@@ -257,6 +257,9 @@ dist/
 *.msix
 *.appx
 
+# Showcase image validation cache
+scripts/showcase_validation.json
+
 # Temporary scripts
 *.ps1
 !scripts/**/*.ps1

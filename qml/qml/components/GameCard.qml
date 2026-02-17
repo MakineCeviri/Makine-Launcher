@@ -15,6 +15,8 @@ Item {
     property string gameId: ""
     property string gameName: ""
     property string imageUrl: ""
+    property string steamAppId: ""
+    property string installPath: ""
     property bool verified: false
     property bool translated: false
 

@@ -93,9 +93,8 @@ QtObject {
 
     readonly property int cardWidth: 140
     readonly property int cardHeight: 200
-    readonly property int cardImageHeight: 160
     readonly property int cardGap: 16
-    readonly property int cardBorderRadius: radiusStandard
+    readonly property int cardBorderRadius: 14
 
     // =========================================================================
     // LAYOUT CONSTANTS
@@ -132,10 +131,6 @@ QtObject {
     readonly property int fontHero: 28
     readonly property int fontBanner: 32
 
-    // TextTheme sizes (used)
-    readonly property int displayXL: 56
-    readonly property int displayLarge: 48
-    readonly property int displayMedium: 36
     readonly property int headlineXL: 26
     readonly property int headlineLarge: 24
 

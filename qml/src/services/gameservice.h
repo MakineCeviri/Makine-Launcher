@@ -125,6 +125,10 @@ public:
     explicit GameService(QObject *parent = nullptr);
     ~GameService() override;
 
+    /// Deferred initialization — call after construction to load caches.
+    /// Separated from constructor so splash screen stays responsive.
+    void initialize();
+
     static GameService* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
     // Properties
@@ -139,17 +143,25 @@ public:
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
-    Q_INVOKABLE void addManualGame(const QString& path);
+    /**
+     * @brief Add a manually selected game folder to the library
+     * @return The new game's ID, or empty string on failure
+     */
+    Q_INVOKABLE QString addManualGame(const QString& path);
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
-    Q_INVOKABLE QVariantMap getRecipeInfo(const QString& gameId);
-
     /**
      * @brief Filter games by name (case-insensitive)
      * Replaces JS Array.filter() in AllGamesDialog
      */
     Q_INVOKABLE QVariantList filterGames(const QString& query) const;
+
+    /**
+     * @brief Filter games that have translation packages, with optional name filter
+     * Replaces JS filteredModel() in TranslationLibraryPage for better performance
+     */
+    Q_INVOKABLE QVariantList filteredGamesWithTranslation(const QString& filter = {}) const;
 
     /**
      * @brief Classify dropped URLs by file extension
@@ -186,6 +198,12 @@ public:
     Q_INVOKABLE QString getVariantType(const QString& gameId);
 
     /**
+     * @brief Get pre-install notes for a game package
+     * @return Notes string, empty if none
+     */
+    Q_INVOKABLE QString getInstallNotes(const QString& gameId);
+
+    /**
      * @brief Install translation package for a supported game
      * Finds the package, downloads and installs it via CoreBridge
      */
@@ -213,13 +231,6 @@ public:
      *         integrityPercent, modifiedCount, addedCount, removedCount, summary
      */
     Q_INVOKABLE QVariantMap checkCompatibility(const QString& gameId);
-
-    /**
-     * @brief Analyze fonts in a game directory for Turkish character support
-     * @return Map with: hasFontAnalysis, totalFonts, turkishSupportCount,
-     *         missingChars, summary, fonts (list of font details)
-     */
-    Q_INVOKABLE QVariantMap analyzeFonts(const QString& gameId);
 
     /**
      * @brief Check if a game has anti-cheat protection
@@ -276,6 +287,7 @@ private:
     void onScanCompleted(int count);
     void onGameDetected(const QString& gameId, const QString& gameName);
 
+    void finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex);
     void invalidateCache();
     void rebuildCache();
     void ensureSupportedGamesCache();
@@ -292,6 +304,7 @@ private:
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;  // O(1) lookup by ID
     QHash<QString, SteamDetails> m_steamDetailsCache;
+    mutable QHash<QString, bool> m_packageInstalledCache;  // Cached isPackageInstalled results
     QSet<QString> m_pendingFetches;
     bool m_isScanning{false};
     QString m_scanStatus;

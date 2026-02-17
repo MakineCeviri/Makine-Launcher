@@ -44,6 +44,7 @@ ApplicationWindow {
     }
 
     property int currentNavIndex: 0
+    property int previousNavIndex: 0  // Remember nav index before game detail
     property bool notificationPanelOpen: false
 
     readonly property int resizeMargin: 6
@@ -54,6 +55,7 @@ ApplicationWindow {
     // Pending data for lazy-loaded warning dialogs
     property var pendingAntiCheatData: null
     property var pendingVariantData: null
+    property var pendingInstallNotes: null
 
     // Store normal geometry before maximize so restore works on frameless windows
     property rect normalGeometry: Qt.rect(0, 0, 0, 0)
@@ -139,93 +141,10 @@ ApplicationWindow {
     }
 
     // ===== WINDOW RESIZE HANDLERS =====
-
-    MouseArea {
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.topMargin: window.resizeMargin * 2
-        anchors.bottomMargin: window.resizeMargin * 2
-        width: window.resizeMargin
-        cursorShape: Qt.SizeHorCursor
-        z: Dimensions.zDialog
-        onPressed: window.startSystemResize(Qt.RightEdge)
-    }
-
-    MouseArea {
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: window.resizeMargin * 2
-        anchors.rightMargin: window.resizeMargin * 2
-        height: window.resizeMargin
-        cursorShape: Qt.SizeVerCursor
-        z: Dimensions.zDialog
-        onPressed: window.startSystemResize(Qt.BottomEdge)
-    }
-
-    MouseArea {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.topMargin: window.resizeMargin * 2
-        anchors.bottomMargin: window.resizeMargin * 2
-        width: window.resizeMargin
-        cursorShape: Qt.SizeHorCursor
-        z: Dimensions.zDialog
-        onPressed: window.startSystemResize(Qt.LeftEdge)
-    }
-
-    MouseArea {
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: window.resizeMargin * 2
-        anchors.rightMargin: window.resizeMargin * 2
-        height: window.resizeMargin
-        cursorShape: Qt.SizeVerCursor
-        z: Dimensions.zDialog
-        onPressed: window.startSystemResize(Qt.TopEdge)
-    }
-
-    MouseArea {
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        width: window.resizeMargin * 2
-        height: window.resizeMargin * 2
-        cursorShape: Qt.SizeFDiagCursor
-        z: Dimensions.zWindowControls
-        onPressed: window.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
-    }
-
-    MouseArea {
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        width: window.resizeMargin * 2
-        height: window.resizeMargin * 2
-        cursorShape: Qt.SizeBDiagCursor
-        z: Dimensions.zWindowControls
-        onPressed: window.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
-    }
-
-    MouseArea {
-        anchors.right: parent.right
-        anchors.top: parent.top
-        width: window.resizeMargin * 2
-        height: window.resizeMargin * 2
-        cursorShape: Qt.SizeBDiagCursor
-        z: Dimensions.zWindowControls
-        onPressed: window.startSystemResize(Qt.RightEdge | Qt.TopEdge)
-    }
-
-    MouseArea {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        width: window.resizeMargin * 2
-        height: window.resizeMargin * 2
-        cursorShape: Qt.SizeFDiagCursor
-        z: Dimensions.zWindowControls
-        onPressed: window.startSystemResize(Qt.LeftEdge | Qt.TopEdge)
+    WindowResizeHandles {
+        anchors.fill: parent
+        windowRef: window
+        resizeMargin: window.resizeMargin
     }
 
     // ===== KEYBOARD SHORTCUTS =====
@@ -300,6 +219,11 @@ ApplicationWindow {
                 notificationPanel.open()
             }
         }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+R"
+        onActivated: GameService.scanAllLibraries()
     }
 
     // GPU Optimization: Disable animations when window is not visible/active or user disabled them
@@ -446,6 +370,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.navbarHeight
             currentIndex: window.currentNavIndex
+            animationsEnabled: window.animationsEnabled
 
             onHomeClicked: {
                 window.currentNavIndex = 0
@@ -504,6 +429,7 @@ ApplicationWindow {
                 if (outgoingPage && incomingPage) {
                     setPageVisible(index, true)
                     incomingPage.opacity = 0
+                    incomingPage.y = 16
 
                     fadeOutAnimation.target = outgoingPage
                     fadeInAnimation.target = incomingPage
@@ -541,6 +467,7 @@ ApplicationWindow {
                     var oldPage = contentStackContainer.getPage(contentStackContainer.previousIndex)
                     if (oldPage) {
                         oldPage.opacity = 1.0
+                        oldPage.y = 0
                     }
                     contentStackContainer.setPageVisible(contentStackContainer.previousIndex, false)
                     contentStackContainer.currentIndex = newIndex
@@ -548,22 +475,86 @@ ApplicationWindow {
                 }
             }
 
-            NumberAnimation {
+            // Outgoing page: fade out + subtle slide up
+            ParallelAnimation {
                 id: fadeOutAnimation
-                property: "opacity"
-                from: 1.0
-                to: 0
-                duration: 180
-                easing.type: Easing.OutQuad
+                property var target
+                NumberAnimation {
+                    target: fadeOutAnimation.target
+                    property: "opacity"
+                    from: 1.0; to: 0
+                    duration: 160
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: fadeOutAnimation.target
+                    property: "y"
+                    from: 0; to: -12
+                    duration: 160
+                    easing.type: Easing.InCubic
+                }
             }
 
-            NumberAnimation {
+            // Incoming page: fade in + slide up from below
+            ParallelAnimation {
                 id: fadeInAnimation
-                property: "opacity"
-                from: 0
-                to: 1.0
-                duration: 220
-                easing.type: Easing.OutQuad
+                property var target
+                NumberAnimation {
+                    target: fadeInAnimation.target
+                    property: "opacity"
+                    from: 0; to: 1.0
+                    duration: 240
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: fadeInAnimation.target
+                    property: "y"
+                    from: 16; to: 0
+                    duration: 240
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            // Subtle grid pattern background (40px cells)
+            Canvas {
+                id: gridBackground
+                anchors.fill: parent
+                z: -1
+
+                onWidthChanged: repaintTimer.restart()
+                onHeightChanged: repaintTimer.restart()
+                Component.onCompleted: requestPaint()
+
+                Timer {
+                    id: repaintTimer
+                    interval: 100
+                    onTriggered: gridBackground.requestPaint()
+                }
+
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.clearRect(0, 0, width, height)
+                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.03)
+                    ctx.lineWidth = 1
+
+                    var cell = 40
+
+                    // Vertical lines
+                    ctx.beginPath()
+                    for (var x = cell; x < width; x += cell) {
+                        ctx.moveTo(Math.floor(x) + 0.5, 0)
+                        ctx.lineTo(Math.floor(x) + 0.5, height)
+                    }
+                    ctx.stroke()
+
+                    // Horizontal lines
+                    ctx.beginPath()
+                    for (var y = cell; y < height; y += cell) {
+                        ctx.moveTo(0, Math.floor(y) + 0.5)
+                        ctx.lineTo(width, Math.floor(y) + 0.5)
+                    }
+                    ctx.stroke()
+                }
             }
 
             HomeScreen {
@@ -574,14 +565,19 @@ ApplicationWindow {
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     var gameData = GameService.getGameById(gameId)
-                    var isManual = (gameId === "manual")
+                    var isManual = (gameData && gameData.source === "manual") || gameId.startsWith("manual_")
+                    var isInstalled = (gameData && gameData.isInstalled) || installPath !== ""
                     var resolvedSteamAppId = (gameData && gameData.steamAppId) || ""
                     // For catalog-only games, gameId IS the steamAppId
                     if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
                         resolvedSteamAppId = gameId
-                    var resolvedImageUrl = (gameData && gameData.headerImageUrl) || ""
-                    if (resolvedImageUrl === "" && resolvedSteamAppId !== "")
-                        resolvedImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
+                    var rawImageUrl = (gameData && gameData.headerImageUrl) || ""
+                    if (rawImageUrl === "" && resolvedSteamAppId !== "")
+                        rawImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
+                    var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId, rawImageUrl)
+                    var hasTranslation = (gameData && gameData.hasTranslation) || false
+                    var pkgInstalled = (gameData && gameData.packageInstalled) || false
+
                     window.pendingGameDetail = {
                         gameId: gameId,
                         gameName: gameName,
@@ -589,8 +585,11 @@ ApplicationWindow {
                         imageUrl: resolvedImageUrl,
                         verified: (gameData && gameData.isVerified) || false,
                         steamAppId: resolvedSteamAppId,
-                        hasTranslation: (gameData && gameData.hasTranslation) || false,
-                        isManualGame: isManual
+                        hasTranslation: hasTranslation,
+                        isManualGame: isManual,
+                        isGameInstalled: isInstalled,
+                        packageInstalled: pkgInstalled,
+                        autoInstall: isInstalled && hasTranslation && !pkgInstalled
                     }
                     // If loader already active, apply immediately
                     if (gameDetailLoader.item) {
@@ -604,11 +603,62 @@ ApplicationWindow {
                         gameDetailLoader.item.hasTranslation = d.hasTranslation
                         gameDetailLoader.item.gameId = d.gameId
                         gameDetailLoader.item.isManualGame = d.isManualGame
+                        gameDetailLoader.item.isGameInstalled = d.isGameInstalled
+                        gameDetailLoader.item.packageInstalled = d.packageInstalled
+                        gameDetailLoader.item.autoInstall = d.autoInstall
                         window.pendingGameDetail = null
                     }
+                    window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
+
+                onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
+                    var gameData = GameService.getGameById(gameId)
+                    var isManual = (gameData && gameData.source === "manual") || gameId.startsWith("manual_")
+                    var isInstalled = (gameData && gameData.isInstalled) || installPath !== ""
+                    var resolvedSteamAppId = (gameData && gameData.steamAppId) || ""
+                    if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
+                        resolvedSteamAppId = gameId
+                    var rawImageUrl2 = (gameData && gameData.headerImageUrl) || ""
+                    if (rawImageUrl2 === "" && resolvedSteamAppId !== "")
+                        rawImageUrl2 = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
+                    var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId, rawImageUrl2)
+                    var hasTranslation = (gameData && gameData.hasTranslation) || false
+                    var pkgInstalled = (gameData && gameData.packageInstalled) || false
+
+                    window.pendingGameDetail = {
+                        gameId: gameId,
+                        gameName: gameName,
+                        engine: engine,
+                        imageUrl: resolvedImageUrl,
+                        verified: (gameData && gameData.isVerified) || false,
+                        steamAppId: resolvedSteamAppId,
+                        hasTranslation: hasTranslation,
+                        isManualGame: isManual,
+                        isGameInstalled: isInstalled,
+                        packageInstalled: pkgInstalled,
+                        autoInstall: true
+                    }
+                    if (gameDetailLoader.item) {
+                        var d = window.pendingGameDetail
+                        gameDetailLoader.item.resetDetails()
+                        gameDetailLoader.item.gameName = d.gameName
+                        gameDetailLoader.item.engine = d.engine
+                        gameDetailLoader.item.imageUrl = d.imageUrl
+                        gameDetailLoader.item.verified = d.verified
+                        gameDetailLoader.item.steamAppId = d.steamAppId
+                        gameDetailLoader.item.hasTranslation = d.hasTranslation
+                        gameDetailLoader.item.gameId = d.gameId
+                        gameDetailLoader.item.isManualGame = d.isManualGame
+                        gameDetailLoader.item.isGameInstalled = d.isGameInstalled
+                        gameDetailLoader.item.packageInstalled = d.packageInstalled
+                        gameDetailLoader.item.autoInstall = d.autoInstall
+                        window.pendingGameDetail = null
+                    }
+                    window.previousNavIndex = window.currentNavIndex
+                    contentStackContainer.navigateTo(2)
+                }
             }
 
             // Lazy-loaded settings page (Faz 3B)
@@ -617,6 +667,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 active: contentStackContainer.settingsVisible
                 visible: contentStackContainer.settingsVisible
+                asynchronous: true
                 sourceComponent: Component {
                     SettingsScreen {
                         onBack: {
@@ -632,11 +683,12 @@ ApplicationWindow {
                 anchors.fill: parent
                 active: contentStackContainer.gameDetailVisible
                 visible: contentStackContainer.gameDetailVisible
+                asynchronous: true
                 sourceComponent: Component {
                     GameDetailScreen {
                         onBackClicked: {
                             contentStackContainer.navigateTo(0)
-                            window.currentNavIndex = 0
+                            window.currentNavIndex = window.previousNavIndex
                         }
                         onTranslateClicked: {
                             // Pre-flight: Anti-cheat check
@@ -647,6 +699,17 @@ ApplicationWindow {
                                     detectedSystems: antiCheat.systems
                                 }
                                 antiCheatWarningLoader.active = true
+                                return
+                            }
+
+                            // Pre-flight: Install notes check
+                            var notes = GameService.getInstallNotes(gameId)
+                            if (notes && notes.length > 0) {
+                                window.pendingInstallNotes = {
+                                    gameId: gameId,
+                                    notes: notes
+                                }
+                                installNotesLoader.active = true
                                 return
                             }
 
@@ -678,6 +741,9 @@ ApplicationWindow {
                                 hasTranslation = d.hasTranslation || false
                                 gameId = d.gameId
                                 isManualGame = d.isManualGame || false
+                                isGameInstalled = d.isGameInstalled || false
+                                packageInstalled = d.packageInstalled || false
+                                autoInstall = d.autoInstall || false
                                 window.pendingGameDetail = null
                             }
                         }
@@ -729,8 +795,14 @@ ApplicationWindow {
         title: qsTr("Oyun Klasörünü Seç")
         onAccepted: {
             var folderPath = selectedFolder.toString().replace("file:///", "")
-            var folderName = folderPath.split("/").pop()
-            homeView.gameSelected("manual", folderName, folderPath, "Unknown")
+            // Add to library (detects engine, matches against translation catalog)
+            var newGameId = GameService.addManualGame(folderPath)
+            if (newGameId && newGameId !== "") {
+                var gameData = GameService.getGameById(newGameId)
+                var gameName = (gameData && gameData.name) || folderPath.split("/").pop()
+                var engine = (gameData && gameData.engine) || "Unknown"
+                homeView.gameSelected(newGameId, gameName, folderPath, engine)
+            }
         }
     }
 
@@ -758,7 +830,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== TRANSLATION INSTALL SIGNALS =====
+    // ===== GAME SERVICE SIGNALS =====
     Connections {
         target: GameService
         function onTranslationInstallStarted(gameId) {
@@ -769,28 +841,70 @@ ApplicationWindow {
             )
         }
         function onTranslationInstallCompleted(gameId, success, message) {
+            window.showNotification(
+                success ? qsTr("Çeviri Kuruldu") : qsTr("Çeviri Hatası"),
+                message,
+                success ? "success" : "error"
+            )
+        }
+        function onTranslationUninstalled(gameId, success, message) {
+            window.showNotification(
+                success ? qsTr("Çeviri Kaldırıldı") : qsTr("Kaldırma Hatası"),
+                message,
+                success ? "info" : "error"
+            )
+        }
+        function onRuntimeInstallFinished(gameId, success, error) {
             if (success) {
                 window.showNotification(
-                    qsTr("Yama Kuruldu"),
-                    qsTr("Türkçe yama başarıyla kuruldu!"),
+                    qsTr("Runtime Kuruldu"),
+                    qsTr("Runtime başarıyla kuruldu/kaldırıldı"),
                     "success"
                 )
             } else {
                 window.showNotification(
-                    qsTr("Yama Hatası"),
-                    message || qsTr("Yama kurulumu başarısız oldu"),
+                    qsTr("Runtime Hatası"),
+                    error || qsTr("Runtime işlemi başarısız oldu"),
                     "error"
                 )
             }
         }
-        function onTranslationUninstalled(gameId, success, message) {
-            if (success) {
+        function onLocalPackageReady(packageName, gameName, filePath) {
+            window.showNotification(
+                qsTr("Paket Hazır: %1").arg(packageName),
+                qsTr("Oyun: %1").arg(gameName),
+                "translation"
+            )
+        }
+        function onLocalPackageError(filePath, error) {
+            window.showNotification(
+                qsTr("Paket Hatası"),
+                error,
+                "error"
+            )
+        }
+        function onFolderDropped(path, isGame) {
+            if (isGame) {
                 window.showNotification(
-                    qsTr("Yama Kaldırıldı"),
-                    qsTr("Türkçe yama başarıyla kaldırıldı"),
+                    qsTr("Oyun Eklendi"),
+                    path,
                     "info"
                 )
             }
+        }
+        function onGameUpdateDetected(gameId, gameName, summary) {
+            window.showNotification(
+                qsTr("Oyun Güncellendi: %1").arg(gameName),
+                summary,
+                "warning"
+            )
+        }
+        function onScanCompleted(count) {
+            window.showNotification(
+                qsTr("Tarama Tamamlandı"),
+                qsTr("%1 desteklenen oyun bulundu").arg(count),
+                "info"
+            )
         }
     }
 
@@ -849,81 +963,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== RUNTIME INSTALL SIGNALS =====
-    Connections {
-        target: GameService
-        function onRuntimeInstallFinished(gameId, success, error) {
-            if (success) {
-                window.showNotification(
-                    qsTr("Runtime Kuruldu"),
-                    qsTr("Runtime başarıyla kuruldu/kaldırıldı"),
-                    "success"
-                )
-            } else {
-                window.showNotification(
-                    qsTr("Runtime Hatası"),
-                    error || qsTr("Runtime işlemi başarısız oldu"),
-                    "error"
-                )
-            }
-        }
-    }
-
-    // ===== DROP HANDLER SIGNALS =====
-    Connections {
-        target: GameService
-        function onLocalPackageReady(packageName, gameName, filePath) {
-            window.showNotification(
-                qsTr("Paket Hazır: %1").arg(packageName),
-                qsTr("Oyun: %1").arg(gameName),
-                "translation"
-            )
-        }
-        function onLocalPackageError(filePath, error) {
-            window.showNotification(
-                qsTr("Paket Hatası"),
-                error,
-                "error"
-            )
-        }
-        function onFolderDropped(path, isGame) {
-            if (isGame) {
-                window.showNotification(
-                    qsTr("Oyun Eklendi"),
-                    path,
-                    "info"
-                )
-            }
-        }
-        function onGameUpdateDetected(gameId, gameName, summary) {
-            window.showNotification(
-                qsTr("Oyun Güncellendi: %1").arg(gameName),
-                summary,
-                "warning"
-            )
-        }
-        function onScanCompleted(count) {
-            window.showNotification(
-                qsTr("Tarama Tamamlandı"),
-                qsTr("%1 desteklenen oyun bulundu").arg(count),
-                "info"
-            )
-        }
-        function onTranslationInstallCompleted(gameId, success, message) {
-            window.showNotification(
-                success ? qsTr("Çeviri Kuruldu") : qsTr("Çeviri Hatası"),
-                message,
-                success ? "success" : "error"
-            )
-        }
-        function onTranslationUninstalled(gameId, success, message) {
-            window.showNotification(
-                success ? qsTr("Çeviri Kaldırıldı") : qsTr("Kaldırma Hatası"),
-                message,
-                success ? "info" : "error"
-            )
-        }
-    }
+    // (GameService signals merged into single Connections block above)
 
     // ===== ANTI-CHEAT WARNING DIALOG (lazy) =====
     Loader {
@@ -935,6 +975,16 @@ ApplicationWindow {
                 onContinueAnyway: {
                     var gd = gameDetailLoader.item
                     if (gd) {
+                        // Check for install notes before variants
+                        var notes = GameService.getInstallNotes(gd.gameId)
+                        if (notes && notes.length > 0) {
+                            window.pendingInstallNotes = {
+                                gameId: gd.gameId,
+                                notes: notes
+                            }
+                            installNotesLoader.active = true
+                            return
+                        }
                         // Check for variants before installing
                         var variants = GameService.getVariants(gd.gameId)
                         if (variants && variants.length > 0) {
@@ -955,6 +1005,43 @@ ApplicationWindow {
                         gameName = window.pendingAntiCheatData.gameName
                         detectedSystems = window.pendingAntiCheatData.detectedSystems
                         window.pendingAntiCheatData = null
+                    }
+                    open()
+                }
+            }
+        }
+    }
+
+    // ===== INSTALL NOTES DIALOG (lazy) =====
+    Loader {
+        id: installNotesLoader
+        active: false
+        sourceComponent: Component {
+            InstallNotesDialog {
+                parent: Overlay.overlay
+                onAccepted: {
+                    var data = window.pendingInstallNotes
+                    window.pendingInstallNotes = null
+                    if (data) {
+                        // Continue to variant check
+                        var variants = GameService.getVariants(data.gameId)
+                        if (variants && variants.length > 0) {
+                            window.pendingVariantData = {
+                                gameId: data.gameId,
+                                variants: variants,
+                                variantType: GameService.getVariantType(data.gameId)
+                            }
+                            variantSelectionLoader.active = true
+                        } else {
+                            GameService.installTranslation(data.gameId)
+                        }
+                    }
+                }
+                onCancelled: { window.pendingInstallNotes = null }
+                onClosed: installNotesLoader.active = false
+                Component.onCompleted: {
+                    if (window.pendingInstallNotes) {
+                        notes = window.pendingInstallNotes.notes
                     }
                     open()
                 }
@@ -1047,579 +1134,50 @@ ApplicationWindow {
         }
     }
 
-    // ===== TITLE BAR COMPONENT =====
-    component TitleBar: Rectangle {
-        id: titleBarRoot
-        property var windowRef
-        property bool translationMode: false
-        property bool projectsMode: false
-        signal minimizeClicked()
-        signal maximizeClicked()
-        signal closeClicked()
-        signal trayClicked()
+    // ===== GLOBAL LOADING INDICATOR =====
+    // Subtle top-bar progress indicator for long-running operations
+    Rectangle {
+        id: globalLoadingBar
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 2
+        z: Dimensions.zOverlay + 10
+        color: "transparent"
+        visible: GameService.isScanning
 
-        color: Theme.withAlpha(Theme.surface, 0.7)
-
+        // Indeterminate sliding bar
         Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: Theme.withAlpha(Theme.textPrimary, 0.08)
-        }
+            id: loadingSlider
+            height: parent.height
+            width: parent.width * 0.3
+            radius: 1
+            color: Theme.primary
 
-        MouseArea {
-            anchors.fill: parent
-            anchors.rightMargin: 160  // Leave space for buttons
-
-            property real lastPressTime: 0
-
-            onPressed: {
-                var now = Date.now()
-                if (now - lastPressTime < 300) {
-                    // Double-click detected
-                    titleBarRoot.maximizeClicked()
-                    lastPressTime = 0
-                } else {
-                    lastPressTime = now
-                    windowRef.startSystemMove()
+            SequentialAnimation on x {
+                running: globalLoadingBar.visible
+                loops: Animation.Infinite
+                NumberAnimation {
+                    from: -globalLoadingBar.width * 0.3
+                    to: globalLoadingBar.width
+                    duration: 1500
+                    easing.type: Easing.InOutQuad
                 }
             }
-        }
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginMS
-            anchors.rightMargin: 0
-            spacing: Dimensions.spacingMD
-
+            // Soft glow trail
             Rectangle {
-                Layout.preferredWidth: 18
-                Layout.preferredHeight: 18
-                radius: Dimensions.radiusStandard
-                visible: titleBarRoot.translationMode || titleBarRoot.projectsMode
-                color: Theme.turkishRed
-                clip: true
-
-                Rectangle {
-                    x: 3; y: 4.5
-                    width: 9; height: 9
-                    radius: 4.5
-                    color: Theme.textOnColor
-                }
-                Rectangle {
-                    x: 5; y: 5.3
-                    width: 7.5; height: 7.5
-                    radius: 3.75
-                    color: Theme.turkishRed
-                }
-                Canvas {
-                    x: 9.5; y: 5
-                    width: 8; height: 8
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        var cx = 4, cy = 4
-                        var R = 3.5
-                        var r = R * 0.382
-                        ctx.beginPath()
-                        for (var i = 0; i < 5; i++) {
-                            var oa = i * 72 * Math.PI / 180
-                            var ia = (i * 72 + 36) * Math.PI / 180
-                            if (i === 0) ctx.moveTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
-                            else ctx.lineTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
-                            ctx.lineTo(cx - r * Math.cos(ia), cy - r * Math.sin(ia))
-                        }
-                        ctx.closePath()
-                        ctx.fillStyle = "white"
-                        ctx.fill()
-                    }
-                }
-            }
-
-            Image {
-                Layout.preferredWidth: 18
-                Layout.preferredHeight: 18
-                visible: !titleBarRoot.translationMode && !titleBarRoot.projectsMode
-                source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
-                sourceSize: Qt.size(18, 18)
-                fillMode: Image.PreserveAspectFit
-                smooth: true
-                mipmap: true
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Dimensions.radiusStandard
-                    visible: parent.status !== Image.Ready
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Theme.gold }
-                        GradientStop { position: 0.5; color: Theme.olive }
-                        GradientStop { position: 1.0; color: Theme.pastelBlue }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "M"
-                        font.pixelSize: Dimensions.fontCaption
-                        font.weight: Font.Bold
-                        color: Theme.textOnColor
-                    }
-                }
-            }
-
-            Label {
-                text: "MakineAI"
-                font.pixelSize: Dimensions.fontSM
-                font.weight: Font.Medium
-                color: Theme.textSecondary
-            }
-
-            Label {
-                text: Dimensions.appVersionFull
-                font.pixelSize: Dimensions.fontMicro
-                font.weight: Font.Medium
-                color: Theme.textMuted
-                opacity: 0.6
-            }
-
-            Item { Layout.fillWidth: true }
-
-            Row {
-                spacing: 0
-
-                WindowButton {
-                    icon: "\uE70D"
-                    tooltip: qsTr("Minimize to Tray")
-                    onClicked: titleBarRoot.trayClicked()
-                }
-
-                WindowButton {
-                    icon: "\uE921"
-                    tooltip: qsTr("Minimize")
-                    onClicked: titleBarRoot.minimizeClicked()
-                }
-
-                WindowButton {
-                    icon: windowRef.visibility === Window.Maximized ? "\uE923" : "\uE922"
-                    tooltip: windowRef.visibility === Window.Maximized ? qsTr("Restore") : qsTr("Maximize")
-                    onClicked: titleBarRoot.maximizeClicked()
-                }
-
-                WindowButton {
-                    icon: "\uE8BB"
-                    isClose: true
-                    tooltip: qsTr("Close")
-                    onClicked: titleBarRoot.closeClicked()
-                }
-            }
-        }
-    }
-
-    // ===== WINDOW BUTTON COMPONENT (flat, no borders) =====
-    component WindowButton: Rectangle {
-        property string icon: ""
-        property bool isClose: false
-        property string tooltip: ""
-        signal clicked()
-
-        Accessible.role: Accessible.Button
-        Accessible.name: tooltip
-        Accessible.onPressAction: clicked()
-        activeFocusOnTab: true
-        Keys.onReturnPressed: clicked()
-        Keys.onSpacePressed: clicked()
-
-        width: 46
-        height: 32
-        color: btnMouse.containsMouse
-            ? (isClose ? Theme.closeButtonHover : Theme.glassBorder)
-            : "transparent"
-        radius: 0
-
-        Behavior on color {
-            ColorAnimation { duration: Dimensions.animFast }
-        }
-
-        Label {
-            anchors.centerIn: parent
-            text: icon
-            font.pixelSize: Dimensions.fontCaption
-            font.family: "Segoe MDL2 Assets"
-            color: btnMouse.containsMouse && isClose ? Theme.textOnColor : Theme.textSecondary
-
-            Behavior on color {
-                ColorAnimation { duration: Dimensions.animFast }
+                anchors.fill: parent
+                radius: parent.radius
+                color: Theme.primary
+                opacity: 0.3
+                anchors.leftMargin: -parent.width * 0.2
+                width: parent.width * 1.4
             }
         }
 
-        MouseArea {
-            id: btnMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.ArrowCursor
-            onClicked: parent.clicked()
-        }
-
-        ToolTip {
-            visible: btnMouse.containsMouse && tooltip !== ""
-            text: tooltip
-            delay: 500
-        }
-    }
-
-    // ===== NAV BAR COMPONENT =====
-    component NavBar: Rectangle {
-        id: navBarRoot
-        property int currentIndex: 0
-        signal homeClicked()
-        signal projectsClicked()
-        signal translationClicked()
-        signal settingsClicked()
-        signal notificationClicked()
-
-        color: Theme.withAlpha(Theme.surface, 0.7)
-
-        Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: Theme.withAlpha(Theme.textPrimary, 0.08)
-        }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginLG
-            anchors.rightMargin: Dimensions.marginLG
-            spacing: Dimensions.spacingXL
-
-            Item {
-                id: logoContainer
-                Layout.preferredWidth: 44
-                Layout.preferredHeight: 44
-                Layout.alignment: Qt.AlignVCenter
-                scale: logoMouse.containsMouse ? 1.05 : 1.0
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Home")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: navBarRoot.homeClicked()
-                Keys.onSpacePressed: navBarRoot.homeClicked()
-
-                Behavior on scale {
-                    NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
-                }
-
-                AnimatedGradientGlow {
-                    anchors.centerIn: parent
-                    width: 52; height: 52
-                    active: true
-                    animationsEnabled: window.animationsEnabled
-                    opacity: logoMouse.containsMouse ? 0.9
-                           : navBarRoot.currentIndex === 0 ? 0.6
-                           : 0.2
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
-                }
-
-                Rectangle {
-                    id: logoClip
-                    anchors.centerIn: parent
-                    width: Dimensions.navbarIconSizeLogo
-                    height: Dimensions.navbarIconSizeLogo
-                    radius: Dimensions.navbarIconSizeLogo * 0.25
-                    color: "transparent"
-                    clip: true
-
-                    Image {
-                        id: logoImage
-                        anchors.fill: parent
-                        source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                        mipmap: true
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: parent.radius
-                        visible: logoImage.status !== Image.Ready
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: Theme.logoGold }
-                            GradientStop { position: 0.5; color: Theme.logoCoral }
-                            GradientStop { position: 1.0; color: Theme.logoGreen }
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "M"
-                            font.pixelSize: Dimensions.fontLG
-                            font.weight: Font.Bold
-                            color: Theme.textOnColor
-                        }
-                    }
-                }
-
-
-                MouseArea {
-                    id: logoMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: navBarRoot.homeClicked()
-                }
-
-                ToolTip {
-                    visible: logoMouse.containsMouse
-                    text: qsTr("Ana Menü")
-                    delay: 500
-                }
-            }
-
-            NavItem {
-                text: qsTr("Kütüphane")
-                selected: navBarRoot.currentIndex === 2
-                onClicked: navBarRoot.translationClicked()
-            }
-
-            NavItem {
-                text: qsTr("Projelerimiz")
-                selected: navBarRoot.currentIndex === 1
-                onClicked: navBarRoot.projectsClicked()
-            }
-
-            Item { Layout.fillWidth: true }
-
-            Item {
-                id: discordItem
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                Layout.alignment: Qt.AlignVCenter
-                Accessible.role: Accessible.Link
-                Accessible.name: "Discord"
-                activeFocusOnTab: true
-                Keys.onReturnPressed: Qt.openUrlExternally(Dimensions.discordUrl)
-                Keys.onSpacePressed: Qt.openUrlExternally(Dimensions.discordUrl)
-
-                property bool hovered: discordMouse.containsMouse
-                scale: hovered ? 1.1 : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-
-                property real pulse: 0.7
-                SequentialAnimation on pulse {
-                    loops: Animation.Infinite
-                    running: !discordItem.hovered && window.animationsEnabled
-                    NumberAnimation { from: 0.7; to: 1.0; duration: Dimensions.animGradient; easing.type: Easing.InOutSine }
-                    NumberAnimation { from: 1.0; to: 0.7; duration: Dimensions.animGradient; easing.type: Easing.InOutSine }
-                }
-
-                Image {
-                    id: discordIcon
-                    anchors.centerIn: parent
-                    width: 20; height: 20
-                    source: "qrc:/qt/qml/MakineAI/resources/icons/discord.svg"
-                    sourceSize: Qt.size(20, 20)
-                    opacity: discordItem.hovered ? 1.0 : discordItem.pulse
-                }
-
-                MouseArea {
-                    id: discordMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
-                }
-
-                ToolTip {
-                    visible: discordMouse.containsMouse
-                    text: "Discord"
-                    delay: 400
-                }
-            }
-
-            // Notification bell icon
-            Item {
-                id: notifBellItem
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                Layout.alignment: Qt.AlignVCenter
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Bildirimler")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: navBarRoot.notificationClicked()
-                Keys.onSpacePressed: navBarRoot.notificationClicked()
-
-                property bool hovered: bellMouse.containsMouse
-                scale: hovered ? 1.1 : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-
-                Canvas {
-                    id: bellCanvas
-                    anchors.centerIn: parent
-                    width: 18; height: 18
-                    property bool hov: notifBellItem.hovered
-                    property int uc: NotificationService.unreadCount
-                    onHovChanged: requestPaint()
-                    onUcChanged: requestPaint()
-
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-
-                        var c = hov ? Theme.textPrimary : Theme.textMuted
-                        ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, hov ? 0.9 : 0.6)
-                        ctx.lineWidth = 1.5
-                        ctx.lineCap = "round"
-                        ctx.lineJoin = "round"
-
-                        // Bell shape
-                        ctx.beginPath()
-                        ctx.moveTo(4, 12)
-                        ctx.quadraticCurveTo(4, 6, 9, 3)
-                        ctx.quadraticCurveTo(14, 6, 14, 12)
-                        ctx.lineTo(15, 13)
-                        ctx.lineTo(3, 13)
-                        ctx.closePath()
-                        ctx.stroke()
-
-                        // Clapper
-                        ctx.beginPath()
-                        ctx.moveTo(7, 14)
-                        ctx.quadraticCurveTo(9, 17, 11, 14)
-                        ctx.stroke()
-
-                        // Top nub
-                        ctx.beginPath()
-                        ctx.arc(9, 2.5, 1, 0, Math.PI * 2)
-                        ctx.stroke()
-                    }
-                }
-
-                // Unread count badge
-                Rectangle {
-                    visible: NotificationService.unreadCount > 0
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.topMargin: 2
-                    anchors.rightMargin: 2
-                    width: Math.max(14, unreadLbl.width + 6)
-                    height: 14
-                    radius: 7
-                    color: Theme.destructive
-
-                    Text {
-                        id: unreadLbl
-                        anchors.centerIn: parent
-                        text: NotificationService.unreadCount > 9 ? "9+" : NotificationService.unreadCount.toString()
-                        font.pixelSize: 8
-                        font.weight: Font.Bold
-                        color: Theme.textOnColor
-                    }
-                }
-
-                MouseArea {
-                    id: bellMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: navBarRoot.notificationClicked()
-                }
-
-                ToolTip {
-                    visible: bellMouse.containsMouse
-                    text: NotificationService.unreadCount > 0
-                        ? qsTr("Bildirimler (%1)").arg(NotificationService.unreadCount)
-                        : qsTr("Bildirimler")
-                    delay: 400
-                }
-            }
-
-            // Separator dot
-            Rectangle {
-                Layout.preferredWidth: 3; Layout.preferredHeight: 3
-                Layout.alignment: Qt.AlignVCenter
-                radius: 2
-                color: Theme.withAlpha(Theme.textPrimary, 0.15)
-            }
-
-            // Settings gear icon
-            Item {
-                id: settingsItem
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                Layout.alignment: Qt.AlignVCenter
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Ayarlar")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: navBarRoot.settingsClicked()
-                Keys.onSpacePressed: navBarRoot.settingsClicked()
-
-                property bool hovered: settingsMouse.containsMouse
-                property bool isSelected: navBarRoot.currentIndex === 3
-                scale: hovered ? 1.1 : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-
-                rotation: hovered ? 30 : 0
-                Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-
-                Canvas {
-                    id: gearCanvas
-                    anchors.centerIn: parent
-                    width: 18; height: 18
-                    property bool sel: settingsItem.isSelected
-                    property bool hov: settingsItem.hovered
-                    onSelChanged: requestPaint()
-                    onHovChanged: requestPaint()
-
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-
-                        var c = sel ? Theme.primary : (hov ? Theme.textPrimary : Theme.textMuted)
-                        ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, sel ? 1.0 : (hov ? 0.9 : 0.6))
-                        ctx.lineWidth = 1.5
-                        ctx.lineCap = "round"
-                        ctx.lineJoin = "round"
-
-                        var cx = 9, cy = 9, outerR = 8, innerR = 6
-                        var teeth = 6
-
-                        // Gear outer shape
-                        ctx.beginPath()
-                        for (var i = 0; i < teeth; i++) {
-                            var a1 = (i / teeth) * Math.PI * 2 - Math.PI / 2
-                            var a2 = a1 + (0.3 / teeth) * Math.PI * 2
-                            var a3 = a1 + (0.5 / teeth) * Math.PI * 2
-                            var a4 = a1 + (0.8 / teeth) * Math.PI * 2
-                            var a5 = a1 + (1.0 / teeth) * Math.PI * 2
-
-                            if (i === 0) ctx.moveTo(cx + Math.cos(a1) * innerR, cy + Math.sin(a1) * innerR)
-                            ctx.lineTo(cx + Math.cos(a2) * outerR, cy + Math.sin(a2) * outerR)
-                            ctx.lineTo(cx + Math.cos(a3) * outerR, cy + Math.sin(a3) * outerR)
-                            ctx.lineTo(cx + Math.cos(a4) * innerR, cy + Math.sin(a4) * innerR)
-                            ctx.lineTo(cx + Math.cos(a5) * innerR, cy + Math.sin(a5) * innerR)
-                        }
-                        ctx.closePath()
-                        ctx.stroke()
-
-                        // Center circle
-                        ctx.beginPath()
-                        ctx.arc(cx, cy, 3, 0, Math.PI * 2)
-                        ctx.stroke()
-                    }
-                }
-
-                MouseArea {
-                    id: settingsMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: navBarRoot.settingsClicked()
-                }
-
-                ToolTip {
-                    visible: settingsMouse.containsMouse
-                    text: qsTr("Ayarlar")
-                    delay: 400
-                }
-            }
+        Behavior on visible {
+            enabled: false // instant show
         }
     }
 

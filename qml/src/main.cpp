@@ -22,6 +22,10 @@
 #include <QQuickGraphicsConfiguration>
 #include <QThreadPool>
 #include <QLibrary>
+#include <QtConcurrent/QtConcurrentRun>
+#include <QFutureWatcher>
+#include <QElapsedTimer>
+#include <QQmlComponent>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -92,6 +96,12 @@ public:
             pumpMessages();
             Sleep(1);
         }
+    }
+
+    void setStatus(const wchar_t* text) {
+        wcsncpy(m_status, text, 63);
+        m_status[63] = L'\0';
+        pumpMessages();
     }
 
     void close() {
@@ -258,6 +268,18 @@ private:
             SelectObject(mem, oldFont);
             DeleteObject(tagFont);
 
+            // Status text — 11px, above dots
+            if (self && self->m_status[0]) {
+                HFONT statusFont = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0,
+                    DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+                HFONT oldSFont = (HFONT)SelectObject(mem, statusFont);
+                SetTextColor(mem, RGB(100, 100, 120));
+                RECT statusRc = {0, h - 78, w, h - 62};
+                DrawTextW(mem, self->m_status, -1, &statusRc, DT_CENTER | DT_SINGLELINE);
+                SelectObject(mem, oldSFont);
+                DeleteObject(statusFont);
+            }
+
             // Loading dots (animated)
             int dotP = self ? self->m_dotPhase : 0;
             drawLoadingDots(mem, w / 2, h - 55, dotP);
@@ -308,6 +330,7 @@ private:
     int m_dotPhase{0};
     int m_tickCount{0};
     float m_gradientPhase{0.0f};
+    wchar_t m_status[64]{};
 };
 #endif
 
@@ -315,11 +338,12 @@ namespace {
 constexpr int kStartupSettleMs = 5000;
 }
 
-// Resolve log file path using platform-appropriate location
+// Resolve log file path using organized directory layout
+#include "services/apppaths.h"
 static QString getLogFilePath() {
-    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    QString logDir = makineai::AppPaths::logsDir();
     QDir().mkpath(logDir);
-    return logDir + "/makineai_debug.log";
+    return makineai::AppPaths::debugLog();
 }
 
 // File-based logging for debugging
@@ -336,6 +360,9 @@ void logToFile(const QString& msg) {
 #include <QTimer>
 
 
+// Anti-RE protection (no-op in debug builds)
+#include "services/appprotection.h"
+
 // Backend services
 #include "services/gameservice.h"
 #include "services/settingsmanager.h"
@@ -346,6 +373,9 @@ void logToFile(const QString& msg) {
 #include "services/batchoperationservice.h"
 #include "services/updatechecker.h"
 #include "services/notificationservice.h"
+#include "services/operationjournal.h"
+#include "services/imagecachemanager.h"
+#include "services/corebridge.h"
 
 int main(int argc, char *argv[])
 {
@@ -479,6 +509,9 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
+    // Anti-RE: run all checks before anything else (no-op in debug builds)
+    makineai::protection::initialize();
+
 #ifdef Q_OS_WIN
     SplashWindow splash;
     splash.show();
@@ -514,19 +547,51 @@ int main(int argc, char *argv[])
     //  which --gc-sections strips in static builds.)
     using namespace makineai;
 
+    QElapsedTimer startupTimer;
+    startupTimer.start();
+
+    // ===== Phase 1: Directory bootstrap + lightweight services =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Dizinler haz\u0131rlan\u0131yor...");
+#endif
+    AppPaths::ensureDirectories();
+    AppPaths::migrateFromFlatLayout();
+
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Ayarlar y\u00FCkleniyor...");
+#endif
     auto* settingsManager = new SettingsManager(&app);
     engine.rootContext()->setContextProperty("SettingsManager", settingsManager);
+
+    auto* imageCache = new ImageCacheManager(&app);
+    engine.rootContext()->setContextProperty("ImageCache", imageCache);
+
+    // ===== Phase 2: GameService init (CoreBridge + cache loading) =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi y\u00FCkleniyor...");
+#endif
+    auto* gameService = new GameService(&app);
+    engine.rootContext()->setContextProperty("GameService", gameService);
+    gameService->initialize();
 #ifdef Q_OS_WIN
     splash.pumpMessages();
 #endif
 
-    auto* gameService = new GameService(&app);  // Heavy: loads cached games, Steam details, CoreBridge
-    engine.rootContext()->setContextProperty("GameService", gameService);
+    // ===== Phase 3: Register remaining services =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Servisler ba\u015Flat\u0131l\u0131yor...");
+#endif
+    auto* journal = new OperationJournal(&app);
+    if (journal->hasPendingOperation()) {
+        qDebug() << "OperationJournal: recovering from interrupted operation...";
+        journal->recover();
+    }
 #ifdef Q_OS_WIN
     splash.pumpMessages();
 #endif
 
     auto* backupManager = new BackupManager(&app);
+    backupManager->setJournal(journal);
     engine.rootContext()->setContextProperty("BackupManager", backupManager);
 
     auto* processScanner = new ProcessScanner(&app);
@@ -534,9 +599,6 @@ int main(int argc, char *argv[])
 
     auto* integrityService = new IntegrityService(&app);
     engine.rootContext()->setContextProperty("IntegrityService", integrityService);
-#ifdef Q_OS_WIN
-    splash.pumpMessages();
-#endif
 
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
@@ -551,6 +613,11 @@ int main(int argc, char *argv[])
     trayManager.setIcon(app.windowIcon());
     trayManager.show();
     engine.rootContext()->setContextProperty("SystemTrayManager", &trayManager);
+
+    // Wire journal to CoreBridge
+    CoreBridge::instance()->setJournal(journal);
+
+    logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN
     splash.pumpMessages();
 #endif
@@ -590,31 +657,58 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection
     );
 
+    // ===== Phase 5: QML engine loading (heaviest single operation) =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Aray\u00FCz derleniyor...");
+#endif
     logToFile("Loading QML module MakineAI.Main...");
-#ifdef Q_OS_WIN
-    splash.pumpMessages();
-#endif
-    engine.loadFromModule("MakineAI", "Main");
-#ifdef Q_OS_WIN
-    splash.pumpMessages();
-#endif
-    logToFile("QML module loaded, checking root objects...");
 
-    if (engine.rootObjects().isEmpty()) {
-        logToFile("ERROR: No root objects loaded! Application will exit.");
+    // Use QQmlComponent for incremental loading — keeps splash alive
+    QQmlComponent mainComponent(&engine);
+    mainComponent.loadFromModule("MakineAI", "Main");
+
+    // Pump events while QML compiles (first launch is slow)
+#ifdef Q_OS_WIN
+    while (mainComponent.isLoading()) {
+        splash.pumpMessages();
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
+    }
+#endif
+
+    if (mainComponent.isError()) {
+        for (const auto& error : mainComponent.errors())
+            logToFile(QString("QML Error: %1").arg(error.toString()));
 #ifdef Q_OS_WIN
         splash.close();
 #endif
         return -1;
     }
 
+    // Create the root object
 #ifdef Q_OS_WIN
-    splash.waitMinimumDisplay(2000);
-    splash.close();
+    splash.setStatus(L"Pencere olu\u015Fturuluyor...");
+    splash.pumpMessages();
+#endif
+    QObject* rootObject = mainComponent.create();
+    if (!rootObject) {
+        logToFile("ERROR: Failed to create root object!");
+#ifdef Q_OS_WIN
+        splash.close();
+#endif
+        return -1;
+    }
+    engine.setObjectOwnership(rootObject, QQmlEngine::JavaScriptOwnership);
+
+    logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
+
+    // ===== Phase 6: Pre-render first frame, then show window =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Neredeyse haz\u0131r...");
+    splash.pumpMessages();
 #endif
 
     // Release GPU resources when window is hidden/minimized (reclaimed on show)
-    auto *window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+    auto *window = qobject_cast<QQuickWindow*>(rootObject);
     if (window) {
         window->setPersistentGraphics(false);
         window->setPersistentSceneGraph(false);
@@ -634,8 +728,21 @@ int main(int argc, char *argv[])
                 EmptyWorkingSet(GetCurrentProcess());
             }
         });
+
+        // Pre-render: process a few frames so shaders compile before user sees window
+        // This prevents the "white flash" on first frame
+        for (int i = 0; i < 3; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
+            splash.pumpMessages();
+        }
 #endif
     }
+
+    // Close splash — window is fully ready
+#ifdef Q_OS_WIN
+    splash.waitMinimumDisplay(800);
+    splash.close();
+#endif
 
     // Trim working set after startup settles (DLL init, type registration, QML
     // compilation pages are no longer needed). Hot pages fault back in microseconds.
@@ -654,7 +761,11 @@ int main(int argc, char *argv[])
     });
 #endif
 
-    logToFile(QString("Root objects count: %1").arg(engine.rootObjects().size()));
+    logToFile(QString("Total startup: %1 ms").arg(startupTimer.elapsed()));
     logToFile("Entering event loop...");
+
+    // Anti-RE: periodic re-checks once event loop is running
+    makineai::protection::schedulePeriodicChecks();
+
     return app.exec();
 }

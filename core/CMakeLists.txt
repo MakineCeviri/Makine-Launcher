@@ -96,6 +96,9 @@ set(MAKINEAI_SOURCES
     # Package Manager
     src/package_manager/package_manager.cpp
 
+    # Package Catalog (pure C++ catalog extracted from QML LocalPackageManager)
+    src/package_catalog/package_catalog.cpp
+
     # Runtime (BepInEx/XUnity integration)
     src/runtime/runtime_manager.cpp
 
@@ -106,6 +109,15 @@ set(MAKINEAI_SOURCES
 
     # Version Tracker
     src/version_tracker/version_tracker.cpp
+
+    # Update Detection
+    src/update_detection/update_detection.cpp
+
+    # File Integrity
+    src/file_integrity/file_integrity.cpp
+
+    # Crash Recovery
+    src/crash_recovery/crash_recovery.cpp
 
     # Translation API
     src/translation/translation_api.cpp
@@ -136,6 +148,7 @@ set(MAKINEAI_HEADERS
     include/makineai/game_detector.hpp
     include/makineai/vdf_parser.hpp
     include/makineai/package_manager.hpp
+    include/makineai/package_catalog.hpp
     include/makineai/runtime_manager.hpp
     include/makineai/security.hpp
     include/makineai/version_tracker.hpp
@@ -163,6 +176,9 @@ set(MAKINEAI_HEADERS
     include/makineai/concurrent_queue.hpp
     include/makineai/credential_store.hpp
     include/makineai/package_builder.hpp
+    include/makineai/update_detection.hpp
+    include/makineai/file_integrity.hpp
+    include/makineai/crash_recovery.hpp
 
     # Modular Type Headers (Faz 3 refactor)
     include/makineai/types/common.hpp

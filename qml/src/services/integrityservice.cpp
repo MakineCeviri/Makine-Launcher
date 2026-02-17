@@ -1,17 +1,25 @@
 /**
  * @file integrityservice.cpp
- * @brief Binary self-integrity verification implementation
+ * @brief Binary self-integrity verification — thin Qt wrapper
  * @copyright (c) 2026 MakineAI Team
+ *
+ * Delegates hash computation to makineai::integrity core module
+ * when available, falls back to QCryptographicHash for UI-only builds.
  */
 
 #include "integrityservice.h"
 #include <QCoreApplication>
+#include <QtConcurrent>
+#include <QFileInfo>
+#include <QDebug>
+
+#ifndef MAKINEAI_UI_ONLY
+#include <makineai/file_integrity.hpp>
+#else
 #include <QCryptographicHash>
 #include <QFile>
-#include <QFileInfo>
-#include <QDir>
-#include <QDebug>
-#include <QtConcurrent>
+#include <QRegularExpression>
+#endif
 
 namespace makineai {
 
@@ -46,12 +54,54 @@ void IntegrityService::verify()
 void IntegrityService::performCheck()
 {
     const QString exePath = QCoreApplication::applicationFilePath();
+
+#ifndef MAKINEAI_UI_ONLY
+    // Core module: makineai::integrity handles everything
+    auto result = integrity::verifyFile(exePath.toStdString());
+
+    if (!result) {
+        // No hash file or I/O error
+        const auto& err = result.error();
+        if (err.code() == ErrorCode::FileNotFound) {
+            // No .sha256 file = dev build
+            QMetaObject::invokeMethod(this, [this]() {
+                m_verified = true;
+                m_checking = false;
+                m_status = "skipped";
+                qDebug() << "Integrity check: no .sha256 file found (dev build), skipping";
+                emit checkingChanged();
+                emit verificationComplete();
+            }, Qt::QueuedConnection);
+        } else {
+            QMetaObject::invokeMethod(this, [this]() {
+                m_verified = false;
+                m_checking = false;
+                m_status = "error";
+                qWarning() << "Integrity check: verification error";
+                emit checkingChanged();
+                emit verificationComplete();
+            }, Qt::QueuedConnection);
+        }
+        return;
+    }
+
+    const bool match = *result;
+    QMetaObject::invokeMethod(this, [this, match]() {
+        m_verified = match;
+        m_checking = false;
+        m_status = match ? "verified" : "failed";
+        qDebug() << "Integrity check:" << (match ? "PASSED" : "FAILED");
+        emit checkingChanged();
+        emit verificationComplete();
+    }, Qt::QueuedConnection);
+
+#else
+    // UI-only fallback: QCryptographicHash
     const QString hashFilePath = exePath + ".sha256";
 
-    // Check if hash file exists
     if (!QFileInfo::exists(hashFilePath)) {
         QMetaObject::invokeMethod(this, [this]() {
-            m_verified = true; // No hash file = dev build, skip verification
+            m_verified = true;
             m_checking = false;
             m_status = "skipped";
             qDebug() << "Integrity check: no .sha256 file found (dev build), skipping";
@@ -62,7 +112,14 @@ void IntegrityService::performCheck()
     }
 
     // Read expected hash
-    const QString expectedHash = readExpectedHash(hashFilePath);
+    QFile hashFile(hashFilePath);
+    QString expectedHash;
+    if (hashFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QString line = QString::fromUtf8(hashFile.readLine()).trimmed();
+        expectedHash = line.split(QRegularExpression("\\s+")).first().toLower();
+        if (expectedHash.length() != 64) expectedHash.clear();
+    }
+
     if (expectedHash.isEmpty()) {
         QMetaObject::invokeMethod(this, [this]() {
             m_verified = false;
@@ -76,7 +133,21 @@ void IntegrityService::performCheck()
     }
 
     // Compute actual hash
-    const QString actualHash = computeFileHash(exePath);
+    QFile exeFile(exePath);
+    QString actualHash;
+    if (exeFile.open(QIODevice::ReadOnly)) {
+        QCryptographicHash hasher(QCryptographicHash::Sha256);
+        constexpr qint64 chunkSize = 65536;
+        while (!exeFile.atEnd()) {
+            const QByteArray chunk = exeFile.read(chunkSize);
+            if (chunk.isEmpty()) break;
+            hasher.addData(chunk);
+        }
+        if (exeFile.error() == QFileDevice::NoError) {
+            actualHash = hasher.result().toHex().toLower();
+        }
+    }
+
     if (actualHash.isEmpty()) {
         QMetaObject::invokeMethod(this, [this]() {
             m_verified = false;
@@ -89,73 +160,16 @@ void IntegrityService::performCheck()
         return;
     }
 
-    // Compare
     const bool match = (actualHash == expectedHash);
-
-    QMetaObject::invokeMethod(this, [this, match, actualHash, expectedHash]() {
+    QMetaObject::invokeMethod(this, [this, match]() {
         m_verified = match;
         m_checking = false;
         m_status = match ? "verified" : "failed";
-
-        if (match) {
-            qDebug() << "Integrity check: PASSED";
-        } else {
-            qWarning() << "Integrity check: FAILED";
-            qWarning() << "  Expected:" << expectedHash;
-            qWarning() << "  Actual:  " << actualHash;
-        }
-
+        qDebug() << "Integrity check:" << (match ? "PASSED" : "FAILED");
         emit checkingChanged();
         emit verificationComplete();
     }, Qt::QueuedConnection);
-}
-
-QString IntegrityService::computeFileHash(const QString& filePath)
-{
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return {};
-    }
-
-    QCryptographicHash hasher(QCryptographicHash::Sha256);
-
-    // Read in 64KB chunks to avoid loading entire binary into memory
-    constexpr qint64 chunkSize = 65536;
-    while (!file.atEnd()) {
-        const QByteArray chunk = file.read(chunkSize);
-        if (chunk.isEmpty()) break;
-        hasher.addData(chunk);
-    }
-
-    // Check for I/O errors during read (would produce incorrect hash)
-    if (file.error() != QFileDevice::NoError) {
-        qWarning() << "IntegrityService: I/O error reading" << filePath << file.errorString();
-        return {};
-    }
-
-    return hasher.result().toHex().toLower();
-}
-
-QString IntegrityService::readExpectedHash(const QString& hashFilePath)
-{
-    QFile file(hashFilePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return {};
-    }
-
-    // Format: "<hash>  <filename>\n" or just "<hash>\n"
-    const QString line = QString::fromUtf8(file.readLine()).trimmed();
-    if (line.isEmpty()) return {};
-
-    // Extract hash (first 64 hex chars = SHA-256)
-    const QString hash = line.split(QRegularExpression("\\s+")).first().toLower();
-    if (hash.length() != 64) return {};
-
-    // Validate hex characters
-    static const QRegularExpression hexPattern("^[0-9a-f]{64}$");
-    if (!hexPattern.match(hash).hasMatch()) return {};
-
-    return hash;
+#endif
 }
 
 } // namespace makineai

@@ -1,0 +1,291 @@
+/**
+ * @file package_catalog.hpp
+ * @brief Local translation package catalog — pure C++ business logic
+ * @copyright (c) 2026 MakineAI Team
+ *
+ * Extracts package catalog management from the QML LocalPackageManager
+ * into a Qt-free core module. Handles manifest parsing, package discovery,
+ * store ID resolution, variant support, and installed state tracking.
+ */
+
+#pragma once
+
+#include "makineai/error.hpp"
+
+#include <cstdint>
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace makineai {
+
+namespace fs = std::filesystem;
+
+namespace packages {
+
+// =============================================================================
+// DATA STRUCTURES
+// =============================================================================
+
+/**
+ * @brief A single install step in a custom install recipe
+ *
+ * Describes one action to perform during package installation,
+ * such as copying a file, running an executable, or installing a font.
+ */
+struct InstallStep {
+    std::string action;     // "copy", "copyDir", "run", "delete", "installFont"
+    std::string src;        // source file/dir (relative to package dir)
+    std::string dest;       // destination (relative to game dir)
+    std::string exe;        // executable to run
+    std::vector<std::string> args;
+    std::string fallback;   // fallback executable
+    std::string workDir;    // "game" (default) or "package"
+};
+
+/**
+ * @brief Contributor information for a translation package
+ */
+struct ContributorInfo {
+    std::string name;
+    std::string role;
+};
+
+/**
+ * @brief Full metadata for a translation package in the catalog
+ *
+ * Represents one entry in the manifest, enriched with filesystem
+ * information (file count, total size) from scanning.
+ */
+struct PackageCatalogEntry {
+    std::string packageId;
+    std::string steamAppId;
+    std::string gameName;
+    std::string engine;
+    std::string version;
+    std::string installType;  // "overlay", "runtime", "replace"
+    int64_t sizeBytes{0};
+    int fileCount{0};
+    std::unordered_map<std::string, std::string> storeIds;  // store -> id
+    std::string dirName;
+    std::vector<std::string> variants;
+    std::string variantType;  // "version" or "platform"
+    std::vector<ContributorInfo> contributors;
+    std::vector<InstallStep> installSteps;
+    std::string installMethodType;    // "script", "userPath"
+    std::string installMethodTarget;  // for "userPath"
+    std::string installNotes;
+};
+
+/**
+ * @brief Tracks the state of an installed translation package
+ *
+ * Persisted to JSON so we can restore/uninstall later.
+ */
+struct InstalledPackageState {
+    std::string version;
+    std::string gamePath;
+    std::vector<std::string> installedFiles;
+    int64_t installedAt{0};
+};
+
+// =============================================================================
+// PACKAGE CATALOG CLASS
+// =============================================================================
+
+/**
+ * @brief Pure C++ catalog of local translation packages
+ *
+ * Reads manifest.json, scans pak/ and game-name directories,
+ * tracks installed state, and provides query/resolution APIs.
+ * No Qt dependency — uses std::filesystem, nlohmann::json, and spdlog.
+ *
+ * Usage:
+ * @code
+ *   PackageCatalog catalog;
+ *   catalog.loadFromPath("C:/translation_data");
+ *   catalog.loadInstalledState("C:/Users/.../installed_packages.json");
+ *
+ *   if (catalog.hasPackage("1245620")) {
+ *       auto pkg = catalog.getPackage("1245620");
+ *       auto files = catalog.getPackageFileList("1245620");
+ *   }
+ *
+ *   // Resolve Epic/GOG IDs to Steam AppID
+ *   auto appId = catalog.resolveGameId("epic_abc123");
+ * @endcode
+ */
+class PackageCatalog {
+public:
+    explicit PackageCatalog();
+
+    /**
+     * @brief Load catalog from translation data directory
+     * @param translationDataPath Root path containing manifest.json, pak/, and game dirs
+     * @return true if at least one package was loaded
+     */
+    bool loadFromPath(const fs::path& translationDataPath);
+
+    // =========================================================================
+    // PACKAGE QUERIES
+    // =========================================================================
+
+    /**
+     * @brief Check if a package exists for the given Steam App ID
+     */
+    [[nodiscard]] bool hasPackage(const std::string& steamAppId) const;
+
+    /**
+     * @brief Get full package metadata by Steam App ID
+     */
+    [[nodiscard]] std::optional<PackageCatalogEntry> getPackage(const std::string& steamAppId) const;
+
+    /**
+     * @brief Get the total number of packages in the catalog
+     */
+    [[nodiscard]] int packageCount() const;
+
+    // =========================================================================
+    // STORE ID RESOLUTION
+    // =========================================================================
+
+    /**
+     * @brief Resolve any game ID (steamAppId, epic_xxx, gog_xxx) to canonical steamAppId
+     * @param gameId The game ID to resolve
+     * @return The canonical Steam App ID, or empty string if not found
+     */
+    [[nodiscard]] std::string resolveGameId(const std::string& gameId) const;
+
+    // =========================================================================
+    // VARIANT SUPPORT
+    // =========================================================================
+
+    /**
+     * @brief Get available variants for a package (e.g. ["1.00", "1.04"])
+     */
+    [[nodiscard]] std::vector<std::string> getVariants(const std::string& steamAppId) const;
+
+    /**
+     * @brief Get variant type label ("version" or "platform")
+     */
+    [[nodiscard]] std::string getVariantType(const std::string& steamAppId) const;
+
+    // =========================================================================
+    // FILE LISTING
+    // =========================================================================
+
+    /**
+     * @brief Get list of relative file paths for a translation package
+     *
+     * For script-based installs, returns the destination paths from install steps.
+     * For overlay installs, enumerates the package directory recursively.
+     *
+     * @param steamAppId Package to query
+     * @param variant Optional variant subdirectory
+     * @return List of relative file paths
+     */
+    [[nodiscard]] std::vector<std::string> getPackageFileList(
+        const std::string& steamAppId,
+        const std::string& variant = {}) const;
+
+    // =========================================================================
+    // FOLDER MATCHING
+    // =========================================================================
+
+    /**
+     * @brief Match a folder name against catalog entries (case-insensitive)
+     *
+     * First tries exact match against dirName and gameName, then
+     * tries substring containment in both directions.
+     *
+     * @param folderName The folder name to match
+     * @return The matching Steam App ID, or empty string
+     */
+    [[nodiscard]] std::string findMatchingAppId(const std::string& folderName) const;
+
+    // =========================================================================
+    // INSTALLED STATE MANAGEMENT
+    // =========================================================================
+
+    /**
+     * @brief Check if a package is currently installed
+     */
+    [[nodiscard]] bool isInstalled(const std::string& steamAppId) const;
+
+    /**
+     * @brief Mark a package as installed with the given state
+     */
+    void markInstalled(const std::string& steamAppId, const InstalledPackageState& state);
+
+    /**
+     * @brief Mark a package as uninstalled (remove from installed map)
+     */
+    void markUninstalled(const std::string& steamAppId);
+
+    /**
+     * @brief Get the installed state for a package
+     */
+    [[nodiscard]] std::optional<InstalledPackageState> getInstalledState(
+        const std::string& steamAppId) const;
+
+    // =========================================================================
+    // PERSISTENCE
+    // =========================================================================
+
+    /**
+     * @brief Load installed state from a JSON file
+     * @param statePath Path to installed_packages.json
+     *
+     * Supports both legacy format (steamAppId -> version string) and
+     * new format (steamAppId -> {version, gamePath, files, installedAt}).
+     */
+    void loadInstalledState(const fs::path& statePath);
+
+    /**
+     * @brief Save installed state to a JSON file (atomic write)
+     * @param statePath Path to write installed_packages.json
+     */
+    void saveInstalledState(const fs::path& statePath) const;
+
+    // =========================================================================
+    // ENUMERATION
+    // =========================================================================
+
+    /**
+     * @brief Get all packages as a vector (for UI enumeration)
+     */
+    [[nodiscard]] std::vector<PackageCatalogEntry> allPackages() const;
+
+private:
+    /**
+     * @brief Parse manifest.json and populate packages_ and storeIdToSteamAppId_
+     */
+    void loadManifest(const fs::path& manifestPath);
+
+    /**
+     * @brief Scan pak/ directory for legacy package directories
+     */
+    void scanPackageDirectories(const fs::path& basePath);
+
+    /**
+     * @brief Scan root-level game-name directories (new format)
+     */
+    void scanGameNameDirectories(const fs::path& basePath);
+
+    // steamAppId -> PackageCatalogEntry
+    std::unordered_map<std::string, PackageCatalogEntry> packages_;
+
+    // steamAppId -> InstalledPackageState
+    std::unordered_map<std::string, InstalledPackageState> installed_;
+
+    // Reverse index: "epic_xxx" / "gog_xxx" -> steamAppId
+    std::unordered_map<std::string, std::string> storeIdToSteamAppId_;
+
+    // Root translation data path
+    fs::path dataPath_;
+};
+
+} // namespace packages
+} // namespace makineai

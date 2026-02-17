@@ -65,6 +65,7 @@ Dialog {
     // Dim overlay
     Overlay.modal: Rectangle {
         color: Theme.withAlpha(Theme.bgPrimary, 0.60)
+        Behavior on opacity { NumberAnimation { duration: 200 } }
     }
 
     // Custom header with animated warning icon

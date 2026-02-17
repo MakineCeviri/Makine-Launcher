@@ -13,23 +13,11 @@ Item {
     Accessible.onPressAction: clicked()
 
     activeFocusOnTab: true
-    Layout.preferredWidth: navItemLabel.width + 24
+    Layout.preferredWidth: navItemLabel.width + 28
     Layout.fillHeight: true
 
     Keys.onReturnPressed: clicked()
     Keys.onSpacePressed: clicked()
-
-    // Indicator width: full on selected, partial on hover, zero otherwise
-    property real underlineWidth: selected ? 20 : (navItemMouse.containsMouse || activeFocus ? 12 : 0)
-    Behavior on underlineWidth {
-        NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
-    }
-
-    // Indicator opacity
-    property real underlineOpacity: selected ? 1.0 : (navItemMouse.containsMouse || activeFocus ? 0.5 : 0)
-    Behavior on underlineOpacity {
-        NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
-    }
 
     Text {
         id: navItemLabel
@@ -37,22 +25,25 @@ Item {
         text: navItemRoot.text
         font.pixelSize: Dimensions.fontBody
         font.weight: navItemRoot.selected ? Font.DemiBold : Font.Medium
-        color: navItemRoot.selected ? Theme.primary
+        color: navItemRoot.selected ? Theme.textPrimary
              : (navItemMouse.containsMouse || navItemRoot.activeFocus) ? Theme.textPrimary
              : Theme.textSecondary
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
     }
 
-    // Minimal accent underline
+    // Underline indicator — expands on select, shrinks on deselect
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
-        width: navItemRoot.underlineWidth
-        height: 1.5
-        radius: 0.75
-        color: Theme.primary
-        opacity: navItemRoot.underlineOpacity
+        width: navItemRoot.selected ? navItemLabel.width + 8 : 0
+        height: 2
+        radius: 1
+        color: Theme.textPrimary
+        opacity: navItemRoot.selected ? 1.0 : 0.0
+
+        Behavior on width { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
     }
 
     MouseArea {

@@ -1,39 +1,194 @@
 /**
  * @file updatedetectionservice.cpp
- * @brief Two-tier game update detection implementation
+ * @brief Two-tier game update detection — thin Qt wrapper implementation
  * @copyright (c) 2026 MakineAI Team
+ *
+ * When core is available, delegates file I/O, hashing, engine profiles,
+ * and persistence to makineai::update (pure C++ module).
+ * In UI-only mode, falls back to the original Qt-based implementation.
  */
 
 #include "updatedetectionservice.h"
-#include "vdfparser.h"
 #include "gameservice.h"
+#include "apppaths.h"
 
 #include <QCoreApplication>
-#include <QCryptographicHash>
 #include <QDir>
-#include <QDirIterator>
-#include <QFile>
 #include <QFileInfo>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QSettings>
-
-namespace {
-constexpr int kMonitorIntervalMs = 30 * 60 * 1000; // 30 minutes
-}
 #include <QStandardPaths>
 #include <QtConcurrent>
 #include <QDebug>
 
+#ifdef MAKINEAI_UI_ONLY
+// UI-only fallback needs these additional headers
+#include "vdfparser.h"
+#include <QCryptographicHash>
+#include <QDirIterator>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QSettings>
+#else
+// Core mode: VDF parsing is handled by core, no need for vdfparser.h
+#endif
+
+namespace {
+constexpr int kMonitorIntervalMs = 30 * 60 * 1000; // 30 minutes
+}
+
 namespace makineai {
 
 // =============================================================================
-// Engine Profiles — Rule-based file collection
+// Qt <-> Core conversion helpers (only when core is available)
+// =============================================================================
+
+#ifndef MAKINEAI_UI_ONLY
+
+static EngineProfile coreProfileToQt(const update::EngineProfile& cp)
+{
+    EngineProfile qp;
+    qp.maxFiles = cp.maxFiles;
+    qp.rules.reserve(static_cast<int>(cp.rules.size()));
+    for (const auto& cr : cp.rules) {
+        EngineProfile::Rule qr;
+        qr.directory = QString::fromStdString(cr.directory);
+        qr.nameFilter = QString::fromStdString(cr.nameFilter);
+        qr.recurse = cr.recurse;
+        qp.rules.append(qr);
+    }
+    qp.ignoredDirs.reserve(static_cast<int>(cp.ignoredDirs.size()));
+    for (const auto& d : cp.ignoredDirs) {
+        qp.ignoredDirs.append(QString::fromStdString(d));
+    }
+    return qp;
+}
+
+static update::EngineProfile qtProfileToCore(const EngineProfile& qp)
+{
+    update::EngineProfile cp;
+    cp.maxFiles = qp.maxFiles;
+    cp.rules.reserve(qp.rules.size());
+    for (const auto& qr : qp.rules) {
+        update::EngineProfile::Rule cr;
+        cr.directory = qr.directory.toStdString();
+        cr.nameFilter = qr.nameFilter.toStdString();
+        cr.recurse = qr.recurse;
+        cp.rules.push_back(cr);
+    }
+    cp.ignoredDirs.reserve(qp.ignoredDirs.size());
+    for (const auto& d : qp.ignoredDirs) {
+        cp.ignoredDirs.push_back(d.toStdString());
+    }
+    return cp;
+}
+
+static FileHashRecord coreHashRecordToQt(const update::FileHashRecord& cr)
+{
+    FileHashRecord qr;
+    qr.relativePath = QString::fromStdString(cr.relativePath);
+    qr.sha256 = QString::fromStdString(cr.sha256);
+    qr.fileSize = cr.fileSize;
+    qr.lastModified = cr.lastModified;
+    return qr;
+}
+
+static update::FileHashRecord qtHashRecordToCore(const FileHashRecord& qr)
+{
+    update::FileHashRecord cr;
+    cr.relativePath = qr.relativePath.toStdString();
+    cr.sha256 = qr.sha256.toStdString();
+    cr.fileSize = qr.fileSize;
+    cr.lastModified = qr.lastModified;
+    return cr;
+}
+
+static GameSnapshot coreSnapshotToQt(const update::GameSnapshot& cs)
+{
+    GameSnapshot qs;
+    qs.gameId = QString::fromStdString(cs.gameId);
+    qs.patchVersion = QString::fromStdString(cs.patchVersion);
+    qs.takenAt = cs.takenAt;
+    qs.files.reserve(static_cast<int>(cs.files.size()));
+    for (const auto& cf : cs.files) {
+        qs.files.append(coreHashRecordToQt(cf));
+    }
+    return qs;
+}
+
+static update::GameSnapshot qtSnapshotToCore(const GameSnapshot& qs)
+{
+    update::GameSnapshot cs;
+    cs.gameId = qs.gameId.toStdString();
+    cs.patchVersion = qs.patchVersion.toStdString();
+    cs.takenAt = qs.takenAt;
+    cs.files.reserve(qs.files.size());
+    for (const auto& qf : qs.files) {
+        cs.files.push_back(qtHashRecordToCore(qf));
+    }
+    return cs;
+}
+
+static StoreVersionRecord coreStoreRecordToQt(const update::StoreVersionRecord& cr)
+{
+    StoreVersionRecord qr;
+    qr.gameId = QString::fromStdString(cr.gameId);
+    qr.steamBuildId = QString::fromStdString(cr.steamBuildId);
+    qr.epicVersionString = QString::fromStdString(cr.epicVersionString);
+    qr.gogBuildId = QString::fromStdString(cr.gogBuildId);
+    qr.exeLastModified = cr.exeLastModified;
+    qr.recordedAt = cr.recordedAt;
+    return qr;
+}
+
+static update::StoreVersionRecord qtStoreRecordToCore(const StoreVersionRecord& qr)
+{
+    update::StoreVersionRecord cr;
+    cr.gameId = qr.gameId.toStdString();
+    cr.steamBuildId = qr.steamBuildId.toStdString();
+    cr.epicVersionString = qr.epicVersionString.toStdString();
+    cr.gogBuildId = qr.gogBuildId.toStdString();
+    cr.exeLastModified = qr.exeLastModified;
+    cr.recordedAt = qr.recordedAt;
+    return cr;
+}
+
+#endif // !MAKINEAI_UI_ONLY
+
+// =============================================================================
+// Constructor / Destructor
+// =============================================================================
+
+UpdateDetectionService::UpdateDetectionService(QObject *parent)
+    : QObject(parent)
+    , m_monitorTimer(new QTimer(this))
+{
+    m_monitorTimer->setInterval(kMonitorIntervalMs);
+    connect(m_monitorTimer, &QTimer::timeout, this, &UpdateDetectionService::checkAllGamesQuick);
+    loadStoreVersions();
+}
+
+UpdateDetectionService::~UpdateDetectionService() = default;
+
+// =============================================================================
+// Data directory helper (always Qt -- uses QStandardPaths)
+// =============================================================================
+
+QString UpdateDetectionService::dataDir() const
+{
+    return AppPaths::updateDetectionDir();
+}
+
+// =============================================================================
+// Engine Profiles
 // =============================================================================
 
 EngineProfile UpdateDetectionService::profileForEngine(const QString& engine)
 {
+#ifndef MAKINEAI_UI_ONLY
+    auto coreProfile = update::profileForEngine(engine.toStdString());
+    return coreProfileToQt(coreProfile);
+#else
     using Rule = EngineProfile::Rule;
     const QString e = engine.toLower();
 
@@ -125,15 +280,28 @@ EngineProfile UpdateDetectionService::profileForEngine(const QString& engine)
         {"logs", "saves", "config", "cache"},
         10
     };
+#endif
 }
 
 // =============================================================================
-// File Collection — Proper directory+filter matching
+// File Collection
 // =============================================================================
 
 QStringList UpdateDetectionService::collectFiles(const QString& installPath,
                                                   const EngineProfile& profile)
 {
+#ifndef MAKINEAI_UI_ONLY
+    auto coreProfile = qtProfileToCore(profile);
+    auto coreFiles = update::collectFiles(
+        fs::path(installPath.toStdWString()), coreProfile);
+
+    QStringList result;
+    result.reserve(static_cast<int>(coreFiles.size()));
+    for (const auto& f : coreFiles) {
+        result.append(QString::fromStdString(f));
+    }
+    return result;
+#else
     QSet<QString> result;
     QDir baseDir(installPath);
     if (!baseDir.exists()) return {};
@@ -165,7 +333,6 @@ QStringList UpdateDetectionService::collectFiles(const QString& installPath,
             for (const auto& entry : entries) {
                 if (entry.endsWith("_Data")) {
                     QString dataDir = installPath + "/" + entry;
-                    QDir dataDirObj(dataDir);
 
                     if (rule.nameFilter == "globalgamemanagers") {
                         QString target = dataDir + "/globalgamemanagers";
@@ -237,22 +404,70 @@ QStringList UpdateDetectionService::collectFiles(const QString& installPath,
     }
 
     return sorted;
+#endif
 }
 
 // =============================================================================
-// Constructor / Destructor
+// File Hashing
 // =============================================================================
 
-UpdateDetectionService::UpdateDetectionService(QObject *parent)
-    : QObject(parent)
-    , m_monitorTimer(new QTimer(this))
+QString UpdateDetectionService::computeFileHash(const QString& filePath)
 {
-    m_monitorTimer->setInterval(kMonitorIntervalMs);
-    connect(m_monitorTimer, &QTimer::timeout, this, &UpdateDetectionService::checkAllGamesQuick);
-    loadStoreVersions();
+#ifndef MAKINEAI_UI_ONLY
+    auto hash = update::computeFileHash(fs::path(filePath.toStdWString()));
+    return QString::fromStdString(hash);
+#else
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) return {};
+
+    QCryptographicHash hasher(QCryptographicHash::Sha256);
+    constexpr qint64 chunkSize = 65536;
+    while (!file.atEnd()) {
+        const QByteArray chunk = file.read(chunkSize);
+        if (chunk.isEmpty()) break;
+        hasher.addData(chunk);
+    }
+    return hasher.result().toHex().toLower();
+#endif
 }
 
-UpdateDetectionService::~UpdateDetectionService() = default;
+QList<FileHashRecord> UpdateDetectionService::hashGameFiles(
+    const QString& installPath, const EngineProfile& profile)
+{
+#ifndef MAKINEAI_UI_ONLY
+    auto coreProfile = qtProfileToCore(profile);
+    auto coreRecords = update::hashGameFiles(
+        fs::path(installPath.toStdWString()), coreProfile);
+
+    QList<FileHashRecord> records;
+    records.reserve(static_cast<int>(coreRecords.size()));
+    for (const auto& cr : coreRecords) {
+        records.append(coreHashRecordToQt(cr));
+    }
+    return records;
+#else
+    QList<FileHashRecord> records;
+    QDir baseDir(installPath);
+    if (!baseDir.exists()) return records;
+
+    QStringList matchingFiles = collectFiles(installPath, profile);
+
+    records.reserve(matchingFiles.size());
+    for (const auto& relPath : matchingFiles) {
+        QString absPath = baseDir.absoluteFilePath(relPath);
+        QFileInfo info(absPath);
+
+        FileHashRecord rec;
+        rec.relativePath = relPath;
+        rec.fileSize = info.size();
+        rec.lastModified = info.lastModified().toSecsSinceEpoch();
+        rec.sha256 = computeFileHash(absPath);
+        records.append(rec);
+    }
+
+    return records;
+#endif
+}
 
 // =============================================================================
 // Tier 1: Store Metadata Readers (all static/thread-safe)
@@ -261,8 +476,14 @@ UpdateDetectionService::~UpdateDetectionService() = default;
 QString UpdateDetectionService::readSteamBuildId(const QString& installPath,
                                                    const QString& steamAppId)
 {
+#ifndef MAKINEAI_UI_ONLY
+    auto buildId = update::readSteamBuildId(
+        fs::path(installPath.toStdWString()),
+        steamAppId.toStdString());
+    return QString::fromStdString(buildId);
+#else
     if (!steamAppId.isEmpty()) {
-        // Direct lookup: find appmanifest_{appId}.acf — O(1)
+        // Direct lookup: find appmanifest_{appId}.acf
         QDir dir(installPath);
         if (!dir.cdUp()) return {}; // go to "common"
         if (!dir.cdUp()) return {}; // go to "steamapps"
@@ -306,10 +527,16 @@ QString UpdateDetectionService::readSteamBuildId(const QString& installPath,
         }
     }
     return {};
+#endif
 }
 
 QString UpdateDetectionService::readEpicVersion(const QString& installPath)
 {
+#ifndef MAKINEAI_UI_ONLY
+    auto ver = update::readEpicVersion(
+        fs::path(installPath.toStdWString()));
+    return QString::fromStdString(ver);
+#else
     const QString manifestDir = "C:/ProgramData/Epic/EpicGamesLauncher/Data/Manifests";
     QDir dir(manifestDir);
     if (!dir.exists()) return {};
@@ -332,10 +559,15 @@ QString UpdateDetectionService::readEpicVersion(const QString& installPath)
         }
     }
     return {};
+#endif
 }
 
 QString UpdateDetectionService::readGogVersion(const QString& gameId)
 {
+#ifndef MAKINEAI_UI_ONLY
+    auto ver = update::readGogVersion(gameId.toStdString());
+    return QString::fromStdString(ver);
+#else
     if (!gameId.startsWith("gog_")) return {};
     QString gogKey = gameId.mid(4);
 
@@ -347,10 +579,14 @@ QString UpdateDetectionService::readGogVersion(const QString& gameId)
         ver = gogReg.value("buildId").toString();
     }
     return ver;
+#endif
 }
 
 qint64 UpdateDetectionService::readExeMtime(const QString& installPath)
 {
+#ifndef MAKINEAI_UI_ONLY
+    return update::readExeMtime(fs::path(installPath.toStdWString()));
+#else
     QDir dir(installPath);
     const auto exeFiles = dir.entryList({"*.exe"}, QDir::Files);
     qint64 latestMtime = 0;
@@ -363,6 +599,7 @@ qint64 UpdateDetectionService::readExeMtime(const QString& installPath)
         }
     }
     return latestMtime;
+#endif
 }
 
 // =============================================================================
@@ -428,7 +665,7 @@ void UpdateDetectionService::removeStoreVersion(const QString& gameId)
 }
 
 // =============================================================================
-// Tier 1: Quick Check — Real background I/O
+// Tier 1: Quick Check -- Real background I/O
 // =============================================================================
 
 void UpdateDetectionService::checkGameQuick(const QString& gameId)
@@ -598,48 +835,8 @@ void UpdateDetectionService::checkAllGamesQuick()
 }
 
 // =============================================================================
-// Tier 2: File Hashing & Snapshots
+// Tier 2: Snapshots
 // =============================================================================
-
-QString UpdateDetectionService::computeFileHash(const QString& filePath)
-{
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) return {};
-
-    QCryptographicHash hasher(QCryptographicHash::Sha256);
-    constexpr qint64 chunkSize = 65536;
-    while (!file.atEnd()) {
-        const QByteArray chunk = file.read(chunkSize);
-        if (chunk.isEmpty()) break;
-        hasher.addData(chunk);
-    }
-    return hasher.result().toHex().toLower();
-}
-
-QList<FileHashRecord> UpdateDetectionService::hashGameFiles(
-    const QString& installPath, const EngineProfile& profile)
-{
-    QList<FileHashRecord> records;
-    QDir baseDir(installPath);
-    if (!baseDir.exists()) return records;
-
-    QStringList matchingFiles = collectFiles(installPath, profile);
-
-    records.reserve(matchingFiles.size());
-    for (const auto& relPath : matchingFiles) {
-        QString absPath = baseDir.absoluteFilePath(relPath);
-        QFileInfo info(absPath);
-
-        FileHashRecord rec;
-        rec.relativePath = relPath;
-        rec.fileSize = info.size();
-        rec.lastModified = info.lastModified().toSecsSinceEpoch();
-        rec.sha256 = computeFileHash(absPath);
-        records.append(rec);
-    }
-
-    return records;
-}
 
 void UpdateDetectionService::takeSnapshot(const QString& gameId, const QString& patchVersion,
                                            const QString& installPath, const QString& engine)
@@ -667,7 +864,13 @@ void UpdateDetectionService::takeSnapshot(const QString& gameId, const QString& 
 
 bool UpdateDetectionService::hasSnapshot(const QString& gameId)
 {
+#ifndef MAKINEAI_UI_ONLY
+    return update::hasSnapshot(
+        fs::path(dataDir().toStdWString()),
+        gameId.toStdString());
+#else
     return QFile::exists(dataDir() + "/snapshots/" + gameId + ".json");
+#endif
 }
 
 bool UpdateDetectionService::hasUpdate(const QString& gameId) const
@@ -685,8 +888,18 @@ void UpdateDetectionService::clearUpdate(const QString& gameId)
 
 void UpdateDetectionService::removeSnapshot(const QString& gameId)
 {
+#ifndef MAKINEAI_UI_ONLY
+    update::removeSnapshot(
+        fs::path(dataDir().toStdWString()),
+        gameId.toStdString());
+#else
     QFile::remove(dataDir() + "/snapshots/" + gameId + ".json");
+#endif
 }
+
+// =============================================================================
+// Tier 2: Compatibility Check
+// =============================================================================
 
 QVariantMap UpdateDetectionService::checkCompatibility(const QString& gameId)
 {
@@ -701,10 +914,6 @@ QVariantMap UpdateDetectionService::checkCompatibility(const QString& gameId)
 
     if (!hasSnapshot(gameId)) return result;
 
-    GameSnapshot snapshot;
-    loadSnapshot(dataDir(), gameId, snapshot);
-    if (snapshot.files.isEmpty()) return result;
-
     if (!m_gameService) return result;
 
     QVariantMap gameData = m_gameService->getGameById(gameId);
@@ -712,8 +921,54 @@ QVariantMap UpdateDetectionService::checkCompatibility(const QString& gameId)
 
     const QString installPath = gameData["installPath"].toString();
     const QString engine = gameData["engine"].toString();
-    QDir baseDir(installPath);
 
+#ifndef MAKINEAI_UI_ONLY
+    // Load snapshot via core
+    auto coreSnapshot = update::loadSnapshot(
+        fs::path(dataDir().toStdWString()),
+        gameId.toStdString());
+
+    if (!coreSnapshot || coreSnapshot->files.empty()) return result;
+
+    QDir baseDir(installPath);
+    if (!baseDir.exists()) {
+        result["level"] = "unknown";
+        result["summary"] = tr("Game install path not found");
+        return result;
+    }
+
+    // Delegate compatibility check to core
+    auto coreResult = update::checkCompatibility(
+        *coreSnapshot,
+        fs::path(installPath.toStdWString()),
+        engine.toStdString());
+
+    result["level"] = QString::fromStdString(coreResult.level);
+    result["integrityPercent"] = coreResult.integrityPercent;
+    result["modifiedCount"] = coreResult.modifiedCount;
+    result["addedCount"] = coreResult.addedCount;
+    result["removedCount"] = coreResult.removedCount;
+
+    // Use localized summary strings (core returns English-only)
+    int total = static_cast<int>(coreSnapshot->files.size());
+    int unchanged = total - coreResult.modifiedCount - coreResult.removedCount;
+    if (coreResult.level == "compatible") {
+        result["summary"] = tr("All %n file(s) match the translation snapshot", "", total);
+    } else if (coreResult.level == "partial") {
+        result["summary"] = tr("%1 of %2 files unchanged. Translation may need minor updates.")
+            .arg(unchanged).arg(total);
+    } else if (coreResult.level == "incompatible") {
+        result["summary"] = tr("Significant changes detected. Translation likely needs updating.");
+    } else {
+        result["summary"] = QString::fromStdString(coreResult.summary);
+    }
+
+#else
+    GameSnapshot snapshot;
+    loadSnapshot(dataDir(), gameId, snapshot);
+    if (snapshot.files.isEmpty()) return result;
+
+    QDir baseDir(installPath);
     if (!baseDir.exists()) {
         result["level"] = "unknown";
         result["summary"] = tr("Game install path not found");
@@ -789,6 +1044,7 @@ QVariantMap UpdateDetectionService::checkCompatibility(const QString& gameId)
     result["addedCount"] = added;
     result["removedCount"] = removed;
     result["summary"] = summary;
+#endif
 
     emit compatibilityChecked(gameId, result);
     return result;
@@ -822,13 +1078,20 @@ void UpdateDetectionService::stopMonitoring()
 // Persistence
 // =============================================================================
 
-QString UpdateDetectionService::dataDir() const
-{
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/update_detection";
-}
-
 void UpdateDetectionService::loadStoreVersions()
 {
+#ifndef MAKINEAI_UI_ONLY
+    auto coreVersions = update::loadStoreVersions(
+        fs::path(dataDir().toStdWString()));
+
+    QMutexLocker lock(&m_storeVersionsMutex);
+    m_storeVersions.clear();
+    for (const auto& [key, val] : coreVersions) {
+        m_storeVersions[QString::fromStdString(key)] = coreStoreRecordToQt(val);
+    }
+
+    qDebug() << "Loaded" << m_storeVersions.size() << "store version records (via core)";
+#else
     QFile file(dataDir() + "/store_versions.json");
     if (!file.open(QIODevice::ReadOnly)) return;
 
@@ -853,10 +1116,23 @@ void UpdateDetectionService::loadStoreVersions()
     }
 
     qDebug() << "Loaded" << m_storeVersions.size() << "store version records";
+#endif
 }
 
 void UpdateDetectionService::saveStoreVersions()
 {
+#ifndef MAKINEAI_UI_ONLY
+    std::unordered_map<std::string, update::StoreVersionRecord> coreVersions;
+    {
+        QMutexLocker lock(&m_storeVersionsMutex);
+        for (auto it = m_storeVersions.constBegin(); it != m_storeVersions.constEnd(); ++it) {
+            coreVersions[it.key().toStdString()] = qtStoreRecordToCore(it.value());
+        }
+    }
+    update::saveStoreVersions(
+        fs::path(dataDir().toStdWString()),
+        coreVersions);
+#else
     QString dir = dataDir();
     QDir().mkpath(dir);
 
@@ -879,12 +1155,21 @@ void UpdateDetectionService::saveStoreVersions()
     if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
     }
+#endif
 }
 
-void UpdateDetectionService::loadSnapshot(const QString& dataDir,
+void UpdateDetectionService::loadSnapshot(const QString& dataDirPath,
                                             const QString& gameId, GameSnapshot& out)
 {
-    QFile file(dataDir + "/snapshots/" + gameId + ".json");
+#ifndef MAKINEAI_UI_ONLY
+    auto coreSnapshot = update::loadSnapshot(
+        fs::path(dataDirPath.toStdWString()),
+        gameId.toStdString());
+    if (coreSnapshot) {
+        out = coreSnapshotToQt(*coreSnapshot);
+    }
+#else
+    QFile file(dataDirPath + "/snapshots/" + gameId + ".json");
     if (!file.open(QIODevice::ReadOnly)) return;
 
     QJsonParseError err;
@@ -909,12 +1194,19 @@ void UpdateDetectionService::loadSnapshot(const QString& dataDir,
         rec.lastModified = fObj["mtime"].toInteger();
         out.files.append(rec);
     }
+#endif
 }
 
-void UpdateDetectionService::saveSnapshot(const QString& dataDir,
+void UpdateDetectionService::saveSnapshot(const QString& dataDirPath,
                                             const GameSnapshot& snapshot)
 {
-    QString dir = dataDir + "/snapshots";
+#ifndef MAKINEAI_UI_ONLY
+    auto coreSnapshot = qtSnapshotToCore(snapshot);
+    update::saveSnapshot(
+        fs::path(dataDirPath.toStdWString()),
+        coreSnapshot);
+#else
+    QString dir = dataDirPath + "/snapshots";
     QDir().mkpath(dir);
 
     QJsonObject root;
@@ -937,6 +1229,7 @@ void UpdateDetectionService::saveSnapshot(const QString& dataDir,
     if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
     }
+#endif
 }
 
 } // namespace makineai

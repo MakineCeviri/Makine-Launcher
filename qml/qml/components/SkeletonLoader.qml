@@ -53,25 +53,20 @@ Rectangle {
         running: root.visible && root.animationsEnabled
         loops: Animation.Infinite
 
-        // Initial delay for staggered effect
         PauseAnimation { duration: root.animationDelay }
 
-        // Main shimmer cycle
         NumberAnimation {
-            from: 0.0
-            to: 1.0
+            from: 0.0; to: 1.0
             duration: root.animationDuration
-            easing.type: Easing.InOutQuad
+            easing.type: Easing.InOutSine
         }
 
-        // Pause between cycles
-        PauseAnimation { duration: Dimensions.fadeTransitionDuration }
+        PauseAnimation { duration: 600 }
     }
 
     // Shimmer gradient overlay
     Rectangle {
-        id: shimmerOverlay
-        width: parent.width * 2
+        width: parent.width * 1.5
         height: parent.height
         x: -width + (shimmerPhase * (parent.width + width))
         radius: parent.radius
@@ -79,37 +74,11 @@ Rectangle {
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.3; color: root.shimmerColor }
-            GradientStop { position: 0.5; color: Theme.withAlpha(Theme.textPrimary, 0.18) }
-            GradientStop { position: 0.7; color: root.shimmerColor }
+            GradientStop { position: 0.4; color: root.shimmerColor }
+            GradientStop { position: 0.6; color: root.shimmerColor }
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
 
-    // Subtle pulse animation on base color
-    property real pulseValue: 1.0
-
-    SequentialAnimation on pulseValue {
-        running: root.visible && root.animationsEnabled
-        loops: Animation.Infinite
-
-        NumberAnimation {
-            to: 1.3
-            duration: Dimensions.animVerySlow
-            easing.type: Easing.InOutSine
-        }
-        NumberAnimation {
-            to: 1.0
-            duration: Dimensions.animVerySlow
-            easing.type: Easing.InOutSine
-        }
-    }
-
-    // Apply pulse to base color
-    color: Qt.rgba(
-        baseColor.r * pulseValue,
-        baseColor.g * pulseValue,
-        baseColor.b * pulseValue,
-        baseColor.a
-    )
+    color: baseColor
 }

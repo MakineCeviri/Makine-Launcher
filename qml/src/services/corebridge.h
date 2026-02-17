@@ -19,6 +19,8 @@
 
 namespace makineai {
 
+class OperationJournal;
+
 /**
  * @brief Detected game info from core scanners
  */
@@ -46,6 +48,7 @@ struct TranslationPackageQt {
     QString downloadUrl;
     qint64 sizeBytes;
     bool requiresRuntime{false};
+    QVariantList contributors;  // [{name, role}] from manifest
 };
 
 /**
@@ -67,6 +70,9 @@ public:
 
     // Singleton access
     static CoreBridge* instance();
+
+    // Set crash recovery journal (forwarded to LocalPackageManager)
+    void setJournal(OperationJournal* journal);
 
     // ========== Game Detection ==========
 
@@ -113,11 +119,6 @@ public:
     // ========== Backup ==========
 
     /**
-     * @brief Create backup of game files
-     */
-    QString createBackup(const QString& gamePath, const QString& engine);
-
-    /**
      * @brief Restore game files from backup
      */
     bool restoreBackup(const QString& gamePath, const QString& engine,
@@ -150,6 +151,22 @@ public:
      * @brief Get variant type label for a game ("version" or "platform")
      */
     QString getVariantTypeForGame(const QString& gameId);
+
+    /**
+     * @brief Get pre-install notes for a game package
+     */
+    QString getInstallNotesForGame(const QString& gameId);
+
+    /**
+     * @brief Get list of files in the translation package (relative paths)
+     */
+    QStringList getPackageFileList(const QString& gameId, const QString& variant = {});
+
+    /**
+     * @brief Match a folder name against the package catalog
+     * @return steamAppId if matched, empty string otherwise
+     */
+    QString findMatchingAppId(const QString& folderName);
 
     /**
      * @brief Check if package is installed for game
@@ -191,6 +208,7 @@ private:
     QString resolveToSteamAppId(const QString& gameId);
     void buildDetectedGameIndex();
     LocalPackageManager* m_localPkgManager{nullptr};
+    OperationJournal* m_journal{nullptr};
     QHash<QString, int> m_steamAppIdToDetectedIndex;
 };
 

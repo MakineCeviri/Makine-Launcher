@@ -7,6 +7,7 @@
 #include "gameservice.h"
 #include "backupmanager.h"
 #include "updatedetectionservice.h"
+#include "apppaths.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -33,9 +34,6 @@ GameService::GameService(QObject *parent)
     , m_updateService(new UpdateDetectionService(this))
 {
     m_updateService->setGameService(this);
-    setupCoreBridge();
-    loadCachedGames();
-    loadSteamDetailsCache();
 
     // Forward update detection signals
     connect(m_updateService, &UpdateDetectionService::gameUpdateDetected,
@@ -47,12 +45,21 @@ GameService::GameService(QObject *parent)
     connect(this, &GameService::scanCompleted, this, [this](int) {
         m_updateService->startMonitoring();
     }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+}
+
+void GameService::initialize()
+{
+    setupCoreBridge();
+    loadCachedGames();
+    loadSteamDetailsCache();
 
     // Auto-scan on first launch if no cached games
     if (m_games.isEmpty()) {
         qDebug() << "No cached games found, starting auto-scan...";
         QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
     }
+
+    emit gamesChanged();
 }
 
 GameService::~GameService() = default;
@@ -124,6 +131,8 @@ void GameService::setupCoreBridge()
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
                 if (success && !gameId.isEmpty()) {
+                    // Update package installed cache
+                    m_packageInstalledCache[gameId] = true;
                     // Update game's hasTranslation flag
                     auto idxIt = m_gameIdToIndex.constFind(gameId);
                     if (idxIt != m_gameIdToIndex.constEnd()) {
@@ -210,44 +219,89 @@ void GameService::onGameDetected(const QString& gameId, const QString& gameName)
     qDebug() << "Game detected:" << gameName << "(" << gameId << ")";
 }
 
-void GameService::addManualGame(const QString& path)
+QString GameService::addManualGame(const QString& path)
 {
     // Security: Validate path
     if (!isValidGamePath(path)) {
         emit scanError(tr("Geçersiz oyun klasörü: %1").arg(path));
-        return;
+        return {};
     }
 
     QDir dir(path);
     if (!dir.exists()) {
         emit scanError(tr("Belirtilen klasör bulunamadı: %1").arg(path));
-        return;
+        return {};
     }
 
     // Check for duplicate (case-insensitive on Windows)
     const QString canonicalPath = QFileInfo(path).canonicalFilePath();
     for (const auto& game : m_games) {
         if (QFileInfo(game.installPath).canonicalFilePath() == canonicalPath) {
-            emit scanError(tr("Bu oyun zaten eklenmiş: %1").arg(path));
-            return;
+            // Already exists — return existing game's ID
+            return game.id;
         }
     }
 
+    const QString folderName = dir.dirName();
+
+    // Detect engine
+    QString engine;
+    if (m_coreBridge) {
+        engine = m_coreBridge->detectEngine(path);
+    }
+
+    // Match folder name against translation catalog
+    QString matchedAppId;
+    if (m_coreBridge) {
+        matchedAppId = m_coreBridge->findMatchingAppId(folderName);
+    }
+
     GameInfo game;
-    game.id = QString::number(m_games.count() + 1);
-    game.name = dir.dirName();
     game.installPath = path;
     game.source = "manual";
     game.isInstalled = true;
+    game.engine = engine.isEmpty() ? "Unknown" : engine;
+
+    if (!matchedAppId.isEmpty()) {
+        // Found a matching translation package
+        game.id = matchedAppId;
+        game.steamAppId = matchedAppId;
+        game.hasTranslation = true;
+        game.headerImageUrl = QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(matchedAppId);
+
+        // Use catalog game name instead of folder name
+        auto pkg = m_coreBridge->getPackageForGame(matchedAppId);
+        game.name = pkg.has_value() ? pkg->gameName : folderName;
+    } else {
+        game.id = QStringLiteral("manual_%1").arg(m_games.count() + 1);
+        game.name = folderName;
+        game.hasTranslation = false;
+    }
+
+    // Avoid duplicate ID collision (e.g. steam scan already found this game)
+    if (m_gameIdToIndex.contains(game.id)) {
+        // Update existing entry's install path
+        int idx = m_gameIdToIndex[game.id];
+        if (idx >= 0 && idx < m_games.count()) {
+            m_games[idx].installPath = path;
+            m_games[idx].isInstalled = true;
+            invalidateCache();
+            emit gamesChanged();
+            return game.id;
+        }
+    }
 
     m_games.append(game);
-
-    // Update index
     m_gameIdToIndex[game.id] = m_games.count() - 1;
 
     invalidateCache();
     emit gamesChanged();
     emit gameDetected(game.id);
+
+    qDebug() << "Manual game added:" << game.name << "id:" << game.id
+             << "engine:" << game.engine << "hasTranslation:" << game.hasTranslation;
+
+    return game.id;
 }
 
 QVariantMap GameService::getGameById(const QString& id) const
@@ -257,7 +311,17 @@ QVariantMap GameService::getGameById(const QString& id) const
     if (idxIt != m_gameIdToIndex.constEnd()) {
         int index = *idxIt;
         if (index >= 0 && index < m_games.count()) {
-            return m_games[index].toVariantMap();
+            QVariantMap map = m_games[index].toVariantMap();
+            // Enrich with cached packageInstalled status
+            auto cacheIt = m_packageInstalledCache.constFind(id);
+            if (cacheIt != m_packageInstalledCache.constEnd()) {
+                map["packageInstalled"] = *cacheIt;
+            } else if (m_coreBridge) {
+                bool installed = m_coreBridge->isPackageInstalled(id);
+                m_packageInstalledCache[id] = installed;
+                map["packageInstalled"] = installed;
+            }
+            return map;
         }
     }
 
@@ -282,13 +346,34 @@ QVariantList GameService::filterGames(const QString& query) const
 
     const QVariantList allGames = supportedGames();
     QVariantList result;
-    result.reserve(allGames.size() / 4); // rough estimate
+    result.reserve(allGames.size());
     for (const auto& entry : allGames) {
         const QVariantMap map = entry.toMap();
         const QString name = map.value("name").toString();
         if (name.contains(query, Qt::CaseInsensitive))
             result.append(entry);
     }
+    result.squeeze();
+    return result;
+}
+
+QVariantList GameService::filteredGamesWithTranslation(const QString& filter) const
+{
+    const QVariantList allGames = supportedGames();
+    QVariantList result;
+    result.reserve(allGames.size());
+    for (const auto& entry : allGames) {
+        const QVariantMap map = entry.toMap();
+        if (!map.value("hasTranslation").toBool())
+            continue;
+        if (!filter.isEmpty()) {
+            const QString name = map.value("name").toString();
+            if (!name.contains(filter, Qt::CaseInsensitive))
+                continue;
+        }
+        result.append(entry);
+    }
+    result.squeeze();
     return result;
 }
 
@@ -321,8 +406,14 @@ QVariantMap GameService::getGameDetails(const QString& gameId)
 {
     QVariantMap result;
 
-    // Contributors (placeholder — will be populated from package metadata)
-    result["contributors"] = QVariantList{};
+    // Contributors from package manifest
+    QVariantList contributors;
+    if (m_coreBridge) {
+        auto pkg = m_coreBridge->getPackageForGame(gameId);
+        if (pkg)
+            contributors = pkg->contributors;
+    }
+    result["contributors"] = contributors;
 
     // Runtime status
     QVariantMap runtime = getRuntimeStatus(gameId);
@@ -479,22 +570,6 @@ QVariantMap GameService::getSteamDetails(const QString& steamAppId)
     return {};
 }
 
-QVariantMap GameService::getRecipeInfo(const QString& gameId)
-{
-    if (!m_coreBridge) return {};
-
-    auto pkg = m_coreBridge->getPackageForGame(gameId);
-    if (!pkg.has_value()) return {};
-
-    return {
-        {"packageId", pkg->packageId},
-        {"version", pkg->version},
-        {"gameName", pkg->gameName},
-        {"sizeBytes", pkg->sizeBytes},
-        {"hasRecipe", true}
-    };
-}
-
 QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) const
 {
     QVariantList screenshotList;
@@ -529,11 +604,18 @@ QVariantList GameService::supportedGames() const
 
     m_supportedGamesCache = m_coreBridge->allSupportedGames();
 
-    // Enrich with packageInstalled status
+    // Enrich with cached packageInstalled status
     for (int i = 0; i < m_supportedGamesCache.size(); ++i) {
         QVariantMap entry = m_supportedGamesCache[i].toMap();
         const QString steamAppId = entry["steamAppId"].toString();
-        entry["packageInstalled"] = m_coreBridge->isPackageInstalled(steamAppId);
+        auto cacheIt = m_packageInstalledCache.constFind(steamAppId);
+        if (cacheIt != m_packageInstalledCache.constEnd()) {
+            entry["packageInstalled"] = *cacheIt;
+        } else {
+            bool installed = m_coreBridge->isPackageInstalled(steamAppId);
+            m_packageInstalledCache[steamAppId] = installed;
+            entry["packageInstalled"] = installed;
+        }
         m_supportedGamesCache[i] = entry;
     }
 
@@ -555,7 +637,16 @@ QVariantList GameService::gamesWithTranslation() const
         bool hasPackage = m_coreBridge && m_coreBridge->hasTranslationPackage(game.id);
         if (game.hasTranslation || hasPackage) {
             QVariantMap map = game.toVariantMap();
-            map["packageInstalled"] = m_coreBridge ? m_coreBridge->isPackageInstalled(game.id) : false;
+            auto cacheIt = m_packageInstalledCache.constFind(game.id);
+            if (cacheIt != m_packageInstalledCache.constEnd()) {
+                map["packageInstalled"] = *cacheIt;
+            } else if (m_coreBridge) {
+                bool installed = m_coreBridge->isPackageInstalled(game.id);
+                m_packageInstalledCache[game.id] = installed;
+                map["packageInstalled"] = installed;
+            } else {
+                map["packageInstalled"] = false;
+            }
             result.append(map);
         }
     }
@@ -564,7 +655,7 @@ QVariantList GameService::gamesWithTranslation() const
 
 void GameService::loadCachedGames()
 {
-    const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/games_cache.json";
+    const QString cachePath = AppPaths::gamesCacheFile();
     QFile file(cachePath);
 
     if (!file.open(QIODevice::ReadOnly)) {
@@ -624,8 +715,7 @@ void GameService::loadCachedGames()
 
 void GameService::saveCachedGames()
 {
-    const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(cachePath);
+    QDir().mkpath(AppPaths::cacheDir());
 
     QJsonArray array;
     for (const auto& game : m_games) {
@@ -644,7 +734,7 @@ void GameService::saveCachedGames()
         array.append(obj);
     }
 
-    QFile file(cachePath + "/games_cache.json");
+    QFile file(AppPaths::gamesCacheFile());
     if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(array).toJson());
     }
@@ -656,6 +746,7 @@ void GameService::invalidateCache()
     m_supportedCacheValid = false;
     m_gamesCache.clear();
     m_supportedGamesCache.clear();
+    m_packageInstalledCache.clear();
 }
 
 void GameService::rebuildCache()
@@ -681,7 +772,7 @@ void GameService::ensureSupportedGamesCache()
 
 void GameService::loadSteamDetailsCache()
 {
-    const QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/steam_details_cache.json";
+    const QString cachePath = AppPaths::steamDetailsCacheFile();
     QFile file(cachePath);
     if (!file.open(QIODevice::ReadOnly)) return;
 
@@ -722,8 +813,7 @@ void GameService::loadSteamDetailsCache()
 
 void GameService::saveSteamDetailsCache()
 {
-    const QString dirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(dirPath);
+    QDir().mkpath(AppPaths::cacheDir());
 
     QJsonObject root;
     for (auto it = m_steamDetailsCache.constBegin(); it != m_steamDetailsCache.constEnd(); ++it) {
@@ -756,7 +846,7 @@ void GameService::saveSteamDetailsCache()
         root[it.key()] = obj;
     }
 
-    QFile file(dirPath + "/steam_details_cache.json");
+    QFile file(AppPaths::steamDetailsCacheFile());
     if (file.open(QIODevice::WriteOnly)) {
         file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
     }
@@ -902,6 +992,12 @@ QString GameService::getVariantType(const QString& gameId)
     return m_coreBridge->getVariantTypeForGame(gameId);
 }
 
+QString GameService::getInstallNotes(const QString& gameId)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getInstallNotesForGame(gameId);
+}
+
 void GameService::installTranslation(const QString& gameId, const QString& variant)
 {
     if (!m_coreBridge) {
@@ -940,28 +1036,38 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         return;
     }
 
-    // Backup before install
-    BackupManager* bm = BackupManager::instance();
-    if (bm) {
-        emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
-        bool backupOk = bm->createBackup(gameId, game.name, game.installPath);
-        if (!backupOk) {
-            emit translationInstallCompleted(gameId, false,
-                tr("Yedek oluşturulamadı, kurulum iptal edildi"));
-            return;
-        }
-    }
-
     m_installingGameId = gameId;
     emit translationInstallStarted(gameId);
 
-    qDebug() << "Installing translation for" << game.name
-             << "package:" << pkg->packageId
-             << "variant:" << (variant.isEmpty() ? "(none)" : variant)
-             << "path:" << game.installPath;
+    // Selective async backup: only backup files that translation will overwrite
+    BackupManager* bm = BackupManager::instance();
+    QStringList filesToOverwrite = m_coreBridge->getPackageFileList(gameId, variant);
 
-    // Delegate to CoreBridge (handles download + verify + install)
-    m_coreBridge->installPackage(pkg->packageId, game.installPath, variant);
+    if (bm && !filesToOverwrite.isEmpty()) {
+        emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
+
+        // One-shot connection: when backup done, proceed with install
+        connect(bm, &BackupManager::selectiveBackupCompleted, this,
+            [this, gameId, gamePath = game.installPath, variant](const QString& backupGameId, bool /*success*/) {
+                if (backupGameId != gameId) return;
+
+                qDebug() << "Installing translation for" << gameId
+                         << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                         << "path:" << gamePath;
+
+                m_coreBridge->installPackage(gameId, gamePath, variant);
+            }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+
+        bm->createSelectiveBackupAsync(gameId, game.name, game.installPath, filesToOverwrite);
+    } else {
+        // No backup needed — proceed directly
+        qDebug() << "Installing translation for" << game.name
+                 << "gameId:" << gameId
+                 << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                 << "path:" << game.installPath;
+
+        m_coreBridge->installPackage(gameId, game.installPath, variant);
+    }
 }
 
 void GameService::uninstallTranslation(const QString& gameId)
@@ -979,28 +1085,41 @@ void GameService::uninstallTranslation(const QString& gameId)
 
     const GameInfo& game = m_games[*it];
 
-    // Restore from backup before uninstall
+    // Restore from backup before uninstall (wait for async restore to complete)
     BackupManager* bm = BackupManager::instance();
     if (bm && bm->hasBackup(gameId)) {
         auto latest = bm->getLatestBackup(gameId);
         if (!latest.isEmpty() && latest.contains("id")) {
-            bool restored = bm->restoreBackup(latest["id"].toString(), game.installPath);
-            if (!restored) {
+            // One-shot connection: wait for restore to finish, then proceed with uninstall
+            auto restoreConn = connect(bm, &BackupManager::backupRestored, this,
+                [this, gameId, gamePath = game.installPath, idx = *it](const QString& restoredGameId) {
+                    if (restoredGameId != gameId) return;
+                    finalizeUninstall(gameId, gamePath, idx);
+                }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+            bool started = bm->restoreBackup(latest["id"].toString(), game.installPath);
+            if (!started) {
+                disconnect(restoreConn);
                 qWarning() << "Backup restoration failed for" << gameId
                            << "- proceeding with uninstall anyway";
+                finalizeUninstall(gameId, game.installPath, *it);
             }
+            return;
         }
     }
 
-    bool success = m_coreBridge->uninstallPackage(gameId, game.installPath);
+    finalizeUninstall(gameId, game.installPath, *it);
+}
 
-    if (success) {
-        // Update game's hasTranslation flag
-        m_games[*it].hasTranslation = false;
+void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex)
+{
+    bool success = m_coreBridge->uninstallPackage(gameId, gamePath);
+
+    if (success && gameIndex >= 0 && gameIndex < m_games.count()) {
+        m_games[gameIndex].hasTranslation = false;
+        m_packageInstalledCache[gameId] = false;
         invalidateCache();
         emit gamesChanged();
 
-        // Clean up update detection data
         m_updateService->removeSnapshot(gameId);
         m_updateService->removeStoreVersion(gameId);
     }
@@ -1031,14 +1150,6 @@ bool GameService::hasGameUpdate(const QString& gameId) const
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
     return m_updateService->checkCompatibility(gameId);
-}
-
-QVariantMap GameService::analyzeFonts(const QString& gameId)
-{
-    Q_UNUSED(gameId)
-    return {{"hasFontAnalysis", false}, {"totalFonts", 0},
-            {"turkishSupportCount", 0}, {"missingChars", QStringList()},
-            {"summary", tr("Font analysis not available")}, {"fonts", QVariantList()}};
 }
 
 QVariantMap GameService::getRuntimeStatus(const QString& gameId)

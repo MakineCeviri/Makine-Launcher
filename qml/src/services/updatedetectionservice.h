@@ -1,10 +1,14 @@
 /**
  * @file updatedetectionservice.h
- * @brief Two-tier game update detection service
+ * @brief Two-tier game update detection service — thin Qt wrapper
  * @copyright (c) 2026 MakineAI Team
  *
  * Tier 1 (fast): Store metadata checks (ACF buildid, Epic manifest, GOG registry)
  * Tier 2 (detailed): File hash comparison with mtime pre-filtering
+ *
+ * When core is available, delegates file I/O and hashing to
+ * makineai::update (pure C++ module). In UI-only mode, falls back to
+ * the original QDir/QCryptographicHash-based implementation.
  */
 
 #pragma once
@@ -19,7 +23,11 @@
 #include <QList>
 #include <QMutex>
 
-// Note: No QML_ELEMENT/QML_SINGLETON — only used from C++ (GameService)
+#ifndef MAKINEAI_UI_ONLY
+#include <makineai/update_detection.hpp>
+#endif
+
+// Note: No QML_ELEMENT/QML_SINGLETON -- only used from C++ (GameService)
 
 namespace makineai {
 

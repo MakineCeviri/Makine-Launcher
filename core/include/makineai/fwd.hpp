@@ -268,6 +268,15 @@ class FileBackupStorage;
 // --- Package Management ---
 class PackageManager;
 
+// --- Package Catalog (pure C++) ---
+namespace packages {
+class PackageCatalog;
+struct PackageCatalogEntry;
+struct InstallStep;
+struct ContributorInfo;
+struct InstalledPackageState;
+} // namespace packages
+
 // --- Runtime Management ---
 class RuntimeManager;
 

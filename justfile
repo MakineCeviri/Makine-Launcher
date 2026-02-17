@@ -215,3 +215,17 @@ docs:
 # Pre-push quality check
 ci-check: check-format core test
     @echo "All CI checks passed!"
+
+# ============================================================================
+# SHOWCASE IMAGES
+# ============================================================================
+
+# Validate Steam App IDs and download showcase images
+download-images:
+    @echo "Validating Steam App IDs and downloading images..."
+    python scripts/download_showcase_images.py
+
+# Force re-download all images (ignore cache)
+download-images-force:
+    @echo "Force re-downloading all showcase images..."
+    python scripts/download_showcase_images.py --force

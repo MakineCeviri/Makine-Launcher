@@ -1,0 +1,304 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import MakineAI 1.0
+
+/**
+ * BackupsSettings.qml - Backup management panel
+ */
+ColumnLayout {
+    spacing: Dimensions.spacingXL
+
+    // -- Local component overrides (pixel-match SettingsScreen inline versions) --
+    component SettingsCard: Rectangle {
+        default property alias content: _cc.data
+        implicitHeight: _cc.implicitHeight
+        radius: Dimensions.radiusStandard
+        color: Theme.surface
+        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
+        border.width: 1
+        ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
+    }
+    // -- End local component overrides --
+
+    // Backup list card
+    SettingsCard {
+        Layout.fillWidth: true
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Dimensions.spacingLG
+
+            // Section header
+            RowLayout {
+                spacing: Dimensions.spacingMD
+
+                Text {
+                    text: qsTr("Yedekler")
+                    font.pixelSize: Dimensions.fontLG
+                    font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                }
+
+                Rectangle {
+                    width: backupCountText.width + 12
+                    height: 20
+                    radius: Dimensions.radiusStandard
+                    color: Theme.withAlpha(Theme.primary, 0.15)
+                    visible: BackupManager.backups.length > 0
+
+                    Text {
+                        id: backupCountText
+                        anchors.centerIn: parent
+                        text: BackupManager.backups.length
+                        font.pixelSize: Dimensions.fontXS
+                        font.weight: Font.Medium
+                        color: Theme.primary
+                    }
+                }
+            }
+
+            // Empty state
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                radius: Dimensions.radiusStandard
+                color: Theme.withAlpha(Theme.textPrimary, 0.03)
+                visible: BackupManager.backups.length === 0
+
+                // Fade-in + scale on appear
+                opacity: 0
+                scale: 0.95
+                Component.onCompleted: emptyStateAnim.start()
+                ParallelAnimation {
+                    id: emptyStateAnim
+                    NumberAnimation { target: parent; property: "opacity"; from: 0; to: 1; duration: 400; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: parent; property: "scale"; from: 0.95; to: 1; duration: 400; easing.type: Easing.OutCubic }
+                }
+
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: Dimensions.spacingLG
+
+                    Text {
+                        text: "\uD83D\uDCC1"
+                        font.pixelSize: Dimensions.headlineLarge
+                    }
+
+                    Text {
+                        text: qsTr("Henüz yedeklenmiş çeviri yok")
+                        font.pixelSize: Dimensions.fontMD
+                        color: Theme.textMuted
+                    }
+                }
+            }
+
+            // Backup list
+            Repeater {
+                model: BackupManager.backups
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 72
+                    radius: Dimensions.radiusStandard
+                    color: backupItemMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.textPrimary, 0.03)
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                    border.width: 1
+
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: Dimensions.marginMS
+                        spacing: Dimensions.spacingLG
+
+                        // Game icon placeholder
+                        Rectangle {
+                            Layout.preferredWidth: 48
+                            Layout.preferredHeight: 48
+                            radius: Dimensions.radiusStandard
+                            color: Theme.surfaceActive
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.gameName ? modelData.gameName.substring(0, 2).toUpperCase() : "?"
+                                font.pixelSize: Dimensions.fontLG
+                                font.weight: Font.Bold
+                                color: Theme.textMuted
+                            }
+                        }
+
+                        // Backup info
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Dimensions.spacingXXS
+
+                            Text {
+                                text: modelData.gameName || qsTr("Bilinmeyen Oyun")
+                                font.pixelSize: Dimensions.fontMD
+                                font.weight: Font.Medium
+                                color: Theme.textPrimary
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: {
+                                    var date = new Date(modelData.createdAt)
+                                    return date.toLocaleDateString("tr-TR") + " - " +
+                                           (modelData.sizeBytes > 1048576
+                                            ? (modelData.sizeBytes / 1048576).toFixed(1) + " MB"
+                                            : (modelData.sizeBytes / 1024).toFixed(0) + " KB")
+                                }
+                                font.pixelSize: Dimensions.fontSM
+                                color: Theme.textMuted
+                            }
+                        }
+
+                        // Restore button
+                        Rectangle {
+                            Layout.preferredWidth: restoreBtnContent.width + 20
+                            Layout.preferredHeight: 32
+                            radius: Dimensions.radiusStandard
+                            color: restoreBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
+                            scale: restoreBtnMouse.pressed ? 0.92 : 1.0
+
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Restore backup")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: BackupManager.restoreBackup(modelData.id, modelData.originalPath)
+                            Keys.onSpacePressed: BackupManager.restoreBackup(modelData.id, modelData.originalPath)
+
+                            Row {
+                                id: restoreBtnContent
+                                anchors.centerIn: parent
+                                spacing: Dimensions.spacingSM
+
+                                Text {
+                                    text: "\u21A9"
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.textOnColor
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    text: qsTr("Geri Al")
+                                    font.pixelSize: Dimensions.fontSM
+                                    font.weight: Font.Medium
+                                    color: Theme.textOnColor
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            // Focus indicator
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -1
+                                radius: parent.radius + 1
+                                color: "transparent"
+                                border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                border.width: 2
+                                visible: parent.activeFocus
+                            }
+
+                            MouseArea {
+                                id: restoreBtnMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    BackupManager.restoreBackup(modelData.id, modelData.originalPath)
+                                }
+                            }
+                        }
+
+                        // Delete button
+                        Rectangle {
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
+                            radius: Dimensions.radiusStandard
+                            color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.15) : "transparent"
+                            scale: deleteBtnMouse.pressed ? 0.85 : 1.0
+
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+
+                            Accessible.role: Accessible.Button
+                            Accessible.name: qsTr("Delete backup")
+                            activeFocusOnTab: true
+                            Keys.onReturnPressed: BackupManager.deleteBackup(modelData.id)
+                            Keys.onSpacePressed: BackupManager.deleteBackup(modelData.id)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\uD83D\uDDD1"
+                                font.pixelSize: Dimensions.fontMD
+                            }
+
+                            // Focus indicator
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -1
+                                radius: parent.radius + 1
+                                color: "transparent"
+                                border.color: Theme.withAlpha(Theme.primary, 0.6)
+                                border.width: 2
+                                visible: parent.activeFocus
+                            }
+
+                            MouseArea {
+                                id: deleteBtnMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    BackupManager.deleteBackup(modelData.id)
+                                }
+                            }
+
+                            ToolTip {
+                                visible: deleteBtnMouse.containsMouse
+                                text: qsTr("Yedeği sil")
+                                delay: 500
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: backupItemMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                    }
+                }
+            }
+        }
+    }
+
+    // Restore status indicator
+    SettingsCard {
+        Layout.fillWidth: true
+        visible: BackupManager.isRestoring
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Dimensions.spacingLG
+
+            BusyIndicator {
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                running: BackupManager.isRestoring
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
+                font.pixelSize: Dimensions.fontMD
+                color: Theme.textPrimary
+                elide: Text.ElideRight
+            }
+        }
+    }
+}
