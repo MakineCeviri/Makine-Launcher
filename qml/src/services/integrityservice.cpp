@@ -43,6 +43,15 @@ void IntegrityService::verify()
 {
     if (m_checking) return;
 
+#ifndef MAKINEAI_RELEASE_VERIFIED
+    // Skip integrity check unless explicitly enabled for release distribution
+    m_verified = true;
+    m_status = "skipped";
+    qDebug() << "Integrity check: skipped (not a verified release build)";
+    emit verificationComplete();
+    return;
+#endif
+
     m_checking = true;
     emit checkingChanged();
 

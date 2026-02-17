@@ -317,7 +317,7 @@ ApplicationWindow {
                 }
 
                 Label {
-                    text: qsTr("Binary integrity check failed — this executable may have been modified.")
+                    text: qsTr("Bütünlük doğrulaması başarısız — bu çalıştırılabilir dosya değiştirilmiş olabilir.")
                     font.pixelSize: Dimensions.fontXS
                     font.weight: Font.Medium
                     color: Theme.warning
@@ -329,7 +329,7 @@ ApplicationWindow {
                     Layout.preferredWidth: 20
                     Layout.preferredHeight: 20
                     Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Dismiss warning")
+                    Accessible.name: qsTr("Uyarıyı kapat")
                     activeFocusOnTab: true
                     Keys.onReturnPressed: integrityBanner.visible = false
                     Keys.onSpacePressed: integrityBanner.visible = false
@@ -361,7 +361,7 @@ ApplicationWindow {
             }
 
             Accessible.role: Accessible.AlertMessage
-            Accessible.name: qsTr("Security warning: binary integrity check failed")
+            Accessible.name: qsTr("Güvenlik uyarısı: bütünlük doğrulaması başarısız")
         }
 
         // ===== NAV BAR (72px) - Native Qt NavBar =====
