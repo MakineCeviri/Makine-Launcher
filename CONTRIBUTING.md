@@ -77,7 +77,7 @@ just test
 |--------|----------|
 | `core` | C++ core library |
 | `ui` | QML/Qt arayüz |
-| `engine` | Oyun motoru desteği |
+| `build` | Build sistemi, CMake, vcpkg |
 | `ci` | CI/CD pipeline |
 | `docs` | Dokümantasyon |
 

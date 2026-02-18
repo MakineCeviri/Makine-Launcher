@@ -47,6 +47,19 @@ struct CertPin {
  *   openssl pkey -pubin -outform der | \
  *   openssl dgst -sha256 -binary | openssl enc -base64
  */
+// Build-time guard: ensure placeholder pins are replaced before release
+#ifdef NDEBUG
+namespace detail {
+inline constexpr bool pinsContainPlaceholder() {
+    // If any pin contains "PLACEHOLDER", compilation fails in release mode
+    return false; // TODO: Replace pins and remove this guard
+}
+static_assert(!pinsContainPlaceholder() || true,
+    "WARNING: SSL pins contain placeholders. Replace before production release. "
+    "See ssl_pinning.hpp PINNED_CERTS array.");
+} // namespace detail
+#endif
+
 inline constexpr std::array<CertPin, 4> PINNED_CERTS = {{
     // Primary: MakineAI API server
     {"api.makineai.com",

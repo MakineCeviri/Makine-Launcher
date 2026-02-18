@@ -27,10 +27,10 @@ MakineAI'nin sistem mimarisini açıklar.
 │  │  Adaptasyon Motoru    (henuz gelistirilmedi)     │ │
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
-│            C++ Core Library (Opsiyonel)                │
+│              C++ Core Library                          │
 │  GameDetector │ PatchEngine │ PackageManager          │
 │  AssetParser │ VersionTracker │ Security              │
-│  (MSVC, vcpkg — sadece release build)                 │
+│  (vcpkg — dev: MinGW, release: MSVC)                  │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -181,11 +181,12 @@ Degisiklik haritasina gore:
 
 | Mod | Derleyici | Özellikler |
 |-----|----------|------------|
-| UI_ONLY (`dev`) | MinGW | Gerçek oyun tarama, yerel paket kurulumu, saf Qt |
-| Full (`release`) | MSVC | + Core kütüphane, + vcpkg bağımlılıkları |
+| Core+UI (`dev`) | MinGW+vcpkg | Gerçek oyun tarama, yerel paket kurulumu, Core kütüphane |
+| Core+UI (`release`) | MSVC+vcpkg | Aynı özellikler, optimizasyonlu |
+| UI_ONLY (`dev-ui`) | MinGW | Core olmadan, sadece Qt servisleri (vcpkg gereksiz) |
 
-UI_ONLY modda tüm temel özellikler çalışır. Core kütüphane sadece
-ileri adaptasyon özellikleri için gereklidir.
+`dev` preset günlük geliştirme için önerilir (Core+UI). `dev-ui` sadece
+hızlı QML iterasyonu gerektiğinde kullanılır.
 
 ---
 

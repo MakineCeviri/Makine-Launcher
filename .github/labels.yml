@@ -73,7 +73,7 @@
 
 - name: "scope: translation"
   color: "006b75"
-  description: "Çeviri sistemi (TM, QA, Glossary)"
+  description: "Çeviri dağıtım ve adaptasyon sistemi"
 
 - name: "scope: security"
   color: "ee0701"

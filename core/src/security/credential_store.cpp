@@ -27,7 +27,11 @@ VoidResult CredentialStore::save(const std::string& key, const std::string& valu
     CREDENTIALW cred{};
     cred.Type = CRED_TYPE_GENERIC;
 
-    std::wstring wTarget(target.begin(), target.end());
+    // M-4: Proper UTF-8 to wide string conversion (handles non-ASCII chars)
+    int wLen = MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, nullptr, 0);
+    std::wstring wTarget(wLen > 0 ? wLen - 1 : 0, L'\0');
+    if (wLen > 0)
+        MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, wTarget.data(), wLen);
     cred.TargetName = const_cast<LPWSTR>(wTarget.c_str());
 
     cred.CredentialBlobSize = static_cast<DWORD>(value.size());
@@ -60,7 +64,11 @@ VoidResult CredentialStore::save(const std::string& key, const std::string& valu
 std::optional<std::string> CredentialStore::load(const std::string& key) {
 #ifdef _WIN32
     std::string target = makeTarget(key);
-    std::wstring wTarget(target.begin(), target.end());
+    // M-4: Proper UTF-8 to wide string conversion (handles non-ASCII chars)
+    int wLen = MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, nullptr, 0);
+    std::wstring wTarget(wLen > 0 ? wLen - 1 : 0, L'\0');
+    if (wLen > 0)
+        MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, wTarget.data(), wLen);
 
     PCREDENTIALW pCred = nullptr;
     if (!CredReadW(wTarget.c_str(), CRED_TYPE_GENERIC, 0, &pCred)) {
@@ -85,7 +93,11 @@ std::optional<std::string> CredentialStore::load(const std::string& key) {
 VoidResult CredentialStore::remove(const std::string& key) {
 #ifdef _WIN32
     std::string target = makeTarget(key);
-    std::wstring wTarget(target.begin(), target.end());
+    // M-4: Proper UTF-8 to wide string conversion (handles non-ASCII chars)
+    int wLen = MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, nullptr, 0);
+    std::wstring wTarget(wLen > 0 ? wLen - 1 : 0, L'\0');
+    if (wLen > 0)
+        MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, wTarget.data(), wLen);
 
     if (!CredDeleteW(wTarget.c_str(), CRED_TYPE_GENERIC, 0)) {
         DWORD error = GetLastError();
@@ -112,7 +124,11 @@ VoidResult CredentialStore::remove(const std::string& key) {
 bool CredentialStore::exists(const std::string& key) {
 #ifdef _WIN32
     std::string target = makeTarget(key);
-    std::wstring wTarget(target.begin(), target.end());
+    // M-4: Proper UTF-8 to wide string conversion (handles non-ASCII chars)
+    int wLen = MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, nullptr, 0);
+    std::wstring wTarget(wLen > 0 ? wLen - 1 : 0, L'\0');
+    if (wLen > 0)
+        MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, wTarget.data(), wLen);
 
     PCREDENTIALW pCred = nullptr;
     if (CredReadW(wTarget.c_str(), CRED_TYPE_GENERIC, 0, &pCred)) {

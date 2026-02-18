@@ -39,10 +39,10 @@ body:
       label: Kategori
       options:
         - UI/UX
-        - Çeviri Motoru
+        - Çeviri Dağıtım (paket kurulum/katalog)
+        - Adaptasyon Motoru (güncelleme tespiti)
         - Oyun Desteği
         - Performans
-        - Entegrasyon
         - Diğer
     validations:
       required: true

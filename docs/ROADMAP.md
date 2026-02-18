@@ -1,6 +1,6 @@
 # MakineAI Yol Haritası
 
-**Son Güncelleme:** 2026-02-12
+**Son Güncelleme:** 2026-02-18
 
 ---
 
@@ -137,8 +137,8 @@ Aşağıdaki özellikler mevcut yönle uyumsuz veya önceliği düşük:
 ### Geliştirme
 - Qt 6.10.1 + MinGW 13.1.0
 - Visual Studio 2022 (Core için MSVC)
-- CMake 3.25+ + Ninja
-- vcpkg (18 bağımlılık)
+- CMake 3.28+ + Ninja
+- vcpkg (19 bağımlılık)
 
 ### DevOps
 - GitHub Actions (CI/CD)
@@ -149,14 +149,24 @@ Aşağıdaki özellikler mevcut yönle uyumsuz veya önceliği düşük:
 
 ---
 
-## Son Değişiklikler (2026-02-12)
+## Son Değişiklikler
 
-Kapsamlı kod ve doküman temizliği:
+### 2026-02-18: Kod kalitesi & performans
+- Güvenlik denetimi (14 bulgu düzeltildi)
+- Modülerlik iyileştirmeleri (GameService decoupling, detail/ header yapısı)
+- Kod minimizasyonu (gereksiz yorumlar, kullanılmayan import'lar)
+- Qt Quick performans optimizasyonları (Image sourceSize, redundant clip)
+- Dokümantasyon güncellemesi (build preset açıklamaları, Core entegrasyon durumu)
+
+### 2026-02-14: Dead code temizliği
+- GameListModel, dead Q_INVOKABLE/Q_PROPERTY/signal'lar kaldırıldı
+- Dimensions.qml 76 dead property, DebugHelper.qml 7 dead fonksiyon kaldırıldı
+
+### 2026-02-12: Büyük temizlik
 - ~32K satır dead code kaldırıldı (handler'lar, TM, Glossary, QA, Pipeline)
 - 13 ölü QML bileşeni silindi
 - Veri hataları düzeltildi (D2R fallback mapping, Vulkan probe UB)
 - Build system temizlendi (gereksiz lib, Qt modülleri)
-- Geçersiz dokümanlar silindi, kalanlar güncellendi
 - ADR-0006 oluşturuldu (adaptasyon motoru yön değişikliği)
 
 ---

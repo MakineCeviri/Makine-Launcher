@@ -12,8 +12,7 @@
 Bir güvenlik açığı bulduysanız:
 
 1. **Herkese açık issue AÇMAYIN**
-2. E-posta gönderin: security@makineai.com
-3. Veya GitHub Security Advisories kullanın
+2. [GitHub Security Advisories](https://github.com/jlceaser/MakineAI/security/advisories/new) kullanın
 
 ### Beklenen Bilgiler
 
@@ -42,7 +41,5 @@ Güvenlik açığı olarak kabul edilenler:
 Güvenlik açığı bildiren katkıcılar burada listelenecektir.
 
 ---
-
-Teknik güvenlik detayları için: [Güvenlik Modeli](../docs/security/security-model.md)
 
 Sorumlu açıklama için teşekkür ederiz!

@@ -224,6 +224,7 @@ Item {
                                 g.headerImageUrl || ""
                             )
                         }
+                        sourceSize: Qt.size(1200, 680)
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true

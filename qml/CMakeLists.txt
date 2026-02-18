@@ -192,50 +192,47 @@ qt_add_qml_module(MakineAI
         qml/theme/Dimensions.qml
         qml/theme/DebugHelper.qml
 
-        # Components - Cards
-        qml/components/AnimatedGradientGlow.qml
-        qml/components/GameCard.qml
-        qml/components/GameCardSkeleton.qml
-        qml/components/GameStatusCard.qml
-        qml/components/AnnouncementCard.qml
-        qml/components/PatchCard.qml
-        qml/components/SettingsCard.qml
-
-        # Components - Navigation & Layout
-        qml/components/TitleBar.qml
-        qml/components/TurkishFlagBadge.qml
-        qml/components/NavBar.qml
-        qml/components/NavItem.qml
-        qml/components/WindowResizeHandles.qml
-        qml/components/SettingsSidebar.qml
-
-        # Components - Notifications
-        qml/components/NotificationPanel.qml
-        qml/components/NotificationToast.qml
-        qml/components/NotificationBanner.qml
-
-        # Components - Drag & Drop
-        qml/components/DropZoneOverlay.qml
-
-        # Components - Visual
-        qml/components/SkeletonLoader.qml
-        qml/components/PerformanceMonitor.qml
-        qml/components/GradientBorderCanvas.qml
-
-        # Components - Settings UI
-        qml/components/ToggleSetting.qml
-        qml/components/ThemeSetting.qml
-        qml/components/InfoSettingWithBadge.qml
-        qml/components/DisabledSetting.qml
-        qml/components/SettingsDivider.qml
-        qml/components/ClickableRow.qml
-
-        # Components - Projects Page
-        qml/components/ProjectShowcaseCard.qml
-
-        # Components - List Items
-        qml/components/CategoryItem.qml
-        qml/components/BatchOperationsPanel.qml
+        # ── Reusable Components (public API — used across multiple screens) ──
+        #
+        # Cards: Data display containers
+        qml/components/GameCard.qml              # Game item in grid/list
+        qml/components/GameCardSkeleton.qml      # Loading placeholder for GameCard
+        qml/components/GameStatusCard.qml         # Game status display
+        qml/components/AnnouncementCard.qml       # News/announcement display
+        qml/components/PatchCard.qml              # Translation patch info
+        qml/components/ProjectShowcaseCard.qml    # Showcase project display
+        #
+        # Navigation: Window chrome and nav
+        qml/components/TitleBar.qml               # Custom frameless title bar
+        qml/components/NavBar.qml                 # Bottom navigation bar
+        qml/components/NavItem.qml                # Navigation tab item
+        qml/components/WindowResizeHandles.qml    # Frameless window resize
+        #
+        # Notifications: User feedback
+        qml/components/NotificationPanel.qml      # Notification list panel
+        qml/components/NotificationToast.qml      # Single toast notification
+        qml/components/NotificationBanner.qml     # Banner notification
+        #
+        # Visual: Decorative and feedback
+        qml/components/AnimatedGradientGlow.qml   # Animated glow effect
+        qml/components/GradientBorderCanvas.qml   # Gradient border drawing
+        qml/components/SkeletonLoader.qml         # Generic loading skeleton
+        qml/components/DropZoneOverlay.qml        # Drag & drop overlay
+        qml/components/TurkishFlagBadge.qml       # TR flag indicator
+        #
+        # ── Internal Components (settings/detail screens only) ──
+        #
+        qml/components/SettingsCard.qml           # Settings group container
+        qml/components/SettingsSidebar.qml        # Settings nav sidebar
+        qml/components/SettingsDivider.qml        # Settings section divider
+        qml/components/ToggleSetting.qml          # Toggle switch setting
+        qml/components/ThemeSetting.qml           # Theme picker setting
+        qml/components/InfoSettingWithBadge.qml   # Info display with badge
+        qml/components/DisabledSetting.qml        # Disabled/locked setting
+        qml/components/ClickableRow.qml           # Clickable list row
+        qml/components/CategoryItem.qml           # Category filter item
+        qml/components/BatchOperationsPanel.qml   # Batch ops control
+        qml/components/PerformanceMonitor.qml     # Dev-only perf overlay
 
         # Dialogs
         qml/dialogs/AllGamesDialog.qml
@@ -371,6 +368,33 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN
     )
 
+    # Security hardening & AV false-positive reduction
+    if(MSVC)
+        target_compile_options(MakineAI PRIVATE
+            /GS             # Buffer security check (stack cookies)
+            /guard:cf       # Control Flow Guard
+            /sdl            # Additional security checks
+            /Qspectre       # Spectre mitigation
+        )
+        target_link_options(MakineAI PRIVATE
+            /DYNAMICBASE        # ASLR
+            /HIGHENTROPYVA      # High-entropy 64-bit ASLR
+            /NXCOMPAT           # Data Execution Prevention (DEP)
+            /INTEGRITYCHECK     # PE integrity check — AV trusts this
+            /CETCOMPAT          # Intel CET shadow stack compatibility
+        )
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(MakineAI PRIVATE
+            -fstack-protector-strong
+            -D_FORTIFY_SOURCE=2
+        )
+        target_link_options(MakineAI PRIVATE
+            -Wl,--dynamicbase       # ASLR
+            -Wl,--high-entropy-va   # High-entropy ASLR
+            -Wl,--nxcompat          # DEP
+        )
+    endif()
+
     # Link Windows libraries for process scanning, system tray, and crypto
     target_link_libraries(MakineAI PRIVATE
         psapi
@@ -378,6 +402,7 @@ if(WIN32)
         Advapi32
         User32
         Crypt32
+        Wintrust     # Authenticode verification
     )
 endif()
 

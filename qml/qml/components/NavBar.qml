@@ -74,6 +74,7 @@ Rectangle {
                     id: logoImage
                     anchors.fill: parent
                     source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
+                    sourceSize: Qt.size(64, 64)
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     mipmap: true

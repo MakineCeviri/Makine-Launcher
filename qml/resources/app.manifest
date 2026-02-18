@@ -9,6 +9,15 @@
 
   <description>MakineAI - Turkish Game Translation Launcher</description>
 
+  <!-- UAC: Run as invoker (no elevation) — reduces AV false positives -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
   <!-- DPI Awareness: Per-Monitor V2 for crisp rendering on all displays -->
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>

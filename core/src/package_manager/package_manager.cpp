@@ -256,6 +256,7 @@ Result<ByteBuffer> Downloader::download(
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Impl::writeCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent_.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
@@ -357,6 +358,7 @@ VoidResult Downloader::downloadToFile(
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Impl::writeFileCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent_.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);

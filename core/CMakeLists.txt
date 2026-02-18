@@ -162,6 +162,9 @@ set(MAKINEAI_HEADERS
     include/makineai/health.hpp
     include/makineai/debug.hpp
     include/makineai/string_pool.hpp
+    include/makineai/detail/debug.hpp
+    include/makineai/detail/string_pool.hpp
+    include/makineai/detail/mio_utils.hpp
     include/makineai/audit.hpp
     include/makineai/version.hpp
     include/makineai/memory.hpp
@@ -207,6 +210,13 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
         -fstack-protector-strong     # Stack smashing protection
         -D_FORTIFY_SOURCE=2          # Buffer overflow detection
         -Wformat -Wformat-security   # Format string warnings
+        -fPIE                        # Position-independent executable
+    )
+    # M-15: Linker hardening flags
+    target_link_options(makineai_core PRIVATE
+        -Wl,-z,relro                 # Partial RELRO (read-only relocations)
+        -Wl,-z,now                   # Full RELRO (resolve all symbols at load time)
+        -Wl,-z,noexecstack           # Non-executable stack
     )
 endif()
 

@@ -40,6 +40,8 @@ MinSizeRel/
 ipch/
 *.VC.db
 *.VC.VC.opendb
+*.vsidx
+*.sarif
 
 # Qt Creator
 *.pro.user*
@@ -217,6 +219,7 @@ secrets.toml
 *.pem
 *.p12
 *.pfx
+scripts/certs/
 credentials.json
 credentials.yaml
 credentials.yml
@@ -241,21 +244,18 @@ htmlcov/
 # Translation data (large, separate repo)
 translation_data/
 
-# AI assistants
+# AI assistants (personal/local only)
 .claude/
-CLAUDE.md
+.claude.local.md
 
 # Documentation build output
 docs/_build/
 docs/html/
 docs/latex/
 
-# Installer outputs
-installer/output/
+# Distribution outputs
 dist/
-*.msi
-*.msix
-*.appx
+dist-static/
 
 # Showcase image validation cache
 scripts/showcase_validation.json

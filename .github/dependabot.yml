@@ -25,24 +25,3 @@ updates:
         patterns:
           - "*"
 
-  # npm (for commitlint and other JS tooling)
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    commit-message:
-      prefix: "build(deps)"
-    labels:
-      - "dependencies"
-    open-pull-requests-limit: 3
-
-  # pip (for pre-commit hooks)
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    commit-message:
-      prefix: "build(deps)"
-    labels:
-      - "dependencies"
-    open-pull-requests-limit: 3

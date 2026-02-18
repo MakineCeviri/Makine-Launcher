@@ -2,8 +2,8 @@
 
 MakineAI C++ Core kütüphanesinin detaylı açıklaması.
 
-> **Not:** Core kütüphane henüz UI'ya entegre edilmemiştir. `UI_ONLY` (dev) build'de
-> saf Qt servisleri kullanılır. Core sadece `release` build'de aktiftir.
+> **Not:** Core kütüphane `dev` (MinGW+vcpkg) ve `release` (MSVC+vcpkg) build'lerde
+> UI'ya entegre çalışır. `dev-ui` build'de Core devre dışıdır, saf Qt servisleri kullanılır.
 
 ---
 

@@ -1428,6 +1428,17 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
         size_t fileSize = inFile.tellg();
         inFile.seekg(0, std::ios::beg);
 
+        // M-5: Reject unreasonably large files to prevent OOM
+        constexpr size_t kMaxPatchFileSize = 512ULL * 1024 * 1024; // 512 MB
+        if (fileSize > kMaxPatchFileSize) {
+            inFile.close();
+            MAKINEAI_LOG_ERROR(log::FILE, "File too large for binary patching: {} bytes (max {})",
+                fileSize, kMaxPatchFileSize);
+            result.success = false;
+            result.error = "File too large for binary patching (max 512 MB)";
+            return result;
+        }
+
         MAKINEAI_LOG_DEBUG(log::FILE, "Read {} bytes for binary patching", fileSize);
 
         ByteBuffer data(fileSize);

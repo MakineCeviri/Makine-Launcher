@@ -1182,6 +1182,31 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
+            // H-3: Validate executable is within game or package directory (no arbitrary execution)
+            QString canonExe = QFileInfo(exePath).canonicalFilePath();
+            QString canonGame = QDir(gamePath).canonicalPath();
+            QString canonPkg = QDir(packageDir).canonicalPath();
+            if (!canonExe.startsWith(canonGame) && !canonExe.startsWith(canonPkg)) {
+                qWarning() << "Recipe run: executable outside allowed directories:" << exePath;
+                errors++;
+                continue;
+            }
+
+            // H-3: Only allow known safe executable extensions
+            static const QStringList allowedExtensions = {
+                QStringLiteral(".exe"), QStringLiteral(".bat"), QStringLiteral(".cmd")
+            };
+            QString ext = QFileInfo(exePath).suffix().toLower();
+            bool extAllowed = false;
+            for (const auto& allowed : allowedExtensions) {
+                if (allowed.endsWith(ext)) { extAllowed = true; break; }
+            }
+            if (!extAllowed) {
+                qWarning() << "Recipe run: disallowed executable type:" << ext;
+                errors++;
+                continue;
+            }
+
             emit installProgress(progress, tr("Calistiriliyor: %1").arg(QFileInfo(exePath).fileName()));
 
             // Determine working directory

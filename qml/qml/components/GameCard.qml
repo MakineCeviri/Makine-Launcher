@@ -5,8 +5,6 @@ import MakineAI 1.0
 
 /**
  * GameCard.qml - Oyun kartı komponenti
- *
- * Modern minimal hover: lift + border + brightness
  */
 Item {
     id: root
@@ -35,16 +33,13 @@ Item {
     // HOVER STATE
     readonly property bool isHovered: mouseArea.containsMouse
 
-    // Hover lift: subtle Y translate + scale
-    transform: [
-        Translate { y: root.isHovered ? -4 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
-        Scale {
-            origin.x: root.width / 2; origin.y: root.height / 2
-            xScale: root.isHovered ? 1.02 : 1.0; yScale: root.isHovered ? 1.02 : 1.0
-            Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-            Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-        }
-    ]
+    // Hover: subtle scale only
+    transform: Scale {
+        origin.x: root.width / 2; origin.y: root.height / 2
+        xScale: root.isHovered ? 1.02 : 1.0; yScale: root.isHovered ? 1.02 : 1.0
+        Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+        Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+    }
 
     // CARD CONTENT
     Rectangle {
@@ -53,65 +48,6 @@ Item {
         radius: Dimensions.cardBorderRadius
         color: Theme.surfaceLight
         clip: true
-
-        // Animated gradient border phase
-        property real borderPhase: 0
-        NumberAnimation on borderPhase {
-            from: 0; to: 1
-            duration: 8000
-            loops: Animation.Infinite
-            running: root.isHovered
-        }
-
-        // Animated rainbow gradient border
-        Canvas {
-            anchors.fill: parent
-            z: Dimensions.zContent
-            property real phase: cardContent.borderPhase
-            onPhaseChanged: if (hov) requestPaint()
-            property bool hov: root.isHovered
-            onHovChanged: requestPaint()
-
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-
-                var angle = phase * Math.PI * 2
-                var cx = width / 2, cy = height / 2
-                var len = Math.max(width, height) * 0.7
-                var x1 = cx + Math.cos(angle) * len
-                var y1 = cy + Math.sin(angle) * len
-                var x2 = cx - Math.cos(angle) * len
-                var y2 = cy - Math.sin(angle) * len
-
-                var grad = ctx.createLinearGradient(x1, y1, x2, y2)
-                var colors = Theme.brandGradient
-                for (var i = 0; i < colors.length; i++)
-                    grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
-
-                var bw = 1.5
-                var r = Dimensions.cardBorderRadius - bw / 2
-                var px = bw / 2, py = bw / 2
-                var w = width - bw, h = height - bw
-
-                ctx.beginPath()
-                ctx.moveTo(px + r, py)
-                ctx.lineTo(px + w - r, py)
-                ctx.arcTo(px + w, py, px + w, py + r, r)
-                ctx.lineTo(px + w, py + h - r)
-                ctx.arcTo(px + w, py + h, px + w - r, py + h, r)
-                ctx.lineTo(px + r, py + h)
-                ctx.arcTo(px, py + h, px, py + h - r, r)
-                ctx.lineTo(px, py + r)
-                ctx.arcTo(px, py, px + r, py, r)
-                ctx.closePath()
-
-                ctx.strokeStyle = grad
-                ctx.lineWidth = bw
-                ctx.globalAlpha = hov ? 0.8 : 0.0
-                ctx.stroke()
-            }
-        }
 
         // Mask for rounded corners
         Item {
@@ -147,10 +83,7 @@ Item {
             maskEnabled: true
             maskSource: imageMask
             visible: gameImage.status === Image.Ready
-            brightness: root.isHovered ? 0.06 : 0
             opacity: 0
-
-            Behavior on brightness { NumberAnimation { duration: Dimensions.animNormal } }
 
             // Fade in when image loads
             states: State {

@@ -100,6 +100,12 @@ ACE_WITH_REAL_KEY_BEFORE_RELEASE00000000000000000000000000000000000000
 // Set to true when the placeholder above is replaced with a real key
 static constexpr bool EMBEDDED_KEY_IS_REAL = false;
 
+// Enable this assert for production releases only (not dev/CI builds).
+// Uncomment when a real RSA key is generated and embedded above.
+// static_assert(EMBEDDED_KEY_IS_REAL,
+//     "Replace the placeholder public key with the real production RSA key "
+//     "before building a release. See security_manager.cpp line 89.");
+
 SecurityManager::SecurityManager() : impl_(std::make_unique<Impl>()) {
 #ifdef MAKINEAI_HAS_SODIUM
     if (sodium_init() < 0) {

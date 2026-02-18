@@ -136,6 +136,30 @@ package-static: release-static
     @echo "Done: MakineAI-static.zip (single EXE)"
 
 # ============================================================================
+# CODE SIGNING (Antivirus false-positive prevention)
+# ============================================================================
+
+# One-time: Create development code signing certificate (run as admin)
+setup-cert:
+    @echo "Creating MakineAI development code signing certificate..."
+    powershell -ExecutionPolicy Bypass -File scripts/create_dev_cert.ps1
+
+# Sign all built EXEs (auto-finds cert from scripts/certs/)
+sign:
+    @echo "Signing MakineAI executables..."
+    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1
+
+# Sign a specific file
+sign-file path:
+    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 -Path "{{path}}"
+
+# Build static + sign (release pipeline)
+release-signed: release-static
+    @echo "Signing release..."
+    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 -Path "qml/build/release-static/MakineAI.exe"
+    @echo "Done: signed single EXE ready for distribution"
+
+# ============================================================================
 # DEVELOPMENT
 # ============================================================================
 

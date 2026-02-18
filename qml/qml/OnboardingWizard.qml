@@ -66,38 +66,6 @@ Rectangle {
             Layout.fillHeight: true
             currentIndex: root.currentStep
 
-            // Fade+slide transition when changing steps
-            property int _prevStep: 0
-            onCurrentIndexChanged: {
-                stepTransition.target = stepStack.children[currentIndex]
-                if (stepTransition.target) {
-                    stepTransition.target.opacity = 0
-                    stepTranslateAnim.from = currentIndex > _prevStep ? 20 : -20
-                    stepTransition.restart()
-                }
-                _prevStep = currentIndex
-            }
-
-            ParallelAnimation {
-                id: stepTransition
-                property var target
-                NumberAnimation {
-                    target: stepTransition.target
-                    property: "opacity"
-                    from: 0; to: 1
-                    duration: 280
-                    easing.type: Easing.OutCubic
-                }
-                NumberAnimation {
-                    id: stepTranslateAnim
-                    target: stepTransition.target
-                    property: "x"
-                    from: 20; to: 0
-                    duration: 280
-                    easing.type: Easing.OutCubic
-                }
-            }
-
             WelcomeStep {
                 onNextStep: root.currentStep = 1
             }
@@ -136,8 +104,6 @@ Rectangle {
                              : index < root.currentStep ? Theme.withAlpha(Theme.success, 0.6)
                              : Theme.withAlpha(Theme.surfaceActive, 0.5)
 
-                        Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                 }
             }
@@ -150,7 +116,6 @@ Rectangle {
                 text: root.currentStep === 0 ? qsTr("Atla") : qsTr("Devam Et")
                 font.pixelSize: 13
                 color: skipMa.containsMouse ? Theme.textSecondary : Theme.textMuted
-                Behavior on color { ColorAnimation { duration: 150 } }
 
                 MouseArea {
                     id: skipMa

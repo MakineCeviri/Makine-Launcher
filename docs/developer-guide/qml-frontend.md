@@ -33,8 +33,7 @@ qml/
 │   │   ├── integrityservice.h
 │   │   ├── batchoperationservice.h
 │   │   └── updatedetectionservice.h
-│   └── models/               # Qt modelleri
-│       └── gamelistmodel.h
+│   └── models/               # Qt veri modelleri
 │
 ├── qml/
 │   ├── Main.qml              # Ana pencere

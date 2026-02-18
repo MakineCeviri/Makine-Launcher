@@ -43,7 +43,8 @@ GameService::GameService(QObject *parent)
 
     // Start monitoring after first scan completes
     connect(this, &GameService::scanCompleted, this, [this](int) {
-        m_updateService->startMonitoring();
+        if (m_updateService)
+            m_updateService->startMonitoring();
     }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 }
 
@@ -144,11 +145,13 @@ void GameService::setupCoreBridge()
 
                             // Record store version + take file snapshot
                             const auto& game = m_games[idx];
-                            auto pkg = m_coreBridge->getPackageForGame(gameId);
-                            QString patchVer = pkg.has_value() ? pkg->version : "unknown";
-                            m_updateService->recordStoreVersion(gameId, game.installPath, game.source);
-                            m_updateService->takeSnapshot(gameId, patchVer, game.installPath, game.engine);
-                            m_updateService->clearUpdate(gameId);
+                            if (m_updateService) {
+                                auto pkg = m_coreBridge->getPackageForGame(gameId);
+                                QString patchVer = pkg.has_value() ? pkg->version : "unknown";
+                                m_updateService->recordStoreVersion(gameId, game.installPath, game.source);
+                                m_updateService->takeSnapshot(gameId, patchVer, game.installPath, game.engine);
+                                m_updateService->clearUpdate(gameId);
+                            }
                         }
                     }
                 }
@@ -195,13 +198,11 @@ void GameService::onScanCompleted(int count)
         game.isVerified = detected.isVerified;
         game.isInstalled = true;
 
-        // Check for translation package
         game.hasTranslation = m_coreBridge->hasTranslationPackage(detected.id);
 
         m_games.append(game);
     }
 
-    // Rebuild lookup cache after loading games
     rebuildCache();
 
     m_isScanning = false;
@@ -392,7 +393,6 @@ QString GameService::classifyDroppedUrls(const QVariantList& urls) const
             return QStringLiteral("archive");
     }
 
-    // Check if first URL looks like a folder (no extension)
     const QString first = urls.first().toString();
     if (!first.contains(QLatin1Char('.')) ||
         first.endsWith(QLatin1Char('/')) ||
@@ -444,10 +444,8 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
         return;
     }
 
-    // Prevent duplicate requests
     if (m_pendingFetches.contains(steamAppId)) return;
 
-    // Check cache (not expired)
     auto cacheIt = m_steamDetailsCache.constFind(steamAppId);
     if (cacheIt != m_steamDetailsCache.constEnd() && !cacheIt->isExpired()) {
         emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(*cacheIt));
@@ -699,13 +697,11 @@ void GameService::loadCachedGames()
         game.isInstalled = obj["isInstalled"].toBool();
         game.hasTranslation = obj["hasTranslation"].toBool();
 
-        // Validate required fields
         if (!game.id.isEmpty() && !game.name.isEmpty()) {
             m_games.append(game);
         }
     }
 
-    // Build lookup index
     rebuildCache();
 
     qDebug() << "Loaded" << m_games.count() << "games from cache";
@@ -860,14 +856,12 @@ bool GameService::isValidGamePath(const QString& path) const
         return false;
     }
 
-    // Check absolute path
     QFileInfo info(path);
     if (!info.isAbsolute()) {
         qWarning() << "Relative path not allowed:" << path;
         return false;
     }
 
-    // Verify it's a directory
     if (!info.isDir()) {
         qWarning() << "Path is not a directory:" << path;
         return false;
@@ -910,7 +904,6 @@ void GameService::handleDroppedFiles(const QVariantList& urls) {
         }
 
         if (info.isDir()) {
-            // Folder dropped — try to detect as game directory
             qDebug() << "Folder dropped:" << filePath;
             addManualGame(filePath);
             emit folderDropped(filePath, true);
@@ -1005,14 +998,12 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         return;
     }
 
-    // Prevent concurrent installs
     if (!m_installingGameId.isEmpty()) {
         emit translationInstallCompleted(gameId, false,
             tr("Another installation is in progress"));
         return;
     }
 
-    // Look up game info
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
         emit translationInstallCompleted(gameId, false, tr("Game not found: %1").arg(gameId));
@@ -1021,7 +1012,6 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
     const GameInfo& game = m_games[*it];
 
-    // Check if package exists for this game
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
         emit translationInstallCompleted(gameId, false,
@@ -1029,7 +1019,6 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         return;
     }
 
-    // Verify install path exists
     if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
         emit translationInstallCompleted(gameId, false,
             tr("Game install path not found: %1").arg(game.installPath));
@@ -1120,8 +1109,10 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         invalidateCache();
         emit gamesChanged();
 
-        m_updateService->removeSnapshot(gameId);
-        m_updateService->removeStoreVersion(gameId);
+        if (m_updateService) {
+            m_updateService->removeSnapshot(gameId);
+            m_updateService->removeStoreVersion(gameId);
+        }
     }
 
     emit translationUninstalled(gameId, success,
@@ -1131,6 +1122,7 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
 
 void GameService::setUpdateMonitoringEnabled(bool enabled)
 {
+    if (!m_updateService) return;
     if (enabled)
         m_updateService->startMonitoring();
     else
@@ -1139,16 +1131,18 @@ void GameService::setUpdateMonitoringEnabled(bool enabled)
 
 int GameService::gameUpdateCount() const
 {
-    return m_updateService->gamesWithUpdates();
+    return m_updateService ? m_updateService->gamesWithUpdates() : 0;
 }
 
 bool GameService::hasGameUpdate(const QString& gameId) const
 {
-    return m_updateService->hasUpdate(gameId);
+    return m_updateService ? m_updateService->hasUpdate(gameId) : false;
 }
 
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
+    if (!m_updateService)
+        return {{"level", "unknown"}, {"summary", "Update detection unavailable"}};
     return m_updateService->checkCompatibility(gameId);
 }
 
@@ -1170,7 +1164,6 @@ QVariantMap GameService::getRuntimeStatus(const QString& gameId)
 
 void GameService::installRuntime(const QString& gameId)
 {
-    Q_UNUSED(gameId)
     QTimer::singleShot(100, this, [this, gameId]() {
         emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
     });
@@ -1178,7 +1171,6 @@ void GameService::installRuntime(const QString& gameId)
 
 void GameService::uninstallRuntime(const QString& gameId)
 {
-    Q_UNUSED(gameId)
     QTimer::singleShot(100, this, [this, gameId]() {
         emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
     });

@@ -155,8 +155,8 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: root.title + " - " + root.status
     activeFocusOnTab: true
-    Keys.onSpacePressed: {}
-    Keys.onReturnPressed: {}
+    Keys.onSpacePressed: root.clicked()
+    Keys.onReturnPressed: root.clicked()
 
     // Focus indicator
     Rectangle {

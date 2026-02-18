@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 import MakineAI 1.0
 
 /**
- * AllGamesDialog.qml - Full-screen overlay showing all supported games
- * with search capability. Card style matches HomeScreen GameCards.
+ * AllGamesDialog.qml - All supported games overlay
+ *
+ * Lightweight: no MultiEffect, no layer.enabled, no Canvas per card.
+ * Images resolve through ImageCache (qrc first, then CDN fallback).
  */
 Dialog {
     id: root
@@ -17,7 +18,6 @@ Dialog {
 
     signal gameSelected(string gameId)
 
-    // Shared context menu data (one Menu for all cards instead of per-delegate)
     property var _ctxGameData: null
 
     Timer {
@@ -30,20 +30,42 @@ Dialog {
         ? root.games
         : GameService.filterGames(activeSearchText)
 
+    // Progressive reveal — cards load in batches
+    property int revealCount: 0
+    property var displayedGames: {
+        var all = filteredGames
+        if (!all || all.length === 0) return []
+        var n = Math.min(revealCount, all.length)
+        return Array.prototype.slice.call(all, 0, n)
+    }
+
+    Timer {
+        id: revealTimer
+        interval: 40
+        repeat: true
+        onTriggered: {
+            if (root.revealCount < root.filteredGames.length)
+                root.revealCount += 12
+            else
+                stop()
+        }
+    }
+
+    onFilteredGamesChanged: {
+        revealCount = 0
+        revealTimer.restart()
+    }
+
     title: qsTr("Tüm Desteklenen Oyunlar")
     modal: true
     closePolicy: Popup.CloseOnEscape
-    // Tight-fit: exactly 4 columns
+
     readonly property int _cellW: Dimensions.cardWidth + Dimensions.cardGap
     width: 4 * _cellW + Dimensions.marginLG * 2
     height: parent ? Math.min(640, parent.height - 64) : 600
     x: parent ? (parent.width - width) / 2 : 0
     y: parent ? (parent.height - height) / 2 : 0
-    padding: 0
-    topPadding: 0
-    bottomPadding: 0
-    leftPadding: 0
-    rightPadding: 0
+    padding: 0; topPadding: 0; bottomPadding: 0; leftPadding: 0; rightPadding: 0
 
     background: Rectangle {
         color: Theme.surface
@@ -52,16 +74,19 @@ Dialog {
         border.width: 1
     }
 
-    onOpened: searchField.forceActiveFocus()
-    onClosed: { searchField.text = ""; searchText = ""; activeSearchText = "" }
+    onOpened: {
+        searchField.forceActiveFocus()
+        revealCount = 0
+        revealTimer.restart()
+    }
+    onClosed: { searchField.text = ""; searchText = ""; activeSearchText = ""; revealCount = 0 }
 
     header: null
     footer: null
 
-    // Shared context menu — ONE instance for all cards (not per-delegate)
+    // Shared context menu
     Menu {
         id: sharedContextMenu
-
         Overlay.modal: Rectangle { color: "transparent" }
 
         background: Rectangle {
@@ -118,9 +143,7 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 0
 
-        // ================================================================
-        // TOP BAR
-        // ================================================================
+        // ===== TOP BAR =====
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 56
@@ -132,7 +155,6 @@ Dialog {
                 anchors.rightMargin: Dimensions.marginMS
                 spacing: Dimensions.spacingXL
 
-                // Title
                 ColumnLayout {
                     spacing: 1
                     Layout.alignment: Qt.AlignVCenter
@@ -145,7 +167,7 @@ Dialog {
                         font.letterSpacing: Dimensions.letterSpacingHeadline
                     }
                     Text {
-                        text: qsTr("%1 oyun").arg(filteredGames.length)
+                        text: qsTr("%1 oyun").arg(root.filteredGames.length)
                         font.pixelSize: Dimensions.fontXS
                         color: Theme.textMuted
                     }
@@ -153,7 +175,7 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                // Search — minimal underline style
+                // Search
                 Item {
                     Layout.preferredWidth: 200
                     Layout.preferredHeight: 32
@@ -171,7 +193,7 @@ Dialog {
                         clip: true
                         selectByMouse: true
                         Accessible.role: Accessible.EditableText
-                        Accessible.name: qsTr("Search games")
+                        Accessible.name: qsTr("Oyun ara")
                         onTextChanged: {
                             root.searchText = text
                             searchDebounce.restart()
@@ -179,7 +201,7 @@ Dialog {
 
                         Text {
                             anchors.fill: parent
-                            text: qsTr("Ara...  (Ctrl+K)")
+                            text: qsTr("Türkçe Yama Ara...")
                             font.pixelSize: Dimensions.fontSM
                             color: Theme.textMuted
                             visible: !searchField.text && !searchField.activeFocus
@@ -187,7 +209,6 @@ Dialog {
                         }
                     }
 
-                    // Underline
                     Rectangle {
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -196,17 +217,13 @@ Dialog {
                         color: searchField.activeFocus
                                ? Theme.primary
                                : Theme.withAlpha(Theme.textPrimary, 0.1)
-                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                        Behavior on height { NumberAnimation { duration: Dimensions.animFast } }
                     }
 
-                    // Clear
                     Rectangle {
                         id: clearBtn
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 18; height: 18
-                        radius: 9
+                        width: 18; height: 18; radius: 9
                         color: clearMa.containsMouse
                                ? Theme.withAlpha(Theme.textPrimary, 0.1) : "transparent"
                         visible: searchField.text.length > 0
@@ -236,7 +253,7 @@ Dialog {
                     color: closeMa.containsMouse
                            ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
                     Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Close")
+                    Accessible.name: qsTr("Kapat")
                     activeFocusOnTab: true
                     Keys.onReturnPressed: root.close()
                     Keys.onSpacePressed: root.close()
@@ -276,9 +293,7 @@ Dialog {
             }
         }
 
-        // ================================================================
-        // GAME GRID (virtualized — only visible cards are created)
-        // ================================================================
+        // ===== GAME GRID =====
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -296,9 +311,15 @@ Dialog {
                 clip: true
                 cellWidth: parent.effectiveCellW
                 cellHeight: parent.effectiveCellH
-                cacheBuffer: 300
+                cacheBuffer: 600
                 boundsBehavior: Flickable.StopAtBounds
-                model: root.filteredGames
+                model: root.displayedGames
+
+                // Update images when CDN downloads complete
+                Connections {
+                    target: ImageCache
+                    function onImageReady() { gamesGrid.forceLayout() }
+                }
 
                 ScrollBar.vertical: ScrollBar {
                     policy: ScrollBar.AsNeeded
@@ -316,14 +337,18 @@ Dialog {
                     width: gamesGrid.cellWidth
                     height: gamesGrid.cellHeight
 
-                    // ---- Game Card (HomeScreen GameCard hover style) ----
-                    Item {
+                    Rectangle {
                         id: card
                         width: Dimensions.cardWidth
                         height: Dimensions.cardHeight
                         anchors.horizontalCenter: parent.horizontalCenter
+                        radius: Dimensions.cardBorderRadius
+                        color: Theme.surface
+                        layer.enabled: true
+                        scale: cardMa.containsMouse ? 1.02 : 1.0
+
                         Accessible.role: Accessible.Button
-                        Accessible.name: modelData.name || qsTr("Unknown")
+                        Accessible.name: modelData.name || ""
                         activeFocusOnTab: true
                         Keys.onReturnPressed: cardAction()
                         Keys.onSpacePressed: cardAction()
@@ -333,233 +358,117 @@ Dialog {
                             root.close()
                         }
 
-                        property bool hov: cardMa.containsMouse
-
-                        // Hover lift: Y translate + scale (matches GameCard)
-                        transform: [
-                            Translate { y: card.hov ? -4 : 0; Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } } },
-                            Scale {
-                                origin.x: card.width / 2; origin.y: card.height / 2
-                                xScale: card.hov ? 1.02 : 1.0; yScale: card.hov ? 1.02 : 1.0
-                                Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-                                Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-                            }
-                        ]
-
-                        Rectangle {
-                            id: cardClip
+                        // Game image — qrc first, CDN fallback
+                        Image {
+                            id: img
                             anchors.fill: parent
-                            radius: Dimensions.cardBorderRadius
-                            color: Theme.surface
-                            clip: true
-
-                            // Animated gradient border phase
-                            property real borderPhase: 0
-                            NumberAnimation on borderPhase {
-                                from: 0; to: 1
-                                duration: 8000
-                                loops: Animation.Infinite
-                                running: card.hov
+                            source: {
+                                var appId = modelData.steamAppId || ""
+                                var url = modelData.headerImageUrl || ""
+                                return ImageCache.resolve(appId, url) || url
                             }
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
+                            asynchronous: true
+                            cache: true
+                        }
 
-                            // Animated rainbow gradient border (matches GameCard)
-                            Canvas {
-                                anchors.fill: parent
-                                z: Dimensions.zContent
-                                property real phase: cardClip.borderPhase
-                                onPhaseChanged: if (hov) requestPaint()
-                                property bool hov: card.hov
-                                onHovChanged: requestPaint()
+                        // Placeholder
+                        Rectangle {
+                            anchors.fill: parent
+                            color: Theme.withAlpha(Theme.textPrimary, 0.04)
+                            visible: img.status !== Image.Ready
 
-                                onPaint: {
-                                    var ctx = getContext("2d")
-                                    ctx.clearRect(0, 0, width, height)
-
-                                    var angle = phase * Math.PI * 2
-                                    var cx = width / 2, cy = height / 2
-                                    var len = Math.max(width, height) * 0.7
-                                    var x1 = cx + Math.cos(angle) * len
-                                    var y1 = cy + Math.sin(angle) * len
-                                    var x2 = cx - Math.cos(angle) * len
-                                    var y2 = cy - Math.sin(angle) * len
-
-                                    var grad = ctx.createLinearGradient(x1, y1, x2, y2)
-                                    var colors = Theme.brandGradient
-                                    for (var i = 0; i < colors.length; i++)
-                                        grad.addColorStop(i / Math.max(1, colors.length - 1), colors[i])
-
-                                    var bw = 1.5
-                                    var r = Dimensions.cardBorderRadius - bw / 2
-                                    var px = bw / 2, py = bw / 2
-                                    var w = width - bw, h = height - bw
-
-                                    ctx.beginPath()
-                                    ctx.moveTo(px + r, py)
-                                    ctx.lineTo(px + w - r, py)
-                                    ctx.arcTo(px + w, py, px + w, py + r, r)
-                                    ctx.lineTo(px + w, py + h - r)
-                                    ctx.arcTo(px + w, py + h, px + w - r, py + h, r)
-                                    ctx.lineTo(px + r, py + h)
-                                    ctx.arcTo(px, py + h, px, py + h - r, r)
-                                    ctx.lineTo(px, py + r)
-                                    ctx.arcTo(px, py, px + r, py, r)
-                                    ctx.closePath()
-
-                                    ctx.strokeStyle = grad
-                                    ctx.lineWidth = bw
-                                    ctx.globalAlpha = hov ? 0.8 : 0.0
-                                    ctx.stroke()
-                                }
-                            }
-
-                            // Mask for rounded corners
-                            Item {
-                                id: imgMask
-                                anchors.fill: parent
-                                visible: false
-                                layer.enabled: true
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: Dimensions.cardBorderRadius
-                                    color: Theme.textOnColor
-                                }
-                            }
-
-                            // Game image
-                            Image {
-                                id: img
-                                anchors.fill: parent
-                                source: modelData.headerImageUrl || ""
-                                fillMode: Image.PreserveAspectCrop
-                                sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
-                                asynchronous: true
-                                cache: true
-                                visible: false
-                            }
-
-                            // Masked image with brightness on hover
-                            MultiEffect {
-                                anchors.fill: img
-                                source: img
-                                maskEnabled: true
-                                maskSource: imgMask
-                                visible: img.status === Image.Ready
-                                brightness: card.hov ? 0.06 : 0
-                                Behavior on brightness { NumberAnimation { duration: Dimensions.animNormal } }
-                            }
-
-                            // Placeholder
-                            Rectangle {
-                                anchors.fill: parent
-                                color: Theme.withAlpha(Theme.textPrimary, 0.04)
-                                visible: img.status !== Image.Ready
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.name ? modelData.name.substring(0, 2).toUpperCase() : ""
-                                    font.pixelSize: Dimensions.fontXL
-                                    font.weight: Font.Bold
-                                    color: Theme.withAlpha(Theme.textMuted, 0.5)
-                                }
-                            }
-
-                            // Bottom gradient
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: parent.height * 0.45
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "transparent" }
-                                    GradientStop { position: 0.5; color: Theme.withAlpha("#000000", 0.4) }
-                                    GradientStop { position: 1.0; color: Theme.withAlpha("#000000", 0.8) }
-                                }
-                            }
-
-                            // Game name
                             Text {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                anchors.leftMargin: Dimensions.marginSM
-                                anchors.rightMargin: Dimensions.marginSM
-                                anchors.bottomMargin: Dimensions.marginSM
-                                text: modelData.name || qsTr("Unknown")
-                                font.pixelSize: Dimensions.fontBody
-                                font.weight: Font.DemiBold
-                                color: "#ffffff"
-                                elide: Text.ElideRight
-                                wrapMode: Text.WordWrap
-                                maximumLineCount: 2
-                            }
-
-                            // Status badges
-                            Row {
-                                visible: modelData.isVerified === true || modelData.hasTranslation === true || modelData.isInstalled === true
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.topMargin: Dimensions.marginSM
-                                anchors.rightMargin: Dimensions.marginSM
-                                spacing: Dimensions.spacingXS
-
-                                Rectangle {
-                                    visible: modelData.isInstalled === true
-                                    width: installedLabel.width + 8; height: 14
-                                    radius: Dimensions.badgeRadius
-                                    color: Theme.withAlpha("#4CAF50", 0.85)
-
-                                    Text {
-                                        id: installedLabel
-                                        anchors.centerIn: parent
-                                        text: qsTr("Kurulu")
-                                        font.pixelSize: Dimensions.fontMicro
-                                        font.weight: Font.Bold
-                                        color: "#ffffff"
-                                    }
-                                }
-
-                                Rectangle {
-                                    visible: modelData.hasTranslation === true
-                                    width: 22; height: 14
-                                    radius: Dimensions.badgeRadius
-                                    color: Theme.turkishRed
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "TR"
-                                        font.pixelSize: Dimensions.fontMicro
-                                        font.weight: Font.Bold
-                                        color: "#ffffff"
-                                    }
-                                }
-
-                                Rectangle {
-                                    visible: modelData.isVerified === true
-                                    width: 14; height: 14
-                                    radius: 7
-                                    color: Theme.primary
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "\u2713"
-                                        font.pixelSize: Dimensions.fontMicro
-                                        font.weight: Font.Bold
-                                        color: "#ffffff"
-                                    }
-                                }
+                                anchors.centerIn: parent
+                                text: modelData.name ? modelData.name.substring(0, 2).toUpperCase() : ""
+                                font.pixelSize: Dimensions.fontXL
+                                font.weight: Font.Bold
+                                color: Theme.withAlpha(Theme.textMuted, 0.5)
                             }
                         }
 
-                        // Focus indicator
+                        // Bottom gradient
                         Rectangle {
-                            anchors.fill: cardClip
-                            anchors.margins: -2
-                            radius: cardClip.radius + 2
-                            color: "transparent"
-                            border.color: Theme.withAlpha(Theme.primary, 0.6)
-                            border.width: 2
-                            visible: card.activeFocus
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: parent.height * 0.45
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "transparent" }
+                                GradientStop { position: 0.5; color: Theme.withAlpha("#000000", 0.4) }
+                                GradientStop { position: 1.0; color: Theme.withAlpha("#000000", 0.8) }
+                            }
+                        }
+
+                        // Game name
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.margins: Dimensions.marginSM
+                            text: modelData.name || ""
+                            font.pixelSize: Dimensions.fontBody
+                            font.weight: Font.DemiBold
+                            color: "#ffffff"
+                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
+                        }
+
+                        // Status badges
+                        Row {
+                            visible: modelData.isVerified === true || modelData.hasTranslation === true || modelData.isInstalled === true
+                            anchors.top: parent.top
+                            anchors.right: parent.right
+                            anchors.topMargin: Dimensions.marginSM
+                            anchors.rightMargin: Dimensions.marginSM
+                            spacing: Dimensions.spacingXS
+
+                            Rectangle {
+                                visible: modelData.isInstalled === true
+                                width: installedLabel.width + 8; height: 14
+                                radius: Dimensions.badgeRadius
+                                color: Theme.withAlpha("#4CAF50", 0.85)
+
+                                Text {
+                                    id: installedLabel
+                                    anchors.centerIn: parent
+                                    text: qsTr("Kurulu")
+                                    font.pixelSize: Dimensions.fontMicro
+                                    font.weight: Font.Bold
+                                    color: "#ffffff"
+                                }
+                            }
+
+                            Rectangle {
+                                visible: modelData.hasTranslation === true
+                                width: 22; height: 14
+                                radius: Dimensions.badgeRadius
+                                color: Theme.turkishRed
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "TR"
+                                    font.pixelSize: Dimensions.fontMicro
+                                    font.weight: Font.Bold
+                                    color: "#ffffff"
+                                }
+                            }
+
+                            Rectangle {
+                                visible: modelData.isVerified === true
+                                width: 14; height: 14; radius: 7
+                                color: Theme.primary
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "\u2713"
+                                    font.pixelSize: Dimensions.fontMicro
+                                    font.weight: Font.Bold
+                                    color: "#ffffff"
+                                }
+                            }
                         }
 
                         MouseArea {
@@ -585,7 +494,7 @@ Dialog {
             ColumnLayout {
                 anchors.centerIn: parent
                 spacing: Dimensions.spacingLG
-                visible: root.filteredGames.length === 0
+                visible: root.filteredGames.length === 0 && !revealTimer.running
 
                 Text {
                     Layout.alignment: Qt.AlignHCenter
@@ -603,7 +512,7 @@ Dialog {
                 }
             }
 
-            // Top fade shadow
+            // Top fade
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -616,7 +525,7 @@ Dialog {
                 }
             }
 
-            // Bottom fade shadow
+            // Bottom fade
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right

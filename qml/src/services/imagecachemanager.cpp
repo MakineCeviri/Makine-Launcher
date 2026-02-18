@@ -13,6 +13,7 @@
 #include <QDirIterator>
 #include <QNetworkReply>
 #include <QStandardPaths>
+#include <QRegularExpression>
 #include <QUrl>
 
 namespace makineai {
@@ -33,7 +34,12 @@ void ImageCacheManager::ensureCacheDir()
 
 QString ImageCacheManager::localPath(const QString& appId) const
 {
-    return m_cacheDir + QLatin1Char('/') + appId + QStringLiteral(".jpg");
+    // M-8: Sanitize appId to prevent path traversal (strip anything except alphanumeric/underscore)
+    QString safe = appId;
+    safe.remove(QRegularExpression(QStringLiteral("[^a-zA-Z0-9_-]")));
+    if (safe.isEmpty())
+        return {};
+    return m_cacheDir + QLatin1Char('/') + safe + QStringLiteral(".jpg");
 }
 
 QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUrl)

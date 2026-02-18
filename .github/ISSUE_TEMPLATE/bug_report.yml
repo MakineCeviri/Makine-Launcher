@@ -52,8 +52,7 @@ body:
     attributes:
       label: MakineAI Sürümü
       options:
-        - v0.1.0pre-alpha
-        - v0.0.8 (Flutter)
+        - v0.1.0-alpha
         - Kaynak koddan derleme
     validations:
       required: true

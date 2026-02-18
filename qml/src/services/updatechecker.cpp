@@ -21,7 +21,48 @@
 #include <QProcess>
 #include <QCryptographicHash>
 
+#ifdef Q_OS_WIN
+#include <Windows.h>
+#include <Softpub.h>
+#include <wintrust.h>
+#pragma comment(lib, "wintrust")
+#endif
+
 namespace makineai {
+
+#ifdef Q_OS_WIN
+/**
+ * @brief Verify Authenticode digital signature of an executable
+ * @return true if the file has a valid, trusted signature
+ */
+static bool verifyAuthenticode(const QString& filePath)
+{
+    std::wstring widePath = filePath.toStdWString();
+
+    WINTRUST_FILE_INFO fileInfo = {};
+    fileInfo.cbStruct = sizeof(fileInfo);
+    fileInfo.pcwszFilePath = widePath.c_str();
+
+    GUID policyGUID = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+
+    WINTRUST_DATA trustData = {};
+    trustData.cbStruct = sizeof(trustData);
+    trustData.dwUIChoice = WTD_UI_NONE;
+    trustData.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN;
+    trustData.dwUnionChoice = WTD_CHOICE_FILE;
+    trustData.pFile = &fileInfo;
+    trustData.dwStateAction = WTD_STATEACTION_VERIFY;
+    trustData.dwProvFlags = WTD_SAFER_FLAG;
+
+    LONG result = WinVerifyTrust(nullptr, &policyGUID, &trustData);
+
+    // Clean up state
+    trustData.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(nullptr, &policyGUID, &trustData);
+
+    return (result == ERROR_SUCCESS);
+}
+#endif
 
 static constexpr const char* kGitHubApiUrl =
     "https://api.github.com/repos/jlceaser/MakineAI/releases/latest";
@@ -196,6 +237,26 @@ void UpdateChecker::downloadUpdate()
     if (m_downloading || m_installerUrl.isEmpty())
         return;
 
+    // H-7: Validate download URL domain against allowlist
+    static const QStringList allowedHosts = {
+        QStringLiteral("github.com"),
+        QStringLiteral("objects.githubusercontent.com"),
+        QStringLiteral("github-releases.githubusercontent.com"),
+    };
+    QUrl dlUrlCheck{m_installerUrl};
+    QString host = dlUrlCheck.host().toLower();
+    bool hostAllowed = false;
+    for (const auto& allowed : allowedHosts) {
+        if (host == allowed || host.endsWith(QLatin1Char('.') + allowed)) {
+            hostAllowed = true;
+            break;
+        }
+    }
+    if (!hostAllowed) {
+        setDownloadError(QStringLiteral("Download blocked: untrusted host '%1'").arg(host));
+        return;
+    }
+
     // Clear previous state
     setDownloadError({});
     m_readyToInstall = false;
@@ -266,18 +327,15 @@ void UpdateChecker::downloadUpdate()
             return;
         }
 
-        // If checksums URL is available, verify integrity
+        // Verify integrity before allowing install
         if (!m_checksumsUrl.isEmpty()) {
             verifyAndFinalize(m_installerPath);
         } else {
-            // No checksums available, accept as-is
+            // H-6: No checksums available — fail closed, do not allow install
             m_downloading = false;
-            m_downloadProgress = 1.0;
-            m_readyToInstall = true;
             emit downloadingChanged();
-            emit downloadProgressChanged();
-            emit readyToInstallChanged();
-            emit downloadCompleted();
+            setDownloadError(QStringLiteral("Integrity check unavailable: no checksums.txt in release"));
+            QFile::remove(m_installerPath);
         }
     });
 }
@@ -295,15 +353,12 @@ void UpdateChecker::verifyAndFinalize(const QString& installerPath)
         csReply->deleteLater();
 
         if (csReply->error() != QNetworkReply::NoError) {
-            // Checksums fetch failed, still allow install with warning
+            // H-6: Checksums fetch failed — fail closed, do not allow install
             qWarning() << "UpdateChecker: Could not fetch checksums:" << csReply->errorString();
             m_downloading = false;
-            m_downloadProgress = 1.0;
-            m_readyToInstall = true;
             emit downloadingChanged();
-            emit downloadProgressChanged();
-            emit readyToInstallChanged();
-            emit downloadCompleted();
+            setDownloadError(QStringLiteral("Checksum verification failed: could not fetch checksums.txt"));
+            QFile::remove(installerPath);
             return;
         }
 
@@ -362,6 +417,17 @@ void UpdateChecker::installUpdate()
     }
 
     emit installStarted();
+
+#ifdef Q_OS_WIN
+    // H-4: Verify Authenticode signature before executing installer
+    if (!verifyAuthenticode(m_installerPath)) {
+        setDownloadError(QStringLiteral("Installer signature verification failed. The file may be tampered."));
+        m_readyToInstall = false;
+        emit readyToInstallChanged();
+        QFile::remove(m_installerPath);
+        return;
+    }
+#endif
 
     QStringList args{
         QStringLiteral("/SILENT"),

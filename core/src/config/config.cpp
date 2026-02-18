@@ -356,11 +356,13 @@ void CoreConfig::applyEnvironmentOverrides() {
         MAKINEAI_LOG_DEBUG(log::CONFIG, "Proxy URL overridden by env");
     }
 
-    // MAKINEAI_VERIFY_SSL
+    // MAKINEAI_VERIFY_SSL — only allow disabling in debug builds
+#ifndef NDEBUG
     if (auto val = getEnvVar("MAKINEAI_VERIFY_SSL")) {
         network.verifySsl = (*val == "1" || *val == "true" || *val == "yes");
-        MAKINEAI_LOG_DEBUG(log::CONFIG, "SSL verification overridden by env: {}", network.verifySsl);
+        MAKINEAI_LOG_WARN(log::CONFIG, "SSL verification overridden by env: {} (debug build only)", network.verifySsl);
     }
+#endif
 }
 
 // =============================================================================

@@ -104,6 +104,30 @@ VoidResult openInExplorer(const fs::path& path) {
  * @brief Launch executable
  */
 VoidResult launchExecutable(const fs::path& exePath, const std::string& args) {
+    // H-5: Validate the executable path before launching
+    if (exePath.empty()) {
+        return std::unexpected(Error(ErrorCode::InvalidArgument,
+            "Empty executable path"));
+    }
+
+    std::error_code ec;
+    if (!fs::exists(exePath, ec)) {
+        return std::unexpected(Error(ErrorCode::FileNotFound,
+            "Executable not found: " + exePath.string()));
+    }
+
+    // Block launching from system-sensitive directories
+    auto canonical = fs::canonical(exePath, ec);
+    if (ec) canonical = fs::absolute(exePath);
+    auto pathStr = canonical.wstring();
+    // Normalize to lowercase for comparison
+    std::transform(pathStr.begin(), pathStr.end(), pathStr.begin(), ::towlower);
+    if (pathStr.find(L"\\windows\\system32") != std::wstring::npos ||
+        pathStr.find(L"\\windows\\syswow64") != std::wstring::npos) {
+        return std::unexpected(Error(ErrorCode::InvalidArgument,
+            "Refusing to launch system executable"));
+    }
+
     std::wstring wideExe = exePath.wstring();
     std::wstring wideArgs;
 

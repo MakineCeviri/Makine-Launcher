@@ -18,12 +18,15 @@ MakineAI su araclari kullanir:
 
 `CMakePresets.json` dosyasinda tanimli presetler:
 
-| Preset | Aciklama | Kullanim |
-|--------|----------|----------|
-| `dev` | Gunluk gelistirme | `cmake --preset dev` |
-| `debug` | Debug sembollu | `cmake --preset debug` |
-| `release` | Optimizasyonlu | `cmake --preset release` |
-| `core` | Sadece core lib | `cmake --preset core` |
+| Preset | Aciklama | Derleyici | Kullanim |
+|--------|----------|-----------|----------|
+| `dev` | Gunluk gelistirme (Core+UI) | MinGW+vcpkg | `cmake --preset dev` |
+| `dev-ui` | UI-only (Core yok) | MinGW | `cmake --preset dev-ui` |
+| `debug` | Debug sembollu (Core+UI) | MinGW+vcpkg | `cmake --preset debug` |
+| `release` | Release (Core+UI) | MSVC+vcpkg | `cmake --preset release` |
+| `release-static` | Tek EXE, UI-only | MinGW (static Qt) | `cmake --preset release-static` |
+| `full-static` | Tek EXE, Core+UI | MinGW+vcpkg (static) | `cmake --preset full-static` |
+| `core` | Sadece core lib | MSVC+vcpkg | `cmake --preset core` |
 
 ### Preset Kullanimi
 
@@ -285,8 +288,8 @@ setx VCPKG_ROOT "C:\vcpkg"
 ### Qt Bulunamadi
 
 ```bash
-# Qt6_DIR ayarla
-setx Qt6_DIR "C:\Qt\6.8.1\msvc2022_64"
+# Qt6_DIR ayarla (MSVC)
+setx Qt6_DIR "C:\Qt\6.10.1\msvc2022_64"
 ```
 
 ### Ninja Bulunamadi

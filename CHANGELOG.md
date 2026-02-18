@@ -7,6 +7,25 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### İyileştirilen (2026-02-18)
+- **Güvenlik denetimi** — 14 bulgu düzeltildi (path traversal, input validation, SSL pinning)
+- **Modülerlik** — GameService ↔ UpdateDetectionService decoupling (nullptr güvenliği)
+- **Header organizasyonu** — İç header'lar `detail/` dizinine taşındı (string_pool, debug, mio_utils)
+- **Kod minimizasyonu** — 18 gereksiz yorum kaldırıldı (main.cpp, gameservice.cpp)
+- **Qt Quick performans** — Image sourceSize optimizasyonu, gereksiz clip kaldırma
+- **Kullanılmayan import** — HomePage.qml'den `QtQuick.Effects` kaldırıldı
+- **Erişilebilirlik** — ProjectShowcaseCard boş key handler'lar düzeltildi
+- **Q_UNUSED düzeltmesi** — installRuntime/uninstallRuntime lambda capture uyumsuzluğu
+
+### Kaldırılan (2026-02-14 Temizlik)
+- GameListModel (cpp+h), makinaeiMetatypes.h, Badge.qml, InfoRow.qml, 12 SVG ikon
+- GameService: 9 dead Q_INVOKABLE, 6 dead Q_PROPERTY, 3 dead signal
+- CoreBridge: 5 dead signal, 2 unused include
+- Dimensions.qml: 76 dead property (302→~180 satır)
+- DebugHelper.qml: 7 dead fonksiyon (196→30 satır)
+- Dead import: QtQuick.Effects (DropZoneOverlay, SkeletonLoader)
+- Dead signal: steamStoreClicked, restoreClicked (GameDetailScreen)
+
 ### Kaldirilan (2026-02-12 Temizlik)
 - **~32K satir dead code** kaldirildi
 - Engine handler'lar: UnityHandler, UnrealHandler, RPGMakerHandler, RenPyHandler, GameMakerHandler (~6800 satir)

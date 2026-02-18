@@ -10,7 +10,6 @@
 #include "makineai/metrics.hpp"
 
 #include <sqlite3.h>
-#include <fstream>
 
 #ifdef _WIN32
 #include <Windows.h>

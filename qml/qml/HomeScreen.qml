@@ -122,6 +122,16 @@ Item {
     // Animation trigger - increment to replay all entry animations
     property int animationTrigger: 0
 
+    // Staged loading — sections appear one by one to avoid startup freeze
+    property int loadStage: 0
+    Timer {
+        id: stageTimer
+        interval: 60
+        repeat: true
+        running: root.loadStage < 4
+        onTriggered: root.loadStage++
+    }
+
     Rectangle {
         anchors.fill: parent
         color: Theme.bgPrimary
@@ -329,14 +339,15 @@ Item {
                         RowLayout {
                             id: topRowLayout
                             Layout.fillWidth: true
-                            Layout.preferredHeight: root.layoutTopRowHeight
+                            Layout.preferredHeight: root.loadStage >= 1 ? root.layoutTopRowHeight : 0
                             Layout.maximumHeight: root.layoutTopRowHeight
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             spacing: root.layoutTopRowGap
+                            visible: root.loadStage >= 1
 
                             opacity: 0
-                            Component.onCompleted: topRowEntryAnim.start()
+                            onVisibleChanged: if (visible) topRowEntryAnim.start()
 
                             NumberAnimation {
                                 id: topRowEntryAnim
@@ -374,6 +385,7 @@ Item {
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             animationsEnabled: root.animationsEnabled
+                            visible: root.loadStage >= 1
                         }
 
                         // ===== GAMES SECTION =====
@@ -383,9 +395,10 @@ Item {
                             Layout.leftMargin: root.contentMargin
                             Layout.rightMargin: root.contentMargin
                             spacing: root.layoutGamesSectionGap
+                            visible: root.loadStage >= 2
 
                             opacity: 0
-                            Component.onCompleted: gamesSectionEntryAnim.start()
+                            onVisibleChanged: if (visible) gamesSectionEntryAnim.start()
 
                             SequentialAnimation {
                                 id: gamesSectionEntryAnim

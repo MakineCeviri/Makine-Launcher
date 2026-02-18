@@ -153,10 +153,12 @@ cmake --build build/dev
 
 | Preset | Açıklama |
 |--------|----------|
-| `dev` | Günlük geliştirme (MinGW) |
-| `debug` | Debug build with symbols |
-| `release` | Release build with optimizations |
-| `core` | Sadece core library |
+| `dev` | Günlük geliştirme — Core+UI (MinGW+vcpkg) |
+| `dev-ui` | UI-only, Core yok (MinGW, vcpkg gereksiz) |
+| `debug` | Debug build — Core+UI (MinGW+vcpkg) |
+| `release` | Release — Core+UI (MSVC+vcpkg) |
+| `release-static` | Tek EXE — UI-only (static Qt) |
+| `core` | Sadece core library (MSVC+vcpkg) |
 
 ---
 

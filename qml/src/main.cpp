@@ -22,8 +22,6 @@
 #include <QQuickGraphicsConfiguration>
 #include <QThreadPool>
 #include <QLibrary>
-#include <QtConcurrent/QtConcurrentRun>
-#include <QFutureWatcher>
 #include <QElapsedTimer>
 #include <QQmlComponent>
 
@@ -32,7 +30,7 @@
 #include <psapi.h>     // EmptyWorkingSet
 
 // Native Win32 splash window — shown immediately while QML loads
-// 440×240, rounded corners, animated smooth gradient bars, loading dots
+// 440×240, rounded corners, static gradient bars, loading dots
 class SplashWindow {
 public:
     SplashWindow() = default;
@@ -73,8 +71,8 @@ public:
             UpdateWindow(m_hwnd);
             m_showTime = GetTickCount();
 
-            // 40ms timer (~25fps) for smooth gradient animation
-            SetTimer(m_hwnd, 1, 40, nullptr);
+            // Repaint timer for status text updates (~5fps)
+            SetTimer(m_hwnd, 1, 200, nullptr);
         }
     }
 
@@ -183,14 +181,13 @@ private:
         DeleteDC(dibDC);
     }
 
-    static void drawLoadingDots(HDC hdc, int cx, int cy, int phase) {
+    static void drawLoadingDots(HDC hdc, int cx, int cy) {
         HPEN nullPen = CreatePen(PS_NULL, 0, 0);
         HPEN oldPen = (HPEN)SelectObject(hdc, nullPen);
         for (int i = 0; i < 3; ++i) {
             int dx = (i - 1) * 16;
-            bool active = (i == phase);
-            COLORREF c = active ? RGB(180, 180, 200) : RGB(50, 50, 65);
-            int r = active ? 4 : 3;
+            COLORREF c = RGB(120, 120, 145);
+            int r = 3;
             HBRUSH br = CreateSolidBrush(c);
             HBRUSH oldBr = (HBRUSH)SelectObject(hdc, br);
             Ellipse(hdc, cx + dx - r, cy - r, cx + dx + r, cy + r);
@@ -217,7 +214,6 @@ private:
             HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
             HBITMAP oldBmp = (HBITMAP)SelectObject(mem, bmp);
 
-            // Dark background
             HBRUSH bg = CreateSolidBrush(RGB(10, 10, 15));
             FillRect(mem, &rc, bg);
             DeleteObject(bg);
@@ -247,7 +243,6 @@ private:
 
             SetBkMode(mem, TRANSPARENT);
 
-            // App name — 30px Bold
             HFONT titleFont = CreateFontW(-30, 0, 0, 0, FW_BOLD, 0, 0, 0,
                 DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
             HFONT oldFont = (HFONT)SelectObject(mem, titleFont);
@@ -257,7 +252,6 @@ private:
             SelectObject(mem, oldFont);
             DeleteObject(titleFont);
 
-            // Tagline — 12px Regular
             HFONT tagFont = CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
                 DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
             oldFont = (HFONT)SelectObject(mem, tagFont);
@@ -280,9 +274,7 @@ private:
                 DeleteObject(statusFont);
             }
 
-            // Loading dots (animated)
-            int dotP = self ? self->m_dotPhase : 0;
-            drawLoadingDots(mem, w / 2, h - 55, dotP);
+            drawLoadingDots(mem, w / 2, h - 55);
 
             // Version — 9px, bottom-right corner
             HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
@@ -308,16 +300,7 @@ private:
         }
         case WM_TIMER:
             if (wp == 1 && self) {
-                // Smooth gradient animation (~25fps)
-                self->m_gradientPhase += 0.005f;
-                if (self->m_gradientPhase >= 1.0f)
-                    self->m_gradientPhase -= 1.0f;
-
-                // Loading dots advance every ~480ms (12 ticks × 40ms)
-                self->m_tickCount++;
-                if (self->m_tickCount % 12 == 0)
-                    self->m_dotPhase = (self->m_dotPhase + 1) % 3;
-
+                // Static splash — only repaint for status text updates
                 InvalidateRect(hwnd, nullptr, FALSE);
             }
             return 0;
@@ -327,9 +310,7 @@ private:
 
     HWND m_hwnd{nullptr};
     DWORD m_showTime{0};
-    int m_dotPhase{0};
-    int m_tickCount{0};
-    float m_gradientPhase{0.0f};
+    float m_gradientPhase{0.25f}; // Static gradient position
     wchar_t m_status[64]{};
 };
 #endif

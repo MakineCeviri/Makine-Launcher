@@ -1,5 +1,11 @@
 # MakineAI
 
+[![CI](https://github.com/jlceaser/MakineAI/actions/workflows/ci.yml/badge.svg)](https://github.com/jlceaser/MakineAI/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jlceaser/MakineAI/actions/workflows/codeql.yml/badge.svg)](https://github.com/jlceaser/MakineAI/actions/workflows/codeql.yml)
+![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)
+![Qt 6.10](https://img.shields.io/badge/Qt-6.10-green)
+![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey)
+
 Windows oyunlarını Türkçe'ye çeviren ve çevirileri güncel tutan masaüstü uygulaması.
 
 **Durum:** Alpha — oyun tarama ve yerel paket kurulumu çalışıyor. Sunucu dağıtımı ve adaptasyon motoru geliştirme aşamasında.
@@ -21,7 +27,7 @@ UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüphanesi vcp
 | Qt | 6.10+ | MinGW 13.1.0 veya MSVC 2022 |
 | CMake | 3.28+ | Qt Tools ile gelir |
 | Ninja | — | Qt Tools ile gelir |
-| vcpkg | Güncel | Sadece `release`/`core` preset için |
+| vcpkg | Güncel | `dev-ui` hariç tüm preset'ler için |
 | [just](https://github.com/casey/just) | — | Opsiyonel, task runner |
 
 ## Kurulum ve Build
@@ -31,12 +37,12 @@ git clone https://github.com/jlceaser/MakineAI.git
 cd MakineAI
 ```
 
-### Hızlı Geliştirme (MinGW, UI-only)
+### Hızlı Geliştirme (MinGW, Core+UI)
 
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-./qml/build/dev/MakineAI.exe
+./build/dev/MakineAI.exe
 ```
 
 Veya `just` kuruluysa:
@@ -52,10 +58,9 @@ cmake --preset debug
 cmake --build --preset debug
 ```
 
-### Full Release (Core + QML, vcpkg gerekli)
+### Release (MSVC, Core+UI)
 
 ```bash
-vcpkg install --triplet x64-windows   # ilk seferde
 cmake --preset release
 cmake --build --preset release
 ```
@@ -72,12 +77,15 @@ ctest --preset core-tests              # testleri çalıştır
 
 | Preset | Derleyici | Mod | Çıktı Dizini |
 |--------|-----------|-----|---------------|
-| `dev` | MinGW | Release, UI-only | `qml/build/dev/` |
-| `debug` | MinGW | Debug, UI-only | `qml/build/debug/` |
+| `dev` | MinGW+vcpkg | Release, Core+UI | `build/dev/` |
+| `dev-ui` | MinGW | Release, UI-only | `qml/build/dev/` |
+| `debug` | MinGW+vcpkg | Debug, Core+UI | `build/debug/` |
 | `release` | MSVC/vcpkg | Full (core+qml) | `build/release/` |
+| `release-static` | MinGW (static Qt) | Tek EXE, UI-only | `qml/build/release-static/` |
+| `full-static` | MinGW+vcpkg (static) | Tek EXE, Core+UI | `build/full-static/` |
 | `core` | MSVC/vcpkg | Core kütüphane | `core/build/` |
 
-`UI-only` mod (`MAKINEAI_UI_ONLY=ON`): Core kütüphanesine bağımlılık olmadan sadece QML arayüzünü ve Qt servislerini derler. Oyun tarama, paket kurulumu ve UI geliştirme bu modda çalışır.
+`dev` preset hem Core hem UI'yı MinGW+vcpkg ile derler. `dev-ui` (`MAKINEAI_UI_ONLY=ON`) Core olmadan sadece Qt servislerini derler (vcpkg gerektirmez).
 
 ## Proje Yapısı
 
@@ -118,8 +126,7 @@ MakineAI/
 │   │   └── ...
 │   └── tests/                  # GTest birim testleri
 ├── docs/                       # Dokümantasyon
-├── recipes/                    # Çeviri şablonları (YAML)
-├── scripts/                    # Python yardımcı araçları
+├── scripts/                    # Build ve dağıtım araçları
 ├── CMakePresets.json            # Build preset tanımları
 ├── justfile                    # Task runner komutları
 └── vcpkg.json                  # Core bağımlılıkları
@@ -148,21 +155,24 @@ Core kütüphanesi (`release`/`core` preset) şu bağımlılıkları kullanır:
 
 boost-filesystem, openssl, curl, nlohmann-json, lz4, zlib, zstd, sqlite3, spdlog, bit7z, libarchive, simdjson, efsw, mio, taskflow, concurrentqueue, simdutf, sqlitecpp, libsodium
 
-`dev`/`debug` preset'lerinde vcpkg **gerekmez** — sadece Qt yeterlidir.
+`dev-ui` preset'inde vcpkg gerekmez — sadece Qt yeterlidir. Diğer tüm preset'ler vcpkg kullanır.
 
 ## Just Komutları
 
 ```bash
-just dev            # MinGW UI-only build (hızlı iterasyon)
+just dev            # MinGW Core+UI build (hızlı iterasyon)
 just debug          # Debug build
 just release        # Full release (vcpkg + core + qml)
 just core           # Sadece core kütüphanesi
 just run            # Build + çalıştır (dev)
 just test           # Core testleri çalıştır
 just clean          # Build dizinlerini temizle
+just release-static # Tek EXE statik build
+just release-signed # Tek EXE + imzala
+just setup-cert     # İlk sertifika kurulumu
+just sign           # EXE'leri imzala
 just format         # clang-format ile kod biçimlendirme
 just stats          # Proje istatistikleri
-just deploy         # windeployqt ile dağıtım paketi
 ```
 
 ## Dosya İsimlendirme Kuralları
@@ -184,6 +194,14 @@ Detaylı dokümantasyon `docs/` dizininde:
 - [Core Kütüphanesi](docs/developer-guide/core-library.md) — Core API ve modüller
 - [Servis API](docs/api-reference/services-api.md) — Backend servis referansı
 - [Oyun Motorları](docs/game-engines/) — Motor bazında çeviri rehberleri
+
+## Katkıda Bulunma
+
+Katkı kuralları ve geliştirme süreci için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın.
+
+## Güvenlik
+
+Güvenlik açığı bildirmek için [Security Policy](.github/SECURITY.md) sayfasına bakın.
 
 ## Lisans
 
