@@ -12,7 +12,6 @@
 
 #include <QObject>
 #include <QString>
-#include <QHash>
 #include <QSet>
 #include <QQueue>
 #include <QPair>

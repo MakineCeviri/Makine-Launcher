@@ -25,6 +25,27 @@ Item {
     property bool isInstalling: false
     property double installProgress: 0.0
 
+    // Settle guard — skip decode for cards that scroll past within 60ms
+    property bool _settled: false
+
+    Timer {
+        id: _settleTimer
+        interval: 60; repeat: false
+        onTriggered: root._settled = true
+    }
+    Component.onCompleted: _settleTimer.start()
+
+    Connections {
+        target: ImageCache
+        function onImageReady(readyId) {
+            if (readyId === root.gameId)
+                root.imageUrl = ImageCache.resolve(root.gameId, "")
+        }
+    }
+
+    // Delegate recycling support (reuseItems)
+    ListView.onPooled: _settleTimer.stop()
+
     signal installClicked()
     signal uninstallClicked()
     signal updateClicked()
@@ -94,10 +115,11 @@ Item {
         Image {
             id: gameImg
             anchors.fill: parent
-            source: root.imageUrl
+            source: root._settled ? root.imageUrl : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
+            retainWhileLoading: true
             sourceSize: Qt.size(imgContainer.width * 2, imgContainer.height * 2)
             visible: false
         }

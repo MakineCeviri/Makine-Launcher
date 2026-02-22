@@ -195,8 +195,8 @@ qt_add_qml_module(MakineAI
         # Cards: Data display containers
         qml/components/GameCard.qml              # Game item in grid/list
         qml/components/GameCardSkeleton.qml      # Loading placeholder for GameCard
-        qml/components/GameStatusCard.qml         # Game status display
-        qml/components/AnnouncementCard.qml       # News/announcement display
+        qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
+        qml/components/GameDetectionCard.qml      # Game detection status + manual add
         qml/components/PatchCard.qml              # Translation patch info
         qml/components/ProjectShowcaseCard.qml    # Showcase project display
         #

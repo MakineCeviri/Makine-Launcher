@@ -14,7 +14,6 @@ Item {
     property real contentMargin: 16
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
-    signal installAndShowDetail(string gameId, string gameName, string installPath, string engine)
 
     ColumnLayout {
         id: mainLayout

@@ -18,10 +18,9 @@ Item {
 
     // Signals
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
-    signal installAndShowDetail(string gameId, string gameName, string installPath, string engine)
     signal manualFolderRequested()
     signal settingsRequested()
-    signal openAllGamesRequested()
+
 
     ColumnLayout {
         anchors.fill: parent
@@ -84,7 +83,7 @@ Item {
                 }
             }
 
-            AnnouncementCard {
+            GameDetectionCard {
                 animationsEnabled: homePage.animationsEnabled
                 layoutCardMargin: 0
                 layoutCardSpacing: 0
@@ -92,7 +91,7 @@ Item {
                 onManualFolderRequested: homePage.manualFolderRequested()
             }
 
-            GameStatusCard {
+            AnnouncementCard {
                 layoutCardMargin: 0
                 layoutCardSpacing: 0
                 layoutTopRowHeight: homePage.topRowHeight
@@ -159,14 +158,9 @@ Item {
 
             // Split model into two halves
             property var allGames: GameService.supportedGames || []
-            property var row1Games: {
-                var half = Math.ceil(allGames.length / 2)
-                return allGames.slice(0, half)
-            }
-            property var row2Games: {
-                var half = Math.ceil(allGames.length / 2)
-                return allGames.slice(half)
-            }
+            readonly property int halfCount: Math.ceil(allGames.length / 2)
+            property var row1Games: allGames.slice(0, halfCount)
+            property var row2Games: allGames.slice(halfCount)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -236,7 +230,7 @@ Item {
 
                                 Text {
                                     anchors.fill: parent
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    verticalAlignment: Text.AlignVCenter
                                     text: qsTr("Ara... (%1 oyun)").arg(locLibContainer.allGames.length)
                                     font.pixelSize: Dimensions.fontXS
                                     color: Theme.textMuted
@@ -270,9 +264,18 @@ Item {
                         spacing: Dimensions.cardGap
                         clip: false
                         boundsBehavior: Flickable.DragOverBounds
-                        flickDeceleration: 1500
-                        maximumFlickVelocity: 3000
-                        cacheBuffer: 200
+                        flickDeceleration: 1800
+                        maximumFlickVelocity: 800
+                        cacheBuffer: 400
+                        pixelAligned: true
+                        reuseItems: true
+                        rebound: Transition {
+                            NumberAnimation {
+                                properties: "x"
+                                duration: 600
+                                easing.type: Easing.OutQuint
+                            }
+                        }
 
                         delegate: GameCard {
                             required property var modelData
@@ -293,6 +296,18 @@ Item {
                                     modelData.installPath || "", modelData.engine || ""
                                 )
                             }
+                        }
+                    }
+
+                    // Vertical mouse wheel → horizontal scroll
+                    WheelHandler {
+                        orientation: Qt.Vertical
+                        property real _prev: 0
+                        onRotationChanged: {
+                            var d = rotation - _prev; _prev = rotation
+                            var lo = libRow1.originX
+                            var hi = libRow1.contentWidth - libRow1.width + lo
+                            libRow1.contentX = Math.max(lo, Math.min(hi, libRow1.contentX - d * 4))
                         }
                     }
                 }
@@ -334,9 +349,18 @@ Item {
                         spacing: Dimensions.cardGap
                         clip: false
                         boundsBehavior: Flickable.DragOverBounds
-                        flickDeceleration: 1500
-                        maximumFlickVelocity: 3000
-                        cacheBuffer: 200
+                        flickDeceleration: 1800
+                        maximumFlickVelocity: 800
+                        cacheBuffer: 400
+                        pixelAligned: true
+                        reuseItems: true
+                        rebound: Transition {
+                            NumberAnimation {
+                                properties: "x"
+                                duration: 600
+                                easing.type: Easing.OutQuint
+                            }
+                        }
 
                         delegate: GameCard {
                             required property var modelData
@@ -359,21 +383,33 @@ Item {
                             }
                         }
                     }
+
+                    // Vertical mouse wheel → horizontal scroll
+                    WheelHandler {
+                        orientation: Qt.Vertical
+                        property real _prev: 0
+                        onRotationChanged: {
+                            var d = rotation - _prev; _prev = rotation
+                            var lo = libRow2.originX
+                            var hi = libRow2.contentWidth - libRow2.width + lo
+                            libRow2.contentX = Math.max(lo, Math.min(hi, libRow2.contentX - d * 4))
+                        }
+                    }
                 }
             }
 
-            // Edge fade overlays — single pair covering both rows
+            // Edge fade overlays — short but intense
             Rectangle {
                 anchors.left: parent.left
                 anchors.top: parent.top; anchors.bottom: parent.bottom
                 anchors.topMargin: 40
-                width: 44; z: 10
+                width: 28; z: 10
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.95) }
-                    GradientStop { position: 0.25; color: Qt.rgba(0.055, 0.055, 0.055, 0.7) }
-                    GradientStop { position: 0.55; color: Qt.rgba(0.055, 0.055, 0.055, 0.3) }
-                    GradientStop { position: 0.8; color: Qt.rgba(0.055, 0.055, 0.055, 0.1) }
+                    GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.98) }
+                    GradientStop { position: 0.25; color: Qt.rgba(0.055, 0.055, 0.055, 0.80) }
+                    GradientStop { position: 0.55; color: Qt.rgba(0.055, 0.055, 0.055, 0.30) }
+                    GradientStop { position: 0.80; color: Qt.rgba(0.055, 0.055, 0.055, 0.05) }
                     GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.0) }
                 }
             }
@@ -381,14 +417,14 @@ Item {
                 anchors.right: parent.right
                 anchors.top: parent.top; anchors.bottom: parent.bottom
                 anchors.topMargin: 40
-                width: 44; z: 10
+                width: 28; z: 10
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.0) }
-                    GradientStop { position: 0.2; color: Qt.rgba(0.055, 0.055, 0.055, 0.1) }
-                    GradientStop { position: 0.45; color: Qt.rgba(0.055, 0.055, 0.055, 0.3) }
-                    GradientStop { position: 0.75; color: Qt.rgba(0.055, 0.055, 0.055, 0.7) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.95) }
+                    GradientStop { position: 0.20; color: Qt.rgba(0.055, 0.055, 0.055, 0.05) }
+                    GradientStop { position: 0.45; color: Qt.rgba(0.055, 0.055, 0.055, 0.30) }
+                    GradientStop { position: 0.75; color: Qt.rgba(0.055, 0.055, 0.055, 0.80) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.98) }
                 }
             }
 

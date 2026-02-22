@@ -149,6 +149,7 @@ public:
      */
     Q_INVOKABLE QString addManualGame(const QString& path);
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
+    Q_INVOKABLE QVariantMap getGameBySteamAppId(const QString& steamAppId) const;
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
     /**
@@ -356,7 +357,8 @@ private:
     UpdateDetectionService* m_updateService{nullptr};
     QNetworkAccessManager* m_networkManager{nullptr};
     QList<GameInfo> m_games;
-    QHash<QString, int> m_gameIdToIndex;  // O(1) lookup by ID
+    QHash<QString, int> m_gameIdToIndex;       // O(1) lookup by ID
+    QHash<QString, int> m_steamAppIdToIndex;   // O(1) lookup by steamAppId
     QHash<QString, SteamDetails> m_steamDetailsCache;
     mutable QHash<QString, bool> m_packageInstalledCache;  // Cached isPackageInstalled results
     QSet<QString> m_pendingFetches;

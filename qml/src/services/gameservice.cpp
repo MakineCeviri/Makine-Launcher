@@ -305,6 +305,8 @@ QString GameService::addManualGame(const QString& path)
 
     m_games.append(game);
     m_gameIdToIndex[game.id] = m_games.count() - 1;
+    if (!game.steamAppId.isEmpty())
+        m_steamAppIdToIndex[game.steamAppId] = m_games.count() - 1;
 
     invalidateCache();
     emit gamesChanged();
@@ -345,6 +347,31 @@ QVariantMap GameService::getGameById(const QString& id) const
             if (map.value("id").toString() == id || map.value("steamAppId").toString() == id) {
                 return map;
             }
+        }
+    }
+
+    return {};
+}
+
+QVariantMap GameService::getGameBySteamAppId(const QString& steamAppId) const
+{
+    if (steamAppId.isEmpty())
+        return {};
+
+    auto idxIt = m_steamAppIdToIndex.constFind(steamAppId);
+    if (idxIt != m_steamAppIdToIndex.constEnd()) {
+        int index = *idxIt;
+        if (index >= 0 && index < m_games.count())
+            return m_games[index].toVariantMap();
+    }
+
+    // Fallback: search catalog
+    if (m_coreBridge) {
+        const QVariantList catalog = m_coreBridge->allSupportedGames();
+        for (const auto& entry : catalog) {
+            QVariantMap map = entry.toMap();
+            if (map.value("steamAppId").toString() == steamAppId)
+                return map;
         }
     }
 
@@ -803,12 +830,16 @@ void GameService::invalidateCache()
 
 void GameService::rebuildCache()
 {
-    // Rebuild game ID index
+    // Rebuild game ID and steamAppId indexes
     m_gameIdToIndex.clear();
+    m_steamAppIdToIndex.clear();
     m_gameIdToIndex.reserve(m_games.count());
+    m_steamAppIdToIndex.reserve(m_games.count());
 
     for (int i = 0; i < m_games.count(); ++i) {
         m_gameIdToIndex[m_games[i].id] = i;
+        if (!m_games[i].steamAppId.isEmpty())
+            m_steamAppIdToIndex[m_games[i].steamAppId] = i;
     }
 
     invalidateCache();

@@ -12,7 +12,6 @@
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QNetworkReply>
-#include <QStandardPaths>
 #include <QRegularExpression>
 #include <QUrl>
 

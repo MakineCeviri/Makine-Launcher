@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 import MakineAI 1.0
 import "components"
 import "screens"
@@ -18,7 +17,6 @@ Item {
     property real contentMargin: 16
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
-    signal installAndShowDetail(string gameId, string gameName, string installPath, string engine)
     signal settingsRequested()
     signal manualFolderRequested()
 
@@ -64,9 +62,6 @@ Item {
         onGameSelected: function(gameId, gameName, installPath, engine) {
             root.gameSelected(gameId, gameName, installPath, engine)
         }
-        onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
-            root.installAndShowDetail(gameId, gameName, installPath, engine)
-        }
     }
 
     ProjectsPage {
@@ -88,9 +83,6 @@ Item {
         contentMargin: root.contentMargin
         onGameSelected: function(gameId, gameName, installPath, engine) {
             root.gameSelected(gameId, gameName, installPath, engine)
-        }
-        onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
-            root.installAndShowDetail(gameId, gameName, installPath, engine)
         }
         onManualFolderRequested: root.manualFolderRequested()
         onSettingsRequested: root.settingsRequested()

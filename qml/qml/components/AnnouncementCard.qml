@@ -1,340 +1,184 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import MakineAI 1.0
 
-ColumnLayout {
+Rectangle {
     id: root
 
-    property bool animationsEnabled: true
     property real layoutCardMargin: 8
     property real layoutCardSpacing: 8
     property real layoutTopRowHeight: 200
 
-    signal manualFolderRequested()
+    signal gameClicked(string gameId, string gameName, string installPath, string engine)
 
     Layout.fillWidth: true
-    Layout.horizontalStretchFactor: 1
+    Layout.horizontalStretchFactor: 2
     Layout.preferredHeight: layoutTopRowHeight
-    spacing: 6
 
-    // ── System status card ──
-    Rectangle {
-        Layout.fillWidth: true; Layout.fillHeight: true
-        radius: Dimensions.radiusSection
-        color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-        border.color: Qt.rgba(1, 1, 1, 0.06)
-        border.width: 1
-        clip: true
+    radius: Dimensions.radiusSection
+    color: Theme.surface
+    clip: true
+    border.color: heroMa.containsMouse
+        ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
+    border.width: 1
+    Behavior on border.color { ColorAnimation { duration: Dimensions.animNormal } }
 
-        // Ambient glow (accent-colored, radial gradient)
-        Canvas {
-            anchors.fill: parent
-            property color glowColor: Theme.accentDark
-            onGlowColorChanged: requestPaint()
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                var cr = Dimensions.radiusSection
-                ctx.beginPath()
-                ctx.moveTo(cr, 0)
-                ctx.lineTo(width - cr, 0)
-                ctx.quadraticCurveTo(width, 0, width, cr)
-                ctx.lineTo(width, height - cr)
-                ctx.quadraticCurveTo(width, height, width - cr, height)
-                ctx.lineTo(cr, height)
-                ctx.quadraticCurveTo(0, height, 0, height - cr)
-                ctx.lineTo(0, cr)
-                ctx.quadraticCurveTo(0, 0, cr, 0)
-                ctx.closePath()
-                ctx.clip()
-                var cx = width - 40
-                var cy = 30
-                var r = Math.max(width, height) * 0.55
-                var gc = glowColor
-                var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
-                var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-                grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + ",0.12)")
-                grad.addColorStop(0.3, "rgba(" + R + "," + G + "," + B + ",0.06)")
-                grad.addColorStop(0.6, "rgba(" + R + "," + G + "," + B + ",0.02)")
-                grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
-                ctx.fillStyle = grad
-                ctx.fillRect(0, 0, width, height)
-            }
+    // Ambient glow — single Canvas, repaints on hover state change
+    Canvas {
+        anchors.fill: parent; z: 1
+        property color glowColor: Theme.accentBase
+        property bool hovered: heroMa.containsMouse
+        onGlowColorChanged: requestPaint()
+        onHoveredChanged: requestPaint()
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            var cr = Dimensions.radiusSection
+            ctx.beginPath()
+            ctx.moveTo(cr, 0); ctx.lineTo(width - cr, 0)
+            ctx.quadraticCurveTo(width, 0, width, cr)
+            ctx.lineTo(width, height - cr)
+            ctx.quadraticCurveTo(width, height, width - cr, height)
+            ctx.lineTo(cr, height)
+            ctx.quadraticCurveTo(0, height, 0, height - cr)
+            ctx.lineTo(0, cr)
+            ctx.quadraticCurveTo(0, 0, cr, 0)
+            ctx.closePath(); ctx.clip()
+            var gc = glowColor
+            var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
+            var a0 = hovered ? 0.50 : 0.22
+            var a1 = hovered ? 0.25 : 0.10
+            var a2 = hovered ? 0.10 : 0.04
+            var spread = hovered ? 0.55 : 0.5
+            var grad = ctx.createRadialGradient(30, height - 20, 0, 30, height - 20, Math.max(width, height) * spread)
+            grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + "," + a0 + ")")
+            grad.addColorStop(0.25, "rgba(" + R + "," + G + "," + B + "," + a1 + ")")
+            grad.addColorStop(0.5, "rgba(" + R + "," + G + "," + B + "," + a2 + ")")
+            grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
+            ctx.fillStyle = grad
+            ctx.fillRect(0, 0, width, height)
         }
+    }
 
-        // Content — horizontal layout matching original
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 16; anchors.rightMargin: 16
-            anchors.topMargin: 14; anchors.bottomMargin: 14
-            spacing: 12
+    // Hero game data — planned localization showcase
+    readonly property string _plannedAppId: "3764200"
+    readonly property var _heroGame: {
+        var found = GameService.getGameBySteamAppId(_plannedAppId)
+        if (found && found.id)
+            return found
+        return {
+            id: "steam_" + _plannedAppId,
+            steamAppId: _plannedAppId,
+            name: "Resident Evil Requiem",
+            headerImageUrl: "https://cdn.akamai.steamstatic.com/steam/apps/" + _plannedAppId + "/header.jpg",
+            installPath: "",
+            engine: ""
+        }
+    }
+    readonly property bool _isPlanned: (_heroGame.steamAppId || "") === _plannedAppId
 
-            // Ring
-            Item {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48
-                Layout.alignment: Qt.AlignVCenter
+    // Background image
+    Image {
+        id: heroImg
+        anchors.fill: parent
+        source: ImageCache.resolve(
+            root._heroGame.steamAppId || root._heroGame.id || "",
+            root._heroGame.headerImageUrl || ""
+        )
+        sourceSize: Qt.size(600, 400)
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: true
+        visible: false
 
-                // Static track ring
-                Rectangle {
-                    anchors.fill: parent; radius: width / 2
-                    color: "transparent"
-                    border.color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
-                }
-
-                // Brand gradient comet arc
-                Canvas {
-                    id: arcCanvas
-                    anchors.fill: parent
-                    rotation: 0
-                    NumberAnimation on rotation {
-                        from: 0; to: 360; duration: 3000
-                        loops: Animation.Infinite; running: root.visible
-                        easing.type: Easing.Linear
-                    }
-
-                    Component.onCompleted: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        var cx = width / 2, cy = height / 2, rad = (width - 4) / 2
-                        var segs = 36, sweep = Math.PI * 0.9
-
-                        var colors = [
-                            [252, 205, 102], [247, 174, 118], [238, 150, 143],
-                            [204, 159, 216], [144, 194, 230], [119, 219, 200]
-                        ]
-
-                        ctx.lineCap = "round"
-
-                        // Glow layer
-                        ctx.lineWidth = 4
-                        for (var g = 0; g < segs; g++) {
-                            var gt = g / segs
-                            var gs = -Math.PI / 2 + gt * sweep
-                            var ge = -Math.PI / 2 + (gt + 1.5 / segs) * sweep
-                            var ga = (0.08 * gt * gt).toFixed(3)
-                            var gi = Math.floor(gt * (colors.length - 1))
-                            var gc = colors[Math.min(gi, colors.length - 1)]
-                            ctx.beginPath(); ctx.arc(cx, cy, rad, gs, ge)
-                            ctx.strokeStyle = "rgba(" + gc[0] + "," + gc[1] + "," + gc[2] + "," + ga + ")"
-                            ctx.stroke()
-                        }
-
-                        // Main arc
-                        ctx.lineWidth = 2
-                        for (var i = 0; i < segs; i++) {
-                            var t = i / segs
-                            var s = -Math.PI / 2 + t * sweep
-                            var e = -Math.PI / 2 + (t + 1.5 / segs) * sweep
-                            var alpha = (0.03 + 0.6 * t * t).toFixed(3)
-
-                            var ci = t * (colors.length - 1)
-                            var idx = Math.min(Math.floor(ci), colors.length - 2)
-                            var frac = ci - idx
-                            var c1 = colors[idx], c2 = colors[idx + 1]
-                            var cr = Math.round(c1[0] + (c2[0] - c1[0]) * frac)
-                            var cg = Math.round(c1[1] + (c2[1] - c1[1]) * frac)
-                            var cb = Math.round(c1[2] + (c2[2] - c1[2]) * frac)
-
-                            ctx.beginPath(); ctx.arc(cx, cy, rad, s, e)
-                            ctx.strokeStyle = "rgba(" + cr + "," + cg + "," + cb + "," + alpha + ")"
-                            ctx.stroke()
-                        }
-
-                        // Leading star
-                        var headAngle = -Math.PI / 2 + sweep
-                        var sx = cx + rad * Math.cos(headAngle)
-                        var sy = cy + rad * Math.sin(headAngle)
-                        var starPts = 5, outerR = 3.5, innerR = outerR * 0.382
-                        ctx.beginPath()
-                        for (var p = 0; p < starPts * 2; p++) {
-                            var a = p * Math.PI / starPts - Math.PI / 2
-                            var pr = (p % 2 === 0) ? outerR : innerR
-                            if (p === 0) ctx.moveTo(sx + pr * Math.cos(a), sy + pr * Math.sin(a))
-                            else ctx.lineTo(sx + pr * Math.cos(a), sy + pr * Math.sin(a))
-                        }
-                        ctx.closePath()
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
-                        ctx.fill()
-                    }
-                }
-
-                // Turkish flag icon (circular)
-                Rectangle {
-                    anchors.centerIn: parent; width: 24; height: 24
-                    radius: 12; color: "#E30A17"; clip: true
-
-                    Rectangle { x: 4; y: 7; width: 10; height: 10; radius: 5; color: "#FFFFFF" }
-                    Rectangle { x: 6.5; y: 8; width: 8; height: 8; radius: 4; color: "#E30A17" }
-                    Canvas {
-                        x: 13; y: 9; width: 6; height: 6; antialiasing: true
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            var cx = 3, cy = 3, R = 2.8, r = R * 0.382
-                            ctx.beginPath()
-                            for (var i = 0; i < 5; i++) {
-                                var oa = i * 72 * Math.PI / 180
-                                var ia = (i * 72 + 36) * Math.PI / 180
-                                if (i === 0) ctx.moveTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
-                                else ctx.lineTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
-                                ctx.lineTo(cx - r * Math.cos(ia), cy - r * Math.sin(ia))
-                            }
-                            ctx.closePath(); ctx.fillStyle = "white"; ctx.fill()
-                        }
-                    }
-                }
-            }
-
-            // Text
-            ColumnLayout {
-                Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
-                spacing: 4
-
-                Label {
-                    text: qsTr("Oyun Tespit Edilemedi")
-                    font.pixelSize: Dimensions.fontLG; font.weight: Font.Bold
-                    color: Theme.textPrimary
-                }
-                Label {
-                    Layout.fillWidth: true
-                    text: qsTr("Desteklenen bir oyun bulunamad\u0131. Oyununuzu ba\u015Flat\u0131n ya da a\u015Fa\u011F\u0131dan manuel olarak ekleyin.")
-                    font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
-                    wrapMode: Text.WordWrap; lineHeight: 1.4
-                    maximumLineCount: 3; elide: Text.ElideRight
-                }
-            }
-
-            // Button
-            Item {
-                id: btn
-                Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: btnLbl.implicitWidth + 32
-                Layout.preferredHeight: 34
-
-                property bool hovered: btnMa.containsMouse
-
-                scale: hovered ? 1.03 : 1.0
-                Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 8; color: btn.hovered ? "#F5F5F5" : "#FFFFFF"
-                    Behavior on color { ColorAnimation { duration: Dimensions.animNormal } }
-                }
-
-                Label {
-                    id: btnLbl
-                    anchors.centerIn: parent
-                    text: qsTr("+ Oyun Ekle")
-                    font.pixelSize: Dimensions.fontXS; font.weight: Font.Bold
-                    color: Theme.accentDark
-                }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Manuel Oyun Ekle")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: root.manualFolderRequested()
-                Keys.onSpacePressed: root.manualFolderRequested()
-
-                FocusRing { target: btn }
-                MouseArea {
-                    id: btnMa; anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.manualFolderRequested()
-                }
+        Connections {
+            target: ImageCache
+            function onImageReady(readyId) {
+                var myId = root._heroGame.steamAppId || root._heroGame.id || ""
+                if (readyId === myId)
+                    heroImg.source = ImageCache.resolve(myId, root._heroGame.headerImageUrl || "")
             }
         }
     }
 
-    // ── Security footer with ambient glow continuation ──
+    // Mask for rounded corners
+    Item {
+        id: heroMask
+        anchors.fill: parent
+        visible: false
+        layer.enabled: heroImg.status === Image.Ready
+        Rectangle { anchors.fill: parent; radius: Dimensions.radiusSection; color: "white" }
+    }
+
+    MultiEffect {
+        anchors.fill: heroImg
+        source: heroImg
+        maskEnabled: true
+        maskSource: heroMask
+        visible: heroImg.status === Image.Ready
+    }
+
+    // Placeholder
     Rectangle {
-        id: secFooter
-        Layout.fillWidth: true; Layout.preferredHeight: 34
-        radius: 14
-        property bool hovered: secMa.containsMouse
-        color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-        border.color: hovered ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
-        border.width: 1
-        clip: true
-        Behavior on border.color { ColorAnimation { duration: Dimensions.animMedium } }
-
-        // Subtle ambient glow continuation from system status card
-        Canvas {
-            anchors.fill: parent
-            property color glowColor: Theme.accentDark
-            onGlowColorChanged: requestPaint()
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                var r = 14
-                ctx.beginPath()
-                ctx.moveTo(r, 0); ctx.lineTo(width - r, 0)
-                ctx.quadraticCurveTo(width, 0, width, r)
-                ctx.lineTo(width, height - r)
-                ctx.quadraticCurveTo(width, height, width - r, height)
-                ctx.lineTo(r, height)
-                ctx.quadraticCurveTo(0, height, 0, height - r)
-                ctx.lineTo(0, r)
-                ctx.quadraticCurveTo(0, 0, r, 0)
-                ctx.closePath(); ctx.clip()
-                var gc = glowColor
-                var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
-                var grad = ctx.createRadialGradient(width - 20, -10, 0, width - 20, -10, width * 0.6)
-                grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + ",0.10)")
-                grad.addColorStop(0.4, "rgba(" + R + "," + G + "," + B + ",0.04)")
-                grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
-                ctx.fillStyle = grad
-                ctx.fillRect(0, 0, width, height)
-            }
+        anchors.fill: parent
+        visible: heroImg.status !== Image.Ready
+        radius: Dimensions.radiusSection
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.15) }
+            GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surface, 0.8) }
         }
+    }
 
-        Accessible.role: Accessible.Link
-        Accessible.name: qsTr("Visit makineai.com")
-        activeFocusOnTab: true
-        Keys.onReturnPressed: Qt.openUrlExternally("https://makineai.com")
-        Keys.onSpacePressed: Qt.openUrlExternally("https://makineai.com")
-
-        Row {
-            anchors.centerIn: parent; spacing: 4
-            opacity: secFooter.hovered ? 0.95 : 0.55
-            Behavior on opacity { NumberAnimation { duration: Dimensions.animMedium } }
-
-            Image {
-                width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
-                source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
-                sourceSize: Qt.size(12, 12)
-            }
-
-            Label {
-                text: qsTr("G\u00FCvenli\u011Finiz i\u00E7in yaln\u0131zca")
-                font.pixelSize: Dimensions.fontMini
-                color: secFooter.hovered ? Theme.accentLight : Theme.textSecondary
-                anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: Dimensions.animMedium } }
-            }
-            Label {
-                text: "makineai.com"
-                font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium; font.underline: secFooter.hovered
-                color: secFooter.hovered ? Theme.accentBase : Theme.textSecondary
-                anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: Dimensions.animMedium } }
-            }
-            Label {
-                text: qsTr("\u00FCzerinden indirin")
-                font.pixelSize: Dimensions.fontMini
-                color: secFooter.hovered ? Theme.accentLight : Theme.textSecondary
-                anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: Dimensions.animMedium } }
-            }
+    // Dark gradient overlay
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.5; color: Theme.withAlpha("#000000", 0.2) }
+            GradientStop { position: 1.0; color: Theme.withAlpha("#000000", 0.75) }
         }
+    }
 
-        FocusRing { offset: -1 }
+    // TR badge (top-right)
+    TurkishFlagBadge {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: Dimensions.marginBase
+        anchors.rightMargin: Dimensions.marginBase
+        flagWidth: 22; flagHeight: 14
+        z: 2
+    }
 
-        MouseArea {
-            id: secMa; anchors.fill: parent; hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: Qt.openUrlExternally("https://makineai.com")
+    // Game name (bottom-left)
+    Text {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: Dimensions.marginMD
+        anchors.rightMargin: Dimensions.marginMD
+        anchors.bottomMargin: Dimensions.marginBase
+        text: root._heroGame ? (root._heroGame.name || "") : ""
+        font.pixelSize: Dimensions.fontSM
+        font.weight: Font.Bold
+        color: "white"
+        elide: Text.ElideRight
+        maximumLineCount: 2
+        wrapMode: Text.WordWrap
+    }
+
+    MouseArea {
+        id: heroMa
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            if (root._heroGame) {
+                var g = root._heroGame
+                root.gameClicked(g.id || "", g.name || "", g.installPath || "", g.engine || "")
+            }
         }
     }
 }

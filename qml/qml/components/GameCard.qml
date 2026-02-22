@@ -18,6 +18,28 @@ Item {
     property bool verified: false
     property bool translated: false
 
+    // Settle guard — skip decode for cards that scroll past within 60ms
+    property bool _settled: false
+
+    Timer {
+        id: _settleTimer
+        interval: 60; repeat: false
+        onTriggered: root._settled = true
+    }
+    Component.onCompleted: _settleTimer.start()
+
+    Connections {
+        target: ImageCache
+        function onImageReady(readyId) {
+            var myId = root.steamAppId || root.gameId
+            if (readyId === myId)
+                root.imageUrl = ImageCache.resolve(myId, "")
+        }
+    }
+
+    // Delegate recycling support (reuseItems)
+    ListView.onPooled: _settleTimer.stop()
+
     // SIZE
     width: Dimensions.cardWidth
     height: Dimensions.cardHeight
@@ -104,11 +126,12 @@ Item {
         Image {
             id: gameImage
             anchors.fill: parent
-            source: root.imageUrl
+            source: root._settled ? root.imageUrl : ""
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
             asynchronous: true
             cache: true
+            retainWhileLoading: true
             visible: false
         }
 
@@ -168,7 +191,6 @@ Item {
                 }
             }
         }
-
 
         // Verified badge (top-right)
         Rectangle {
