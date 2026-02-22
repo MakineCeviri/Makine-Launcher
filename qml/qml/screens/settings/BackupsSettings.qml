@@ -193,15 +193,7 @@ ColumnLayout {
                             }
 
                             // Focus indicator
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: -1
-                                radius: parent.radius + 1
-                                color: "transparent"
-                                border.color: Theme.withAlpha(Theme.primary, 0.6)
-                                border.width: 2
-                                visible: parent.activeFocus
-                            }
+                            FocusRing { offset: -1 }
 
                             MouseArea {
                                 id: restoreBtnMouse
@@ -238,15 +230,7 @@ ColumnLayout {
                             }
 
                             // Focus indicator
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: -1
-                                radius: parent.radius + 1
-                                color: "transparent"
-                                border.color: Theme.withAlpha(Theme.primary, 0.6)
-                                border.width: 2
-                                visible: parent.activeFocus
-                            }
+                            FocusRing { offset: -1 }
 
                             MouseArea {
                                 id: deleteBtnMouse

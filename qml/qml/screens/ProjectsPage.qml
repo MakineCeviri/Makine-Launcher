@@ -13,22 +13,15 @@ Item {
     property real layoutSepTopMargin: 4
     property real layoutSepBottomMargin: 8
 
-    readonly property var projectData: [
-        { title: "Cyberless: Online", desc: qsTr("\u00C7ok oyunculu cyberpunk aksiyon oyunu"), category: "oyun", status: qsTr("Tamamland\u0131"), statusColor: Theme.statusOnline, accent: Theme.statusOnline, emoji: "\uD83C\uDFAE", progress: 1.0 },
-        { title: "MakineAI Launcher", desc: qsTr("T\u00FCrk\u00E7e oyun \u00E7evirisi ba\u015Flat\u0131c\u0131s\u0131 ve y\u00F6netim arac\u0131"), category: "ceviri", status: qsTr("Alfa"), statusColor: Theme.primary, accent: Theme.primary, emoji: "\uD83D\uDE80", progress: 0.7 },
-        { title: qsTr("Topluluk \u00C7eviri Paketi"), desc: qsTr("A\u00E7\u0131k kaynak topluluk \u00E7eviri paketleri"), category: "ceviri", status: qsTr("S\u00FCrekli"), statusColor: Theme.statusCyan, accent: Theme.statusCyan, emoji: "\uD83C\uDF0D", progress: -1 },
-        { title: "MakineAI", desc: qsTr("Oyun \u00E7evirisi i\u00E7in yapay zeka dil modeli"), category: "ceviri", status: qsTr("Geli\u015Ftiriliyor"), statusColor: Theme.statusPurple, accent: Theme.statusPurple, emoji: "\uD83E\uDD16", progress: 0.3 },
-        { title: qsTr("\u00C7eviri API"), desc: qsTr("Geli\u015Ftiriciler i\u00E7in RESTful \u00E7eviri API hizmeti"), category: "ceviri", status: qsTr("Planlan\u0131yor"), statusColor: Theme.warning, accent: Theme.warning, emoji: "\u26A1", progress: 0.0 }
-    ]
+    property var installedList: GameService.installedTranslations()
+
+    signal gameSelected(string gameId, string gameName, string installPath, string engine)
 
     function replayProjectAnimations() {
-        for (var i = 0; i < projectCardsRepeater.count; i++) {
-            var item = projectCardsRepeater.itemAt(i)
-            if (item) item.replayAnimation()
-        }
+        installedList = GameService.installedTranslations()
     }
 
-    // Main layout - EXACT same pattern as homepage
+    // Main layout
     ColumnLayout {
         anchors.fill: parent
         anchors.topMargin: projectsPage.contentMargin
@@ -65,7 +58,7 @@ Item {
                     property string subtitle: ""
                     property string url: ""
                     property color cardColor: Theme.primary
-                    property string iconType: "" // "discord", "globe", "heart"
+                    property string iconType: ""
 
                     Layout.fillWidth: true
                     Layout.preferredHeight: 60
@@ -84,7 +77,6 @@ Item {
                         anchors.rightMargin: Dimensions.marginMS
                         spacing: Dimensions.spacingLG
 
-                        // Icon circle with Canvas-drawn vector icon
                         Rectangle {
                             Layout.preferredWidth: 32; Layout.preferredHeight: 32
                             Layout.alignment: Qt.AlignVCenter
@@ -92,8 +84,6 @@ Item {
                             color: Theme.withAlpha(cardColor, lcMouse.containsMouse ? 0.15 : 0.08)
                             border.color: Theme.withAlpha(cardColor, lcMouse.containsMouse ? 0.25 : 0.12)
                             border.width: 1
-                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                            Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                             Canvas {
                                 anchors.centerIn: parent
@@ -108,50 +98,23 @@ Item {
                                     ctx.lineJoin = "round"
 
                                     if (iconType === "discord") {
-                                        // Chat bubble icon
                                         ctx.beginPath()
-                                        ctx.moveTo(2, 4)
-                                        ctx.lineTo(2, 11)
-                                        ctx.lineTo(5, 11)
-                                        ctx.lineTo(5, 14)
-                                        ctx.lineTo(8, 11)
-                                        ctx.lineTo(14, 11)
-                                        ctx.lineTo(14, 4)
-                                        ctx.closePath()
-                                        ctx.stroke()
-                                        // Dots inside
-                                        ctx.beginPath()
-                                        ctx.arc(6, 7.5, 1, 0, Math.PI * 2)
-                                        ctx.fill()
-                                        ctx.beginPath()
-                                        ctx.arc(10, 7.5, 1, 0, Math.PI * 2)
-                                        ctx.fill()
+                                        ctx.moveTo(2, 4); ctx.lineTo(2, 11); ctx.lineTo(5, 11)
+                                        ctx.lineTo(5, 14); ctx.lineTo(8, 11); ctx.lineTo(14, 11)
+                                        ctx.lineTo(14, 4); ctx.closePath(); ctx.stroke()
+                                        ctx.beginPath(); ctx.arc(6, 7.5, 1, 0, Math.PI * 2); ctx.fill()
+                                        ctx.beginPath(); ctx.arc(10, 7.5, 1, 0, Math.PI * 2); ctx.fill()
                                     } else if (iconType === "globe") {
-                                        // Globe icon
-                                        ctx.beginPath()
-                                        ctx.arc(8, 8, 6.5, 0, Math.PI * 2)
-                                        ctx.stroke()
-                                        // Horizontal line
-                                        ctx.beginPath()
-                                        ctx.moveTo(1.5, 8)
-                                        ctx.lineTo(14.5, 8)
-                                        ctx.stroke()
-                                        // Vertical ellipse (meridian)
-                                        ctx.beginPath()
-                                        ctx.ellipse(4.5, 1.5, 7, 13, 0, 0, Math.PI * 2)
-                                        ctx.stroke()
+                                        ctx.beginPath(); ctx.arc(8, 8, 6.5, 0, Math.PI * 2); ctx.stroke()
+                                        ctx.beginPath(); ctx.moveTo(1.5, 8); ctx.lineTo(14.5, 8); ctx.stroke()
+                                        ctx.beginPath(); ctx.ellipse(4.5, 1.5, 7, 13, 0, 0, Math.PI * 2); ctx.stroke()
                                     } else if (iconType === "heart") {
-                                        // Heart icon
-                                        ctx.beginPath()
-                                        ctx.moveTo(8, 14)
+                                        ctx.beginPath(); ctx.moveTo(8, 14)
                                         ctx.bezierCurveTo(1, 9, 1, 3.5, 4.5, 2.5)
                                         ctx.bezierCurveTo(6.5, 2, 8, 4, 8, 4)
                                         ctx.bezierCurveTo(8, 4, 9.5, 2, 11.5, 2.5)
                                         ctx.bezierCurveTo(15, 3.5, 15, 9, 8, 14)
-                                        ctx.closePath()
-                                        ctx.fill()
-                                        ctx.globalAlpha = 0.3
-                                        ctx.stroke()
+                                        ctx.closePath(); ctx.fill()
                                     }
                                 }
                             }
@@ -182,21 +145,15 @@ Item {
                     activeFocusOnTab: true
                     Keys.onReturnPressed: Qt.openUrlExternally(url)
                     Keys.onSpacePressed: Qt.openUrlExternally(url)
-                    Rectangle {
-                        anchors.fill: parent; anchors.margins: -1
-                        radius: parent.radius + 1; color: "transparent"
-                        border.color: Theme.withAlpha(Theme.primary, 0.6); border.width: 2
-                        visible: parent.activeFocus
-                    }
                 }
 
-                LinkCard { label: "Discord"; subtitle: qsTr("Toplulu\u011Fa kat\u0131l"); url: Dimensions.discordUrl; cardColor: Theme.discordColor; iconType: "discord" }
+                LinkCard { label: "Discord"; subtitle: qsTr("Topluluğa katıl"); url: Dimensions.discordUrl; cardColor: Theme.discordColor; iconType: "discord" }
                 LinkCard { label: qsTr("Web Sitesi"); subtitle: "makineai.com"; url: Dimensions.websiteUrl; cardColor: Theme.primary; iconType: "globe" }
                 LinkCard { label: qsTr("Aramıza Katıl"); subtitle: qsTr("Ekibe katılın"); url: "https://makineai.com"; cardColor: Theme.brandCoral; iconType: "heart" }
             }
         }
 
-        // ===== PROJECTS SECTION =====
+        // ===== MY TRANSLATIONS SECTION =====
         ColumnLayout {
             Layout.fillWidth: true
             Layout.leftMargin: projectsPage.contentMargin
@@ -207,7 +164,7 @@ Item {
                 spacing: Dimensions.spacingLG
 
                 Label {
-                    text: qsTr("Aktif Projeler")
+                    text: qsTr("Çevirilerim")
                     font.pixelSize: Dimensions.fontXL
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
@@ -215,12 +172,13 @@ Item {
 
                 Rectangle {
                     Layout.preferredHeight: 22
-                    Layout.preferredWidth: projectCountLabel.width + 14
+                    Layout.preferredWidth: installedCountLabel.width + 14
                     radius: Dimensions.badgeRadius
                     color: Theme.withAlpha(Theme.primary, 0.12)
+                    visible: projectsPage.installedList.length > 0
                     Label {
-                        id: projectCountLabel; anchors.centerIn: parent
-                        text: qsTr("%1 proje").arg(projectsPage.projectData.length)
+                        id: installedCountLabel; anchors.centerIn: parent
+                        text: qsTr("%1 kurulu").arg(projectsPage.installedList.length)
                         font.pixelSize: Dimensions.fontXS; font.weight: Font.Medium; color: Theme.primary
                     }
                 }
@@ -236,28 +194,131 @@ Item {
                 color: Theme.withAlpha(Theme.textPrimary, 0.06)
             }
 
-            GridLayout {
+            // Installed translations list
+            ColumnLayout {
                 Layout.fillWidth: true
-                columns: 2
-                columnSpacing: Dimensions.spacingXL
-                rowSpacing: Dimensions.spacingLG
+                spacing: Dimensions.spacingSM
+                visible: projectsPage.installedList.length > 0
 
                 Repeater {
-                    id: projectCardsRepeater
-                    model: projectsPage.projectData
+                    model: projectsPage.installedList
 
-                    ProjectShowcaseCard {
-                        title: modelData.title
-                        description: modelData.desc
-                        status: modelData.status
-                        statusColor: modelData.statusColor
-                        accentColor: modelData.accent
-                        emoji: modelData.emoji
-                        progress: modelData.progress
-                        entryIndex: index
-                        animationsEnabled: projectsPage.animationsEnabled
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+                        radius: Dimensions.radiusStandard
+                        color: itMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06)
+                                                     : Theme.withAlpha(Theme.textPrimary, 0.03)
+                        border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Dimensions.marginMS
+                            anchors.rightMargin: Dimensions.marginMS
+                            spacing: Dimensions.spacingLG
+
+                            Rectangle {
+                                Layout.preferredWidth: 80
+                                Layout.preferredHeight: 38
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: 6
+                                color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                                clip: true
+
+                                Image {
+                                    anchors.fill: parent
+                                    source: modelData.headerImageUrl || ""
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                }
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Dimensions.spacingXXS
+
+                                Label {
+                                    text: modelData.name || ""
+                                    font.pixelSize: Dimensions.fontBody
+                                    font.weight: Font.DemiBold
+                                    color: Theme.textPrimary
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+
+                                RowLayout {
+                                    spacing: Dimensions.spacingSM
+
+                                    Label {
+                                        text: modelData.version ? "v" + modelData.version : ""
+                                        font.pixelSize: Dimensions.fontCaption
+                                        color: Theme.textMuted
+                                        visible: text.length > 0
+                                    }
+
+                                    Rectangle {
+                                        Layout.preferredWidth: 4
+                                        Layout.preferredHeight: 4
+                                        radius: 2
+                                        color: Theme.statusOnline
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
+
+                                    Label {
+                                        text: qsTr("Kurulu")
+                                        font.pixelSize: Dimensions.fontCaption
+                                        color: Theme.statusOnline
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: 6
+                                color: uninstBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.15) : "transparent"
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "\u2715"
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: uninstBtnMouse.containsMouse ? Theme.error : Theme.textMuted
+                                }
+
+                                MouseArea {
+                                    id: uninstBtnMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: GameService.uninstallTranslation(modelData.id)
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: itMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            z: -1
+                            onClicked: projectsPage.gameSelected(
+                                modelData.id || "", modelData.name || "",
+                                modelData.installPath || "", modelData.engine || ""
+                            )
+                        }
                     }
                 }
+            }
+
+            // Empty state
+            EmptyState {
+                visible: projectsPage.installedList.length === 0
+                title: qsTr("Henüz çeviri kurulmamış")
+                subtitle: qsTr("Kütüphaneden bir oyun seçip çevirisini kurun")
             }
         }
 

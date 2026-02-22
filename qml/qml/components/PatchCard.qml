@@ -83,7 +83,7 @@ Item {
             id: imageMask
             anchors.fill: parent
             visible: false
-            layer.enabled: true
+            layer.enabled: gameImg.status === Image.Ready
             Rectangle {
                 anchors.fill: parent
                 radius: Dimensions.cardBorderRadius
@@ -402,14 +402,8 @@ Item {
     }
 
     // ===== FOCUS INDICATOR =====
-    Rectangle {
-        anchors.fill: imgContainer
-        anchors.margins: -2
-        radius: Dimensions.cardBorderRadius + 2
-        color: "transparent"
-        border.color: Theme.borderFocus
-        border.width: 2
-        visible: root.activeFocus
+    FocusRing {
+        target: root
     }
 
     // ===== ACCESSIBILITY =====

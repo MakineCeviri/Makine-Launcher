@@ -62,11 +62,43 @@ QtObject {
     /// Birincil glow (alfa ile)
     readonly property color primaryGlow: Qt.rgba(0.231, 0.510, 0.965, 0.25) // #3B82F640
 
-    /// İkincil mor
-    readonly property color secondary: "#8B5CF6"
+    // =========================================================================
+    // ACCENT COLOR SYSTEM (user-configurable via SettingsManager.accentPreset)
+    // =========================================================================
 
-    /// İkincil hover
-    readonly property color secondaryHover: "#7C3AED"
+    /// Active accent preset ID
+    property string _accentPresetId: typeof SettingsManager !== "undefined" ? SettingsManager.accentPreset : "purple"
+
+    /// Internal: load colors from preset
+    property var _accentColors: _resolveAccentColors(_accentPresetId)
+
+    function _resolveAccentColors(presetId) {
+        var presets = {
+            "purple": ["#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"],
+            "blue":   ["#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8"],
+            "teal":   ["#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"],
+            "green":  ["#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"],
+            "rose":   ["#FDA4AF", "#FB7185", "#F43F5E", "#E11D48", "#BE123C"],
+            "amber":  ["#FCD34D", "#FBBF24", "#F59E0B", "#D97706", "#B45309"],
+            "red":    ["#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"],
+            "sky":    ["#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"]
+        }
+        return presets[presetId] || presets["purple"]
+    }
+
+    /// Accent tones (lightest → darkest)
+    property color accentLightest: _accentColors[0]
+    property color accentLight:    _accentColors[1]
+    property color accentBase:     _accentColors[2]
+    property color accentDark:     _accentColors[3]
+    property color accentDarkest:  _accentColors[4]
+
+    /// Full gradient array for Canvas usage
+    property var accentGradient: [accentLightest, accentLight, accentBase, accentDark, accentDarkest]
+
+    /// Backwards compatibility aliases
+    property color secondary: accentBase
+    property color secondaryHover: accentDark
 
     /// Vurgu cyan
     readonly property color accent: "#06B6D4"

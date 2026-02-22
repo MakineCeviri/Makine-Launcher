@@ -315,31 +315,11 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
     }
 }
 
-Result<void> Core::initializeTranslationServices(const CoreConfig& config) {
-    MAKINEAI_LOG_DEBUG(log::CORE, "Initializing translation services...");
-    auto timer = Metrics::instance().timer("translation_services_init");
-
-    try {
-        // Translation Memory
-        translationMemory_ = std::make_unique<TranslationMemory>();
-
-        // Glossary Service (use singleton pattern's instance)
-        // GlossaryService is a singleton, we don't create a new one
-        // glossaryService_ = std::make_unique<GlossaryService>();
-
-        // QA Service (has static methods only)
-        qaService_ = std::make_unique<QAService>();
-
-        // Translation Pipeline (Decision Engine)
-        translationPipeline_ = std::make_unique<TranslationPipeline>();
-
-        MAKINEAI_LOG_DEBUG(log::CORE, "Translation services initialized");
-        return {};
-
-    } catch (const std::exception& ex) {
-        return std::unexpected(Error(ErrorCode::Unknown,
-            std::string("Translation services initialization failed: ") + ex.what()));
-    }
+Result<void> Core::initializeTranslationServices(const CoreConfig& /*config*/) {
+    // Translation services (TM, Glossary, QA, Pipeline) are deferred
+    // to the adaptation engine milestone. Skip initialization for now.
+    MAKINEAI_LOG_DEBUG(log::CORE, "Translation services deferred (adaptation engine)");
+    return {};
 }
 
 void Core::configureHealthChecker(const CoreConfig& config) {
@@ -458,31 +438,7 @@ VersionTracker& Core::versionTracker() {
     return *versionTracker_;
 }
 
-TranslationMemory& Core::translationMemory() {
-    if (!translationMemory_) {
-        throw Exception(Error(ErrorCode::InvalidArgument, "TranslationMemory not initialized"));
-    }
-    return *translationMemory_;
-}
-
-GlossaryService& Core::glossaryService() {
-    // GlossaryService is a singleton
-    return GlossaryService::instance();
-}
-
-QAService& Core::qaService() {
-    if (!qaService_) {
-        throw Exception(Error(ErrorCode::InvalidArgument, "QAService not initialized"));
-    }
-    return *qaService_;
-}
-
-TranslationPipeline& Core::translationPipeline() {
-    if (!translationPipeline_) {
-        throw Exception(Error(ErrorCode::InvalidArgument, "TranslationPipeline not initialized"));
-    }
-    return *translationPipeline_;
-}
+// Translation service accessors are now inline in core.hpp (nullable pointers)
 
 // =============================================================================
 // Async Operations

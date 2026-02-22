@@ -282,7 +282,7 @@ private:
             oldFont = (HFONT)SelectObject(mem, verFont);
             SetTextColor(mem, RGB(60, 60, 75));
             RECT verRc = {0, h - 24, w - 14, h - 8};
-            DrawTextW(mem, L"v0.1.0pre-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
+            DrawTextW(mem, L"v0.1.0-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
 
@@ -353,7 +353,6 @@ void logToFile(const QString& msg) {
 #include "services/integrityservice.h"
 #include "services/batchoperationservice.h"
 #include "services/updatechecker.h"
-#include "services/notificationservice.h"
 #include "services/operationjournal.h"
 #include "services/imagecachemanager.h"
 #include "services/corebridge.h"
@@ -500,7 +499,7 @@ int main(int argc, char *argv[])
 
     app.setQuitOnLastWindowClosed(false);
     app.setApplicationName("MakineAI");
-    app.setApplicationVersion("0.1.0pre-alpha");
+    app.setApplicationVersion("0.1.0-alpha");
     app.setOrganizationName("MakineAI");
     app.setOrganizationDomain("makineai.com");
     app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
@@ -516,6 +515,13 @@ int main(int argc, char *argv[])
     defaultFont.setStyleStrategy(QFont::PreferAntialias);
     defaultFont.setHintingPreference(QFont::PreferFullHinting);
     app.setFont(defaultFont);
+
+    // Pipeline cache: save compiled shaders so subsequent launches skip compilation stutter
+    {
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        qputenv("QSG_RHI_PIPELINE_CACHE_SAVE", (cacheDir + "/pipeline_cache.bin").toUtf8());
+        qputenv("QSG_RHI_PIPELINE_CACHE_LOAD", (cacheDir + "/pipeline_cache.bin").toUtf8());
+    }
 
     // Reduce thread pool: default = CPU count, each thread = 1 MB stack
     QThreadPool::globalInstance()->setMaxThreadCount(2);
@@ -583,9 +589,6 @@ int main(int argc, char *argv[])
 
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
-
-    auto* notificationService = new NotificationService(&app);
-    engine.rootContext()->setContextProperty("NotificationService", notificationService);
 
     auto* updateChecker = new UpdateChecker(&app);
     engine.rootContext()->setContextProperty("UpdateChecker", updateChecker);
@@ -694,10 +697,20 @@ int main(int argc, char *argv[])
         window->setPersistentGraphics(false);
         window->setPersistentSceneGraph(false);
 
-        // Enable VK_EXT_memory_budget when using Vulkan backend
-        if (QQuickWindow::graphicsApi() == QSGRendererInterface::Vulkan) {
+        // Graphics configuration: pipeline cache + Vulkan extensions
+        {
             QQuickGraphicsConfiguration gfxConfig;
-            gfxConfig.setDeviceExtensions({"VK_EXT_memory_budget"});
+
+            // Pipeline cache via API (supplements env vars set earlier)
+            QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                                + "/pipeline_cache.bin";
+            gfxConfig.setPipelineCacheSaveFile(cachePath);
+            gfxConfig.setPipelineCacheLoadFile(cachePath);
+
+            // Enable VK_EXT_memory_budget when using Vulkan backend
+            if (QQuickWindow::graphicsApi() == QSGRendererInterface::Vulkan)
+                gfxConfig.setDeviceExtensions({"VK_EXT_memory_budget"});
+
             window->setGraphicsConfiguration(gfxConfig);
         }
 
@@ -721,7 +734,7 @@ int main(int argc, char *argv[])
 
     // Close splash — window is fully ready
 #ifdef Q_OS_WIN
-    splash.waitMinimumDisplay(800);
+    splash.waitMinimumDisplay(500);
     splash.close();
 #endif
 

@@ -41,6 +41,43 @@ Item {
         Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
     }
 
+    // Ambient glow — single Canvas, repaints on hover state change
+    Canvas {
+        anchors.fill: cardContent; z: 1
+        property color glowColor: Theme.accentBase
+        property bool hovered: root.isHovered
+        onGlowColorChanged: requestPaint()
+        onHoveredChanged: requestPaint()
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            var cr = Dimensions.cardBorderRadius
+            ctx.beginPath()
+            ctx.moveTo(cr, 0); ctx.lineTo(width - cr, 0)
+            ctx.quadraticCurveTo(width, 0, width, cr)
+            ctx.lineTo(width, height - cr)
+            ctx.quadraticCurveTo(width, height, width - cr, height)
+            ctx.lineTo(cr, height)
+            ctx.quadraticCurveTo(0, height, 0, height - cr)
+            ctx.lineTo(0, cr)
+            ctx.quadraticCurveTo(0, 0, cr, 0)
+            ctx.closePath(); ctx.clip()
+            var gc = glowColor
+            var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
+            var a0 = hovered ? 0.50 : 0.22
+            var a1 = hovered ? 0.25 : 0.10
+            var a2 = hovered ? 0.10 : 0.04
+            var spread = hovered ? 0.6 : 0.55
+            var grad = ctx.createRadialGradient(8, height - 4, 0, 8, height - 4, Math.max(width, height) * spread)
+            grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + "," + a0 + ")")
+            grad.addColorStop(0.25, "rgba(" + R + "," + G + "," + B + "," + a1 + ")")
+            grad.addColorStop(0.5, "rgba(" + R + "," + G + "," + B + "," + a2 + ")")
+            grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
+            ctx.fillStyle = grad
+            ctx.fillRect(0, 0, width, height)
+        }
+    }
+
     // CARD CONTENT
     Rectangle {
         id: cardContent
@@ -54,7 +91,7 @@ Item {
             id: imageMask
             anchors.fill: parent
             visible: false
-            layer.enabled: true
+            layer.enabled: gameImage.status === Image.Ready
 
             Rectangle {
                 anchors.fill: parent
@@ -132,105 +169,78 @@ Item {
             }
         }
 
-        // Bottom gradient overlay
+
+        // Verified badge (top-right)
         Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.4; color: "transparent" }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.85) }
+            visible: root.verified
+            anchors.top: parent.top; anchors.right: parent.right
+            anchors.topMargin: Dimensions.marginBase; anchors.rightMargin: Dimensions.marginBase
+            width: 16; height: 16; radius: 8
+            color: Theme.accentBase
+            z: 2
+
+            Text {
+                anchors.centerIn: parent
+                text: "\u2713"
+                font.pixelSize: Dimensions.fontCaption
+                font.weight: Font.Bold
+                color: Theme.textOnColor
             }
         }
 
-        // COMBINED BADGE (TR + ✓)
-        Row {
-            visible: root.translated || root.verified
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.topMargin: Dimensions.marginBase
-            anchors.rightMargin: Dimensions.marginBase
-            spacing: Dimensions.spacingXS
-
-            Rectangle {
-                visible: root.translated
-                width: 22
-                height: 16
-                radius: Dimensions.badgeRadius
-                color: Theme.turkishRed
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "TR"
-                    font.pixelSize: Dimensions.fontMini
-                    font.weight: Font.Bold
-                    color: Theme.textOnColor
-                }
-            }
-
-            Rectangle {
-                visible: root.verified
-                width: 16
-                height: 16
-                radius: 8
-                color: Theme.primary
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "✓"
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.Bold
-                    color: Theme.textOnColor
-                }
-            }
-        }
-
-
-        // GAME NAME
-        Item {
+        // Game name
+        Text {
+            id: nameText
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.leftMargin: Dimensions.marginBase
             anchors.rightMargin: Dimensions.marginBase
             anchors.bottomMargin: Dimensions.marginBase
-            height: nameText.height + 2
+            text: root.gameName
+            font.pixelSize: Dimensions.fontCaption
+            font.weight: Font.DemiBold
+            color: Theme.textPrimary
+            style: Text.Raised
+            styleColor: Qt.rgba(0, 0, 0, 0.7)
+            maximumLineCount: 2
+            wrapMode: Text.WordWrap
+            elide: Text.ElideRight
 
-            Text {
-                id: nameText
-                anchors.bottom: parent.bottom
-                width: parent.width
+            ToolTip {
+                visible: root.isHovered && nameText.truncated
+                delay: 250
                 text: root.gameName
-                font.pixelSize: Dimensions.fontCaption
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
-                maximumLineCount: 2
-                wrapMode: Text.WordWrap
-                elide: Text.ElideRight
+                font.pixelSize: Dimensions.fontSM
 
-                ToolTip {
-                    visible: root.isHovered && nameText.truncated
-                    delay: 250
-                    text: root.gameName
-                    font.pixelSize: Dimensions.fontSM
-
-                    background: Rectangle {
-                        color: Theme.withAlpha(Theme.surface, 0.95)
-                        radius: Dimensions.radiusStandard
-                        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                    }
+                background: Rectangle {
+                    color: Theme.withAlpha(Theme.surface, 0.95)
+                    radius: Dimensions.radiusStandard
+                    border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
                 }
+            }
+        }
+
+        // TR badge — fixed position, blink in/out
+        TurkishFlagBadge {
+            id: trBadgeBottom
+            visible: root.translated
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: Dimensions.marginBase
+            anchors.bottomMargin: Dimensions.marginBase
+            flagWidth: 18; flagHeight: 12
+            opacity: root.isHovered ? 1.0 : 0.0
+
+            Behavior on opacity {
+                NumberAnimation { duration: 120; easing.type: Easing.InOutQuad }
             }
         }
     }
 
     // Focus indicator
-    Rectangle {
-        anchors.fill: cardContent
-        anchors.margins: -2
-        radius: cardContent.radius + 2
-        color: "transparent"
-        border.color: Theme.withAlpha(Theme.primary, 0.6)
-        border.width: 2
-        visible: root.activeFocus
+    FocusRing {
+        target: root
         z: Dimensions.zBase
     }
 

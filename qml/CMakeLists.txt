@@ -96,7 +96,6 @@ set(BACKEND_SOURCES
     src/services/localpackagemanager.cpp
     src/services/updatedetectionservice.cpp
     src/services/updatechecker.cpp
-    src/services/notificationservice.cpp
     src/services/operationjournal.cpp
     src/services/appprotection.cpp
     src/services/imagecachemanager.cpp
@@ -115,7 +114,6 @@ set(BACKEND_HEADERS
     src/services/vdfparser.h
     src/services/updatedetectionservice.h
     src/services/updatechecker.h
-    src/services/notificationservice.h
     src/services/pathsecurity.h
     src/services/operationjournal.h
     src/services/appprotection.h
@@ -163,7 +161,7 @@ qt_add_qml_module(MakineAI
         # Screens - Home Pages
         qml/screens/HomePage.qml
         qml/screens/ProjectsPage.qml
-        qml/screens/TranslationLibraryPage.qml
+        qml/screens/Library.qml
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
@@ -208,10 +206,8 @@ qt_add_qml_module(MakineAI
         qml/components/NavItem.qml                # Navigation tab item
         qml/components/WindowResizeHandles.qml    # Frameless window resize
         #
-        # Notifications: User feedback
-        qml/components/NotificationPanel.qml      # Notification list panel
-        qml/components/NotificationToast.qml      # Single toast notification
-        qml/components/NotificationBanner.qml     # Banner notification
+        # Layout: Section containers
+        qml/components/SectionContainer.qml       # Glassmorphic section wrapper
         #
         # Visual: Decorative and feedback
         qml/components/AnimatedGradientGlow.qml   # Animated glow effect
@@ -233,14 +229,24 @@ qt_add_qml_module(MakineAI
         qml/components/CategoryItem.qml           # Category filter item
         qml/components/BatchOperationsPanel.qml   # Batch ops control
         qml/components/PerformanceMonitor.qml     # Dev-only perf overlay
+        qml/components/EmptyState.qml             # Reusable empty/zero-data state
+        qml/components/FocusRing.qml              # Keyboard focus indicator
+        qml/components/StyledScrollBar.qml        # Themed scrollbar
+
+        # Controllers (Main.qml decomposition)
+        qml/controllers/GameDataResolver.qml
+        qml/controllers/InstallFlowController.qml
 
         # Dialogs
-        qml/dialogs/AllGamesDialog.qml
+        qml/dialogs/BaseDialog.qml
+        qml/dialogs/DialogCloseButton.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/ConfirmDialog.qml
         qml/dialogs/UninstallConfirmDialog.qml
         qml/dialogs/VariantSelectionDialog.qml
         qml/dialogs/InstallNotesDialog.qml
+        qml/dialogs/InstallOptionsDialog.qml
+        qml/dialogs/UpdateAlertDialog.qml
 
     RESOURCES
         # SVG icons (8 active)

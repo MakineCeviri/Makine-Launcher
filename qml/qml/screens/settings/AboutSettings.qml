@@ -294,7 +294,7 @@ ColumnLayout {
                                 color: Theme.primary
 
                                 Behavior on width {
-                                    NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                    NumberAnimation { duration: Dimensions.animMedium; easing.type: Easing.OutCubic }
                                 }
                             }
                         }
@@ -409,7 +409,6 @@ ColumnLayout {
                 { key: "Ctrl+R", desc: qsTr("Yeniden tara") },
                 { key: "Ctrl+,", desc: qsTr("Ayarlar") },
                 { key: "Ctrl+H", desc: qsTr("Ana sayfa") },
-                { key: "Ctrl+N", desc: qsTr("Bildirimler") },
                 { key: "Ctrl+1", desc: qsTr("Ana sayfa") },
                 { key: "Ctrl+2", desc: qsTr("Kütüphane") },
                 { key: "Ctrl+3", desc: qsTr("Projelerimiz") },

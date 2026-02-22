@@ -80,6 +80,7 @@ set(MAKINEAI_SOURCES
     # Asset Parsers
     src/asset_parser/asset_parser.cpp
     src/asset_parser/unity_bundle_parser.cpp
+    src/asset_parser/unity_bundle_patcher.cpp
     src/asset_parser/unreal_pak_parser.cpp
     src/asset_parser/bethesda_ba2_parser.cpp
     src/asset_parser/gamemaker_data_parser.cpp
@@ -188,6 +189,7 @@ set(MAKINEAI_HEADERS
     include/makineai/types/game_types.hpp
     include/makineai/types/patch_types.hpp
     include/makineai/types/translation_types.hpp
+    include/makineai/unity_bundle_patcher.hpp
     include/formats/unity_bundle.hpp
     include/formats/unreal_pak.hpp
     include/formats/bethesda_ba2.hpp

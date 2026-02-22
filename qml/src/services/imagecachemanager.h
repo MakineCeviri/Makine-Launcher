@@ -73,6 +73,7 @@ private:
     QSet<QString> m_pending;          // appIds currently downloading
     QSet<QString> m_failed;           // appIds that exhausted all fallbacks
     QQueue<QPair<QString, QString>> m_queue;  // waiting: {appId, remoteUrl}
+    mutable qint64 m_cachedSizeBytes{-1};     // Incremental cache size tracking
     static constexpr int MAX_CONCURRENT = 8;
 };
 

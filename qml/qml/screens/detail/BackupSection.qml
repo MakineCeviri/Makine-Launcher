@@ -11,6 +11,7 @@ ColumnLayout {
 
     // Required properties from parent
     required property string gameId
+    property var updateImpact: null
 
     property var gameBackups: BackupManager.getBackupsForGame(gameId)
     property bool hasBackups: gameBackups.length > 0
@@ -103,6 +104,32 @@ ColumnLayout {
                         radius: Dimensions.radiusFull
                         color: Theme.withAlpha(Theme.textPrimary, 0.06)
                         Text { id: countLbl; anchors.centerIn: parent; text: qsTr("%1 yedek").arg(backupRoot.gameBackups.length); font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
+                    }
+                }
+
+                // Stale backup warning — shown when game was updated after backup was created
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: backupRoot.hasBackups && backupRoot.updateImpact
+                             && (backupRoot.updateImpact.level === "broken" || backupRoot.updateImpact.level === "lost")
+                    implicitHeight: staleRow.height + 16
+                    radius: Dimensions.radiusSmall
+                    color: Theme.withAlpha(Theme.warning, 0.08)
+                    border.color: Theme.withAlpha(Theme.warning, 0.20); border.width: 1
+
+                    Row {
+                        id: staleRow
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: 12
+                        spacing: Dimensions.spacingMD
+                        Text { text: "\u26A0"; font.pixelSize: Dimensions.fontSM; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            text: qsTr("Bu yedek eski oyun sürümüne ait. Geri yüklemek oyunu bozabilir.")
+                            font.pixelSize: Dimensions.fontCaption; color: Theme.warning
+                            wrapMode: Text.WordWrap; width: parent.width - 40
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                 }
 

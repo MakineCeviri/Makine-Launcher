@@ -116,14 +116,6 @@ public:
      */
     int supportedGameCount() const;
 
-    // ========== Backup ==========
-
-    /**
-     * @brief Restore game files from backup
-     */
-    bool restoreBackup(const QString& gamePath, const QString& engine,
-                       const QString& backupId);
-
     // ========== Package Manager ==========
 
     /**
@@ -140,7 +132,8 @@ public:
      * @brief Download and install translation package
      */
     void installPackage(const QString& packageId, const QString& gamePath,
-                        const QString& variant = {});
+                        const QString& variant = {},
+                        const QStringList& selectedOptions = {});
 
     /**
      * @brief Get available variants for a game
@@ -158,6 +151,26 @@ public:
     QString getInstallNotesForGame(const QString& gameId);
 
     /**
+     * @brief Get install options (checkbox-style) for a game
+     */
+    QVariantList getInstallOptionsForGame(const QString& gameId);
+
+    /**
+     * @brief Get special dialog mode for a game
+     */
+    QString getSpecialDialogForGame(const QString& gameId);
+
+    /**
+     * @brief Get variant-specific install options
+     */
+    QVariantList getVariantInstallOptionsForGame(const QString& gameId, const QString& variant);
+
+    /**
+     * @brief Get variant-specific special dialog mode
+     */
+    QString getVariantSpecialDialogForGame(const QString& gameId, const QString& variant);
+
+    /**
      * @brief Get list of files in the translation package (relative paths)
      */
     QStringList getPackageFileList(const QString& gameId, const QString& variant = {});
@@ -172,6 +185,17 @@ public:
      * @brief Check if package is installed for game
      */
     bool isPackageInstalled(const QString& gameId);
+
+    /**
+     * @brief Get installed package info (file classification, store version)
+     */
+    std::optional<InstalledPackageInfo> getInstalledInfo(const QString& gameId);
+
+    /**
+     * @brief Update stored game version for installed package
+     */
+    void updateInstalledStoreVersion(const QString& gameId, const QString& storeVersion,
+                                      const QString& source);
 
     /**
      * @brief Uninstall translation package

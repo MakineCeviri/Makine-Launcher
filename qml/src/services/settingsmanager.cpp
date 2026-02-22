@@ -152,6 +152,49 @@ void SettingsManager::setIsDarkMode(bool value)
     }
 }
 
+void SettingsManager::setAccentPreset(const QString& value)
+{
+    if (m_accentPreset != value) {
+        m_accentPreset = value;
+        m_settings.setValue("appearance/accentPreset", value);
+        emit accentPresetChanged();
+        emit settingsChanged();
+    }
+}
+
+QVariantList SettingsManager::accentPresets() const
+{
+    struct Preset {
+        const char* id;
+        const char* name;
+        const char* colors[5]; // lightest, light, base, dark, darkest
+    };
+
+    static const Preset presets[] = {
+        {"purple", "Mor",        {"#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"}},
+        {"blue",   "Mavi",       {"#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8"}},
+        {"teal",   "Turkuaz",    {"#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"}},
+        {"green",  "Ye\xc5\x9fil",      {"#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"}},
+        {"rose",   "Pembe",      {"#FDA4AF", "#FB7185", "#F43F5E", "#E11D48", "#BE123C"}},
+        {"amber",  "Amber",      {"#FCD34D", "#FBBF24", "#F59E0B", "#D97706", "#B45309"}},
+        {"red",    "K\xc4\xb1rm\xc4\xb1z\xc4\xb1",  {"#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"}},
+        {"sky",    "G\xc3\xb6k Mavisi",{"#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"}},
+    };
+
+    QVariantList result;
+    for (const auto& p : presets) {
+        QVariantMap map;
+        map["id"] = QString::fromUtf8(p.id);
+        map["name"] = QString::fromUtf8(p.name);
+        QVariantList colors;
+        for (const auto& c : p.colors)
+            colors.append(QString::fromUtf8(c));
+        map["colors"] = colors;
+        result.append(map);
+    }
+    return result;
+}
+
 void SettingsManager::setAppLanguage(const QString& value)
 {
     if (m_appLanguage != value) {
@@ -231,6 +274,7 @@ void SettingsManager::resetToDefaults()
     setGraphicsBackend("vulkan");
     setTranslationLanguage("tr");
     setIsDarkMode(true);
+    setAccentPreset("purple");
     emit settingsResetCompleted();
 }
 
@@ -279,6 +323,7 @@ void SettingsManager::loadSettings()
     }
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
+    m_accentPreset = m_settings.value("appearance/accentPreset", "purple").toString();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
     m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();
     // translationDataPath: prefer DPAPI-encrypted, migrate from plaintext
@@ -319,6 +364,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("performance/graphicsBackend", m_graphicsBackend);
     m_settings.setValue("translation/language", m_translationLanguage);
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
+    m_settings.setValue("appearance/accentPreset", m_accentPreset);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
     m_settings.setValue("general/appLanguage", m_appLanguage);
 

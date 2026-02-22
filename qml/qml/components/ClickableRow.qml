@@ -34,15 +34,7 @@ Item {
     implicitWidth: 200
 
     // Focus indicator
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: -2
-        radius: Dimensions.radiusStandard + 2
-        color: "transparent"
-        border.color: Theme.withAlpha(Theme.primary, 0.6)
-        border.width: 2
-        visible: root.activeFocus
-    }
+    FocusRing { target: root }
 
     Rectangle {
         anchors.fill: parent

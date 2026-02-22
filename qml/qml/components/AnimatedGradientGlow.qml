@@ -15,7 +15,7 @@ Item {
     property bool active: false
     property bool animationsEnabled: true
 
-    opacity: root.active ? 0.35 : 0
+    opacity: root.active ? 0.50 : 0
     Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
 
     // Rotation phase (0 → 1 = 0° → 360°)

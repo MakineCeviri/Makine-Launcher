@@ -73,6 +73,9 @@ Item {
     property string installStatus: ""
     property bool installCompleted: false    // Just finished installing
 
+    // ===== UPDATE IMPACT =====
+    property var updateImpact: null  // { level, summary, totalFiles, ... }
+
     // ===== UI STATE =====
     property bool descriptionExpanded: false
     property real scrollY: 0
@@ -98,7 +101,7 @@ Item {
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
         installCompleted = false; autoInstall = false
         isGameInstalled = false; packageInstalled = false
-        isManualGame = false
+        isManualGame = false; updateImpact = null
         descriptionExpanded = false
     }
 
@@ -150,6 +153,13 @@ Item {
         unityVersion = d.unityVersion || ""
         hasAntiCheat = d.hasAntiCheat || false
         antiCheatName = d.antiCheatName || ""
+
+        // Check update impact for installed translations
+        if (packageInstalled && GameService.hasGameUpdate(gameId)) {
+            updateImpact = GameService.checkUpdateImpact(gameId)
+        } else {
+            updateImpact = null
+        }
 
         // Reset scroll and start staggered entrance
         mainFlick.contentY = 0
@@ -373,18 +383,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         onContentYChanged: root.scrollY = contentY
 
-        ScrollBar.vertical: ScrollBar {
-            policy: ScrollBar.AsNeeded
-            background: Rectangle { color: "transparent" }
-            contentItem: Rectangle {
-                implicitWidth: parent.pressed ? 5 : 3; radius: implicitWidth / 2
-                color: parent.pressed ? Theme.scrollbarThumbHover
-                     : parent.hovered ? Theme.scrollbarThumbHover : Theme.scrollbarThumb
-                opacity: parent.active ? 1.0 : 0.0
-                Behavior on implicitWidth { NumberAnimation { duration: 120 } }
-                Behavior on opacity { NumberAnimation { duration: 200 } }
-            }
-        }
+        ScrollBar.vertical: StyledScrollBar {}
 
         ColumnLayout {
             id: contentCol
@@ -423,15 +422,103 @@ Item {
                 installProgress: root.installProgress
                 installStatus: root.installStatus
                 installCompleted: root.installCompleted
+                updateImpact: root.updateImpact
 
                 onTranslateClicked: root.translateClicked()
+            }
+
+            // =================================================================
+            // UPDATE PROTECTION BANNER
+            // =================================================================
+
+            Rectangle {
+                id: updateBanner
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
+                Layout.topMargin: 56
+                visible: root.updateImpact && root.updateImpact.level !== "safe" && root.updateImpact.level !== "unknown"
+                implicitHeight: bannerContent.height + Dimensions.marginML * 2
+                radius: Dimensions.radiusStandard
+                color: root.updateImpact && root.updateImpact.level === "broken"
+                    ? Theme.withAlpha(Theme.error, 0.08)
+                    : Theme.withAlpha(Theme.warning, 0.08)
+                border.color: root.updateImpact && root.updateImpact.level === "broken"
+                    ? Theme.withAlpha(Theme.error, 0.25)
+                    : Theme.withAlpha(Theme.warning, 0.25)
+                border.width: 1
+
+                ColumnLayout {
+                    id: bannerContent
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top; anchors.margins: Dimensions.marginML
+                    spacing: Dimensions.spacingLG
+
+                    RowLayout {
+                        spacing: Dimensions.spacingLG
+
+                        Text {
+                            text: "\u26A0"
+                            font.pixelSize: Dimensions.fontTitle
+                            color: root.updateImpact && root.updateImpact.level === "broken"
+                                ? Theme.error : Theme.warning
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Dimensions.spacingXXS
+                            Text {
+                                text: root.updateImpact && root.updateImpact.level === "broken"
+                                    ? qsTr("Oyun Güncellendi — Çeviri Bozulmuş")
+                                    : qsTr("Bazı Çeviri Dosyaları Eksik")
+                                font.pixelSize: Dimensions.fontBody
+                                font.weight: Font.DemiBold
+                                color: Theme.textPrimary
+                            }
+                            Text {
+                                text: root.updateImpact ? root.updateImpact.summary : ""
+                                font.pixelSize: Dimensions.fontCaption
+                                color: Theme.textMuted
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        spacing: Dimensions.spacingLG
+
+                        // Repair button
+                        Rectangle {
+                            implicitWidth: repairRow.width + 32; implicitHeight: 38
+                            radius: Dimensions.radiusStandard
+                            color: repairMouse.containsMouse
+                                ? Theme.withAlpha(Theme.accent, 0.20)
+                                : Theme.withAlpha(Theme.accent, 0.10)
+                            border.color: Theme.withAlpha(Theme.accent, 0.30); border.width: 1
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                            Row {
+                                id: repairRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
+                                Text { text: "\u2699"; font.pixelSize: Dimensions.fontSM; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: qsTr("Onar"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            MouseArea {
+                                id: repairMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    GameService.recoverTranslation(root.gameId)
+                                    root.updateImpact = null
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // =================================================================
             // QUICK STATS ROW
             // =================================================================
 
-            Item { Layout.preferredHeight: 56; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: updateBanner.visible ? Dimensions.spacingLG : 56; Layout.fillWidth: true }
 
             QuickStatsRow {
                 opacity: root._reveal >= 1 ? 1 : 0
@@ -536,6 +623,7 @@ Item {
                 transform: Translate { y: root._reveal >= 6 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
 
                 gameId: root.gameId
+                updateImpact: root.updateImpact
             }
 
             // Bottom spacer

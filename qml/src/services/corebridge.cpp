@@ -600,17 +600,6 @@ QString CoreBridge::detectEngine(const QString& gamePath)
 }
 
 
-bool CoreBridge::restoreBackup(const QString& gamePath, const QString& engine,
-                               const QString& backupId)
-{
-    Q_UNUSED(gamePath)
-    Q_UNUSED(engine)
-    Q_UNUSED(backupId)
-
-    return true;
-}
-
-
 // ========== ID Resolution ==========
 
 QString CoreBridge::resolveToSteamAppId(const QString& gameId)
@@ -716,7 +705,7 @@ std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString&
 }
 
 void CoreBridge::installPackage(const QString& packageId, const QString& gamePath,
-                                const QString& variant)
+                                const QString& variant, const QStringList& selectedOptions)
 {
     if (!m_localPkgManager) {
         emit packageInstallCompleted(false, tr("Paket yöneticisi başlatılamadı"));
@@ -725,7 +714,7 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
 
     QString resolved = resolveToSteamAppId(packageId);
     if (!resolved.isEmpty() && m_localPkgManager->hasPackage(resolved)) {
-        m_localPkgManager->installPackage(resolved, gamePath, variant);
+        m_localPkgManager->installPackage(resolved, gamePath, variant, selectedOptions);
     } else {
         emit packageInstallCompleted(false, tr("Paket bulunamadı: %1").arg(packageId));
     }
@@ -764,6 +753,74 @@ QString CoreBridge::getInstallNotesForGame(const QString& gameId)
     return pkg->installNotes;
 }
 
+QVariantList CoreBridge::getInstallOptionsForGame(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return {};
+
+    auto pkg = m_localPkgManager->getPackage(resolved);
+    if (!pkg || pkg->installOptions.isEmpty()) return {};
+
+    QVariantList result;
+    for (const auto& opt : pkg->installOptions) {
+        result.append(QVariantMap{
+            {"id", opt.id},
+            {"label", opt.label},
+            {"description", opt.description},
+            {"icon", opt.icon},
+            {"defaultSelected", opt.defaultSelected},
+            {"subDir", opt.subDir}
+        });
+    }
+    return result;
+}
+
+QString CoreBridge::getSpecialDialogForGame(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return {};
+
+    auto pkg = m_localPkgManager->getPackage(resolved);
+    if (!pkg) return {};
+
+    return pkg->specialDialog;
+}
+
+QVariantList CoreBridge::getVariantInstallOptionsForGame(const QString& gameId, const QString& variant)
+{
+    if (!m_localPkgManager) return {};
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return {};
+
+    auto pkg = m_localPkgManager->getPackage(resolved);
+    if (!pkg || !pkg->variantInstallOptions.contains(variant)) return {};
+
+    QVariantList result;
+    for (const auto& opt : pkg->variantInstallOptions[variant].installOptions) {
+        result.append(QVariantMap{
+            {"id", opt.id},
+            {"label", opt.label},
+            {"description", opt.description},
+            {"icon", opt.icon},
+            {"defaultSelected", opt.defaultSelected},
+            {"subDir", opt.subDir}
+        });
+    }
+    return result;
+}
+
+QString CoreBridge::getVariantSpecialDialogForGame(const QString& gameId, const QString& variant)
+{
+    Q_UNUSED(variant);
+    // Variant-specific specialDialog not yet supported; return package-level
+    return getSpecialDialogForGame(gameId);
+}
+
 QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString& variant)
 {
     if (!m_localPkgManager) return {};
@@ -788,6 +845,23 @@ bool CoreBridge::isPackageInstalled(const QString& gameId)
     return !resolved.isEmpty() && m_localPkgManager->isInstalled(resolved);
 }
 
+std::optional<InstalledPackageInfo> CoreBridge::getInstalledInfo(const QString& gameId)
+{
+    if (!m_localPkgManager) return std::nullopt;
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return std::nullopt;
+    return m_localPkgManager->getInstalledInfo(resolved);
+}
+
+void CoreBridge::updateInstalledStoreVersion(const QString& gameId, const QString& storeVersion,
+                                               const QString& source)
+{
+    if (!m_localPkgManager) return;
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return;
+    m_localPkgManager->updateInstalledStoreVersion(resolved, storeVersion, source);
+}
+
 bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath)
 {
     if (!m_localPkgManager) return false;
@@ -800,7 +874,18 @@ bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath
 
 void CoreBridge::refreshPackageManifest()
 {
-    int count = m_localPkgManager ? m_localPkgManager->packageCount() : 0;
+    if (!m_localPkgManager) {
+        emit packageManifestRefreshed(0);
+        return;
+    }
+
+    // Reload manifest from disk
+    QSettings settings("MakineAI", "MakineAI");
+    QString translationPath = settings.value("paths/translationData",
+        "C:/cedra/translation_data").toString();
+    m_localPkgManager->loadFromPath(translationPath);
+
+    int count = m_localPkgManager->packageCount();
     emit packageManifestRefreshed(count);
 }
 

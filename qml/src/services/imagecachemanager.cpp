@@ -134,6 +134,8 @@ void ImageCacheManager::startDownload(const QString& appId, const QString& remot
                     if (file.open(QIODevice::WriteOnly)) {
                         file.write(data);
                         file.close();
+                        if (m_cachedSizeBytes >= 0)
+                            m_cachedSizeBytes += data.size();
                         emit imageReady(appId);
                         emit cacheSizeChanged();
                         success = true;
@@ -165,17 +167,23 @@ void ImageCacheManager::clearCache()
         dir.mkpath(QStringLiteral("."));
     }
     m_failed.clear();
+    m_cachedSizeBytes = 0;
     emit cacheSizeChanged();
 }
 
 qint64 ImageCacheManager::cacheSizeBytes() const
 {
+    if (m_cachedSizeBytes >= 0)
+        return m_cachedSizeBytes;
+
+    // First call: scan directory once, then track incrementally
     qint64 total = 0;
     QDirIterator it(m_cacheDir, QDir::Files, QDirIterator::NoIteratorFlags);
     while (it.hasNext()) {
         it.next();
         total += it.fileInfo().size();
     }
+    m_cachedSizeBytes = total;
     return total;
 }
 

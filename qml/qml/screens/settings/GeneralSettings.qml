@@ -270,6 +270,106 @@ ColumnLayout {
             spacing: 0
 
             ThemeSetting {}
+
+            SettingsDivider {}
+
+            // Accent color picker
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: _accentCol.implicitHeight + 2 * Dimensions.marginML
+
+                ColumnLayout {
+                    id: _accentCol
+                    anchors.fill: parent
+                    anchors.leftMargin: Dimensions.marginML
+                    anchors.rightMargin: Dimensions.marginML
+                    anchors.topMargin: Dimensions.marginMS
+                    anchors.bottomMargin: Dimensions.marginMS
+                    spacing: Dimensions.spacingLG
+
+                    Label {
+                        text: qsTr("Vurgu Rengi")
+                        font.pixelSize: Dimensions.fontMD
+                        font.weight: Font.Medium
+                        color: Theme.textPrimary
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 4
+                        columnSpacing: Dimensions.spacingLG
+                        rowSpacing: Dimensions.spacingLG
+
+                        Repeater {
+                            model: SettingsManager.accentPresets()
+
+                            Rectangle {
+                                required property var modelData
+                                required property int index
+
+                                property bool isSelected: SettingsManager.accentPreset === modelData.id
+
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 52
+                                radius: Dimensions.radiusStandard
+                                color: _presetMouse.containsMouse
+                                    ? Theme.withAlpha(Theme.textPrimary, 0.06)
+                                    : (isSelected ? Theme.withAlpha(Theme.textPrimary, 0.04) : "transparent")
+                                border.color: isSelected
+                                    ? Theme.withAlpha(modelData.colors[2], 0.6)
+                                    : (_presetMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.12) : Theme.withAlpha(Theme.textPrimary, 0.06))
+                                border.width: isSelected ? 1.5 : 1
+
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 8
+                                    spacing: 6
+
+                                    // 5-tone color strip
+                                    Row {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 14
+                                        spacing: 2
+
+                                        Repeater {
+                                            model: modelData.colors
+                                            Rectangle {
+                                                required property string modelData
+                                                required property int index
+                                                width: (parent.width - 8) / 5
+                                                height: 14
+                                                radius: index === 0 ? 4 : (index === 4 ? 4 : 2)
+                                                color: modelData
+                                            }
+                                        }
+                                    }
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.name
+                                        font.pixelSize: Dimensions.fontCaption
+                                        font.weight: isSelected ? Font.DemiBold : Font.Normal
+                                        color: isSelected ? Theme.textPrimary : Theme.textSecondary
+                                        horizontalAlignment: Text.AlignHCenter
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: _presetMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: SettingsManager.accentPreset = modelData.id
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -323,15 +423,6 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
-
-            ToggleSetting {
-                title: qsTr("Bildirimler")
-                description: qsTr("Oyun tespit edildiğinde bildirim göster")
-                checked: generalRoot.showNotifications
-                onToggled: generalRoot.showNotifications = !generalRoot.showNotifications
-            }
-
-            SettingsDivider {}
 
             ToggleSetting {
                 title: qsTr("Oyun Güncelleme İzleme")

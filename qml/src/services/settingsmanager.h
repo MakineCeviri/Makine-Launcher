@@ -45,6 +45,7 @@ class SettingsManager : public QObject
 
     // Theme settings
     Q_PROPERTY(bool isDarkMode READ isDarkMode WRITE setIsDarkMode NOTIFY isDarkModeChanged)
+    Q_PROPERTY(QString accentPreset READ accentPreset WRITE setAccentPreset NOTIFY accentPresetChanged)
 
     // Onboarding
     Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted WRITE setOnboardingCompleted NOTIFY onboardingCompletedChanged)
@@ -97,6 +98,9 @@ public:
     bool isDarkMode() const { return m_isDarkMode; }
     void setIsDarkMode(bool value);
 
+    QString accentPreset() const { return m_accentPreset; }
+    void setAccentPreset(const QString& value);
+
     // Onboarding
     bool onboardingCompleted() const { return m_onboardingCompleted; }
     void setOnboardingCompleted(bool value);
@@ -109,6 +113,7 @@ public:
     void setTranslationDataPath(const QString& value);
 
     // Q_INVOKABLE methods
+    Q_INVOKABLE QVariantList accentPresets() const;
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
     Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
@@ -128,6 +133,7 @@ signals:
     void graphicsBackendChanged();
     void translationLanguageChanged();
     void isDarkModeChanged();
+    void accentPresetChanged();
     void onboardingCompletedChanged();
     void appLanguageChanged();
     void translationDataPathChanged();
@@ -164,6 +170,7 @@ private:
 
     // Theme
     bool m_isDarkMode{true};
+    QString m_accentPreset{"purple"};
 
     // Onboarding
     bool m_onboardingCompleted{false};

@@ -66,18 +66,7 @@ Item {
                     clip: true
                     contentWidth: availableWidth
 
-                    ScrollBar.vertical: ScrollBar {
-                        policy: ScrollBar.AsNeeded
-                        background: Rectangle { color: "transparent" }
-                        contentItem: Rectangle {
-                            implicitWidth: parent.pressed ? 5 : 3; radius: implicitWidth / 2
-                            color: parent.pressed ? Theme.scrollbarThumbHover
-                                 : parent.hovered ? Theme.scrollbarThumbHover : Theme.scrollbarThumb
-                            opacity: parent.active ? 1.0 : 0.0
-                            Behavior on implicitWidth { NumberAnimation { duration: 120 } }
-                            Behavior on opacity { NumberAnimation { duration: 200 } }
-                        }
-                    }
+                    ScrollBar.vertical: StyledScrollBar {}
 
                     ColumnLayout {
                         width: settingsScrollView.availableWidth

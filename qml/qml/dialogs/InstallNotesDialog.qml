@@ -12,58 +12,17 @@ import MakineAI 1.0
  *       onAccepted: installTranslation()
  *   }
  */
-Dialog {
+BaseDialog {
     id: root
 
     property string notes: ""
 
     signal accepted()
-    signal cancelled()
 
     title: qsTr("Kurulum Notu")
-
-    modal: true
-    closePolicy: Popup.CloseOnEscape
     width: 440
     contentHeight: contentColumn.implicitHeight
-
-    x: parent ? (parent.width - width) / 2 : 0
-    y: parent ? (parent.height - height) / 2 : 0
-
-    enter: Transition {
-        ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-        }
-    }
-
-    exit: Transition {
-        ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animFast }
-            NumberAnimation { property: "scale"; from: 1; to: 0.95; duration: Dimensions.animFast }
-        }
-    }
-
-    background: Rectangle {
-        radius: Dimensions.radiusMD
-        color: Theme.glassBackground
-        border.color: Theme.withAlpha(Theme.accent, 0.15)
-        border.width: 1
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
-            color: "transparent"
-            border.color: Theme.glassHighlight
-            border.width: 1
-        }
-    }
-
-    Overlay.modal: Rectangle {
-        color: Theme.withAlpha(Theme.bgPrimary, 0.60)
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-    }
+    accentColor: Theme.accent
 
     header: Item {
         implicitHeight: 56
@@ -94,16 +53,13 @@ Dialog {
                         ctx.lineWidth = 1.6
                         ctx.lineCap = "round"
                         ctx.lineJoin = "round"
-                        // Info/note icon (i in circle)
                         ctx.beginPath()
                         ctx.arc(8, 8, 6.5, 0, Math.PI * 2)
                         ctx.stroke()
-                        // dot
                         ctx.beginPath()
                         ctx.arc(8, 5, 0.8, 0, Math.PI * 2)
                         ctx.fillStyle = c
                         ctx.fill()
-                        // line
                         ctx.beginPath()
                         ctx.moveTo(8, 7.5)
                         ctx.lineTo(8, 12)
@@ -121,36 +77,7 @@ Dialog {
                 Layout.fillWidth: true
             }
 
-            Rectangle {
-                Layout.preferredWidth: 28
-                Layout.preferredHeight: 28
-                radius: 14
-                color: _closeMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                Canvas {
-                    anchors.centerIn: parent
-                    width: 10; height: 10
-                    property bool hov: _closeMouse.containsMouse
-                    onHovChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        ctx.strokeStyle = hov ? Theme.textPrimary : Theme.textMuted
-                        ctx.lineWidth = 1.5; ctx.lineCap = "round"
-                        ctx.beginPath(); ctx.moveTo(1, 1); ctx.lineTo(9, 9); ctx.stroke()
-                        ctx.beginPath(); ctx.moveTo(9, 1); ctx.lineTo(1, 9); ctx.stroke()
-                    }
-                }
-
-                MouseArea {
-                    id: _closeMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.cancelled(); root.close() }
-                }
-            }
+            DialogCloseButton { onClicked: { root.cancelled(); root.close() } }
         }
 
         Rectangle {
@@ -165,7 +92,6 @@ Dialog {
 
         Item { Layout.preferredHeight: Dimensions.spacingXS }
 
-        // Notes text area with subtle background
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Dimensions.paddingLG
@@ -280,6 +206,4 @@ Dialog {
             }
         }
     }
-
-    Keys.onEscapePressed: { root.cancelled(); root.close() }
 }

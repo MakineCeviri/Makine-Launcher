@@ -103,7 +103,9 @@ QVariantMap BackupManager::getLatestBackup(const QString& gameId)
 }
 
 void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QString& gameName,
-                                                const QString& gamePath, const QStringList& filesToOverwrite)
+                                                const QString& gamePath, const QStringList& filesToOverwrite,
+                                                const QString& gameStoreVersion,
+                                                const QString& patchVersion)
 {
     INTEGRITY_GATE();
     if (filesToOverwrite.isEmpty()) {
@@ -114,7 +116,8 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
     const QString backupId = generateBackupId();
     const QString backupDir = getBackupsDirectory() + "/" + gameId + "/" + backupId;
 
-    (void)QtConcurrent::run([this, gameId, gameName, gamePath, filesToOverwrite, backupId, backupDir]() {
+    (void)QtConcurrent::run([this, gameId, gameName, gamePath, filesToOverwrite, backupId, backupDir,
+                              gameStoreVersion, patchVersion]() {
         QDir().mkpath(backupDir);
 
         // Begin crash recovery journal
@@ -167,7 +170,8 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
 
         // Save backup info on main thread
         QMetaObject::invokeMethod(this, [this, backupId, gameId, gameName, backupDir,
-                                          gamePath, totalSize, copiedFiles]() {
+                                          gamePath, totalSize, copiedFiles,
+                                          gameStoreVersion, patchVersion]() {
             if (copiedFiles > 0) {
                 BackupInfo backup;
                 backup.id = backupId;
@@ -179,6 +183,8 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
                 backup.sizeBytes = totalSize;
                 backup.fileCount = copiedFiles;
                 backup.isValid = true;
+                backup.gameStoreVersion = gameStoreVersion;
+                backup.patchVersion = patchVersion;
 
                 m_backups.append(backup);
                 m_backupIdToIndex[backup.id] = m_backups.size() - 1;
@@ -368,6 +374,8 @@ void BackupManager::loadBackups()
         backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
         backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
         backup.fileCount = obj["fileCount"].toInt();
+        backup.gameStoreVersion = obj["gameStoreVersion"].toString();
+        backup.patchVersion = obj["patchVersion"].toString();
         backup.isValid = QDir(backup.backupPath).exists();
         m_backups.append(backup);
     }
@@ -392,6 +400,10 @@ void BackupManager::saveBackups()
         obj["createdAt"] = backup.createdAt.toString(Qt::ISODate);
         obj["sizeBytes"] = backup.sizeBytes;
         obj["fileCount"] = backup.fileCount;
+        if (!backup.gameStoreVersion.isEmpty())
+            obj["gameStoreVersion"] = backup.gameStoreVersion;
+        if (!backup.patchVersion.isEmpty())
+            obj["patchVersion"] = backup.patchVersion;
         array.append(obj);
     }
 

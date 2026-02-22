@@ -23,9 +23,18 @@
 #include <QStandardPaths>
 #include <QDebug>
 #include <QDirIterator>
+#include <QRegularExpression>
 #include <QDateTime>
 #include <QProcess>
+#include <QStorageInfo>
 #include <QtConcurrent>
+
+#ifndef MAKINEAI_UI_ONLY
+#include <makineai/unity_bundle_patcher.hpp>
+#endif
+
+#include <map>
+#include <set>
 
 namespace makineai {
 
@@ -70,6 +79,8 @@ PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalog
     info.engine        = QString::fromStdString(entry.engine);
     info.version       = QString::fromStdString(entry.version);
     info.installType   = QString::fromStdString(entry.installType);
+    info.tier          = QString::fromStdString(entry.tier);
+    info.lastUpdated   = QString::fromStdString(entry.lastUpdated);
     info.sizeBytes     = entry.sizeBytes;
     info.fileCount     = entry.fileCount;
     info.dirName       = QString::fromStdString(entry.dirName);
@@ -97,18 +108,65 @@ PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalog
     }
 
     // Convert install steps
-    for (const auto& s : entry.installSteps) {
-        InstallStep step;
-        step.action   = QString::fromStdString(s.action);
-        step.src      = QString::fromStdString(s.src);
-        step.dest     = QString::fromStdString(s.dest);
-        step.exe      = QString::fromStdString(s.exe);
-        step.fallback = QString::fromStdString(s.fallback);
-        step.workDir  = QString::fromStdString(s.workDir);
-        for (const auto& a : s.args) {
-            step.args.append(QString::fromStdString(a));
+    auto convertSteps = [](const std::vector<packages::InstallStep>& src) {
+        QList<InstallStep> result;
+        for (const auto& s : src) {
+            InstallStep step;
+            step.action   = QString::fromStdString(s.action);
+            step.src      = QString::fromStdString(s.src);
+            step.dest     = QString::fromStdString(s.dest);
+            step.exe      = QString::fromStdString(s.exe);
+            step.fallback = QString::fromStdString(s.fallback);
+            step.workDir  = QString::fromStdString(s.workDir);
+            step.language = QString::fromStdString(s.language);
+            for (const auto& a : s.args) {
+                step.args.append(QString::fromStdString(a));
+            }
+            result.append(step);
         }
-        info.installSteps.append(step);
+        return result;
+    };
+
+    info.installSteps = convertSteps(entry.installSteps);
+
+    // Convert install options
+    for (const auto& opt : entry.installOptions) {
+        InstallOptionQt optQt;
+        optQt.id              = QString::fromStdString(opt.id);
+        optQt.label           = QString::fromStdString(opt.label);
+        optQt.description     = QString::fromStdString(opt.description);
+        optQt.icon            = QString::fromStdString(opt.icon);
+        optQt.defaultSelected = opt.defaultSelected;
+        optQt.subDir          = QString::fromStdString(opt.subDir);
+        optQt.steps           = convertSteps(opt.steps);
+        info.installOptions.append(optQt);
+    }
+
+    // Convert combined steps
+    for (const auto& [key, steps] : entry.combinedSteps) {
+        info.combinedSteps[QString::fromStdString(key)] = convertSteps(steps);
+    }
+
+    info.specialDialog = QString::fromStdString(entry.specialDialog);
+
+    // Convert variant install options
+    for (const auto& [variantName, vc] : entry.variantInstallOptions) {
+        VariantConfigQt vcQt;
+        for (const auto& opt : vc.installOptions) {
+            InstallOptionQt optQt;
+            optQt.id              = QString::fromStdString(opt.id);
+            optQt.label           = QString::fromStdString(opt.label);
+            optQt.description     = QString::fromStdString(opt.description);
+            optQt.icon            = QString::fromStdString(opt.icon);
+            optQt.defaultSelected = opt.defaultSelected;
+            optQt.subDir          = QString::fromStdString(opt.subDir);
+            optQt.steps           = convertSteps(opt.steps);
+            vcQt.installOptions.append(optQt);
+        }
+        for (const auto& [key, steps] : vc.combinedSteps) {
+            vcQt.combinedSteps[QString::fromStdString(key)] = convertSteps(steps);
+        }
+        info.variantInstallOptions[QString::fromStdString(variantName)] = vcQt;
     }
 
     return info;
@@ -131,6 +189,39 @@ std::optional<PackageInfo> LocalPackageManager::getPackage(const QString& steamA
 bool LocalPackageManager::isInstalled(const QString& steamAppId) const
 {
     return m_catalog.isInstalled(steamAppId.toStdString());
+}
+
+std::optional<InstalledPackageInfo> LocalPackageManager::getInstalledInfo(const QString& steamAppId) const
+{
+    auto state = m_catalog.getInstalledState(steamAppId.toStdString());
+    if (!state) return std::nullopt;
+
+    InstalledPackageInfo info;
+    info.version = QString::fromStdString(state->version);
+    info.gamePath = QString::fromStdString(state->gamePath);
+    info.installedAt = state->installedAt;
+    info.gameStoreVersion = QString::fromStdString(state->gameStoreVersion);
+    info.gameSource = QString::fromStdString(state->gameSource);
+    for (const auto& f : state->installedFiles)
+        info.installedFiles.append(QString::fromStdString(f));
+    for (const auto& f : state->addedFiles)
+        info.addedFiles.append(QString::fromStdString(f));
+    for (const auto& f : state->replacedFiles)
+        info.replacedFiles.append(QString::fromStdString(f));
+    return info;
+}
+
+void LocalPackageManager::updateInstalledStoreVersion(const QString& steamAppId,
+                                                        const QString& storeVersion,
+                                                        const QString& source)
+{
+    auto state = m_catalog.getInstalledState(steamAppId.toStdString());
+    if (!state) return;
+
+    state->gameStoreVersion = storeVersion.toStdString();
+    state->gameSource = source.toStdString();
+    m_catalog.markInstalled(steamAppId.toStdString(), *state);
+    m_catalog.saveInstalledState(installedStatePath().toStdWString());
 }
 
 QString LocalPackageManager::resolveGameId(const QString& gameId) const
@@ -334,13 +425,12 @@ void LocalPackageManager::loadManifest(const QString& manifestPath)
         if (info.installNotes.isEmpty())
             info.installNotes = pkgObj["installNote"].toString();
 
-        // Parse installMethod
-        QJsonObject installMethod = pkgObj["installMethod"].toObject();
-        if (!installMethod.isEmpty()) {
-            info.installMethodType = installMethod["type"].toString();
-            info.installMethodTarget = installMethod["target"].toString();
+        // Parse specialDialog
+        info.specialDialog = pkgObj["specialDialog"].toString();
 
-            QJsonArray stepsArr = installMethod["steps"].toArray();
+        // Helper lambda to parse steps array
+        auto parseStepsArray = [](const QJsonArray& stepsArr) -> QList<InstallStep> {
+            QList<InstallStep> steps;
             for (const auto& s : stepsArr) {
                 QJsonObject so = s.toObject();
                 InstallStep step;
@@ -350,11 +440,72 @@ void LocalPackageManager::loadManifest(const QString& manifestPath)
                 step.exe = so["exe"].toString();
                 step.fallback = so["fallback"].toString();
                 step.workDir = so["workDir"].toString("game");
+                step.language = so["language"].toString();
                 QJsonArray argsArr = so["args"].toArray();
                 for (const auto& a : argsArr) {
                     step.args.append(a.toString());
                 }
-                info.installSteps.append(step);
+                steps.append(step);
+            }
+            return steps;
+        };
+
+        // Parse installMethod
+        QJsonObject installMethod = pkgObj["installMethod"].toObject();
+        if (!installMethod.isEmpty()) {
+            info.installMethodType = installMethod["type"].toString();
+            info.installMethodTarget = installMethod["target"].toString();
+
+            // Parse top-level steps
+            info.installSteps = parseStepsArray(installMethod["steps"].toArray());
+
+            // Parse options array (for "options" type)
+            QJsonArray optionsArr = installMethod["options"].toArray();
+            for (const auto& optVal : optionsArr) {
+                QJsonObject optObj = optVal.toObject();
+                InstallOptionQt opt;
+                opt.id              = optObj["id"].toString();
+                opt.label           = optObj["label"].toString();
+                opt.description     = optObj["description"].toString();
+                opt.icon            = optObj["icon"].toString();
+                opt.defaultSelected = optObj["default"].toBool(false);
+                opt.subDir          = optObj["subDir"].toString();
+                opt.steps           = parseStepsArray(optObj["steps"].toArray());
+                info.installOptions.append(opt);
+            }
+
+            // Parse combinedSteps
+            QJsonObject combinedObj = installMethod["combinedSteps"].toObject();
+            for (auto cit = combinedObj.begin(); cit != combinedObj.end(); ++cit) {
+                info.combinedSteps[cit.key()] = parseStepsArray(cit.value().toArray());
+            }
+
+            // Parse variantInstallOptions (variant-specific options)
+            QJsonObject variantOptsObj = installMethod["variantInstallOptions"].toObject();
+            for (auto vit = variantOptsObj.begin(); vit != variantOptsObj.end(); ++vit) {
+                QJsonObject vcObj = vit.value().toObject();
+                VariantConfigQt vc;
+
+                QJsonArray vOptArr = vcObj["options"].toArray();
+                for (const auto& optVal : vOptArr) {
+                    QJsonObject optObj = optVal.toObject();
+                    InstallOptionQt opt;
+                    opt.id              = optObj["id"].toString();
+                    opt.label           = optObj["label"].toString();
+                    opt.description     = optObj["description"].toString();
+                    opt.icon            = optObj["icon"].toString();
+                    opt.defaultSelected = optObj["default"].toBool(false);
+                    opt.subDir          = optObj["subDir"].toString();
+                    opt.steps           = parseStepsArray(optObj["steps"].toArray());
+                    vc.installOptions.append(opt);
+                }
+
+                QJsonObject vCombObj = vcObj["combinedSteps"].toObject();
+                for (auto csit = vCombObj.begin(); csit != vCombObj.end(); ++csit) {
+                    vc.combinedSteps[csit.key()] = parseStepsArray(csit.value().toArray());
+                }
+
+                info.variantInstallOptions[vit.key()] = vc;
             }
         }
 
@@ -539,6 +690,24 @@ bool LocalPackageManager::isInstalled(const QString& steamAppId) const
     return m_installed.contains(steamAppId);
 }
 
+std::optional<InstalledPackageInfo> LocalPackageManager::getInstalledInfo(const QString& steamAppId) const
+{
+    auto it = m_installed.find(steamAppId);
+    if (it == m_installed.end()) return std::nullopt;
+    return *it;
+}
+
+void LocalPackageManager::updateInstalledStoreVersion(const QString& steamAppId,
+                                                        const QString& storeVersion,
+                                                        const QString& source)
+{
+    auto it = m_installed.find(steamAppId);
+    if (it == m_installed.end()) return;
+    it->gameStoreVersion = storeVersion;
+    it->gameSource = source;
+    saveInstalledState();
+}
+
 QString LocalPackageManager::resolveGameId(const QString& gameId) const
 {
     // Direct match -- already a steamAppId
@@ -708,10 +877,16 @@ void LocalPackageManager::loadInstalledState()
             info.version = obj["version"].toString();
             info.gamePath = obj["gamePath"].toString();
             info.installedAt = obj["installedAt"].toInteger();
-            QJsonArray filesArr = obj["files"].toArray();
-            for (const auto& f : filesArr) {
-                info.installedFiles.append(f.toString());
-            }
+            info.gameStoreVersion = obj["gameStoreVersion"].toString();
+            info.gameSource = obj["gameSource"].toString();
+
+            auto loadArray = [&](const QString& key, QStringList& out) {
+                QJsonArray arr = obj[key].toArray();
+                for (const auto& f : arr) out.append(f.toString());
+            };
+            loadArray("files", info.installedFiles);
+            loadArray("addedFiles", info.addedFiles);
+            loadArray("replacedFiles", info.replacedFiles);
         }
 
         m_installed[it.key()] = info;
@@ -730,11 +905,23 @@ void LocalPackageManager::saveInstalledState()
         obj["version"] = info.version;
         obj["gamePath"] = info.gamePath;
         obj["installedAt"] = info.installedAt;
-        QJsonArray filesArr;
-        for (const QString& f : info.installedFiles) {
-            filesArr.append(f);
-        }
-        obj["files"] = filesArr;
+
+        if (!info.gameStoreVersion.isEmpty())
+            obj["gameStoreVersion"] = info.gameStoreVersion;
+        if (!info.gameSource.isEmpty())
+            obj["gameSource"] = info.gameSource;
+
+        auto saveArray = [&](const QString& key, const QStringList& list) {
+            if (!list.isEmpty()) {
+                QJsonArray arr;
+                for (const QString& f : list) arr.append(f);
+                obj[key] = arr;
+            }
+        };
+        saveArray("files", info.installedFiles);
+        saveArray("addedFiles", info.addedFiles);
+        saveArray("replacedFiles", info.replacedFiles);
+
         root[it.key()] = obj;
     }
 
@@ -756,7 +943,8 @@ QString LocalPackageManager::installedStatePath() const
 // -- Install package ----------------------------------------------------------
 
 void LocalPackageManager::installPackage(const QString& steamAppId, const QString& gamePath,
-                                         const QString& variant)
+                                         const QString& variant,
+                                         const QStringList& selectedOptions)
 {
     INTEGRITY_GATE();
 
@@ -768,6 +956,58 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     }
 
     const PackageInfo pkg = *maybePkg;
+
+    // Disk space check before install
+    {
+        QStorageInfo storage(gamePath);
+        if (storage.isValid() && storage.isReady()) {
+            qint64 requiredBytes = pkg.sizeBytes > 0 ? pkg.sizeBytes * 2 : 500LL * 1024 * 1024;
+            qint64 availableBytes = storage.bytesAvailable();
+            if (availableBytes < requiredBytes) {
+                qint64 requiredMB = requiredBytes / (1024 * 1024);
+                qint64 availableMB = availableBytes / (1024 * 1024);
+                emit installCompleted(false,
+                    tr("Yetersiz disk alanı: %1 MB gerekli, %2 MB mevcut")
+                        .arg(requiredMB).arg(availableMB));
+                return;
+            }
+        }
+    }
+
+    // Handle variant-specific options install (e.g. GTA Trilogy: variant selects game, then options for patch/dubbing)
+    if (!variant.isEmpty() && !selectedOptions.isEmpty()
+        && pkg.variantInstallOptions.contains(variant))
+    {
+        QString variantDir = m_dataPath + "/" + pkg.dirName + "/" + variant;
+        if (!QDir(variantDir).exists()) {
+            emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+            return;
+        }
+        // Build a temporary PackageInfo with variant-specific options
+        PackageInfo variantPkg = pkg;
+        const auto& vc = pkg.variantInstallOptions[variant];
+        variantPkg.installOptions = vc.installOptions;
+        variantPkg.combinedSteps = vc.combinedSteps;
+
+        (void)QtConcurrent::run([this, steamAppId, gamePath, variantDir, variantPkg, selectedOptions]() {
+            installWithOptions(variantPkg, gamePath, variantDir, selectedOptions);
+        });
+        return;
+    }
+
+    // Handle options-based install (package-level options, e.g. Elden Ring)
+    if (pkg.installMethodType == "options" && !selectedOptions.isEmpty()) {
+        QString baseDir = m_dataPath + "/" + pkg.dirName;
+        if (!QDir(baseDir).exists()) {
+            emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+            return;
+        }
+        (void)QtConcurrent::run([this, steamAppId, gamePath, baseDir, pkg, selectedOptions]() {
+            installWithOptions(pkg, gamePath, baseDir, selectedOptions);
+        });
+        return;
+    }
+
     QString sourcePath;
 
     // Try new game-name directory format first
@@ -874,6 +1114,14 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         return;
     }
 
+    // Handle Unity bundle patching (replaces serialized assets inside .bundle files)
+    if (pkg.installMethodType == "unityPatch") {
+        (void)QtConcurrent::run([this, steamAppId, gamePath, sourcePath, pkg]() {
+            executeUnityPatch(pkg, gamePath, sourcePath);
+        });
+        return;
+    }
+
     // Check for custom install recipe
     if (!pkg.installSteps.isEmpty()) {
         (void)QtConcurrent::run([this, steamAppId, gamePath, sourcePath, pkg]() {
@@ -915,6 +1163,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         int errors = 0;
         int lastReported = 0;
         QStringList installedFiles;
+        QStringList addedFiles;
+        QStringList replacedFiles;
 
         QString canonGamePath = QDir(gamePath).canonicalPath();
         if (canonGamePath.isEmpty())
@@ -938,14 +1188,21 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 continue;
             }
 
+            // Classify: added (new) vs replaced (overwritten)
+            bool existed = QFile::exists(destPath);
+
             // Copy file (overwrite if exists)
-            if (QFile::exists(destPath)) {
+            if (existed) {
                 QFile::remove(destPath);
             }
 
             if (QFile::copy(srcPath, destPath)) {
                 copied++;
                 installedFiles.append(relPath);
+                if (existed)
+                    replacedFiles.append(relPath);
+                else
+                    addedFiles.append(relPath);
                 if (m_journal) m_journal->recordFileModified(relPath);
             } else {
                 qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
@@ -964,13 +1221,18 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
         if (errors == 0) {
             // Mark as installed with file tracking
-            QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg, installedFiles]() {
+            QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg,
+                                              installedFiles, addedFiles, replacedFiles]() {
 #ifndef MAKINEAI_UI_ONLY
                 packages::InstalledPackageState state;
                 state.version = pkg.version.toStdString();
                 state.gamePath = gamePath.toStdString();
                 for (const QString& f : installedFiles)
                     state.installedFiles.push_back(f.toStdString());
+                for (const QString& f : addedFiles)
+                    state.addedFiles.push_back(f.toStdString());
+                for (const QString& f : replacedFiles)
+                    state.replacedFiles.push_back(f.toStdString());
                 state.installedAt = QDateTime::currentSecsSinceEpoch();
                 m_catalog.markInstalled(steamAppId.toStdString(), state);
                 saveCatalogInstalledState(m_catalog, installedStatePath());
@@ -979,6 +1241,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 instInfo.version = pkg.version;
                 instInfo.gamePath = gamePath;
                 instInfo.installedFiles = installedFiles;
+                instInfo.addedFiles = addedFiles;
+                instInfo.replacedFiles = replacedFiles;
                 instInfo.installedAt = QDateTime::currentSecsSinceEpoch();
                 m_installed[steamAppId] = instInfo;
                 saveInstalledState();
@@ -1266,6 +1530,122 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             } else {
                 qDebug() << "Recipe run OK:" << exePath;
             }
+        } else if (step.action == "copyToDesktop") {
+            // Copy a file to user's Desktop
+            QString srcPath = QDir::cleanPath(packageDir + "/" + step.src);
+            if (!QFile::exists(srcPath)) {
+                // Also try game dir
+                srcPath = QDir::cleanPath(gamePath + "/" + step.src);
+            }
+
+            if (!QFile::exists(srcPath)) {
+                qWarning() << "copyToDesktop source not found:" << step.src;
+                errors++;
+                continue;
+            }
+
+            QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+            QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
+
+            emit installProgress(progress, tr("Masaüstüne kopyalanıyor: %1").arg(step.dest));
+
+            if (QFile::exists(destPath)) QFile::remove(destPath);
+            if (QFile::copy(srcPath, destPath)) {
+                installedFiles.append("_desktop:" + step.dest);
+                if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
+                qDebug() << "Copied to desktop:" << step.dest;
+            } else {
+                qWarning() << "copyToDesktop failed:" << srcPath << "->" << destPath;
+                errors++;
+            }
+
+        } else if (step.action == "rename") {
+            // Rename a file within the game directory
+            QString srcPath = QDir::cleanPath(gamePath + "/" + step.src);
+            QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
+
+            // Path traversal protection
+            if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
+                qWarning() << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
+                errors++;
+                continue;
+            }
+
+            emit installProgress(progress, tr("Yeniden adlandırılıyor: %1").arg(step.dest));
+
+            if (QFile::exists(srcPath)) {
+                if (QFile::exists(destPath)) QFile::remove(destPath);
+                if (QFile::rename(srcPath, destPath)) {
+                    installedFiles.append("_rename:" + step.src + ":" + step.dest);
+                    if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
+                    qDebug() << "Renamed:" << step.src << "->" << step.dest;
+                } else {
+                    qWarning() << "Rename failed:" << srcPath << "->" << destPath;
+                    errors++;
+                }
+            } else {
+                qDebug() << "Rename source not found (skipping):" << srcPath;
+            }
+
+        } else if (step.action == "setSteamLanguage") {
+            // Change Steam's language setting for this game via appmanifest ACF
+            if (step.language.isEmpty()) {
+                qWarning() << "setSteamLanguage: language not specified";
+                errors++;
+                continue;
+            }
+
+            emit installProgress(progress, tr("Steam dili ayarlaniyor: %1").arg(step.language));
+
+            // Game path is typically: .../steamapps/common/GameName
+            // Go up two levels to reach steamapps/
+            QDir dir(gamePath);
+            if (!dir.cdUp() || !dir.cdUp()) {
+                qWarning() << "setSteamLanguage: cannot find steamapps dir from:" << gamePath;
+                errors++;
+                continue;
+            }
+
+            QString acfPath = dir.absoluteFilePath("appmanifest_" + pkg.steamAppId + ".acf");
+            QFile acfFile(acfPath);
+            if (!acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                qWarning() << "setSteamLanguage: cannot open ACF:" << acfPath;
+                errors++;
+                continue;
+            }
+
+            QString content = QString::fromUtf8(acfFile.readAll());
+            acfFile.close();
+
+            // Replace "language" value in the ACF key-value format
+            // ACF format: \t"language"\t\t"english"\n
+            QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
+            auto match = langRe.match(content);
+            if (!match.hasMatch()) {
+                qWarning() << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
+                errors++;
+                continue;
+            }
+
+            QString oldLang = match.captured(2);
+            content.replace(match.capturedStart(2), match.capturedLength(2), step.language);
+
+            if (!acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+                qWarning() << "setSteamLanguage: cannot write ACF:" << acfPath;
+                errors++;
+                continue;
+            }
+
+            acfFile.write(content.toUtf8());
+            acfFile.close();
+
+            // Record for uninstall: store original language to restore later
+            installedFiles.append("_steamlang:" + pkg.steamAppId + ":" + oldLang);
+            if (m_journal) m_journal->recordFileModified("_steamlang:" + pkg.steamAppId);
+
+            qDebug() << "setSteamLanguage:" << oldLang << "->" << step.language
+                     << "for appId" << pkg.steamAppId;
+
         } else {
             qWarning() << "Recipe: unknown action:" << step.action;
         }
@@ -1303,6 +1683,459 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     }
 }
 
+// -- Options-based install -----------------------------------------------------
+
+void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QString& gamePath,
+                                              const QString& basePackageDir, const QStringList& selectedOptions)
+{
+    INTEGRITY_GATE();
+
+    int totalSteps = 0;
+    // Count total steps across all selected options
+    for (const InstallOptionQt& opt : pkg.installOptions) {
+        if (selectedOptions.contains(opt.id)) {
+            totalSteps += opt.steps.size();
+        }
+    }
+
+    // Check for combined steps
+    QStringList sortedIds = selectedOptions;
+    sortedIds.sort();
+    QString combinedKey = sortedIds.join("+");
+    if (pkg.combinedSteps.contains(combinedKey)) {
+        totalSteps += pkg.combinedSteps[combinedKey].size();
+    }
+
+    if (totalSteps == 0) {
+        emit installCompleted(false, tr("No install steps for selected options"));
+        return;
+    }
+
+    // Begin crash recovery journal
+    if (m_journal) {
+        JournalEntry je;
+        je.type = OpType::Install;
+        je.gameId = pkg.steamAppId;
+        je.gamePath = gamePath;
+        m_journal->beginOperation(je);
+    }
+
+    QString canonGamePath = QDir(gamePath).canonicalPath();
+    if (canonGamePath.isEmpty())
+        canonGamePath = QDir::cleanPath(gamePath);
+
+    int current = 0;
+    int errors = 0;
+    QStringList installedFiles;
+
+    emit installProgress(0.0, tr("Kurulum seçenekleri hazırlanıyor..."));
+
+    // Execute steps for each selected option
+    for (const InstallOptionQt& opt : pkg.installOptions) {
+        if (!selectedOptions.contains(opt.id)) continue;
+
+        QString optionDir = QDir::cleanPath(basePackageDir + "/" + opt.subDir);
+        if (!QDir(optionDir).exists()) {
+            qWarning() << "Option subDir not found:" << optionDir;
+            errors++;
+            continue;
+        }
+
+        emit installProgress(static_cast<double>(current) / totalSteps,
+            tr("%1 kuruluyor...").arg(opt.label));
+
+        // Build a temporary PackageInfo with this option's steps to reuse executeInstallSteps logic
+        for (const InstallStep& step : opt.steps) {
+            current++;
+            double progress = static_cast<double>(current) / (totalSteps + 1);
+
+            if (step.action == "copy") {
+                QString srcPath = QDir::cleanPath(optionDir + "/" + step.src);
+                QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
+                if (!destPath.startsWith(canonGamePath)) {
+                    qWarning() << "Path traversal blocked:" << step.dest;
+                    errors++; continue;
+                }
+                if (!QFile::exists(srcPath)) {
+                    qWarning() << "Copy source not found:" << srcPath;
+                    errors++; continue;
+                }
+                emit installProgress(progress, tr("Kopyalanıyor: %1").arg(step.dest));
+                QFileInfo destInfo(destPath);
+                if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
+                if (QFile::exists(destPath)) QFile::remove(destPath);
+                if (QFile::copy(srcPath, destPath)) {
+                    installedFiles.append(step.dest);
+                    if (m_journal) m_journal->recordFileModified(step.dest);
+                } else {
+                    qWarning() << "Copy failed:" << srcPath << "->" << destPath;
+                    errors++;
+                }
+
+            } else if (step.action == "copyDir") {
+                QString srcDir = QDir::cleanPath(optionDir + "/" + step.src);
+                QString destDir = QDir::cleanPath(gamePath + "/" + step.dest);
+                if (!destDir.startsWith(canonGamePath)) {
+                    qWarning() << "Path traversal blocked:" << step.dest;
+                    errors++; continue;
+                }
+                if (!QDir(srcDir).exists()) {
+                    qWarning() << "copyDir source not found:" << srcDir;
+                    errors++; continue;
+                }
+                emit installProgress(progress, tr("Kopyalanıyor: %1/").arg(step.dest));
+                QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
+                while (dirIt.hasNext()) {
+                    dirIt.next();
+                    QString relPath = dirIt.filePath().mid(srcDir.length() + 1);
+                    QString destPath = QDir::cleanPath(destDir + "/" + relPath);
+                    QFileInfo destInfo(destPath);
+                    if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
+                    if (QFile::exists(destPath)) QFile::remove(destPath);
+                    if (QFile::copy(dirIt.filePath(), destPath)) {
+                        QString fullRelPath = step.dest + "/" + relPath;
+                        installedFiles.append(fullRelPath);
+                        if (m_journal) m_journal->recordFileModified(fullRelPath);
+                    } else {
+                        errors++;
+                    }
+                }
+
+            } else if (step.action == "run") {
+                // Resolve executable from option dir, game dir, or fallback
+                QString exePath;
+                QString gameExe = QDir::cleanPath(gamePath + "/" + step.exe);
+                QString pkgExe = QDir::cleanPath(optionDir + "/" + step.exe);
+                if (QFile::exists(gameExe)) exePath = gameExe;
+                else if (QFile::exists(pkgExe)) exePath = pkgExe;
+                else if (!step.fallback.isEmpty()) {
+                    QString gameFb = QDir::cleanPath(gamePath + "/" + step.fallback);
+                    QString pkgFb = QDir::cleanPath(optionDir + "/" + step.fallback);
+                    if (QFile::exists(gameFb)) exePath = gameFb;
+                    else if (QFile::exists(pkgFb)) exePath = pkgFb;
+                }
+                if (exePath.isEmpty()) {
+                    qWarning() << "Run: executable not found:" << step.exe;
+                    errors++; continue;
+                }
+                // Validate exe location
+                QString canonExe = QFileInfo(exePath).canonicalFilePath();
+                QString canonPkg = QDir(optionDir).canonicalPath();
+                if (!canonExe.startsWith(canonGamePath) && !canonExe.startsWith(canonPkg)) {
+                    qWarning() << "Run: executable outside allowed directories:" << exePath;
+                    errors++; continue;
+                }
+                // Extension check
+                QString ext = QFileInfo(exePath).suffix().toLower();
+                if (ext != "exe" && ext != "bat" && ext != "cmd") {
+                    qWarning() << "Run: disallowed executable type:" << ext;
+                    errors++; continue;
+                }
+                emit installProgress(progress, tr("Çalıştırılıyor: %1").arg(QFileInfo(exePath).fileName()));
+                QString workDir = (step.workDir == "package") ? optionDir : gamePath;
+                QProcess proc;
+                proc.setWorkingDirectory(workDir);
+                proc.setProcessChannelMode(QProcess::MergedChannels);
+                proc.start(exePath, step.args);
+                if (!proc.waitForStarted(10000)) { errors++; continue; }
+                constexpr int kPollMs = 3000;
+                constexpr int kMaxMs = 1800000;
+                int elapsed = 0;
+                while (!proc.waitForFinished(kPollMs)) {
+                    elapsed += kPollMs;
+                    if (elapsed >= kMaxMs) { proc.kill(); proc.waitForFinished(2000); errors++; break; }
+                }
+                if (elapsed >= kMaxMs) continue;
+                if (proc.exitCode() != 0) errors++;
+
+            } else if (step.action == "copyToDesktop") {
+                QString srcPath = QDir::cleanPath(optionDir + "/" + step.src);
+                if (!QFile::exists(srcPath))
+                    srcPath = QDir::cleanPath(gamePath + "/" + step.src);
+                if (!QFile::exists(srcPath)) {
+                    qWarning() << "copyToDesktop source not found:" << step.src;
+                    errors++; continue;
+                }
+                QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+                QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
+                emit installProgress(progress, tr("Masaüstüne kopyalanıyor: %1").arg(step.dest));
+                if (QFile::exists(destPath)) QFile::remove(destPath);
+                if (QFile::copy(srcPath, destPath)) {
+                    installedFiles.append("_desktop:" + step.dest);
+                    if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
+                } else {
+                    errors++;
+                }
+
+            } else if (step.action == "rename") {
+                QString srcPath = QDir::cleanPath(gamePath + "/" + step.src);
+                QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
+                if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
+                    qWarning() << "Path traversal blocked in rename:" << step.src;
+                    errors++; continue;
+                }
+                emit installProgress(progress, tr("Yeniden adlandırılıyor: %1").arg(step.dest));
+                if (QFile::exists(srcPath)) {
+                    if (QFile::exists(destPath)) QFile::remove(destPath);
+                    if (QFile::rename(srcPath, destPath)) {
+                        installedFiles.append("_rename:" + step.src + ":" + step.dest);
+                        if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
+                    } else {
+                        errors++;
+                    }
+                }
+
+            } else {
+                qWarning() << "installWithOptions: unknown action:" << step.action;
+            }
+        }
+    }
+
+    // Execute combined steps if multiple options selected
+    if (pkg.combinedSteps.contains(combinedKey)) {
+        const auto& cSteps = pkg.combinedSteps[combinedKey];
+        for (const InstallStep& step : cSteps) {
+            current++;
+            double progress = static_cast<double>(current) / (totalSteps + 1);
+
+            if (step.action == "rename") {
+                QString srcPath = QDir::cleanPath(gamePath + "/" + step.src);
+                QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
+                if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
+                    errors++; continue;
+                }
+                emit installProgress(progress, tr("Yeniden adlandırılıyor: %1").arg(step.dest));
+                if (QFile::exists(srcPath)) {
+                    if (QFile::exists(destPath)) QFile::remove(destPath);
+                    if (QFile::rename(srcPath, destPath)) {
+                        installedFiles.append("_rename:" + step.src + ":" + step.dest);
+                    } else {
+                        errors++;
+                    }
+                }
+            }
+            // Other combined actions can be added here
+        }
+    }
+
+    if (errors == 0) {
+        QMetaObject::invokeMethod(this, [this, steamAppId = pkg.steamAppId, gamePath, pkg, installedFiles]() {
+#ifndef MAKINEAI_UI_ONLY
+            packages::InstalledPackageState state;
+            state.version = pkg.version.toStdString();
+            state.gamePath = gamePath.toStdString();
+            for (const QString& f : installedFiles)
+                state.installedFiles.push_back(f.toStdString());
+            state.installedAt = QDateTime::currentSecsSinceEpoch();
+            m_catalog.markInstalled(steamAppId.toStdString(), state);
+            saveCatalogInstalledState(m_catalog, installedStatePath());
+#else
+            InstalledPackageInfo instInfo;
+            instInfo.version = pkg.version;
+            instInfo.gamePath = gamePath;
+            instInfo.installedFiles = installedFiles;
+            instInfo.installedAt = QDateTime::currentSecsSinceEpoch();
+            m_installed[steamAppId] = instInfo;
+            saveInstalledState();
+#endif
+            if (m_journal) m_journal->commitOperation();
+        }, Qt::QueuedConnection);
+
+        emit installCompleted(true,
+            tr("Kurulum başarıyla tamamlandı"));
+    } else {
+        if (m_journal) m_journal->abortOperation();
+        emit installCompleted(false,
+            tr("%1 adımda hata oluştu").arg(errors));
+    }
+}
+
+// -- Unity bundle patch -------------------------------------------------------
+
+void LocalPackageManager::executeUnityPatch(const PackageInfo& pkg, const QString& gamePath,
+                                             const QString& packageDir)
+{
+#ifndef MAKINEAI_UI_ONLY
+    INTEGRITY_GATE();
+
+    emit installProgress(0.0, tr("Unity paket dosyaları taranıyor..."));
+
+    // Scan .dat files in the package directory and parse filenames
+    QDir pkgDir(packageDir);
+    QStringList datFiles = pkgDir.entryList({"*.dat"}, QDir::Files);
+
+    if (datFiles.isEmpty()) {
+        emit installCompleted(false, tr("No .dat files found in package"));
+        return;
+    }
+
+    // Parse .dat filenames to extract CAB paths and PathIDs
+    std::vector<UnityPatchEntry> allPatches;
+    std::vector<std::string> cabPaths;
+    std::set<std::string> cabPathSet;
+
+    for (const QString& datFile : datFiles) {
+        auto infoResult = parseDatFilename(datFile.toStdString());
+        if (!infoResult) {
+            qWarning() << "Invalid .dat filename:" << datFile << "-" << QString::fromStdString(infoResult.error().message());
+            continue;
+        }
+
+        const auto& info = *infoResult;
+
+        // Read .dat file content
+        QFile file(pkgDir.absoluteFilePath(datFile));
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Cannot read .dat file:" << datFile;
+            continue;
+        }
+
+        QByteArray content = file.readAll();
+        file.close();
+
+        UnityPatchEntry entry;
+        entry.pathId = info.pathId;
+        entry.cabPath = info.cabPath;
+        entry.assetName = info.assetName;
+        entry.data.assign(reinterpret_cast<const uint8_t*>(content.constData()),
+                          reinterpret_cast<const uint8_t*>(content.constData()) + content.size());
+        allPatches.push_back(std::move(entry));
+
+        if (cabPathSet.insert(info.cabPath).second) {
+            cabPaths.push_back(info.cabPath);
+        }
+    }
+
+    if (allPatches.empty()) {
+        emit installCompleted(false, tr("No valid .dat patch files found"));
+        return;
+    }
+
+    qDebug() << "Unity patch:" << allPatches.size() << "patches across"
+             << cabPaths.size() << "CAB paths";
+
+    emit installProgress(0.1, tr("Bundle dosyaları aranıyor..."));
+
+    // Find bundle files matching CAB paths
+    UnityBundlePatcher patcher;
+    auto findResult = patcher.findBundles(
+        fs::path(gamePath.toStdString()), cabPaths);
+
+    if (!findResult) {
+        emit installCompleted(false,
+            tr("Bundle dosyaları bulunamadı: %1")
+                .arg(QString::fromStdString(findResult.error().message())));
+        return;
+    }
+
+    const auto& bundleMap = *findResult;
+
+    if (bundleMap.empty()) {
+        emit installCompleted(false, tr("No matching bundle files found in game directory"));
+        return;
+    }
+
+    // Begin crash recovery journal
+    if (m_journal) {
+        JournalEntry je;
+        je.type = OpType::Install;
+        je.gameId = pkg.steamAppId;
+        je.gamePath = gamePath;
+        m_journal->beginOperation(je);
+    }
+
+    // Group patches by bundle file (use string key to avoid MinGW ADL issues with fs::path)
+    std::map<std::string, std::vector<UnityPatchEntry>> patchesByBundle;
+    for (const auto& patch : allPatches) {
+        auto it = bundleMap.find(patch.cabPath);
+        if (it != bundleMap.end()) {
+            patchesByBundle[it->second.string()].push_back(patch);
+        } else {
+            qWarning() << "No bundle found for CAB:" << QString::fromStdString(patch.cabPath);
+        }
+    }
+
+    int totalBundles = static_cast<int>(patchesByBundle.size());
+    int currentBundle = 0;
+    int errors = 0;
+    QStringList installedFiles;
+
+    // Backup and patch each bundle
+    for (const auto& [bundlePathStr, patches] : patchesByBundle) {
+        fs::path bundlePath(bundlePathStr);
+        currentBundle++;
+        double progress = 0.2 + 0.7 * static_cast<double>(currentBundle - 1) / totalBundles;
+        QString bundleName = QString::fromStdString(bundlePath.filename().string());
+
+        emit installProgress(progress,
+            tr("Yedekleniyor: %1 (%2/%3)")
+                .arg(bundleName).arg(currentBundle).arg(totalBundles));
+
+        // Backup the original bundle file
+        QString bundlePathQ = QString::fromStdString(bundlePath.string());
+        QString relPath = QDir(gamePath).relativeFilePath(bundlePathQ);
+        QString backupPath = bundlePathQ + ".makineai_backup";
+
+        if (!QFile::exists(backupPath)) {
+            if (!QFile::copy(bundlePathQ, backupPath)) {
+                qWarning() << "Failed to backup bundle:" << bundlePathQ;
+                errors++;
+                continue;
+            }
+        }
+        installedFiles.append("_unitypatch:" + relPath);
+        if (m_journal) m_journal->recordFileModified(relPath);
+
+        emit installProgress(progress + 0.35 / totalBundles,
+            tr("Yamalanıyor: %1 (%2/%3)")
+                .arg(bundleName).arg(currentBundle).arg(totalBundles));
+
+        // Patch the bundle
+        auto patchResult = patcher.patchBundle(bundlePath, patches);
+        if (!patchResult) {
+            qWarning() << "Failed to patch bundle:" << bundlePathQ
+                       << "-" << QString::fromStdString(patchResult.error().message());
+            errors++;
+
+            // Restore backup on failure
+            QFile::remove(bundlePathQ);
+            QFile::rename(backupPath, bundlePathQ);
+            continue;
+        }
+
+        qDebug() << "Patched:" << bundleName << "with" << patches.size() << "assets";
+    }
+
+    if (errors == 0) {
+        QMetaObject::invokeMethod(this, [this, steamAppId = pkg.steamAppId, gamePath, pkg, installedFiles]() {
+            packages::InstalledPackageState state;
+            state.version = pkg.version.toStdString();
+            state.gamePath = gamePath.toStdString();
+            for (const QString& f : installedFiles)
+                state.installedFiles.push_back(f.toStdString());
+            state.installedAt = QDateTime::currentSecsSinceEpoch();
+            m_catalog.markInstalled(steamAppId.toStdString(), state);
+            saveCatalogInstalledState(m_catalog, installedStatePath());
+            if (m_journal) m_journal->commitOperation();
+        }, Qt::QueuedConnection);
+
+        emit installCompleted(true,
+            tr("%1 bundle dosyası başarıyla yamalandı").arg(totalBundles));
+    } else {
+        if (m_journal) m_journal->abortOperation();
+        emit installCompleted(false,
+            tr("%1/%2 bundle yamalamada hata oluştu").arg(errors).arg(totalBundles));
+    }
+
+#else
+    // UI-only build: unityPatch requires core library
+    Q_UNUSED(pkg);
+    Q_UNUSED(gamePath);
+    Q_UNUSED(packageDir);
+    emit installCompleted(false, tr("Unity bundle patching requires core library build"));
+#endif
+}
+
 // -- Uninstall package --------------------------------------------------------
 
 bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath)
@@ -1336,6 +2169,45 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     for (const auto& relPathStd : coreState.installedFiles) {
         const QString relPath = QString::fromStdString(relPathStd);
 
+        // Handle desktop entries: "_desktop:filename" -> user Desktop
+        if (relPath.startsWith("_desktop:")) {
+            QString fileName = relPath.mid(9); // strip "_desktop:" prefix
+            QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)
+                                  + "/" + fileName;
+            if (QFile::exists(desktopPath)) {
+                if (QFile::remove(desktopPath)) {
+                    deleted++;
+                    qDebug() << "Desktop file removed:" << fileName;
+                } else {
+                    qWarning() << "Failed to remove desktop file:" << fileName;
+                    failed++;
+                }
+            }
+            continue;
+        }
+
+        // Handle rename entries: "_rename:oldName:newName" -> reverse rename
+        if (relPath.startsWith("_rename:")) {
+            QStringList parts = relPath.mid(8).split(':');
+            if (parts.size() >= 2) {
+                QString origName = parts[0];
+                QString renamedName = parts[1];
+                QString renamedPath = QDir::cleanPath(basePath + "/" + renamedName);
+                QString origPath = QDir::cleanPath(basePath + "/" + origName);
+                if (QFile::exists(renamedPath)) {
+                    if (QFile::exists(origPath)) QFile::remove(origPath);
+                    if (QFile::rename(renamedPath, origPath)) {
+                        deleted++;
+                        qDebug() << "Rename reversed:" << renamedName << "->" << origName;
+                    } else {
+                        qWarning() << "Failed to reverse rename:" << renamedName;
+                        failed++;
+                    }
+                }
+            }
+            continue;
+        }
+
         // Handle font entries: "_font:filename.ttf" -> user fonts dir
         if (relPath.startsWith("_font:")) {
 #ifdef Q_OS_WIN
@@ -1352,6 +2224,53 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                 }
             }
 #endif
+            continue;
+        }
+
+        // Handle Steam language restore: "_steamlang:appId:originalLanguage"
+        if (relPath.startsWith("_steamlang:")) {
+            QStringList parts = relPath.mid(11).split(':');
+            if (parts.size() >= 2) {
+                QString appId = parts[0];
+                QString origLang = parts[1];
+                QDir dir(basePath);
+                if (dir.cdUp() && dir.cdUp()) {
+                    QString acfPath = dir.absoluteFilePath("appmanifest_" + appId + ".acf");
+                    QFile acfFile(acfPath);
+                    if (acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        QString content = QString::fromUtf8(acfFile.readAll());
+                        acfFile.close();
+                        QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
+                        content.replace(langRe, "\\1" + origLang + "\\3");
+                        if (acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+                            acfFile.write(content.toUtf8());
+                            acfFile.close();
+                            qDebug() << "Steam language restored to:" << origLang << "for appId" << appId;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Handle Unity bundle patch restore: "_unitypatch:relPath" -> restore .makineai_backup
+        if (relPath.startsWith("_unitypatch:")) {
+            QString bundleRelPath = relPath.mid(12); // strip "_unitypatch:" prefix
+            QString bundleFullPath = QDir::cleanPath(basePath + "/" + bundleRelPath);
+            QString backupPath = bundleFullPath + ".makineai_backup";
+
+            if (QFile::exists(backupPath)) {
+                if (QFile::exists(bundleFullPath)) QFile::remove(bundleFullPath);
+                if (QFile::rename(backupPath, bundleFullPath)) {
+                    deleted++;
+                    qDebug() << "Unity bundle restored:" << bundleRelPath;
+                } else {
+                    qWarning() << "Failed to restore Unity bundle:" << bundleRelPath;
+                    failed++;
+                }
+            } else {
+                qWarning() << "Unity bundle backup not found:" << backupPath;
+            }
             continue;
         }
 
@@ -1403,6 +2322,41 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     int deleted = 0;
     int failed = 0;
     for (const QString& relPath : instInfo.installedFiles) {
+        // Handle desktop entries: "_desktop:filename" -> user Desktop
+        if (relPath.startsWith("_desktop:")) {
+            QString fileName = relPath.mid(9);
+            QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)
+                                  + "/" + fileName;
+            if (QFile::exists(desktopPath)) {
+                if (QFile::remove(desktopPath)) {
+                    deleted++;
+                } else {
+                    failed++;
+                }
+            }
+            continue;
+        }
+
+        // Handle rename entries: "_rename:oldName:newName" -> reverse rename
+        if (relPath.startsWith("_rename:")) {
+            QStringList parts = relPath.mid(8).split(':');
+            if (parts.size() >= 2) {
+                QString origName = parts[0];
+                QString renamedName = parts[1];
+                QString renamedPath = QDir::cleanPath(basePath + "/" + renamedName);
+                QString origPath = QDir::cleanPath(basePath + "/" + origName);
+                if (QFile::exists(renamedPath)) {
+                    if (QFile::exists(origPath)) QFile::remove(origPath);
+                    if (QFile::rename(renamedPath, origPath)) {
+                        deleted++;
+                    } else {
+                        failed++;
+                    }
+                }
+            }
+            continue;
+        }
+
         // Handle font entries: "_font:filename.ttf" -> user fonts dir
         if (relPath.startsWith("_font:")) {
 #ifdef Q_OS_WIN
@@ -1419,6 +2373,51 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                 }
             }
 #endif
+            continue;
+        }
+
+        // Handle Steam language restore: "_steamlang:appId:originalLanguage"
+        if (relPath.startsWith("_steamlang:")) {
+            QStringList parts = relPath.mid(11).split(':');
+            if (parts.size() >= 2) {
+                QString appId = parts[0];
+                QString origLang = parts[1];
+                QDir dir(basePath);
+                if (dir.cdUp() && dir.cdUp()) {
+                    QString acfPath = dir.absoluteFilePath("appmanifest_" + appId + ".acf");
+                    QFile acfFile(acfPath);
+                    if (acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        QString content = QString::fromUtf8(acfFile.readAll());
+                        acfFile.close();
+                        QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
+                        content.replace(langRe, "\\1" + origLang + "\\3");
+                        if (acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+                            acfFile.write(content.toUtf8());
+                            acfFile.close();
+                            qDebug() << "Steam language restored to:" << origLang << "for appId" << appId;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Handle Unity bundle patch restore: "_unitypatch:relPath" -> restore .makineai_backup
+        if (relPath.startsWith("_unitypatch:")) {
+            QString bundleRelPath = relPath.mid(12);
+            QString bundleFullPath = QDir::cleanPath(basePath + "/" + bundleRelPath);
+            QString backupPath = bundleFullPath + ".makineai_backup";
+
+            if (QFile::exists(backupPath)) {
+                if (QFile::exists(bundleFullPath)) QFile::remove(bundleFullPath);
+                if (QFile::rename(backupPath, bundleFullPath)) {
+                    deleted++;
+                    qDebug() << "Unity bundle restored:" << bundleRelPath;
+                } else {
+                    qWarning() << "Failed to restore Unity bundle:" << bundleRelPath;
+                    failed++;
+                }
+            }
             continue;
         }
 

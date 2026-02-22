@@ -13,7 +13,7 @@ import MakineAI 1.0
  *       onVariantSelected: function(variant) { install(variant) }
  *   }
  */
-Dialog {
+BaseDialog {
     id: root
 
     property var variants: []
@@ -21,52 +21,11 @@ Dialog {
     property int selectedIndex: -1
 
     signal variantSelected(string variant)
-    signal cancelled()
 
     title: variantType === "platform" ? qsTr("Platform Seçin") : qsTr("Sürüm Seçin")
 
-    modal: true
-    closePolicy: Popup.CloseOnEscape
     width: 400
     contentHeight: contentColumn.implicitHeight
-
-    x: parent ? (parent.width - width) / 2 : 0
-    y: parent ? (parent.height - height) / 2 : 0
-
-    enter: Transition {
-        ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-        }
-    }
-
-    exit: Transition {
-        ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animFast }
-            NumberAnimation { property: "scale"; from: 1; to: 0.95; duration: Dimensions.animFast }
-        }
-    }
-
-    background: Rectangle {
-        radius: Dimensions.radiusMD
-        color: Theme.glassBackground
-        border.color: Theme.withAlpha(Theme.accent, 0.15)
-        border.width: 1
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
-            color: "transparent"
-            border.color: Theme.glassHighlight
-            border.width: 1
-        }
-    }
-
-    Overlay.modal: Rectangle {
-        color: Theme.withAlpha(Theme.bgPrimary, 0.60)
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-    }
 
     header: Item {
         implicitHeight: 56
@@ -117,36 +76,7 @@ Dialog {
                 Layout.fillWidth: true
             }
 
-            Rectangle {
-                Layout.preferredWidth: 28
-                Layout.preferredHeight: 28
-                radius: 14
-                color: _closeMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                Canvas {
-                    anchors.centerIn: parent
-                    width: 10; height: 10
-                    property bool hov: _closeMouse.containsMouse
-                    onHovChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        ctx.strokeStyle = hov ? Theme.textPrimary : Theme.textMuted
-                        ctx.lineWidth = 1.5; ctx.lineCap = "round"
-                        ctx.beginPath(); ctx.moveTo(1, 1); ctx.lineTo(9, 9); ctx.stroke()
-                        ctx.beginPath(); ctx.moveTo(9, 1); ctx.lineTo(1, 9); ctx.stroke()
-                    }
-                }
-
-                MouseArea {
-                    id: _closeMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.cancelled(); root.close() }
-                }
-            }
+            DialogCloseButton { onClicked: { root.cancelled(); root.close() } }
         }
 
         Rectangle {
@@ -359,6 +289,4 @@ Dialog {
             }
         }
     }
-
-    Keys.onEscapePressed: { root.cancelled(); root.close() }
 }

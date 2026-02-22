@@ -210,6 +210,8 @@ void PackageCatalog::loadManifest(const fs::path& manifestPath)
         info.engine       = pkgObj.value("engine", "");
         info.version      = pkgObj.value("version", "");
         info.installType  = pkgObj.value("installType", "overlay");
+        info.tier         = pkgObj.value("tier", "free");
+        info.lastUpdated  = pkgObj.value("lastUpdated", "");
         info.dirName      = pkgObj.value("dirName", "");
         info.variantType  = pkgObj.value("variantType", "");
 
@@ -239,32 +241,110 @@ void PackageCatalog::loadManifest(const fs::path& manifestPath)
             info.installNotes = pkgObj.value("installNote", "");
         }
 
+        // Parse specialDialog
+        info.specialDialog = pkgObj.value("specialDialog", "");
+
+        // Helper lambda to parse a steps array
+        auto parseSteps = [](const json& stepsArr) -> std::vector<InstallStep> {
+            std::vector<InstallStep> steps;
+            if (!stepsArr.is_array()) return steps;
+            for (const auto& s : stepsArr) {
+                if (!s.is_object()) continue;
+                InstallStep step;
+                step.action   = s.value("action", "");
+                step.src      = s.value("src", "");
+                step.dest     = s.value("dest", "");
+                step.exe      = s.value("exe", "");
+                step.fallback = s.value("fallback", "");
+                step.workDir  = s.value("workDir", "game");
+                step.language = s.value("language", "");
+                if (s.contains("args") && s["args"].is_array()) {
+                    for (const auto& a : s["args"]) {
+                        if (a.is_string()) {
+                            step.args.push_back(a.get<std::string>());
+                        }
+                    }
+                }
+                steps.push_back(std::move(step));
+            }
+            return steps;
+        };
+
         // Parse installMethod
         if (pkgObj.contains("installMethod") && pkgObj["installMethod"].is_object()) {
             const auto& installMethod = pkgObj["installMethod"];
             info.installMethodType   = installMethod.value("type", "");
             info.installMethodTarget = installMethod.value("target", "");
 
-            if (installMethod.contains("steps") && installMethod["steps"].is_array()) {
-                for (const auto& s : installMethod["steps"]) {
-                    if (!s.is_object()) continue;
-                    InstallStep step;
-                    step.action   = s.value("action", "");
-                    step.src      = s.value("src", "");
-                    step.dest     = s.value("dest", "");
-                    step.exe      = s.value("exe", "");
-                    step.fallback = s.value("fallback", "");
-                    step.workDir  = s.value("workDir", "game");
+            // Parse top-level steps (for "script" type)
+            if (installMethod.contains("steps")) {
+                info.installSteps = parseSteps(installMethod["steps"]);
+            }
 
-                    if (s.contains("args") && s["args"].is_array()) {
-                        for (const auto& a : s["args"]) {
-                            if (a.is_string()) {
-                                step.args.push_back(a.get<std::string>());
+            // Parse options array (for "options" type)
+            if (installMethod.contains("options") && installMethod["options"].is_array()) {
+                for (const auto& opt : installMethod["options"]) {
+                    if (!opt.is_object()) continue;
+                    InstallOption option;
+                    option.id              = opt.value("id", "");
+                    option.label           = opt.value("label", "");
+                    option.description     = opt.value("description", "");
+                    option.icon            = opt.value("icon", "");
+                    option.defaultSelected = opt.value("default", false);
+                    option.subDir          = opt.value("subDir", "");
+                    if (opt.contains("steps")) {
+                        option.steps = parseSteps(opt["steps"]);
+                    }
+                    info.installOptions.push_back(std::move(option));
+                }
+            }
+
+            // Parse combinedSteps (for "options" type)
+            if (installMethod.contains("combinedSteps") && installMethod["combinedSteps"].is_object()) {
+                for (auto cit = installMethod["combinedSteps"].begin();
+                     cit != installMethod["combinedSteps"].end(); ++cit)
+                {
+                    info.combinedSteps[cit.key()] = parseSteps(cit.value());
+                }
+            }
+
+            // Parse variantInstallOptions (variant-specific options for multi-game packages)
+            if (installMethod.contains("variantInstallOptions") && installMethod["variantInstallOptions"].is_object()) {
+                for (auto vit = installMethod["variantInstallOptions"].begin();
+                     vit != installMethod["variantInstallOptions"].end(); ++vit)
+                {
+                    if (!vit.value().is_object()) continue;
+                    VariantConfig vc;
+                    const auto& vcObj = vit.value();
+
+                    // Parse options array within the variant config
+                    if (vcObj.contains("options") && vcObj["options"].is_array()) {
+                        for (const auto& opt : vcObj["options"]) {
+                            if (!opt.is_object()) continue;
+                            InstallOption option;
+                            option.id              = opt.value("id", "");
+                            option.label           = opt.value("label", "");
+                            option.description     = opt.value("description", "");
+                            option.icon            = opt.value("icon", "");
+                            option.defaultSelected = opt.value("default", false);
+                            option.subDir          = opt.value("subDir", "");
+                            if (opt.contains("steps")) {
+                                option.steps = parseSteps(opt["steps"]);
                             }
+                            vc.installOptions.push_back(std::move(option));
                         }
                     }
 
-                    info.installSteps.push_back(std::move(step));
+                    // Parse combinedSteps within the variant config
+                    if (vcObj.contains("combinedSteps") && vcObj["combinedSteps"].is_object()) {
+                        for (auto csit = vcObj["combinedSteps"].begin();
+                             csit != vcObj["combinedSteps"].end(); ++csit)
+                        {
+                            vc.combinedSteps[csit.key()] = parseSteps(csit.value());
+                        }
+                    }
+
+                    info.variantInstallOptions[vit.key()] = std::move(vc);
                 }
             }
         }
@@ -649,19 +729,25 @@ void PackageCatalog::loadInstalledState(const fs::path& statePath)
             // Legacy format: steamAppId -> version string
             state.version = it.value().get<std::string>();
         } else if (it.value().is_object()) {
-            // New format: steamAppId -> { version, gamePath, files, installedAt }
+            // New format: steamAppId -> { version, gamePath, files, installedAt, ... }
             const auto& obj = it.value();
-            state.version     = obj.value("version", "");
-            state.gamePath    = obj.value("gamePath", "");
-            state.installedAt = obj.value("installedAt", static_cast<int64_t>(0));
+            state.version           = obj.value("version", "");
+            state.gamePath          = obj.value("gamePath", "");
+            state.installedAt       = obj.value("installedAt", static_cast<int64_t>(0));
+            state.gameStoreVersion  = obj.value("gameStoreVersion", "");
+            state.gameSource        = obj.value("gameSource", "");
 
-            if (obj.contains("files") && obj["files"].is_array()) {
-                for (const auto& f : obj["files"]) {
-                    if (f.is_string()) {
-                        state.installedFiles.push_back(f.get<std::string>());
+            auto loadStringArray = [&](const char* key, std::vector<std::string>& out) {
+                if (obj.contains(key) && obj[key].is_array()) {
+                    for (const auto& f : obj[key]) {
+                        if (f.is_string()) out.push_back(f.get<std::string>());
                     }
                 }
-            }
+            };
+
+            loadStringArray("files", state.installedFiles);
+            loadStringArray("addedFiles", state.addedFiles);
+            loadStringArray("replacedFiles", state.replacedFiles);
         } else {
             continue; // Skip unknown value types
         }
@@ -698,11 +784,22 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
         obj["gamePath"]    = state.gamePath;
         obj["installedAt"] = state.installedAt;
 
-        json filesArr = json::array();
-        for (const auto& f : state.installedFiles) {
-            filesArr.push_back(f);
-        }
-        obj["files"] = std::move(filesArr);
+        if (!state.gameStoreVersion.empty())
+            obj["gameStoreVersion"] = state.gameStoreVersion;
+        if (!state.gameSource.empty())
+            obj["gameSource"] = state.gameSource;
+
+        auto saveStringArray = [&](const char* key, const std::vector<std::string>& arr) {
+            if (!arr.empty()) {
+                json jsonArr = json::array();
+                for (const auto& f : arr) jsonArr.push_back(f);
+                obj[key] = std::move(jsonArr);
+            }
+        };
+
+        saveStringArray("files", state.installedFiles);
+        saveStringArray("addedFiles", state.addedFiles);
+        saveStringArray("replacedFiles", state.replacedFiles);
 
         root[appId] = std::move(obj);
     }

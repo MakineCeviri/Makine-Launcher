@@ -151,6 +151,12 @@ void GameService::setupCoreBridge()
                                 m_updateService->recordStoreVersion(gameId, game.installPath, game.source);
                                 m_updateService->takeSnapshot(gameId, patchVer, game.installPath, game.engine);
                                 m_updateService->clearUpdate(gameId);
+
+                                // Record store version in installed package info
+                                QString storeVer = m_updateService->getRecordedStoreVersionId(gameId);
+                                if (!storeVer.isEmpty()) {
+                                    m_coreBridge->updateInstalledStoreVersion(gameId, storeVer, game.source);
+                                }
                             }
                         }
                     }
@@ -212,6 +218,11 @@ void GameService::onScanCompleted(int count)
 
     saveCachedGames();
     ensureSupportedGamesCache();
+
+    // Check installed translations for game update impacts
+    if (m_updateService) {
+        QTimer::singleShot(500, this, &GameService::checkAllInstalledTranslations);
+    }
 }
 
 void GameService::onGameDetected(const QString& gameId, const QString& gameName)
@@ -550,6 +561,22 @@ void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteAr
     details.backgroundUrl = appData.value("background").toString();
     details.fetchedAt = QDateTime::currentDateTime();
 
+    // Evict expired entries when cache grows large
+    static constexpr int MAX_STEAM_CACHE = 80;
+    if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE) {
+        QStringList expired;
+        for (auto it = m_steamDetailsCache.constBegin(); it != m_steamDetailsCache.constEnd(); ++it) {
+            if (it->isExpired())
+                expired.append(it.key());
+        }
+        for (const auto& key : expired)
+            m_steamDetailsCache.remove(key);
+        // If still too large, clear oldest half
+        if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE) {
+            m_steamDetailsCache.clear();
+        }
+    }
+
     // Cache and persist
     m_steamDetailsCache[steamAppId] = details;
     saveSteamDetailsCache();
@@ -630,7 +657,10 @@ int GameService::supportedGameCount() const
 
 QVariantList GameService::gamesWithTranslation() const
 {
-    QVariantList result;
+    if (m_translationCacheValid)
+        return m_translationGamesCache;
+
+    m_translationGamesCache.clear();
     for (const auto& game : m_games) {
         bool hasPackage = m_coreBridge && m_coreBridge->hasTranslationPackage(game.id);
         if (game.hasTranslation || hasPackage) {
@@ -645,9 +675,33 @@ QVariantList GameService::gamesWithTranslation() const
             } else {
                 map["packageInstalled"] = false;
             }
-            result.append(map);
+            m_translationGamesCache.append(map);
         }
     }
+    m_translationCacheValid = true;
+    return m_translationGamesCache;
+}
+
+QVariantList GameService::installedTranslations() const
+{
+    QVariantList result;
+    if (!m_coreBridge) return result;
+
+    for (const auto& game : m_games) {
+        if (!m_coreBridge->isPackageInstalled(game.id))
+            continue;
+
+        QVariantMap entry = game.toVariantMap();
+        entry["packageInstalled"] = true;
+
+        auto pkg = m_coreBridge->getPackageForGame(game.id);
+        if (pkg) {
+            entry["version"] = pkg->version;
+        }
+
+        result.append(entry);
+    }
+
     return result;
 }
 
@@ -740,8 +794,10 @@ void GameService::invalidateCache()
 {
     m_cacheValid = false;
     m_supportedCacheValid = false;
+    m_translationCacheValid = false;
     m_gamesCache.clear();
     m_supportedGamesCache.clear();
+    m_translationGamesCache.clear();
     m_packageInstalledCache.clear();
 }
 
@@ -991,7 +1047,32 @@ QString GameService::getInstallNotes(const QString& gameId)
     return m_coreBridge->getInstallNotesForGame(gameId);
 }
 
-void GameService::installTranslation(const QString& gameId, const QString& variant)
+QVariantList GameService::getInstallOptions(const QString& gameId)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getInstallOptionsForGame(gameId);
+}
+
+QString GameService::getSpecialDialog(const QString& gameId)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getSpecialDialogForGame(gameId);
+}
+
+QVariantList GameService::getVariantInstallOptions(const QString& gameId, const QString& variant)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getVariantInstallOptionsForGame(gameId, variant);
+}
+
+QString GameService::getVariantSpecialDialog(const QString& gameId, const QString& variant)
+{
+    if (!m_coreBridge) return {};
+    return m_coreBridge->getVariantSpecialDialogForGame(gameId, variant);
+}
+
+void GameService::installTranslation(const QString& gameId, const QString& variant,
+                                      const QStringList& selectedOptions)
 {
     if (!m_coreBridge) {
         emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
@@ -1012,6 +1093,24 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
     const GameInfo& game = m_games[*it];
 
+    // Security: Check if game is currently running
+    if (!game.installPath.isEmpty()) {
+        QDir gameDir(game.installPath);
+        QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
+        for (const QString& exe : exeFiles) {
+            // Check if process is running via tasklist
+            QProcess tasklist;
+            tasklist.start("tasklist", {"/FI", "IMAGENAME eq " + exe, "/FO", "CSV", "/NH"});
+            tasklist.waitForFinished(2000);
+            QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
+            if (output.contains(exe, Qt::CaseInsensitive) && !output.contains("INFO:")) {
+                emit translationInstallCompleted(gameId, false,
+                    tr("Bu oyun şu anda çalışıyor (%1). Çeviriyi kurmak için oyunu kapatın.").arg(exe));
+                return;
+            }
+        }
+    }
+
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
         emit translationInstallCompleted(gameId, false,
@@ -1023,6 +1122,18 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         emit translationInstallCompleted(gameId, false,
             tr("Game install path not found: %1").arg(game.installPath));
         return;
+    }
+
+    // Security: Anti-cheat warning
+    auto antiCheat = checkAntiCheat(gameId);
+    if (antiCheat.value("hasAntiCheat").toBool()) {
+        emit antiCheatWarningNeeded(gameId, antiCheat);
+        // Don't block — QML will show warning and call installTranslation again
+        // with user confirmation. Use a flag to skip re-checking.
+        if (!m_antiCheatAcknowledged.contains(gameId)) {
+            return;
+        }
+        m_antiCheatAcknowledged.remove(gameId);
     }
 
     m_installingGameId = gameId;
@@ -1037,25 +1148,30 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
         // One-shot connection: when backup done, proceed with install
         connect(bm, &BackupManager::selectiveBackupCompleted, this,
-            [this, gameId, gamePath = game.installPath, variant](const QString& backupGameId, bool /*success*/) {
+            [this, gameId, gamePath = game.installPath, variant, selectedOptions](const QString& backupGameId, bool /*success*/) {
                 if (backupGameId != gameId) return;
 
                 qDebug() << "Installing translation for" << gameId
                          << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                         << "options:" << selectedOptions
                          << "path:" << gamePath;
 
-                m_coreBridge->installPackage(gameId, gamePath, variant);
+                m_coreBridge->installPackage(gameId, gamePath, variant, selectedOptions);
             }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
-        bm->createSelectiveBackupAsync(gameId, game.name, game.installPath, filesToOverwrite);
+        QString storeVer = m_updateService ? m_updateService->getRecordedStoreVersionId(gameId) : QString();
+        QString patchVer = pkg.has_value() ? pkg->version : QString();
+        bm->createSelectiveBackupAsync(gameId, game.name, game.installPath, filesToOverwrite,
+                                        storeVer, patchVer);
     } else {
         // No backup needed — proceed directly
         qDebug() << "Installing translation for" << game.name
                  << "gameId:" << gameId
                  << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                 << "options:" << selectedOptions
                  << "path:" << game.installPath;
 
-        m_coreBridge->installPackage(gameId, game.installPath, variant);
+        m_coreBridge->installPackage(gameId, game.installPath, variant, selectedOptions);
     }
 }
 
@@ -1120,6 +1236,50 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
                 : tr("Failed to remove translation"));
 }
 
+void GameService::checkAllInstalledTranslations()
+{
+    if (!m_updateService || !m_coreBridge) return;
+
+    for (const auto& game : m_games) {
+        if (!game.hasTranslation) continue;
+
+        // Quick Tier 1 check: has store version changed?
+        if (!m_updateService->hasUpdate(game.id)) continue;
+
+        // Detailed impact assessment
+        QVariantMap impact = m_updateService->assessImpact(game.id);
+        QString level = impact.value("level").toString();
+
+        if (level != "safe" && level != "unknown") {
+            emit translationImpactDetected(game.id, game.name, impact);
+        }
+    }
+}
+
+void GameService::recoverTranslation(const QString& gameId)
+{
+    if (!m_coreBridge) {
+        emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
+        return;
+    }
+
+    // Step 1: Uninstall current (broken) translation
+    // Step 2: When uninstall completes, reinstall the same package
+    auto conn = connect(this, &GameService::translationUninstalled, this,
+        [this, gameId](const QString& uninstalledId, bool success, const QString& /*msg*/) {
+            if (uninstalledId != gameId) return;
+            if (!success) {
+                emit translationInstallCompleted(gameId, false,
+                    tr("Eski çeviri kaldırılamadı, onarım başarısız"));
+                return;
+            }
+            // Reinstall with default variant/options
+            installTranslation(gameId);
+        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+
+    uninstallTranslation(gameId);
+}
+
 void GameService::setUpdateMonitoringEnabled(bool enabled)
 {
     if (!m_updateService) return;
@@ -1139,6 +1299,13 @@ bool GameService::hasGameUpdate(const QString& gameId) const
     return m_updateService ? m_updateService->hasUpdate(gameId) : false;
 }
 
+QVariantMap GameService::checkUpdateImpact(const QString& gameId)
+{
+    if (!m_updateService)
+        return {{"level", "unknown"}, {"summary", "Update detection unavailable"}};
+    return m_updateService->assessImpact(gameId);
+}
+
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
     if (!m_updateService)
@@ -1149,31 +1316,126 @@ QVariantMap GameService::checkCompatibility(const QString& gameId)
 QVariantMap GameService::getRuntimeStatus(const QString& gameId)
 {
     auto it = m_gameIdToIndex.constFind(gameId);
-    bool isUnity = false;
-    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.size())
-        isUnity = m_games[*it].engine.toLower().contains("unity");
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size())
+        return {{"isUnity", false}, {"needsRuntime", false}};
+
+    const GameInfo& game = m_games[*it];
+    bool isUnity = game.engine.toLower().contains("unity");
 
     if (!isUnity)
         return {{"isUnity", false}, {"needsRuntime", false}};
 
-    return {{"isUnity", true}, {"needsRuntime", true}, {"installed", false},
-            {"upToDate", false}, {"bepinexVersion", ""}, {"xunityVersion", ""},
-            {"backend", "unknown"}, {"unityVersion", ""},
-            {"hasAntiCheat", false}, {"antiCheatName", ""}};
+    const QString& gamePath = game.installPath;
+    if (gamePath.isEmpty())
+        return {{"isUnity", true}, {"needsRuntime", true}, {"installed", false},
+                {"upToDate", false}, {"bepinexVersion", ""}, {"xunityVersion", ""},
+                {"backend", "unknown"}, {"unityVersion", ""},
+                {"hasAntiCheat", false}, {"antiCheatName", ""}};
+
+    // Detect Unity backend (Mono vs IL2CPP)
+    QString backend = "unknown";
+    if (QFile::exists(gamePath + "/GameAssembly.dll"))
+        backend = "il2cpp";
+    else if (QDir(gamePath).entryList({"*_Data"}, QDir::Dirs).size() > 0)
+        backend = "mono";
+
+    // Check if BepInEx is installed (look for BepInEx/core/BepInEx.dll)
+    bool bepinexInstalled = QFile::exists(gamePath + "/BepInEx/core/BepInEx.dll")
+                         || QFile::exists(gamePath + "/BepInEx/core/BepInEx.Preloader.dll");
+
+    // Check XUnity.AutoTranslator
+    bool xunityInstalled = false;
+    QString xunityVersion;
+    if (bepinexInstalled) {
+        QDir pluginsDir(gamePath + "/BepInEx/plugins");
+        if (pluginsDir.exists()) {
+            auto xunityFiles = pluginsDir.entryList({"XUnity.AutoTranslator*.dll"}, QDir::Files);
+            xunityInstalled = !xunityFiles.isEmpty();
+            if (!xunityFiles.isEmpty())
+                xunityVersion = xunityFiles.first().section('.', 0, -2); // strip .dll
+        }
+    }
+
+    // Read BepInEx version from changelog or dll name
+    QString bepinexVersion;
+    if (bepinexInstalled) {
+        QDir coreDir(gamePath + "/BepInEx/core");
+        auto bepFiles = coreDir.entryList({"BepInEx.dll", "BepInEx.Core.dll"}, QDir::Files);
+        if (!bepFiles.isEmpty())
+            bepinexVersion = "installed";
+    }
+
+    // Anti-cheat from dedicated method
+    auto antiCheat = checkAntiCheat(gameId);
+
+    return {
+        {"isUnity", true},
+        {"needsRuntime", true},
+        {"installed", bepinexInstalled},
+        {"upToDate", bepinexInstalled && xunityInstalled},
+        {"bepinexVersion", bepinexVersion},
+        {"xunityVersion", xunityVersion},
+        {"backend", backend},
+        {"unityVersion", ""},
+        {"hasAntiCheat", antiCheat.value("hasAntiCheat").toBool()},
+        {"antiCheatName", antiCheat.value("systems").toList().isEmpty() ? ""
+            : antiCheat.value("systems").toList().first().toMap().value("name").toString()}
+    };
 }
 
 void GameService::installRuntime(const QString& gameId)
 {
-    QTimer::singleShot(100, this, [this, gameId]() {
-        emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
-    });
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size()) {
+        emit runtimeInstallFinished(gameId, false, tr("Oyun bulunamadı"));
+        return;
+    }
+
+    const GameInfo& game = m_games[*it];
+    if (!game.engine.toLower().contains("unity")) {
+        emit runtimeInstallFinished(gameId, false, tr("Bu oyun Unity tabanlı değil"));
+        return;
+    }
+
+    // Check if already installed
+    if (QFile::exists(game.installPath + "/BepInEx/core/BepInEx.dll")) {
+        emit runtimeInstallFinished(gameId, true, tr("BepInEx zaten kurulu"));
+        return;
+    }
+
+    emit runtimeInstallFinished(gameId, false,
+        tr("BepInEx paketi henüz mevcut değil. Manuel kurulum için: https://github.com/BepInEx/BepInEx/releases"));
 }
 
 void GameService::uninstallRuntime(const QString& gameId)
 {
-    QTimer::singleShot(100, this, [this, gameId]() {
-        emit runtimeInstallFinished(gameId, false, tr("Runtime not available yet"));
-    });
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size()) {
+        emit runtimeInstallFinished(gameId, false, tr("Oyun bulunamadı"));
+        return;
+    }
+
+    const GameInfo& game = m_games[*it];
+    const QString bepinexDir = game.installPath + "/BepInEx";
+
+    if (!QDir(bepinexDir).exists()) {
+        emit runtimeInstallFinished(gameId, false, tr("BepInEx kurulu değil"));
+        return;
+    }
+
+    // Remove BepInEx directory and related files
+    bool removed = QDir(bepinexDir).removeRecursively();
+    // Also remove doorstop files
+    QFile::remove(game.installPath + "/winhttp.dll");
+    QFile::remove(game.installPath + "/doorstop_config.ini");
+
+    emit runtimeInstallFinished(gameId, removed,
+        removed ? tr("BepInEx kaldırıldı") : tr("BepInEx kaldırılırken hata oluştu"));
+}
+
+void GameService::acknowledgeAntiCheat(const QString& gameId)
+{
+    m_antiCheatAcknowledged.insert(gameId);
 }
 
 QVariantMap GameService::checkAntiCheat(const QString& gameId)

@@ -11,8 +11,8 @@ QtObject {
     // =========================================================================
 
     readonly property string appName: "MakineAI"
-    readonly property string appVersion: "0.1.0pre-alpha"
-    readonly property string appVersionFull: "v0.1.0pre-alpha"
+    readonly property string appVersion: "0.1.0-alpha"
+    readonly property string appVersionFull: "v0.1.0-alpha"
 
     // =========================================================================
     // EXTERNAL LINKS
@@ -45,9 +45,12 @@ QtObject {
     // PADDING
     // =========================================================================
 
+    readonly property int paddingXS: 4
     readonly property int paddingSM: 8
     readonly property int paddingMD: 12
     readonly property int paddingLG: 16
+    readonly property int paddingXL: 24
+    readonly property int paddingXXL: 32
 
     // =========================================================================
     // SPACING (Row/Column/Layout gaps)
@@ -68,11 +71,15 @@ QtObject {
     // BORDER RADIUS
     // =========================================================================
 
-    readonly property int radiusStandard: 4
-    readonly property int radiusXS: radiusStandard
-    readonly property int radiusMD: radiusStandard
-    readonly property int radiusLG: radiusStandard
+    readonly property int radiusXS: 2
+    readonly property int radiusSM: 4
+    readonly property int radiusMD: 8
+    readonly property int radiusLG: 12
+    readonly property int radiusSection: 16
     readonly property int radiusFull: 9999
+
+    // Backward compat alias (existing code uses radiusStandard = 4)
+    readonly property int radiusStandard: radiusSM
 
     // =========================================================================
     // NAVBAR
@@ -91,10 +98,10 @@ QtObject {
     // GAME CARD
     // =========================================================================
 
-    readonly property int cardWidth: 140
-    readonly property int cardHeight: 200
+    readonly property int cardWidth: 130
+    readonly property int cardHeight: 185
     readonly property int cardGap: 16
-    readonly property int cardBorderRadius: 14
+    readonly property int cardBorderRadius: radiusSection
 
     // =========================================================================
     // LAYOUT CONSTANTS
@@ -112,10 +119,17 @@ QtObject {
     readonly property int animInstant: _animEnabled ? 50 : 0
     readonly property int animVeryFast: _animEnabled ? 100 : 0
     readonly property int animFast: _animEnabled ? 150 : 0
+    readonly property int animMedium: _animEnabled ? 200 : 0
     readonly property int animNormal: _animEnabled ? 250 : 0
     readonly property int animSlow: _animEnabled ? 400 : 0
     readonly property int animVerySlow: _animEnabled ? 800 : 0
+    readonly property int animPulse: _animEnabled ? 800 : 0
+    readonly property int animLoadingCycle: _animEnabled ? 1500 : 0
     readonly property int animGradient: _animEnabled ? 2000 : 0
+
+    // Page transition durations
+    readonly property int animPageOut: _animEnabled ? 160 : 0
+    readonly property int animPageIn: _animEnabled ? 240 : 0
 
     // =========================================================================
     // FONT SIZES

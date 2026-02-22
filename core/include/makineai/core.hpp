@@ -298,24 +298,32 @@ public:
     // =========================================================================
 
     /**
-     * @brief Get translation memory
+     * @brief Get translation memory (nullptr if deferred)
      */
-    [[nodiscard]] TranslationMemory& translationMemory();
+    [[nodiscard]] TranslationMemory* translationMemory() noexcept {
+        return translationMemory_.get();
+    }
 
     /**
-     * @brief Get glossary service
+     * @brief Get glossary service (nullptr if deferred)
      */
-    [[nodiscard]] GlossaryService& glossaryService();
+    [[nodiscard]] GlossaryService* glossaryService() noexcept {
+        return glossaryService_.get();
+    }
 
     /**
-     * @brief Get QA service
+     * @brief Get QA service (nullptr if deferred)
      */
-    [[nodiscard]] QAService& qaService();
+    [[nodiscard]] QAService* qaService() noexcept {
+        return qaService_.get();
+    }
 
     /**
-     * @brief Get translation pipeline (decision engine)
+     * @brief Get translation pipeline (nullptr if deferred)
      */
-    [[nodiscard]] TranslationPipeline& translationPipeline();
+    [[nodiscard]] TranslationPipeline* translationPipeline() noexcept {
+        return translationPipeline_.get();
+    }
 
     // =========================================================================
     // Async Operations

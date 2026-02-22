@@ -33,6 +33,27 @@ namespace makineai {
 
 class GameService;
 
+// Impact assessment for installed translations after game update
+enum class ImpactLevel {
+    Safe,       // Translation files intact
+    Lost,       // Some added files missing (game update deleted them)
+    Broken,     // Replaced files overwritten by game update
+    Unknown     // No snapshot or insufficient file info
+};
+
+struct UpdateImpact {
+    ImpactLevel level{ImpactLevel::Unknown};
+    int totalFiles{0};
+    int intactFiles{0};        // Still present and unchanged
+    int missingFiles{0};       // Completely gone
+    int modifiedFiles{0};      // Present but size/mtime changed
+    int addedFilesIntact{0};   // Added files still in place
+    int addedFilesMissing{0};  // Added files gone
+    int replacedFilesOk{0};    // Replaced files still translation version
+    int replacedFilesBroken{0};// Replaced files overwritten by update
+    QString summary;           // Human-readable message
+};
+
 // Store-level version record (Tier 1)
 struct StoreVersionRecord {
     QString gameId;
@@ -111,6 +132,12 @@ public:
     // Store version recording
     Q_INVOKABLE void recordStoreVersion(const QString& gameId,
                                          const QString& installPath, const QString& source);
+
+    // Impact assessment: quick stat-based check (<50ms/game)
+    Q_INVOKABLE QVariantMap assessImpact(const QString& gameId);
+
+    // Get recorded store version identifier for a game
+    QString getRecordedStoreVersionId(const QString& gameId) const;
 
     // Update tracking
     Q_INVOKABLE bool hasUpdate(const QString& gameId) const;

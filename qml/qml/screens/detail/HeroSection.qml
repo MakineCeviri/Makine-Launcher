@@ -26,6 +26,7 @@ Item {
     required property real installProgress
     required property string installStatus
     required property bool installCompleted
+    property var updateImpact: null
 
     signal translateClicked()
 
@@ -62,7 +63,7 @@ Item {
         // Rounded mask
         Item {
             id: coverMask
-            anchors.fill: parent; visible: false; layer.enabled: true
+            anchors.fill: parent; visible: false; layer.enabled: coverImg.status === Image.Ready
             Rectangle { anchors.fill: parent; radius: Dimensions.cardBorderRadius; color: "white" }
         }
 
@@ -119,6 +120,37 @@ Item {
                     anchors.centerIn: parent; spacing: Dimensions.spacingSM
                     Text { text: "\u2713"; font.pixelSize: Dimensions.fontSM; color: Theme.verifiedText; anchors.verticalCenter: parent.verticalCenter }
                     Text { text: qsTr("Onaylı Çeviri"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.verifiedText; anchors.verticalCenter: parent.verticalCenter }
+                }
+            }
+
+            // Update impact badge
+            Rectangle {
+                visible: heroRoot.updateImpact && heroRoot.updateImpact.level === "broken"
+                width: brokenRow.width + 20; height: 26
+                radius: Dimensions.radiusFull
+                color: Theme.withAlpha(Theme.error, 0.12)
+                border.color: Theme.withAlpha(Theme.error, 0.25); border.width: 1
+
+                Row {
+                    id: brokenRow
+                    anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                    Text { text: "\u26A0"; font.pixelSize: Dimensions.fontCaption; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: qsTr("Güncelleme Gerekli"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
+                }
+            }
+
+            Rectangle {
+                visible: heroRoot.updateImpact && heroRoot.updateImpact.level === "lost"
+                width: lostRow.width + 20; height: 26
+                radius: Dimensions.radiusFull
+                color: Theme.withAlpha(Theme.warning, 0.12)
+                border.color: Theme.withAlpha(Theme.warning, 0.25); border.width: 1
+
+                Row {
+                    id: lostRow
+                    anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                    Text { text: "\u26A0"; font.pixelSize: Dimensions.fontCaption; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: qsTr("Dosyalar Eksik"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
                 }
             }
 
@@ -222,7 +254,7 @@ Item {
                     property real shimmerPos: 0
                     NumberAnimation on shimmerPos {
                         running: shimmerRect.visible
-                        from: -0.3; to: 1.3; duration: 1500
+                        from: -0.3; to: 1.3; duration: Dimensions.animLoadingCycle
                         loops: Animation.Infinite
                     }
 
@@ -289,6 +321,10 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: {
+                            if (heroRoot.updateImpact && heroRoot.updateImpact.level === "broken")
+                                return qsTr("Çeviri Bozulmuş — Onarım Gerekli")
+                            if (heroRoot.updateImpact && heroRoot.updateImpact.level === "lost")
+                                return qsTr("Bazı Dosyalar Eksik")
                             if (heroRoot.packageInstalled || heroRoot.installCompleted)
                                 return qsTr("Türkçe Yama Kurulu")
                             if (heroRoot.isInstallingTranslation) {
@@ -302,6 +338,10 @@ Item {
                         font.weight: (heroRoot.packageInstalled || heroRoot.installCompleted)
                             ? Font.DemiBold : Font.Medium
                         color: {
+                            if (heroRoot.updateImpact && heroRoot.updateImpact.level === "broken")
+                                return Theme.error
+                            if (heroRoot.updateImpact && heroRoot.updateImpact.level === "lost")
+                                return Theme.warning
                             if (heroRoot.packageInstalled || heroRoot.installCompleted)
                                 return Theme.accent
                             if (heroRoot.isInstallingTranslation)

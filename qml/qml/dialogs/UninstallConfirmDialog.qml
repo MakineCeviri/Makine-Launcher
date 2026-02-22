@@ -12,61 +12,18 @@ import MakineAI 1.0
  * - Keyboard navigation support
  * - Smooth entry/exit transitions
  */
-Dialog {
+BaseDialog {
     id: root
 
     property string gameId: ""
     property string gameName: ""
 
     signal confirmed()
-    signal cancelled()
 
     title: qsTr("Yamayı Kaldır")
-    modal: true
-    closePolicy: Popup.CloseOnEscape
     width: 440
     contentHeight: contentColumn.implicitHeight
-
-    x: (parent.width - width) / 2
-    y: (parent.height - height) / 2
-
-    enter: Transition {
-        ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-        }
-    }
-
-    exit: Transition {
-        ParallelAnimation {
-            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animFast }
-            NumberAnimation { property: "scale"; from: 1; to: 0.95; duration: Dimensions.animFast }
-        }
-    }
-
-    // Glassmorphism background
-    background: Rectangle {
-        radius: Dimensions.radiusMD
-        color: Theme.glassBackground
-        border.color: Theme.withAlpha(Theme.error, 0.15)
-        border.width: 1
-
-        // Inner glass highlight
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
-            color: "transparent"
-            border.color: Theme.glassHighlight
-            border.width: 1
-        }
-    }
-
-    // Dim overlay
-    Overlay.modal: Rectangle {
-        color: Theme.withAlpha(Theme.bgPrimary, 0.60)
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-    }
+    accentColor: Theme.error
 
     // Custom header with animated warning icon
     header: Item {
@@ -91,8 +48,8 @@ Dialog {
                 SequentialAnimation on scale {
                     loops: Animation.Infinite
                     running: root.opened
-                    NumberAnimation { to: 1.06; duration: 800; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1.06; duration: Dimensions.animPulse; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: 1.0; duration: Dimensions.animPulse; easing.type: Easing.InOutSine }
                 }
 
                 Canvas {
@@ -150,39 +107,8 @@ Dialog {
             }
 
             // Close button
-            Rectangle {
-                Layout.preferredWidth: 28
-                Layout.preferredHeight: 28
-                radius: 14
-                color: closeBtnMouse.containsMouse
-                    ? Theme.withAlpha(Theme.textPrimary, 0.08)
-                    : "transparent"
-
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                Canvas {
-                    anchors.centerIn: parent
-                    width: 10; height: 10
-                    property bool hov: closeBtnMouse.containsMouse
-                    onHovChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        ctx.strokeStyle = hov ? Theme.textPrimary : Theme.textMuted
-                        ctx.lineWidth = 1.5
-                        ctx.lineCap = "round"
-                        ctx.beginPath(); ctx.moveTo(1, 1); ctx.lineTo(9, 9); ctx.stroke()
-                        ctx.beginPath(); ctx.moveTo(9, 1); ctx.lineTo(1, 9); ctx.stroke()
-                    }
-                }
-
-                MouseArea {
-                    id: closeBtnMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.cancelled(); root.close() }
-                }
+            DialogCloseButton {
+                onClicked: { root.cancelled(); root.close() }
             }
         }
 
@@ -399,7 +325,4 @@ Dialog {
             }
         }
     }
-
-    // Close on Escape
-    Keys.onEscapePressed: { root.cancelled(); root.close() }
 }

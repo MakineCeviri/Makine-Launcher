@@ -31,6 +31,8 @@ struct BackupInfo {
     qint64 sizeBytes{0};
     int fileCount{0};
     bool isValid{true};
+    QString gameStoreVersion;   // Game version when backup was created
+    QString patchVersion;       // Translation patch version
 
     static QString formatSize(qint64 bytes) {
         if (bytes < 1024) return QString::number(bytes) + " B";
@@ -39,7 +41,10 @@ struct BackupInfo {
         return QString::number(bytes / (1024.0 * 1024.0 * 1024.0), 'f', 2) + " GB";
     }
 
-    QVariantMap toVariantMap(const QString& displayName = {}) const {
+    QVariantMap toVariantMap(const QString& displayName = {},
+                             const QString& currentGameVersion = {}) const {
+        bool isStale = !gameStoreVersion.isEmpty() && !currentGameVersion.isEmpty()
+                       && gameStoreVersion != currentGameVersion;
         return {
             {"id", id}, {"gameId", gameId}, {"gameName", gameName},
             {"backupPath", backupPath}, {"originalPath", originalPath},
@@ -51,7 +56,10 @@ struct BackupInfo {
             {"name", displayName.isEmpty()
                 ? gameName + " - " + createdAt.toString("dd.MM.yyyy")
                 : displayName},
-            {"isValid", isValid}
+            {"isValid", isValid},
+            {"gameStoreVersion", gameStoreVersion},
+            {"patchVersion", patchVersion},
+            {"isStale", isStale}
         };
     }
 };
@@ -107,7 +115,9 @@ public:
      * @param filesToOverwrite Relative paths of files the translation will overwrite
      */
     void createSelectiveBackupAsync(const QString& gameId, const QString& gameName,
-                                     const QString& gamePath, const QStringList& filesToOverwrite);
+                                     const QString& gamePath, const QStringList& filesToOverwrite,
+                                     const QString& gameStoreVersion = {},
+                                     const QString& patchVersion = {});
 
 signals:
     void backupProgress(double progress, const QString& status);

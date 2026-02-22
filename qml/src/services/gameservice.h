@@ -164,6 +164,12 @@ public:
     Q_INVOKABLE QVariantList filteredGamesWithTranslation(const QString& filter = {}) const;
 
     /**
+     * @brief Get list of games with installed translation packages
+     * @return List of {id, name, headerImageUrl, steamAppId, version, installPath}
+     */
+    Q_INVOKABLE QVariantList installedTranslations() const;
+
+    /**
      * @brief Classify dropped URLs by file extension
      * @return "package", "archive", "folder", or "unknown"
      */
@@ -204,11 +210,34 @@ public:
     Q_INVOKABLE QString getInstallNotes(const QString& gameId);
 
     /**
+     * @brief Get install options (checkbox-style, multiple selectable)
+     * @return List of {id, label, description, icon, defaultSelected, subDir}
+     */
+    Q_INVOKABLE QVariantList getInstallOptions(const QString& gameId);
+
+    /**
+     * @brief Get special dialog mode for a game (e.g. "eldenRing")
+     */
+    Q_INVOKABLE QString getSpecialDialog(const QString& gameId);
+
+    /**
+     * @brief Get variant-specific install options (e.g. GTA III patch/dubbing within trilogy)
+     * @return List of {id, label, description, icon, defaultSelected, subDir}, empty if none
+     */
+    Q_INVOKABLE QVariantList getVariantInstallOptions(const QString& gameId, const QString& variant);
+
+    /**
+     * @brief Get variant-specific special dialog mode
+     */
+    Q_INVOKABLE QString getVariantSpecialDialog(const QString& gameId, const QString& variant);
+
+    /**
      * @brief Install translation package for a supported game
      * Finds the package, downloads and installs it via CoreBridge
      */
     Q_INVOKABLE void installTranslation(const QString& gameId,
-                                         const QString& variant = {});
+                                         const QString& variant = {},
+                                         const QStringList& selectedOptions = {});
 
     /**
      * @brief Uninstall translation package from a game
@@ -218,12 +247,29 @@ public:
     /**
      * @brief Enable/disable background game update monitoring
      */
+    /**
+     * @brief Check all installed translations for game update impact
+     * Emits translationImpactDetected for each affected game
+     */
+    Q_INVOKABLE void checkAllInstalledTranslations();
+
+    /**
+     * @brief Recover a broken translation: uninstall + reinstall
+     */
+    Q_INVOKABLE void recoverTranslation(const QString& gameId);
+
     Q_INVOKABLE void setUpdateMonitoringEnabled(bool enabled);
 
     /**
      * @brief Check if a game has a detected update (translation may be broken)
      */
     Q_INVOKABLE bool hasGameUpdate(const QString& gameId) const;
+
+    /**
+     * @brief Quick impact assessment for installed translation after game update
+     * @return Map with: level (safe/lost/broken/unknown), summary, totalFiles, etc.
+     */
+    Q_INVOKABLE QVariantMap checkUpdateImpact(const QString& gameId);
 
     /**
      * @brief Check translation compatibility after game update
@@ -258,6 +304,11 @@ public:
      */
     Q_INVOKABLE void uninstallRuntime(const QString& gameId);
 
+    /**
+     * @brief Acknowledge anti-cheat warning and proceed with install
+     */
+    Q_INVOKABLE void acknowledgeAntiCheat(const QString& gameId);
+
 signals:
     void gamesChanged();
     void isScanningChanged();
@@ -275,8 +326,11 @@ signals:
     void translationInstallProgress(const QString& gameId, double progress, const QString& status);
     void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
+    void antiCheatWarningNeeded(const QString& gameId, const QVariantMap& antiCheatData);
     void gameUpdateDetected(const QString& gameId, const QString& gameName,
                             const QString& summary);
+    void translationImpactDetected(const QString& gameId, const QString& gameName,
+                                    const QVariantMap& impact);
     void gameUpdateCountChanged();
 
 private:
@@ -314,8 +368,11 @@ private:
     // Cache for QVariantList conversions
     mutable QVariantList m_gamesCache;
     mutable QVariantList m_supportedGamesCache;
+    mutable QVariantList m_translationGamesCache;
     mutable bool m_cacheValid{false};
     mutable bool m_supportedCacheValid{false};
+    mutable bool m_translationCacheValid{false};
+    QSet<QString> m_antiCheatAcknowledged;
 };
 
 } // namespace makineai

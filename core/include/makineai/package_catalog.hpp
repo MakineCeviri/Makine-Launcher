@@ -36,13 +36,30 @@ namespace packages {
  * such as copying a file, running an executable, or installing a font.
  */
 struct InstallStep {
-    std::string action;     // "copy", "copyDir", "run", "delete", "installFont"
+    std::string action;     // "copy", "copyDir", "run", "delete", "installFont", "setSteamLanguage", "copyToDesktop", "rename"
     std::string src;        // source file/dir (relative to package dir)
     std::string dest;       // destination (relative to game dir)
     std::string exe;        // executable to run
     std::vector<std::string> args;
     std::string fallback;   // fallback executable
     std::string workDir;    // "game" (default) or "package"
+    std::string language;   // Steam language name — for "setSteamLanguage"
+};
+
+/**
+ * @brief An install option that can be independently selected (checkbox)
+ *
+ * Used for packages with multiple components (e.g. patch + dubbing)
+ * that can be installed in any combination.
+ */
+struct InstallOption {
+    std::string id;              // "patch", "dubbing"
+    std::string label;           // "Türkçe Yama"
+    std::string description;     // "Metin çevirisi, fontlar"
+    std::string icon;            // "text", "voice"
+    bool defaultSelected{false};
+    std::string subDir;          // Subdirectory in package dir
+    std::vector<InstallStep> steps;
 };
 
 /**
@@ -51,6 +68,17 @@ struct InstallStep {
 struct ContributorInfo {
     std::string name;
     std::string role;
+};
+
+/**
+ * @brief Variant-specific install config (options + combined steps)
+ *
+ * Used when a package has variants (e.g. trilogy sub-games) and
+ * only some variants need the options dialog.
+ */
+struct VariantConfig {
+    std::vector<InstallOption> installOptions;
+    std::unordered_map<std::string, std::vector<InstallStep>> combinedSteps;
 };
 
 /**
@@ -66,6 +94,8 @@ struct PackageCatalogEntry {
     std::string engine;
     std::string version;
     std::string installType;  // "overlay", "runtime", "replace"
+    std::string tier;          // "free" or "plus"
+    std::string lastUpdated;   // ISO date (e.g. "2026-02-21")
     int64_t sizeBytes{0};
     int fileCount{0};
     std::unordered_map<std::string, std::string> storeIds;  // store -> id
@@ -74,9 +104,13 @@ struct PackageCatalogEntry {
     std::string variantType;  // "version" or "platform"
     std::vector<ContributorInfo> contributors;
     std::vector<InstallStep> installSteps;
-    std::string installMethodType;    // "script", "userPath"
+    std::string installMethodType;    // "script", "userPath", "options"
     std::string installMethodTarget;  // for "userPath"
     std::string installNotes;
+    std::vector<InstallOption> installOptions;  // for "options" type
+    std::unordered_map<std::string, std::vector<InstallStep>> combinedSteps; // e.g. "dubbing+patch" -> steps
+    std::string specialDialog;  // "" or "eldenRing" — triggers themed install dialog
+    std::unordered_map<std::string, VariantConfig> variantInstallOptions; // variant -> options config
 };
 
 /**
@@ -87,7 +121,11 @@ struct PackageCatalogEntry {
 struct InstalledPackageState {
     std::string version;
     std::string gamePath;
-    std::vector<std::string> installedFiles;
+    std::vector<std::string> installedFiles;     // All files (compatibility)
+    std::vector<std::string> addedFiles;          // New files (didn't exist in game)
+    std::vector<std::string> replacedFiles;       // Overwritten files (existed, backed up)
+    std::string gameStoreVersion;                 // Store buildid at install time
+    std::string gameSource;                       // "steam", "epic", "gog"
     int64_t installedAt{0};
 };
 

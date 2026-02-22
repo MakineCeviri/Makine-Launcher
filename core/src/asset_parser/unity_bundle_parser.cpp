@@ -216,47 +216,63 @@ private:
                 "Unsupported compression: " + std::to_string(static_cast<int>(compression))));
         }
 
-        // Parse blocks info
+        // Parse blocks info (big-endian format)
         size_t offset = 0;
-        auto read32 = [&]() -> uint32_t {
+        auto readBE32_buf = [&]() -> uint32_t {
             if (offset + 4 > blocksInfoData.size()) return 0;
-            uint32_t val;
-            std::memcpy(&val, &blocksInfoData[offset], 4);
+            uint32_t val = (static_cast<uint32_t>(blocksInfoData[offset]) << 24) |
+                           (static_cast<uint32_t>(blocksInfoData[offset+1]) << 16) |
+                           (static_cast<uint32_t>(blocksInfoData[offset+2]) << 8) |
+                           static_cast<uint32_t>(blocksInfoData[offset+3]);
             offset += 4;
             return val;
         };
-        auto read64 = [&]() -> uint64_t {
-            if (offset + 8 > blocksInfoData.size()) return 0;
-            uint64_t val;
-            std::memcpy(&val, &blocksInfoData[offset], 8);
-            offset += 8;
+        auto readBE16_buf = [&]() -> uint16_t {
+            if (offset + 2 > blocksInfoData.size()) return 0;
+            uint16_t val = static_cast<uint16_t>(
+                (blocksInfoData[offset] << 8) | blocksInfoData[offset+1]);
+            offset += 2;
             return val;
+        };
+        auto readBE64_buf = [&]() -> uint64_t {
+            if (offset + 8 > blocksInfoData.size()) return 0;
+            uint64_t hi = readBE32_buf();
+            uint64_t lo = readBE32_buf();
+            return (hi << 32) | lo;
         };
 
         // Skip hash
         offset += 16;
 
         // Read block count
-        uint32_t blockCount = read32();
+        uint32_t blockCount = readBE32_buf();
+        if (blockCount > 10000) {
+            return std::unexpected(Error(ErrorCode::InvalidFormat,
+                "Invalid block count: " + std::to_string(blockCount)));
+        }
         info.blocks.reserve(blockCount);
 
         for (uint32_t i = 0; i < blockCount; ++i) {
             UnityStorageBlock block;
-            block.uncompressedSize = read32();
-            block.compressedSize = read32();
-            block.flags = static_cast<uint16_t>(read32() & 0xFFFF);
+            block.uncompressedSize = readBE32_buf();
+            block.compressedSize = readBE32_buf();
+            block.flags = readBE16_buf(); // 2 bytes, not 4!
             info.blocks.push_back(block);
         }
 
         // Read node count
-        uint32_t nodeCount = read32();
+        uint32_t nodeCount = readBE32_buf();
+        if (nodeCount > 10000) {
+            return std::unexpected(Error(ErrorCode::InvalidFormat,
+                "Invalid node count: " + std::to_string(nodeCount)));
+        }
         info.nodes.reserve(nodeCount);
 
         for (uint32_t i = 0; i < nodeCount; ++i) {
             UnityNode node;
-            node.offset = read64();
-            node.size = read64();
-            node.flags = read32();
+            node.offset = readBE64_buf();
+            node.size = readBE64_buf();
+            node.flags = readBE32_buf();
 
             // Read path string
             while (offset < blocksInfoData.size() && blocksInfoData[offset] != 0) {

@@ -45,17 +45,10 @@ ApplicationWindow {
 
     property int currentNavIndex: 0
     property int previousNavIndex: 0  // Remember nav index before game detail
-    property bool notificationPanelOpen: false
-
     readonly property int resizeMargin: 6
 
     // Pending game detail data for lazy-loaded GameDetailScreen
     property var pendingGameDetail: null
-
-    // Pending data for lazy-loaded warning dialogs
-    property var pendingAntiCheatData: null
-    property var pendingVariantData: null
-    property var pendingInstallNotes: null
 
     // Store normal geometry before maximize so restore works on frameless windows
     property rect normalGeometry: Qt.rect(0, 0, 0, 0)
@@ -89,6 +82,19 @@ ApplicationWindow {
         window.hide()
     }
 
+    // ===== CONTROLLERS =====
+    GameDataResolver { id: gameDataResolver }
+
+    InstallFlowController {
+        id: installFlow
+        gameDetailLoader: gameDetailLoader
+        onShowAntiCheatWarning: antiCheatWarningLoader.active = true
+        onShowInstallNotes: installNotesLoader.active = true
+        onShowInstallOptions: installOptionsLoader.active = true
+        onShowVariantSelection: variantSelectionLoader.active = true
+    }
+
+    // ===== SYSTEM TRAY =====
     Connections {
         target: SystemTrayManager
         function onShowWindowRequested() {
@@ -105,37 +111,29 @@ ApplicationWindow {
         }
         function onQuitRequested() {
             window.forceQuit = true
-            Qt.quit()
+            if (!window.visible) window.show()
+            window.close()
         }
         function onUpdateCheckRequested() {
             UpdateChecker.checkForUpdates()
         }
     }
 
-    // Auto-update download/install notifications
+    // ===== GAME SERVICE: anti-cheat + translation impact signals =====
     Connections {
-        target: UpdateChecker
-        function onDownloadCompleted() {
-            window.showNotification(
-                qsTr("İndirme Tamamlandı"),
-                qsTr("Güncelleme kurulmaya hazır"),
-                "success"
-            )
+        target: GameService
+        function onAntiCheatWarningNeeded(gameId, antiCheatData) {
+            installFlow.onAntiCheatWarningNeeded(gameId, antiCheatData)
         }
-        function onInstallStarted() {
-            window.showNotification(
-                qsTr("Kurulum Başlatılıyor"),
-                qsTr("Uygulama yeniden başlatılacak..."),
-                "update"
-            )
-        }
-        function onDownloadErrorChanged() {
-            if (UpdateChecker.downloadError) {
-                window.showNotification(
-                    qsTr("İndirme Hatası"),
-                    UpdateChecker.downloadError,
-                    "error"
-                )
+        function onTranslationImpactDetected(gameId, gameName, impact) {
+            // Queue affected games; dialog opens when loader completes
+            if (!window._pendingImpacts) window._pendingImpacts = []
+            window._pendingImpacts.push({gameId: gameId, gameName: gameName, impact: impact})
+            updateAlertLoader.active = true
+            if (updateAlertLoader.item) {
+                updateAlertLoader.item.addAffectedGame(gameId, gameName, impact)
+                if (!updateAlertLoader.item.visible)
+                    updateAlertLoader.item.open()
             }
         }
     }
@@ -180,7 +178,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
+            homeView.showTranslationPage()
         }
     }
     Shortcut {
@@ -188,7 +186,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
+            homeView.showTranslationPage()
         }
     }
     Shortcut {
@@ -196,7 +194,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 2
             contentStackContainer.navigateTo(0)
-            homeView.showTranslationPage()
+            homeView.showHomePage()
         }
     }
     Shortcut {
@@ -207,20 +205,6 @@ ApplicationWindow {
             homeView.showProjectsPage()
         }
     }
-    Shortcut {
-        sequence: "Ctrl+N"
-        onActivated: {
-            if (window.notificationPanelOpen) {
-                notificationPanel.close()
-            } else {
-                window.notificationPanelOpen = true
-                notificationPanel.x = window.width - notificationPanel.width - 80
-                notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
-                notificationPanel.open()
-            }
-        }
-    }
-
     Shortcut {
         sequence: "Ctrl+R"
         onActivated: GameService.scanAllLibraries()
@@ -233,17 +217,15 @@ ApplicationWindow {
                                               window.visibility !== Window.Minimized &&
                                               window.visibility !== Window.Hidden
 
-    // Visibility-aware resource management (Faz 3A)
+    // Visibility-aware resource management
     readonly property bool windowActive: window.visible &&
                                          window.visibility !== Window.Minimized &&
                                          window.visibility !== Window.Hidden
 
     onWindowActiveChanged: {
         if (windowActive) {
-            // Window restored: use normal scan interval
             ProcessScanner.startWatching(3000)
         } else {
-            // Window minimized/hidden: reduce scan frequency
             ProcessScanner.startWatching(30000)
         }
     }
@@ -253,7 +235,7 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // ===== TITLE BAR (32px) - Native Qt TitleBar =====
+        // ===== TITLE BAR (32px) =====
         TitleBar {
             id: titleBar
             Layout.fillWidth: true
@@ -266,7 +248,6 @@ ApplicationWindow {
             onMaximizeClicked: {
                 if (window.visibility === Window.Maximized) {
                     window.showNormal()
-                    // Restore saved geometry for frameless windows
                     if (window.normalGeometry.width > 0) {
                         window.x = window.normalGeometry.x
                         window.y = window.normalGeometry.y
@@ -274,7 +255,6 @@ ApplicationWindow {
                         window.height = window.normalGeometry.height
                     }
                 } else {
-                    // Save current geometry before maximizing
                     window.normalGeometry = Qt.rect(window.x, window.y, window.width, window.height)
                     window.showMaximized()
                 }
@@ -364,7 +344,7 @@ ApplicationWindow {
             Accessible.name: qsTr("Güvenlik uyarısı: bütünlük doğrulaması başarısız")
         }
 
-        // ===== NAV BAR (72px) - Native Qt NavBar =====
+        // ===== NAV BAR =====
         NavBar {
             id: navBar
             Layout.fillWidth: true
@@ -375,7 +355,7 @@ ApplicationWindow {
             onHomeClicked: {
                 window.currentNavIndex = 0
                 contentStackContainer.navigateTo(0)
-                homeView.showHomePage()
+                homeView.showTranslationPage()
             }
             onProjectsClicked: {
                 window.currentNavIndex = 1
@@ -389,17 +369,7 @@ ApplicationWindow {
             onTranslationClicked: {
                 window.currentNavIndex = 2
                 contentStackContainer.navigateTo(0)
-                homeView.showTranslationPage()
-            }
-            onNotificationClicked: {
-                if (window.notificationPanelOpen) {
-                    notificationPanel.close()
-                } else {
-                    window.notificationPanelOpen = true
-                    notificationPanel.x = window.width - notificationPanel.width - 80
-                    notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
-                    notificationPanel.open()
-                }
+                homeView.showHomePage()
             }
         }
 
@@ -483,14 +453,14 @@ ApplicationWindow {
                     target: fadeOutAnimation.target
                     property: "opacity"
                     from: 1.0; to: 0
-                    duration: 160
+                    duration: Dimensions.animPageOut
                     easing.type: Easing.OutCubic
                 }
                 NumberAnimation {
                     target: fadeOutAnimation.target
                     property: "y"
                     from: 0; to: -12
-                    duration: 160
+                    duration: Dimensions.animPageOut
                     easing.type: Easing.InCubic
                 }
             }
@@ -503,57 +473,15 @@ ApplicationWindow {
                     target: fadeInAnimation.target
                     property: "opacity"
                     from: 0; to: 1.0
-                    duration: 240
+                    duration: Dimensions.animPageIn
                     easing.type: Easing.OutCubic
                 }
                 NumberAnimation {
                     target: fadeInAnimation.target
                     property: "y"
                     from: 16; to: 0
-                    duration: 240
+                    duration: Dimensions.animPageIn
                     easing.type: Easing.OutCubic
-                }
-            }
-
-            // Subtle grid pattern background (40px cells)
-            Canvas {
-                id: gridBackground
-                anchors.fill: parent
-                z: -1
-
-                onWidthChanged: repaintTimer.restart()
-                onHeightChanged: repaintTimer.restart()
-                Component.onCompleted: requestPaint()
-
-                Timer {
-                    id: repaintTimer
-                    interval: 100
-                    onTriggered: gridBackground.requestPaint()
-                }
-
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.clearRect(0, 0, width, height)
-                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.03)
-                    ctx.lineWidth = 1
-
-                    var cell = 40
-
-                    // Vertical lines
-                    ctx.beginPath()
-                    for (var x = cell; x < width; x += cell) {
-                        ctx.moveTo(Math.floor(x) + 0.5, 0)
-                        ctx.lineTo(Math.floor(x) + 0.5, height)
-                    }
-                    ctx.stroke()
-
-                    // Horizontal lines
-                    ctx.beginPath()
-                    for (var y = cell; y < height; y += cell) {
-                        ctx.moveTo(0, Math.floor(y) + 0.5)
-                        ctx.lineTo(width, Math.floor(y) + 0.5)
-                    }
-                    ctx.stroke()
                 }
             }
 
@@ -564,104 +492,24 @@ ApplicationWindow {
                 animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
-                    var gameData = GameService.getGameById(gameId)
-                    var isManual = (gameData && gameData.source === "manual") || gameId.startsWith("manual_")
-                    var isInstalled = (gameData && gameData.isInstalled) || installPath !== ""
-                    var resolvedSteamAppId = (gameData && gameData.steamAppId) || ""
-                    // For catalog-only games, gameId IS the steamAppId
-                    if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
-                        resolvedSteamAppId = gameId
-                    var rawImageUrl = (gameData && gameData.headerImageUrl) || ""
-                    if (rawImageUrl === "" && resolvedSteamAppId !== "")
-                        rawImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
-                    var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId, rawImageUrl)
-                    var hasTranslation = (gameData && gameData.hasTranslation) || false
-                    var pkgInstalled = (gameData && gameData.packageInstalled) || false
-
-                    window.pendingGameDetail = {
-                        gameId: gameId,
-                        gameName: gameName,
-                        engine: engine,
-                        imageUrl: resolvedImageUrl,
-                        verified: (gameData && gameData.isVerified) || false,
-                        steamAppId: resolvedSteamAppId,
-                        hasTranslation: hasTranslation,
-                        isManualGame: isManual,
-                        isGameInstalled: isInstalled,
-                        packageInstalled: pkgInstalled,
-                        autoInstall: isInstalled && hasTranslation && !pkgInstalled
-                    }
-                    // If loader already active, apply immediately
-                    if (gameDetailLoader.item) {
-                        var d = window.pendingGameDetail
-                        gameDetailLoader.item.resetDetails()
-                        gameDetailLoader.item.gameName = d.gameName
-                        gameDetailLoader.item.engine = d.engine
-                        gameDetailLoader.item.imageUrl = d.imageUrl
-                        gameDetailLoader.item.verified = d.verified
-                        gameDetailLoader.item.steamAppId = d.steamAppId
-                        gameDetailLoader.item.hasTranslation = d.hasTranslation
-                        gameDetailLoader.item.gameId = d.gameId
-                        gameDetailLoader.item.isManualGame = d.isManualGame
-                        gameDetailLoader.item.isGameInstalled = d.isGameInstalled
-                        gameDetailLoader.item.packageInstalled = d.packageInstalled
-                        gameDetailLoader.item.autoInstall = d.autoInstall
-                        window.pendingGameDetail = null
-                    }
+                    var d = gameDataResolver.resolve(gameId, gameName, installPath, engine, false)
+                    window.pendingGameDetail = d
+                    _applyPendingGameDetail()
                     window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
-                    var gameData = GameService.getGameById(gameId)
-                    var isManual = (gameData && gameData.source === "manual") || gameId.startsWith("manual_")
-                    var isInstalled = (gameData && gameData.isInstalled) || installPath !== ""
-                    var resolvedSteamAppId = (gameData && gameData.steamAppId) || ""
-                    if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
-                        resolvedSteamAppId = gameId
-                    var rawImageUrl2 = (gameData && gameData.headerImageUrl) || ""
-                    if (rawImageUrl2 === "" && resolvedSteamAppId !== "")
-                        rawImageUrl2 = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
-                    var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId, rawImageUrl2)
-                    var hasTranslation = (gameData && gameData.hasTranslation) || false
-                    var pkgInstalled = (gameData && gameData.packageInstalled) || false
-
-                    window.pendingGameDetail = {
-                        gameId: gameId,
-                        gameName: gameName,
-                        engine: engine,
-                        imageUrl: resolvedImageUrl,
-                        verified: (gameData && gameData.isVerified) || false,
-                        steamAppId: resolvedSteamAppId,
-                        hasTranslation: hasTranslation,
-                        isManualGame: isManual,
-                        isGameInstalled: isInstalled,
-                        packageInstalled: pkgInstalled,
-                        autoInstall: true
-                    }
-                    if (gameDetailLoader.item) {
-                        var d = window.pendingGameDetail
-                        gameDetailLoader.item.resetDetails()
-                        gameDetailLoader.item.gameName = d.gameName
-                        gameDetailLoader.item.engine = d.engine
-                        gameDetailLoader.item.imageUrl = d.imageUrl
-                        gameDetailLoader.item.verified = d.verified
-                        gameDetailLoader.item.steamAppId = d.steamAppId
-                        gameDetailLoader.item.hasTranslation = d.hasTranslation
-                        gameDetailLoader.item.gameId = d.gameId
-                        gameDetailLoader.item.isManualGame = d.isManualGame
-                        gameDetailLoader.item.isGameInstalled = d.isGameInstalled
-                        gameDetailLoader.item.packageInstalled = d.packageInstalled
-                        gameDetailLoader.item.autoInstall = d.autoInstall
-                        window.pendingGameDetail = null
-                    }
+                    var d = gameDataResolver.resolve(gameId, gameName, installPath, engine, true)
+                    window.pendingGameDetail = d
+                    _applyPendingGameDetail()
                     window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
             }
 
-            // Lazy-loaded settings page (Faz 3B)
+            // Lazy-loaded settings page
             Loader {
                 id: settingsLoader
                 anchors.fill: parent
@@ -677,7 +525,8 @@ ApplicationWindow {
                     }
                 }
             }
-            // Lazy-loaded game detail page (only created when navigated to)
+
+            // Lazy-loaded game detail page
             Loader {
                 id: gameDetailLoader
                 anchors.fill: parent
@@ -691,45 +540,9 @@ ApplicationWindow {
                             window.currentNavIndex = window.previousNavIndex
                         }
                         onTranslateClicked: {
-                            // Pre-flight: Anti-cheat check
-                            var antiCheat = GameService.checkAntiCheat(gameId)
-                            if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
-                                window.pendingAntiCheatData = {
-                                    gameName: gameName,
-                                    detectedSystems: antiCheat.systems
-                                }
-                                antiCheatWarningLoader.active = true
-                                return
-                            }
-
-                            // Pre-flight: Install notes check
-                            var notes = GameService.getInstallNotes(gameId)
-                            if (notes && notes.length > 0) {
-                                window.pendingInstallNotes = {
-                                    gameId: gameId,
-                                    notes: notes
-                                }
-                                installNotesLoader.active = true
-                                return
-                            }
-
-                            // Pre-flight: Variant check
-                            var variants = GameService.getVariants(gameId)
-                            if (variants && variants.length > 0) {
-                                window.pendingVariantData = {
-                                    gameId: gameId,
-                                    variants: variants,
-                                    variantType: GameService.getVariantType(gameId)
-                                }
-                                variantSelectionLoader.active = true
-                                return
-                            }
-
-                            // All checks passed — install translation package
-                            GameService.installTranslation(gameId)
+                            installFlow.startInstallFlow(gameId, gameName)
                         }
                         Component.onCompleted: {
-                            // Apply pending game data when loader creates the screen
                             if (window.pendingGameDetail) {
                                 var d = window.pendingGameDetail
                                 resetDetails()
@@ -754,38 +567,23 @@ ApplicationWindow {
         }
     }
 
-    // ===== NOTIFICATION PANEL =====
-    NotificationPanel {
-        id: notificationPanel
-        parent: Overlay.overlay
-        model: NotificationService
-        z: Dimensions.zNavigation
-
-        onClosed: window.notificationPanelOpen = false
-        onNotificationClicked: function(index) {
-            NotificationService.markAsRead(index)
-        }
-        onMarkAllRead: NotificationService.markAllAsRead()
-        onClearAll: {
-            NotificationService.clear()
-            notificationPanel.close()
-        }
-    }
-
-    // ===== NOTIFICATION TOAST =====
-    NotificationToast {
-        id: notificationToast
-        parent: Overlay.overlay
-        z: Dimensions.zToast
-
-        onClicked: {
-            notificationToast.dismiss()
-            if (!window.notificationPanelOpen) {
-                window.notificationPanelOpen = true
-                notificationPanel.x = window.width - notificationPanel.width - 80
-                notificationPanel.y = Dimensions.titlebarHeight + Dimensions.navbarHeight + 4
-                notificationPanel.open()
-            }
+    // Helper: apply pending game data to already-loaded detail screen
+    function _applyPendingGameDetail() {
+        if (gameDetailLoader.item && window.pendingGameDetail) {
+            var d = window.pendingGameDetail
+            gameDetailLoader.item.resetDetails()
+            gameDetailLoader.item.gameName = d.gameName
+            gameDetailLoader.item.engine = d.engine
+            gameDetailLoader.item.imageUrl = d.imageUrl
+            gameDetailLoader.item.verified = d.verified
+            gameDetailLoader.item.steamAppId = d.steamAppId
+            gameDetailLoader.item.hasTranslation = d.hasTranslation
+            gameDetailLoader.item.gameId = d.gameId
+            gameDetailLoader.item.isManualGame = d.isManualGame
+            gameDetailLoader.item.isGameInstalled = d.isGameInstalled
+            gameDetailLoader.item.packageInstalled = d.packageInstalled
+            gameDetailLoader.item.autoInstall = d.autoInstall
+            window.pendingGameDetail = null
         }
     }
 
@@ -795,7 +593,6 @@ ApplicationWindow {
         title: qsTr("Oyun Klasörünü Seç")
         onAccepted: {
             var folderPath = selectedFolder.toString().replace("file:///", "")
-            // Add to library (detects engine, matches against translation catalog)
             var newGameId = GameService.addManualGame(folderPath)
             if (newGameId && newGameId !== "") {
                 var gameData = GameService.getGameById(newGameId)
@@ -806,164 +603,13 @@ ApplicationWindow {
         }
     }
 
-    // Convenience function to show notifications from anywhere
-    function showNotification(title, message, type) {
-        NotificationService.addNotification(title, message, type)
-        notificationToast.show(title, message, type, 5000)
-    }
-
-    // Wire up existing update notification from HomeScreen
     Connections {
         target: homeView
-        function onUpdateAvailableChanged() {
-            if (homeView.updateAvailable) {
-                window.showNotification(
-                    qsTr("Güncelleme Mevcut"),
-                    qsTr("Yeni sürüm mevcut: %1").arg(homeView.latestVersion),
-                    "update"
-                )
-            }
-        }
         function onSettingsRequested() {
             window.currentNavIndex = 3
             contentStackContainer.navigateTo(1)
         }
     }
-
-    // ===== GAME SERVICE SIGNALS =====
-    Connections {
-        target: GameService
-        function onTranslationInstallStarted(gameId) {
-            window.showNotification(
-                qsTr("Yama Kuruluyor"),
-                qsTr("Türkçe yama indiriliyor ve kuruluyor..."),
-                "translation"
-            )
-        }
-        function onTranslationInstallCompleted(gameId, success, message) {
-            window.showNotification(
-                success ? qsTr("Çeviri Kuruldu") : qsTr("Çeviri Hatası"),
-                message,
-                success ? "success" : "error"
-            )
-        }
-        function onTranslationUninstalled(gameId, success, message) {
-            window.showNotification(
-                success ? qsTr("Çeviri Kaldırıldı") : qsTr("Kaldırma Hatası"),
-                message,
-                success ? "info" : "error"
-            )
-        }
-        function onRuntimeInstallFinished(gameId, success, error) {
-            if (success) {
-                window.showNotification(
-                    qsTr("Runtime Kuruldu"),
-                    qsTr("Runtime başarıyla kuruldu/kaldırıldı"),
-                    "success"
-                )
-            } else {
-                window.showNotification(
-                    qsTr("Runtime Hatası"),
-                    error || qsTr("Runtime işlemi başarısız oldu"),
-                    "error"
-                )
-            }
-        }
-        function onLocalPackageReady(packageName, gameName, filePath) {
-            window.showNotification(
-                qsTr("Paket Hazır: %1").arg(packageName),
-                qsTr("Oyun: %1").arg(gameName),
-                "translation"
-            )
-        }
-        function onLocalPackageError(filePath, error) {
-            window.showNotification(
-                qsTr("Paket Hatası"),
-                error,
-                "error"
-            )
-        }
-        function onFolderDropped(path, isGame) {
-            if (isGame) {
-                window.showNotification(
-                    qsTr("Oyun Eklendi"),
-                    path,
-                    "info"
-                )
-            }
-        }
-        function onGameUpdateDetected(gameId, gameName, summary) {
-            window.showNotification(
-                qsTr("Oyun Güncellendi: %1").arg(gameName),
-                summary,
-                "warning"
-            )
-        }
-        function onScanCompleted(count) {
-            window.showNotification(
-                qsTr("Tarama Tamamlandı"),
-                qsTr("%1 desteklenen oyun bulundu").arg(count),
-                "info"
-            )
-        }
-    }
-
-    // ===== BACKUP MANAGER SIGNALS =====
-    Connections {
-        target: BackupManager
-        function onBackupCreated(gameId) {
-            window.showNotification(
-                qsTr("Yedek Oluşturuldu"),
-                qsTr("Orijinal dosyalar başarıyla yedeklendi"),
-                "success"
-            )
-        }
-        function onBackupRestored(gameId) {
-            window.showNotification(
-                qsTr("Yedek Geri Yüklendi"),
-                qsTr("Orijinal dosyalar başarıyla geri yüklendi"),
-                "success"
-            )
-        }
-        function onBackupDeleted(backupId) {
-            window.showNotification(
-                qsTr("Yedek Silindi"),
-                qsTr("Yedek dosyaları başarıyla silindi"),
-                "info"
-            )
-        }
-        function onBackupError(error) {
-            window.showNotification(
-                qsTr("Yedekleme Hatası"),
-                error,
-                "error"
-            )
-        }
-    }
-
-    // ===== SETTINGS MANAGER SIGNALS =====
-    Connections {
-        target: SettingsManager
-        function onCacheClearCompleted(success, message) {
-            window.showNotification(
-                success ? qsTr("Önbellek Temizlendi") : qsTr("Önbellek Hatası"),
-                message,
-                success ? "success" : "error"
-            )
-        }
-        function onSettingsResetCompleted() {
-            window.showNotification(
-                qsTr("Ayarlar Sıfırlandı"),
-                qsTr("Tüm ayarlar varsayılan değerlere döndürüldü"),
-                "info"
-            )
-        }
-        function onGameUpdateMonitoringChanged() {
-            GameService.setUpdateMonitoringEnabled(SettingsManager.gameUpdateMonitoring)
-        }
-    }
-
-    // (GameService signals merged into single Connections block above)
 
     // ===== ANTI-CHEAT WARNING DIALOG (lazy) =====
     Loader {
@@ -973,38 +619,14 @@ ApplicationWindow {
             AntiCheatWarningDialog {
                 parent: Overlay.overlay
                 onContinueAnyway: {
-                    var gd = gameDetailLoader.item
-                    if (gd) {
-                        // Check for install notes before variants
-                        var notes = GameService.getInstallNotes(gd.gameId)
-                        if (notes && notes.length > 0) {
-                            window.pendingInstallNotes = {
-                                gameId: gd.gameId,
-                                notes: notes
-                            }
-                            installNotesLoader.active = true
-                            return
-                        }
-                        // Check for variants before installing
-                        var variants = GameService.getVariants(gd.gameId)
-                        if (variants && variants.length > 0) {
-                            window.pendingVariantData = {
-                                gameId: gd.gameId,
-                                variants: variants,
-                                variantType: GameService.getVariantType(gd.gameId)
-                            }
-                            variantSelectionLoader.active = true
-                        } else {
-                            GameService.installTranslation(gd.gameId)
-                        }
-                    }
+                    installFlow.onAntiCheatContinue()
                 }
                 onClosed: antiCheatWarningLoader.active = false
                 Component.onCompleted: {
-                    if (window.pendingAntiCheatData) {
-                        gameName = window.pendingAntiCheatData.gameName
-                        detectedSystems = window.pendingAntiCheatData.detectedSystems
-                        window.pendingAntiCheatData = null
+                    if (installFlow.pendingAntiCheatData) {
+                        gameName = installFlow.pendingAntiCheatData.gameName
+                        detectedSystems = installFlow.pendingAntiCheatData.detectedSystems
+                        installFlow.pendingAntiCheatData = null
                     }
                     open()
                 }
@@ -1019,29 +641,36 @@ ApplicationWindow {
         sourceComponent: Component {
             InstallNotesDialog {
                 parent: Overlay.overlay
-                onAccepted: {
-                    var data = window.pendingInstallNotes
-                    window.pendingInstallNotes = null
-                    if (data) {
-                        // Continue to variant check
-                        var variants = GameService.getVariants(data.gameId)
-                        if (variants && variants.length > 0) {
-                            window.pendingVariantData = {
-                                gameId: data.gameId,
-                                variants: variants,
-                                variantType: GameService.getVariantType(data.gameId)
-                            }
-                            variantSelectionLoader.active = true
-                        } else {
-                            GameService.installTranslation(data.gameId)
-                        }
-                    }
-                }
-                onCancelled: { window.pendingInstallNotes = null }
+                onAccepted: installFlow.onInstallNotesAccepted()
+                onCancelled: installFlow.onInstallNotesCancelled()
                 onClosed: installNotesLoader.active = false
                 Component.onCompleted: {
-                    if (window.pendingInstallNotes) {
-                        notes = window.pendingInstallNotes.notes
+                    if (installFlow.pendingInstallNotes) {
+                        notes = installFlow.pendingInstallNotes.notes
+                    }
+                    open()
+                }
+            }
+        }
+    }
+
+    // ===== INSTALL OPTIONS DIALOG (lazy) =====
+    Loader {
+        id: installOptionsLoader
+        active: false
+        sourceComponent: Component {
+            InstallOptionsDialog {
+                parent: Overlay.overlay
+                onOptionsConfirmed: function(selectedIds) {
+                    installFlow.onOptionsConfirmed(selectedIds)
+                }
+                onCancelled: installFlow.onOptionsCancelled()
+                onClosed: installOptionsLoader.active = false
+                Component.onCompleted: {
+                    if (installFlow.pendingInstallOptionsData) {
+                        options = installFlow.pendingInstallOptionsData.options
+                        specialMode = installFlow.pendingInstallOptionsData.specialDialog || ""
+                        gameName = installFlow.pendingInstallOptionsData.gameName || ""
                     }
                     open()
                 }
@@ -1057,19 +686,39 @@ ApplicationWindow {
             VariantSelectionDialog {
                 parent: Overlay.overlay
                 onVariantSelected: function(variant) {
-                    if (window.pendingVariantData) {
-                        GameService.installTranslation(window.pendingVariantData.gameId, variant)
-                        window.pendingVariantData = null
-                    }
+                    installFlow.onVariantSelected(variant)
                 }
-                onCancelled: { window.pendingVariantData = null }
+                onCancelled: installFlow.onVariantCancelled()
                 onClosed: variantSelectionLoader.active = false
                 Component.onCompleted: {
-                    if (window.pendingVariantData) {
-                        variants = window.pendingVariantData.variants
-                        variantType = window.pendingVariantData.variantType || "version"
+                    if (installFlow.pendingVariantData) {
+                        variants = installFlow.pendingVariantData.variants
+                        variantType = installFlow.pendingVariantData.variantType || "version"
                     }
                     open()
+                }
+            }
+        }
+    }
+
+    // ===== UPDATE ALERT DIALOG (lazy) =====
+    property var _pendingImpacts: []
+    Loader {
+        id: updateAlertLoader
+        active: false
+        sourceComponent: Component {
+            UpdateAlertDialog {
+                parent: Overlay.overlay
+                onClosed: updateAlertLoader.active = false
+                Component.onCompleted: {
+                    if (window._pendingImpacts) {
+                        for (var i = 0; i < window._pendingImpacts.length; i++) {
+                            var p = window._pendingImpacts[i]
+                            addAffectedGame(p.gameId, p.gameName, p.impact)
+                        }
+                        window._pendingImpacts = []
+                        if (affectedGames.length > 0) open()
+                    }
                 }
             }
         }
@@ -1082,30 +731,7 @@ ApplicationWindow {
         z: Dimensions.zHeader
 
         onFilesDropped: function(urls) {
-            var type = GameService.classifyDroppedUrls(urls)
-            DebugHelper.log("DropZone", "Files dropped: " + urls.length + " (" + type + ")")
-
-            if (type === "package") {
-                window.showNotification(
-                    qsTr("Çeviri Paketi Algılandı"),
-                    qsTr("Paket yükleme hazırlanıyor..."),
-                    "translation"
-                )
-            } else if (type === "archive") {
-                window.showNotification(
-                    qsTr("Arşiv Algılandı"),
-                    qsTr("Arşiv içeriği analiz ediliyor..."),
-                    "info"
-                )
-            } else if (type === "folder") {
-                window.showNotification(
-                    qsTr("Klasör Algılandı"),
-                    qsTr("Oyun klasörü algılanıyor..."),
-                    "info"
-                )
-            }
-
-            // Delegate to GameService for actual file processing
+            DebugHelper.log("DropZone", "Files dropped: " + urls.length)
             GameService.handleDroppedFiles(urls)
         }
     }
@@ -1119,13 +745,10 @@ ApplicationWindow {
             OnboardingWizard {
                 z: Dimensions.zOverlay
                 onWizardFinished: {
-                    // Dismiss wizard immediately via local property (always works)
                     window._onboardingActive = false
-                    // Scan if no games found yet
                     if (typeof GameService !== "undefined" && GameService.gameCount === 0) {
                         GameService.scanAllLibraries()
                     }
-                    // Persist so wizard won't show on next launch
                     if (typeof SettingsManager !== "undefined") {
                         SettingsManager.onboardingCompleted = true
                     }
@@ -1135,7 +758,6 @@ ApplicationWindow {
     }
 
     // ===== GLOBAL LOADING INDICATOR =====
-    // Subtle top-bar progress indicator for long-running operations
     Rectangle {
         id: globalLoadingBar
         anchors.top: parent.top
@@ -1146,7 +768,6 @@ ApplicationWindow {
         color: "transparent"
         visible: GameService.isScanning
 
-        // Indeterminate sliding bar
         Rectangle {
             id: loadingSlider
             height: parent.height
@@ -1160,12 +781,11 @@ ApplicationWindow {
                 NumberAnimation {
                     from: -globalLoadingBar.width * 0.3
                     to: globalLoadingBar.width
-                    duration: 1500
+                    duration: Dimensions.animLoadingCycle
                     easing.type: Easing.InOutQuad
                 }
             }
 
-            // Soft glow trail
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
@@ -1177,7 +797,7 @@ ApplicationWindow {
         }
 
         Behavior on visible {
-            enabled: false // instant show
+            enabled: false
         }
     }
 

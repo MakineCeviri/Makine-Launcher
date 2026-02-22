@@ -17,7 +17,6 @@ Rectangle {
     signal projectsClicked()
     signal translationClicked()
     signal settingsClicked()
-    signal notificationClicked()
 
     color: Theme.withAlpha(Theme.surface, 0.7)
 
@@ -55,9 +54,9 @@ Rectangle {
                 width: 52; height: 52
                 active: true
                 animationsEnabled: navBarRoot.animationsEnabled
-                opacity: logoMouse.containsMouse ? 0.9
-                       : navBarRoot.currentIndex === 0 ? 0.5
-                       : 0.2
+                opacity: logoMouse.containsMouse ? 1.0
+                       : navBarRoot.currentIndex === 0 ? 0.7
+                       : 0.4
                 Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
             }
 
@@ -118,7 +117,7 @@ Rectangle {
         }
 
         NavItem {
-            text: qsTr("Kütüphane")
+            text: qsTr("Kütüphanem")
             selected: navBarRoot.currentIndex === 2
             onClicked: navBarRoot.translationClicked()
         }
@@ -176,111 +175,6 @@ Rectangle {
                 text: "Discord"
                 delay: 400
             }
-        }
-
-        // Notification bell icon
-        Item {
-            id: notifBellItem
-            Layout.preferredWidth: 36
-            Layout.preferredHeight: 36
-            Layout.alignment: Qt.AlignVCenter
-            Accessible.role: Accessible.Button
-            Accessible.name: qsTr("Bildirimler")
-            activeFocusOnTab: true
-            Keys.onReturnPressed: navBarRoot.notificationClicked()
-            Keys.onSpacePressed: navBarRoot.notificationClicked()
-
-            property bool hovered: bellMouse.containsMouse
-            scale: hovered ? 1.1 : 1.0
-            Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-
-            Canvas {
-                id: bellCanvas
-                anchors.centerIn: parent
-                width: 18; height: 18
-                property bool hov: notifBellItem.hovered
-                property int uc: NotificationService.unreadCount
-                onHovChanged: requestPaint()
-                onUcChanged: requestPaint()
-
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.clearRect(0, 0, width, height)
-
-                    var c = hov ? Theme.textPrimary : Theme.textMuted
-                    ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, hov ? 0.9 : 0.6)
-                    ctx.lineWidth = 1.5
-                    ctx.lineCap = "round"
-                    ctx.lineJoin = "round"
-
-                    // Bell shape
-                    ctx.beginPath()
-                    ctx.moveTo(4, 12)
-                    ctx.quadraticCurveTo(4, 6, 9, 3)
-                    ctx.quadraticCurveTo(14, 6, 14, 12)
-                    ctx.lineTo(15, 13)
-                    ctx.lineTo(3, 13)
-                    ctx.closePath()
-                    ctx.stroke()
-
-                    // Clapper
-                    ctx.beginPath()
-                    ctx.moveTo(7, 14)
-                    ctx.quadraticCurveTo(9, 17, 11, 14)
-                    ctx.stroke()
-
-                    // Top nub
-                    ctx.beginPath()
-                    ctx.arc(9, 2.5, 1, 0, Math.PI * 2)
-                    ctx.stroke()
-                }
-            }
-
-            // Unread count badge
-            Rectangle {
-                visible: NotificationService.unreadCount > 0
-                anchors.top: parent.top
-                anchors.right: parent.right
-                anchors.topMargin: 2
-                anchors.rightMargin: 2
-                width: Math.max(14, unreadLbl.width + 6)
-                height: 14
-                radius: 7
-                color: Theme.destructive
-
-                Text {
-                    id: unreadLbl
-                    anchors.centerIn: parent
-                    text: NotificationService.unreadCount > 9 ? "9+" : NotificationService.unreadCount.toString()
-                    font.pixelSize: 8
-                    font.weight: Font.Bold
-                    color: Theme.textOnColor
-                }
-            }
-
-            MouseArea {
-                id: bellMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: navBarRoot.notificationClicked()
-            }
-
-            ToolTip {
-                visible: bellMouse.containsMouse
-                text: NotificationService.unreadCount > 0
-                    ? qsTr("Bildirimler (%1)").arg(NotificationService.unreadCount)
-                    : qsTr("Bildirimler")
-                delay: 400
-            }
-        }
-
-        // Separator dot
-        Rectangle {
-            Layout.preferredWidth: 3; Layout.preferredHeight: 3
-            Layout.alignment: Qt.AlignVCenter
-            radius: 2
-            color: Theme.withAlpha(Theme.textPrimary, 0.15)
         }
 
         // Settings gear icon

@@ -10,6 +10,7 @@
 
 #include "updatedetectionservice.h"
 #include "gameservice.h"
+#include "corebridge.h"
 #include "apppaths.h"
 
 #include <QCoreApplication>
@@ -652,6 +653,20 @@ void UpdateDetectionService::recordStoreVersion(const QString& gameId,
              << "exeMtime:" << record.exeLastModified;
 }
 
+QString UpdateDetectionService::getRecordedStoreVersionId(const QString& gameId) const
+{
+    QMutexLocker lock(&m_storeVersionsMutex);
+    auto it = m_storeVersions.constFind(gameId);
+    if (it == m_storeVersions.constEnd()) return {};
+
+    // Return the most specific version identifier available
+    if (!it->steamBuildId.isEmpty()) return it->steamBuildId;
+    if (!it->epicVersionString.isEmpty()) return it->epicVersionString;
+    if (!it->gogBuildId.isEmpty()) return it->gogBuildId;
+    if (it->exeLastModified > 0) return QString::number(it->exeLastModified);
+    return {};
+}
+
 void UpdateDetectionService::removeStoreVersion(const QString& gameId)
 {
     bool removed = false;
@@ -895,6 +910,155 @@ void UpdateDetectionService::removeSnapshot(const QString& gameId)
 #else
     QFile::remove(dataDir() + "/snapshots/" + gameId + ".json");
 #endif
+}
+
+// =============================================================================
+// Impact Assessment: Quick stat-based check (<50ms/game)
+// =============================================================================
+
+static QString impactLevelToString(ImpactLevel level) {
+    switch (level) {
+        case ImpactLevel::Safe:    return QStringLiteral("safe");
+        case ImpactLevel::Lost:    return QStringLiteral("lost");
+        case ImpactLevel::Broken:  return QStringLiteral("broken");
+        case ImpactLevel::Unknown: return QStringLiteral("unknown");
+    }
+    return QStringLiteral("unknown");
+}
+
+QVariantMap UpdateDetectionService::assessImpact(const QString& gameId)
+{
+    UpdateImpact impact;
+
+    if (!m_gameService) {
+        impact.summary = tr("Update detection service not ready");
+        return {
+            {"level", impactLevelToString(impact.level)},
+            {"summary", impact.summary}
+        };
+    }
+
+    // Get installed package info from CoreBridge
+    auto* coreBridge = m_gameService->findChild<CoreBridge*>();
+    if (!coreBridge) {
+        // Try direct access through GameService
+        QVariantMap gameData = m_gameService->getGameById(gameId);
+        if (gameData.isEmpty()) {
+            impact.summary = tr("Game not found");
+            return {{"level", "unknown"}, {"summary", impact.summary}};
+        }
+    }
+
+    // Get installed info through CoreBridge
+    CoreBridge* cb = CoreBridge::instance();
+    if (!cb) {
+        impact.summary = tr("Core bridge not available");
+        return {{"level", "unknown"}, {"summary", impact.summary}};
+    }
+
+    auto instInfo = cb->getInstalledInfo(gameId);
+    if (!instInfo) {
+        impact.summary = tr("No installed translation found");
+        return {{"level", "unknown"}, {"summary", impact.summary}};
+    }
+
+    QVariantMap gameData = m_gameService->getGameById(gameId);
+    QString gamePath = gameData["installPath"].toString();
+    if (gamePath.isEmpty() || !QDir(gamePath).exists()) {
+        impact.summary = tr("Game install path not found");
+        return {{"level", "unknown"}, {"summary", impact.summary}};
+    }
+
+    qint64 installTime = instInfo->installedAt;
+
+    // If we have addedFiles/replacedFiles classification, use it
+    bool hasClassification = !instInfo->addedFiles.isEmpty() || !instInfo->replacedFiles.isEmpty();
+
+    if (hasClassification) {
+        // Check added files
+        for (const QString& relPath : instInfo->addedFiles) {
+            if (relPath.startsWith('_')) continue; // Skip special entries
+            QString fullPath = QDir::cleanPath(gamePath + "/" + relPath);
+            QFileInfo fi(fullPath);
+            if (fi.exists()) {
+                impact.addedFilesIntact++;
+            } else {
+                impact.addedFilesMissing++;
+            }
+        }
+
+        // Check replaced files (these are the critical ones)
+        for (const QString& relPath : instInfo->replacedFiles) {
+            if (relPath.startsWith('_')) continue;
+            QString fullPath = QDir::cleanPath(gamePath + "/" + relPath);
+            QFileInfo fi(fullPath);
+            if (!fi.exists()) {
+                impact.replacedFilesBroken++;
+            } else if (fi.lastModified().toSecsSinceEpoch() > installTime) {
+                // File was modified after our install — game update overwrote it
+                impact.replacedFilesBroken++;
+            } else {
+                impact.replacedFilesOk++;
+            }
+        }
+
+        impact.totalFiles = instInfo->addedFiles.size() + instInfo->replacedFiles.size();
+        impact.intactFiles = impact.addedFilesIntact + impact.replacedFilesOk;
+        impact.missingFiles = impact.addedFilesMissing;
+        impact.modifiedFiles = impact.replacedFilesBroken;
+
+        // Determine level
+        if (impact.replacedFilesBroken > 0) {
+            impact.level = ImpactLevel::Broken;
+            impact.summary = tr("Oyun güncellendi, %n çeviri dosyası bozuldu", "",
+                                impact.replacedFilesBroken);
+        } else if (impact.addedFilesMissing > 0) {
+            impact.level = ImpactLevel::Lost;
+            impact.summary = tr("%n çeviri dosyası eksik", "", impact.addedFilesMissing);
+        } else {
+            impact.level = ImpactLevel::Safe;
+            impact.summary = tr("Çeviri sağlam — tüm dosyalar yerinde");
+        }
+    } else {
+        // Fallback: no classification — check all installedFiles by mtime
+        for (const QString& relPath : instInfo->installedFiles) {
+            if (relPath.startsWith('_')) continue;
+            QString fullPath = QDir::cleanPath(gamePath + "/" + relPath);
+            QFileInfo fi(fullPath);
+            impact.totalFiles++;
+            if (!fi.exists()) {
+                impact.missingFiles++;
+            } else if (fi.lastModified().toSecsSinceEpoch() > installTime) {
+                impact.modifiedFiles++;
+            } else {
+                impact.intactFiles++;
+            }
+        }
+
+        if (impact.modifiedFiles > 0) {
+            impact.level = ImpactLevel::Broken;
+            impact.summary = tr("Oyun güncellendi, %n dosya değişmiş", "", impact.modifiedFiles);
+        } else if (impact.missingFiles > 0) {
+            impact.level = ImpactLevel::Lost;
+            impact.summary = tr("%n çeviri dosyası eksik", "", impact.missingFiles);
+        } else {
+            impact.level = ImpactLevel::Safe;
+            impact.summary = tr("Çeviri sağlam — tüm dosyalar yerinde");
+        }
+    }
+
+    return {
+        {"level",                impactLevelToString(impact.level)},
+        {"totalFiles",           impact.totalFiles},
+        {"intactFiles",          impact.intactFiles},
+        {"missingFiles",         impact.missingFiles},
+        {"modifiedFiles",        impact.modifiedFiles},
+        {"addedFilesIntact",     impact.addedFilesIntact},
+        {"addedFilesMissing",    impact.addedFilesMissing},
+        {"replacedFilesOk",      impact.replacedFilesOk},
+        {"replacedFilesBroken",  impact.replacedFilesBroken},
+        {"summary",              impact.summary}
+    };
 }
 
 // =============================================================================
