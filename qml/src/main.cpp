@@ -28,15 +28,100 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <psapi.h>     // EmptyWorkingSet
+#include <dwmapi.h>    // DwmExtendFrameIntoClientArea
+
+// Acrylic backdrop blur (non-Vulkan backends only)
+namespace {
+
+enum ACCENT_STATE {
+    ACCENT_DISABLED = 0,
+    ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
+};
+
+struct ACCENT_POLICY {
+    ACCENT_STATE AccentState;
+    DWORD AccentFlags;
+    DWORD GradientColor;
+    DWORD AnimationId;
+};
+
+struct WINDOWCOMPOSITIONATTRIBDATA {
+    DWORD Attribute;
+    PVOID Data;
+    ULONG DataSize;
+};
+
+using SetWindowCompositionAttributeFunc = BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
+
+void enableAcrylicBlur(HWND hwnd) {
+    MARGINS margins = {-1, -1, -1, -1};
+    DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+    DWORD buildNumber = 0;
+    {
+        OSVERSIONINFOW ovi{};
+        ovi.dwOSVersionInfoSize = sizeof(ovi);
+        auto RtlGetVersion = reinterpret_cast<LONG(WINAPI*)(OSVERSIONINFOW*)>(
+            GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
+        if (RtlGetVersion) { RtlGetVersion(&ovi); buildNumber = ovi.dwBuildNumber; }
+    }
+
+    if (buildNumber >= 22621) {
+        DWORD backdropType = 3; // Acrylic
+        DwmSetWindowAttribute(hwnd, 38, &backdropType, sizeof(backdropType));
+        return;
+    }
+
+    auto SetWindowCompositionAttribute = reinterpret_cast<SetWindowCompositionAttributeFunc>(
+        GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetWindowCompositionAttribute"));
+    if (!SetWindowCompositionAttribute) return;
+
+    ACCENT_POLICY accent{};
+    accent.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
+    accent.GradientColor = 0x600A0A0A;
+
+    WINDOWCOMPOSITIONATTRIBDATA data{};
+    data.Attribute = 19;
+    data.Data = &accent;
+    data.DataSize = sizeof(accent);
+    SetWindowCompositionAttribute(hwnd, &data);
+}
+
+} // namespace
 
 // Native Win32 splash window — shown immediately while QML loads
-// 440×240, rounded corners, static gradient bars, loading dots
+// 440×240, rounded corners, logo, gradient bars, loading dots
 class SplashWindow {
 public:
     SplashWindow() = default;
-    ~SplashWindow() { close(); }
+    ~SplashWindow() { close(); if (m_logoBitmap) DeleteObject(m_logoBitmap); }
     SplashWindow(const SplashWindow&) = delete;
     SplashWindow& operator=(const SplashWindow&) = delete;
+
+    // Load logo from QImage (call before show)
+    void setLogo(const QImage& img) {
+        if (img.isNull()) return;
+        QImage converted = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        m_logoWidth = converted.width();
+        m_logoHeight = converted.height();
+
+        BITMAPINFO bmi{};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = m_logoWidth;
+        bmi.bmiHeader.biHeight = -m_logoHeight; // top-down
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        HDC screenDC = GetDC(nullptr);
+        BYTE* pixels = nullptr;
+        m_logoBitmap = CreateDIBSection(screenDC, &bmi, DIB_RGB_COLORS,
+                                         reinterpret_cast<void**>(&pixels), nullptr, 0);
+        ReleaseDC(nullptr, screenDC);
+
+        if (m_logoBitmap && pixels)
+            memcpy(pixels, converted.constBits(), m_logoWidth * m_logoHeight * 4);
+    }
 
     void show() {
         static bool classRegistered = false;
@@ -76,8 +161,6 @@ public:
         }
     }
 
-    // Pump pending Win32 messages so splash animation stays alive
-    // Call between heavy init steps to prevent freeze
     void pumpMessages() {
         if (!m_hwnd) return;
         MSG msg;
@@ -87,7 +170,6 @@ public:
         }
     }
 
-    // Ensure splash is visible for at least minMs, keeping animation alive
     void waitMinimumDisplay(DWORD minMs) {
         if (!m_hwnd) return;
         while ((GetTickCount() - m_showTime) < minMs) {
@@ -119,7 +201,6 @@ private:
     };
     static constexpr int kColorCount = 9;
 
-    // Interpolate between two COLORREFs by fraction f (0..1)
     static COLORREF lerpColor(COLORREF a, COLORREF b, float f) {
         return RGB(
             GetRValue(a) + (int)((GetRValue(b) - GetRValue(a)) * f),
@@ -128,12 +209,11 @@ private:
         );
     }
 
-    // Smooth animated gradient bar — colors flow from center outward
     static void drawAnimatedGradientBar(HDC hdc, int x, int y, int barW, int barH, float phase) {
         BITMAPINFO bmi{};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
         bmi.bmiHeader.biWidth = barW;
-        bmi.bmiHeader.biHeight = -barH; // top-down
+        bmi.bmiHeader.biHeight = -barH;
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = BI_RGB;
@@ -145,17 +225,14 @@ private:
 
         float halfW = barW / 2.0f;
         for (int px = 0; px < barW; ++px) {
-            // Symmetric distance from center (0 at center, 1 at edges)
             float dist = (px < halfW)
                 ? (halfW - px) / halfW
                 : (px - halfW) / halfW;
 
-            // Colors flow outward: center shows newest, edges show older
             float t = phase - dist * 0.65f;
-            t = t - (float)(int)(t); // fast floor for positive
+            t = t - (float)(int)(t);
             if (t < 0.0f) t += 1.0f;
 
-            // Map to color palette with smooth interpolation
             float colorPos = t * (kColorCount - 1);
             int idx = (int)colorPos;
             float frac = colorPos - idx;
@@ -166,7 +243,7 @@ private:
 
             for (int py = 0; py < barH; ++py) {
                 int off = (py * barW + px) * 4;
-                pixels[off + 0] = b;  // BGRA byte order
+                pixels[off + 0] = b;
                 pixels[off + 1] = g;
                 pixels[off + 2] = r;
                 pixels[off + 3] = 255;
@@ -198,6 +275,17 @@ private:
         DeleteObject(nullPen);
     }
 
+    // AlphaBlend via dynamic loading (avoids link-time msimg32 dependency)
+    static BOOL alphaBlend(HDC dest, int dx, int dy, int dw, int dh,
+                           HDC src, int sx, int sy, int sw, int sh,
+                           BLENDFUNCTION bf) {
+        using Fn = BOOL(WINAPI*)(HDC,int,int,int,int,HDC,int,int,int,int,BLENDFUNCTION);
+        static Fn fn = reinterpret_cast<Fn>(
+            GetProcAddress(LoadLibraryW(L"msimg32.dll"), "AlphaBlend"));
+        if (fn) return fn(dest, dx, dy, dw, dh, src, sx, sy, sw, sh, bf);
+        return BitBlt(dest, dx, dy, dw, dh, src, sx, sy, SRCCOPY);
+    }
+
     static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         auto* self = reinterpret_cast<SplashWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 
@@ -209,7 +297,7 @@ private:
             GetClientRect(hwnd, &rc);
             int w = rc.right, h = rc.bottom;
 
-            // Double-buffer to prevent flicker
+            // Double-buffer
             HDC mem = CreateCompatibleDC(hdc);
             HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
             HBITMAP oldBmp = (HBITMAP)SelectObject(mem, bmp);
@@ -218,7 +306,7 @@ private:
             FillRect(mem, &rc, bg);
             DeleteObject(bg);
 
-            // Subtle center glow (concentric ellipses)
+            // Subtle center glow
             struct { int rx, ry; COLORREF c; } glows[] = {
                 {140, 70, RGB(15, 15, 24)},
                 {100, 50, RGB(18, 18, 28)},
@@ -237,26 +325,37 @@ private:
             SelectObject(mem, oldPen);
             DeleteObject(nullPen);
 
-            // Animated smooth gradient bar — top (3px)
+            // Top gradient bar (3px)
             float gp = self ? self->m_gradientPhase : 0.0f;
             drawAnimatedGradientBar(mem, 0, 0, w, 3, gp);
 
             SetBkMode(mem, TRANSPARENT);
 
-            HFONT titleFont = CreateFontW(-30, 0, 0, 0, FW_BOLD, 0, 0, 0,
-                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-            HFONT oldFont = (HFONT)SelectObject(mem, titleFont);
-            SetTextColor(mem, RGB(245, 245, 250));
-            RECT titleRc = {0, 55, w, 100};
-            DrawTextW(mem, L"MakineAI", -1, &titleRc, DT_CENTER | DT_SINGLELINE);
-            SelectObject(mem, oldFont);
-            DeleteObject(titleFont);
+            // Logo (replaces "MakineAI" title text)
+            if (self && self->m_logoBitmap) {
+                HDC logoDC = CreateCompatibleDC(mem);
+                HBITMAP oldLogoBmp = (HBITMAP)SelectObject(logoDC, self->m_logoBitmap);
 
+                BLENDFUNCTION bf{};
+                bf.BlendOp = AC_SRC_OVER;
+                bf.SourceConstantAlpha = 255;
+                bf.AlphaFormat = AC_SRC_ALPHA;
+
+                int logoX = (w - self->m_logoWidth) / 2;
+                int logoY = 25;
+                alphaBlend(mem, logoX, logoY, self->m_logoWidth, self->m_logoHeight,
+                           logoDC, 0, 0, self->m_logoWidth, self->m_logoHeight, bf);
+
+                SelectObject(logoDC, oldLogoBmp);
+                DeleteDC(logoDC);
+            }
+
+            // Tagline — below logo
             HFONT tagFont = CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
                 DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-            oldFont = (HFONT)SelectObject(mem, tagFont);
+            HFONT oldFont = (HFONT)SelectObject(mem, tagFont);
             SetTextColor(mem, RGB(120, 120, 145));
-            RECT tagRc = {0, 105, w, 130};
+            RECT tagRc = {0, 115, w, 140};
             DrawTextW(mem, L"Oyunlar\u0131n\u0131 T\u00FCrk\u00E7e Oynaman\u0131n En Kolay Yolu",
                       -1, &tagRc, DT_CENTER | DT_SINGLELINE);
             SelectObject(mem, oldFont);
@@ -276,7 +375,7 @@ private:
 
             drawLoadingDots(mem, w / 2, h - 55);
 
-            // Version — 9px, bottom-right corner
+            // Version — 9px, bottom-right
             HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
                 DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
             oldFont = (HFONT)SelectObject(mem, verFont);
@@ -286,10 +385,9 @@ private:
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
 
-            // Animated smooth gradient bar — bottom (2px)
+            // Bottom gradient bar (2px)
             drawAnimatedGradientBar(mem, 0, h - 2, w, 2, gp);
 
-            // Blit to screen
             BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
             SelectObject(mem, oldBmp);
             DeleteObject(bmp);
@@ -300,7 +398,6 @@ private:
         }
         case WM_TIMER:
             if (wp == 1 && self) {
-                // Static splash — only repaint for status text updates
                 InvalidateRect(hwnd, nullptr, FALSE);
             }
             return 0;
@@ -310,8 +407,11 @@ private:
 
     HWND m_hwnd{nullptr};
     DWORD m_showTime{0};
-    float m_gradientPhase{0.25f}; // Static gradient position
+    float m_gradientPhase{0.25f};
     wchar_t m_status[64]{};
+    HBITMAP m_logoBitmap{nullptr};
+    int m_logoWidth{0};
+    int m_logoHeight{0};
 };
 #endif
 
@@ -436,17 +536,27 @@ int main(int argc, char *argv[])
             return deviceCount > 0;
         };
 
+        bool vulkanActive = false;
         if (backend == "vulkan") {
-            if (isVulkanAvailable())
+            if (isVulkanAvailable()) {
                 QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
-            else
-                QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11); // fallback
+                vulkanActive = true;
+            } else {
+                QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
+            }
         } else if (backend == "d3d11") {
             QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
         } else if (backend == "opengl") {
             QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
         }
-        // "auto" = no explicit call, Qt chooses best available
+
+        // Acrylic backdrop requires alpha buffer — only for non-Vulkan backends
+        if (!vulkanActive) {
+            QQuickWindow::setDefaultAlphaBuffer(true);
+            QSurfaceFormat fmt = QSurfaceFormat::defaultFormat();
+            fmt.setAlphaBufferSize(8);
+            QSurfaceFormat::setDefaultFormat(fmt);
+        }
     }
 
     // === RELEASE SECURITY ===
@@ -494,6 +604,12 @@ int main(int argc, char *argv[])
 
 #ifdef Q_OS_WIN
     SplashWindow splash;
+    // Load logo from Qt resources and scale for splash
+    {
+        QImage logoImg(":/qt/qml/MakineAI/resources/images/logo.png");
+        if (!logoImg.isNull())
+            splash.setLogo(logoImg.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
     splash.show();
 #endif
 
@@ -537,23 +653,27 @@ int main(int argc, char *argv[])
     QElapsedTimer startupTimer;
     startupTimer.start();
 
-    // ===== Phase 1: Directory bootstrap + lightweight services =====
+    // ===== Phase 1: Directory structure + configuration =====
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Dizinler haz\u0131rlan\u0131yor...");
+    splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
 #endif
     AppPaths::ensureDirectories();
     AppPaths::migrateFromFlatLayout();
 
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Ayarlar y\u00FCkleniyor...");
+    splash.setStatus(L"Yap\u0131land\u0131rma y\u00FCkleniyor...");
 #endif
     auto* settingsManager = new SettingsManager(&app);
     engine.rootContext()->setContextProperty("SettingsManager", settingsManager);
 
+    // ===== Phase 2: Image cache =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"G\u00F6rsel \u00F6nbelle\u011Fi ba\u015Flat\u0131l\u0131yor...");
+#endif
     auto* imageCache = new ImageCacheManager(&app);
     engine.rootContext()->setContextProperty("ImageCache", imageCache);
 
-    // ===== Phase 2: GameService init (CoreBridge + cache loading) =====
+    // ===== Phase 3: Game library (heaviest data load) =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi y\u00FCkleniyor...");
 #endif
@@ -564,9 +684,9 @@ int main(int argc, char *argv[])
     splash.pumpMessages();
 #endif
 
-    // ===== Phase 3: Register remaining services =====
+    // ===== Phase 4: Operation journal + recovery =====
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Servisler ba\u015Flat\u0131l\u0131yor...");
+    splash.setStatus(L"\u0130\u015Flem g\u00FCnl\u00FC\u011F\u00FC kontrol ediliyor...");
 #endif
     auto* journal = new OperationJournal(&app);
     if (journal->hasPendingOperation()) {
@@ -577,26 +697,48 @@ int main(int argc, char *argv[])
     splash.pumpMessages();
 #endif
 
+    // ===== Phase 5: Backup + process monitoring =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Yedekleme sistemi ba\u015Flat\u0131l\u0131yor...");
+#endif
     auto* backupManager = new BackupManager(&app);
     backupManager->setJournal(journal);
     engine.rootContext()->setContextProperty("BackupManager", backupManager);
 
+#ifdef Q_OS_WIN
+    splash.setStatus(L"S\u00FCrec izleyici ba\u015Flat\u0131l\u0131yor...");
+#endif
     auto* processScanner = new ProcessScanner(&app);
     engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
 
+    // ===== Phase 6: Security + integrity =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"B\u00FCt\u00FCnl\u00FCk do\u011Frulamas\u0131 yap\u0131l\u0131yor...");
+#endif
     auto* integrityService = new IntegrityService(&app);
     engine.rootContext()->setContextProperty("IntegrityService", integrityService);
 
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
+    // ===== Phase 7: Update checker + system tray =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"G\u00FCncelleme servisi haz\u0131rlan\u0131yor...");
+#endif
     auto* updateChecker = new UpdateChecker(&app);
     engine.rootContext()->setContextProperty("UpdateChecker", updateChecker);
 
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Sistem tepsisi yap\u0131land\u0131r\u0131l\u0131yor...");
+#endif
     SystemTrayManager trayManager;
     trayManager.setIcon(app.windowIcon());
     trayManager.show();
     engine.rootContext()->setContextProperty("SystemTrayManager", &trayManager);
+
+    // Tray quit → app quit directly (bypass QML round-trip)
+    QObject::connect(&trayManager, &SystemTrayManager::quitRequested,
+                     &app, &QCoreApplication::quit);
 
     // Wire journal to CoreBridge
     CoreBridge::instance()->setJournal(journal);
@@ -641,7 +783,7 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection
     );
 
-    // ===== Phase 5: QML engine loading (heaviest single operation) =====
+    // ===== Phase 8: QML engine loading (heaviest single operation) =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Aray\u00FCz derleniyor...");
 #endif
@@ -668,7 +810,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // Create the root object
+    // ===== Phase 9: Create root window =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Pencere olu\u015Fturuluyor...");
     splash.pumpMessages();
@@ -685,15 +827,44 @@ int main(int argc, char *argv[])
 
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
 
-    // ===== Phase 6: Pre-render first frame, then show window =====
+    // ===== Phase 10: Pre-render + finalize =====
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Neredeyse haz\u0131r...");
+    splash.setStatus(L"Son haz\u0131rl\u0131klar yap\u0131l\u0131yor...");
     splash.pumpMessages();
 #endif
 
     // Release GPU resources when window is hidden/minimized (reclaimed on show)
     auto *window = qobject_cast<QQuickWindow*>(rootObject);
     if (window) {
+        // Responsive sizing + centered positioning via Win32
+        {
+            RECT workArea{};
+            SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
+            int waW = workArea.right - workArea.left;
+            int waH = workArea.bottom - workArea.top;
+
+            // Proportional: 1280×1080 on 3840×2160 = 1/3 width, 1/2 height
+            int w = waW / 3;
+            int h = waH / 2;
+
+            // Screen center point
+            int cx = workArea.left + waW / 2;
+            int cy = workArea.top + waH / 2;
+
+            // Window top-left so that window center == screen center
+            int x = cx - w / 2;
+            int y = cy - h / 2;
+
+            HWND hwnd = reinterpret_cast<HWND>(window->winId());
+            MoveWindow(hwnd, x, y, w, h, TRUE);
+
+            // Acrylic backdrop blur — only for non-Vulkan backends
+            if (QQuickWindow::graphicsApi() != QSGRendererInterface::Vulkan) {
+                window->setColor(Qt::transparent);
+                enableAcrylicBlur(hwnd);
+            }
+        }
+
         window->setPersistentGraphics(false);
         window->setPersistentSceneGraph(false);
 

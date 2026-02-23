@@ -3,8 +3,8 @@
  * @brief Anti-reverse-engineering and tamper detection implementation
  * @copyright (c) 2026 MakineAI Team
  *
- * Release builds (NDEBUG): 8 independent anti-debug checks, API hook
- * detection, periodic re-checks, and delayed exit on violation.
+ * Release builds (NDEBUG): 8 anti-debug checks, periodic re-checks,
+ * and delayed exit. Extended checks (RE tools, VM, DLL) in C:\cedra\security\.
  * Debug builds: every function is a harmless no-op.
  */
 
@@ -173,14 +173,14 @@ void runAllChecks()
 
     bool hit = false;
     // Each check is independent — if one is NOP'd, the others still work
-    hit |= checkIsDebuggerPresent();
-    hit |= checkRemoteDebugger();
-    hit |= checkDebugPort();
-    hit |= checkDebugFlags();
-    hit |= checkNtGlobalFlag();
-    hit |= checkTiming();
-    hit |= checkHardwareBreakpoints();
-    hit |= checkApiHook();
+    hit |= checkIsDebuggerPresent();    // 1
+    hit |= checkRemoteDebugger();       // 2
+    hit |= checkDebugPort();            // 3
+    hit |= checkDebugFlags();           // 4
+    hit |= checkNtGlobalFlag();         // 5
+    hit |= checkTiming();               // 6
+    hit |= checkHardwareBreakpoints();  // 7
+    hit |= checkApiHook();              // 8
 
     if (hit) {
         g_flagged.store(true, std::memory_order_relaxed);

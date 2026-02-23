@@ -141,24 +141,21 @@ ColumnLayout {
                     Rectangle {
                         implicitWidth: restoreRow.width + 32; implicitHeight: 38
                         radius: Dimensions.radiusStandard
-                        color: restoreMouse.containsMouse ? Theme.withAlpha(Theme.warning, 0.20) : Theme.withAlpha(Theme.warning, 0.10)
-                        border.color: Theme.withAlpha(Theme.warning, 0.30); border.width: 1
+                        color: restoreMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.20) : Theme.withAlpha(Theme.error, 0.10)
+                        border.color: Theme.withAlpha(Theme.error, 0.30); border.width: 1
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                         Accessible.role: Accessible.Button
-                        Accessible.name: qsTr("Orijinale Dön")
+                        Accessible.name: qsTr("Yamayı Kaldır")
 
                         Row {
                             id: restoreRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
-                            Text { text: "\u21BB"; font.pixelSize: Dimensions.fontSM; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: qsTr("Orijinale Dön"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "\u2715"; font.pixelSize: Dimensions.fontSM; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: qsTr("Yamayı Kaldır"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
                         }
                         MouseArea {
                             id: restoreMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                var b = backupRoot.latestBackup
-                                if (b && b.id) BackupManager.restoreBackup(b.id)
-                            }
+                            onClicked: GameService.uninstallTranslation(backupRoot.gameId)
                         }
                     }
 

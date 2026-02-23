@@ -5,245 +5,120 @@ import MakineAI 1.0
 import "../components"
 
 /**
- * HomePage.qml - "Kütüphanem" page with installed games & translations
+ * HomePage.qml - Main home view with game detection, announcements and localization library
  */
 Item {
-    id: root
+    id: homePage
 
+    // Properties propagated from HomeScreen
     property bool animationsEnabled: true
     property real contentMargin: 16
+    // Uniform gap — used everywhere for consistent spacing
+    readonly property real gap: 16
 
+    // Responsive top row height: 22% of page height, clamped
+    readonly property real topRowHeight: Math.max(140, Math.min(220, homePage.height * 0.22))
+
+    // Signals
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
+    signal manualFolderRequested()
+    signal settingsRequested()
 
     ColumnLayout {
-        id: mainLayout
         anchors.fill: parent
-        anchors.topMargin: root.contentMargin
-        anchors.leftMargin: root.contentMargin
-        anchors.rightMargin: root.contentMargin
-        spacing: Dimensions.spacingMD
+        anchors.topMargin: homePage.gap
+        anchors.leftMargin: homePage.gap
+        anchors.rightMargin: homePage.gap
+        anchors.bottomMargin: 0
+        spacing: homePage.gap
 
-        opacity: 0
-        transform: Translate { id: panelsTranslate; y: 18 }
-        Component.onCompleted: panelsEntryAnim.start()
+        // ===== UPDATE STATUS PILL =====
+        Row {
+            spacing: 6
+            visible: UpdateChecker.statusType === "upToDate" || UpdateChecker.statusType === "updateAvailable"
 
-        SequentialAnimation {
-            id: panelsEntryAnim
-            PauseAnimation { duration: 80 }
+            Rectangle {
+                width: 6; height: 6; radius: 3
+                anchors.verticalCenter: parent.verticalCenter
+                color: UpdateChecker.statusType === "updateAvailable" ? Theme.warning : Theme.success
+            }
+
+            Text {
+                text: UpdateChecker.statusType === "updateAvailable"
+                      ? qsTr("%1 mevcut").arg(UpdateChecker.latestVersion)
+                      : qsTr("G\u00FCncel")
+                font.pixelSize: Dimensions.fontXS
+                color: UpdateChecker.statusType === "updateAvailable" ? Theme.warning : Theme.textMuted
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: UpdateChecker.statusType === "updateAvailable" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: {
+                        if (UpdateChecker.statusType === "updateAvailable")
+                            homePage.settingsRequested()
+                    }
+                }
+            }
+        }
+
+        // ===== TOP ROW =====
+        RowLayout {
+            id: topRowLayout
+            Layout.fillWidth: true
+            Layout.preferredHeight: homePage.topRowHeight
+            Layout.maximumHeight: homePage.topRowHeight
+            spacing: homePage.gap
+
+            opacity: 0
+            transform: Translate { id: topRowTranslate; y: 14 }
+            Component.onCompleted: topRowEntryAnim.start()
+
             ParallelAnimation {
+                id: topRowEntryAnim
                 NumberAnimation {
-                    target: mainLayout; property: "opacity"
+                    target: topRowLayout; property: "opacity"
                     from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
                 }
                 NumberAnimation {
-                    target: panelsTranslate; property: "y"
-                    from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
+                    target: topRowTranslate; property: "y"
+                    from: 14; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
+                }
+            }
+
+            GameDetectionCard {
+                animationsEnabled: homePage.animationsEnabled
+                layoutCardMargin: 0
+                layoutCardSpacing: 0
+                layoutTopRowHeight: homePage.topRowHeight
+                onManualFolderRequested: homePage.manualFolderRequested()
+            }
+
+            AnnouncementCard {
+                layoutCardMargin: 0
+                layoutCardSpacing: 0
+                layoutTopRowHeight: homePage.topRowHeight
+                onGameClicked: function(gameId, gameName, installPath, engine) {
+                    homePage.gameSelected(gameId, gameName, installPath, engine)
                 }
             }
         }
 
-        // ===== INSTALLED GAMES =====
-        SectionContainer {
+        // ===== BATCH OPERATIONS PANEL =====
+        BatchOperationsPanel {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            glowPosition: "bottom-left"
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Dimensions.spacingSM
-
-                Label {
-                    text: qsTr("Kurulu Oyunlar")
-                    font.pixelSize: Dimensions.fontLG
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-
-                BusyIndicator {
-                    visible: GameService.isScanning
-                    running: GameService.isScanning
-                    Layout.preferredWidth: 14
-                    Layout.preferredHeight: 14
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Rectangle {
-                    Layout.preferredHeight: 20
-                    Layout.preferredWidth: installedCountLbl.width + 14
-                    radius: 10
-                    color: Theme.withAlpha(Theme.primary, 0.12)
-                    border.color: Theme.withAlpha(Theme.primary, 0.20)
-                    border.width: 1
-                    Label {
-                        id: installedCountLbl
-                        anchors.centerIn: parent
-                        text: (GameService.games || []).length
-                        font.pixelSize: Dimensions.fontXS
-                        font.weight: Font.Medium
-                        color: Theme.primary
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Theme.withAlpha(Theme.textPrimary, 0.06)
-            }
-
-            GridView {
-                id: installedGamesGrid
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                model: GameService.games || []
-                clip: true
-                cellWidth: Dimensions.cardWidth + Dimensions.cardGap
-                cellHeight: Dimensions.cardHeight + Dimensions.cardGap
-                boundsBehavior: Flickable.StopAtBounds
-
-                ScrollBar.vertical: StyledScrollBar {}
-
-                delegate: Item {
-                    required property var modelData
-                    required property int index
-                    width: installedGamesGrid.cellWidth
-                    height: installedGamesGrid.cellHeight
-
-                    GameCard {
-                        anchors.centerIn: parent
-                        gameId: modelData.id || ""
-                        gameName: modelData.name || ""
-                        steamAppId: modelData.steamAppId || ""
-                        imageUrl: ImageCache.resolve(
-                            modelData.steamAppId || modelData.id || "",
-                            modelData.headerImageUrl || ""
-                        )
-                        installPath: modelData.installPath || ""
-                        verified: modelData.isVerified || false
-                        translated: modelData.hasTranslation || false
-                        onClicked: {
-                            root.gameSelected(
-                                modelData.id || "", modelData.name || "",
-                                modelData.installPath || "", modelData.engine || ""
-                            )
-                        }
-                    }
-                }
-
-                // Empty state
-                Label {
-                    anchors.centerIn: parent
-                    visible: (GameService.games || []).length === 0 && !GameService.isScanning
-                    text: qsTr("Kurulu oyun bulunamad\u0131")
-                    font.pixelSize: Dimensions.fontSM
-                    color: Theme.textMuted
-                }
-            }
+            animationsEnabled: homePage.animationsEnabled
         }
 
-        // ===== INSTALLED TRANSLATIONS =====
-        SectionContainer {
-            id: patchesContainer
+        // ===== LOCALIZATION LIBRARY (flush to bottom) =====
+        CatalogSection {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            glowPosition: "top-right"
-
-            property var patchedGames: GameService.installedTranslations()
-
-            Connections {
-                target: GameService
-                function onGamesChanged() {
-                    patchesContainer.patchedGames = GameService.installedTranslations()
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Dimensions.spacingSM
-
-                Label {
-                    text: qsTr("Kurulu Yamalar")
-                    font.pixelSize: Dimensions.fontLG
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Rectangle {
-                    Layout.preferredHeight: 20
-                    Layout.preferredWidth: patchCountLbl.width + 14
-                    radius: 10
-                    color: Theme.withAlpha(Theme.accent, 0.12)
-                    border.color: Theme.withAlpha(Theme.accent, 0.20)
-                    border.width: 1
-                    Label {
-                        id: patchCountLbl
-                        anchors.centerIn: parent
-                        text: patchesContainer.patchedGames.length
-                        font.pixelSize: Dimensions.fontXS
-                        font.weight: Font.Medium
-                        color: Theme.accentLight
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Theme.withAlpha(Theme.textPrimary, 0.06)
-            }
-
-            GridView {
-                id: patchedGamesGrid
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                model: patchesContainer.patchedGames
-                clip: true
-                cellWidth: Dimensions.cardWidth + Dimensions.cardGap
-                cellHeight: Dimensions.cardHeight + Dimensions.cardGap
-                boundsBehavior: Flickable.StopAtBounds
-
-                ScrollBar.vertical: StyledScrollBar {}
-
-                delegate: Item {
-                    required property var modelData
-                    required property int index
-                    width: patchedGamesGrid.cellWidth
-                    height: patchedGamesGrid.cellHeight
-
-                    GameCard {
-                        anchors.centerIn: parent
-                        gameId: modelData.gameId || modelData.id || ""
-                        gameName: modelData.name || modelData.gameName || ""
-                        steamAppId: modelData.steamAppId || ""
-                        imageUrl: ImageCache.resolve(
-                            modelData.steamAppId || modelData.gameId || modelData.id || "",
-                            modelData.headerImageUrl || ""
-                        )
-                        installPath: modelData.installPath || ""
-                        translated: true
-                        onClicked: {
-                            root.gameSelected(
-                                modelData.gameId || modelData.id || "",
-                                modelData.name || modelData.gameName || "",
-                                modelData.installPath || "",
-                                modelData.engine || ""
-                            )
-                        }
-                    }
-                }
-
-                // Empty state
-                Label {
-                    anchors.centerIn: parent
-                    visible: patchesContainer.patchedGames.length === 0
-                    text: qsTr("Kurulu yama yok")
-                    font.pixelSize: Dimensions.fontSM
-                    color: Theme.textMuted
-                }
-            }
+            Layout.leftMargin: 0
+            Layout.rightMargin: 0
+            Layout.bottomMargin: -homePage.gap
+            allGames: GameService.supportedGames || []
+            onGameClicked: (gameId, gameName, installPath, engine) =>
+                homePage.gameSelected(gameId, gameName, installPath, engine)
         }
     }
 }

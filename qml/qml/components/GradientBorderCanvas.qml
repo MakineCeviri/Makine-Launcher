@@ -4,7 +4,7 @@ import MakineAI 1.0
 /**
  * GradientBorderCanvas - Animated rainbow gradient border for cards
  *
- * Shared by GameCard and PatchCard. Renders a rounded-rect stroke
+ * Renders a rounded-rect stroke
  * with rotating gradient colors from Theme.brandGradient.
  */
 Canvas {

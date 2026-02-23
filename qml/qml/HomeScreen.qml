@@ -6,7 +6,7 @@ import "components"
 import "screens"
 
 /**
- * HomeScreen.qml - Main home view (Translation Library)
+ * HomeScreen.qml - Main container for Home and Library sub-pages
  */
 Item {
     id: root
@@ -17,6 +17,7 @@ Item {
     property real contentMargin: 16
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
+    signal installAndShowDetail(string gameId, string gameName, string installPath, string engine)
     signal settingsRequested()
     signal manualFolderRequested()
 
@@ -45,12 +46,11 @@ Item {
         onTriggered: UpdateChecker.checkForUpdatesIfNeeded()
     }
 
-    // Current sub-page index: 0=Home, 1=Projects, 2=Translation
-    property int currentPage: 2
+    // Current sub-page index: 0=Home, 1=Library
+    property int currentPage: 0
 
     function showHomePage() { currentPage = 0 }
-    function showProjectsPage() { currentPage = 1 }
-    function showTranslationPage() { currentPage = 2 }
+    function showLibraryPage() { currentPage = 1 }
 
     // Sub-pages share the same slot, switched by visibility
     HomePage {
@@ -62,10 +62,12 @@ Item {
         onGameSelected: function(gameId, gameName, installPath, engine) {
             root.gameSelected(gameId, gameName, installPath, engine)
         }
+        onManualFolderRequested: root.manualFolderRequested()
+        onSettingsRequested: root.settingsRequested()
     }
 
-    ProjectsPage {
-        id: projectsPage
+    Library {
+        id: libraryPage
         anchors.fill: parent
         visible: root.currentPage === 1
         animationsEnabled: root.animationsEnabled
@@ -73,18 +75,5 @@ Item {
         onGameSelected: function(gameId, gameName, installPath, engine) {
             root.gameSelected(gameId, gameName, installPath, engine)
         }
-    }
-
-    Library {
-        id: libraryPage
-        anchors.fill: parent
-        visible: root.currentPage === 2
-        animationsEnabled: root.animationsEnabled
-        contentMargin: root.contentMargin
-        onGameSelected: function(gameId, gameName, installPath, engine) {
-            root.gameSelected(gameId, gameName, installPath, engine)
-        }
-        onManualFolderRequested: root.manualFolderRequested()
-        onSettingsRequested: root.settingsRequested()
     }
 }

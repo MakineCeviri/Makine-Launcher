@@ -110,11 +110,7 @@ Rectangle {
         }
 
         // Divider
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.withAlpha(Theme.textPrimary, 0.06)
-        }
+        SettingsDivider { variant: "section" }
 
         Item { Layout.preferredHeight: 4 }
 

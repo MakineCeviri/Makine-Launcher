@@ -11,11 +11,9 @@ Rectangle {
     id: titleBarRoot
 
     required property var windowRef
-    property bool translationMode: false
-    property bool projectsMode: false
+    property bool libraryMode: false
 
     signal minimizeClicked()
-    signal maximizeClicked()
     signal closeClicked()
     signal trayClicked()
 
@@ -32,18 +30,8 @@ Rectangle {
         anchors.fill: parent
         anchors.rightMargin: 160  // Leave space for buttons
 
-        property real lastPressTime: 0
-
         onPressed: {
-            var now = Date.now()
-            if (now - lastPressTime < 300) {
-                // Double-click detected
-                titleBarRoot.maximizeClicked()
-                lastPressTime = 0
-            } else {
-                lastPressTime = now
-                titleBarRoot.windowRef.startSystemMove()
-            }
+            titleBarRoot.windowRef.startSystemMove()
         }
     }
 
@@ -57,7 +45,7 @@ Rectangle {
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
             radius: Dimensions.radiusStandard
-            visible: titleBarRoot.translationMode || titleBarRoot.projectsMode
+            visible: titleBarRoot.libraryMode
             color: Theme.turkishRed
             clip: true
 
@@ -99,7 +87,7 @@ Rectangle {
         Image {
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
-            visible: !titleBarRoot.translationMode && !titleBarRoot.projectsMode
+            visible: !titleBarRoot.libraryMode
             source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
             sourceSize: Qt.size(18, 18)
             fillMode: Image.PreserveAspectFit
@@ -157,12 +145,6 @@ Rectangle {
                 icon: "\uE921"
                 tooltip: qsTr("Küçült")
                 onClicked: titleBarRoot.minimizeClicked()
-            }
-
-            WindowButton {
-                icon: titleBarRoot.windowRef.visibility === Window.Maximized ? "\uE923" : "\uE922"
-                tooltip: titleBarRoot.windowRef.visibility === Window.Maximized ? qsTr("Geri Al") : qsTr("Büyüt")
-                onClicked: titleBarRoot.maximizeClicked()
             }
 
             WindowButton {

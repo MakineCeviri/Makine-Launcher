@@ -17,6 +17,7 @@ Item {
     property string installPath: ""
     property bool verified: false
     property bool translated: false
+    property bool hasUpdate: false
 
     // Settle guard — skip decode for cards that scroll past within 60ms
     property bool _settled: false
@@ -40,8 +41,9 @@ Item {
     // Delegate recycling support (reuseItems)
     ListView.onPooled: _settleTimer.stop()
 
-    // SIZE
-    width: Dimensions.cardWidth
+    // SIZE — responsive, preserves aspect ratio (130:185)
+    readonly property real _aspectRatio: 130.0 / 185.0
+    width: Math.round(height * _aspectRatio)
     height: Dimensions.cardHeight
 
     signal clicked()
@@ -128,7 +130,7 @@ Item {
             anchors.fill: parent
             source: root._settled ? root.imageUrl : ""
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(Dimensions.cardWidth * 2, Dimensions.cardHeight * 2)
+            sourceSize: Qt.size(260, 370)
             asynchronous: true
             cache: true
             retainWhileLoading: true
@@ -192,21 +194,36 @@ Item {
             }
         }
 
-        // Verified badge (top-right)
+        // Integrity warning badge (top-right, always visible when unsafe)
         Rectangle {
-            visible: root.verified
+            id: warningBadge
+            visible: root.translated && (!root.verified || root.hasUpdate)
             anchors.top: parent.top; anchors.right: parent.right
             anchors.topMargin: Dimensions.marginBase; anchors.rightMargin: Dimensions.marginBase
-            width: 16; height: 16; radius: 8
-            color: Theme.accentBase
+            width: 18; height: 12; radius: Dimensions.badgeRadius
+            color: root.hasUpdate ? Theme.warning : Theme.withAlpha(Theme.textMuted, 0.7)
             z: 2
 
             Text {
                 anchors.centerIn: parent
-                text: "\u2713"
-                font.pixelSize: Dimensions.fontCaption
-                font.weight: Font.Bold
+                text: root.hasUpdate ? "\u0021" : "\u003F"
+                font.pixelSize: 9; font.weight: Font.Bold
                 color: Theme.textOnColor
+            }
+
+            ToolTip {
+                visible: root.isHovered && warningBadge.visible
+                delay: 300
+                text: root.hasUpdate
+                    ? qsTr("Oyun g\u00FCncellendi \u2014 yama etkilenmi\u015F olabilir")
+                    : qsTr("Do\u011Frulanmam\u0131\u015F yama \u2014 dikkatli olun")
+                font.pixelSize: Dimensions.fontSM
+                background: Rectangle {
+                    color: Theme.withAlpha(Theme.surface, 0.95)
+                    radius: Dimensions.radiusStandard
+                    border.color: Theme.withAlpha(
+                        root.hasUpdate ? Theme.warning : Theme.textMuted, 0.3)
+                }
             }
         }
 
@@ -243,10 +260,10 @@ Item {
             }
         }
 
-        // TR badge — fixed position, blink in/out
+        // TR badge — safe state only (verified + no update), hover to reveal
         TurkishFlagBadge {
             id: trBadgeBottom
-            visible: root.translated
+            visible: root.translated && root.verified && !root.hasUpdate
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.rightMargin: Dimensions.marginBase

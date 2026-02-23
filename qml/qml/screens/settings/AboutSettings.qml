@@ -20,11 +20,7 @@ ColumnLayout {
         ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
     }
 
-    component SettingsDivider: Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 1
-        color: Theme.withAlpha(Theme.textPrimary, 0.04)
-    }
+
 
     component InfoRow: Item {
         property string label: ""
@@ -411,7 +407,6 @@ ColumnLayout {
                 { key: "Ctrl+H", desc: qsTr("Ana sayfa") },
                 { key: "Ctrl+1", desc: qsTr("Ana sayfa") },
                 { key: "Ctrl+2", desc: qsTr("Kütüphane") },
-                { key: "Ctrl+3", desc: qsTr("Projelerimiz") },
                 { key: "Ctrl+Q", desc: qsTr("Çıkış") },
                 { key: "Escape", desc: qsTr("Geri dön") },
                 { key: "F3", desc: qsTr("Performans monitörü") }

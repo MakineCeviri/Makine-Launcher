@@ -14,6 +14,7 @@ cmake_minimum_required(VERSION 3.28)
 option(MAKINEAI_UI_ONLY "Build UI only without core library" OFF)
 option(MAKINEAI_CORE_ONLY "Build core library only without UI" OFF)
 option(MAKINEAI_BUILD_TESTS "Build unit tests" OFF)
+option(MAKINEAI_PROFILER "Enable Tracy profiler instrumentation" OFF)
 
 # vcpkg integration (auto-detect when building core)
 if(NOT MAKINEAI_UI_ONLY)
@@ -31,6 +32,20 @@ project(MakineAI
 
 # Keep all executables in the build root (avoid add_subdirectory nesting)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+# Tracy profiler (on-demand: zero overhead until profiler connects)
+if(MAKINEAI_PROFILER)
+    include(FetchContent)
+    FetchContent_Declare(tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG        v0.11.1
+        GIT_SHALLOW    TRUE
+    )
+    set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+    set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(tracy)
+    message(STATUS "Tracy profiler: ENABLED (on-demand)")
+endif()
 
 # Core C++ library
 if(NOT MAKINEAI_UI_ONLY)
@@ -50,6 +65,7 @@ message(STATUS "Version:  ${PROJECT_VERSION}")
 message(STATUS "UI Only:  ${MAKINEAI_UI_ONLY}")
 message(STATUS "Core Only: ${MAKINEAI_CORE_ONLY}")
 message(STATUS "Tests:    ${MAKINEAI_BUILD_TESTS}")
+message(STATUS "Profiler: ${MAKINEAI_PROFILER}")
 message(STATUS "Build:    ${CMAKE_BUILD_TYPE}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "====================================")

@@ -142,7 +142,7 @@ Rectangle {
         }
     }
 
-    // TR badge (top-right)
+    // TR badge (top-right) — visible on hover only
     TurkishFlagBadge {
         anchors.top: parent.top
         anchors.right: parent.right
@@ -150,6 +150,8 @@ Rectangle {
         anchors.rightMargin: Dimensions.marginBase
         flagWidth: 22; flagHeight: 14
         z: 2
+        opacity: heroMa.containsMouse ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
     }
 
     // Game name (bottom-left)
@@ -167,6 +169,22 @@ Rectangle {
         elide: Text.ElideRight
         maximumLineCount: 2
         wrapMode: Text.WordWrap
+    }
+
+    // Top edge glass highlight
+    Rectangle {
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.leftMargin: 1; anchors.rightMargin: 1; anchors.topMargin: 1
+        height: 1; radius: Dimensions.radiusSection; z: 5
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.2; color: Qt.rgba(1, 1, 1, 0.08) }
+            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.14) }
+            GradientStop { position: 0.8; color: Qt.rgba(1, 1, 1, 0.08) }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
     }
 
     MouseArea {

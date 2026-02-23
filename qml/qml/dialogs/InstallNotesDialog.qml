@@ -17,8 +17,6 @@ BaseDialog {
 
     property string notes: ""
 
-    signal accepted()
-
     title: qsTr("Kurulum Notu")
     width: 440
     contentHeight: contentColumn.implicitHeight

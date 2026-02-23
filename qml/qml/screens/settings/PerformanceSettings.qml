@@ -24,11 +24,7 @@ ColumnLayout {
         ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
     }
 
-    component SettingsDivider: Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 1
-        color: Theme.withAlpha(Theme.textPrimary, 0.04)
-    }
+
 
     component ToggleSetting: Item {
         id: _toggleRoot

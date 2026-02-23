@@ -120,6 +120,7 @@ set(BACKEND_HEADERS
     src/services/obfstring.h
     src/services/imagecachemanager.h
     src/services/apppaths.h
+    src/services/profiler.h
 )
 
 
@@ -160,7 +161,6 @@ qt_add_qml_module(MakineAI
 
         # Screens - Home Pages
         qml/screens/HomePage.qml
-        qml/screens/ProjectsPage.qml
         qml/screens/Library.qml
 
         # Screens - Game Detail Sections
@@ -197,7 +197,6 @@ qt_add_qml_module(MakineAI
         qml/components/GameCardSkeleton.qml      # Loading placeholder for GameCard
         qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
         qml/components/GameDetectionCard.qml      # Game detection status + manual add
-        qml/components/PatchCard.qml              # Translation patch info
         qml/components/ProjectShowcaseCard.qml    # Showcase project display
         #
         # Navigation: Window chrome and nav
@@ -208,8 +207,11 @@ qt_add_qml_module(MakineAI
         #
         # Layout: Section containers
         qml/components/SectionContainer.qml       # Glassmorphic section wrapper
+        qml/components/GameSection.qml            # Section with title + game strip + empty state
+        qml/components/CatalogSection.qml         # Localization library catalog (search + game strips)
         #
         # Visual: Decorative and feedback
+        qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip
         qml/components/AnimatedGradientGlow.qml   # Animated glow effect
         qml/components/GradientBorderCanvas.qml   # Gradient border drawing
         qml/components/SkeletonLoader.qml         # Generic loading skeleton
@@ -232,6 +234,9 @@ qt_add_qml_module(MakineAI
         qml/components/EmptyState.qml             # Reusable empty/zero-data state
         qml/components/FocusRing.qml              # Keyboard focus indicator
         qml/components/StyledScrollBar.qml        # Themed scrollbar
+        qml/components/HorizontalGameStrip.qml  # Horizontal scrolling game card strip
+        qml/components/NotificationBanner.qml     # Dismissable notification bar
+        qml/components/GameStatusCard.qml         # Game scanning status card
 
         # Controllers (Main.qml decomposition)
         qml/controllers/GameDataResolver.qml
@@ -242,7 +247,6 @@ qt_add_qml_module(MakineAI
         qml/dialogs/DialogCloseButton.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/ConfirmDialog.qml
-        qml/dialogs/UninstallConfirmDialog.qml
         qml/dialogs/VariantSelectionDialog.qml
         qml/dialogs/InstallNotesDialog.qml
         qml/dialogs/InstallOptionsDialog.qml
@@ -360,6 +364,13 @@ else()
     target_compile_definitions(MakineAI PRIVATE MAKINEAI_UI_ONLY)
 endif()
 
+# Tracy profiler (conditional)
+if(MAKINEAI_PROFILER AND TARGET TracyClient)
+    target_link_libraries(MakineAI PRIVATE TracyClient)
+    target_compile_definitions(MakineAI PRIVATE TRACY_ENABLE)
+    message(STATUS "MakineAI: Tracy profiler linked")
+endif()
+
 # Windows specific
 if(WIN32)
     set_target_properties(MakineAI PROPERTIES
@@ -409,6 +420,7 @@ if(WIN32)
         User32
         Crypt32
         Wintrust     # Authenticode verification
+        dwmapi       # DWM acrylic/mica backdrop
     )
 endif()
 

@@ -31,7 +31,6 @@ struct GameInfo {
     Q_PROPERTY(QString id MEMBER id)
     Q_PROPERTY(QString name MEMBER name)
     Q_PROPERTY(QString headerImageUrl MEMBER headerImageUrl)
-    Q_PROPERTY(QString logoImageUrl MEMBER logoImageUrl)
     Q_PROPERTY(QString installPath MEMBER installPath)
     Q_PROPERTY(QString steamAppId MEMBER steamAppId)
     Q_PROPERTY(QString source MEMBER source)
@@ -44,7 +43,6 @@ public:
     QString id;
     QString name;
     QString headerImageUrl;
-    QString logoImageUrl;
     QString installPath;
     QString steamAppId;
     QString source{"steam"};
@@ -56,18 +54,11 @@ public:
     QVariantMap toVariantMap() const {
         return {
             {"id", id}, {"name", name},
-            {"headerImageUrl", headerImageUrl}, {"logoImageUrl", logoImageUrl},
+            {"headerImageUrl", headerImageUrl},
             {"installPath", installPath}, {"steamAppId", steamAppId},
             {"source", source}, {"engine", engine},
             {"isVerified", isVerified}, {"isInstalled", isInstalled},
             {"hasTranslation", hasTranslation}
-        };
-    }
-
-    QVariantMap toSummary() const {
-        return {
-            {"id", id}, {"name", name},
-            {"headerImageUrl", headerImageUrl}, {"isVerified", isVerified}
         };
     }
 };
@@ -118,6 +109,7 @@ class GameService : public QObject
     Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanStatusChanged)
     Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY gamesChanged)
     Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY gamesChanged)
+    Q_PROPERTY(QVariantList installedTranslations READ installedTranslations NOTIFY gamesChanged)
     Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY gamesChanged)
     Q_PROPERTY(int gameUpdateCount READ gameUpdateCount NOTIFY gameUpdateCountChanged)
 
@@ -138,6 +130,7 @@ public:
     QString scanStatus() const { return m_scanStatus; }
     QVariantList gamesWithTranslation() const;
     QVariantList supportedGames() const;
+    QVariantList installedTranslations() const;
     int supportedGameCount() const;
     int gameUpdateCount() const;
 
@@ -163,12 +156,6 @@ public:
      * Replaces JS filteredModel() in TranslationLibraryPage for better performance
      */
     Q_INVOKABLE QVariantList filteredGamesWithTranslation(const QString& filter = {}) const;
-
-    /**
-     * @brief Get list of games with installed translation packages
-     * @return List of {id, name, headerImageUrl, steamAppId, version, installPath}
-     */
-    Q_INVOKABLE QVariantList installedTranslations() const;
 
     /**
      * @brief Classify dropped URLs by file extension
@@ -371,9 +358,11 @@ private:
     mutable QVariantList m_gamesCache;
     mutable QVariantList m_supportedGamesCache;
     mutable QVariantList m_translationGamesCache;
+    mutable QVariantList m_installedTranslationsCache;
     mutable bool m_cacheValid{false};
     mutable bool m_supportedCacheValid{false};
     mutable bool m_translationCacheValid{false};
+    mutable bool m_installedCacheValid{false};
     QSet<QString> m_antiCheatAcknowledged;
 };
 

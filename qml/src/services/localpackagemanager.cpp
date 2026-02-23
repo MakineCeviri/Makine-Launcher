@@ -887,6 +887,7 @@ void LocalPackageManager::loadInstalledState()
             loadArray("files", info.installedFiles);
             loadArray("addedFiles", info.addedFiles);
             loadArray("replacedFiles", info.replacedFiles);
+
         }
 
         m_installed[it.key()] = info;

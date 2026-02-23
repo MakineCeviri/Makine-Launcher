@@ -12,8 +12,6 @@ ApplicationWindow {
     id: window
     visible: true
 
-    width: minimumWidth
-    height: minimumHeight
     minimumWidth: Dimensions.minWindowWidth
     minimumHeight: Dimensions.minWindowHeight
 
@@ -22,36 +20,17 @@ ApplicationWindow {
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // Restore saved window position/size or center on screen
+    // Window sizing + positioning handled in C++ (main.cpp) via Win32 API
     Component.onCompleted: {
-        if (typeof SettingsManager !== "undefined") {
-            var geo = SettingsManager.windowGeometry()
-            if (geo.width > 0 && geo.height > 0) {
-                window.x = geo.x
-                window.y = geo.y
-                window.width = Math.max(geo.width, minimumWidth)
-                window.height = Math.max(geo.height, minimumHeight)
-                if (geo.maximized) window.showMaximized()
-            } else {
-                window.x = (Screen.width - width) / 2
-                window.y = (Screen.height - height) / 2
-            }
+        if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
-        } else {
-            window.x = (Screen.width - width) / 2
-            window.y = (Screen.height - height) / 2
-        }
     }
 
     property int currentNavIndex: 0
     property int previousNavIndex: 0  // Remember nav index before game detail
-    readonly property int resizeMargin: 6
 
     // Pending game detail data for lazy-loaded GameDetailScreen
     property var pendingGameDetail: null
-
-    // Store normal geometry before maximize so restore works on frameless windows
-    property rect normalGeometry: Qt.rect(0, 0, 0, 0)
 
     // Force quit flag — bypasses minimize-to-tray on close
     property bool forceQuit: false
@@ -62,13 +41,7 @@ ApplicationWindow {
     Component.onDestruction: pageChangeTimer.stop()
 
     onClosing: function(close) {
-        // Save window geometry before closing
-        var isMax = (window.visibility === Window.Maximized)
-        if (!isMax) {
-            SettingsManager.saveWindowGeometry(window.x, window.y, window.width, window.height, false)
-        } else {
-            SettingsManager.saveWindowGeometry(window.x, window.y, window.width, window.height, true)
-        }
+        // Window always repositions on launch — no need to save geometry
 
         if (SettingsManager.minimizeToTray && !window.forceQuit) {
             close.accepted = false
@@ -106,7 +79,7 @@ ApplicationWindow {
             window.show()
             window.raise()
             window.requestActivate()
-            window.currentNavIndex = 3
+            window.currentNavIndex = 2
             contentStackContainer.navigateTo(1)
         }
         function onQuitRequested() {
@@ -138,13 +111,6 @@ ApplicationWindow {
         }
     }
 
-    // ===== WINDOW RESIZE HANDLERS =====
-    WindowResizeHandles {
-        anchors.fill: parent
-        windowRef: window
-        resizeMargin: window.resizeMargin
-    }
-
     // ===== KEYBOARD SHORTCUTS =====
     Shortcut {
         sequence: "Ctrl+Q"
@@ -169,7 +135,7 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+,"
         onActivated: {
-            window.currentNavIndex = 3
+            window.currentNavIndex = 2
             contentStackContainer.navigateTo(1)
         }
     }
@@ -178,7 +144,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
-            homeView.showTranslationPage()
+            homeView.showHomePage()
         }
     }
     Shortcut {
@@ -186,23 +152,15 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
-            homeView.showTranslationPage()
+            homeView.showHomePage()
         }
     }
     Shortcut {
         sequence: "Ctrl+2"
         onActivated: {
-            window.currentNavIndex = 2
-            contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
-        }
-    }
-    Shortcut {
-        sequence: "Ctrl+3"
-        onActivated: {
             window.currentNavIndex = 1
             contentStackContainer.navigateTo(0)
-            homeView.showProjectsPage()
+            homeView.showLibraryPage()
         }
     }
     Shortcut {
@@ -241,24 +199,9 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.titlebarHeight
             windowRef: window
-            translationMode: window.currentNavIndex === 2
-            projectsMode: window.currentNavIndex === 1
+            libraryMode: window.currentNavIndex === 1
 
             onMinimizeClicked: window.showMinimized()
-            onMaximizeClicked: {
-                if (window.visibility === Window.Maximized) {
-                    window.showNormal()
-                    if (window.normalGeometry.width > 0) {
-                        window.x = window.normalGeometry.x
-                        window.y = window.normalGeometry.y
-                        window.width = window.normalGeometry.width
-                        window.height = window.normalGeometry.height
-                    }
-                } else {
-                    window.normalGeometry = Qt.rect(window.x, window.y, window.width, window.height)
-                    window.showMaximized()
-                }
-            }
             onCloseClicked: {
                 if (SettingsManager.minimizeToTray) {
                     window.minimizeToTray()
@@ -355,21 +298,16 @@ ApplicationWindow {
             onHomeClicked: {
                 window.currentNavIndex = 0
                 contentStackContainer.navigateTo(0)
-                homeView.showTranslationPage()
-            }
-            onProjectsClicked: {
-                window.currentNavIndex = 1
-                homeView.showProjectsPage()
-                contentStackContainer.navigateTo(0)
+                homeView.showHomePage()
             }
             onSettingsClicked: {
-                window.currentNavIndex = 3
+                window.currentNavIndex = 2
                 contentStackContainer.navigateTo(1)
             }
-            onTranslationClicked: {
-                window.currentNavIndex = 2
+            onLibraryClicked: {
+                window.currentNavIndex = 1
                 contentStackContainer.navigateTo(0)
-                homeView.showHomePage()
+                homeView.showLibraryPage()
             }
         }
 
@@ -606,7 +544,7 @@ ApplicationWindow {
     Connections {
         target: homeView
         function onSettingsRequested() {
-            window.currentNavIndex = 3
+            window.currentNavIndex = 2
             contentStackContainer.navigateTo(1)
         }
     }

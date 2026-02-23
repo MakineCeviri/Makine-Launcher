@@ -14,8 +14,7 @@ Rectangle {
     property bool animationsEnabled: true
 
     signal homeClicked()
-    signal projectsClicked()
-    signal translationClicked()
+    signal libraryClicked()
     signal settingsClicked()
 
     color: Theme.withAlpha(Theme.surface, 0.7)
@@ -118,14 +117,8 @@ Rectangle {
 
         NavItem {
             text: qsTr("Kütüphanem")
-            selected: navBarRoot.currentIndex === 2
-            onClicked: navBarRoot.translationClicked()
-        }
-
-        NavItem {
-            text: qsTr("Projelerimiz")
             selected: navBarRoot.currentIndex === 1
-            onClicked: navBarRoot.projectsClicked()
+            onClicked: navBarRoot.libraryClicked()
         }
 
         Item { Layout.fillWidth: true }
@@ -190,7 +183,7 @@ Rectangle {
             Keys.onSpacePressed: navBarRoot.settingsClicked()
 
             property bool hovered: settingsMouse.containsMouse
-            property bool isSelected: navBarRoot.currentIndex === 3
+            property bool isSelected: navBarRoot.currentIndex === 2
             scale: hovered ? 1.1 : 1.0
             Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
 

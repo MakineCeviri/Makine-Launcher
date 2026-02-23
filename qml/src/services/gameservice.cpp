@@ -8,6 +8,7 @@
 #include "backupmanager.h"
 #include "updatedetectionservice.h"
 #include "apppaths.h"
+#include "profiler.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -82,7 +83,9 @@ QVariantList GameService::games() const
     m_gamesCache.reserve(m_games.count());
 
     for (const auto& game : m_games) {
-        m_gamesCache.append(game.toVariantMap());
+        QVariantMap map = game.toVariantMap();
+        map["hasUpdate"] = hasGameUpdate(game.id);
+        m_gamesCache.append(map);
     }
 
     m_cacheValid = true;
@@ -91,6 +94,7 @@ QVariantList GameService::games() const
 
 void GameService::scanAllLibraries()
 {
+    MAKINE_ZONE_NAMED("GameService::scanAllLibraries");
     if (m_isScanning) return;
 
     m_isScanning = true;
@@ -140,6 +144,7 @@ void GameService::setupCoreBridge()
                         int idx = *idxIt;
                         if (idx >= 0 && idx < m_games.count()) {
                             m_games[idx].hasTranslation = true;
+                            m_games[idx].isVerified = true;
                             invalidateCache();
                             emit gamesChanged();
 
@@ -158,6 +163,7 @@ void GameService::setupCoreBridge()
                                     m_coreBridge->updateInstalledStoreVersion(gameId, storeVer, game.source);
                                 }
                             }
+
                         }
                     }
                 }
@@ -190,6 +196,7 @@ void GameService::onScanProgress(qreal progress, const QString& status)
 
 void GameService::onScanCompleted(int count)
 {
+    MAKINE_ZONE_NAMED("GameService::onScanCompleted");
     // Convert detected games to GameInfo
     m_games.clear();
     for (const auto& detected : m_coreBridge->detectedGames()) {
@@ -201,10 +208,9 @@ void GameService::onScanCompleted(int count)
         game.engine = detected.engine;
         game.steamAppId = detected.steamAppId;
         game.headerImageUrl = detected.headerImageUrl;
-        game.isVerified = detected.isVerified;
         game.isInstalled = true;
-
         game.hasTranslation = m_coreBridge->hasTranslationPackage(detected.id);
+        game.isVerified = game.hasTranslation;  // Verified if translation is installed
 
         m_games.append(game);
     }
@@ -473,6 +479,7 @@ QVariantMap GameService::getGameDetails(const QString& gameId)
 
 void GameService::fetchSteamDetails(const QString& steamAppId)
 {
+    MAKINE_ZONE_NAMED("GameService::fetchSteamDetails");
     if (steamAppId.isEmpty()) return;
 
     // Validate: must be numeric, max 10 digits (prevents URL injection)
@@ -648,6 +655,7 @@ QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) c
 
 QVariantList GameService::supportedGames() const
 {
+    MAKINE_ZONE_NAMED("GameService::supportedGames");
     if (m_supportedCacheValid && !m_supportedGamesCache.isEmpty()) {
         return m_supportedGamesCache;
     }
@@ -684,6 +692,7 @@ int GameService::supportedGameCount() const
 
 QVariantList GameService::gamesWithTranslation() const
 {
+    MAKINE_ZONE_NAMED("GameService::gamesWithTranslation");
     if (m_translationCacheValid)
         return m_translationGamesCache;
 
@@ -711,8 +720,15 @@ QVariantList GameService::gamesWithTranslation() const
 
 QVariantList GameService::installedTranslations() const
 {
-    QVariantList result;
-    if (!m_coreBridge) return result;
+    MAKINE_ZONE_NAMED("GameService::installedTranslations");
+    if (m_installedCacheValid)
+        return m_installedTranslationsCache;
+
+    m_installedTranslationsCache.clear();
+    if (!m_coreBridge) {
+        m_installedCacheValid = true;
+        return m_installedTranslationsCache;
+    }
 
     for (const auto& game : m_games) {
         if (!m_coreBridge->isPackageInstalled(game.id))
@@ -720,20 +736,23 @@ QVariantList GameService::installedTranslations() const
 
         QVariantMap entry = game.toVariantMap();
         entry["packageInstalled"] = true;
+        entry["hasUpdate"] = hasGameUpdate(game.id);
 
         auto pkg = m_coreBridge->getPackageForGame(game.id);
         if (pkg) {
             entry["version"] = pkg->version;
         }
 
-        result.append(entry);
+        m_installedTranslationsCache.append(entry);
     }
 
-    return result;
+    m_installedCacheValid = true;
+    return m_installedTranslationsCache;
 }
 
 void GameService::loadCachedGames()
 {
+    MAKINE_ZONE_NAMED("GameService::loadCachedGames");
     const QString cachePath = AppPaths::gamesCacheFile();
     QFile file(cachePath);
 
@@ -769,7 +788,6 @@ void GameService::loadCachedGames()
         game.id = obj["id"].toString();
         game.name = obj["name"].toString();
         game.headerImageUrl = obj["headerImageUrl"].toString();
-        game.logoImageUrl = obj["logoImageUrl"].toString();
         game.installPath = obj["installPath"].toString();
         game.steamAppId = obj["steamAppId"].toString();
         game.source = obj["source"].toString();
@@ -792,6 +810,7 @@ void GameService::loadCachedGames()
 
 void GameService::saveCachedGames()
 {
+    MAKINE_ZONE_NAMED("GameService::saveCachedGames");
     QDir().mkpath(AppPaths::cacheDir());
 
     QJsonArray array;
@@ -800,7 +819,6 @@ void GameService::saveCachedGames()
         obj["id"] = game.id;
         obj["name"] = game.name;
         obj["headerImageUrl"] = game.headerImageUrl;
-        obj["logoImageUrl"] = game.logoImageUrl;
         obj["installPath"] = game.installPath;
         obj["steamAppId"] = game.steamAppId;
         obj["source"] = game.source;
@@ -822,9 +840,11 @@ void GameService::invalidateCache()
     m_cacheValid = false;
     m_supportedCacheValid = false;
     m_translationCacheValid = false;
+    m_installedCacheValid = false;
     m_gamesCache.clear();
     m_supportedGamesCache.clear();
     m_translationGamesCache.clear();
+    m_installedTranslationsCache.clear();
     m_packageInstalledCache.clear();
 }
 
@@ -1105,6 +1125,7 @@ QString GameService::getVariantSpecialDialog(const QString& gameId, const QStrin
 void GameService::installTranslation(const QString& gameId, const QString& variant,
                                       const QStringList& selectedOptions)
 {
+    MAKINE_ZONE_NAMED("GameService::installTranslation");
     if (!m_coreBridge) {
         emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
         return;
@@ -1208,6 +1229,7 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
 void GameService::uninstallTranslation(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::uninstallTranslation");
     if (!m_coreBridge) {
         emit translationUninstalled(gameId, false, tr("Core bridge not available"));
         return;
@@ -1248,6 +1270,7 @@ void GameService::uninstallTranslation(const QString& gameId)
 
 void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex)
 {
+    MAKINE_ZONE_NAMED("GameService::finalizeUninstall");
     bool success = m_coreBridge->uninstallPackage(gameId, gamePath);
 
     if (success && gameIndex >= 0 && gameIndex < m_games.count()) {

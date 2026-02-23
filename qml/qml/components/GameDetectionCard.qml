@@ -63,6 +63,22 @@ ColumnLayout {
             }
         }
 
+        // Top edge glass highlight
+        Rectangle {
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.leftMargin: 1; anchors.rightMargin: 1; anchors.topMargin: 1
+            height: 1; radius: Dimensions.radiusSection
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.2; color: Qt.rgba(1, 1, 1, 0.06) }
+                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.10) }
+                GradientStop { position: 0.8; color: Qt.rgba(1, 1, 1, 0.06) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+
         // Content — horizontal layout matching original
         RowLayout {
             anchors.fill: parent
