@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Layouts
 import MakineAI 1.0
 
@@ -61,12 +62,16 @@ Rectangle {
         id: frameTimer
 
         // Called every frame via NumberAnimation
+        // Stops only when minimized/hidden to save GPU
         NumberAnimation on rotation {
             from: 0
             to: 360
             duration: 1000
             loops: Animation.Infinite
             running: root.visible
+                     && Window.window !== null
+                     && Window.window.visibility !== Window.Minimized
+                     && Window.window.visibility !== Window.Hidden
         }
 
         onRotationChanged: {
@@ -96,6 +101,9 @@ Rectangle {
         interval: root.updateInterval
         repeat: true
         running: root.visible
+                 && Window.window !== null
+                 && Window.window.visibility !== Window.Minimized
+                 && Window.window.visibility !== Window.Hidden
         onTriggered: updateMetrics()
     }
 
@@ -161,6 +169,8 @@ Rectangle {
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
                     running: root.visible && root.currentFps < 30
+                             && Window.window !== null
+                             && Window.window.visibility !== Window.Minimized
                     NumberAnimation { to: 0.3; duration: Dimensions.fadeTransitionDuration }
                     NumberAnimation { to: 1.0; duration: Dimensions.fadeTransitionDuration }
                 }

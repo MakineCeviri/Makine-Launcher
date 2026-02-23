@@ -66,14 +66,20 @@ Item {
         onSettingsRequested: root.settingsRequested()
     }
 
-    Library {
-        id: libraryPage
+    Loader {
+        id: libraryLoader
         anchors.fill: parent
-        visible: root.currentPage === 1
-        animationsEnabled: root.animationsEnabled
-        contentMargin: root.contentMargin
-        onGameSelected: function(gameId, gameName, installPath, engine) {
-            root.gameSelected(gameId, gameName, installPath, engine)
+        active: root.currentPage === 1
+        visible: active
+        asynchronous: true
+        sourceComponent: Component {
+            Library {
+                animationsEnabled: root.animationsEnabled
+                contentMargin: root.contentMargin
+                onGameSelected: function(gameId, gameName, installPath, engine) {
+                    root.gameSelected(gameId, gameName, installPath, engine)
+                }
+            }
         }
     }
 }

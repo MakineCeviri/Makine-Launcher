@@ -943,11 +943,17 @@ QString LocalPackageManager::installedStatePath() const
 
 // -- Install package ----------------------------------------------------------
 
+void LocalPackageManager::cancelInstall()
+{
+    m_cancelRequested.store(true, std::memory_order_relaxed);
+}
+
 void LocalPackageManager::installPackage(const QString& steamAppId, const QString& gamePath,
                                          const QString& variant,
                                          const QStringList& selectedOptions)
 {
     INTEGRITY_GATE();
+    m_cancelRequested.store(false, std::memory_order_relaxed);
 
     // Retrieve package info (works in both build modes)
     auto maybePkg = getPackage(steamAppId);
@@ -1066,6 +1072,11 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             QStringList installedFiles;
 
             for (const auto& [srcPath, relPath] : filesToCopy) {
+                if (isCancelled()) {
+                    emit installCompleted(false, tr("Kurulum iptal edildi"));
+                    return;
+                }
+
                 QString destPath = QDir::cleanPath(targetPath + "/" + relPath);
 
                 QFileInfo destInfo(destPath);
@@ -1080,9 +1091,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     errors++;
                 }
 
-                if ((copied + errors) % 20 == 0 || (copied + errors) == total) {
+                if ((copied + errors) % 10 == 0 || (copied + errors) == total) {
                     emit installProgress(static_cast<double>(copied + errors) / total,
-                        tr("%1/%2 dosya kopyalandi").arg(copied).arg(total));
+                        tr("Kopyalanıyor %1/%2: %3").arg(copied).arg(total).arg(QFileInfo(relPath).fileName()));
                 }
             }
 
@@ -1172,6 +1183,13 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             canonGamePath = QDir::cleanPath(gamePath);
 
         for (const auto& [srcPath, relPath] : filesToCopy) {
+            // Cancellation check
+            if (isCancelled()) {
+                if (m_journal) m_journal->abortOperation();
+                emit installCompleted(false, tr("Kurulum iptal edildi"));
+                return;
+            }
+
             QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
 
             // Prevent path traversal: ensure destination stays within game directory
@@ -1210,13 +1228,13 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 errors++;
             }
 
-            // Throttle progress signals: every 20 files or at completion
+            // Throttle progress signals: every 10 files or at completion
             int done = copied + errors;
-            if (done - lastReported >= 20 || done == total) {
+            if (done - lastReported >= 10 || done == total) {
                 lastReported = done;
                 double progress = static_cast<double>(done) / total;
                 emit installProgress(progress,
-                    tr("%1/%2 dosya kopyalandi").arg(copied).arg(total));
+                    tr("Kopyalanıyor %1/%2: %3").arg(copied).arg(total).arg(QFileInfo(relPath).fileName()));
             }
         }
 
@@ -1286,9 +1304,16 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         m_journal->beginOperation(je);
     }
 
-    emit installProgress(0.0, tr("Kurulum adimlari hazirlaniyor..."));
+    emit installProgress(0.0, tr("Kurulum adımları hazırlanıyor..."));
 
     for (const InstallStep& step : pkg.installSteps) {
+        // Cancellation check
+        if (isCancelled()) {
+            if (m_journal) m_journal->abortOperation();
+            emit installCompleted(false, tr("Kurulum iptal edildi"));
+            return;
+        }
+
         current++;
         double progress = static_cast<double>(current) / (total + 1);
 
@@ -1310,7 +1335,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            emit installProgress(progress, tr("Kopyalaniyor: %1").arg(step.dest));
+            emit installProgress(progress, tr("Adım %1/%2: %3").arg(current).arg(total).arg(step.dest));
 
             QFileInfo destInfo(destPath);
             if (!QDir().mkpath(destInfo.absolutePath())) {
@@ -1348,7 +1373,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            emit installProgress(progress, tr("Kopyalaniyor: %1/").arg(step.dest));
+            emit installProgress(progress, tr("Adım %1/%2: %3/").arg(current).arg(total).arg(step.dest));
 
             QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
             while (dirIt.hasNext()) {
@@ -1381,7 +1406,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            emit installProgress(progress, tr("Siliniyor: %1").arg(step.dest));
+            emit installProgress(progress, tr("Adım %1/%2: Siliniyor %3").arg(current).arg(total).arg(step.dest));
 
             if (QFile::exists(destPath)) {
                 if (!QFile::remove(destPath)) {
@@ -1400,7 +1425,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                                    + "/AppData/Local/Microsoft/Windows/Fonts";
             QDir().mkpath(userFontsDir);
 
-            emit installProgress(progress, tr("Fontlar yukleniyor..."));
+            emit installProgress(progress, tr("Adım %1/%2: Fontlar yükleniyor").arg(current).arg(total));
 
             QDirIterator fontIt(fontSrcDir, {"*.ttf", "*.otf"}, QDir::Files);
             while (fontIt.hasNext()) {
@@ -1472,7 +1497,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            emit installProgress(progress, tr("Calistiriliyor: %1").arg(QFileInfo(exePath).fileName()));
+            emit installProgress(progress, tr("Adım %1/%2: %3").arg(current).arg(total).arg(QFileInfo(exePath).fileName()));
 
             // Determine working directory
             QString workDir = gamePath;
@@ -1516,7 +1541,8 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 int mins = elapsed / 60000;
                 int secs = (elapsed % 60000) / 1000;
                 emit installProgress(progress,
-                    tr("Calisiyor: %1 (%2:%3)")
+                    tr("Adım %1/%2: %3 (%4:%5)")
+                        .arg(current).arg(total)
                         .arg(QFileInfo(exePath).fileName())
                         .arg(mins, 2, 10, QChar('0'))
                         .arg(secs, 2, 10, QChar('0')));
@@ -1548,7 +1574,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
             QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
 
-            emit installProgress(progress, tr("Masaüstüne kopyalanıyor: %1").arg(step.dest));
+            emit installProgress(progress, tr("Adım %1/%2: Masaüstüne kopyalanıyor %3").arg(current).arg(total).arg(step.dest));
 
             if (QFile::exists(destPath)) QFile::remove(destPath);
             if (QFile::copy(srcPath, destPath)) {
@@ -1572,7 +1598,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            emit installProgress(progress, tr("Yeniden adlandırılıyor: %1").arg(step.dest));
+            emit installProgress(progress, tr("Adım %1/%2: Yeniden adlandırılıyor %3").arg(current).arg(total).arg(step.dest));
 
             if (QFile::exists(srcPath)) {
                 if (QFile::exists(destPath)) QFile::remove(destPath);
@@ -1596,7 +1622,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            emit installProgress(progress, tr("Steam dili ayarlaniyor: %1").arg(step.language));
+            emit installProgress(progress, tr("Adım %1/%2: Steam dili ayarlanıyor %3").arg(current).arg(total).arg(step.language));
 
             // Game path is typically: .../steamapps/common/GameName
             // Go up two levels to reach steamapps/
@@ -1743,10 +1769,17 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         }
 
         emit installProgress(static_cast<double>(current) / totalSteps,
-            tr("%1 kuruluyor...").arg(opt.label));
+            tr("%1 — Hazırlanıyor...").arg(opt.label));
 
-        // Build a temporary PackageInfo with this option's steps to reuse executeInstallSteps logic
+        // Execute each step for this option
         for (const InstallStep& step : opt.steps) {
+            // Cancellation check
+            if (isCancelled()) {
+                if (m_journal) m_journal->abortOperation();
+                emit installCompleted(false, tr("Kurulum iptal edildi"));
+                return;
+            }
+
             current++;
             double progress = static_cast<double>(current) / (totalSteps + 1);
 
@@ -1761,7 +1794,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     qWarning() << "Copy source not found:" << srcPath;
                     errors++; continue;
                 }
-                emit installProgress(progress, tr("Kopyalanıyor: %1").arg(step.dest));
+                emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
                 QFileInfo destInfo(destPath);
                 if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
                 if (QFile::exists(destPath)) QFile::remove(destPath);
@@ -1784,7 +1817,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     qWarning() << "copyDir source not found:" << srcDir;
                     errors++; continue;
                 }
-                emit installProgress(progress, tr("Kopyalanıyor: %1/").arg(step.dest));
+                emit installProgress(progress, tr("%1 — Adım %2/%3: %4/").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
                 QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
                 while (dirIt.hasNext()) {
                     dirIt.next();
@@ -1832,7 +1865,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     qWarning() << "Run: disallowed executable type:" << ext;
                     errors++; continue;
                 }
-                emit installProgress(progress, tr("Çalıştırılıyor: %1").arg(QFileInfo(exePath).fileName()));
+                emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(QFileInfo(exePath).fileName()));
                 QString workDir = (step.workDir == "package") ? optionDir : gamePath;
                 QProcess proc;
                 proc.setWorkingDirectory(workDir);
@@ -1859,7 +1892,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 }
                 QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
                 QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
-                emit installProgress(progress, tr("Masaüstüne kopyalanıyor: %1").arg(step.dest));
+                emit installProgress(progress, tr("%1 — Adım %2/%3: Masaüstüne %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
                 if (QFile::exists(destPath)) QFile::remove(destPath);
                 if (QFile::copy(srcPath, destPath)) {
                     installedFiles.append("_desktop:" + step.dest);
@@ -1875,7 +1908,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     qWarning() << "Path traversal blocked in rename:" << step.src;
                     errors++; continue;
                 }
-                emit installProgress(progress, tr("Yeniden adlandırılıyor: %1").arg(step.dest));
+                emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
                 if (QFile::exists(srcPath)) {
                     if (QFile::exists(destPath)) QFile::remove(destPath);
                     if (QFile::rename(srcPath, destPath)) {
@@ -1905,7 +1938,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
                     errors++; continue;
                 }
-                emit installProgress(progress, tr("Yeniden adlandırılıyor: %1").arg(step.dest));
+                emit installProgress(progress, tr("Adım %1/%2: %3").arg(current).arg(totalSteps).arg(step.dest));
                 if (QFile::exists(srcPath)) {
                     if (QFile::exists(destPath)) QFile::remove(destPath);
                     if (QFile::rename(srcPath, destPath)) {
@@ -2063,14 +2096,21 @@ void LocalPackageManager::executeUnityPatch(const PackageInfo& pkg, const QStrin
 
     // Backup and patch each bundle
     for (const auto& [bundlePathStr, patches] : patchesByBundle) {
+        // Cancellation check
+        if (isCancelled()) {
+            if (m_journal) m_journal->abortOperation();
+            emit installCompleted(false, tr("Kurulum iptal edildi"));
+            return;
+        }
+
         fs::path bundlePath(bundlePathStr);
         currentBundle++;
         double progress = 0.2 + 0.7 * static_cast<double>(currentBundle - 1) / totalBundles;
         QString bundleName = QString::fromStdString(bundlePath.filename().string());
 
         emit installProgress(progress,
-            tr("Yedekleniyor: %1 (%2/%3)")
-                .arg(bundleName).arg(currentBundle).arg(totalBundles));
+            tr("Bundle %1/%2: Yedekleniyor %3")
+                .arg(currentBundle).arg(totalBundles).arg(bundleName));
 
         // Backup the original bundle file
         QString bundlePathQ = QString::fromStdString(bundlePath.string());
@@ -2088,8 +2128,8 @@ void LocalPackageManager::executeUnityPatch(const PackageInfo& pkg, const QStrin
         if (m_journal) m_journal->recordFileModified(relPath);
 
         emit installProgress(progress + 0.35 / totalBundles,
-            tr("Yamalanıyor: %1 (%2/%3)")
-                .arg(bundleName).arg(currentBundle).arg(totalBundles));
+            tr("Bundle %1/%2: Yamalanıyor %3")
+                .arg(currentBundle).arg(totalBundles).arg(bundleName));
 
         // Patch the bundle
         auto patchResult = patcher.patchBundle(bundlePath, patches);

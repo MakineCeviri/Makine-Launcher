@@ -21,6 +21,8 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRegularExpression>
+#include <QtConcurrent>
+#include <QProcess>
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
@@ -52,16 +54,102 @@ GameService::GameService(QObject *parent)
 void GameService::initialize()
 {
     setupCoreBridge();
-    loadCachedGames();
-    loadSteamDetailsCache();
 
-    // Auto-scan on first launch if no cached games
-    if (m_games.isEmpty()) {
-        qDebug() << "No cached games found, starting auto-scan...";
-        QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
-    }
+    // Load caches in background thread to avoid blocking the UI
+    const QString gamesCachePath = AppPaths::gamesCacheFile();
+    const QString steamCachePath = AppPaths::steamDetailsCacheFile();
 
-    emit gamesChanged();
+    (void)QtConcurrent::run([this, gamesCachePath, steamCachePath]() {
+        MAKINE_ZONE_NAMED("GameService::initialize (async)");
+
+        // Parse game cache (thread-safe: only reads file + creates local list)
+        QList<GameInfo> games;
+        {
+            QFile file(gamesCachePath);
+            if (file.open(QIODevice::ReadOnly)) {
+                QJsonParseError err;
+                const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
+                file.close();
+
+                if (err.error == QJsonParseError::NoError && doc.isArray()) {
+                    const auto arr = doc.array();
+                    games.reserve(arr.count());
+                    for (const auto& value : arr) {
+                        if (!value.isObject()) continue;
+                        const QJsonObject obj = value.toObject();
+                        GameInfo g;
+                        g.id = obj["id"].toString();
+                        g.name = obj["name"].toString();
+                        g.headerImageUrl = obj["headerImageUrl"].toString();
+                        g.installPath = obj["installPath"].toString();
+                        g.steamAppId = obj["steamAppId"].toString();
+                        g.source = obj["source"].toString();
+                        g.engine = obj["engine"].toString();
+                        g.isVerified = obj["isVerified"].toBool();
+                        g.isInstalled = obj["isInstalled"].toBool();
+                        g.hasTranslation = obj["hasTranslation"].toBool();
+                        if (!g.id.isEmpty() && !g.name.isEmpty())
+                            games.append(g);
+                    }
+                }
+            }
+        }
+
+        // Parse Steam details cache
+        QHash<QString, SteamDetails> steamDetails;
+        {
+            QFile file(steamCachePath);
+            if (file.open(QIODevice::ReadOnly)) {
+                QJsonParseError err;
+                const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
+                file.close();
+
+                if (err.error == QJsonParseError::NoError && doc.isObject()) {
+                    const QJsonObject root = doc.object();
+                    for (auto it = root.begin(); it != root.end(); ++it) {
+                        const QJsonObject obj = it.value().toObject();
+                        SteamDetails d;
+                        d.description = obj["description"].toString();
+                        d.releaseDate = obj["releaseDate"].toString();
+                        d.metacriticScore = obj["metacriticScore"].toInt(0);
+                        d.hasWindows = obj["hasWindows"].toBool(true);
+                        d.hasMac = obj["hasMac"].toBool(false);
+                        d.hasLinux = obj["hasLinux"].toBool(false);
+                        d.price = obj["price"].toString();
+                        d.discountPercent = obj["discountPercent"].toInt(0);
+                        d.backgroundUrl = obj["backgroundUrl"].toString();
+                        d.fetchedAt = QDateTime::fromString(obj["fetchedAt"].toString(), Qt::ISODate);
+                        for (const auto& v : obj["developers"].toArray()) d.developers.append(v.toString());
+                        for (const auto& v : obj["publishers"].toArray()) d.publishers.append(v.toString());
+                        for (const auto& v : obj["genres"].toArray()) d.genres.append(v.toString());
+                        for (const auto& v : obj["screenshots"].toArray()) d.screenshots.append(v.toString());
+                        if (!d.isExpired())
+                            steamDetails[it.key()] = d;
+                    }
+                }
+            }
+        }
+
+        qDebug() << "Parsed" << games.count() << "games and"
+                 << steamDetails.size() << "Steam details (background)";
+
+        // Deliver results to main thread
+        QMetaObject::invokeMethod(this, [this,
+                                         g = std::move(games),
+                                         s = std::move(steamDetails)]() mutable {
+            m_games = std::move(g);
+            m_steamDetailsCache = std::move(s);
+            rebuildCache();
+
+            if (m_games.isEmpty()) {
+                qDebug() << "No cached games, auto-scan scheduled";
+                QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
+            }
+
+            emit gamesChanged();
+            ensureSupportedGamesCache();
+        }, Qt::QueuedConnection);
+    });
 }
 
 GameService::~GameService() = default;
@@ -1122,6 +1210,13 @@ QString GameService::getVariantSpecialDialog(const QString& gameId, const QStrin
     return m_coreBridge->getVariantSpecialDialogForGame(gameId, variant);
 }
 
+void GameService::cancelInstallation()
+{
+    if (m_coreBridge)
+        m_coreBridge->cancelInstall();
+    m_installingGameId.clear();
+}
+
 void GameService::installTranslation(const QString& gameId, const QString& variant,
                                       const QStringList& selectedOptions)
 {
@@ -1144,24 +1239,6 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
     }
 
     const GameInfo& game = m_games[*it];
-
-    // Security: Check if game is currently running
-    if (!game.installPath.isEmpty()) {
-        QDir gameDir(game.installPath);
-        QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
-        for (const QString& exe : exeFiles) {
-            // Check if process is running via tasklist
-            QProcess tasklist;
-            tasklist.start("tasklist", {"/FI", "IMAGENAME eq " + exe, "/FO", "CSV", "/NH"});
-            tasklist.waitForFinished(2000);
-            QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
-            if (output.contains(exe, Qt::CaseInsensitive) && !output.contains("INFO:")) {
-                emit translationInstallCompleted(gameId, false,
-                    tr("Bu oyun şu anda çalışıyor (%1). Çeviriyi kurmak için oyunu kapatın.").arg(exe));
-                return;
-            }
-        }
-    }
 
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
@@ -1188,43 +1265,73 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         m_antiCheatAcknowledged.remove(gameId);
     }
 
+    // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
     emit translationInstallStarted(gameId);
+    emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
 
-    // Selective async backup: only backup files that translation will overwrite
-    BackupManager* bm = BackupManager::instance();
-    QStringList filesToOverwrite = m_coreBridge->getPackageFileList(gameId, variant);
+    // Async game running check (avoids blocking main thread with tasklist)
+    QString installPath = game.installPath;
+    auto* watcher = new QFutureWatcher<QString>(this);
+    connect(watcher, &QFutureWatcher<QString>::finished, this,
+        [this, watcher, gameId, installPath, variant, selectedOptions, pkg]() {
+            QString runningExe = watcher->result();
+            watcher->deleteLater();
 
-    if (bm && !filesToOverwrite.isEmpty()) {
-        emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
+            if (!runningExe.isEmpty()) {
+                m_installingGameId.clear();
+                emit translationInstallCompleted(gameId, false,
+                    tr("Bu oyun şu anda çalışıyor (%1). Çeviriyi kurmak için oyunu kapatın.").arg(runningExe));
+                return;
+            }
 
-        // One-shot connection: when backup done, proceed with install
-        connect(bm, &BackupManager::selectiveBackupCompleted, this,
-            [this, gameId, gamePath = game.installPath, variant, selectedOptions](const QString& backupGameId, bool /*success*/) {
-                if (backupGameId != gameId) return;
+            // Game not running — proceed with backup + install
+            BackupManager* bm = BackupManager::instance();
+            QStringList filesToOverwrite = m_coreBridge->getPackageFileList(gameId, variant);
 
+            if (bm && !filesToOverwrite.isEmpty()) {
+                emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
+
+                connect(bm, &BackupManager::selectiveBackupCompleted, this,
+                    [this, gameId, installPath, variant, selectedOptions](const QString& backupGameId, bool /*success*/) {
+                        if (backupGameId != gameId) return;
+
+                        qDebug() << "Installing translation for" << gameId
+                                 << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                                 << "options:" << selectedOptions
+                                 << "path:" << installPath;
+
+                        m_coreBridge->installPackage(gameId, installPath, variant, selectedOptions);
+                    }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+
+                QString storeVer = m_updateService ? m_updateService->getRecordedStoreVersionId(gameId) : QString();
+                QString patchVer = pkg.has_value() ? pkg->version : QString();
+                bm->createSelectiveBackupAsync(gameId, m_games[m_gameIdToIndex.value(gameId)].name,
+                                                installPath, filesToOverwrite, storeVer, patchVer);
+            } else {
                 qDebug() << "Installing translation for" << gameId
                          << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                          << "options:" << selectedOptions
-                         << "path:" << gamePath;
+                         << "path:" << installPath;
 
-                m_coreBridge->installPackage(gameId, gamePath, variant, selectedOptions);
-            }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+                m_coreBridge->installPackage(gameId, installPath, variant, selectedOptions);
+            }
+        });
 
-        QString storeVer = m_updateService ? m_updateService->getRecordedStoreVersionId(gameId) : QString();
-        QString patchVer = pkg.has_value() ? pkg->version : QString();
-        bm->createSelectiveBackupAsync(gameId, game.name, game.installPath, filesToOverwrite,
-                                        storeVer, patchVer);
-    } else {
-        // No backup needed — proceed directly
-        qDebug() << "Installing translation for" << game.name
-                 << "gameId:" << gameId
-                 << "variant:" << (variant.isEmpty() ? "(none)" : variant)
-                 << "options:" << selectedOptions
-                 << "path:" << game.installPath;
-
-        m_coreBridge->installPackage(gameId, game.installPath, variant, selectedOptions);
-    }
+    watcher->setFuture(QtConcurrent::run([installPath]() -> QString {
+        QDir gameDir(installPath);
+        QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
+        for (const QString& exe : exeFiles) {
+            QProcess tasklist;
+            tasklist.start("tasklist", {"/FI", "IMAGENAME eq " + exe, "/FO", "CSV", "/NH"});
+            tasklist.waitForFinished(2000);
+            QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
+            if (output.contains(exe, Qt::CaseInsensitive) && !output.contains("INFO:")) {
+                return exe;
+            }
+        }
+        return {};
+    }));
 }
 
 void GameService::uninstallTranslation(const QString& gameId)

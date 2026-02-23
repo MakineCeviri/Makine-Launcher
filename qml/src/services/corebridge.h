@@ -136,6 +136,11 @@ public:
                         const QStringList& selectedOptions = {});
 
     /**
+     * @brief Cancel an in-progress installation
+     */
+    void cancelInstall();
+
+    /**
      * @brief Get available variants for a game
      */
     QVariantList getVariantsForGame(const QString& gameId);

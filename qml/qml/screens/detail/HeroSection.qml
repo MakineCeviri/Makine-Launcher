@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
+import QtQuick.Window
 import MakineAI 1.0
 
 Item {
@@ -242,6 +243,8 @@ Item {
                 }
 
                 // Shimmer effect during install
+                // Keeps running even when window loses focus (user switches app),
+                // stops only when minimized/hidden to save GPU.
                 Rectangle {
                     id: shimmerRect
                     visible: heroRoot.isInstallingTranslation && heroRoot.installProgress > 0
@@ -254,6 +257,9 @@ Item {
                     property real shimmerPos: 0
                     NumberAnimation on shimmerPos {
                         running: shimmerRect.visible
+                                 && Window.window !== null
+                                 && Window.window.visibility !== Window.Minimized
+                                 && Window.window.visibility !== Window.Hidden
                         from: -0.3; to: 1.3; duration: Dimensions.animLoadingCycle
                         loops: Animation.Infinite
                     }
@@ -368,6 +374,41 @@ Item {
                             font.pixelSize: Dimensions.fontMicro
                             font.weight: Font.Bold
                             color: Theme.accent
+                        }
+                    }
+
+                    // Cancel button (during install)
+                    Rectangle {
+                        visible: heroRoot.isInstallingTranslation
+                        Layout.preferredWidth: 22; Layout.preferredHeight: 22
+                        radius: 11
+                        color: cancelMouse.containsMouse
+                            ? Theme.withAlpha(Theme.error, 0.20)
+                            : Theme.withAlpha(Theme.textMuted, 0.10)
+                        border.color: cancelMouse.containsMouse
+                            ? Theme.withAlpha(Theme.error, 0.40)
+                            : Theme.withAlpha(Theme.textMuted, 0.15)
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("Kurulumu iptal et")
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u2715"
+                            font.pixelSize: Dimensions.fontMicro
+                            font.weight: Font.Bold
+                            color: cancelMouse.containsMouse ? Theme.error : Theme.textMuted
+                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                        }
+                        MouseArea {
+                            id: cancelMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: GameService.cancelInstallation()
                         }
                     }
                 }

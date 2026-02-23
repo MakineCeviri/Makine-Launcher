@@ -72,11 +72,8 @@ CoreBridge::CoreBridge(QObject *parent)
     : QObject(parent)
 {
     s_instance = this;
-
-#ifndef MAKINEAI_UI_ONLY
-    // Initialize Core on construction
-    ensureCoreInitialized();
-#endif
+    // Core library init deferred to first use (scanAllLibraries)
+    // to avoid blocking startup
 }
 
 CoreBridge::~CoreBridge()
@@ -489,6 +486,11 @@ void CoreBridge::scanAllLibraries()
         "C:/cedra/translation_data").toString();
 
     (void)QtConcurrent::run([this, pkgMgr, translationPath]() {
+#ifndef MAKINEAI_UI_ONLY
+        // Lazy Core init — runs once in background, doesn't block UI
+        ensureCoreInitialized();
+#endif
+
         // Load translation packages directly in background thread (avoid main-thread block)
         emit scanProgress(0.0, tr("Çeviri paketleri yükleniyor..."));
         pkgMgr->loadFromPath(translationPath);
@@ -657,8 +659,9 @@ QVariantList CoreBridge::allSupportedGames() const
             entry["id"] = steamAppId;
         }
 
-        // All catalog games have translation available
+        // All catalog games have translation available and are verified
         entry["hasTranslation"] = true;
+        entry["isVerified"] = true;
         entry["name"] = entry["gameName"];
 
         catalog[i] = entry;
@@ -718,6 +721,12 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
     } else {
         emit packageInstallCompleted(false, tr("Paket bulunamadı: %1").arg(packageId));
     }
+}
+
+void CoreBridge::cancelInstall()
+{
+    if (m_localPkgManager)
+        m_localPkgManager->cancelInstall();
 }
 
 QVariantList CoreBridge::getVariantsForGame(const QString& gameId)

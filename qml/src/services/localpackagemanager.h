@@ -18,6 +18,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <optional>
+#include <atomic>
 
 #ifndef MAKINEAI_UI_ONLY
 #include <makineai/package_catalog.hpp>
@@ -110,6 +111,7 @@ public:
     void installPackage(const QString& steamAppId, const QString& gamePath,
                         const QString& variant = {},
                         const QStringList& selectedOptions = {});
+    void cancelInstall();
     bool uninstallPackage(const QString& steamAppId, const QString& gamePath);
 
     // Resolve any store ID (epic_xxx, gog_xxx, steamAppId) to canonical steamAppId
@@ -171,8 +173,11 @@ private:
     QHash<QString, QString> m_storeIdToSteamAppId;
 #endif
 
+    bool isCancelled() const { return m_cancelRequested.load(std::memory_order_relaxed); }
+
     QString m_dataPath;
     OperationJournal* m_journal{nullptr};
+    std::atomic<bool> m_cancelRequested{false};
 };
 
 } // namespace makineai

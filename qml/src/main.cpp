@@ -673,13 +673,14 @@ int main(int argc, char *argv[])
     auto* imageCache = new ImageCacheManager(&app);
     engine.rootContext()->setContextProperty("ImageCache", imageCache);
 
-    // ===== Phase 3: Game library (heaviest data load) =====
+    // ===== Phase 3: Game library (construction only — data loads after QML) =====
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi y\u00FCkleniyor...");
+    splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi haz\u0131rlan\u0131yor...");
 #endif
     auto* gameService = new GameService(&app);
     engine.rootContext()->setContextProperty("GameService", gameService);
-    gameService->initialize();
+    // initialize() deferred to after QML creation for faster first frame
+    logToFile(QString("Phase 3 (GameService created) at %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN
     splash.pumpMessages();
 #endif
@@ -787,7 +788,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
     splash.setStatus(L"Aray\u00FCz derleniyor...");
 #endif
-    logToFile("Loading QML module MakineAI.Main...");
+    logToFile(QString("Phase 8 (QML load start) at %1 ms").arg(startupTimer.elapsed()));
 
     // Use QQmlComponent for incremental loading — keeps splash alive
     QQmlComponent mainComponent(&engine);
@@ -810,6 +811,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    logToFile(QString("Phase 8 (QML compiled) at %1 ms").arg(startupTimer.elapsed()));
+
     // ===== Phase 9: Create root window =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Pencere olu\u015Fturuluyor...");
@@ -826,6 +829,14 @@ int main(int argc, char *argv[])
     engine.setObjectOwnership(rootObject, QQmlEngine::JavaScriptOwnership);
 
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
+
+    // ===== Phase 9.5: Deferred data loading =====
+    // Schedule GameService init for AFTER first frame renders.
+    // QML shows instantly with empty data, then caches load and QML updates.
+    QTimer::singleShot(0, gameService, [gameService, &startupTimer]() {
+        gameService->initialize();
+        logToFile(QString("GameService initialized at %1 ms").arg(startupTimer.elapsed()));
+    });
 
     // ===== Phase 10: Pre-render + finalize =====
 #ifdef Q_OS_WIN
@@ -894,18 +905,23 @@ int main(int argc, char *argv[])
             }
         });
 
+        logToFile(QString("Phase 10 (pre-render start) at %1 ms").arg(startupTimer.elapsed()));
+
         // Pre-render: process a few frames so shaders compile before user sees window
         // This prevents the "white flash" on first frame
         for (int i = 0; i < 3; ++i) {
             QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
             splash.pumpMessages();
         }
+
+        logToFile(QString("Phase 10 (pre-render done) at %1 ms").arg(startupTimer.elapsed()));
 #endif
     }
 
     // Close splash — window is fully ready
 #ifdef Q_OS_WIN
-    splash.waitMinimumDisplay(500);
+    splash.waitMinimumDisplay(200);
+    logToFile(QString("Splash closed at %1 ms").arg(startupTimer.elapsed()));
     splash.close();
 #endif
 

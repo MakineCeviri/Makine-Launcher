@@ -168,10 +168,11 @@ ApplicationWindow {
         onActivated: GameService.scanAllLibraries()
     }
 
-    // GPU Optimization: Disable animations when window is not visible/active or user disabled them
+    // GPU Optimization: Disable animations only when minimized or hidden.
+    // Animations keep running when window loses focus (e.g. user switches app
+    // during install) so shimmer/glow still shows the app is alive.
     readonly property bool animationsEnabled: SettingsManager.enableAnimations &&
                                               window.visible &&
-                                              window.active &&
                                               window.visibility !== Window.Minimized &&
                                               window.visibility !== Window.Hidden
 
@@ -386,7 +387,7 @@ ApplicationWindow {
             // Outgoing page: fade out + subtle slide up
             ParallelAnimation {
                 id: fadeOutAnimation
-                property var target
+                property var target: null
                 NumberAnimation {
                     target: fadeOutAnimation.target
                     property: "opacity"
@@ -406,7 +407,7 @@ ApplicationWindow {
             // Incoming page: fade in + slide up from below
             ParallelAnimation {
                 id: fadeInAnimation
-                property var target
+                property var target: null
                 NumberAnimation {
                     target: fadeInAnimation.target
                     property: "opacity"

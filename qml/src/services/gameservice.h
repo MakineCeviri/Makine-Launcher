@@ -228,6 +228,11 @@ public:
                                          const QStringList& selectedOptions = {});
 
     /**
+     * @brief Cancel an in-progress translation installation
+     */
+    Q_INVOKABLE void cancelInstallation();
+
+    /**
      * @brief Uninstall translation package from a game
      */
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
