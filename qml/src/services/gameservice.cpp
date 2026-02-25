@@ -391,8 +391,23 @@ void GameService::addManualGame(const QString& path)
         QString engine;
         if (cb) engine = cb->detectEngine(path);
 
+        // Step 1: Try folder-name matching (fast, backward compatible)
         QString matchedAppId;
         if (cb) matchedAppId = cb->findMatchingAppId(folderName);
+
+        // Step 2: If no match, try file-based fingerprint matching
+        if (matchedAppId.isEmpty() && cb) {
+            QVariantList candidates = cb->findMatchingGamesFromFiles(path);
+            if (!candidates.isEmpty()) {
+                QVariantMap best = candidates.first().toMap();
+                if (best.value(QStringLiteral("confidence")).toInt() >= 70) {
+                    matchedAppId = best.value(QStringLiteral("steamAppId")).toString();
+                    qDebug() << "Fingerprint match:" << matchedAppId
+                             << "confidence:" << best.value(QStringLiteral("confidence")).toInt()
+                             << "matchedBy:" << best.value(QStringLiteral("matchedBy")).toString();
+                }
+            }
+        }
 
         QMetaObject::invokeMethod(this, [this, path, folderName, engine, matchedAppId]() {
             finalizeManualGame(path, folderName, engine, matchedAppId);
@@ -551,31 +566,6 @@ QVariantList GameService::filteredGamesWithTranslation(const QString& filter) co
     }
     result.squeeze();
     return result;
-}
-
-QString GameService::classifyDroppedUrls(const QVariantList& urls) const
-{
-    MAKINE_ZONE_NAMED("GameService::classifyDroppedUrls");
-    if (urls.isEmpty())
-        return QStringLiteral("unknown");
-
-    for (const auto& urlVar : urls) {
-        const QString urlStr = urlVar.toString().toLower();
-        if (urlStr.endsWith(QLatin1String(".mkpkg")))
-            return QStringLiteral("package");
-        if (urlStr.endsWith(QLatin1String(".zip")) ||
-            urlStr.endsWith(QLatin1String(".rar")) ||
-            urlStr.endsWith(QLatin1String(".7z")))
-            return QStringLiteral("archive");
-    }
-
-    const QString first = urls.first().toString();
-    if (!first.contains(QLatin1Char('.')) ||
-        first.endsWith(QLatin1Char('/')) ||
-        first.endsWith(QLatin1Char('\\')))
-        return QStringLiteral("folder");
-
-    return QStringLiteral("unknown");
 }
 
 QVariantMap GameService::getGameDetails(const QString& gameId)
@@ -1184,91 +1174,7 @@ bool GameService::isValidGamePath(const QString& path) const
     return true;
 }
 
-void GameService::handleDroppedFiles(const QVariantList& urls) {
-    MAKINE_ZONE_NAMED("GameService::handleDroppedFiles");
-    for (const auto& urlVar : urls) {
-        QString urlStr = urlVar.toString();
 
-        // Convert file:// URL to local path
-        QUrl url(urlStr);
-        QString filePath = url.isLocalFile() ? url.toLocalFile() : urlStr;
-
-        QFileInfo info(filePath);
-        if (!info.exists()) {
-            qWarning() << "Dropped file does not exist:" << filePath;
-            continue;
-        }
-
-        if (info.isDir()) {
-            qDebug() << "Folder dropped:" << filePath;
-            addManualGame(filePath);
-            emit folderDropped(filePath, true);
-        } else {
-            QString ext = info.suffix().toLower();
-
-            if (ext == "mkpkg") {
-                // Translation package
-                qDebug() << "Package dropped:" << filePath;
-                installLocalPackage(filePath);
-            } else if (ext == "zip" || ext == "rar" || ext == "7z") {
-                // Archive — for now, emit as package attempt
-                // Full archive extraction would need libarchive integration
-                qDebug() << "Archive dropped:" << filePath;
-                emit localPackageError(filePath,
-                    tr("Archive format not yet supported. Please use .mkpkg packages."));
-            } else {
-                qDebug() << "Unknown file type dropped:" << filePath;
-                emit localPackageError(filePath,
-                    tr("Unsupported file type: .%1").arg(ext));
-            }
-        }
-    }
-}
-
-void GameService::installLocalPackage(const QString& filePath) {
-    MAKINE_ZONE_NAMED("GameService::installLocalPackage");
-    QFileInfo info(filePath);
-    if (!info.exists() || !info.isFile()) {
-        emit localPackageError(filePath, tr("File not found"));
-        return;
-    }
-
-    if (info.suffix().toLower() != "mkpkg") {
-        emit localPackageError(filePath, tr("Not a valid .mkpkg package"));
-        return;
-    }
-
-    // Read the package manifest to get game info
-    // In a full implementation, this would use PackageBuilder::inspect()
-    // For now, extract basic info from filename convention: gamename-version.mkpkg
-    QString baseName = info.completeBaseName(); // e.g. "hollow-knight-tr-2.1.0"
-
-    // Try to parse name-version pattern
-    QString packageName = baseName;
-    QString gameName = baseName;
-
-    // Look for last hyphen followed by version-like string
-    int lastHyphen = baseName.lastIndexOf('-');
-    if (lastHyphen > 0) {
-        QString possibleVersion = baseName.mid(lastHyphen + 1);
-        // Simple version check: starts with digit
-        if (!possibleVersion.isEmpty() && possibleVersion[0].isDigit()) {
-            gameName = baseName.left(lastHyphen);
-        }
-    }
-
-    // Replace hyphens with spaces for display
-    gameName.replace('-', ' ');
-
-    qDebug() << "Installing local package:" << packageName << "for game:" << gameName;
-
-    emit localPackageReady(packageName, gameName, filePath);
-
-    // Delegate to CoreBridge for actual installation
-    if (m_coreBridge) {
-        m_coreBridge->installPackage(baseName, info.absoluteFilePath());
-    }
-}
 
 QVariantList GameService::getVariants(const QString& gameId)
 {
@@ -1764,7 +1670,12 @@ QVariantMap GameService::checkAntiCheat(const QString& gameId)
 
 bool GameService::hasLocalPackage(const QString& steamAppId) const
 {
-    return m_coreBridge && m_coreBridge->hasTranslationPackage(steamAppId);
+    if (!m_coreBridge || !m_coreBridge->hasTranslationPackage(steamAppId))
+        return false;
+    // Metadata exists in manifest — check if package files are actually downloaded
+    QString dirName = m_coreBridge->getPackageDirName(steamAppId);
+    if (dirName.isEmpty()) return false;
+    return QDir(AppPaths::packagesDir() + QStringLiteral("/") + dirName).exists();
 }
 
 QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const

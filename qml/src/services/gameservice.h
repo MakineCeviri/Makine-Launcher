@@ -160,27 +160,10 @@ public:
     Q_INVOKABLE QVariantList filteredGamesWithTranslation(const QString& filter = {}) const;
 
     /**
-     * @brief Classify dropped URLs by file extension
-     * @return "package", "archive", "folder", or "unknown"
-     */
-    Q_INVOKABLE QString classifyDroppedUrls(const QVariantList& urls) const;
-
-    /**
      * @brief Get all game details in a single call
      * Combines recipe info, font analysis, compatibility, and runtime status
      */
     Q_INVOKABLE QVariantMap getGameDetails(const QString& gameId);
-
-    /**
-     * @brief Handle files dropped onto the application window
-     * Dispatches to appropriate handler based on file type
-     */
-    Q_INVOKABLE void handleDroppedFiles(const QVariantList& urls);
-
-    /**
-     * @brief Install a local .mkpkg translation package
-     */
-    Q_INVOKABLE void installLocalPackage(const QString& filePath);
 
     /**
      * @brief Get available variants for a game (versions or platforms)
@@ -325,10 +308,7 @@ signals:
     void scanError(const QString& error);
     void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
-    void localPackageReady(const QString& packageName, const QString& gameName, const QString& filePath);
-    void localPackageError(const QString& filePath, const QString& error);
     void manualGameAdded(const QString& gameId);
-    void folderDropped(const QString& path, bool isGame);
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
     void translationInstallStarted(const QString& gameId);
     void translationInstallProgress(const QString& gameId, double progress, const QString& status);

@@ -178,26 +178,47 @@ Result<GameInfo> GameDetector::detectGame(const fs::path& gamePath) const {
     game.installPath = gamePath;
     game.id.store = GameStore::Manual;
 
-    // Find executable
+    // Scan top-level directory: collect exe names and all entries
     fs::path exePath;
+    fs::path bestExePath;
     for (const auto& entry : fs::directory_iterator(gamePath)) {
+        auto name = entry.path().filename().string();
+        game.topLevelEntries.push_back(name);
+
         if (entry.is_regular_file()) {
             auto ext = entry.path().extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             if (ext == ".exe") {
-                exePath = entry.path();
-                // Prefer non-launcher executables
-                auto filename = entry.path().filename().string();
+                auto filename = name;
                 std::transform(filename.begin(), filename.end(),
                     filename.begin(), ::tolower);
-                if (filename.find("launcher") == std::string::npos &&
-                    filename.find("crash") == std::string::npos &&
-                    filename.find("unins") == std::string::npos) {
-                    break;
+
+                // Skip known non-game executables
+                bool isLauncher = (filename.find("launcher") != std::string::npos ||
+                                   filename.find("crash") != std::string::npos ||
+                                   filename.find("unins") != std::string::npos ||
+                                   filename.find("redist") != std::string::npos ||
+                                   filename.find("setup") != std::string::npos ||
+                                   filename.find("dxsetup") != std::string::npos ||
+                                   filename.find("vcredist") != std::string::npos ||
+                                   filename.find("dotnet") != std::string::npos);
+
+                if (!isLauncher) {
+                    game.executableNames.push_back(filename);
+                    if (!bestExePath.empty()) {
+                        // Keep first non-launcher as best
+                    } else {
+                        bestExePath = entry.path();
+                    }
                 }
+                // Always track for fallback
+                exePath = entry.path();
             }
         }
     }
+
+    // Use best non-launcher exe, or fallback to any exe
+    if (!bestExePath.empty()) exePath = bestExePath;
 
     if (exePath.empty()) {
         return std::unexpected(Error(ErrorCode::GameNotFound,

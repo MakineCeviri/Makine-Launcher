@@ -151,6 +151,10 @@ struct GameInfo {
     bool hasTranslation = false;  ///< Has any translation installed
     StringList translatedLanguages;  ///< Languages with translations
 
+    // File-based identification signals (populated by detectGame)
+    StringList executableNames;    // All .exe files found (lowercase, filtered)
+    StringList topLevelEntries;    // Top-level files/dirs in game root
+
     // Optional metadata
     std::optional<std::string> iconPath;
     std::optional<std::string> publisher;

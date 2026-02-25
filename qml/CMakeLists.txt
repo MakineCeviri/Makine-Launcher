@@ -229,7 +229,6 @@ qt_add_qml_module(MakineAI
         qml/components/AnimatedGradientGlow.qml   # Animated glow effect
         qml/components/GradientBorderCanvas.qml   # Gradient border drawing
         qml/components/SkeletonLoader.qml         # Generic loading skeleton
-        qml/components/DropZoneOverlay.qml        # Drag & drop overlay
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         #
         # ── Internal Components (settings/detail screens only) ──
