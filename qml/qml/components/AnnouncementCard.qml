@@ -25,41 +25,14 @@ Rectangle {
     border.width: 1
     Behavior on border.color { ColorAnimation { duration: Dimensions.animNormal } }
 
-    // Ambient glow — single Canvas, repaints on hover state change
-    Canvas {
+    // Ambient glow — hover-responsive radial glow
+    AmbientGlow {
         anchors.fill: parent; z: 1
-        property color glowColor: Theme.accentBase
-        property bool hovered: heroMa.containsMouse
-        onGlowColorChanged: requestPaint()
-        onHoveredChanged: requestPaint()
-        onPaint: {
-            var ctx = getContext("2d")
-            ctx.clearRect(0, 0, width, height)
-            var cr = Dimensions.radiusSection
-            ctx.beginPath()
-            ctx.moveTo(cr, 0); ctx.lineTo(width - cr, 0)
-            ctx.quadraticCurveTo(width, 0, width, cr)
-            ctx.lineTo(width, height - cr)
-            ctx.quadraticCurveTo(width, height, width - cr, height)
-            ctx.lineTo(cr, height)
-            ctx.quadraticCurveTo(0, height, 0, height - cr)
-            ctx.lineTo(0, cr)
-            ctx.quadraticCurveTo(0, 0, cr, 0)
-            ctx.closePath(); ctx.clip()
-            var gc = glowColor
-            var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
-            var a0 = hovered ? 0.50 : 0.22
-            var a1 = hovered ? 0.25 : 0.10
-            var a2 = hovered ? 0.10 : 0.04
-            var spread = hovered ? 0.55 : 0.5
-            var grad = ctx.createRadialGradient(30, height - 20, 0, 30, height - 20, Math.max(width, height) * spread)
-            grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + "," + a0 + ")")
-            grad.addColorStop(0.25, "rgba(" + R + "," + G + "," + B + "," + a1 + ")")
-            grad.addColorStop(0.5, "rgba(" + R + "," + G + "," + B + "," + a2 + ")")
-            grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
-            ctx.fillStyle = grad
-            ctx.fillRect(0, 0, width, height)
-        }
+        glowColor: Theme.accentBase
+        cornerRadius: Dimensions.radiusSection
+        originX: 30; originY: height - 20
+        intensity: 0.22; hoveredIntensity: 0.50; spread: 0.50
+        hovered: heroMa.containsMouse
     }
 
     // Hero game data — planned localization showcase

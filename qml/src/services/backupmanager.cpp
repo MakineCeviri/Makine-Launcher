@@ -5,6 +5,7 @@
  */
 
 #include "backupmanager.h"
+#include "profiler.h"
 #include "operationjournal.h"
 #include "pathsecurity.h"
 #include "appprotection.h"
@@ -53,6 +54,7 @@ BackupManager* BackupManager::instance()
 
 QVariantList BackupManager::backups() const
 {
+    MAKINE_ZONE_NAMED("BackupManager::backups");
     QVariantList result;
     for (const auto& backup : m_backups) {
         result.append(backup.toVariantMap());
@@ -78,6 +80,7 @@ QString BackupManager::totalSizeFormatted() const
 
 QVariantList BackupManager::getBackupsForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("BackupManager::getBackupsForGame");
     QVariantList result;
     for (const auto& backup : m_backups) {
         if (backup.gameId == gameId) {
@@ -90,6 +93,7 @@ QVariantList BackupManager::getBackupsForGame(const QString& gameId)
 
 QVariantMap BackupManager::getLatestBackup(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("BackupManager::getLatestBackup");
     const BackupInfo* latest = nullptr;
     for (const auto& b : m_backups) {
         if (b.gameId == gameId && b.isValid) {
@@ -107,6 +111,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
                                                 const QString& gameStoreVersion,
                                                 const QString& patchVersion)
 {
+    MAKINE_ZONE_NAMED("BackupManager::createSelectiveBackupAsync");
     INTEGRITY_GATE();
     if (filesToOverwrite.isEmpty()) {
         emit selectiveBackupCompleted(gameId, true); // Nothing to backup
@@ -206,6 +211,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
 
 bool BackupManager::restoreBackup(const QString& backupId, const QString& targetPath)
 {
+    MAKINE_ZONE_NAMED("BackupManager::restoreBackup");
     INTEGRITY_GATE();
     auto idxIt = m_backupIdToIndex.constFind(backupId);
     if (idxIt == m_backupIdToIndex.constEnd()) {
@@ -320,6 +326,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
 
 bool BackupManager::deleteBackup(const QString& backupId)
 {
+    MAKINE_ZONE_NAMED("BackupManager::deleteBackup");
     auto idxIt = m_backupIdToIndex.constFind(backupId);
     if (idxIt == m_backupIdToIndex.constEnd()) {
         return false;
@@ -351,6 +358,7 @@ bool BackupManager::hasBackup(const QString& gameId)
 
 void BackupManager::loadBackups()
 {
+    MAKINE_ZONE_NAMED("BackupManager::loadBackups");
     const QString metadataPath = getBackupsDirectory() + "/backups.json";
     QFile file(metadataPath);
 

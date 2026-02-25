@@ -5,6 +5,7 @@
  */
 
 #include "corebridge.h"
+#include "profiler.h"
 #include "appprotection.h"
 
 #include <QDebug>
@@ -353,6 +354,7 @@ void CoreBridge::doScanGogReal(QList<DetectedGame>& outGames)
 
 QString CoreBridge::detectEngineReal(const QString& gamePath)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::detectEngine");
     QDir dir(gamePath);
     if (!dir.exists()) return "Unknown";
 
@@ -462,6 +464,7 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
 
 void CoreBridge::scanAllLibraries()
 {
+    MAKINE_ZONE_NAMED("CoreBridge::scanAllLibraries");
     INTEGRITY_GATE();
     emit scanStarted();
     m_detectedGames.clear();
@@ -486,6 +489,7 @@ void CoreBridge::scanAllLibraries()
         "C:/cedra/translation_data").toString();
 
     (void)QtConcurrent::run([this, pkgMgr, translationPath]() {
+        MAKINE_THREAD_NAME("Worker-Scan");
 #ifndef MAKINEAI_UI_ONLY
         // Lazy Core init — runs once in background, doesn't block UI
         ensureCoreInitialized();
@@ -638,6 +642,7 @@ void CoreBridge::buildDetectedGameIndex()
 
 QVariantList CoreBridge::allSupportedGames() const
 {
+    MAKINE_ZONE_NAMED("CoreBridge::allSupportedGames");
     if (!m_localPkgManager) return {};
 
     QVariantList catalog = m_localPkgManager->allPackagesAsList();
@@ -680,6 +685,7 @@ int CoreBridge::supportedGameCount() const
 
 bool CoreBridge::hasTranslationPackage(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::hasTranslationPackage");
     if (!m_localPkgManager) return false;
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -688,6 +694,7 @@ bool CoreBridge::hasTranslationPackage(const QString& gameId)
 
 std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getPackageForGame");
     if (!m_localPkgManager) return std::nullopt;
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -710,6 +717,7 @@ std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString&
 void CoreBridge::installPackage(const QString& packageId, const QString& gamePath,
                                 const QString& variant, const QStringList& selectedOptions)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::installPackage");
     if (!m_localPkgManager) {
         emit packageInstallCompleted(false, tr("Paket yöneticisi başlatılamadı"));
         return;
@@ -731,6 +739,7 @@ void CoreBridge::cancelInstall()
 
 QVariantList CoreBridge::getVariantsForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getVariantsForGame");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -741,6 +750,7 @@ QVariantList CoreBridge::getVariantsForGame(const QString& gameId)
 
 QString CoreBridge::getVariantTypeForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getVariantTypeForGame");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -751,6 +761,7 @@ QString CoreBridge::getVariantTypeForGame(const QString& gameId)
 
 QString CoreBridge::getInstallNotesForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getInstallNotesForGame");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -764,6 +775,7 @@ QString CoreBridge::getInstallNotesForGame(const QString& gameId)
 
 QVariantList CoreBridge::getInstallOptionsForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getInstallOptionsForGame");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -788,6 +800,7 @@ QVariantList CoreBridge::getInstallOptionsForGame(const QString& gameId)
 
 QString CoreBridge::getSpecialDialogForGame(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getSpecialDialogForGame");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -801,6 +814,7 @@ QString CoreBridge::getSpecialDialogForGame(const QString& gameId)
 
 QVariantList CoreBridge::getVariantInstallOptionsForGame(const QString& gameId, const QString& variant)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getVariantInstallOptionsForGame");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -825,6 +839,7 @@ QVariantList CoreBridge::getVariantInstallOptionsForGame(const QString& gameId, 
 
 QString CoreBridge::getVariantSpecialDialogForGame(const QString& gameId, const QString& variant)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getVariantSpecialDialogForGame");
     Q_UNUSED(variant);
     // Variant-specific specialDialog not yet supported; return package-level
     return getSpecialDialogForGame(gameId);
@@ -832,6 +847,7 @@ QString CoreBridge::getVariantSpecialDialogForGame(const QString& gameId, const 
 
 QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString& variant)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::getPackageFileList");
     if (!m_localPkgManager) return {};
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -842,12 +858,14 @@ QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString&
 
 QString CoreBridge::findMatchingAppId(const QString& folderName)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::findMatchingAppId");
     if (!m_localPkgManager) return {};
     return m_localPkgManager->findMatchingAppId(folderName);
 }
 
 bool CoreBridge::isPackageInstalled(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::isPackageInstalled");
     if (!m_localPkgManager) return false;
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -873,6 +891,7 @@ void CoreBridge::updateInstalledStoreVersion(const QString& gameId, const QStrin
 
 bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath)
 {
+    MAKINE_ZONE_NAMED("CoreBridge::uninstallPackage");
     if (!m_localPkgManager) return false;
 
     QString resolved = resolveToSteamAppId(gameId);
@@ -883,6 +902,7 @@ bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath
 
 void CoreBridge::refreshPackageManifest()
 {
+    MAKINE_ZONE_NAMED("CoreBridge::refreshPackageManifest");
     if (!m_localPkgManager) {
         emit packageManifestRefreshed(0);
         return;

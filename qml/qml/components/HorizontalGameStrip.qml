@@ -12,7 +12,7 @@ Item {
 
     property var model: []
     property alias count: view.count
-    property real dragWeight: 0.5
+    property real dragWeight: 0.35
     property bool wrapAround: false
     property bool _initialCentered: false
 
@@ -84,7 +84,9 @@ Item {
         model: strip._viewModel
         clip: !strip.wrapAround
         interactive: false
-        cacheBuffer: 600
+        cacheBuffer: strip.wrapAround ? 400 : 300
+        displayMarginBeginning: 0
+        displayMarginEnd: 0
         pixelAligned: true
         reuseItems: true
 
@@ -145,6 +147,9 @@ Item {
             _lastX = mouse.x
             _lastTime = Date.now()
             _releaseV = 0
+
+            if (typeof FrameTimer !== "undefined")
+                FrameTimer.beginInteraction("scrollStrip")
         }
 
         onPositionChanged: function(mouse) {
@@ -174,7 +179,13 @@ Item {
         onReleased: {
             if (_dragged) {
                 strip._velocity = _releaseV * strip.dragWeight
-                if (Math.abs(strip._velocity) > 0.5) momentumAnim.start()
+                if (Math.abs(strip._velocity) > 0.5) {
+                    momentumAnim.start()
+                } else {
+                    if (typeof FrameTimer !== "undefined") FrameTimer.endInteraction()
+                }
+            } else {
+                if (typeof FrameTimer !== "undefined") FrameTimer.endInteraction()
             }
         }
 
@@ -188,14 +199,25 @@ Item {
     // Momentum after drag release + wheel scroll
     property real _velocity: 0
 
-    Timer {
+    // Frame-synced momentum — fires exactly once per vsync, no timer drift
+    FrameAnimation {
         id: momentumAnim
-        interval: 16; repeat: true
+        running: false
         onTriggered: {
-            strip._velocity *= 0.88
-            if (Math.abs(strip._velocity) < 0.3) { strip._velocity = 0; stop(); return }
+            // Frame-rate independent decay: 0.88 per 16ms baseline
+            var dt = Math.min(frameTime, 0.05) // cap at 50ms to avoid spiral
+            strip._velocity *= Math.pow(0.82, dt / 0.016)
 
-            var newX = view.contentX - strip._velocity
+            if (Math.abs(strip._velocity) < 0.3) {
+                strip._velocity = 0
+                if (typeof FrameTimer !== "undefined") FrameTimer.endInteraction()
+                running = false
+                return
+            }
+
+            // Scale displacement by actual frame time for consistent speed
+            var displacement = strip._velocity * (dt / 0.016)
+            var newX = view.contentX - displacement
 
             if (!strip.wrapAround) {
                 var lo = view.originX
@@ -212,7 +234,9 @@ Item {
         orientation: Qt.Vertical
         property real _prev: 0
         onRotationChanged: {
-            strip._velocity += Math.max(-30, Math.min(30, rotation - _prev)) * 1.0
+            if (typeof FrameTimer !== "undefined" && !momentumAnim.running)
+                FrameTimer.beginInteraction("wheelScroll")
+            strip._velocity += Math.max(-20, Math.min(20, rotation - _prev)) * 0.6
             _prev = rotation
             momentumAnim.restart()
         }

@@ -9,6 +9,7 @@
  */
 
 #include "updatedetectionservice.h"
+#include "profiler.h"
 #include "gameservice.h"
 #include "corebridge.h"
 #include "apppaths.h"
@@ -162,10 +163,9 @@ static update::StoreVersionRecord qtStoreRecordToCore(const StoreVersionRecord& 
 
 UpdateDetectionService::UpdateDetectionService(QObject *parent)
     : QObject(parent)
-    , m_monitorTimer(new QTimer(this))
 {
-    m_monitorTimer->setInterval(kMonitorIntervalMs);
-    connect(m_monitorTimer, &QTimer::timeout, this, &UpdateDetectionService::checkAllGamesQuick);
+    m_monitorTimer.setInterval(kMonitorIntervalMs);
+    connect(&m_monitorTimer, &QTimer::timeout, this, &UpdateDetectionService::checkAllGamesQuick);
     loadStoreVersions();
 }
 
@@ -685,6 +685,7 @@ void UpdateDetectionService::removeStoreVersion(const QString& gameId)
 
 void UpdateDetectionService::checkGameQuick(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("UDS::checkGameQuick");
     if (!m_gameService) return;
 
     QVariantMap gameData = m_gameService->getGameById(gameId);
@@ -741,6 +742,7 @@ void UpdateDetectionService::checkGameQuick(const QString& gameId)
 
 void UpdateDetectionService::checkAllGamesQuick()
 {
+    MAKINE_ZONE_NAMED("UDS::checkAllGamesQuick");
     if (m_isChecking) return;
     if (!m_gameService) return;
 
@@ -781,6 +783,7 @@ void UpdateDetectionService::checkAllGamesQuick()
 
     // Do all file I/O in background thread
     (void)QtConcurrent::run([this, checkList]() {
+        MAKINE_THREAD_NAME("Worker-UpdateCheck");
         struct UpdateResult {
             QString gameId;
             QString gameName;
@@ -856,10 +859,12 @@ void UpdateDetectionService::checkAllGamesQuick()
 void UpdateDetectionService::takeSnapshot(const QString& gameId, const QString& patchVersion,
                                            const QString& installPath, const QString& engine)
 {
+    MAKINE_ZONE_NAMED("UDS::takeSnapshot");
     EngineProfile profile = profileForEngine(engine);
     QString dir = dataDir();
 
     (void)QtConcurrent::run([this, gameId, patchVersion, installPath, profile, dir]() {
+        MAKINE_THREAD_NAME("Worker-Snapshot");
         auto files = hashGameFiles(installPath, profile);
 
         GameSnapshot snapshot;
@@ -928,6 +933,7 @@ static QString impactLevelToString(ImpactLevel level) {
 
 QVariantMap UpdateDetectionService::assessImpact(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("UDS::assessImpact");
     UpdateImpact impact;
 
     if (!m_gameService) {
@@ -1067,6 +1073,7 @@ QVariantMap UpdateDetectionService::assessImpact(const QString& gameId)
 
 QVariantMap UpdateDetectionService::checkCompatibility(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("UDS::checkCompatibility");
     QVariantMap result = {
         {"level", "unknown"},
         {"integrityPercent", 100},
@@ -1223,9 +1230,9 @@ void UpdateDetectionService::startMonitoring()
     if (m_monitoringActive) return;
 
     m_monitoringActive = true;
-    m_monitorTimer->start();
+    m_monitorTimer.start();
     emit monitoringActiveChanged();
-    qDebug() << "Update detection monitoring started (interval:" << m_monitorTimer->interval() / 1000 << "s)";
+    qDebug() << "Update detection monitoring started (interval:" << m_monitorTimer.interval() / 1000 << "s)";
 }
 
 void UpdateDetectionService::stopMonitoring()
@@ -1233,7 +1240,7 @@ void UpdateDetectionService::stopMonitoring()
     if (!m_monitoringActive) return;
 
     m_monitoringActive = false;
-    m_monitorTimer->stop();
+    m_monitorTimer.stop();
     emit monitoringActiveChanged();
     qDebug() << "Update detection monitoring stopped";
 }

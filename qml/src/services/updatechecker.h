@@ -17,6 +17,7 @@
 #include <QSettings>
 #include <QDateTime>
 #include <QFile>
+#include <memory>
 
 namespace makineai {
 
@@ -94,7 +95,7 @@ private:
     void setDownloadError(const QString& error);
     void verifyAndFinalize(const QString& installerPath);
 
-    QNetworkAccessManager* m_networkManager{nullptr};
+    QNetworkAccessManager m_networkManager;
     bool m_updateAvailable{false};
     QString m_latestVersion;
     QString m_downloadUrl;
@@ -111,8 +112,8 @@ private:
     QString m_installerUrl;
     QString m_checksumsUrl;
     QString m_installerPath;
-    QNetworkReply* m_downloadReply{nullptr};
-    QFile* m_downloadFile{nullptr};
+    QNetworkReply* m_downloadReply{nullptr};  // Non-owning. Managed by QNetworkAccessManager.
+    std::unique_ptr<QFile> m_downloadFile;
 };
 
 } // namespace makineai

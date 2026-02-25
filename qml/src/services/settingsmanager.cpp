@@ -7,6 +7,7 @@
 #include "settingsmanager.h"
 #include "imagecachemanager.h"
 #include "apppaths.h"
+#include "profiler.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QStandardPaths>
@@ -280,6 +281,7 @@ void SettingsManager::resetToDefaults()
 
 void SettingsManager::clearCache()
 {
+    MAKINE_ZONE_NAMED("SettingsManager::clearCache");
     bool ok = true;
 
     // Clear organized cache directory

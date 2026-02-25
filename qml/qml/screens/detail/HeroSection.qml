@@ -262,6 +262,10 @@ Item {
                                  && Window.window.visibility !== Window.Hidden
                         from: -0.3; to: 1.3; duration: Dimensions.animLoadingCycle
                         loops: Animation.Infinite
+                        onRunningChanged: {
+                            if (typeof SceneProfiler !== "undefined")
+                                SceneProfiler.registerAnimation("heroProgressShimmer", running)
+                        }
                     }
 
                     gradient: Gradient {
@@ -280,6 +284,12 @@ Item {
                     // Status icon (Canvas — matches nav icons style)
                     Canvas {
                         Layout.preferredWidth: 16; Layout.preferredHeight: 16
+                        // Track icon type to avoid unnecessary repaints on same state
+                        readonly property int _iconType: {
+                            if (heroRoot.packageInstalled || heroRoot.installCompleted) return 2  // checkmark
+                            if (heroRoot.isInstallingTranslation) return 1  // download
+                            return 0  // globe
+                        }
                         property color iconColor: {
                             if (heroRoot.packageInstalled || heroRoot.installCompleted)
                                 return Theme.accent
@@ -287,6 +297,7 @@ Item {
                                 return Theme.accent
                             return Theme.textSecondary
                         }
+                        on_IconTypeChanged: requestPaint()
                         onIconColorChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")

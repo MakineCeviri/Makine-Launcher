@@ -52,6 +52,7 @@ public:
     static QString steamDetailsCacheFile(){ return cacheDir() + QStringLiteral("/steam_details_cache.json"); }
     static QString installedPackagesFile(){ return dataDir()  + QStringLiteral("/installed_packages.json"); }
     static QString pendingOperationFile() { return dataDir()  + QStringLiteral("/pending_operation.json"); }
+    static QString perfReportFile()      { return logsDir()  + QStringLiteral("/perf_report.json"); }
 
     // --- Bootstrap ---
 

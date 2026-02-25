@@ -99,6 +99,10 @@ set(BACKEND_SOURCES
     src/services/operationjournal.cpp
     src/services/appprotection.cpp
     src/services/imagecachemanager.cpp
+    src/services/perfreporter.cpp
+    src/services/frametimer.cpp
+    src/services/sceneprofiler.cpp
+    src/services/memoryprofiler.cpp
 )
 
 set(BACKEND_HEADERS
@@ -121,6 +125,10 @@ set(BACKEND_HEADERS
     src/services/imagecachemanager.h
     src/services/apppaths.h
     src/services/profiler.h
+    src/services/perfreporter.h
+    src/services/frametimer.h
+    src/services/sceneprofiler.h
+    src/services/memoryprofiler.h
 )
 
 
@@ -364,11 +372,22 @@ else()
     target_compile_definitions(MakineAI PRIVATE MAKINEAI_UI_ONLY)
 endif()
 
-# Tracy profiler (conditional)
+# Dev tools (FrameTimer, PerfReporter, F3 overlay) — off in release builds
+option(MAKINEAI_DEV_TOOLS "Enable dev-only performance tools (FrameTimer, PerfReporter, F3 overlay)" OFF)
+if(MAKINEAI_DEV_TOOLS)
+    target_compile_definitions(MakineAI PRIVATE MAKINEAI_DEV_TOOLS MAKINEAI_PERF_REPORT)
+    message(STATUS "MakineAI: Dev tools enabled (FrameTimer + PerfReporter + F3 overlay)")
+endif()
+
+# Tracy profiler (optional, adds Tracy on top of dev tools)
 if(MAKINEAI_PROFILER AND TARGET TracyClient)
     target_link_libraries(MakineAI PRIVATE TracyClient)
     target_compile_definitions(MakineAI PRIVATE TRACY_ENABLE)
     message(STATUS "MakineAI: Tracy profiler linked")
+elseif(MAKINEAI_PROFILER AND NOT MAKINEAI_DEV_TOOLS)
+    # Standalone profiler mode (no dev tools, just PerfReporter)
+    target_compile_definitions(MakineAI PRIVATE MAKINEAI_PERF_REPORT)
+    message(STATUS "MakineAI: PerfReporter enabled (standalone)")
 endif()
 
 # Windows specific

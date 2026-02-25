@@ -27,40 +27,12 @@ ColumnLayout {
         border.width: 1
         clip: true
 
-        // Ambient glow (accent-colored, radial gradient)
-        Canvas {
+        // Ambient glow (accent-colored, top-right radial)
+        AmbientGlow {
             anchors.fill: parent
-            property color glowColor: Theme.accentDark
-            onGlowColorChanged: requestPaint()
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                var cr = Dimensions.radiusSection
-                ctx.beginPath()
-                ctx.moveTo(cr, 0)
-                ctx.lineTo(width - cr, 0)
-                ctx.quadraticCurveTo(width, 0, width, cr)
-                ctx.lineTo(width, height - cr)
-                ctx.quadraticCurveTo(width, height, width - cr, height)
-                ctx.lineTo(cr, height)
-                ctx.quadraticCurveTo(0, height, 0, height - cr)
-                ctx.lineTo(0, cr)
-                ctx.quadraticCurveTo(0, 0, cr, 0)
-                ctx.closePath()
-                ctx.clip()
-                var cx = width - 40
-                var cy = 30
-                var r = Math.max(width, height) * 0.55
-                var gc = glowColor
-                var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
-                var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-                grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + ",0.12)")
-                grad.addColorStop(0.3, "rgba(" + R + "," + G + "," + B + ",0.06)")
-                grad.addColorStop(0.6, "rgba(" + R + "," + G + "," + B + ",0.02)")
-                grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
-                ctx.fillStyle = grad
-                ctx.fillRect(0, 0, width, height)
-            }
+            cornerRadius: Dimensions.radiusSection
+            position: "top-right"
+            intensity: 0.12
         }
 
         // Top edge glass highlight
@@ -105,8 +77,12 @@ ColumnLayout {
                     rotation: 0
                     NumberAnimation on rotation {
                         from: 0; to: 360; duration: 3000
-                        loops: Animation.Infinite; running: root.visible
+                        loops: Animation.Infinite; running: root.visible && root.animationsEnabled
                         easing.type: Easing.Linear
+                        onRunningChanged: {
+                            if (typeof SceneProfiler !== "undefined")
+                                SceneProfiler.registerAnimation("detectionArcSpin", running)
+                        }
                     }
 
                     Component.onCompleted: requestPaint()
@@ -317,33 +293,11 @@ ColumnLayout {
         Behavior on border.color { ColorAnimation { duration: Dimensions.animMedium } }
 
         // Subtle ambient glow continuation from system status card
-        Canvas {
+        AmbientGlow {
             anchors.fill: parent
-            property color glowColor: Theme.accentDark
-            onGlowColorChanged: requestPaint()
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                var r = 14
-                ctx.beginPath()
-                ctx.moveTo(r, 0); ctx.lineTo(width - r, 0)
-                ctx.quadraticCurveTo(width, 0, width, r)
-                ctx.lineTo(width, height - r)
-                ctx.quadraticCurveTo(width, height, width - r, height)
-                ctx.lineTo(r, height)
-                ctx.quadraticCurveTo(0, height, 0, height - r)
-                ctx.lineTo(0, r)
-                ctx.quadraticCurveTo(0, 0, r, 0)
-                ctx.closePath(); ctx.clip()
-                var gc = glowColor
-                var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
-                var grad = ctx.createRadialGradient(width - 20, -10, 0, width - 20, -10, width * 0.6)
-                grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + ",0.10)")
-                grad.addColorStop(0.4, "rgba(" + R + "," + G + "," + B + ",0.04)")
-                grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
-                ctx.fillStyle = grad
-                ctx.fillRect(0, 0, width, height)
-            }
+            cornerRadius: 14
+            originX: parent.width - 20; originY: -10
+            intensity: 0.10; spread: 0.6
         }
 
         Accessible.role: Accessible.Link

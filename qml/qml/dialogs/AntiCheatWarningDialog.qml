@@ -166,6 +166,10 @@ Dialog {
                         loops: Animation.Infinite
                         NumberAnimation { to: 1.2; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                         NumberAnimation { to: 1.0; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                        onRunningChanged: {
+                            if (typeof SceneProfiler !== "undefined")
+                                SceneProfiler.registerAnimation("antiCheatPulseScale", running)
+                        }
                     }
 
                     SequentialAnimation on opacity {
@@ -206,6 +210,10 @@ Dialog {
                         NumberAnimation { to: -2; duration: Dimensions.animInstant }
                         NumberAnimation { to: 0; duration: Dimensions.animInstant }
                         PauseAnimation { duration: Dimensions.animGradient }
+                        onRunningChanged: {
+                            if (typeof SceneProfiler !== "undefined")
+                                SceneProfiler.registerAnimation("antiCheatCriticalShake", running)
+                        }
                     }
                 }
             }

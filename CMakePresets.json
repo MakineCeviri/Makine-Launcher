@@ -80,7 +80,8 @@
       "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_UI_ONLY": "OFF"
+        "MAKINEAI_UI_ONLY": "OFF",
+        "MAKINEAI_DEV_TOOLS": "ON"
       }
     },
     {
@@ -91,7 +92,8 @@
       "binaryDir": "${sourceDir}/qml/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_UI_ONLY": "ON"
+        "MAKINEAI_UI_ONLY": "ON",
+        "MAKINEAI_DEV_TOOLS": "ON"
       }
     },
     {
@@ -102,7 +104,8 @@
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "MAKINEAI_UI_ONLY": "OFF"
+        "MAKINEAI_UI_ONLY": "OFF",
+        "MAKINEAI_DEV_TOOLS": "ON"
       }
     },
     {
@@ -160,6 +163,16 @@
       }
     },
     {
+      "name": "dev-profile",
+      "displayName": "Development + Tracy Profiler",
+      "description": "Dev build with Tracy profiler instrumentation enabled",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build/dev-profile",
+      "cacheVariables": {
+        "MAKINEAI_PROFILER": "ON"
+      }
+    },
+    {
       "name": "core",
       "displayName": "Core Library",
       "description": "Build core library only (for CI/testing)",
@@ -205,6 +218,10 @@
     {
       "name": "core",
       "configurePreset": "core"
+    },
+    {
+      "name": "dev-profile",
+      "configurePreset": "dev-profile"
     }
   ],
   "testPresets": [

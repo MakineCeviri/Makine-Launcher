@@ -3,7 +3,7 @@ import MakineAI 1.0
 
 /**
  * AmbientGlow.qml - Reusable radial glow effect with rounded-rect clipping.
- * Replaces duplicated Canvas glow in SectionContainer and HomePage.
+ * Supports hover mode (intensity changes on hover) and custom glow origin.
  */
 Canvas {
     id: glow
@@ -13,10 +13,32 @@ Canvas {
     property real cornerRadius: Dimensions.radiusSection
     property real intensity: 0.12
 
+    // Hover support — set hoveredIntensity >= 0 to enable hover mode
+    property bool hovered: false
+    property real hoveredIntensity: -1  // -1 = no hover mode
+
+    // Custom origin — set >= 0 to override position-based origin
+    property real originX: -1
+    property real originY: -1
+
+    // Gradient spread multiplier
+    property real spread: 0.55
+
+    // Repaint only when geometry or visual parameters actually change.
+    // Hover state changes are handled via effectiveIntensity below.
     onGlowColorChanged: requestPaint()
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
     onPositionChanged: requestPaint()
+
+    // Smooth intensity transition on hover instead of instant repaint
+    property real effectiveIntensity: intensity
+    Behavior on effectiveIntensity {
+        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+    }
+    onHoveredChanged: effectiveIntensity = (hoveredIntensity >= 0 && hovered) ? hoveredIntensity : intensity
+    onIntensityChanged: effectiveIntensity = (hoveredIntensity >= 0 && hovered) ? hoveredIntensity : intensity
+    onEffectiveIntensityChanged: requestPaint()
 
     onPaint: {
         var ctx = getContext("2d")
@@ -36,25 +58,38 @@ Canvas {
         ctx.quadraticCurveTo(0, 0, cr, 0)
         ctx.closePath(); ctx.clip()
 
-        // Glow origin based on position
+        // Glow origin
         var cx, cy
-        if (position === "bottom-center") {
-            cx = width / 2; cy = height - 20
+        if (originX >= 0) {
+            cx = originX
+        } else if (position === "bottom-center") {
+            cx = width / 2
         } else if (position === "bottom-left") {
-            cx = 40; cy = height - 30
+            cx = 40
         } else {
-            cx = width - 40; cy = 30
+            cx = width - 40
+        }
+        if (originY >= 0) {
+            cy = originY
+        } else if (position === "bottom-center") {
+            cy = height - 20
+        } else if (position === "bottom-left") {
+            cy = height - 30
+        } else {
+            cy = 30
         }
 
+        // Effective intensity (already interpolated by Behavior)
+        var _i = effectiveIntensity
+
         // Radial gradient
-        var r = Math.max(width, height) * 0.55
+        var r = Math.max(width, height) * spread
         var gc = glowColor
         var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)
-        var i = intensity
         var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-        grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + "," + i + ")")
-        grad.addColorStop(0.3, "rgba(" + R + "," + G + "," + B + "," + (i * 0.5) + ")")
-        grad.addColorStop(0.6, "rgba(" + R + "," + G + "," + B + "," + (i * 0.17) + ")")
+        grad.addColorStop(0.0, "rgba(" + R + "," + G + "," + B + "," + _i + ")")
+        grad.addColorStop(0.25, "rgba(" + R + "," + G + "," + B + "," + (_i * 0.5) + ")")
+        grad.addColorStop(0.5, "rgba(" + R + "," + G + "," + B + "," + (_i * 0.2) + ")")
         grad.addColorStop(1.0, "rgba(" + R + "," + G + "," + B + ",0.0)")
         ctx.fillStyle = grad
         ctx.fillRect(0, 0, width, height)

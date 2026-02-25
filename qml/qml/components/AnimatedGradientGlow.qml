@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Window
 import MakineAI 1.0
 
 /**
@@ -7,6 +8,7 @@ import MakineAI 1.0
  *
  * A square gradient that rotates in place, heavily blurred
  * to create a dreamy, soft spinning light effect.
+ * Pauses when window is minimized/hidden to save GPU.
  */
 Item {
     id: root
@@ -14,6 +16,11 @@ Item {
 
     property bool active: false
     property bool animationsEnabled: true
+
+    // Window visibility gate — stop GPU work when not visible
+    readonly property bool _windowVisible: Window.window !== null
+                                           && Window.window.visibility !== Window.Minimized
+                                           && Window.window.visibility !== Window.Hidden
 
     opacity: root.active ? 0.50 : 0
     Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
@@ -24,14 +31,18 @@ Item {
         from: 0; to: 1
         duration: 8000
         loops: Animation.Infinite
-        running: root.opacity > 0 && root.animationsEnabled
+        running: root.opacity > 0 && root.animationsEnabled && root._windowVisible
+        onRunningChanged: {
+            if (typeof SceneProfiler !== "undefined")
+                SceneProfiler.registerAnimation("gradientGlowRotation", running)
+        }
     }
 
     // Gradient source - rotating square, rendered to texture
     Item {
         id: glowSource
         anchors.fill: parent
-        layer.enabled: root.opacity > 0
+        layer.enabled: root.opacity > 0 && root._windowVisible
         visible: false
 
         Rectangle {

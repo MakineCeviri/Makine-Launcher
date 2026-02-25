@@ -137,6 +137,9 @@ Item {
     onGameIdChanged: {
         if (gameId === "") return
 
+        if (typeof SceneProfiler !== "undefined")
+            SceneProfiler.screenLoaded("GameDetail")
+
         var d = GameService.getGameDetails(gameId)
 
         // Contributors
@@ -256,7 +259,7 @@ Item {
             cache: true
             opacity: 0.30
             visible: source !== ""
-            transform: Translate { y: -root.scrollY * 0.15 }
+            transform: Translate { y: -mainFlick.contentY * 0.15 }
         }
 
         // Game logo overlay — full-width, fading top-to-bottom
@@ -264,7 +267,7 @@ Item {
             id: gameLogo
             anchors.left: parent.left
             anchors.right: parent.right
-            y: 20 - root.scrollY * 0.06
+            y: 20 - mainFlick.contentY * 0.06
             height: parent.height * 0.6
             fillMode: Image.PreserveAspectFit
             source: root.steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + root.steamAppId + "/logo.png" : ""
@@ -369,6 +372,7 @@ Item {
             if (root._reveal >= 6) stop()
         }
     }
+    Component.onDestruction: _stagger.stop()
 
     // =========================================================================
     // MAIN CONTENT
@@ -381,7 +385,7 @@ Item {
         contentHeight: contentCol.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        onContentYChanged: root.scrollY = contentY
+        // scrollY binding removed — use mainFlick.contentY directly
 
         ScrollBar.vertical: StyledScrollBar {}
 
@@ -561,69 +565,84 @@ Item {
             // SCREENSHOTS
             // =================================================================
 
+            // =================================================================
+            // SCREENSHOTS — lazy loaded on reveal
+            // =================================================================
+
             Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true; visible: root.screenshots.length > 0 }
 
-            ScreenshotCarousel {
-                opacity: root._reveal >= 3 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                transform: Translate { y: root._reveal >= 3 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
-
-                screenshots: root.screenshots
+            Loader {
+                Layout.fillWidth: true
+                active: root._reveal >= 3
+                sourceComponent: ScreenshotCarousel {
+                    opacity: root._reveal >= 3 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                    transform: Translate { y: root._reveal >= 3 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
+                    screenshots: root.screenshots
+                }
             }
 
             // =================================================================
-            // CONTRIBUTORS
+            // CONTRIBUTORS — lazy loaded on reveal
             // =================================================================
 
             Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
 
-            ContributorsSection {
-                opacity: root._reveal >= 4 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                transform: Translate { y: root._reveal >= 4 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
-
-                contributors: root.contributors
+            Loader {
+                Layout.fillWidth: true
+                active: root._reveal >= 4
+                sourceComponent: ContributorsSection {
+                    opacity: root._reveal >= 4 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                    transform: Translate { y: root._reveal >= 4 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
+                    contributors: root.contributors
+                }
             }
 
             // =================================================================
-            // RUNTIME (Unity BepInEx) — conditional
+            // RUNTIME (Unity BepInEx) — lazy loaded, conditional
             // =================================================================
 
             Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true; visible: root.isUnityGame && root.runtimeNeeded }
 
-            RuntimeSection {
-                opacity: root._reveal >= 5 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                transform: Translate { y: root._reveal >= 5 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
-
-                gameId: root.gameId
-                isUnityGame: root.isUnityGame
-                runtimeNeeded: root.runtimeNeeded
-                runtimeInstalled: root.runtimeInstalled
-                runtimeUpToDate: root.runtimeUpToDate
-                bepinexVersion: root.bepinexVersion
-                xunityVersion: root.xunityVersion
-                unityBackend: root.unityBackend
-                unityVersion: root.unityVersion
-                hasAntiCheat: root.hasAntiCheat
-                antiCheatName: root.antiCheatName
-                isInstallingRuntime: root.isInstallingRuntime
+            Loader {
+                Layout.fillWidth: true
+                active: root._reveal >= 5 && root.isUnityGame && root.runtimeNeeded
+                sourceComponent: RuntimeSection {
+                    opacity: root._reveal >= 5 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                    transform: Translate { y: root._reveal >= 5 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
+                    gameId: root.gameId
+                    isUnityGame: root.isUnityGame
+                    runtimeNeeded: root.runtimeNeeded
+                    runtimeInstalled: root.runtimeInstalled
+                    runtimeUpToDate: root.runtimeUpToDate
+                    bepinexVersion: root.bepinexVersion
+                    xunityVersion: root.xunityVersion
+                    unityBackend: root.unityBackend
+                    unityVersion: root.unityVersion
+                    hasAntiCheat: root.hasAntiCheat
+                    antiCheatName: root.antiCheatName
+                    isInstallingRuntime: root.isInstallingRuntime
+                }
             }
 
             // =================================================================
-            // BACKUP MANAGEMENT
+            // BACKUP MANAGEMENT — lazy loaded on reveal
             // =================================================================
 
             Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
 
-            BackupSection {
-                id: backupSection
-                opacity: root._reveal >= 6 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                transform: Translate { y: root._reveal >= 6 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
-
-                gameId: root.gameId
-                updateImpact: root.updateImpact
+            Loader {
+                Layout.fillWidth: true
+                active: root._reveal >= 6
+                sourceComponent: BackupSection {
+                    opacity: root._reveal >= 6 ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                    transform: Translate { y: root._reveal >= 6 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
+                    gameId: root.gameId
+                    updateImpact: root.updateImpact
+                }
             }
 
             // Bottom spacer

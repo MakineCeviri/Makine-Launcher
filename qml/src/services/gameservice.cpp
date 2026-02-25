@@ -33,21 +33,18 @@ namespace makineai {
 
 GameService::GameService(QObject *parent)
     : QObject(parent)
-    , m_networkManager(new QNetworkAccessManager(this))
-    , m_updateService(new UpdateDetectionService(this))
 {
-    m_updateService->setGameService(this);
+    m_updateService.setGameService(this);
 
     // Forward update detection signals
-    connect(m_updateService, &UpdateDetectionService::gameUpdateDetected,
+    connect(&m_updateService, &UpdateDetectionService::gameUpdateDetected,
             this, &GameService::gameUpdateDetected);
-    connect(m_updateService, &UpdateDetectionService::gamesWithUpdatesChanged,
+    connect(&m_updateService, &UpdateDetectionService::gamesWithUpdatesChanged,
             this, &GameService::gameUpdateCountChanged);
 
     // Start monitoring after first scan completes
     connect(this, &GameService::scanCompleted, this, [this](int) {
-        if (m_updateService)
-            m_updateService->startMonitoring();
+        m_updateService.startMonitoring();
     }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 }
 
@@ -60,6 +57,7 @@ void GameService::initialize()
     const QString steamCachePath = AppPaths::steamDetailsCacheFile();
 
     (void)QtConcurrent::run([this, gamesCachePath, steamCachePath]() {
+        MAKINE_THREAD_NAME("Worker-Init");
         MAKINE_ZONE_NAMED("GameService::initialize (async)");
 
         // Parse game cache (thread-safe: only reads file + creates local list)
@@ -130,15 +128,31 @@ void GameService::initialize()
             }
         }
 
+        // Pre-warm package installed cache (avoids 260× main-thread calls later)
+        QHash<QString, bool> pkgCache;
+        CoreBridge* cb = CoreBridge::instance();
+        if (cb) {
+            const QVariantList catalog = cb->allSupportedGames();
+            pkgCache.reserve(catalog.size());
+            for (const auto& item : catalog) {
+                const QString appId = item.toMap().value("steamAppId").toString();
+                if (!appId.isEmpty())
+                    pkgCache[appId] = cb->isPackageInstalled(appId);
+            }
+        }
+
         qDebug() << "Parsed" << games.count() << "games and"
-                 << steamDetails.size() << "Steam details (background)";
+                 << steamDetails.size() << "Steam details,"
+                 << pkgCache.size() << "package statuses (background)";
 
         // Deliver results to main thread
         QMetaObject::invokeMethod(this, [this,
                                          g = std::move(games),
-                                         s = std::move(steamDetails)]() mutable {
+                                         s = std::move(steamDetails),
+                                         p = std::move(pkgCache)]() mutable {
             m_games = std::move(g);
             m_steamDetailsCache = std::move(s);
+            m_packageInstalledCache = std::move(p);
             rebuildCache();
 
             if (m_games.isEmpty()) {
@@ -166,6 +180,7 @@ QVariantList GameService::games() const
     if (m_cacheValid) {
         return m_gamesCache;
     }
+    MAKINE_ZONE_NAMED("GameService::games (cache miss)");
 
     m_gamesCache.clear();
     m_gamesCache.reserve(m_games.count());
@@ -238,15 +253,15 @@ void GameService::setupCoreBridge()
 
                             // Record store version + take file snapshot
                             const auto& game = m_games[idx];
-                            if (m_updateService) {
+                            {
                                 auto pkg = m_coreBridge->getPackageForGame(gameId);
                                 QString patchVer = pkg.has_value() ? pkg->version : "unknown";
-                                m_updateService->recordStoreVersion(gameId, game.installPath, game.source);
-                                m_updateService->takeSnapshot(gameId, patchVer, game.installPath, game.engine);
-                                m_updateService->clearUpdate(gameId);
+                                m_updateService.recordStoreVersion(gameId, game.installPath, game.source);
+                                m_updateService.takeSnapshot(gameId, patchVer, game.installPath, game.engine);
+                                m_updateService.clearUpdate(gameId);
 
                                 // Record store version in installed package info
-                                QString storeVer = m_updateService->getRecordedStoreVersionId(gameId);
+                                QString storeVer = m_updateService.getRecordedStoreVersionId(gameId);
                                 if (!storeVer.isEmpty()) {
                                     m_coreBridge->updateInstalledStoreVersion(gameId, storeVer, game.source);
                                 }
@@ -297,7 +312,7 @@ void GameService::onScanCompleted(int count)
         game.steamAppId = detected.steamAppId;
         game.headerImageUrl = detected.headerImageUrl;
         game.isInstalled = true;
-        game.hasTranslation = m_coreBridge->hasTranslationPackage(detected.id);
+        game.hasTranslation = detected.hasTranslation;  // Already set by worker thread
         game.isVerified = game.hasTranslation;  // Verified if translation is installed
 
         m_games.append(game);
@@ -307,16 +322,21 @@ void GameService::onScanCompleted(int count)
 
     m_isScanning = false;
     emit isScanningChanged();
-    emit gamesChanged();
     emit scanCompleted(count);
 
     saveCachedGames();
-    ensureSupportedGamesCache();
+
+    // Defer gamesChanged to next event loop iteration so onScanCompleted
+    // returns immediately. QML binding re-evaluation happens after control
+    // returns to the event loop, preventing a 3.5s main thread freeze.
+    QTimer::singleShot(0, this, &GameService::gamesChanged);
+
+    // Defer supported games cache warm-up: let UI render first, then
+    // lazy-compute on next QML access via supportedGames() getter.
+    // The cache flag is already invalid from rebuildCache() above.
 
     // Check installed translations for game update impacts
-    if (m_updateService) {
-        QTimer::singleShot(500, this, &GameService::checkAllInstalledTranslations);
-    }
+    QTimer::singleShot(500, this, &GameService::checkAllInstalledTranslations);
 }
 
 void GameService::onGameDetected(const QString& gameId, const QString& gameName)
@@ -325,42 +345,54 @@ void GameService::onGameDetected(const QString& gameId, const QString& gameName)
     qDebug() << "Game detected:" << gameName << "(" << gameId << ")";
 }
 
-QString GameService::addManualGame(const QString& path)
+void GameService::addManualGame(const QString& path)
 {
-    // Security: Validate path
+    MAKINE_ZONE_NAMED("GameService::addManualGame");
+    // Security: Validate path (sync — fast)
     if (!isValidGamePath(path)) {
         emit scanError(tr("Geçersiz oyun klasörü: %1").arg(path));
-        return {};
+        return;
     }
 
     QDir dir(path);
     if (!dir.exists()) {
         emit scanError(tr("Belirtilen klasör bulunamadı: %1").arg(path));
-        return {};
+        return;
     }
 
-    // Check for duplicate (case-insensitive on Windows)
+    // Check for duplicate (sync — O(n) but fast string compare)
     const QString canonicalPath = QFileInfo(path).canonicalFilePath();
     for (const auto& game : m_games) {
         if (QFileInfo(game.installPath).canonicalFilePath() == canonicalPath) {
-            // Already exists — return existing game's ID
-            return game.id;
+            emit manualGameAdded(game.id);
+            return;
         }
     }
 
     const QString folderName = dir.dirName();
 
-    // Detect engine
-    QString engine;
-    if (m_coreBridge) {
-        engine = m_coreBridge->detectEngine(path);
-    }
+    // Heavy work (disk I/O + linear scan) → background thread
+    CoreBridge* cb = m_coreBridge;
+    (void)QtConcurrent::run([this, path, folderName, cb]() {
+        MAKINE_THREAD_NAME("Worker-ManualGame");
+        MAKINE_ZONE_NAMED("addManualGame (async)");
 
-    // Match folder name against translation catalog
-    QString matchedAppId;
-    if (m_coreBridge) {
-        matchedAppId = m_coreBridge->findMatchingAppId(folderName);
-    }
+        QString engine;
+        if (cb) engine = cb->detectEngine(path);
+
+        QString matchedAppId;
+        if (cb) matchedAppId = cb->findMatchingAppId(folderName);
+
+        QMetaObject::invokeMethod(this, [this, path, folderName, engine, matchedAppId]() {
+            finalizeManualGame(path, folderName, engine, matchedAppId);
+        }, Qt::QueuedConnection);
+    });
+}
+
+void GameService::finalizeManualGame(const QString& path, const QString& folderName,
+                                      const QString& engine, const QString& matchedAppId)
+{
+    MAKINE_ZONE_NAMED("GameService::finalizeManualGame");
 
     GameInfo game;
     game.installPath = path;
@@ -369,15 +401,13 @@ QString GameService::addManualGame(const QString& path)
     game.engine = engine.isEmpty() ? "Unknown" : engine;
 
     if (!matchedAppId.isEmpty()) {
-        // Found a matching translation package
         game.id = matchedAppId;
         game.steamAppId = matchedAppId;
         game.hasTranslation = true;
         game.headerImageUrl = QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(matchedAppId);
 
-        // Use catalog game name instead of folder name
-        auto pkg = m_coreBridge->getPackageForGame(matchedAppId);
-        game.name = pkg.has_value() ? pkg->gameName : folderName;
+        auto pkg = m_coreBridge ? m_coreBridge->getPackageForGame(matchedAppId) : std::nullopt;
+        game.name = (pkg.has_value()) ? pkg->gameName : folderName;
     } else {
         game.id = QStringLiteral("manual_%1").arg(m_games.count() + 1);
         game.name = folderName;
@@ -386,14 +416,14 @@ QString GameService::addManualGame(const QString& path)
 
     // Avoid duplicate ID collision (e.g. steam scan already found this game)
     if (m_gameIdToIndex.contains(game.id)) {
-        // Update existing entry's install path
         int idx = m_gameIdToIndex[game.id];
         if (idx >= 0 && idx < m_games.count()) {
             m_games[idx].installPath = path;
             m_games[idx].isInstalled = true;
             invalidateCache();
             emit gamesChanged();
-            return game.id;
+            emit manualGameAdded(game.id);
+            return;
         }
     }
 
@@ -405,15 +435,15 @@ QString GameService::addManualGame(const QString& path)
     invalidateCache();
     emit gamesChanged();
     emit gameDetected(game.id);
+    emit manualGameAdded(game.id);
 
     qDebug() << "Manual game added:" << game.name << "id:" << game.id
              << "engine:" << game.engine << "hasTranslation:" << game.hasTranslation;
-
-    return game.id;
 }
 
 QVariantMap GameService::getGameById(const QString& id) const
 {
+    MAKINE_ZONE_NAMED("GameService::getGameById");
     // First check installed games
     auto idxIt = m_gameIdToIndex.constFind(id);
     if (idxIt != m_gameIdToIndex.constEnd()) {
@@ -449,6 +479,7 @@ QVariantMap GameService::getGameById(const QString& id) const
 
 QVariantMap GameService::getGameBySteamAppId(const QString& steamAppId) const
 {
+    MAKINE_ZONE_NAMED("GameService::getGameBySteamAppId");
     if (steamAppId.isEmpty())
         return {};
 
@@ -474,6 +505,7 @@ QVariantMap GameService::getGameBySteamAppId(const QString& steamAppId) const
 
 QVariantList GameService::filterGames(const QString& query) const
 {
+    MAKINE_ZONE_NAMED("GameService::filterGames");
     if (query.isEmpty())
         return supportedGames();
 
@@ -492,6 +524,7 @@ QVariantList GameService::filterGames(const QString& query) const
 
 QVariantList GameService::filteredGamesWithTranslation(const QString& filter) const
 {
+    MAKINE_ZONE_NAMED("GameService::filteredGamesWithTranslation");
     const QVariantList allGames = supportedGames();
     QVariantList result;
     result.reserve(allGames.size());
@@ -512,6 +545,7 @@ QVariantList GameService::filteredGamesWithTranslation(const QString& filter) co
 
 QString GameService::classifyDroppedUrls(const QVariantList& urls) const
 {
+    MAKINE_ZONE_NAMED("GameService::classifyDroppedUrls");
     if (urls.isEmpty())
         return QStringLiteral("unknown");
 
@@ -536,6 +570,7 @@ QString GameService::classifyDroppedUrls(const QVariantList& urls) const
 
 QVariantMap GameService::getGameDetails(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getGameDetails");
     QVariantMap result;
 
     // Contributors from package manifest
@@ -591,7 +626,7 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader, "MakineAI/0.1");
 
-    QNetworkReply* reply = m_networkManager->get(request);
+    QNetworkReply* reply = m_networkManager.get(request);
 
     // Abort if response exceeds size limit (prevents memory exhaustion)
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
@@ -617,6 +652,7 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
 
 void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteArray& data)
 {
+    MAKINE_ZONE_NAMED("GameService::parseSteamApiResponse");
     QJsonParseError parseError;
     const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError) {
@@ -708,6 +744,7 @@ void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteAr
 
 QVariantMap GameService::getSteamDetails(const QString& steamAppId)
 {
+    MAKINE_ZONE_NAMED("GameService::getSteamDetails");
     if (steamAppId.isEmpty()) return {};
 
     auto cacheIt = m_steamDetailsCache.constFind(steamAppId);
@@ -898,29 +935,38 @@ void GameService::loadCachedGames()
 
 void GameService::saveCachedGames()
 {
-    MAKINE_ZONE_NAMED("GameService::saveCachedGames");
-    QDir().mkpath(AppPaths::cacheDir());
+    // Snapshot the game list (COW — cheap copy) and serialize in background
+    QList<GameInfo> gamesCopy = m_games;
+    const QString cacheDir = AppPaths::cacheDir();
+    const QString cachePath = AppPaths::gamesCacheFile();
 
-    QJsonArray array;
-    for (const auto& game : m_games) {
-        QJsonObject obj;
-        obj["id"] = game.id;
-        obj["name"] = game.name;
-        obj["headerImageUrl"] = game.headerImageUrl;
-        obj["installPath"] = game.installPath;
-        obj["steamAppId"] = game.steamAppId;
-        obj["source"] = game.source;
-        obj["engine"] = game.engine;
-        obj["isVerified"] = game.isVerified;
-        obj["isInstalled"] = game.isInstalled;
-        obj["hasTranslation"] = game.hasTranslation;
-        array.append(obj);
-    }
+    (void)QtConcurrent::run([gamesCopy = std::move(gamesCopy), cacheDir, cachePath]() {
+        MAKINE_THREAD_NAME("Worker-GamesCache");
+        MAKINE_ZONE_NAMED("saveCachedGames (async)");
 
-    QFile file(AppPaths::gamesCacheFile());
-    if (file.open(QIODevice::WriteOnly)) {
-        file.write(QJsonDocument(array).toJson());
-    }
+        QDir().mkpath(cacheDir);
+
+        QJsonArray array;
+        for (const auto& game : gamesCopy) {
+            QJsonObject obj;
+            obj["id"] = game.id;
+            obj["name"] = game.name;
+            obj["headerImageUrl"] = game.headerImageUrl;
+            obj["installPath"] = game.installPath;
+            obj["steamAppId"] = game.steamAppId;
+            obj["source"] = game.source;
+            obj["engine"] = game.engine;
+            obj["isVerified"] = game.isVerified;
+            obj["isInstalled"] = game.isInstalled;
+            obj["hasTranslation"] = game.hasTranslation;
+            array.append(obj);
+        }
+
+        QFile file(cachePath);
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
+        }
+    });
 }
 
 void GameService::invalidateCache()
@@ -938,6 +984,7 @@ void GameService::invalidateCache()
 
 void GameService::rebuildCache()
 {
+    MAKINE_ZONE_NAMED("GameService::rebuildCache");
     // Rebuild game ID and steamAppId indexes
     m_gameIdToIndex.clear();
     m_steamAppIdToIndex.clear();
@@ -950,11 +997,21 @@ void GameService::rebuildCache()
             m_steamAppIdToIndex[m_games[i].steamAppId] = i;
     }
 
-    invalidateCache();
+    // Invalidate QVariantList caches but preserve packageInstalledCache
+    // (it may have been pre-warmed in background or still be valid)
+    m_cacheValid = false;
+    m_supportedCacheValid = false;
+    m_translationCacheValid = false;
+    m_installedCacheValid = false;
+    m_gamesCache.clear();
+    m_supportedGamesCache.clear();
+    m_translationGamesCache.clear();
+    m_installedTranslationsCache.clear();
 }
 
 void GameService::ensureSupportedGamesCache()
 {
+    MAKINE_ZONE_NAMED("GameService::ensureSupportedGamesCache");
     if (!m_supportedGamesCache.isEmpty()) return;
 
     // Pre-warm by calling supportedGames() which populates m_supportedGamesCache
@@ -1004,43 +1061,53 @@ void GameService::loadSteamDetailsCache()
 
 void GameService::saveSteamDetailsCache()
 {
-    QDir().mkpath(AppPaths::cacheDir());
+    // Snapshot the cache (COW — cheap copy) and serialize in background
+    QHash<QString, SteamDetails> cacheCopy = m_steamDetailsCache;
+    const QString cacheDir = AppPaths::cacheDir();
+    const QString cachePath = AppPaths::steamDetailsCacheFile();
 
-    QJsonObject root;
-    for (auto it = m_steamDetailsCache.constBegin(); it != m_steamDetailsCache.constEnd(); ++it) {
-        const SteamDetails& details = it.value();
-        if (details.isExpired()) continue;
+    (void)QtConcurrent::run([cacheCopy = std::move(cacheCopy), cacheDir, cachePath]() {
+        MAKINE_THREAD_NAME("Worker-SteamCache");
+        MAKINE_ZONE_NAMED("saveSteamDetailsCache (async)");
 
-        QJsonObject obj;
-        obj["description"] = details.description;
-        obj["releaseDate"] = details.releaseDate;
-        obj["metacriticScore"] = details.metacriticScore;
-        obj["hasWindows"] = details.hasWindows;
-        obj["hasMac"] = details.hasMac;
-        obj["hasLinux"] = details.hasLinux;
-        obj["price"] = details.price;
-        obj["discountPercent"] = details.discountPercent;
-        obj["backgroundUrl"] = details.backgroundUrl;
-        obj["fetchedAt"] = details.fetchedAt.toString(Qt::ISODate);
+        QDir().mkpath(cacheDir);
 
-        QJsonArray devArr, pubArr, genreArr, ssArr;
-        for (const auto& v : details.developers) devArr.append(v);
-        for (const auto& v : details.publishers) pubArr.append(v);
-        for (const auto& v : details.genres) genreArr.append(v);
-        for (const auto& v : details.screenshots) ssArr.append(v);
+        QJsonObject root;
+        for (auto it = cacheCopy.constBegin(); it != cacheCopy.constEnd(); ++it) {
+            const SteamDetails& details = it.value();
+            if (details.isExpired()) continue;
 
-        obj["developers"] = devArr;
-        obj["publishers"] = pubArr;
-        obj["genres"] = genreArr;
-        obj["screenshots"] = ssArr;
+            QJsonObject obj;
+            obj["description"] = details.description;
+            obj["releaseDate"] = details.releaseDate;
+            obj["metacriticScore"] = details.metacriticScore;
+            obj["hasWindows"] = details.hasWindows;
+            obj["hasMac"] = details.hasMac;
+            obj["hasLinux"] = details.hasLinux;
+            obj["price"] = details.price;
+            obj["discountPercent"] = details.discountPercent;
+            obj["backgroundUrl"] = details.backgroundUrl;
+            obj["fetchedAt"] = details.fetchedAt.toString(Qt::ISODate);
 
-        root[it.key()] = obj;
-    }
+            QJsonArray devArr, pubArr, genreArr, ssArr;
+            for (const auto& v : details.developers) devArr.append(v);
+            for (const auto& v : details.publishers) pubArr.append(v);
+            for (const auto& v : details.genres) genreArr.append(v);
+            for (const auto& v : details.screenshots) ssArr.append(v);
 
-    QFile file(AppPaths::steamDetailsCacheFile());
-    if (file.open(QIODevice::WriteOnly)) {
-        file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
-    }
+            obj["developers"] = devArr;
+            obj["publishers"] = pubArr;
+            obj["genres"] = genreArr;
+            obj["screenshots"] = ssArr;
+
+            root[it.key()] = obj;
+        }
+
+        QFile file(cachePath);
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+        }
+    });
 }
 
 bool GameService::isValidGamePath(const QString& path) const
@@ -1085,6 +1152,7 @@ bool GameService::isValidGamePath(const QString& path) const
 }
 
 void GameService::handleDroppedFiles(const QVariantList& urls) {
+    MAKINE_ZONE_NAMED("GameService::handleDroppedFiles");
     for (const auto& urlVar : urls) {
         QString urlStr = urlVar.toString();
 
@@ -1125,6 +1193,7 @@ void GameService::handleDroppedFiles(const QVariantList& urls) {
 }
 
 void GameService::installLocalPackage(const QString& filePath) {
+    MAKINE_ZONE_NAMED("GameService::installLocalPackage");
     QFileInfo info(filePath);
     if (!info.exists() || !info.isFile()) {
         emit localPackageError(filePath, tr("File not found"));
@@ -1170,42 +1239,49 @@ void GameService::installLocalPackage(const QString& filePath) {
 
 QVariantList GameService::getVariants(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getVariants");
     if (!m_coreBridge) return {};
     return m_coreBridge->getVariantsForGame(gameId);
 }
 
 QString GameService::getVariantType(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getVariantType");
     if (!m_coreBridge) return {};
     return m_coreBridge->getVariantTypeForGame(gameId);
 }
 
 QString GameService::getInstallNotes(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getInstallNotes");
     if (!m_coreBridge) return {};
     return m_coreBridge->getInstallNotesForGame(gameId);
 }
 
 QVariantList GameService::getInstallOptions(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getInstallOptions");
     if (!m_coreBridge) return {};
     return m_coreBridge->getInstallOptionsForGame(gameId);
 }
 
 QString GameService::getSpecialDialog(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getSpecialDialog");
     if (!m_coreBridge) return {};
     return m_coreBridge->getSpecialDialogForGame(gameId);
 }
 
 QVariantList GameService::getVariantInstallOptions(const QString& gameId, const QString& variant)
 {
+    MAKINE_ZONE_NAMED("GameService::getVariantInstallOptions");
     if (!m_coreBridge) return {};
     return m_coreBridge->getVariantInstallOptionsForGame(gameId, variant);
 }
 
 QString GameService::getVariantSpecialDialog(const QString& gameId, const QString& variant)
 {
+    MAKINE_ZONE_NAMED("GameService::getVariantSpecialDialog");
     if (!m_coreBridge) return {};
     return m_coreBridge->getVariantSpecialDialogForGame(gameId, variant);
 }
@@ -1304,7 +1380,7 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
                         m_coreBridge->installPackage(gameId, installPath, variant, selectedOptions);
                     }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
-                QString storeVer = m_updateService ? m_updateService->getRecordedStoreVersionId(gameId) : QString();
+                QString storeVer = m_updateService.getRecordedStoreVersionId(gameId);
                 QString patchVer = pkg.has_value() ? pkg->version : QString();
                 bm->createSelectiveBackupAsync(gameId, m_games[m_gameIdToIndex.value(gameId)].name,
                                                 installPath, filesToOverwrite, storeVer, patchVer);
@@ -1386,10 +1462,8 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         invalidateCache();
         emit gamesChanged();
 
-        if (m_updateService) {
-            m_updateService->removeSnapshot(gameId);
-            m_updateService->removeStoreVersion(gameId);
-        }
+        m_updateService.removeSnapshot(gameId);
+        m_updateService.removeStoreVersion(gameId);
     }
 
     emit translationUninstalled(gameId, success,
@@ -1399,16 +1473,17 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
 
 void GameService::checkAllInstalledTranslations()
 {
-    if (!m_updateService || !m_coreBridge) return;
+    MAKINE_ZONE_NAMED("GameService::checkAllInstalledTranslations");
+    if (!m_coreBridge) return;
 
     for (const auto& game : m_games) {
         if (!game.hasTranslation) continue;
 
         // Quick Tier 1 check: has store version changed?
-        if (!m_updateService->hasUpdate(game.id)) continue;
+        if (!m_updateService.hasUpdate(game.id)) continue;
 
         // Detailed impact assessment
-        QVariantMap impact = m_updateService->assessImpact(game.id);
+        QVariantMap impact = m_updateService.assessImpact(game.id);
         QString level = impact.value("level").toString();
 
         if (level != "safe" && level != "unknown") {
@@ -1443,39 +1518,37 @@ void GameService::recoverTranslation(const QString& gameId)
 
 void GameService::setUpdateMonitoringEnabled(bool enabled)
 {
-    if (!m_updateService) return;
     if (enabled)
-        m_updateService->startMonitoring();
+        m_updateService.startMonitoring();
     else
-        m_updateService->stopMonitoring();
+        m_updateService.stopMonitoring();
 }
 
 int GameService::gameUpdateCount() const
 {
-    return m_updateService ? m_updateService->gamesWithUpdates() : 0;
+    return m_updateService.gamesWithUpdates();
 }
 
 bool GameService::hasGameUpdate(const QString& gameId) const
 {
-    return m_updateService ? m_updateService->hasUpdate(gameId) : false;
+    return m_updateService.hasUpdate(gameId);
 }
 
 QVariantMap GameService::checkUpdateImpact(const QString& gameId)
 {
-    if (!m_updateService)
-        return {{"level", "unknown"}, {"summary", "Update detection unavailable"}};
-    return m_updateService->assessImpact(gameId);
+    MAKINE_ZONE_NAMED("GameService::checkUpdateImpact");
+    return m_updateService.assessImpact(gameId);
 }
 
 QVariantMap GameService::checkCompatibility(const QString& gameId)
 {
-    if (!m_updateService)
-        return {{"level", "unknown"}, {"summary", "Update detection unavailable"}};
-    return m_updateService->checkCompatibility(gameId);
+    MAKINE_ZONE_NAMED("GameService::checkCompatibility");
+    return m_updateService.checkCompatibility(gameId);
 }
 
 QVariantMap GameService::getRuntimeStatus(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::getRuntimeStatus");
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size())
         return {{"isUnity", false}, {"needsRuntime", false}};
@@ -1601,6 +1674,7 @@ void GameService::acknowledgeAntiCheat(const QString& gameId)
 
 QVariantMap GameService::checkAntiCheat(const QString& gameId)
 {
+    MAKINE_ZONE_NAMED("GameService::checkAntiCheat");
     // Look up game install path
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size()) {

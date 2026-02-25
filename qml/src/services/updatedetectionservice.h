@@ -192,11 +192,11 @@ private:
                                                        const QString& steamAppId);
 
     // State
-    GameService* m_gameService{nullptr};
+    GameService* m_gameService{nullptr};  // Non-owning. Set by GameService on construction.
     bool m_isChecking{false};
     int m_gamesWithUpdates{0};
     bool m_monitoringActive{false};
-    QTimer* m_monitorTimer{nullptr};
+    QTimer m_monitorTimer;
     QHash<QString, StoreVersionRecord> m_storeVersions;
     QSet<QString> m_updatedGameIds;
     mutable QMutex m_storeVersionsMutex;

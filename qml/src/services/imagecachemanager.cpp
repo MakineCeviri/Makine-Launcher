@@ -6,12 +6,15 @@
 
 #include "imagecachemanager.h"
 #include "apppaths.h"
+#include "profiler.h"
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QNetworkReply>
+#include <QPainter>
+#include <QPainterPath>
 #include <QRegularExpression>
 #include <QUrl>
 
@@ -34,28 +37,55 @@ void ImageCacheManager::ensureCacheDir()
 QString ImageCacheManager::localPath(const QString& appId) const
 {
     // M-8: Sanitize appId to prevent path traversal (strip anything except alphanumeric/underscore)
+    // Static regex: compiled once, reused across all 260+ calls per session.
+    static const QRegularExpression kSanitizeRx(QStringLiteral("[^a-zA-Z0-9_-]"));
     QString safe = appId;
-    safe.remove(QRegularExpression(QStringLiteral("[^a-zA-Z0-9_-]")));
+    safe.remove(kSanitizeRx);
     if (safe.isEmpty())
         return {};
-    return m_cacheDir + QLatin1Char('/') + safe + QStringLiteral(".jpg");
+    return m_cacheDir + QLatin1Char('/') + safe + QStringLiteral(".png");
 }
 
 QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUrl)
 {
+    MAKINE_ZONE_NAMED("ImageCacheManager::resolve");
     if (appId.isEmpty())
         return {};
 
-    // Embedded qrc image — instant, no network needed
-    const QString qrcRes = QStringLiteral(":/qt/qml/MakineAI/resources/showcase/%1.jpg").arg(appId);
-    if (QFile::exists(qrcRes))
-        return QStringLiteral("qrc") + qrcRes;
-
     const QString path = localPath(appId);
 
-    // Already cached on disk — return instant file URL
-    if (QFile::exists(path))
+    // Already processed and cached on disk — instant file URL
+    if (QFile::exists(path)) {
+#ifdef MAKINEAI_DEV_TOOLS
+        ++m_cacheHitCount;
+#endif
         return QUrl::fromLocalFile(path).toString();
+    }
+
+    // Embedded qrc image — process once (bake rounded corners), cache to disk
+    const QString qrcRes = QStringLiteral(":/qt/qml/MakineAI/resources/showcase/%1.jpg").arg(appId);
+    if (QFile::exists(qrcRes)) {
+        QFile f(qrcRes);
+        if (f.open(QIODevice::ReadOnly)) {
+            const QImage processed = processForCard(f.readAll());
+            if (!processed.isNull()) {
+                ensureCacheDir();
+                if (processed.save(path, "PNG")) {
+                    if (m_cachedSizeBytes >= 0)
+                        m_cachedSizeBytes += QFileInfo(path).size();
+#ifdef MAKINEAI_DEV_TOOLS
+                    ++m_cacheHitCount;
+#endif
+                    return QUrl::fromLocalFile(path).toString();
+                }
+            }
+        }
+        // Fallback: return raw qrc if processing failed
+#ifdef MAKINEAI_DEV_TOOLS
+        ++m_cacheHitCount;
+#endif
+        return QStringLiteral("qrc") + qrcRes;
+    }
 
     // Already failed all attempts — don't retry
     if (m_failed.contains(appId))
@@ -70,6 +100,10 @@ QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUr
         }
         if (!inQueue) {
             m_queue.enqueue({appId, remoteUrl});
+#ifdef MAKINEAI_DEV_TOOLS
+            if (m_queue.size() > m_queuePeakSize)
+                m_queuePeakSize = m_queue.size();
+#endif
             processQueue();
         }
     }
@@ -105,9 +139,46 @@ QString ImageCacheManager::fallbackUrl(const QString& appId, const QString& orig
     return {};  // No more fallbacks
 }
 
+QImage ImageCacheManager::processForCard(const QByteArray& data) const
+{
+    QImage src;
+    if (!src.loadFromData(data))
+        return {};
+
+    // Scale to fill target dimensions (same logic as QML Image.PreserveAspectCrop)
+    QImage scaled = src.scaled(CARD_WIDTH, CARD_HEIGHT,
+                               Qt::KeepAspectRatioByExpanding,
+                               Qt::SmoothTransformation);
+
+    // Center crop to exact card size
+    const int cx = (scaled.width() - CARD_WIDTH) / 2;
+    const int cy = (scaled.height() - CARD_HEIGHT) / 2;
+
+    // Create result with alpha for rounded corners
+    QImage result(CARD_WIDTH, CARD_HEIGHT, QImage::Format_ARGB32_Premultiplied);
+    result.fill(Qt::transparent);
+
+    QPainter painter(&result);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    // Clip to rounded rect path
+    QPainterPath path;
+    path.addRoundedRect(QRectF(0, 0, CARD_WIDTH, CARD_HEIGHT), CARD_RADIUS, CARD_RADIUS);
+    painter.setClipPath(path);
+
+    // Draw the cropped region of the scaled image
+    painter.drawImage(0, 0, scaled, cx, cy, CARD_WIDTH, CARD_HEIGHT);
+    painter.end();
+
+    return result;
+}
+
 void ImageCacheManager::startDownload(const QString& appId, const QString& remoteUrl)
 {
     m_pending.insert(appId);
+#ifdef MAKINEAI_DEV_TOOLS
+    ++m_downloadCount;
+#endif
 
     QNetworkRequest req{QUrl{remoteUrl}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
@@ -128,16 +199,18 @@ void ImageCacheManager::startDownload(const QString& appId, const QString& remot
             if (status >= 200 && status < 300) {
                 const QByteArray data = reply->readAll();
                 if (!data.isEmpty()) {
-                    ensureCacheDir();
-                    QFile file(localPath(appId));
-                    if (file.open(QIODevice::WriteOnly)) {
-                        file.write(data);
-                        file.close();
-                        if (m_cachedSizeBytes >= 0)
-                            m_cachedSizeBytes += data.size();
-                        emit imageReady(appId);
-                        emit cacheSizeChanged();
-                        success = true;
+                    // Pre-process: crop to card aspect ratio + bake rounded corners
+                    const QImage processed = processForCard(data);
+                    if (!processed.isNull()) {
+                        ensureCacheDir();
+                        const QString path = localPath(appId);
+                        if (processed.save(path, "PNG")) {
+                            if (m_cachedSizeBytes >= 0)
+                                m_cachedSizeBytes += QFileInfo(path).size();
+                            emit imageReady(appId);
+                            emit cacheSizeChanged();
+                            success = true;
+                        }
                     }
                 }
             }
@@ -172,6 +245,7 @@ void ImageCacheManager::clearCache()
 
 qint64 ImageCacheManager::cacheSizeBytes() const
 {
+    MAKINE_ZONE_NAMED("ImageCacheManager::cacheSizeBytes");
     if (m_cachedSizeBytes >= 0)
         return m_cachedSizeBytes;
 
@@ -195,5 +269,30 @@ QString ImageCacheManager::cacheSizeFormatted() const
         return QStringLiteral("%1 KB").arg(bytes / 1024);
     return QStringLiteral("%1 MB").arg(bytes / (1024 * 1024));
 }
+
+int ImageCacheManager::cachedImageCount() const
+{
+    QDir dir(m_cacheDir);
+    return dir.entryList(QDir::Files).count();
+}
+
+qint64 ImageCacheManager::cachedImageBytes() const
+{
+    return cacheSizeBytes();
+}
+
+#ifdef MAKINEAI_DEV_TOOLS
+QVariantMap ImageCacheManager::imageStats() const
+{
+    QVariantMap map;
+    map[QStringLiteral("downloads")] = m_downloadCount;
+    map[QStringLiteral("cacheHits")] = m_cacheHitCount;
+    int total = m_downloadCount + m_cacheHitCount;
+    map[QStringLiteral("hitRate")] = total > 0
+        ? static_cast<double>(m_cacheHitCount) / total : 0.0;
+    map[QStringLiteral("queuePeak")] = m_queuePeakSize;
+    return map;
+}
+#endif
 
 } // namespace makineai

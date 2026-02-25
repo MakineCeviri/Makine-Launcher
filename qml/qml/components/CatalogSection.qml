@@ -27,41 +27,78 @@ Rectangle {
     // ── Internal state ──
     readonly property real contentPadding: 16
     property string searchQuery: ""
-    property var filteredGames: {
-        if (!searchQuery)
-            return allGames
-        var q = searchQuery.toLowerCase()
-        return allGames.filter(function(g) {
-            return (g.name || "").toLowerCase().indexOf(q) !== -1
-        })
+    property var filteredGames: allGames
+    property var row1Games: []
+    property var row2Games: []
+    property bool _row2Ready: false
+
+    // Recompute filtered + row splits imperatively (no cascading bindings)
+    function _recomputeFiltered() {
+        var src = allGames
+        if (searchQuery) {
+            var q = searchQuery.toLowerCase()
+            src = allGames.filter(function(g) {
+                return (g.name || "").toLowerCase().indexOf(q) !== -1
+            })
+        }
+        filteredGames = src
+        var half = Math.ceil(src.length / 2)
+        row1Games = src.slice(0, half)
+
+        // Defer row2 on first load to spread delegate creation across frames
+        if (_row2Ready || searchQuery) {
+            row2Games = src.slice(half)
+        } else {
+            row2Games = []
+            _row2Defer.start()
+        }
     }
-    readonly property int halfCount: Math.ceil(filteredGames.length / 2)
-    property var row1Games: filteredGames.slice(0, halfCount)
-    property var row2Games: filteredGames.slice(halfCount)
+    onAllGamesChanged: _recomputeFiltered()
+
+    Timer {
+        id: _row2Defer
+        interval: 80
+        onTriggered: {
+            catalog._row2Ready = true
+            var src = catalog.filteredGames
+            catalog.row2Games = src.slice(Math.ceil(src.length / 2))
+        }
+    }
 
     // ── Search debounce ──
     Timer {
         id: searchDebounce
         interval: 200
-        onTriggered: catalog.searchQuery = searchInput.text.trim()
+        onTriggered: {
+            catalog.searchQuery = searchInput.text.trim()
+            catalog._recomputeFiltered()
+            if (typeof SceneProfiler !== "undefined")
+                SceneProfiler.endInteraction()
+        }
     }
 
-    // ── Entry animation ──
+    // ── Entry animation (runs once) ──
     opacity: 0
     transform: Translate { id: catalogTranslate; y: 18 }
-    Component.onCompleted: entryAnim.start()
+    property bool _entryPlayed: false
+    Component.onCompleted: {
+        if (!_entryPlayed) {
+            entryAnim.start()
+            _entryPlayed = true
+        }
+    }
 
     SequentialAnimation {
         id: entryAnim
-        PauseAnimation { duration: Dimensions.transitionDuration }
+        PauseAnimation { duration: 80 }
         ParallelAnimation {
             NumberAnimation {
                 target: catalog; property: "opacity"
-                from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
+                from: 0; to: 1; duration: Dimensions.animNormal; easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: catalogTranslate; property: "y"
-                from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
+                from: 18; to: 0; duration: Dimensions.animNormal; easing.type: Easing.OutCubic
             }
         }
     }
@@ -177,7 +214,11 @@ Rectangle {
                         color: Theme.textPrimary
                         clip: true
                         selectByMouse: true
-                        onTextChanged: searchDebounce.restart()
+                        onTextChanged: {
+                            if (typeof SceneProfiler !== "undefined" && !searchDebounce.running)
+                                SceneProfiler.beginInteraction("catalogSearch")
+                            searchDebounce.restart()
+                        }
                         Keys.onEscapePressed: { text = ""; focus = false }
 
                         Text {
@@ -290,12 +331,9 @@ Rectangle {
         rotation: mirror ? 180 : 0
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0;  color: Qt.rgba(0.055, 0.055, 0.055, 0.95) }
-            GradientStop { position: 0.15; color: Qt.rgba(0.055, 0.055, 0.055, 0.70) }
-            GradientStop { position: 0.35; color: Qt.rgba(0.055, 0.055, 0.055, 0.35) }
-            GradientStop { position: 0.6;  color: Qt.rgba(0.055, 0.055, 0.055, 0.10) }
-            GradientStop { position: 0.85; color: Qt.rgba(0.055, 0.055, 0.055, 0.02) }
-            GradientStop { position: 1.0;  color: "transparent" }
+            GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
+            GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.25) }
+            GradientStop { position: 1.0; color: "transparent" }
         }
     }
     EdgeFade { anchors.left: parent.left }

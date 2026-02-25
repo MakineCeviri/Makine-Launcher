@@ -160,6 +160,32 @@ release-signed: release-static
     @echo "Done: signed single EXE ready for distribution"
 
 # ============================================================================
+# PROFILING (Tracy)
+# ============================================================================
+
+# Build with Tracy profiler + PerfReporter instrumentation
+profile:
+    cmake --preset dev-profile
+    cmake --build --preset dev-profile
+
+# Run profiler build (connect with Tracy GUI)
+run-profile:
+    ./build/dev-profile/MakineAI.exe
+
+# Automated profile: build, run for N seconds, generate + show report
+profile-auto duration="15":
+    cmake --preset dev-profile
+    cmake --build --preset dev-profile
+    @echo "Running MakineAI for {{duration}} seconds..."
+    ./build/dev-profile/MakineAI.exe --profile-duration={{duration}}
+    @echo ""
+    python scripts/perf_report.py
+
+# Show latest performance report (markdown formatted)
+perf-report:
+    python scripts/perf_report.py
+
+# ============================================================================
 # DEVELOPMENT
 # ============================================================================
 

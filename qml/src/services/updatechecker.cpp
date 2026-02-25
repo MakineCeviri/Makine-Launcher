@@ -5,6 +5,7 @@
  */
 
 #include "updatechecker.h"
+#include "profiler.h"
 #include "apppaths.h"
 
 #include <QJsonDocument>
@@ -72,7 +73,6 @@ static constexpr qint64 kCheckIntervalSecs = 24 * 60 * 60;
 
 UpdateChecker::UpdateChecker(QObject *parent)
     : QObject(parent)
-    , m_networkManager(new QNetworkAccessManager(this))
 {
 }
 
@@ -124,6 +124,7 @@ void UpdateChecker::checkForUpdatesIfNeeded()
 
 void UpdateChecker::checkForUpdates()
 {
+    MAKINE_ZONE_NAMED("UpdateChecker::checkForUpdates");
     if (m_checking)
         return;
 
@@ -136,7 +137,7 @@ void UpdateChecker::checkForUpdates()
     request.setRawHeader("User-Agent", "MakineAI-UpdateChecker");
     request.setTransferTimeout(15000); // 15s timeout
 
-    auto *reply = m_networkManager->get(request);
+    auto *reply = m_networkManager.get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         onReplyFinished(reply);
     });
@@ -234,6 +235,7 @@ void UpdateChecker::onReplyFinished(QNetworkReply* reply)
 
 void UpdateChecker::downloadUpdate()
 {
+    MAKINE_ZONE_NAMED("UpdateChecker::downloadUpdate");
     if (m_downloading || m_installerUrl.isEmpty())
         return;
 
@@ -272,11 +274,10 @@ void UpdateChecker::downloadUpdate()
     // Remove old file if exists
     QFile::remove(m_installerPath);
 
-    m_downloadFile = new QFile(m_installerPath, this);
+    m_downloadFile = std::make_unique<QFile>(m_installerPath);
     if (!m_downloadFile->open(QIODevice::WriteOnly)) {
         setDownloadError(QStringLiteral("Cannot create file: %1").arg(m_downloadFile->errorString()));
-        delete m_downloadFile;
-        m_downloadFile = nullptr;
+        m_downloadFile.reset();
         return;
     }
 
@@ -291,7 +292,7 @@ void UpdateChecker::downloadUpdate()
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
 
-    m_downloadReply = m_networkManager->get(request);
+    m_downloadReply = m_networkManager.get(request);
 
     connect(m_downloadReply, &QNetworkReply::readyRead, this, [this]() {
         if (m_downloadFile && m_downloadReply)
@@ -312,8 +313,7 @@ void UpdateChecker::downloadUpdate()
 
         if (m_downloadFile) {
             m_downloadFile->close();
-            delete m_downloadFile;
-            m_downloadFile = nullptr;
+            m_downloadFile.reset();
         }
 
         if (!reply) return;
@@ -342,13 +342,14 @@ void UpdateChecker::downloadUpdate()
 
 void UpdateChecker::verifyAndFinalize(const QString& installerPath)
 {
+    MAKINE_ZONE_NAMED("UpdateChecker::verifyAndFinalize");
     QUrl csUrl{m_checksumsUrl};
     QNetworkRequest request{csUrl};
     request.setRawHeader("User-Agent", "MakineAI-UpdateChecker");
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
 
-    auto *csReply = m_networkManager->get(request);
+    auto *csReply = m_networkManager.get(request);
     connect(csReply, &QNetworkReply::finished, this, [this, csReply, installerPath]() {
         csReply->deleteLater();
 
@@ -453,8 +454,7 @@ void UpdateChecker::cancelDownload()
 
     if (m_downloadFile) {
         m_downloadFile->close();
-        delete m_downloadFile;
-        m_downloadFile = nullptr;
+        m_downloadFile.reset();
     }
 
     if (!m_installerPath.isEmpty())

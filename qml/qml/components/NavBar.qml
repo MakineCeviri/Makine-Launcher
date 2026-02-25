@@ -108,10 +108,13 @@ Rectangle {
                 onClicked: navBarRoot.homeClicked()
             }
 
-            ToolTip {
-                visible: logoMouse.containsMouse
-                text: qsTr("Ana Menü")
-                delay: 500
+            Loader {
+                active: logoMouse.containsMouse
+                sourceComponent: ToolTip {
+                    visible: true
+                    text: qsTr("Ana Menü")
+                    delay: 500
+                }
             }
         }
 
@@ -138,12 +141,20 @@ Rectangle {
             scale: hovered ? 1.1 : 1.0
             Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
 
+            readonly property bool _windowVisible: discordItem.Window.window !== null
+                                                    && discordItem.Window.window.visibility !== Window.Minimized
+                                                    && discordItem.Window.window.visibility !== Window.Hidden
             property real pulse: 0.8
             SequentialAnimation on pulse {
                 loops: Animation.Infinite
                 running: !discordItem.hovered && navBarRoot.animationsEnabled
+                         && discordItem._windowVisible
                 NumberAnimation { from: 0.8; to: 0.95; duration: 3000; easing.type: Easing.InOutSine }
                 NumberAnimation { from: 0.95; to: 0.8; duration: 3000; easing.type: Easing.InOutSine }
+                onRunningChanged: {
+                    if (typeof SceneProfiler !== "undefined")
+                        SceneProfiler.registerAnimation("discordPulse", running)
+                }
             }
 
             Image {
@@ -163,10 +174,13 @@ Rectangle {
                 onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
             }
 
-            ToolTip {
-                visible: discordMouse.containsMouse
-                text: "Discord"
-                delay: 400
+            Loader {
+                active: discordMouse.containsMouse
+                sourceComponent: ToolTip {
+                    visible: true
+                    text: "Discord"
+                    delay: 400
+                }
             }
         }
 
@@ -190,51 +204,20 @@ Rectangle {
             rotation: hovered ? 30 : 0
             Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
 
-            Canvas {
-                id: gearCanvas
+            // Gear icon — Segoe MDL2 Assets glyph (no Canvas repaint loop)
+            Text {
                 anchors.centerIn: parent
-                width: 18; height: 18
-                property bool sel: settingsItem.isSelected
-                property bool hov: settingsItem.hovered
-                onSelChanged: requestPaint()
-                onHovChanged: requestPaint()
-
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.clearRect(0, 0, width, height)
-
-                    var c = sel ? Theme.primary : (hov ? Theme.textPrimary : Theme.textMuted)
-                    ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, sel ? 1.0 : (hov ? 0.9 : 0.6))
-                    ctx.lineWidth = 1.5
-                    ctx.lineCap = "round"
-                    ctx.lineJoin = "round"
-
-                    var cx = 9, cy = 9, outerR = 8, innerR = 6
-                    var teeth = 6
-
-                    // Gear outer shape
-                    ctx.beginPath()
-                    for (var i = 0; i < teeth; i++) {
-                        var a1 = (i / teeth) * Math.PI * 2 - Math.PI / 2
-                        var a2 = a1 + (0.3 / teeth) * Math.PI * 2
-                        var a3 = a1 + (0.5 / teeth) * Math.PI * 2
-                        var a4 = a1 + (0.8 / teeth) * Math.PI * 2
-                        var a5 = a1 + (1.0 / teeth) * Math.PI * 2
-
-                        if (i === 0) ctx.moveTo(cx + Math.cos(a1) * innerR, cy + Math.sin(a1) * innerR)
-                        ctx.lineTo(cx + Math.cos(a2) * outerR, cy + Math.sin(a2) * outerR)
-                        ctx.lineTo(cx + Math.cos(a3) * outerR, cy + Math.sin(a3) * outerR)
-                        ctx.lineTo(cx + Math.cos(a4) * innerR, cy + Math.sin(a4) * innerR)
-                        ctx.lineTo(cx + Math.cos(a5) * innerR, cy + Math.sin(a5) * innerR)
-                    }
-                    ctx.closePath()
-                    ctx.stroke()
-
-                    // Center circle
-                    ctx.beginPath()
-                    ctx.arc(cx, cy, 3, 0, Math.PI * 2)
-                    ctx.stroke()
-                }
+                text: "\uE713"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 17
+                color: settingsItem.isSelected ? Theme.primary
+                     : settingsItem.hovered    ? Theme.textPrimary
+                     : Theme.textMuted
+                opacity: settingsItem.isSelected ? 1.0
+                       : settingsItem.hovered    ? 0.9
+                       : 0.6
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             }
 
             MouseArea {
@@ -245,10 +228,13 @@ Rectangle {
                 onClicked: navBarRoot.settingsClicked()
             }
 
-            ToolTip {
-                visible: settingsMouse.containsMouse
-                text: qsTr("Ayarlar")
-                delay: 400
+            Loader {
+                active: settingsMouse.containsMouse
+                sourceComponent: ToolTip {
+                    visible: true
+                    text: qsTr("Ayarlar")
+                    delay: 400
+                }
             }
         }
     }

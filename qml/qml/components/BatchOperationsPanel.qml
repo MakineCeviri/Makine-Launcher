@@ -62,6 +62,10 @@ Rectangle {
                     running: BatchOperationService.isRunning && root.animationsEnabled
                     NumberAnimation { from: 1.0; to: 0.3; duration: 600; easing.type: Easing.InOutSine }
                     NumberAnimation { from: 0.3; to: 1.0; duration: 600; easing.type: Easing.InOutSine }
+                    onRunningChanged: {
+                        if (typeof SceneProfiler !== "undefined")
+                            SceneProfiler.registerAnimation("batchOpsPulse", running)
+                    }
                 }
             }
 

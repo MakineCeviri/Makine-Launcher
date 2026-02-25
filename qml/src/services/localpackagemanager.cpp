@@ -10,6 +10,7 @@
  */
 
 #include "localpackagemanager.h"
+#include "profiler.h"
 #include "operationjournal.h"
 #include "pathsecurity.h"
 #include "appprotection.h"
@@ -53,6 +54,7 @@ LocalPackageManager::LocalPackageManager(QObject *parent)
 
 bool LocalPackageManager::loadFromPath(const QString& translationDataPath)
 {
+    MAKINE_ZONE_NAMED("LPM::loadFromPath");
     m_dataPath = translationDataPath;
 
     // Delegate catalog loading to core
@@ -341,6 +343,7 @@ LocalPackageManager::LocalPackageManager(QObject *parent)
 
 bool LocalPackageManager::loadFromPath(const QString& translationDataPath)
 {
+    MAKINE_ZONE_NAMED("LPM::loadFromPath");
     m_dataPath = translationDataPath;
     m_packages.clear();
     m_storeIdToSteamAppId.clear();
@@ -952,6 +955,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                                          const QString& variant,
                                          const QStringList& selectedOptions)
 {
+    MAKINE_ZONE_NAMED("LPM::installPackage");
     INTEGRITY_GATE();
     m_cancelRequested.store(false, std::memory_order_relaxed);
 
@@ -1284,6 +1288,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QString& gamePath,
                                                const QString& packageDir)
 {
+    MAKINE_ZONE_NAMED("LPM::executeInstallSteps");
     INTEGRITY_GATE();
     const int total = pkg.installSteps.size();
     int current = 0;
@@ -1715,6 +1720,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QString& gamePath,
                                               const QString& basePackageDir, const QStringList& selectedOptions)
 {
+    MAKINE_ZONE_NAMED("LPM::installWithOptions");
     INTEGRITY_GATE();
 
     int totalSteps = 0;
@@ -1989,6 +1995,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 void LocalPackageManager::executeUnityPatch(const PackageInfo& pkg, const QString& gamePath,
                                              const QString& packageDir)
 {
+    MAKINE_ZONE_NAMED("LPM::executeUnityPatch");
 #ifndef MAKINEAI_UI_ONLY
     INTEGRITY_GATE();
 
@@ -2181,6 +2188,7 @@ void LocalPackageManager::executeUnityPatch(const PackageInfo& pkg, const QStrin
 
 bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath)
 {
+    MAKINE_ZONE_NAMED("LPM::uninstallPackage");
     INTEGRITY_GATE();
 
 #ifndef MAKINEAI_UI_ONLY

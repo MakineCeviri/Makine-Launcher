@@ -71,7 +71,13 @@ Item {
 
             opacity: 0
             transform: Translate { id: topRowTranslate; y: 14 }
-            Component.onCompleted: topRowEntryAnim.start()
+            property bool _entryPlayed: false
+            Component.onCompleted: {
+                if (!_entryPlayed) {
+                    topRowEntryAnim.start()
+                    _entryPlayed = true
+                }
+            }
 
             ParallelAnimation {
                 id: topRowEntryAnim

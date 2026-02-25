@@ -112,7 +112,11 @@ Item {
                             // Entry animation on load
                             opacity: 0
                             transform: Translate { id: contentTranslate; y: 12 }
-                            onLoaded: contentEntryAnim.restart()
+                            onLoaded: {
+                                contentEntryAnim.restart()
+                                if (typeof SceneProfiler !== "undefined")
+                                    SceneProfiler.endInteraction()
+                            }
 
                             ParallelAnimation {
                                 id: contentEntryAnim
@@ -139,6 +143,9 @@ Item {
                                     settingsScrollView.ScrollBar.vertical.position = 0
                                     contentLoader.opacity = 0
                                     contentTranslate.y = 12
+
+                                    if (typeof SceneProfiler !== "undefined")
+                                        SceneProfiler.beginInteraction("settingsPageSwitch")
                                 }
                             }
 

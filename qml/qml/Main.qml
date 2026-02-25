@@ -183,9 +183,9 @@ ApplicationWindow {
 
     onWindowActiveChanged: {
         if (windowActive) {
-            ProcessScanner.startWatching(3000)
+            ProcessScanner.startWatching(10000)
         } else {
-            ProcessScanner.startWatching(30000)
+            ProcessScanner.startWatching(60000)
         }
     }
 
@@ -327,10 +327,15 @@ ApplicationWindow {
             property bool settingsVisible: false
             property bool gameDetailVisible: false
 
+            readonly property var _pageNames: ["Home", "Settings", "GameDetail"]
+
             function navigateTo(index) {
                 if (index === currentIndex || transitioning) return
                 transitioning = true
                 previousIndex = currentIndex
+
+                if (typeof SceneProfiler !== "undefined")
+                    SceneProfiler.beginTransition(_pageNames[previousIndex] || "?", _pageNames[index] || "?")
 
                 var outgoingPage = getPage(previousIndex)
                 var incomingPage = getPage(index)
@@ -381,6 +386,9 @@ ApplicationWindow {
                     contentStackContainer.setPageVisible(contentStackContainer.previousIndex, false)
                     contentStackContainer.currentIndex = newIndex
                     contentStackContainer.transitioning = false
+
+                    if (typeof SceneProfiler !== "undefined")
+                        SceneProfiler.endTransition()
                 }
             }
 
@@ -455,6 +463,10 @@ ApplicationWindow {
                 active: contentStackContainer.settingsVisible
                 visible: contentStackContainer.settingsVisible
                 asynchronous: true
+                onLoaded: {
+                    if (typeof SceneProfiler !== "undefined")
+                        SceneProfiler.markLoaderReady("SettingsScreen")
+                }
                 sourceComponent: Component {
                     SettingsScreen {
                         onBack: {
@@ -472,6 +484,10 @@ ApplicationWindow {
                 active: contentStackContainer.gameDetailVisible
                 visible: contentStackContainer.gameDetailVisible
                 asynchronous: true
+                onLoaded: {
+                    if (typeof SceneProfiler !== "undefined")
+                        SceneProfiler.markLoaderReady("GameDetailScreen")
+                }
                 sourceComponent: Component {
                     GameDetailScreen {
                         onBackClicked: {
@@ -532,13 +548,19 @@ ApplicationWindow {
         title: qsTr("Oyun Klasörünü Seç")
         onAccepted: {
             var folderPath = selectedFolder.toString().replace("file:///", "")
-            var newGameId = GameService.addManualGame(folderPath)
-            if (newGameId && newGameId !== "") {
-                var gameData = GameService.getGameById(newGameId)
-                var gameName = (gameData && gameData.name) || folderPath.split("/").pop()
-                var engine = (gameData && gameData.engine) || "Unknown"
-                homeView.gameSelected(newGameId, gameName, folderPath, engine)
-            }
+            GameService.addManualGame(folderPath)
+        }
+    }
+
+    Connections {
+        target: GameService
+        function onManualGameAdded(gameId) {
+            if (!gameId || gameId === "") return
+            var gameData = GameService.getGameById(gameId)
+            var gameName = (gameData && gameData.name) || ""
+            var engine = (gameData && gameData.engine) || "Unknown"
+            var installPath = (gameData && gameData.installPath) || ""
+            homeView.gameSelected(gameId, gameName, installPath, engine)
         }
     }
 
@@ -560,8 +582,12 @@ ApplicationWindow {
                 onContinueAnyway: {
                     installFlow.onAntiCheatContinue()
                 }
-                onClosed: antiCheatWarningLoader.active = false
+                onClosed: {
+                    antiCheatWarningLoader.active = false
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogClose("AntiCheatWarning")
+                }
                 Component.onCompleted: {
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogOpen("AntiCheatWarning")
                     if (installFlow.pendingAntiCheatData) {
                         gameName = installFlow.pendingAntiCheatData.gameName
                         detectedSystems = installFlow.pendingAntiCheatData.detectedSystems
@@ -582,8 +608,12 @@ ApplicationWindow {
                 parent: Overlay.overlay
                 onAccepted: installFlow.onInstallNotesAccepted()
                 onCancelled: installFlow.onInstallNotesCancelled()
-                onClosed: installNotesLoader.active = false
+                onClosed: {
+                    installNotesLoader.active = false
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogClose("InstallNotes")
+                }
                 Component.onCompleted: {
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogOpen("InstallNotes")
                     if (installFlow.pendingInstallNotes) {
                         notes = installFlow.pendingInstallNotes.notes
                     }
@@ -604,8 +634,12 @@ ApplicationWindow {
                     installFlow.onOptionsConfirmed(selectedIds)
                 }
                 onCancelled: installFlow.onOptionsCancelled()
-                onClosed: installOptionsLoader.active = false
+                onClosed: {
+                    installOptionsLoader.active = false
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogClose("InstallOptions")
+                }
                 Component.onCompleted: {
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogOpen("InstallOptions")
                     if (installFlow.pendingInstallOptionsData) {
                         options = installFlow.pendingInstallOptionsData.options
                         specialMode = installFlow.pendingInstallOptionsData.specialDialog || ""
@@ -628,8 +662,12 @@ ApplicationWindow {
                     installFlow.onVariantSelected(variant)
                 }
                 onCancelled: installFlow.onVariantCancelled()
-                onClosed: variantSelectionLoader.active = false
+                onClosed: {
+                    variantSelectionLoader.active = false
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogClose("VariantSelection")
+                }
                 Component.onCompleted: {
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogOpen("VariantSelection")
                     if (installFlow.pendingVariantData) {
                         variants = installFlow.pendingVariantData.variants
                         variantType = installFlow.pendingVariantData.variantType || "version"
@@ -648,8 +686,12 @@ ApplicationWindow {
         sourceComponent: Component {
             UpdateAlertDialog {
                 parent: Overlay.overlay
-                onClosed: updateAlertLoader.active = false
+                onClosed: {
+                    updateAlertLoader.active = false
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogClose("UpdateAlert")
+                }
                 Component.onCompleted: {
+                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogOpen("UpdateAlert")
                     if (window._pendingImpacts) {
                         for (var i = 0; i < window._pendingImpacts.length; i++) {
                             var p = window._pendingImpacts[i]
@@ -715,6 +757,7 @@ ApplicationWindow {
             color: Theme.primary
 
             SequentialAnimation on x {
+                id: loadingShimmerAnim
                 running: globalLoadingBar.visible
                 loops: Animation.Infinite
                 NumberAnimation {
@@ -722,6 +765,10 @@ ApplicationWindow {
                     to: globalLoadingBar.width
                     duration: Dimensions.animLoadingCycle
                     easing.type: Easing.InOutQuad
+                }
+                onRunningChanged: {
+                    if (typeof SceneProfiler !== "undefined")
+                        SceneProfiler.registerAnimation("loadingBarShimmer", running)
                 }
             }
 
@@ -740,16 +787,17 @@ ApplicationWindow {
         }
     }
 
-    // ===== PERFORMANCE MONITOR (F3 to toggle) =====
+    // ===== PERFORMANCE MONITOR (F3 to toggle, dev builds only) =====
     property bool showPerformanceMonitor: false
 
     PerformanceMonitor {
         id: perfMonitor
-        visible: window.showPerformanceMonitor
+        visible: devToolsEnabled && window.showPerformanceMonitor
         z: Dimensions.zDebug
     }
 
     Shortcut {
+        enabled: devToolsEnabled
         sequence: "F3"
         onActivated: window.showPerformanceMonitor = !window.showPerformanceMonitor
     }

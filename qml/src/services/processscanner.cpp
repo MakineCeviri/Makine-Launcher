@@ -5,7 +5,9 @@
  */
 
 #include "processscanner.h"
+#include "profiler.h"
 #include <QDebug>
+#include <QtConcurrent>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -37,6 +39,8 @@ namespace makineai {
 ProcessScanner::ProcessScanner(QObject *parent)
     : QObject(parent)
 {
+    connect(&m_scanTimer, &QTimer::timeout, this, &ProcessScanner::performScan);
+
     // Initialize known game processes
     m_knownProcesses["eldenring.exe"] = "1245620";
     m_knownProcesses["starfield.exe"] = "1716740";
@@ -60,16 +64,11 @@ ProcessScanner* ProcessScanner::create(QQmlEngine *qmlEngine, QJSEngine *jsEngin
 
 void ProcessScanner::startWatching(int intervalMs)
 {
-    if (!m_scanTimer) {
-        m_scanTimer = new QTimer(this);
-        connect(m_scanTimer, &QTimer::timeout, this, &ProcessScanner::performScan);
-    }
-
     // Update interval even if already watching (e.g. 3000ms → 30000ms on minimize)
-    if (m_isWatching && m_scanTimer->interval() == intervalMs)
+    if (m_isWatching && m_scanTimer.interval() == intervalMs)
         return;
 
-    m_scanTimer->start(intervalMs);
+    m_scanTimer.start(intervalMs);
 
     if (!m_isWatching) {
         m_isWatching = true;
@@ -82,9 +81,7 @@ void ProcessScanner::stopWatching()
 {
     if (!m_isWatching) return;
 
-    if (m_scanTimer) {
-        m_scanTimer->stop();
-    }
+    m_scanTimer.stop();
 
     m_isWatching = false;
     emit isWatchingChanged();
@@ -94,13 +91,24 @@ void ProcessScanner::stopWatching()
 
 void ProcessScanner::performScan()
 {
-    detectRunningGames();
+    MAKINE_ZONE_NAMED("ProcessScanner::performScan");
+
+    // Snapshot running processes on a worker thread to avoid
+    // CreateToolhelp32Snapshot blocking the main thread (~3.5ms).
+    (void)QtConcurrent::run([this]() {
+        MAKINE_ZONE_NAMED("ProcessScanner::getRunningProcesses (async)");
+        QStringList procs = getRunningProcesses();
+
+        // Process matching + signal emission must happen on the main thread
+        QMetaObject::invokeMethod(this, [this, procs = std::move(procs)]() {
+            detectRunningGames(procs);
+        }, Qt::QueuedConnection);
+    });
 }
 
-void ProcessScanner::detectRunningGames()
+void ProcessScanner::detectRunningGames(const QStringList& processes)
 {
 #ifdef Q_OS_WIN
-    const QStringList processes = getRunningProcesses();
     bool foundGame = false;
     QString foundGameId;
     QString foundGameName;

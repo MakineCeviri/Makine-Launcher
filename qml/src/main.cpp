@@ -24,13 +24,15 @@
 #include <QLibrary>
 #include <QElapsedTimer>
 #include <QQmlComponent>
+#include <QJsonObject>
+#include "services/profiler.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <psapi.h>     // EmptyWorkingSet
 #include <dwmapi.h>    // DwmExtendFrameIntoClientArea
 
-// Acrylic backdrop blur (non-Vulkan backends only)
+// Acrylic backdrop blur (DWM composition)
 namespace {
 
 enum ACCENT_STATE {
@@ -456,108 +458,24 @@ void logToFile(const QString& msg) {
 #include "services/operationjournal.h"
 #include "services/imagecachemanager.h"
 #include "services/corebridge.h"
+#ifdef MAKINEAI_DEV_TOOLS
+#include "services/frametimer.h"
+#include "services/sceneprofiler.h"
+#include "services/memoryprofiler.h"
+#endif
 
 int main(int argc, char *argv[])
 {
     // === RENDER LOOP ===
-    // "basic" = single-threaded, renders only when scene changes.
-    // Best idle CPU/GPU: Vulkan + basic loop → near-zero when nothing animates.
-    qputenv("QSG_RENDER_LOOP", "basic");
+    // "threaded" = render on separate thread, overlaps CPU+GPU work.
+    // "basic" = single-threaded, best idle efficiency but blocks main thread during render.
+    qputenv("QSG_RENDER_LOOP", "threaded");
 
     // === GRAPHICS BACKEND ===
-    // Vulkan: lowest idle GPU on Windows with basic render loop.
+    // Qt RHI default: D3D11 on Windows, OpenGL on Linux, Metal on macOS.
+    // No explicit setGraphicsApi() — let Qt pick the best available backend.
     // Override: QSG_RHI_BACKEND env var always takes precedence.
-    if (qEnvironmentVariableIsEmpty("QSG_RHI_BACKEND")) {
-        QSettings backendSettings("MakineAI", "MakineAI");
-        QString backend = backendSettings.value("performance/graphicsBackend", "vulkan").toString();
-#ifdef QT_STATIC
-        // Static Qt builds: Vulkan RHI backend hangs during QML loading,
-        // force D3D11 regardless of saved setting.
-        if (backend == "vulkan")
-            backend = "d3d11";
-#endif
-        // Migrate: "auto" from earlier versions → vulkan
-        if (backend == "auto") {
-            backend = "vulkan";
-            backendSettings.setValue("performance/graphicsBackend", backend);
-        }
-
-        // Probe Vulkan availability: load vulkan-1.dll and check for physical devices
-        auto isVulkanAvailable = []() -> bool {
-            QLibrary vulkanLib("vulkan-1");
-            if (!vulkanLib.load())
-                return false;
-
-            using PFN_vkCreateInstance = int (*)(const void *, const void *, void **);
-            using PFN_vkDestroyInstance = void (*)(void *, const void *);
-            using PFN_vkEnumeratePhysicalDevices = int (*)(void *, uint32_t *, void **);
-
-            auto vkCreateInstance = reinterpret_cast<PFN_vkCreateInstance>(
-                vulkanLib.resolve("vkCreateInstance"));
-            auto vkDestroyInstance = reinterpret_cast<PFN_vkDestroyInstance>(
-                vulkanLib.resolve("vkDestroyInstance"));
-            auto vkEnumeratePhysicalDevices = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
-                vulkanLib.resolve("vkEnumeratePhysicalDevices"));
-
-            if (!vkCreateInstance || !vkDestroyInstance || !vkEnumeratePhysicalDevices)
-                return false;
-
-            struct VkApplicationInfo {
-                int sType = 0; // VK_STRUCTURE_TYPE_APPLICATION_INFO
-                const void *pNext = nullptr;
-                const char *pApplicationName = "MakineAI";
-                uint32_t applicationVersion = 0;
-                const char *pEngineName = nullptr;
-                uint32_t engineVersion = 0;
-                uint32_t apiVersion = (1 << 22) | (0 << 12); // VK_API_VERSION_1_0
-            };
-            struct VkInstanceCreateInfo {
-                int sType = 1; // VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-                const void *pNext = nullptr;
-                uint32_t flags = 0;
-                const VkApplicationInfo *pApplicationInfo = nullptr;
-                uint32_t enabledLayerCount = 0;
-                const char *const *ppEnabledLayerNames = nullptr;
-                uint32_t enabledExtensionCount = 0;
-                const char *const *ppEnabledExtensionNames = nullptr;
-            };
-
-            VkApplicationInfo appInfo{};
-            VkInstanceCreateInfo createInfo{};
-            createInfo.pApplicationInfo = &appInfo;
-
-            void *instance = nullptr;
-            if (vkCreateInstance(&createInfo, nullptr, &instance) != 0 || !instance)
-                return false;
-
-            uint32_t deviceCount = 0;
-            vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-            vkDestroyInstance(instance, nullptr);
-            return deviceCount > 0;
-        };
-
-        bool vulkanActive = false;
-        if (backend == "vulkan") {
-            if (isVulkanAvailable()) {
-                QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
-                vulkanActive = true;
-            } else {
-                QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
-            }
-        } else if (backend == "d3d11") {
-            QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
-        } else if (backend == "opengl") {
-            QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
-        }
-
-        // Acrylic backdrop requires alpha buffer — only for non-Vulkan backends
-        if (!vulkanActive) {
-            QQuickWindow::setDefaultAlphaBuffer(true);
-            QSurfaceFormat fmt = QSurfaceFormat::defaultFormat();
-            fmt.setAlphaBufferSize(8);
-            QSurfaceFormat::setDefaultFormat(fmt);
-        }
-    }
+    // No special alpha buffer needed — QML renders the background directly.
 
     // === RELEASE SECURITY ===
 #ifdef NDEBUG
@@ -643,6 +561,13 @@ int main(int argc, char *argv[])
     QThreadPool::globalInstance()->setMaxThreadCount(2);
 
     QQmlApplicationEngine engine;
+
+    // Dev tools availability (must be set BEFORE QML creation)
+#ifdef MAKINEAI_DEV_TOOLS
+    engine.rootContext()->setContextProperty("devToolsEnabled", true);
+#else
+    engine.rootContext()->setContextProperty("devToolsEnabled", false);
+#endif
 
     // ===== Register backend singletons for QML access =====
     // Manual registration — works in both shared and static Qt builds.
@@ -756,14 +681,13 @@ int main(int argc, char *argv[])
     logToFile(QString("QSG_RENDER_LOOP: %1").arg(qEnvironmentVariable("QSG_RENDER_LOOP")));
     {
         QSettings settings("MakineAI", "MakineAI");
-        QString configuredBackend = settings.value("performance/graphicsBackend", "vulkan").toString();
         auto api = QQuickWindow::graphicsApi();
         QString apiName = api == QSGRendererInterface::Direct3D12 ? "D3D12" :
                           api == QSGRendererInterface::Vulkan     ? "Vulkan" :
                           api == QSGRendererInterface::Direct3D11 ? "D3D11" :
                           api == QSGRendererInterface::OpenGL     ? "OpenGL" :
                           "Auto (RHI default)";
-        logToFile(QString("Graphics backend setting: %1 → API: %2").arg(configuredBackend, apiName));
+        logToFile(QString("Graphics backend: %1").arg(apiName));
     }
     logToFile(QString("Swap interval: %1").arg(QSurfaceFormat::defaultFormat().swapInterval()));
 
@@ -869,17 +793,14 @@ int main(int argc, char *argv[])
             HWND hwnd = reinterpret_cast<HWND>(window->winId());
             MoveWindow(hwnd, x, y, w, h, TRUE);
 
-            // Acrylic backdrop blur — only for non-Vulkan backends
-            if (QQuickWindow::graphicsApi() != QSGRendererInterface::Vulkan) {
-                window->setColor(Qt::transparent);
-                enableAcrylicBlur(hwnd);
-            }
+            // Let QML handle the background color (Theme.bgPrimary)
+            // Acrylic blur disabled — was causing white/transparent background issues.
         }
 
         window->setPersistentGraphics(false);
         window->setPersistentSceneGraph(false);
 
-        // Graphics configuration: pipeline cache + Vulkan extensions
+        // Graphics configuration: pipeline cache
         {
             QQuickGraphicsConfiguration gfxConfig;
 
@@ -888,10 +809,6 @@ int main(int argc, char *argv[])
                                 + "/pipeline_cache.bin";
             gfxConfig.setPipelineCacheSaveFile(cachePath);
             gfxConfig.setPipelineCacheLoadFile(cachePath);
-
-            // Enable VK_EXT_memory_budget when using Vulkan backend
-            if (QQuickWindow::graphicsApi() == QSGRendererInterface::Vulkan)
-                gfxConfig.setDeviceExtensions({"VK_EXT_memory_budget"});
 
             window->setGraphicsConfiguration(gfxConfig);
         }
@@ -916,6 +833,50 @@ int main(int argc, char *argv[])
 
         logToFile(QString("Phase 10 (pre-render done) at %1 ms").arg(startupTimer.elapsed()));
 #endif
+
+        // Tracy: frame boundary marker (one FrameMark per rendered frame)
+        QObject::connect(window, &QQuickWindow::afterRendering, window, []() {
+            MAKINE_FRAME;
+        }, Qt::DirectConnection);
+
+#ifdef MAKINEAI_DEV_TOOLS
+        // Dev-only frame timer: high-precision render pipeline metrics
+        auto* frameTimer = new FrameTimer(&app);
+        engine.rootContext()->setContextProperty("FrameTimer", frameTimer);
+        frameTimer->attachToWindow(window);
+
+        // Dump frame stats on exit (integrates with PerfReporter)
+        QObject::connect(&app, &QCoreApplication::aboutToQuit, frameTimer, &FrameTimer::dumpStats);
+
+        // Scene profiler: transition, interaction, dialog, animation tracking
+        auto* sceneProfiler = new SceneProfiler(&app);
+        engine.rootContext()->setContextProperty("SceneProfiler", sceneProfiler);
+
+        // Memory profiler: working set, image cache monitoring
+        auto* memoryProfiler = new MemoryProfiler(&app);
+        memoryProfiler->setImageCacheManager(imageCache);
+        engine.rootContext()->setContextProperty("MemoryProfiler", memoryProfiler);
+
+        // Dump profiler reports on exit
+        QObject::connect(&app, &QCoreApplication::aboutToQuit, [sceneProfiler, memoryProfiler, imageCache]() {
+#ifdef MAKINEAI_PERF_ACTIVE
+            auto& reporter = PerfReporter::instance();
+            reporter.addCustomSection(QStringLiteral("scene"), sceneProfiler->sceneReport());
+            reporter.addCustomSection(QStringLiteral("memory"), memoryProfiler->memoryReport());
+
+            // Image cache stats
+            QJsonObject imgObj;
+            imgObj[QStringLiteral("cache_count")] = imageCache->cachedImageCount();
+            imgObj[QStringLiteral("cache_bytes")] = imageCache->cachedImageBytes();
+            QVariantMap stats = imageCache->imageStats();
+            imgObj[QStringLiteral("total_downloads")] = stats.value(QStringLiteral("downloads")).toInt();
+            imgObj[QStringLiteral("cache_hits")] = stats.value(QStringLiteral("cacheHits")).toInt();
+            imgObj[QStringLiteral("hit_rate")] = stats.value(QStringLiteral("hitRate")).toDouble();
+            imgObj[QStringLiteral("queue_peak")] = stats.value(QStringLiteral("queuePeak")).toInt();
+            reporter.addCustomSection(QStringLiteral("images"), imgObj);
+#endif
+        });
+#endif
     }
 
     // Close splash — window is fully ready
@@ -939,6 +900,37 @@ int main(int argc, char *argv[])
         // Release working set: cold pages (DLL init, QML compile) go to standby list
         EmptyWorkingSet(GetCurrentProcess());
         logToFile("Heap compacted + working set trimmed");
+    });
+#endif
+
+    MAKINE_THREAD_NAME("Main/UI");
+
+#ifdef MAKINEAI_PERF_ACTIVE
+    makineai::PerfReporter::instance().setMainThread();
+
+    // --profile-duration=N: auto-quit after N seconds (automated profiling)
+    for (int i = 1; i < argc; ++i) {
+        QString arg(argv[i]);
+        if (arg.startsWith("--profile-duration=")) {
+            int secs = arg.mid(19).toInt();
+            if (secs > 0) {
+                logToFile(QString("Profile mode: auto-quit in %1 seconds").arg(secs));
+                QTimer::singleShot(secs * 1000, &app, [&app]() {
+                    logToFile("Profile duration reached, exiting...");
+                    // Close all windows first (bypasses setQuitOnLastWindowClosed)
+                    for (auto* w : QGuiApplication::topLevelWindows())
+                        w->close();
+                    app.exit(0);
+                });
+            }
+        }
+    }
+
+    // Dump performance report on exit
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, []() {
+        QString reportPath = makineai::AppPaths::perfReportFile();
+        makineai::PerfReporter::instance().dumpReport(reportPath);
+        logToFile(QString("Performance report saved to: %1").arg(reportPath));
     });
 #endif
 

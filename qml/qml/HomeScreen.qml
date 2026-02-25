@@ -26,6 +26,8 @@ Item {
     property string latestVersion: UpdateChecker.latestVersion
 
     Component.onCompleted: {
+        if (typeof SceneProfiler !== "undefined")
+            SceneProfiler.screenLoaded("Home")
         // Defer heavy I/O until after first frame renders
         scanDelayTimer.start()
     }

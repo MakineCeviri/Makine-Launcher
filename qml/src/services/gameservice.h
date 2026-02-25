@@ -16,12 +16,12 @@
 #include <QQmlEngine>
 #include <QFileInfo>
 #include <QDateTime>
+#include <QNetworkAccessManager>
 
 #include "corebridge.h"
+#include "updatedetectionservice.h"
 
 namespace makineai {
-
-class UpdateDetectionService;
 
 /**
  * @brief Game data model
@@ -137,10 +137,11 @@ public:
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
     /**
-     * @brief Add a manually selected game folder to the library
-     * @return The new game's ID, or empty string on failure
+     * @brief Add a manually selected game folder to the library (async)
+     * Engine detection + catalog matching run in background thread.
+     * Emits manualGameAdded(gameId) on completion.
      */
-    Q_INVOKABLE QString addManualGame(const QString& path);
+    Q_INVOKABLE void addManualGame(const QString& path);
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
     Q_INVOKABLE QVariantMap getGameBySteamAppId(const QString& steamAppId) const;
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
@@ -313,6 +314,7 @@ signals:
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
     void localPackageReady(const QString& packageName, const QString& gameName, const QString& filePath);
     void localPackageError(const QString& filePath, const QString& error);
+    void manualGameAdded(const QString& gameId);
     void folderDropped(const QString& path, bool isGame);
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
     void translationInstallStarted(const QString& gameId);
@@ -334,6 +336,8 @@ private:
     void onScanCompleted(int count);
     void onGameDetected(const QString& gameId, const QString& gameName);
 
+    void finalizeManualGame(const QString& path, const QString& folderName,
+                            const QString& engine, const QString& matchedAppId);
     void finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex);
     void invalidateCache();
     void rebuildCache();
@@ -345,9 +349,9 @@ private:
     void loadSteamDetailsCache();
     void saveSteamDetailsCache();
 
-    CoreBridge* m_coreBridge{nullptr};
-    UpdateDetectionService* m_updateService{nullptr};
-    QNetworkAccessManager* m_networkManager{nullptr};
+    CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
+    UpdateDetectionService m_updateService;
+    QNetworkAccessManager m_networkManager;
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;       // O(1) lookup by ID
     QHash<QString, int> m_steamAppIdToIndex;   // O(1) lookup by steamAppId

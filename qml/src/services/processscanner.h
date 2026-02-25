@@ -63,10 +63,10 @@ private slots:
     void performScan();
 
 private:
-    void detectRunningGames();
+    void detectRunningGames(const QStringList& processes);
     QStringList getRunningProcesses();
 
-    QTimer* m_scanTimer{nullptr};
+    QTimer m_scanTimer;
     bool m_isWatching{false};
     bool m_gameRunning{false};
     QString m_runningGameId;

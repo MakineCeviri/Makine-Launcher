@@ -62,6 +62,11 @@ Rectangle {
         }
 
         PauseAnimation { duration: 600 }
+
+        onRunningChanged: {
+            if (typeof SceneProfiler !== "undefined")
+                SceneProfiler.registerAnimation("skeletonShimmer", running)
+        }
     }
 
     // Shimmer gradient overlay

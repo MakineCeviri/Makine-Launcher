@@ -236,8 +236,8 @@ private:
     QString detectEngineReal(const QString& gamePath);
     QString resolveToSteamAppId(const QString& gameId);
     void buildDetectedGameIndex();
-    LocalPackageManager* m_localPkgManager{nullptr};
-    OperationJournal* m_journal{nullptr};
+    LocalPackageManager* m_localPkgManager{nullptr};  // Owned (lazy-init, Qt parent). Created in scanAllLibraries().
+    OperationJournal* m_journal{nullptr};  // Non-owning. Set by setJournal().
     QHash<QString, int> m_steamAppIdToDetectedIndex;
 };
 

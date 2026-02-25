@@ -72,6 +72,10 @@ Item {
                     from: 0.3; to: 1.0
                     duration: 1200
                     easing.type: Easing.InOutSine
+                    onRunningChanged: {
+                        if (typeof SceneProfiler !== "undefined")
+                            SceneProfiler.registerAnimation("dropZonePulse", running)
+                    }
                 }
             }
         }
@@ -105,6 +109,10 @@ Item {
                         loops: Animation.Infinite
                         NumberAnimation { from: -2; to: 2; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
                         NumberAnimation { from: 2; to: -2; duration: Dimensions.animVerySlow; easing.type: Easing.InOutSine }
+                        onRunningChanged: {
+                            if (typeof SceneProfiler !== "undefined")
+                                SceneProfiler.registerAnimation("dropZoneFloat", running)
+                        }
                     }
                 }
             }

@@ -15,6 +15,8 @@
 #include <QSet>
 #include <QQueue>
 #include <QPair>
+#include <QVariantMap>
+#include <QImage>
 #include <QNetworkAccessManager>
 
 namespace makineai {
@@ -53,6 +55,14 @@ public:
     qint64 cacheSizeBytes() const;
     QString cacheSizeFormatted() const;
 
+    // Dev-tools accessors for MemoryProfiler
+    int cachedImageCount() const;
+    qint64 cachedImageBytes() const;
+
+#ifdef MAKINEAI_DEV_TOOLS
+    Q_INVOKABLE QVariantMap imageStats() const;
+#endif
+
 signals:
     /** Emitted when a single image download completes */
     void imageReady(const QString& appId);
@@ -67,6 +77,8 @@ private:
     void processQueue();
     QString fallbackUrl(const QString& appId, const QString& originalUrl) const;
 
+    QImage processForCard(const QByteArray& data) const;
+
     QString m_cacheDir;
     QNetworkAccessManager m_nam;
     QSet<QString> m_pending;          // appIds currently downloading
@@ -74,6 +86,17 @@ private:
     QQueue<QPair<QString, QString>> m_queue;  // waiting: {appId, remoteUrl}
     mutable qint64 m_cachedSizeBytes{-1};     // Incremental cache size tracking
     static constexpr int MAX_CONCURRENT = 8;
+
+    // Pre-baked card dimensions — matches QML sourceSize and Dimensions.cardBorderRadius * 2
+    static constexpr int CARD_WIDTH  = 260;
+    static constexpr int CARD_HEIGHT = 370;
+    static constexpr int CARD_RADIUS = 32;  // 16px display × 2x source scale
+
+#ifdef MAKINEAI_DEV_TOOLS
+    int m_downloadCount{0};
+    int m_cacheHitCount{0};
+    int m_queuePeakSize{0};
+#endif
 };
 
 } // namespace makineai
