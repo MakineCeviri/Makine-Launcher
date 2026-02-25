@@ -1,15 +1,13 @@
 import QtQuick
-import QtQuick.Controls
 import MakineAI 1.0
 
 /**
- * GameCard.qml - Oyun kartı komponenti
- * No MultiEffect — pure scene graph compositing for smooth scroll.
+ * GameCard.qml - Minimal game card for catalog strips.
+ * Image + name overlay. No effects, no glow, no animations per card.
  */
 Item {
     id: root
 
-    // PUBLIC PROPERTIES
     property string gameId: ""
     property string gameName: ""
     property string imageUrl: ""
@@ -19,19 +17,23 @@ Item {
     property bool translated: false
     property bool hasUpdate: false
 
-    // Settle guard — skip decode for cards that scroll past within 120ms
-    property bool _settled: false
+    signal clicked()
 
-    Timer {
-        id: _settleTimer
-        interval: 120; repeat: false
-        onTriggered: root._settled = true
+    // SIZE — responsive, preserves aspect ratio (130:185)
+    readonly property real _aspectRatio: 130.0 / 185.0
+    width: Math.round(height * _aspectRatio)
+    height: Dimensions.cardHeight
+
+    // Delegate recycling support (reuseItems)
+    ListView.onPooled: gameImage.source = ""
+    ListView.onReused: {
+        var id = root.steamAppId || root.gameId
+        root.imageUrl = ImageCache.resolve(id)
     }
-    Component.onCompleted: _settleTimer.start()
 
+    // Reconnect when image downloads finish
     Connections {
-        // Disconnect once image is loaded — avoids O(N*M) signal dispatch
-        target: (gameImage.status !== Image.Ready && root._settled) ? ImageCache : null
+        target: gameImage.status !== Image.Ready ? ImageCache : null
         function onImageReady(readyId) {
             var myId = root.steamAppId || root.gameId
             if (readyId === myId)
@@ -39,207 +41,77 @@ Item {
         }
     }
 
-    // Delegate recycling support (reuseItems)
-    ListView.onPooled: { _settleTimer.stop(); _settled = false }
-    ListView.onReused: _settleTimer.start()
-
-    // SIZE — responsive, preserves aspect ratio (130:185)
-    readonly property real _aspectRatio: 130.0 / 185.0
-    width: Math.round(height * _aspectRatio)
-    height: Dimensions.cardHeight
-
-    signal clicked()
-
-    Accessible.role: Accessible.Button
-    Accessible.name: root.gameName
-    activeFocusOnTab: true
-    Keys.onReturnPressed: root.clicked()
-    Keys.onSpacePressed: root.clicked()
-
-    // HOVER STATE
-    readonly property bool isHovered: mouseArea.containsMouse
-
-    // Hover: subtle scale only
-    transform: Scale {
-        origin.x: root.width / 2; origin.y: root.height / 2
-        xScale: root.isHovered ? 1.02 : 1.0; yScale: root.isHovered ? 1.02 : 1.0
-        Behavior on xScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-        Behavior on yScale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-    }
-
-    // Ambient glow — deferred until card settles (skip during fast scroll)
-    AmbientGlow {
-        anchors.fill: cardContent; z: 1
-        visible: root._settled
-        glowColor: Theme.accentBase
-        cornerRadius: Dimensions.cardBorderRadius
-        originX: 8; originY: height - 4
-        intensity: 0.22; hoveredIntensity: 0.50; spread: 0.55
-        hovered: root.isHovered
-    }
-
-    // CARD CONTENT — image already has baked rounded corners (no FBO needed)
+    // Card background
     Rectangle {
-        id: cardContent
+        id: cardBg
         anchors.fill: parent
         radius: Dimensions.cardBorderRadius
-        color: Theme.surfaceLight
+        color: mouseArea.containsMouse
+            ? Theme.withAlpha(Theme.textPrimary, 0.08)
+            : Theme.surfaceLight
         clip: true
 
         // Game image
         Image {
             id: gameImage
             anchors.fill: parent
-            source: root._settled ? root.imageUrl : ""
+            source: root.imageUrl
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(260, 370)
             asynchronous: true
             cache: true
             retainWhileLoading: true
-            opacity: 0
-
-            Behavior on opacity {
-                NumberAnimation { duration: Dimensions.fadeTransitionDuration; easing.type: Easing.OutCubic }
-            }
-
-            onStatusChanged: {
-                if (status === Image.Ready)
-                    opacity = 1
-            }
         }
 
-        // Loading placeholder
-        Rectangle {
-            anchors.fill: parent
-            visible: gameImage.status === Image.Loading
-            radius: Dimensions.cardBorderRadius
-            color: Theme.surfaceLight
-
-            BusyIndicator {
-                anchors.centerIn: parent
-                running: gameImage.status === Image.Loading
-                width: 24
-                height: 24
-            }
+        // Fallback initials (no image)
+        Text {
+            anchors.centerIn: parent
+            visible: gameImage.status !== Image.Ready && gameImage.status !== Image.Loading
+            text: root.gameName.substring(0, 2).toUpperCase()
+            font.pixelSize: Dimensions.fontHero
+            font.weight: Font.Bold
+            color: Theme.textMuted
         }
 
-        // Error fallback
+        // Bottom gradient for name readability
         Rectangle {
-            anchors.fill: parent
-            visible: gameImage.status === Image.Error || root.imageUrl === ""
-            radius: Dimensions.cardBorderRadius
-            color: Theme.surface
-
-            Column {
-                anchors.centerIn: parent
-                spacing: Dimensions.spacingMD
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: root.gameName.substring(0, 2).toUpperCase()
-                    font.pixelSize: Dimensions.fontHero
-                    font.weight: Font.Bold
-                    color: Theme.textMuted
-                }
-            }
-        }
-
-        // Integrity warning badge
-        Rectangle {
-            id: warningBadge
-            visible: root.translated && (!root.verified || root.hasUpdate)
-            anchors.top: parent.top; anchors.right: parent.right
-            anchors.topMargin: Dimensions.marginBase; anchors.rightMargin: Dimensions.marginBase
-            width: 18; height: 12; radius: Dimensions.badgeRadius
-            color: root.hasUpdate ? Theme.warning : Theme.withAlpha(Theme.textMuted, 0.7)
-            z: 2
-
-            Text {
-                anchors.centerIn: parent
-                text: root.hasUpdate ? "\u0021" : "\u003F"
-                font.pixelSize: 9; font.weight: Font.Bold
-                color: Theme.textOnColor
-            }
-
-            Loader {
-                active: root.isHovered && warningBadge.visible
-                sourceComponent: ToolTip {
-                    visible: true
-                    delay: 300
-                    text: root.hasUpdate
-                        ? qsTr("Oyun g\u00FCncellendi \u2014 yama etkilenmi\u015F olabilir")
-                        : qsTr("Do\u011Frulanmam\u0131\u015F yama \u2014 dikkatli olun")
-                    font.pixelSize: Dimensions.fontSM
-                    background: Rectangle {
-                        color: Theme.withAlpha(Theme.surface, 0.95)
-                        radius: Dimensions.radiusStandard
-                        border.color: Theme.withAlpha(
-                            root.hasUpdate ? Theme.warning : Theme.textMuted, 0.3)
-                    }
-                }
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: parent.height * 0.35
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.7) }
             }
         }
 
         // Game name
         Text {
-            id: nameText
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.leftMargin: Dimensions.marginBase
-            anchors.rightMargin: Dimensions.marginBase
-            anchors.bottomMargin: Dimensions.marginBase
+            anchors.margins: Dimensions.marginBase
             text: root.gameName
             font.pixelSize: Dimensions.fontCaption
             font.weight: Font.DemiBold
-            color: Theme.textPrimary
-            style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.7)
+            color: "#fff"
             maximumLineCount: 2
             wrapMode: Text.WordWrap
             elide: Text.ElideRight
-
-            Loader {
-                active: root.isHovered && nameText.truncated
-                sourceComponent: ToolTip {
-                    visible: true
-                    delay: 250
-                    text: root.gameName
-                    font.pixelSize: Dimensions.fontSM
-
-                    background: Rectangle {
-                        color: Theme.withAlpha(Theme.surface, 0.95)
-                        radius: Dimensions.radiusStandard
-                        border.color: Theme.withAlpha(Theme.textPrimary, 0.1)
-                    }
-                }
-            }
         }
 
-        // TR badge — safe state only
-        TurkishFlagBadge {
-            id: trBadgeBottom
-            visible: root.translated && root.verified && !root.hasUpdate
+        // Update/warning dot (top-right, minimal)
+        Rectangle {
+            visible: root.translated && (!root.verified || root.hasUpdate)
+            anchors.top: parent.top
             anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.rightMargin: Dimensions.marginBase
-            anchors.bottomMargin: Dimensions.marginBase
-            flagWidth: 18; flagHeight: 12
-            opacity: root.isHovered ? 1.0 : 0.0
-
-            Behavior on opacity {
-                NumberAnimation { duration: 120; easing.type: Easing.InOutQuad }
-            }
+            anchors.margins: 6
+            width: 8; height: 8; radius: 4
+            color: root.hasUpdate ? Theme.warning : Theme.textMuted
         }
     }
 
-    // Focus indicator
-    FocusRing {
-        target: root
-        z: Dimensions.zBase
-    }
-
-    // MOUSE AREA
+    // Mouse area
     MouseArea {
         id: mouseArea
         anchors.fill: parent

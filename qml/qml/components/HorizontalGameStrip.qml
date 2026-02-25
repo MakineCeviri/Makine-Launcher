@@ -84,7 +84,7 @@ Item {
         model: strip._viewModel
         clip: !strip.wrapAround
         interactive: false
-        cacheBuffer: strip.wrapAround ? 400 : 300
+        cacheBuffer: strip.wrapAround ? 200 : 150
         displayMarginBeginning: 0
         displayMarginEnd: 0
         pixelAligned: true
