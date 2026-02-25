@@ -59,9 +59,9 @@ ZSTD_THREADS = 0     # Auto-detect CPU count
 
 # Deferred packages (user decision: too large, handle separately)
 DEFERRED_APP_IDS = {
-    "217790",     # Dishonored 1 DE (~4.3 GB)
-    "2513060",    # Fears To Fathom: Norwood Hitchhike (~1.5 GB)
-    "2761570",    # Fears To Fathom: Carson House (~631 MB)
+    "205100",     # Dishonored - Definitive Edition (~4.2 GB)
+    "1763050",    # Fears To Fathom: Norwood Hitchhike (~1.5 GB)
+    "2120900",    # Fears To Fathom: Carson House (~631 MB)
 }
 
 
@@ -382,7 +382,7 @@ def main():
                         help="Include deferred large packages")
     parser.add_argument("--update-manifest", action="store_true",
                         help="Update index.json and per-game JSONs with pipeline results")
-    parser.add_argument("--r2-base-url", default="https://pub-PLACEHOLDER.r2.dev/data",
+    parser.add_argument("--r2-base-url", default="https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/data",
                         help="R2 base URL for data downloads (e.g. https://pub-xxx.r2.dev/data)")
     args = parser.parse_args()
 
