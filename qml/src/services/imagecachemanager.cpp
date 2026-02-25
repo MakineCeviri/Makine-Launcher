@@ -74,19 +74,14 @@ QString ImageCacheManager::resolve(const QString& appId)
         return {};
 
     // Not cached — enqueue download if not already pending/queued
-    if (!m_pending.contains(appId)) {
-        bool inQueue = false;
-        for (const auto& item : m_queue) {
-            if (item == appId) { inQueue = true; break; }
-        }
-        if (!inQueue) {
-            m_queue.enqueue(appId);
+    if (!m_pending.contains(appId) && !m_queued.contains(appId)) {
+        m_queue.enqueue(appId);
+        m_queued.insert(appId);
 #ifdef MAKINEAI_DEV_TOOLS
-            if (m_queue.size() > m_queuePeakSize)
-                m_queuePeakSize = m_queue.size();
+        if (m_queue.size() > m_queuePeakSize)
+            m_queuePeakSize = m_queue.size();
 #endif
-            processQueue();
-        }
+        processQueue();
     }
 
     return {};
@@ -96,6 +91,7 @@ void ImageCacheManager::processQueue()
 {
     while (m_pending.size() < MAX_CONCURRENT && !m_queue.isEmpty()) {
         auto appId = m_queue.dequeue();
+        m_queued.remove(appId);
         // Skip if already resolved while waiting in queue
         if (QFile::exists(localPath(appId)) || m_pending.contains(appId))
             continue;
@@ -139,6 +135,8 @@ void ImageCacheManager::startDownload(const QString& appId)
                         file.close();
                         if (m_cachedSizeBytes >= 0)
                             m_cachedSizeBytes += data.size();
+                        if (m_cachedImageCount >= 0)
+                            ++m_cachedImageCount;
                         emit imageReady(appId);
                         emit cacheSizeChanged();
                         success = true;
@@ -164,7 +162,9 @@ void ImageCacheManager::clearCache()
         dir.mkpath(QStringLiteral("."));
     }
     m_failed.clear();
+    m_queued.clear();
     m_cachedSizeBytes = 0;
+    m_cachedImageCount = 0;
     emit cacheSizeChanged();
 }
 
@@ -197,8 +197,13 @@ QString ImageCacheManager::cacheSizeFormatted() const
 
 int ImageCacheManager::cachedImageCount() const
 {
+    if (m_cachedImageCount >= 0)
+        return m_cachedImageCount;
+
+    // First call: count files once, then track incrementally
     QDir dir(m_cacheDir);
-    return dir.entryList(QDir::Files).count();
+    m_cachedImageCount = dir.entryList(QDir::Files).count();
+    return m_cachedImageCount;
 }
 
 qint64 ImageCacheManager::cachedImageBytes() const

@@ -772,9 +772,10 @@ int main(int argc, char *argv[])
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 9.5: Deferred data loading =====
-    // Schedule GameService init for AFTER first frame renders.
-    // QML shows instantly with empty data, then caches load and QML updates.
-    QTimer::singleShot(0, gameService, [gameService, manifestSync, &startupTimer]() {
+    // Schedule GameService init for AFTER splash closes and first frames render.
+    // Delay ensures pre-render loop only warms up shaders with empty catalog state
+    // (BusyIndicator shown), then data loads AFTER window is visible.
+    QTimer::singleShot(300, gameService, [gameService, manifestSync, &startupTimer]() {
         gameService->initialize();
         logToFile(QString("GameService initialized at %1 ms").arg(startupTimer.elapsed()));
 
@@ -861,12 +862,12 @@ int main(int argc, char *argv[])
 
         logToFile(QString("Phase 10 (pre-render start) at %1 ms").arg(startupTimer.elapsed()));
 
-        // Pre-render: process a few frames so shaders compile before user sees window
-        // This prevents the "white flash" on first frame
-        for (int i = 0; i < 3; ++i) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
-            splash.pumpMessages();
-        }
+        // Pre-render: warm up shaders with the empty loading state (BusyIndicator).
+        // Only process rendering events — avoid firing deferred timers that trigger
+        // heavy data loading (GameService init, catalog sync, 265-game QML rebind).
+        window->requestUpdate();
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 100);
+        splash.pumpMessages();
 
         logToFile(QString("Phase 10 (pre-render done) at %1 ms").arg(startupTimer.elapsed()));
 #endif
@@ -884,6 +885,10 @@ int main(int argc, char *argv[])
 
         // Dump frame stats on exit (integrates with PerfReporter)
         QObject::connect(&app, &QCoreApplication::aboutToQuit, frameTimer, &FrameTimer::dumpStats);
+
+        // Reset frame timer after startup settles — clears the initial jank spike
+        // so ongoing metrics reflect actual runtime performance, not first-frame shaders
+        QTimer::singleShot(kStartupSettleMs, frameTimer, &FrameTimer::reset);
 
         // Scene profiler: transition, interaction, dialog, animation tracking
         auto* sceneProfiler = new SceneProfiler(&app);

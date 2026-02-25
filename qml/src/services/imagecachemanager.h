@@ -80,7 +80,9 @@ private:
     QSet<QString> m_pending;          // appIds currently downloading
     QSet<QString> m_failed;           // appIds that failed download
     QQueue<QString> m_queue;          // appIds waiting to download
+    QSet<QString> m_queued;           // O(1) lookup for queue membership
     mutable qint64 m_cachedSizeBytes{-1};     // Incremental cache size tracking
+    mutable int m_cachedImageCount{-1};        // Incremental image count tracking
     static constexpr int MAX_CONCURRENT = 8;
 
 #ifdef MAKINEAI_DEV_TOOLS
