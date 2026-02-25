@@ -43,6 +43,7 @@ public:
                + QStringLiteral("/MakineAI");
     }
     static QString imageCacheDir()  { return tempRoot() + QStringLiteral("/images"); }
+    static QString downloadTempDir(){ return tempRoot() + QStringLiteral("/downloads"); }
     static QString updateTempDir()  { return tempRoot() + QStringLiteral("/MakineAI-update"); }
 
     // --- Concrete file paths ---
@@ -64,7 +65,7 @@ public:
         const QStringList dirs = {
             logsDir(), cacheDir(), dataDir(), backupsDir(),
             updateDetectionDir(), crashReportsDir(),
-            imageCacheDir(), updateTempDir(), packageDetailDir()
+            imageCacheDir(), downloadTempDir(), updateTempDir(), packageDetailDir()
         };
         for (const auto& d : dirs)
             QDir().mkpath(d);

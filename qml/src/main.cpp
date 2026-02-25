@@ -458,6 +458,7 @@ void logToFile(const QString& msg) {
 #include "services/operationjournal.h"
 #include "services/imagecachemanager.h"
 #include "services/manifestsyncservice.h"
+#include "services/translationdownloader.h"
 #include "services/corebridge.h"
 #ifdef MAKINEAI_DEV_TOOLS
 #include "services/frametimer.h"
@@ -606,6 +607,15 @@ int main(int argc, char *argv[])
     auto* manifestSync = new ManifestSyncService(&app);
     engine.rootContext()->setContextProperty("ManifestSync", manifestSync);
     // Sync starts after QML creation (non-blocking)
+
+    auto* translationDownloader = new TranslationDownloader(&app);
+    translationDownloader->setManifestSync(manifestSync);
+    {
+        QSettings s("MakineAI", "MakineAI");
+        translationDownloader->setDataPath(
+            s.value("paths/translationData", "C:/cedra/translation_data").toString());
+    }
+    engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
 #ifdef Q_OS_WIN

@@ -1,0 +1,101 @@
+/**
+ * @file translationdownloader.h
+ * @brief Download, decrypt, and extract translation packages from R2
+ * @copyright (c) 2026 MakineAI Team
+ *
+ * Handles the complete flow:
+ *   1. HTTP GET from Cloudflare R2 (with progress)
+ *   2. AES-256-GCM decryption (MKPK format)
+ *   3. Zstandard decompression
+ *   4. Tar extraction to local data directory
+ *
+ * After extraction, the normal LocalPackageManager install flow takes over.
+ */
+
+#pragma once
+
+#include <QObject>
+#include <QHash>
+#include <QString>
+#include <QNetworkAccessManager>
+
+namespace makineai {
+
+class ManifestSyncService;
+
+class TranslationDownloader : public QObject
+{
+    Q_OBJECT
+
+    Q_PROPERTY(bool hasActiveDownloads READ hasActiveDownloads NOTIFY activeDownloadsChanged)
+
+public:
+    explicit TranslationDownloader(QObject* parent = nullptr);
+
+    void setDataPath(const QString& path) { m_dataPath = path; }
+    void setManifestSync(ManifestSyncService* sync) { m_manifestSync = sync; }
+
+    /**
+     * @brief Start downloading a translation package from R2.
+     * @param appId     Steam App ID
+     * @param dataUrl   R2 download URL (from manifest)
+     * @param dirName   Target directory name under data path
+     *
+     * Flow: download → temp file → decrypt+decompress+extract → data/{dirName}/
+     */
+    Q_INVOKABLE void downloadPackage(const QString& appId,
+                                     const QString& dataUrl,
+                                     const QString& dirName);
+
+    /**
+     * @brief Cancel an active download.
+     */
+    Q_INVOKABLE void cancelDownload(const QString& appId);
+
+    /**
+     * @brief Check if a specific package is currently downloading.
+     */
+    Q_INVOKABLE bool isDownloading(const QString& appId) const;
+
+    /**
+     * @brief Check if any downloads are active.
+     */
+    bool hasActiveDownloads() const { return !m_activeDownloads.isEmpty(); }
+
+signals:
+    /// Download progress (bytes received / total expected)
+    void downloadProgress(const QString& appId, qint64 received, qint64 total);
+
+    /// Download complete, extraction starting
+    void extractionStarted(const QString& appId);
+
+    /// Package fully ready (downloaded + decrypted + extracted)
+    void packageReady(const QString& appId, const QString& dirName);
+
+    /// Error during download or extraction
+    void downloadError(const QString& appId, const QString& error);
+
+    /// Download was cancelled by user
+    void downloadCancelled(const QString& appId);
+
+    /// Active downloads list changed
+    void activeDownloadsChanged();
+
+private:
+    void processDownloadedFile(const QString& appId, const QString& tempPath,
+                               const QString& dirName);
+
+    struct DownloadState {
+        QNetworkReply* reply{nullptr};
+        QString tempPath;
+        QString dirName;
+        bool cancelled{false};
+    };
+
+    QNetworkAccessManager m_nam;
+    QHash<QString, DownloadState> m_activeDownloads;
+    QString m_dataPath;
+    ManifestSyncService* m_manifestSync{nullptr};
+};
+
+} // namespace makineai
