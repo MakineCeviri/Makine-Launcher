@@ -684,6 +684,7 @@ int main(int argc, char *argv[])
 
     // Wire journal to CoreBridge
     CoreBridge::instance()->setJournal(journal);
+    engine.rootContext()->setContextProperty("CoreBridge", CoreBridge::instance());
 
     logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN

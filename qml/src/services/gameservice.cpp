@@ -175,7 +175,9 @@ void GameService::setManifestSync(ManifestSyncService* sync)
             // Remote catalog updated — invalidate supported games cache
             m_supportedCacheValid = false;
             m_supportedGamesCache.clear();
-            emit gamesChanged();
+            // Defer QML re-evaluation to next event loop iteration
+            // so refreshPackageManifest completes first and a frame renders between
+            QTimer::singleShot(0, this, &GameService::gamesChanged);
         });
     }
 }

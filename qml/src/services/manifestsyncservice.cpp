@@ -15,6 +15,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkReply>
+#include <QTimer>
 #include <QUrl>
 
 namespace makineai {
@@ -85,7 +86,7 @@ void ManifestSyncService::syncCatalog()
         if (status == 304) {
             // Not modified — cached version is current
             qDebug() << "ManifestSync: 304 Not Modified — catalog is current";
-            emit catalogReady();
+            QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             return;
         }
 
@@ -109,8 +110,10 @@ void ManifestSyncService::onIndexFetched(const QByteArray& data, const QString& 
     if (!m_catalog.isEmpty()) {
         saveCachedIndex(data, etag);
         m_etag = etag;
-        emit catalogReady();
         qDebug() << "ManifestSync: catalog synced —" << m_catalog.size() << "packages";
+        // Defer signal to next event loop iteration — breaks synchronous chain
+        // that otherwise blocks main thread ~4s (refreshPackageManifest + QML rebind)
+        QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
     } else {
         emit syncError(tr("Katalog verisi boş veya geçersiz"));
     }

@@ -113,7 +113,7 @@ ColumnLayout {
                     visible: backupRoot.hasBackups && backupRoot.updateImpact
                              && (backupRoot.updateImpact.level === "broken" || backupRoot.updateImpact.level === "lost")
                     implicitHeight: staleRow.height + 16
-                    radius: Dimensions.radiusSmall
+                    radius: Dimensions.radiusSM
                     color: Theme.withAlpha(Theme.warning, 0.08)
                     border.color: Theme.withAlpha(Theme.warning, 0.20); border.width: 1
 

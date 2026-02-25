@@ -120,8 +120,8 @@ Rectangle {
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
                     running: root.visible && root.currentFps > 0 && root.currentFps < 30
-                             && Window.window !== null
-                             && Window.window.visibility !== Window.Minimized
+                             && root.Window.window !== null
+                             && root.Window.window.visibility !== Window.Minimized
                     NumberAnimation { to: 0.3; duration: Dimensions.fadeTransitionDuration }
                     NumberAnimation { to: 1.0; duration: Dimensions.fadeTransitionDuration }
                     onRunningChanged: {

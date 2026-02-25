@@ -77,7 +77,7 @@ Rectangle {
                 horizontalAlignment: Text.AlignHCenter
             }
             background: Rectangle {
-                radius: Dimensions.radiusSmall
+                radius: Dimensions.radiusSM
                 color: parent.hovered ? Theme.withAlpha(Theme.accent, 0.1) : "transparent"
             }
         }
