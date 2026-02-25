@@ -31,68 +31,79 @@
 #include <windows.h>
 #include <psapi.h>     // EmptyWorkingSet
 #include <dwmapi.h>    // DwmExtendFrameIntoClientArea
+#include <atomic>
+#include <mutex>
 
-// Acrylic backdrop blur (DWM composition)
+// DWM window style — adapts to Windows version
 namespace {
 
-enum ACCENT_STATE {
-    ACCENT_DISABLED = 0,
-    ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
-};
+DWORD getWindowsBuildNumber() {
+    OSVERSIONINFOW ovi{};
+    ovi.dwOSVersionInfoSize = sizeof(ovi);
+    auto RtlGetVersion = reinterpret_cast<LONG(WINAPI*)(OSVERSIONINFOW*)>(
+        GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
+    if (RtlGetVersion) RtlGetVersion(&ovi);
+    return ovi.dwBuildNumber;
+}
 
-struct ACCENT_POLICY {
-    ACCENT_STATE AccentState;
-    DWORD AccentFlags;
-    DWORD GradientColor;
-    DWORD AnimationId;
-};
+bool isWindows11() { return getWindowsBuildNumber() >= 22000; }
 
-struct WINDOWCOMPOSITIONATTRIBDATA {
-    DWORD Attribute;
-    PVOID Data;
-    ULONG DataSize;
-};
+// DWMWA constants not in older SDK headers
+constexpr DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+constexpr DWORD DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+constexpr DWORD DWMWA_BORDER_COLOR = 34;
+constexpr DWORD DWMWA_CAPTION_COLOR = 35;
+constexpr DWORD DWMWA_SYSTEMBACKDROP_TYPE = 38;
 
-using SetWindowCompositionAttributeFunc = BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
+// DWM_WINDOW_CORNER_PREFERENCE values
+constexpr DWORD DWMWCP_ROUND = 2;
 
-void enableAcrylicBlur(HWND hwnd) {
-    MARGINS margins = {-1, -1, -1, -1};
-    DwmExtendFrameIntoClientArea(hwnd, &margins);
+// DWM_SYSTEMBACKDROP_TYPE values
+constexpr DWORD DWMSBT_MAINWINDOW = 2; // Mica
+constexpr DWORD DWMSBT_TABBEDWINDOW = 4; // Mica Alt
 
-    DWORD buildNumber = 0;
-    {
-        OSVERSIONINFOW ovi{};
-        ovi.dwOSVersionInfoSize = sizeof(ovi);
-        auto RtlGetVersion = reinterpret_cast<LONG(WINAPI*)(OSVERSIONINFOW*)>(
-            GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
-        if (RtlGetVersion) { RtlGetVersion(&ovi); buildNumber = ovi.dwBuildNumber; }
+void configureWindowStyle(HWND hwnd) {
+    DWORD build = getWindowsBuildNumber();
+
+    // Dark mode frame — W10 1903+ (build >= 18362) and all W11
+    if (build >= 18362) {
+        BOOL darkMode = TRUE;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                              &darkMode, sizeof(darkMode));
     }
 
-    if (buildNumber >= 22621) {
-        DWORD backdropType = 3; // Acrylic
-        DwmSetWindowAttribute(hwnd, 38, &backdropType, sizeof(backdropType));
-        return;
+    if (build >= 22000) {
+        // ── Windows 11 ──
+        // Rounded corners (DWM handles clipping automatically)
+        DWORD cornerPref = DWMWCP_ROUND;
+        DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE,
+                              &cornerPref, sizeof(cornerPref));
+
+        // Mica backdrop — the signature W11 frosted material
+        DWORD backdropType = DWMSBT_MAINWINDOW;
+        DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE,
+                              &backdropType, sizeof(backdropType));
+
+        // Extend DWM frame into entire client area (needed for Mica to render)
+        MARGINS margins = {-1, -1, -1, -1};
+        DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+        // Dark border color
+        COLORREF borderColor = RGB(30, 30, 35);
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR,
+                              &borderColor, sizeof(borderColor));
     }
-
-    auto SetWindowCompositionAttribute = reinterpret_cast<SetWindowCompositionAttributeFunc>(
-        GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetWindowCompositionAttribute"));
-    if (!SetWindowCompositionAttribute) return;
-
-    ACCENT_POLICY accent{};
-    accent.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
-    accent.GradientColor = 0x600A0A0A;
-
-    WINDOWCOMPOSITIONATTRIBDATA data{};
-    data.Attribute = 19;
-    data.Data = &accent;
-    data.DataSize = sizeof(accent);
-    SetWindowCompositionAttribute(hwnd, &data);
+    // Windows 10 — no special treatment needed for frameless windows.
+    // DWM provides standard sharp-cornered dark frame automatically
+    // when DWMWA_USE_IMMERSIVE_DARK_MODE is set.
 }
 
 } // namespace
 
 // Native Win32 splash window — shown immediately while QML loads
 // 440×240, rounded corners, logo, gradient bars, loading dots
+// Threaded splash: runs its own message loop on a dedicated thread so it stays
+// responsive while the main thread blocks in QML create() (~4 seconds).
 class SplashWindow {
 public:
     SplashWindow() = default;
@@ -100,7 +111,7 @@ public:
     SplashWindow(const SplashWindow&) = delete;
     SplashWindow& operator=(const SplashWindow&) = delete;
 
-    // Load logo from QImage (call before show)
+    // Load logo from QImage (call before show — main thread, before splash thread starts)
     void setLogo(const QImage& img) {
         if (img.isNull()) return;
         QImage converted = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
@@ -125,73 +136,45 @@ public:
             memcpy(pixels, converted.constBits(), m_logoWidth * m_logoHeight * 4);
     }
 
+    // Spawn splash on its own thread (returns immediately)
     void show() {
-        static bool classRegistered = false;
-        if (!classRegistered) {
-            WNDCLASSW wc{};
-            wc.lpfnWndProc = wndProc;
-            wc.hInstance = GetModuleHandleW(nullptr);
-            wc.lpszClassName = L"MakineAISplash";
-            wc.hbrBackground = CreateSolidBrush(RGB(10, 10, 15));
-            wc.hCursor = LoadCursorW(nullptr, IDC_APPSTARTING);
-            RegisterClassW(&wc);
-            classRegistered = true;
-        }
-
-        constexpr int w = 440, h = 240;
-        int sx = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
-        int sy = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
-
-        m_hwnd = CreateWindowExW(
-            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-            L"MakineAISplash", L"",
-            WS_POPUP,
-            sx, sy, w, h,
-            nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-
-        if (m_hwnd) {
-            HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, 12, 12);
-            SetWindowRgn(m_hwnd, rgn, TRUE);
-
-            SetWindowLongPtrW(m_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            ShowWindow(m_hwnd, SW_SHOWNOACTIVATE);
-            UpdateWindow(m_hwnd);
-            m_showTime = GetTickCount();
-
-            // Repaint timer for status text updates (~5fps)
-            SetTimer(m_hwnd, 1, 200, nullptr);
-        }
-    }
-
-    void pumpMessages() {
-        if (!m_hwnd) return;
-        MSG msg;
-        while (PeekMessageW(&msg, m_hwnd, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    }
-
-    void waitMinimumDisplay(DWORD minMs) {
-        if (!m_hwnd) return;
-        while ((GetTickCount() - m_showTime) < minMs) {
-            pumpMessages();
+        m_thread = CreateThread(nullptr, 0, splashThreadProc, this, 0, &m_threadId);
+        // Wait until HWND is created so setStatus/close work
+        while (!m_ready.load(std::memory_order_acquire))
             Sleep(1);
-        }
     }
 
+    // Thread-safe: posts status text to splash thread
     void setStatus(const wchar_t* text) {
+        std::lock_guard lk(m_statusMutex);
         wcsncpy(m_status, text, 63);
         m_status[63] = L'\0';
-        pumpMessages();
+        if (m_hwnd)
+            PostMessageW(m_hwnd, WM_APP + 1, 0, 0); // trigger repaint
     }
 
+    // No-op — kept for API compatibility (splash pumps its own messages)
+    void pumpMessages() {}
+
+    void waitMinimumDisplay(DWORD minMs) {
+        DWORD showTime = m_showTime.load(std::memory_order_acquire);
+        if (!showTime) return;
+        DWORD elapsed = GetTickCount() - showTime;
+        if (elapsed < minMs)
+            Sleep(minMs - elapsed);
+    }
+
+    // Thread-safe: signals splash thread to close and waits for it
     void close() {
         if (m_hwnd) {
-            KillTimer(m_hwnd, 1);
-            DestroyWindow(m_hwnd);
-            m_hwnd = nullptr;
+            PostMessageW(m_hwnd, WM_APP + 2, 0, 0); // request close
         }
+        if (m_thread) {
+            WaitForSingleObject(m_thread, 3000);
+            CloseHandle(m_thread);
+            m_thread = nullptr;
+        }
+        m_hwnd = nullptr;
     }
 
 private:
@@ -260,14 +243,19 @@ private:
         DeleteDC(dibDC);
     }
 
-    static void drawLoadingDots(HDC hdc, int cx, int cy) {
+    static void drawLoadingDots(HDC hdc, int cx, int cy, float phase) {
         HPEN nullPen = CreatePen(PS_NULL, 0, 0);
         HPEN oldPen = (HPEN)SelectObject(hdc, nullPen);
         for (int i = 0; i < 3; ++i) {
             int dx = (i - 1) * 16;
-            COLORREF c = RGB(120, 120, 145);
+            // Pulse: each dot fades in/out with offset
+            float p = phase * 3.0f - (float)i;
+            p = p - (float)(int)p;
+            if (p < 0.0f) p += 1.0f;
+            float brightness = (p < 0.5f) ? p * 2.0f : (1.0f - p) * 2.0f;
+            int gray = 60 + (int)(brightness * 100.0f);
             int r = 3;
-            HBRUSH br = CreateSolidBrush(c);
+            HBRUSH br = CreateSolidBrush(RGB(gray, gray, gray + 20));
             HBRUSH oldBr = (HBRUSH)SelectObject(hdc, br);
             Ellipse(hdc, cx + dx - r, cy - r, cx + dx + r, cy + r);
             SelectObject(hdc, oldBr);
@@ -327,13 +315,17 @@ private:
             SelectObject(mem, oldPen);
             DeleteObject(nullPen);
 
+            // Animated gradient phase from elapsed time
+            DWORD showTime = self ? self->m_showTime.load(std::memory_order_relaxed) : 0;
+            float elapsed = showTime ? (GetTickCount() - showTime) / 1000.0f : 0.0f;
+            float gp = 0.25f + elapsed * 0.15f; // slow sweep
+
             // Top gradient bar (3px)
-            float gp = self ? self->m_gradientPhase : 0.0f;
             drawAnimatedGradientBar(mem, 0, 0, w, 3, gp);
 
             SetBkMode(mem, TRANSPARENT);
 
-            // Logo (replaces "MakineAI" title text)
+            // Logo
             if (self && self->m_logoBitmap) {
                 HDC logoDC = CreateCompatibleDC(mem);
                 HBITMAP oldLogoBmp = (HBITMAP)SelectObject(logoDC, self->m_logoBitmap);
@@ -352,7 +344,7 @@ private:
                 DeleteDC(logoDC);
             }
 
-            // Tagline — below logo
+            // Tagline
             HFONT tagFont = CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
                 DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
             HFONT oldFont = (HFONT)SelectObject(mem, tagFont);
@@ -363,21 +355,31 @@ private:
             SelectObject(mem, oldFont);
             DeleteObject(tagFont);
 
-            // Status text — 11px, above dots
-            if (self && self->m_status[0]) {
-                HFONT statusFont = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0,
-                    DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-                HFONT oldSFont = (HFONT)SelectObject(mem, statusFont);
-                SetTextColor(mem, RGB(100, 100, 120));
-                RECT statusRc = {0, h - 78, w, h - 62};
-                DrawTextW(mem, self->m_status, -1, &statusRc, DT_CENTER | DT_SINGLELINE);
-                SelectObject(mem, oldSFont);
-                DeleteObject(statusFont);
+            // Status text
+            if (self) {
+                wchar_t statusBuf[64]{};
+                {
+                    std::lock_guard lk(self->m_statusMutex);
+                    wcsncpy(statusBuf, self->m_status, 63);
+                }
+                if (statusBuf[0]) {
+                    HFONT statusFont = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0,
+                        DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+                    HFONT oldSFont = (HFONT)SelectObject(mem, statusFont);
+                    SetTextColor(mem, RGB(100, 100, 120));
+                    RECT statusRc = {0, h - 78, w, h - 62};
+                    DrawTextW(mem, statusBuf, -1, &statusRc, DT_CENTER | DT_SINGLELINE);
+                    SelectObject(mem, oldSFont);
+                    DeleteObject(statusFont);
+                }
             }
 
-            drawLoadingDots(mem, w / 2, h - 55);
+            // Animated loading dots
+            float dotPhase = elapsed * 0.8f;
+            dotPhase = dotPhase - (float)(int)dotPhase;
+            drawLoadingDots(mem, w / 2, h - 55, dotPhase);
 
-            // Version — 9px, bottom-right
+            // Version
             HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
                 DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
             oldFont = (HFONT)SelectObject(mem, verFont);
@@ -399,17 +401,79 @@ private:
             return 0;
         }
         case WM_TIMER:
-            if (wp == 1 && self) {
+            if (wp == 1)
                 InvalidateRect(hwnd, nullptr, FALSE);
-            }
+            return 0;
+        case WM_APP + 1: // status update from main thread
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        case WM_APP + 2: // close request from main thread
+            KillTimer(hwnd, 1);
+            DestroyWindow(hwnd);
+            return 0;
+        case WM_DESTROY:
+            PostQuitMessage(0);
             return 0;
         }
         return DefWindowProcW(hwnd, msg, wp, lp);
     }
 
+    // Splash thread entry point
+    static DWORD WINAPI splashThreadProc(LPVOID param) {
+        auto* self = static_cast<SplashWindow*>(param);
+
+        // Register window class on this thread
+        WNDCLASSW wc{};
+        wc.lpfnWndProc = wndProc;
+        wc.hInstance = GetModuleHandleW(nullptr);
+        wc.lpszClassName = L"MakineAISplash";
+        wc.hbrBackground = CreateSolidBrush(RGB(10, 10, 15));
+        wc.hCursor = LoadCursorW(nullptr, IDC_APPSTARTING);
+        RegisterClassW(&wc);
+
+        constexpr int w = 440, h = 240;
+        int sx = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
+        int sy = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
+
+        self->m_hwnd = CreateWindowExW(
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            L"MakineAISplash", L"",
+            WS_POPUP,
+            sx, sy, w, h,
+            nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+
+        if (self->m_hwnd) {
+            HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, 12, 12);
+            SetWindowRgn(self->m_hwnd, rgn, TRUE);
+
+            SetWindowLongPtrW(self->m_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+            ShowWindow(self->m_hwnd, SW_SHOWNOACTIVATE);
+            UpdateWindow(self->m_hwnd);
+            self->m_showTime.store(GetTickCount(), std::memory_order_release);
+
+            // 30 fps animation timer
+            SetTimer(self->m_hwnd, 1, 33, nullptr);
+        }
+
+        // Signal main thread that HWND is ready
+        self->m_ready.store(true, std::memory_order_release);
+
+        // Own message loop — runs independently of main thread
+        MSG msg;
+        while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+
+        return 0;
+    }
+
     HWND m_hwnd{nullptr};
-    DWORD m_showTime{0};
-    float m_gradientPhase{0.25f};
+    HANDLE m_thread{nullptr};
+    DWORD m_threadId{0};
+    std::atomic<DWORD> m_showTime{0};
+    std::atomic<bool> m_ready{false};
+    mutable std::mutex m_statusMutex;
     wchar_t m_status[64]{};
     HBITMAP m_logoBitmap{nullptr};
     int m_logoWidth{0};
@@ -535,6 +599,7 @@ int main(int argc, char *argv[])
 
     app.setQuitOnLastWindowClosed(false);
     app.setApplicationName("MakineAI");
+    app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - MakineAI"));
     app.setApplicationVersion("0.1.0-alpha");
     app.setOrganizationName("MakineAI");
     app.setOrganizationDomain("makineai.com");
@@ -733,15 +798,19 @@ int main(int argc, char *argv[])
 
     // Use QQmlComponent for incremental loading — keeps splash alive
     QQmlComponent mainComponent(&engine);
-    mainComponent.loadFromModule("MakineAI", "Main");
 
-    // Pump events while QML compiles (first launch is slow)
+    {
+        MAKINE_ZONE_NAMED("QML::loadFromModule");
+        mainComponent.loadFromModule("MakineAI", "Main");
+
+        // Pump events while QML compiles (first launch is slow)
 #ifdef Q_OS_WIN
-    while (mainComponent.isLoading()) {
-        splash.pumpMessages();
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
-    }
+        while (mainComponent.isLoading()) {
+            splash.pumpMessages();
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
+        }
 #endif
+    }
 
     if (mainComponent.isError()) {
         for (const auto& error : mainComponent.errors())
@@ -759,11 +828,15 @@ int main(int argc, char *argv[])
     // (Qt forces synchronous creation without an incubation controller).
     // The 4+ seconds here is Qt framework overhead (module loading, type registration,
     // shader compilation). Optimize by reducing QML module surface, not creation strategy.
+    QObject* rootObject = nullptr;
+    {
+        MAKINE_ZONE_NAMED("QML::createRootObject");
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Pencere olu\u015Fturuluyor...");
-    splash.pumpMessages();
+        splash.setStatus(L"Pencere olu\u015Fturuluyor...");
+        splash.pumpMessages();
 #endif
-    QObject* rootObject = mainComponent.create();
+        rootObject = mainComponent.create();
+    }
     if (!rootObject) {
         logToFile("ERROR: Failed to create root object!");
 #ifdef Q_OS_WIN
@@ -835,8 +908,8 @@ int main(int argc, char *argv[])
             HWND hwnd = reinterpret_cast<HWND>(window->winId());
             MoveWindow(hwnd, x, y, w, h, TRUE);
 
-            // Let QML handle the background color (Theme.bgPrimary)
-            // Acrylic blur disabled — was causing white/transparent background issues.
+            // Apply OS-appropriate window style (Mica on W11, dark frame on W10)
+            configureWindowStyle(hwnd);
         }
 
         window->setPersistentGraphics(false);
@@ -869,9 +942,12 @@ int main(int argc, char *argv[])
         // Pre-render: warm up shaders with the empty loading state (BusyIndicator).
         // Only process rendering events — avoid firing deferred timers that trigger
         // heavy data loading (GameService init, catalog sync, 265-game QML rebind).
-        window->requestUpdate();
-        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 100);
-        splash.pumpMessages();
+        {
+            MAKINE_ZONE_NAMED("Startup::preRender");
+            window->requestUpdate();
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 100);
+            splash.pumpMessages();
+        }
 
         logToFile(QString("Phase 10 (pre-render done) at %1 ms").arg(startupTimer.elapsed()));
 #endif

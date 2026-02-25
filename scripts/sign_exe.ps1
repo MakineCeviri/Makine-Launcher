@@ -135,7 +135,7 @@ foreach ($file in $filesToSign) {
         "/fd", "SHA256",
         "/td", "SHA256",
         "/d", "MakineAI - Turkish Game Translation Platform",
-        "/du", "https://github.com/jlceaser/MakineAI"
+        "/du", "https://github.com/MakineCeviri/MakineAI"
     )
 
     if (-not $SkipTimestamp) {

@@ -111,13 +111,7 @@ Item {
             gameId: modelData.gameId || modelData.id || ""
             gameName: modelData.name || modelData.gameName || ""
             steamAppId: modelData.steamAppId || ""
-            imageUrl: ImageCache.resolve(
-                modelData.steamAppId || modelData.gameId || modelData.id || ""
-            )
             installPath: modelData.installPath || ""
-            verified: modelData.isVerified || false
-            translated: modelData.hasTranslation || modelData.packageInstalled || false
-            hasUpdate: modelData.hasUpdate || false
             onClicked: strip.gameClicked(
                 modelData.gameId || modelData.id || "",
                 modelData.name || modelData.gameName || "",

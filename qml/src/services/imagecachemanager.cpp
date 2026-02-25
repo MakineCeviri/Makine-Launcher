@@ -20,7 +20,7 @@ namespace makineai {
 
 // GitHub raw URL base for pre-baked game images (260x370 PNG, rounded corners)
 static constexpr auto GITHUB_IMAGE_BASE =
-    "https://raw.githubusercontent.com/jlceaser/MakineAI-Assets/main/images/";
+    "https://raw.githubusercontent.com/MakineCeviri/MakineAI-Assets/main/images/";
 
 ImageCacheManager::ImageCacheManager(QObject* parent)
     : QObject(parent)
@@ -51,6 +51,12 @@ QString ImageCacheManager::localPath(const QString& appId) const
 QString ImageCacheManager::remoteUrl(const QString& appId) const
 {
     return QLatin1String(GITHUB_IMAGE_BASE) + appId + QStringLiteral(".png");
+}
+
+QString ImageCacheManager::steamCdnUrl(const QString& appId) const
+{
+    return QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/")
+           + appId + QStringLiteral("/library_600x900_2x.jpg");
 }
 
 QString ImageCacheManager::resolve(const QString& appId)
@@ -99,14 +105,14 @@ void ImageCacheManager::processQueue()
     }
 }
 
-void ImageCacheManager::startDownload(const QString& appId)
+void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
 {
     m_pending.insert(appId);
 #ifdef MAKINEAI_DEV_TOOLS
     ++m_downloadCount;
 #endif
 
-    const QString url = remoteUrl(appId);
+    const QString url = useSteamCdn ? steamCdnUrl(appId) : remoteUrl(appId);
     QNetworkRequest req{QUrl{url}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
@@ -115,7 +121,7 @@ void ImageCacheManager::startDownload(const QString& appId)
 
     QNetworkReply* reply = m_nam.get(req);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, appId]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, appId, useSteamCdn]() {
         reply->deleteLater();
         m_pending.remove(appId);
 
@@ -126,7 +132,6 @@ void ImageCacheManager::startDownload(const QString& appId)
             if (status >= 200 && status < 300) {
                 const QByteArray data = reply->readAll();
                 if (!data.isEmpty()) {
-                    // GitHub images are pre-baked PNG — save directly
                     ensureCacheDir();
                     const QString path = localPath(appId);
                     QFile file(path);
@@ -146,6 +151,13 @@ void ImageCacheManager::startDownload(const QString& appId)
         }
 
         if (!success) {
+            if (!useSteamCdn && !m_githubFailed.contains(appId)) {
+                // GitHub failed — try Steam CDN as fallback
+                m_githubFailed.insert(appId);
+                startDownload(appId, true);
+                return;
+            }
+            // Both sources failed (or Steam CDN failed)
             m_failed.insert(appId);
         }
 
@@ -162,6 +174,7 @@ void ImageCacheManager::clearCache()
         dir.mkpath(QStringLiteral("."));
     }
     m_failed.clear();
+    m_githubFailed.clear();
     m_queued.clear();
     m_cachedSizeBytes = 0;
     m_cachedImageCount = 0;

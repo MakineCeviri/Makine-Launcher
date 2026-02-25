@@ -181,6 +181,20 @@ profile-auto duration="15":
     @echo ""
     python scripts/perf_report.py
 
+# Tracy trace capture: build, capture trace, export CSV for analysis
+profile-tracy duration="12":
+    cmake --preset dev-profile
+    cmake --build --preset dev-profile
+    @echo "Starting Tracy capture + MakineAI ({{duration}}s)..."
+    C:/cedra/tools/tracy-0.13.1/tracy-capture.exe -o C:/cedra/tools/trace.tracy -s {{duration}} &
+    sleep 2 && ./build/dev-profile/MakineAI.exe --profile-duration={{duration}}
+    @echo ""
+    @echo "=== Zone Statistics ==="
+    C:/cedra/tools/tracy-0.13.1/tracy-csvexport.exe C:/cedra/tools/trace.tracy
+    @echo ""
+    @echo "Trace saved: C:/cedra/tools/trace.tracy"
+    @echo "Open in Tracy GUI: C:/cedra/tools/tracy-0.13.1/tracy-profiler.exe"
+
 # Show latest performance report (markdown formatted)
 perf-report:
     python scripts/perf_report.py

@@ -23,7 +23,7 @@ QtObject {
     readonly property string donatePageUrl: "https://makineai.com/destekci-ol"
 
     // GitHub
-    readonly property string githubOwner: "jlceaser"
+    readonly property string githubOwner: "MakineCeviri"
     readonly property string githubRepo: "MakineAI"
     readonly property string githubReleasesUrl: "https://api.github.com/repos/" + githubOwner + "/" + githubRepo + "/releases/latest"
 

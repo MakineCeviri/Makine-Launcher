@@ -21,7 +21,7 @@
 namespace makineai {
 
 static constexpr auto GITHUB_RAW_BASE =
-    "https://raw.githubusercontent.com/jlceaser/MakineAI-Assets/main/";
+    "https://raw.githubusercontent.com/MakineCeviri/MakineAI-Assets/main/";
 
 ManifestSyncService::ManifestSyncService(QObject* parent)
     : QObject(parent)

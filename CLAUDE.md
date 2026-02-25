@@ -52,7 +52,7 @@ Hybrid index + on-demand detail system:
 - **Startup:** `index.json` (93 KB) → lightweight catalog metadata
 - **On-demand:** `packages/{appId}.json` (~700 B) → install steps, contributors, variants
 - **Core:** `PackageCatalog::loadFromIndex()` + `enrichPackage()`
-- **Assets repo:** `jlceaser/MakineAI-Assets` (index.json + packages/ + images/)
+- **Assets repo:** `MakineCeviri/MakineAI-Assets` (index.json + packages/ + images/)
 
 ## Coding Conventions
 

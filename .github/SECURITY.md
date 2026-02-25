@@ -12,7 +12,7 @@
 Bir güvenlik açığı bulduysanız:
 
 1. **Herkese açık issue AÇMAYIN**
-2. [GitHub Security Advisories](https://github.com/jlceaser/MakineAI/security/advisories/new) kullanın
+2. [GitHub Security Advisories](https://github.com/MakineCeviri/MakineAI/security/advisories/new) kullanın
 
 ### Beklenen Bilgiler
 

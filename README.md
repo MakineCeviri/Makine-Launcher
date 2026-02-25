@@ -1,7 +1,7 @@
 # MakineAI
 
-[![CI](https://github.com/jlceaser/MakineAI/actions/workflows/ci.yml/badge.svg)](https://github.com/jlceaser/MakineAI/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/jlceaser/MakineAI/actions/workflows/codeql.yml/badge.svg)](https://github.com/jlceaser/MakineAI/actions/workflows/codeql.yml)
+[![CI](https://github.com/MakineCeviri/MakineAI/actions/workflows/ci.yml/badge.svg)](https://github.com/MakineCeviri/MakineAI/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MakineCeviri/MakineAI/actions/workflows/codeql.yml/badge.svg)](https://github.com/MakineCeviri/MakineAI/actions/workflows/codeql.yml)
 ![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)
 ![Qt 6.10](https://img.shields.io/badge/Qt-6.10-green)
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey)
@@ -33,7 +33,7 @@ UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüphanesi vcp
 ## Kurulum ve Build
 
 ```bash
-git clone https://github.com/jlceaser/MakineAI.git
+git clone https://github.com/MakineCeviri/MakineAI.git
 cd MakineAI
 ```
 

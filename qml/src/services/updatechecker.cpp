@@ -66,7 +66,7 @@ static bool verifyAuthenticode(const QString& filePath)
 #endif
 
 static constexpr const char* kGitHubApiUrl =
-    "https://api.github.com/repos/jlceaser/MakineAI/releases/latest";
+    "https://api.github.com/repos/MakineCeviri/MakineAI/releases/latest";
 
 // Only check once per 24 hours to avoid rate limiting
 static constexpr qint64 kCheckIntervalSecs = 24 * 60 * 60;

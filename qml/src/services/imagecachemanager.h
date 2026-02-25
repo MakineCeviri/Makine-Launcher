@@ -3,7 +3,7 @@
  * @brief Disk-based image cache for game images from GitHub Assets repo
  * @copyright (c) 2026 MakineAI Team
  *
- * Downloads pre-baked game card images from jlceaser/MakineAI-Assets
+ * Downloads pre-baked game card images from MakineCeviri/MakineAI-Assets
  * on GitHub and stores them locally in AppData cache for instant
  * loading on subsequent launches.
  */
@@ -72,13 +72,15 @@ private:
     void ensureCacheDir();
     QString localPath(const QString& appId) const;
     QString remoteUrl(const QString& appId) const;
-    void startDownload(const QString& appId);
+    QString steamCdnUrl(const QString& appId) const;
+    void startDownload(const QString& appId, bool useSteamCdn = false);
     void processQueue();
 
     QString m_cacheDir;
     QNetworkAccessManager m_nam;
     QSet<QString> m_pending;          // appIds currently downloading
-    QSet<QString> m_failed;           // appIds that failed download
+    QSet<QString> m_failed;           // appIds that failed ALL sources
+    QSet<QString> m_githubFailed;     // appIds that failed GitHub (try Steam CDN)
     QQueue<QString> m_queue;          // appIds waiting to download
     QSet<QString> m_queued;           // O(1) lookup for queue membership
     mutable qint64 m_cachedSizeBytes{-1};     // Incremental cache size tracking

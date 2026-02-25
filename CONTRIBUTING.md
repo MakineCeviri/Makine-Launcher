@@ -159,7 +159,7 @@ clang-format -i core/src/**/*.cpp core/include/**/*.hpp
 ## Yardıma mı İhtiyacınız Var?
 
 - `good first issue` etiketli issue'lara göz atın
-- [Discussions](https://github.com/jlceaser/MakineAI/discussions) bölümünde soru sorun
+- [Discussions](https://github.com/MakineCeviri/MakineAI/discussions) bölümünde soru sorun
 - [Geliştirici Kılavuzu](docs/developer-guide/) okuyun
 
 ---

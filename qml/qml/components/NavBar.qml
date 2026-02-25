@@ -1,14 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Window
 import MakineAI 1.0
 
 /**
- * NavBar - Main navigation bar with logo, page links, discord, notifications, and settings
+ * NavBar - Minimal navigation bar: logo, page links, discord, settings.
  */
-Rectangle {
+Item {
     id: navBarRoot
+    clip: false
 
     property int currentIndex: 0
     property bool animationsEnabled: true
@@ -17,13 +17,46 @@ Rectangle {
     signal libraryClicked()
     signal settingsClicked()
 
-    color: Theme.withAlpha(Theme.surface, 0.7)
+    readonly property color _bgColor: Theme.withAlpha(Theme.surface, 0.7)
 
+    // Main background
     Rectangle {
-        anchors.bottom: parent.bottom
-        width: parent.width
-        height: 1
-        color: Theme.withAlpha(Theme.textPrimary, 0.08)
+        anchors.fill: parent
+        color: navBarRoot._bgColor
+    }
+
+    // Bottom-left outward curve
+    Canvas {
+        x: 0; y: parent.height
+        width: Dimensions.radiusSection; height: Dimensions.radiusSection
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            ctx.fillStyle = navBarRoot._bgColor.toString()
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.lineTo(0, height)
+            ctx.quadraticCurveTo(0, 0, width, 0)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+
+    // Bottom-right outward curve
+    Canvas {
+        x: parent.width - Dimensions.radiusSection; y: parent.height
+        width: Dimensions.radiusSection; height: Dimensions.radiusSection
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            ctx.fillStyle = navBarRoot._bgColor.toString()
+            ctx.beginPath()
+            ctx.moveTo(width, 0)
+            ctx.lineTo(width, height)
+            ctx.quadraticCurveTo(width, 0, 0, 0)
+            ctx.closePath()
+            ctx.fill()
+        }
     }
 
     RowLayout {
@@ -32,89 +65,55 @@ Rectangle {
         anchors.rightMargin: Dimensions.marginLG
         spacing: Dimensions.spacingXL
 
+        // Logo
         Item {
-            id: logoContainer
-            Layout.preferredWidth: 44
-            Layout.preferredHeight: 44
+            Layout.preferredWidth: 44; Layout.preferredHeight: 44
             Layout.alignment: Qt.AlignVCenter
             scale: logoMouse.containsMouse ? 1.05 : 1.0
-            Accessible.role: Accessible.Button
-            Accessible.name: qsTr("Home")
-            activeFocusOnTab: true
-            Keys.onReturnPressed: navBarRoot.homeClicked()
-            Keys.onSpacePressed: navBarRoot.homeClicked()
+            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-            Behavior on scale {
-                NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic }
-            }
-
-            AnimatedGradientGlow {
+            // Radial glow behind logo
+            Canvas {
+                id: logoGlow
                 anchors.centerIn: parent
-                width: 52; height: 52
-                active: true
-                animationsEnabled: navBarRoot.animationsEnabled
-                opacity: logoMouse.containsMouse ? 1.0
-                       : navBarRoot.currentIndex === 0 ? 0.7
-                       : 0.4
-                Behavior on opacity { NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic } }
+                width: 72; height: 72
+                opacity: logoMouse.containsMouse ? 0.9 : 0.5
+                Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.clearRect(0, 0, width, height)
+                    var cx = width / 2, cy = height / 2
+                    var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, width / 2)
+                    grad.addColorStop(0.0, "rgba(139, 92, 246, 0.35)")
+                    grad.addColorStop(0.4, "rgba(139, 92, 246, 0.15)")
+                    grad.addColorStop(0.7, "rgba(99, 102, 241, 0.06)")
+                    grad.addColorStop(1.0, "rgba(99, 102, 241, 0.0)")
+                    ctx.fillStyle = grad
+                    ctx.beginPath()
+                    ctx.arc(cx, cy, width / 2, 0, Math.PI * 2)
+                    ctx.fill()
+                }
             }
 
             Rectangle {
-                id: logoClip
                 anchors.centerIn: parent
-                width: Dimensions.navbarIconSizeLogo
-                height: Dimensions.navbarIconSizeLogo
+                width: Dimensions.navbarIconSizeLogo; height: Dimensions.navbarIconSizeLogo
                 radius: Dimensions.navbarIconSizeLogo * 0.25
-                color: "transparent"
-                clip: true
+                color: "transparent"; clip: true
 
                 Image {
-                    id: logoImage
                     anchors.fill: parent
                     source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
                     sourceSize: Qt.size(64, 64)
                     fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    mipmap: true
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: parent.radius
-                    visible: logoImage.status !== Image.Ready
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Theme.logoGold }
-                        GradientStop { position: 0.5; color: Theme.logoCoral }
-                        GradientStop { position: 1.0; color: Theme.logoGreen }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "M"
-                        font.pixelSize: Dimensions.fontLG
-                        font.weight: Font.Bold
-                        color: Theme.textOnColor
-                    }
+                    smooth: true; mipmap: true
                 }
             }
-
 
             MouseArea {
-                id: logoMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
+                id: logoMouse; anchors.fill: parent
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: navBarRoot.homeClicked()
-            }
-
-            Loader {
-                active: logoMouse.containsMouse
-                sourceComponent: ToolTip {
-                    visible: true
-                    text: qsTr("Ana Menü")
-                    delay: 500
-                }
             }
         }
 
@@ -126,85 +125,20 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        Item {
-            id: discordItem
-            Layout.preferredWidth: 36
-            Layout.preferredHeight: 36
-            Layout.alignment: Qt.AlignVCenter
-            Accessible.role: Accessible.Link
-            Accessible.name: "Discord"
-            activeFocusOnTab: true
-            Keys.onReturnPressed: Qt.openUrlExternally(Dimensions.discordUrl)
-            Keys.onSpacePressed: Qt.openUrlExternally(Dimensions.discordUrl)
-
-            property bool hovered: discordMouse.containsMouse
-            scale: hovered ? 1.1 : 1.0
-            Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-
-            readonly property bool _windowVisible: discordItem.Window.window !== null
-                                                    && discordItem.Window.window.visibility !== Window.Minimized
-                                                    && discordItem.Window.window.visibility !== Window.Hidden
-            property real pulse: 0.8
-            SequentialAnimation on pulse {
-                loops: Animation.Infinite
-                running: !discordItem.hovered && navBarRoot.animationsEnabled
-                         && discordItem._windowVisible
-                NumberAnimation { from: 0.8; to: 0.95; duration: 3000; easing.type: Easing.InOutSine }
-                NumberAnimation { from: 0.95; to: 0.8; duration: 3000; easing.type: Easing.InOutSine }
-                onRunningChanged: {
-                    if (typeof SceneProfiler !== "undefined")
-                        SceneProfiler.registerAnimation("discordPulse", running)
-                }
-            }
-
-            Image {
-                id: discordIcon
-                anchors.centerIn: parent
-                width: 20; height: 20
-                source: "qrc:/qt/qml/MakineAI/resources/icons/discord.svg"
-                sourceSize: Qt.size(20, 20)
-                opacity: discordItem.hovered ? 1.0 : discordItem.pulse
-            }
-
-            MouseArea {
-                id: discordMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
-            }
-
-            Loader {
-                active: discordMouse.containsMouse
-                sourceComponent: ToolTip {
-                    visible: true
-                    text: "Discord"
-                    delay: 400
-                }
-            }
-        }
-
-        // Settings gear icon
+        // Settings
         Item {
             id: settingsItem
-            Layout.preferredWidth: 36
-            Layout.preferredHeight: 36
+            Layout.preferredWidth: 36; Layout.preferredHeight: 36
             Layout.alignment: Qt.AlignVCenter
-            Accessible.role: Accessible.Button
-            Accessible.name: qsTr("Ayarlar")
-            activeFocusOnTab: true
-            Keys.onReturnPressed: navBarRoot.settingsClicked()
-            Keys.onSpacePressed: navBarRoot.settingsClicked()
 
             property bool hovered: settingsMouse.containsMouse
             property bool isSelected: navBarRoot.currentIndex === 2
             scale: hovered ? 1.1 : 1.0
-            Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
             rotation: hovered ? 30 : 0
-            Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+            Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
-            // Gear icon — Segoe MDL2 Assets glyph (no Canvas repaint loop)
             Text {
                 anchors.centerIn: parent
                 text: "\uE713"
@@ -216,25 +150,12 @@ Rectangle {
                 opacity: settingsItem.isSelected ? 1.0
                        : settingsItem.hovered    ? 0.9
                        : 0.6
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             }
 
             MouseArea {
-                id: settingsMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
+                id: settingsMouse; anchors.fill: parent
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: navBarRoot.settingsClicked()
-            }
-
-            Loader {
-                active: settingsMouse.containsMouse
-                sourceComponent: ToolTip {
-                    visible: true
-                    text: qsTr("Ayarlar")
-                    delay: 400
-                }
             }
         }
     }

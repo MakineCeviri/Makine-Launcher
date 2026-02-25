@@ -1,17 +1,18 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
 import MakineAI 1.0
 
+/**
+ * AnnouncementCard.qml - Discord community banner inside styled container.
+ * Click opens Discord invite.
+ */
 Rectangle {
     id: root
 
     property real layoutCardMargin: 8
     property real layoutCardSpacing: 8
     property real layoutTopRowHeight: 200
-
-    signal gameClicked(string gameId, string gameName, string installPath, string engine)
 
     Layout.fillWidth: true
     Layout.horizontalStretchFactor: 2
@@ -20,7 +21,7 @@ Rectangle {
     radius: Dimensions.radiusSection
     color: Theme.surface
     clip: true
-    border.color: heroMa.containsMouse
+    border.color: bannerMa.containsMouse
         ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
     Behavior on border.color { ColorAnimation { duration: Dimensions.animNormal } }
@@ -32,115 +33,39 @@ Rectangle {
         cornerRadius: Dimensions.radiusSection
         originX: 30; originY: height - 20
         intensity: 0.22; hoveredIntensity: 0.50; spread: 0.50
-        hovered: heroMa.containsMouse
+        hovered: bannerMa.containsMouse
     }
 
-    // Hero game data — planned localization showcase
-    readonly property string _plannedAppId: "3764200"
-    readonly property var _heroGame: {
-        var found = GameService.getGameBySteamAppId(_plannedAppId)
-        if (found && found.id)
-            return found
-        return {
-            id: "steam_" + _plannedAppId,
-            steamAppId: _plannedAppId,
-            name: "Resident Evil Requiem",
-            // Image resolved via ImageCache from GitHub Assets repo
-            installPath: "",
-            engine: ""
-        }
-    }
-    readonly property bool _isPlanned: (_heroGame.steamAppId || "") === _plannedAppId
+    readonly property string _bannerUrl:
+        "https://raw.githubusercontent.com/MakineCeviri/MakineAI-Assets/main/banners/announcement.png"
 
-    // Background image
+    // Banner image (hidden — rendered via MultiEffect mask)
     Image {
-        id: heroImg
+        id: bannerImg
         anchors.fill: parent
-        source: ImageCache.resolve(
-            root._heroGame.steamAppId || root._heroGame.id || ""
-        )
-        sourceSize: Qt.size(600, 400)
+        source: root._bannerUrl
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
         visible: false
-
-        Connections {
-            target: ImageCache
-            function onImageReady(readyId) {
-                var myId = root._heroGame.steamAppId || root._heroGame.id || ""
-                if (readyId === myId)
-                    heroImg.source = ImageCache.resolve(myId)
-            }
-        }
     }
 
-    // Mask for rounded corners
+    // Rounded corner mask
     Item {
-        id: heroMask
+        id: bannerMask
         anchors.fill: parent
         visible: false
-        layer.enabled: heroImg.status === Image.Ready
+        layer.enabled: true
         Rectangle { anchors.fill: parent; radius: Dimensions.radiusSection; color: "white" }
     }
 
+    // Masked banner — image clipped to container radius
     MultiEffect {
-        anchors.fill: heroImg
-        source: heroImg
+        anchors.fill: bannerImg
+        source: bannerImg
         maskEnabled: true
-        maskSource: heroMask
-        visible: heroImg.status === Image.Ready
-    }
-
-    // Placeholder
-    Rectangle {
-        anchors.fill: parent
-        visible: heroImg.status !== Image.Ready
-        radius: Dimensions.radiusSection
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.15) }
-            GradientStop { position: 1.0; color: Theme.withAlpha(Theme.surface, 0.8) }
-        }
-    }
-
-    // Dark gradient overlay
-    Rectangle {
-        anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.5; color: Theme.withAlpha("#000000", 0.2) }
-            GradientStop { position: 1.0; color: Theme.withAlpha("#000000", 0.75) }
-        }
-    }
-
-    // TR badge (top-right) — visible on hover only
-    TurkishFlagBadge {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: Dimensions.marginBase
-        anchors.rightMargin: Dimensions.marginBase
-        flagWidth: 22; flagHeight: 14
-        z: 2
-        opacity: heroMa.containsMouse ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
-    }
-
-    // Game name (bottom-left)
-    Text {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: Dimensions.marginMD
-        anchors.rightMargin: Dimensions.marginMD
-        anchors.bottomMargin: Dimensions.marginBase
-        text: root._heroGame ? (root._heroGame.name || "") : ""
-        font.pixelSize: Dimensions.fontSM
-        font.weight: Font.Bold
-        color: "white"
-        elide: Text.ElideRight
-        maximumLineCount: 2
-        wrapMode: Text.WordWrap
+        maskSource: bannerMask
+        visible: bannerImg.status === Image.Ready
     }
 
     // Top edge glass highlight
@@ -160,15 +85,10 @@ Rectangle {
     }
 
     MouseArea {
-        id: heroMa
+        id: bannerMa
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            if (root._heroGame) {
-                var g = root._heroGame
-                root.gameClicked(g.id || "", g.name || "", g.installPath || "", g.engine || "")
-            }
-        }
+        onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
     }
 }

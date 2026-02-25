@@ -18,7 +18,7 @@ ColumnLayout {
     Layout.preferredHeight: layoutTopRowHeight
     spacing: 6
 
-    // ── System status card ──
+    // Main card
     Rectangle {
         Layout.fillWidth: true; Layout.fillHeight: true
         radius: Dimensions.radiusSection
@@ -27,7 +27,7 @@ ColumnLayout {
         border.width: 1
         clip: true
 
-        // Ambient glow (accent-colored, top-right radial)
+        // Ambient glow
         AmbientGlow {
             anchors.fill: parent
             cornerRadius: Dimensions.radiusSection
@@ -35,30 +35,13 @@ ColumnLayout {
             intensity: 0.12
         }
 
-        // Top edge glass highlight
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.leftMargin: 1; anchors.rightMargin: 1; anchors.topMargin: 1
-            height: 1; radius: Dimensions.radiusSection
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.2; color: Qt.rgba(1, 1, 1, 0.06) }
-                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.10) }
-                GradientStop { position: 0.8; color: Qt.rgba(1, 1, 1, 0.06) }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-        }
-
-        // Content — horizontal layout matching original
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 16; anchors.rightMargin: 16
             anchors.topMargin: 14; anchors.bottomMargin: 14
             spacing: 12
 
-            // Ring
+            // Ring with rotating comet arc
             Item {
                 Layout.preferredWidth: 48; Layout.preferredHeight: 48
                 Layout.alignment: Qt.AlignVCenter
@@ -70,7 +53,7 @@ ColumnLayout {
                     border.color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
                 }
 
-                // Brand gradient comet arc
+                // Rotating gradient comet arc + star
                 Canvas {
                     id: arcCanvas
                     anchors.fill: parent
@@ -79,10 +62,6 @@ ColumnLayout {
                         from: 0; to: 360; duration: 3000
                         loops: Animation.Infinite; running: root.visible && root.animationsEnabled
                         easing.type: Easing.Linear
-                        onRunningChanged: {
-                            if (typeof SceneProfiler !== "undefined")
-                                SceneProfiler.registerAnimation("detectionArcSpin", running)
-                        }
                     }
 
                     Component.onCompleted: requestPaint()
@@ -152,11 +131,10 @@ ColumnLayout {
                     }
                 }
 
-                // Turkish flag icon (circular)
+                // Turkish flag icon
                 Rectangle {
                     anchors.centerIn: parent; width: 24; height: 24
                     radius: 12; color: "#E30A17"; clip: true
-
                     Rectangle { x: 4; y: 7; width: 10; height: 10; radius: 5; color: "#FFFFFF" }
                     Rectangle { x: 6.5; y: 8; width: 8; height: 8; radius: 4; color: "#E30A17" }
                     Canvas {
@@ -201,26 +179,23 @@ ColumnLayout {
             Item {
                 id: btn
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: btnContent.implicitWidth + 28
+                Layout.preferredWidth: btnRow.implicitWidth + 28
                 Layout.preferredHeight: 34
 
-                property bool hovered: btnMa.containsMouse
-
-                scale: hovered ? 1.03 : 1.0
-                Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                scale: btnMa.containsMouse ? 1.03 : 1.0
+                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 8; color: btn.hovered ? "#F5F5F5" : "#FFFFFF"
-                    Behavior on color { ColorAnimation { duration: Dimensions.animNormal } }
+                    radius: 8; color: btnMa.containsMouse ? "#F5F5F5" : "#FFFFFF"
                 }
 
                 Row {
-                    id: btnContent
+                    id: btnRow
                     anchors.centerIn: parent
                     spacing: 6
 
-                    // Minimal gamepad icon
+                    // Gamepad icon
                     Canvas {
                         width: 16; height: 12
                         anchors.verticalCenter: parent.verticalCenter
@@ -230,8 +205,7 @@ ColumnLayout {
                             var c = Theme.accentDark
                             ctx.strokeStyle = c; ctx.fillStyle = c
                             ctx.lineWidth = 1.2; ctx.lineCap = "round"; ctx.lineJoin = "round"
-
-                            // Body — rounded pill shape
+                            // Body
                             ctx.beginPath()
                             ctx.moveTo(4, 1); ctx.lineTo(12, 1)
                             ctx.quadraticCurveTo(15, 1, 15, 4)
@@ -241,15 +215,12 @@ ColumnLayout {
                             ctx.quadraticCurveTo(1, 11, 1, 6)
                             ctx.lineTo(1, 4)
                             ctx.quadraticCurveTo(1, 1, 4, 1)
-                            ctx.closePath()
-                            ctx.stroke()
-
-                            // D-pad (left side) — small cross
+                            ctx.closePath(); ctx.stroke()
+                            // D-pad
                             ctx.lineWidth = 1.2
                             ctx.beginPath(); ctx.moveTo(4, 6); ctx.lineTo(6.5, 6); ctx.stroke()
                             ctx.beginPath(); ctx.moveTo(5.25, 4.5); ctx.lineTo(5.25, 7.5); ctx.stroke()
-
-                            // Buttons (right side) — two dots
+                            // Buttons
                             ctx.beginPath(); ctx.arc(10.5, 5, 0.8, 0, Math.PI * 2); ctx.fill()
                             ctx.beginPath(); ctx.arc(12.5, 7, 0.8, 0, Math.PI * 2); ctx.fill()
                         }
@@ -264,13 +235,6 @@ ColumnLayout {
                     }
                 }
 
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Manuel Oyun Ekle")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: root.manualFolderRequested()
-                Keys.onSpacePressed: root.manualFolderRequested()
-
-                FocusRing { target: btn }
                 MouseArea {
                     id: btnMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
@@ -280,19 +244,17 @@ ColumnLayout {
         }
     }
 
-    // ── Security footer with ambient glow continuation ──
+    // Security footer
     Rectangle {
         id: secFooter
         Layout.fillWidth: true; Layout.preferredHeight: 34
         radius: 14
-        property bool hovered: secMa.containsMouse
         color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-        border.color: hovered ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
+        border.color: secMa.containsMouse ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
         clip: true
-        Behavior on border.color { ColorAnimation { duration: Dimensions.animMedium } }
 
-        // Subtle ambient glow continuation from system status card
+        // Ambient glow
         AmbientGlow {
             anchors.fill: parent
             cornerRadius: 14
@@ -300,47 +262,32 @@ ColumnLayout {
             intensity: 0.10; spread: 0.6
         }
 
-        Accessible.role: Accessible.Link
-        Accessible.name: qsTr("Visit makineai.com")
-        activeFocusOnTab: true
-        Keys.onReturnPressed: Qt.openUrlExternally("https://makineai.com")
-        Keys.onSpacePressed: Qt.openUrlExternally("https://makineai.com")
-
         Row {
             anchors.centerIn: parent; spacing: 4
-            opacity: secFooter.hovered ? 0.95 : 0.55
-            Behavior on opacity { NumberAnimation { duration: Dimensions.animMedium } }
+            opacity: secMa.containsMouse ? 0.95 : 0.55
 
             Image {
                 width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
                 source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
                 sourceSize: Qt.size(12, 12)
             }
-
             Label {
                 text: qsTr("G\u00FCvenli\u011Finiz i\u00E7in yaln\u0131zca")
-                font.pixelSize: Dimensions.fontMini
-                color: secFooter.hovered ? Theme.accentLight : Theme.textSecondary
+                font.pixelSize: Dimensions.fontMini; color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: Dimensions.animMedium } }
             }
             Label {
                 text: "makineai.com"
-                font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium; font.underline: secFooter.hovered
-                color: secFooter.hovered ? Theme.accentBase : Theme.textSecondary
+                font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
+                color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: Dimensions.animMedium } }
             }
             Label {
                 text: qsTr("\u00FCzerinden indirin")
-                font.pixelSize: Dimensions.fontMini
-                color: secFooter.hovered ? Theme.accentLight : Theme.textSecondary
+                font.pixelSize: Dimensions.fontMini; color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: Dimensions.animMedium } }
             }
         }
-
-        FocusRing { offset: -1 }
 
         MouseArea {
             id: secMa; anchors.fill: parent; hoverEnabled: true

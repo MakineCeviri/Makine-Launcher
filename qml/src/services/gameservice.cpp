@@ -314,6 +314,14 @@ void GameService::onScanProgress(qreal progress, const QString& status)
 void GameService::onScanCompleted(int count)
 {
     MAKINE_ZONE_NAMED("GameService::onScanCompleted");
+
+    // Preserve manually added games across re-scan
+    QList<GameInfo> manualGames;
+    for (const auto& g : m_games) {
+        if (g.source == QLatin1String("manual"))
+            manualGames.append(g);
+    }
+
     // Convert detected games to GameInfo
     m_games.clear();
     for (const auto& detected : m_coreBridge->detectedGames()) {
@@ -329,6 +337,19 @@ void GameService::onScanCompleted(int count)
         game.isVerified = game.hasTranslation;  // Verified if translation is installed
 
         m_games.append(game);
+    }
+
+    // Re-add manual games that weren't found by scan (avoid duplicates by ID)
+    for (const auto& manual : manualGames) {
+        bool duplicate = false;
+        for (const auto& g : m_games) {
+            if (g.id == manual.id || g.installPath == manual.installPath) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (!duplicate)
+            m_games.append(manual);
     }
 
     rebuildCache();
@@ -466,6 +487,9 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
 
     qDebug() << "Manual game added:" << game.name << "id:" << game.id
              << "engine:" << game.engine << "hasTranslation:" << game.hasTranslation;
+
+    // Persist to disk so manual games survive app restart
+    saveCachedGames();
 }
 
 QVariantMap GameService::getGameById(const QString& id) const

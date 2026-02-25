@@ -61,6 +61,7 @@ ZSTD_THREADS = 0     # Auto-detect CPU count
 DEFERRED_APP_IDS = {
     "205100",     # Dishonored - Definitive Edition (~4.2 GB)
     "582160",     # Assassin's Creed Origins (~2.8 GB raw, 1.35 GB compressed)
+    "612880",     # Wolfenstein II: The New Colossus (~862 MB)
     "1763050",    # Fears To Fathom: Norwood Hitchhike (~1.5 GB)
     "2120900",    # Fears To Fathom: Carson House (~631 MB)
 }

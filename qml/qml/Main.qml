@@ -15,7 +15,7 @@ ApplicationWindow {
     minimumWidth: Dimensions.minWindowWidth
     minimumHeight: Dimensions.minWindowHeight
 
-    title: "MakineAI"
+    title: "Makine \u00C7eviri - MakineAI"
     color: Theme.bgPrimary
 
     flags: Qt.Window | Qt.FramelessWindowHint

@@ -1186,7 +1186,7 @@ VoidResult PackageBuilder::initProject(
     // Write manifest.yaml template
     std::string yaml;
     yaml += "# MakineAI Translation Package Manifest\n";
-    yaml += "# See: https://github.com/jlceaser/MakineAI/docs/package-format.md\n\n";
+    yaml += "# See: https://github.com/MakineCeviri/MakineAI/docs/package-format.md\n\n";
     yaml += "name: \"" + pkgName + "\"\n";
     yaml += "version: \"1.0.0\"\n";
     yaml += "display_name: \"" + gameName + " Türkçe Yama\"\n\n";

@@ -38,7 +38,7 @@ if(MAKINEAI_PROFILER)
     include(FetchContent)
     FetchContent_Declare(tracy
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG        v0.11.1
+        GIT_TAG        v0.13.1
         GIT_SHALLOW    TRUE
     )
     set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
