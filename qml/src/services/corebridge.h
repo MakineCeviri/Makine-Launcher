@@ -31,7 +31,6 @@ struct DetectedGame {
     QString source;        // steam, epic, gog, manual
     QString engine;        // Unity, Unreal, RenPy, RPGMaker, GameMaker
     QString steamAppId;
-    QString headerImageUrl;
     bool isVerified{false};
     bool hasTranslation{false};
     QString translationStatus;

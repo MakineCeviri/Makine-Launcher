@@ -1,11 +1,11 @@
 /**
  * @file imagecachemanager.h
- * @brief Disk-based image cache for Steam header images
+ * @brief Disk-based image cache for game images from GitHub Assets repo
  * @copyright (c) 2026 MakineAI Team
  *
- * Downloads game header images from Steam CDN and stores them locally
- * in AppData/Local/Temp/MakineAI/images/ for instant loading on
- * subsequent launches.
+ * Downloads pre-baked game card images from jlceaser/MakineAI-Assets
+ * on GitHub and stores them locally in AppData cache for instant
+ * loading on subsequent launches.
  */
 
 #pragma once
@@ -14,9 +14,7 @@
 #include <QString>
 #include <QSet>
 #include <QQueue>
-#include <QPair>
 #include <QVariantMap>
-#include <QImage>
 #include <QNetworkAccessManager>
 
 namespace makineai {
@@ -33,17 +31,17 @@ public:
     explicit ImageCacheManager(QObject* parent = nullptr);
 
     /**
-     * @brief Resolve an image URL to a local cached path.
+     * @brief Resolve a game image to a local cached path.
      *
      * If the image is already cached on disk, returns a file:/// URL.
-     * Otherwise starts a background download and returns an empty string.
-     * When the download completes, imageReady() is emitted.
+     * Otherwise starts a background download from GitHub Assets repo
+     * and returns an empty string. When the download completes,
+     * imageReady() is emitted.
      *
-     * @param appId  Steam App ID (used as cache key)
-     * @param remoteUrl  Original Steam CDN URL
+     * @param appId  Steam App ID (used as cache key and GitHub filename)
      * @return file:/// URL if cached, empty string if download pending
      */
-    Q_INVOKABLE QString resolve(const QString& appId, const QString& remoteUrl);
+    Q_INVOKABLE QString resolve(const QString& appId);
 
     /**
      * @brief Delete all cached images.
@@ -73,24 +71,17 @@ signals:
 private:
     void ensureCacheDir();
     QString localPath(const QString& appId) const;
-    void startDownload(const QString& appId, const QString& remoteUrl);
+    QString remoteUrl(const QString& appId) const;
+    void startDownload(const QString& appId);
     void processQueue();
-    QString fallbackUrl(const QString& appId, const QString& originalUrl) const;
-
-    QImage processForCard(const QByteArray& data) const;
 
     QString m_cacheDir;
     QNetworkAccessManager m_nam;
     QSet<QString> m_pending;          // appIds currently downloading
-    QSet<QString> m_failed;           // appIds that exhausted all fallbacks
-    QQueue<QPair<QString, QString>> m_queue;  // waiting: {appId, remoteUrl}
+    QSet<QString> m_failed;           // appIds that failed download
+    QQueue<QString> m_queue;          // appIds waiting to download
     mutable qint64 m_cachedSizeBytes{-1};     // Incremental cache size tracking
     static constexpr int MAX_CONCURRENT = 8;
-
-    // Pre-baked card dimensions — matches QML sourceSize and Dimensions.cardBorderRadius * 2
-    static constexpr int CARD_WIDTH  = 260;
-    static constexpr int CARD_HEIGHT = 370;
-    static constexpr int CARD_RADIUS = 32;  // 16px display × 2x source scale
 
 #ifdef MAKINEAI_DEV_TOOLS
     int m_downloadCount{0};

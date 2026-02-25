@@ -20,11 +20,7 @@ QtObject {
         if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
             resolvedSteamAppId = gameId
 
-        var rawImageUrl = (gameData && gameData.headerImageUrl) || ""
-        if (rawImageUrl === "" && resolvedSteamAppId !== "")
-            rawImageUrl = "https://cdn.akamai.steamstatic.com/steam/apps/" + resolvedSteamAppId + "/library_600x900_2x.jpg"
-
-        var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId, rawImageUrl)
+        var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId)
         var hasTranslation = (gameData && gameData.hasTranslation) || false
         var pkgInstalled = (gameData && gameData.packageInstalled) || false
 

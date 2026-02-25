@@ -1,6 +1,6 @@
 /**
  * @file imagecachemanager.cpp
- * @brief Disk-based image cache implementation
+ * @brief Disk-based image cache — downloads from GitHub Assets repo
  * @copyright (c) 2026 MakineAI Team
  */
 
@@ -13,12 +13,14 @@
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QNetworkReply>
-#include <QPainter>
-#include <QPainterPath>
 #include <QRegularExpression>
 #include <QUrl>
 
 namespace makineai {
+
+// GitHub raw URL base for pre-baked game images (260x370 PNG, rounded corners)
+static constexpr auto GITHUB_IMAGE_BASE =
+    "https://raw.githubusercontent.com/jlceaser/MakineAI-Assets/main/images/";
 
 ImageCacheManager::ImageCacheManager(QObject* parent)
     : QObject(parent)
@@ -46,7 +48,12 @@ QString ImageCacheManager::localPath(const QString& appId) const
     return m_cacheDir + QLatin1Char('/') + safe + QStringLiteral(".png");
 }
 
-QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUrl)
+QString ImageCacheManager::remoteUrl(const QString& appId) const
+{
+    return QLatin1String(GITHUB_IMAGE_BASE) + appId + QStringLiteral(".png");
+}
+
+QString ImageCacheManager::resolve(const QString& appId)
 {
     MAKINE_ZONE_NAMED("ImageCacheManager::resolve");
     if (appId.isEmpty())
@@ -54,7 +61,7 @@ QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUr
 
     const QString path = localPath(appId);
 
-    // Already processed and cached on disk — instant file URL
+    // Already cached on disk — instant file URL
     if (QFile::exists(path)) {
 #ifdef MAKINEAI_DEV_TOOLS
         ++m_cacheHitCount;
@@ -62,44 +69,18 @@ QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUr
         return QUrl::fromLocalFile(path).toString();
     }
 
-    // Embedded qrc image — process once (bake rounded corners), cache to disk
-    const QString qrcRes = QStringLiteral(":/qt/qml/MakineAI/resources/showcase/%1.jpg").arg(appId);
-    if (QFile::exists(qrcRes)) {
-        QFile f(qrcRes);
-        if (f.open(QIODevice::ReadOnly)) {
-            const QImage processed = processForCard(f.readAll());
-            if (!processed.isNull()) {
-                ensureCacheDir();
-                if (processed.save(path, "PNG")) {
-                    if (m_cachedSizeBytes >= 0)
-                        m_cachedSizeBytes += QFileInfo(path).size();
-#ifdef MAKINEAI_DEV_TOOLS
-                    ++m_cacheHitCount;
-#endif
-                    return QUrl::fromLocalFile(path).toString();
-                }
-            }
-        }
-        // Fallback: return raw qrc if processing failed
-#ifdef MAKINEAI_DEV_TOOLS
-        ++m_cacheHitCount;
-#endif
-        return QStringLiteral("qrc") + qrcRes;
-    }
-
-    // Already failed all attempts — don't retry
+    // Already failed — don't retry
     if (m_failed.contains(appId))
         return {};
 
     // Not cached — enqueue download if not already pending/queued
-    if (!remoteUrl.isEmpty() && !m_pending.contains(appId)) {
-        // Check if already in queue
+    if (!m_pending.contains(appId)) {
         bool inQueue = false;
         for (const auto& item : m_queue) {
-            if (item.first == appId) { inQueue = true; break; }
+            if (item == appId) { inQueue = true; break; }
         }
         if (!inQueue) {
-            m_queue.enqueue({appId, remoteUrl});
+            m_queue.enqueue(appId);
 #ifdef MAKINEAI_DEV_TOOLS
             if (m_queue.size() > m_queuePeakSize)
                 m_queuePeakSize = m_queue.size();
@@ -114,73 +95,23 @@ QString ImageCacheManager::resolve(const QString& appId, const QString& remoteUr
 void ImageCacheManager::processQueue()
 {
     while (m_pending.size() < MAX_CONCURRENT && !m_queue.isEmpty()) {
-        auto [appId, url] = m_queue.dequeue();
+        auto appId = m_queue.dequeue();
         // Skip if already resolved while waiting in queue
         if (QFile::exists(localPath(appId)) || m_pending.contains(appId))
             continue;
-        startDownload(appId, url);
+        startDownload(appId);
     }
 }
 
-QString ImageCacheManager::fallbackUrl(const QString& appId, const QString& originalUrl) const
-{
-    // Steam CDN fallback chain:
-    // 1. library_600x900_2x.jpg (vertical capsule, high-res)
-    // 2. header.jpg (horizontal header, 460x215)
-    // 3. capsule_616x353.jpg (wide capsule)
-    const QString base = QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/").arg(appId);
-
-    if (originalUrl.contains(QStringLiteral("library_600x900")))
-        return base + QStringLiteral("header.jpg");
-
-    if (originalUrl.contains(QStringLiteral("header.jpg")))
-        return base + QStringLiteral("capsule_616x353.jpg");
-
-    return {};  // No more fallbacks
-}
-
-QImage ImageCacheManager::processForCard(const QByteArray& data) const
-{
-    QImage src;
-    if (!src.loadFromData(data))
-        return {};
-
-    // Scale to fill target dimensions (same logic as QML Image.PreserveAspectCrop)
-    QImage scaled = src.scaled(CARD_WIDTH, CARD_HEIGHT,
-                               Qt::KeepAspectRatioByExpanding,
-                               Qt::SmoothTransformation);
-
-    // Center crop to exact card size
-    const int cx = (scaled.width() - CARD_WIDTH) / 2;
-    const int cy = (scaled.height() - CARD_HEIGHT) / 2;
-
-    // Create result with alpha for rounded corners
-    QImage result(CARD_WIDTH, CARD_HEIGHT, QImage::Format_ARGB32_Premultiplied);
-    result.fill(Qt::transparent);
-
-    QPainter painter(&result);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-
-    // Clip to rounded rect path
-    QPainterPath path;
-    path.addRoundedRect(QRectF(0, 0, CARD_WIDTH, CARD_HEIGHT), CARD_RADIUS, CARD_RADIUS);
-    painter.setClipPath(path);
-
-    // Draw the cropped region of the scaled image
-    painter.drawImage(0, 0, scaled, cx, cy, CARD_WIDTH, CARD_HEIGHT);
-    painter.end();
-
-    return result;
-}
-
-void ImageCacheManager::startDownload(const QString& appId, const QString& remoteUrl)
+void ImageCacheManager::startDownload(const QString& appId)
 {
     m_pending.insert(appId);
 #ifdef MAKINEAI_DEV_TOOLS
     ++m_downloadCount;
 #endif
 
-    QNetworkRequest req{QUrl{remoteUrl}};
+    const QString url = remoteUrl(appId);
+    QNetworkRequest req{QUrl{url}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
     req.setTransferTimeout(15000);
@@ -188,7 +119,7 @@ void ImageCacheManager::startDownload(const QString& appId, const QString& remot
 
     QNetworkReply* reply = m_nam.get(req);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, appId, remoteUrl]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, appId]() {
         reply->deleteLater();
         m_pending.remove(appId);
 
@@ -199,31 +130,25 @@ void ImageCacheManager::startDownload(const QString& appId, const QString& remot
             if (status >= 200 && status < 300) {
                 const QByteArray data = reply->readAll();
                 if (!data.isEmpty()) {
-                    // Pre-process: crop to card aspect ratio + bake rounded corners
-                    const QImage processed = processForCard(data);
-                    if (!processed.isNull()) {
-                        ensureCacheDir();
-                        const QString path = localPath(appId);
-                        if (processed.save(path, "PNG")) {
-                            if (m_cachedSizeBytes >= 0)
-                                m_cachedSizeBytes += QFileInfo(path).size();
-                            emit imageReady(appId);
-                            emit cacheSizeChanged();
-                            success = true;
-                        }
+                    // GitHub images are pre-baked PNG — save directly
+                    ensureCacheDir();
+                    const QString path = localPath(appId);
+                    QFile file(path);
+                    if (file.open(QIODevice::WriteOnly)) {
+                        file.write(data);
+                        file.close();
+                        if (m_cachedSizeBytes >= 0)
+                            m_cachedSizeBytes += data.size();
+                        emit imageReady(appId);
+                        emit cacheSizeChanged();
+                        success = true;
                     }
                 }
             }
         }
 
         if (!success) {
-            // Try fallback URL
-            const QString fb = fallbackUrl(appId, remoteUrl);
-            if (!fb.isEmpty()) {
-                m_queue.prepend({appId, fb});
-            } else {
-                m_failed.insert(appId);
-            }
+            m_failed.insert(appId);
         }
 
         // Process next items in queue

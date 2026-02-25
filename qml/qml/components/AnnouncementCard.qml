@@ -45,7 +45,7 @@ Rectangle {
             id: "steam_" + _plannedAppId,
             steamAppId: _plannedAppId,
             name: "Resident Evil Requiem",
-            headerImageUrl: "https://cdn.akamai.steamstatic.com/steam/apps/" + _plannedAppId + "/header.jpg",
+            // Image resolved via ImageCache from GitHub Assets repo
             installPath: "",
             engine: ""
         }
@@ -57,8 +57,7 @@ Rectangle {
         id: heroImg
         anchors.fill: parent
         source: ImageCache.resolve(
-            root._heroGame.steamAppId || root._heroGame.id || "",
-            root._heroGame.headerImageUrl || ""
+            root._heroGame.steamAppId || root._heroGame.id || ""
         )
         sourceSize: Qt.size(600, 400)
         fillMode: Image.PreserveAspectCrop
@@ -71,7 +70,7 @@ Rectangle {
             function onImageReady(readyId) {
                 var myId = root._heroGame.steamAppId || root._heroGame.id || ""
                 if (readyId === myId)
-                    heroImg.source = ImageCache.resolve(myId, root._heroGame.headerImageUrl || "")
+                    heroImg.source = ImageCache.resolve(myId)
             }
         }
     }

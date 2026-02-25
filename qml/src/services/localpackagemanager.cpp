@@ -281,8 +281,6 @@ QVariantList LocalPackageManager::allPackagesAsList() const
             {"engine",     QString::fromStdString(entry.engine)},
             {"version",    QString::fromStdString(entry.version)},
             {"packageId",  QString::fromStdString(entry.packageId)},
-            {"headerImageUrl", QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg")
-                .arg(QString::fromStdString(entry.steamAppId))},
         });
     }
     return result;
@@ -850,7 +848,6 @@ QVariantList LocalPackageManager::allPackagesAsList() const
             {"engine", pkg.engine},
             {"version", pkg.version},
             {"packageId", pkg.packageId},
-            {"headerImageUrl", QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(pkg.steamAppId)},
         });
     }
     return result;

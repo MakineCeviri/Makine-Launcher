@@ -30,7 +30,6 @@ struct GameInfo {
     Q_GADGET
     Q_PROPERTY(QString id MEMBER id)
     Q_PROPERTY(QString name MEMBER name)
-    Q_PROPERTY(QString headerImageUrl MEMBER headerImageUrl)
     Q_PROPERTY(QString installPath MEMBER installPath)
     Q_PROPERTY(QString steamAppId MEMBER steamAppId)
     Q_PROPERTY(QString source MEMBER source)
@@ -42,7 +41,6 @@ struct GameInfo {
 public:
     QString id;
     QString name;
-    QString headerImageUrl;
     QString installPath;
     QString steamAppId;
     QString source{"steam"};
@@ -54,7 +52,6 @@ public:
     QVariantMap toVariantMap() const {
         return {
             {"id", id}, {"name", name},
-            {"headerImageUrl", headerImageUrl},
             {"installPath", installPath}, {"steamAppId", steamAppId},
             {"source", source}, {"engine", engine},
             {"isVerified", isVerified}, {"isInstalled", isInstalled},

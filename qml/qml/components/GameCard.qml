@@ -35,7 +35,7 @@ Item {
         function onImageReady(readyId) {
             var myId = root.steamAppId || root.gameId
             if (readyId === myId)
-                root.imageUrl = ImageCache.resolve(myId, "")
+                root.imageUrl = ImageCache.resolve(myId)
         }
     }
 

@@ -246,7 +246,6 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
             game.installPath = installPath;
             game.source = "steam";
             game.steamAppId = appId;
-            game.headerImageUrl = QString("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(appId);
             game.isVerified = false;
             game.hasTranslation = false;
 

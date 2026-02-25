@@ -78,7 +78,6 @@ void GameService::initialize()
                         GameInfo g;
                         g.id = obj["id"].toString();
                         g.name = obj["name"].toString();
-                        g.headerImageUrl = obj["headerImageUrl"].toString();
                         g.installPath = obj["installPath"].toString();
                         g.steamAppId = obj["steamAppId"].toString();
                         g.source = obj["source"].toString();
@@ -310,7 +309,6 @@ void GameService::onScanCompleted(int count)
         game.source = detected.source;
         game.engine = detected.engine;
         game.steamAppId = detected.steamAppId;
-        game.headerImageUrl = detected.headerImageUrl;
         game.isInstalled = true;
         game.hasTranslation = detected.hasTranslation;  // Already set by worker thread
         game.isVerified = game.hasTranslation;  // Verified if translation is installed
@@ -404,7 +402,6 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
         game.id = matchedAppId;
         game.steamAppId = matchedAppId;
         game.hasTranslation = true;
-        game.headerImageUrl = QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/%1/library_600x900_2x.jpg").arg(matchedAppId);
 
         auto pkg = m_coreBridge ? m_coreBridge->getPackageForGame(matchedAppId) : std::nullopt;
         game.name = (pkg.has_value()) ? pkg->gameName : folderName;
@@ -912,7 +909,6 @@ void GameService::loadCachedGames()
         GameInfo game;
         game.id = obj["id"].toString();
         game.name = obj["name"].toString();
-        game.headerImageUrl = obj["headerImageUrl"].toString();
         game.installPath = obj["installPath"].toString();
         game.steamAppId = obj["steamAppId"].toString();
         game.source = obj["source"].toString();
@@ -951,7 +947,6 @@ void GameService::saveCachedGames()
             QJsonObject obj;
             obj["id"] = game.id;
             obj["name"] = game.name;
-            obj["headerImageUrl"] = game.headerImageUrl;
             obj["installPath"] = game.installPath;
             obj["steamAppId"] = game.steamAppId;
             obj["source"] = game.source;

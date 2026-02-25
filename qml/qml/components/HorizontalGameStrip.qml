@@ -112,8 +112,7 @@ Item {
             gameName: modelData.name || modelData.gameName || ""
             steamAppId: modelData.steamAppId || ""
             imageUrl: ImageCache.resolve(
-                modelData.steamAppId || modelData.gameId || modelData.id || "",
-                modelData.headerImageUrl || ""
+                modelData.steamAppId || modelData.gameId || modelData.id || ""
             )
             installPath: modelData.installPath || ""
             verified: modelData.isVerified || false
