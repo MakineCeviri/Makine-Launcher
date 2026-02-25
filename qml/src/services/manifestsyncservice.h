@@ -108,8 +108,11 @@ private:
 
     struct CatalogEntry {
         QString name;
-        QString version;    // "2026-02-21"
-        qint64 sizeBytes{0};
+        QString version;        // "2026-02-21"
+        qint64 sizeBytes{0};    // raw directory size
+        qint64 downloadSize{0}; // encrypted .mkpkg size (what user downloads)
+        QString dataUrl;        // R2 download URL
+        QString checksum;       // SHA-256 of .mkpkg file
     };
 
     QHash<QString, CatalogEntry> m_catalog;  // appId -> entry

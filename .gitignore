@@ -216,6 +216,8 @@ secrets.yaml
 secrets.yml
 secrets.toml
 *.key
+.encryption_key
+scripts/.encryption_key
 *.pem
 *.p12
 *.pfx

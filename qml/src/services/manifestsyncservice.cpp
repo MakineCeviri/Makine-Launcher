@@ -143,6 +143,9 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
         ce.name = entry[QStringLiteral("name")].toString();
         ce.version = entry[QStringLiteral("v")].toString();
         ce.sizeBytes = static_cast<qint64>(entry[QStringLiteral("sizeBytes")].toDouble());
+        ce.downloadSize = static_cast<qint64>(entry[QStringLiteral("size")].toDouble());
+        ce.dataUrl = entry[QStringLiteral("dataUrl")].toString();
+        ce.checksum = entry[QStringLiteral("checksum")].toString();
         newCatalog.insert(it.key(), ce);
     }
 
@@ -159,15 +162,26 @@ QVariantList ManifestSyncService::catalog() const
     result.reserve(m_catalog.size());
 
     for (auto it = m_catalog.constBegin(); it != m_catalog.constEnd(); ++it) {
-        result.append(QVariantMap{
+        const auto& ce = it.value();
+        QVariantMap entry{
             {QStringLiteral("steamAppId"), it.key()},
-            {QStringLiteral("name"), it.value().name},
-            {QStringLiteral("gameName"), it.value().name},
-            {QStringLiteral("version"), it.value().version},
-            {QStringLiteral("sizeBytes"), it.value().sizeBytes},
+            {QStringLiteral("name"), ce.name},
+            {QStringLiteral("gameName"), ce.name},
+            {QStringLiteral("version"), ce.version},
+            {QStringLiteral("sizeBytes"), ce.sizeBytes},
             {QStringLiteral("hasTranslation"), true},
             {QStringLiteral("isVerified"), true},
-        });
+        };
+
+        // Download metadata (available after pipeline processing)
+        if (ce.downloadSize > 0)
+            entry.insert(QStringLiteral("downloadSize"), ce.downloadSize);
+        if (!ce.dataUrl.isEmpty())
+            entry.insert(QStringLiteral("dataUrl"), ce.dataUrl);
+        if (!ce.checksum.isEmpty())
+            entry.insert(QStringLiteral("checksum"), ce.checksum);
+
+        result.append(entry);
     }
 
     return result;

@@ -123,6 +123,7 @@ set(BACKEND_HEADERS
     src/services/operationjournal.h
     src/services/appprotection.h
     src/services/obfstring.h
+    src/services/encryption_key.h
     src/services/imagecachemanager.h
     src/services/manifestsyncservice.h
     src/services/apppaths.h
