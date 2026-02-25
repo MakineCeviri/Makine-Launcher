@@ -39,6 +39,33 @@ ApplicationWindow {
     // for returning users. Component.onCompleted flips to true if needed.
     property bool _onboardingActive: false
 
+    // Preload heavy pages in background after startup settles.
+    // Guard: never preload during a page transition (sync load blocks main thread).
+    // On collision, retry in 200ms (not full interval) so preload fires right after transition ends.
+    property bool _settingsPreloaded: false
+    property bool _gameDetailPreloaded: false
+    Timer {
+        id: _settingsPreloadTimer
+        interval: 3000; running: true
+        onTriggered: {
+            if (contentStackContainer.transitioning) {
+                interval = 200; restart(); return
+            }
+            window._settingsPreloaded = true
+            _gameDetailPreloadTimer.start()
+        }
+    }
+    Timer {
+        id: _gameDetailPreloadTimer
+        interval: 2000
+        onTriggered: {
+            if (contentStackContainer.transitioning) {
+                interval = 200; restart(); return
+            }
+            window._gameDetailPreloaded = true
+        }
+    }
+
     Component.onDestruction: pageChangeTimer.stop()
 
     onClosing: function(close) {
@@ -483,9 +510,9 @@ ApplicationWindow {
             Loader {
                 id: settingsLoader
                 anchors.fill: parent
-                active: contentStackContainer.settingsVisible
+                active: contentStackContainer.settingsVisible || window._settingsPreloaded
                 visible: contentStackContainer.settingsVisible
-                asynchronous: true
+                asynchronous: false
                 onLoaded: {
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("SettingsScreen")
@@ -504,9 +531,9 @@ ApplicationWindow {
             Loader {
                 id: gameDetailLoader
                 anchors.fill: parent
-                active: contentStackContainer.gameDetailVisible
+                active: contentStackContainer.gameDetailVisible || window._gameDetailPreloaded
                 visible: contentStackContainer.gameDetailVisible
-                asynchronous: true
+                asynchronous: false
                 onLoaded: {
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("GameDetailScreen")

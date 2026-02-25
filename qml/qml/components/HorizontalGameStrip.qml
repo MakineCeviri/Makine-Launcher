@@ -15,6 +15,7 @@ Item {
     property real dragWeight: 0.35
     property bool wrapAround: false
     property bool _initialCentered: false
+    property bool _wrapReady: false
 
     // Scroll state for edge navigation
     readonly property bool canScrollLeft: !wrapAround && view.contentWidth > view.width
@@ -40,30 +41,43 @@ Item {
     signal gameClicked(string gameId, string gameName, string installPath, string engine)
 
     // Re-center when model changes (search filtering, data reload)
-    onModelChanged: _initialCentered = false
+    onModelChanged: {
+        _initialCentered = false
+        _wrapReady = false
+        if (wrapAround && model && model.length >= 2)
+            _wrapActivation.restart()
+    }
 
-    // 3x repeated model for seamless infinite scroll
+    // Deferred wrap: load 1x first (fast), expand to 3x after settling
+    Timer {
+        id: _wrapActivation
+        interval: 600
+        onTriggered: {
+            if (!strip.wrapAround || !strip.model || strip.model.length < 2)
+                return
+            var oldX = view.contentX
+            var oldWidth = view.contentWidth
+            strip._wrapReady = true
+            // Teleport contentX into the middle copy so user sees no jump
+            Qt.callLater(function() {
+                if (strip._jumpWidth > 0 && oldWidth > 0)
+                    view.contentX = strip._jumpWidth + oldX
+            })
+        }
+    }
+
+    // 3x repeated model for seamless infinite scroll (deferred when wrapAround)
     readonly property var _viewModel: {
         var src = model
         if (!src || src.length === 0) return src || []
-        if (!wrapAround || src.length < 2) return src
+        if (!wrapAround || src.length < 2 || !_wrapReady) return src
         return src.concat(src, src)
     }
 
     // Pixel width of one model copy (jump distance for wrap teleport)
     readonly property real _jumpWidth: {
-        if (!wrapAround || view.contentWidth <= 0 || (model || []).length < 2) return 0
+        if (!wrapAround || !_wrapReady || view.contentWidth <= 0 || (model || []).length < 2) return 0
         return (view.contentWidth + view.spacing) / 3
-    }
-
-    // Silently teleport contentX to stay in the middle copy
-    function _normalizeWrap() {
-        if (_jumpWidth <= 0) return
-        var jw = _jumpWidth
-        if (view.contentX < jw * 0.3)
-            view.contentX += jw
-        else if (view.contentX > jw * 1.7)
-            view.contentX -= jw
     }
 
     // Smooth scroll for arrow navigation
@@ -84,7 +98,7 @@ Item {
         model: strip._viewModel
         clip: !strip.wrapAround
         interactive: false
-        cacheBuffer: strip.wrapAround ? 200 : 150
+        cacheBuffer: strip.wrapAround ? 0 : 100
         displayMarginBeginning: 0
         displayMarginEnd: 0
         pixelAligned: true
@@ -93,11 +107,12 @@ Item {
         // Center the strip initially
         onContentWidthChanged: {
             if (!strip._initialCentered && contentWidth > width && count > 0) {
-                if (strip.wrapAround && strip._jumpWidth > 0) {
-                    // Start at center of the middle copy
+                if (strip.wrapAround && strip._wrapReady && strip._jumpWidth > 0) {
+                    // 3x mode: center in the middle copy
                     var seg = strip._jumpWidth
                     contentX = seg + Math.max(0, (seg - width) / 2)
                 } else {
+                    // 1x mode or non-wrap: simple center
                     contentX = (contentWidth - width) / 2
                 }
                 strip._initialCentered = true
@@ -156,10 +171,15 @@ Item {
                 var lo = view.originX
                 var hi = Math.max(lo, view.contentWidth - view.width + lo)
                 newX = Math.max(lo, Math.min(hi, newX))
+            } else {
+                var jw = strip._jumpWidth
+                if (jw > 0) {
+                    if (newX < jw * 0.3) newX += jw
+                    else if (newX > jw * 1.7) newX -= jw
+                }
             }
 
             view.contentX = newX
-            if (strip.wrapAround) strip._normalizeWrap()
 
             var now = Date.now(), dt = now - _lastTime
             if (dt > 0) {
@@ -216,10 +236,15 @@ Item {
                 var lo = view.originX
                 var hi = Math.max(lo, view.contentWidth - view.width + lo)
                 newX = Math.max(lo, Math.min(hi, newX))
+            } else {
+                var jw = strip._jumpWidth
+                if (jw > 0) {
+                    if (newX < jw * 0.3) newX += jw
+                    else if (newX > jw * 1.7) newX -= jw
+                }
             }
 
             view.contentX = newX
-            if (strip.wrapAround) strip._normalizeWrap()
         }
     }
 
