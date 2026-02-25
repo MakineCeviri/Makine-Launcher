@@ -218,6 +218,7 @@ secrets.toml
 *.key
 .encryption_key
 scripts/.encryption_key
+scripts/r2_config.json
 *.pem
 *.p12
 *.pfx
