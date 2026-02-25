@@ -135,6 +135,10 @@ Item {
         else
             isLoadingSteamDetails = true
         GameService.fetchSteamDetails(steamAppId)
+
+        // Pre-fetch package detail so install doesn't wait
+        if (!CoreBridge.isPackageDetailLoaded(steamAppId))
+            ManifestSync.fetchPackageDetail(steamAppId)
     }
 
     onGameIdChanged: {

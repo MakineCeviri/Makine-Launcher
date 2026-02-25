@@ -125,6 +125,14 @@ ApplicationWindow {
         }
     }
 
+    // ===== CORE BRIDGE: package detail enrichment =====
+    Connections {
+        target: CoreBridge
+        function onPackageDetailEnriched(appId) {
+            installFlow.onPackageDetailEnriched(appId)
+        }
+    }
+
     // ===== KEYBOARD SHORTCUTS =====
     Shortcut {
         sequence: "Ctrl+Q"
@@ -716,18 +724,6 @@ ApplicationWindow {
                     }
                 }
             }
-        }
-    }
-
-    // ===== DROP ZONE OVERLAY =====
-    DropZoneOverlay {
-        id: dropZoneOverlay
-        anchors.fill: parent
-        z: Dimensions.zHeader
-
-        onFilesDropped: function(urls) {
-            DebugHelper.log("DropZone", "Files dropped: " + urls.length)
-            GameService.handleDroppedFiles(urls)
         }
     }
 

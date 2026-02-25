@@ -70,6 +70,32 @@ bool LocalPackageManager::loadFromPath(const QString& translationDataPath)
     return ok;
 }
 
+bool LocalPackageManager::loadFromIndex(const QString& indexPath, const QString& packageCacheRoot)
+{
+    MAKINE_ZONE_NAMED("LPM::loadFromIndex");
+    m_dataPath = packageCacheRoot;
+
+    bool ok = m_catalog.loadFromIndex(indexPath.toStdString(),
+                                       packageCacheRoot.toStdString());
+
+    std::string statePath = installedStatePath().toStdString();
+    m_catalog.loadInstalledState(statePath);
+
+    qDebug() << "LocalPackageManager: loaded" << m_catalog.packageCount()
+             << "packages from index (network-only)";
+    return ok;
+}
+
+bool LocalPackageManager::enrichPackageDetail(const QString& steamAppId, const QByteArray& jsonData)
+{
+    return m_catalog.enrichPackage(steamAppId.toStdString(), jsonData.toStdString());
+}
+
+bool LocalPackageManager::isDetailLoaded(const QString& steamAppId) const
+{
+    return m_catalog.isDetailLoaded(steamAppId.toStdString());
+}
+
 // -- Conversion helper --------------------------------------------------------
 
 PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalogEntry& entry)
@@ -264,6 +290,30 @@ QString LocalPackageManager::findMatchingAppId(const QString& folderName) const
     return QString::fromStdString(m_catalog.findMatchingAppId(folderName.toStdString()));
 }
 
+QVariantList LocalPackageManager::findMatchingGamesFromFiles(
+    const QStringList& exeNames, const QString& engine,
+    const QStringList& topEntries, const QString& folderName) const
+{
+    std::vector<std::string> exeVec, topVec;
+    exeVec.reserve(exeNames.size());
+    topVec.reserve(topEntries.size());
+    for (const auto& e : exeNames) exeVec.push_back(e.toStdString());
+    for (const auto& t : topEntries) topVec.push_back(t.toStdString());
+
+    auto matches = m_catalog.findMatchingGames(
+        exeVec, engine.toStdString(), topVec, folderName.toStdString());
+
+    QVariantList result;
+    for (const auto& m : matches) {
+        QVariantMap entry;
+        entry[QStringLiteral("steamAppId")] = QString::fromStdString(m.steamAppId);
+        entry[QStringLiteral("confidence")] = m.confidence;
+        entry[QStringLiteral("matchedBy")] = QString::fromStdString(m.matchedBy);
+        result.append(entry);
+    }
+    return result;
+}
+
 int LocalPackageManager::packageCount() const
 {
     return m_catalog.packageCount();
@@ -373,6 +423,194 @@ bool LocalPackageManager::loadFromPath(const QString& translationDataPath)
 
     qDebug() << "LocalPackageManager: loaded" << m_packages.size() << "packages from" << translationDataPath;
     return !m_packages.isEmpty();
+}
+
+bool LocalPackageManager::loadFromIndex(const QString& indexPath, const QString& packageCacheRoot)
+{
+    MAKINE_ZONE_NAMED("LPM::loadFromIndex");
+    m_dataPath = packageCacheRoot;
+    m_packages.clear();
+    m_storeIdToSteamAppId.clear();
+
+    if (!QFile::exists(indexPath)) {
+        qWarning() << "Index file does not exist:" << indexPath;
+        return false;
+    }
+
+    parseIndexJson(indexPath);
+    loadInstalledState();
+
+    qDebug() << "LocalPackageManager: loaded" << m_packages.size()
+             << "packages from index (network-only)";
+    return !m_packages.isEmpty();
+}
+
+bool LocalPackageManager::enrichPackageDetail(const QString& steamAppId, const QByteArray& jsonData)
+{
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject())
+        return false;
+
+    auto it = m_packages.find(steamAppId);
+    if (it == m_packages.end())
+        return false;
+
+    QJsonObject obj = doc.object();
+    auto& info = it.value();
+
+    // Merge fields from detail
+    if (obj.contains("engine")) info.engine = obj["engine"].toString();
+    if (obj.contains("installType")) info.installType = obj["installType"].toString();
+    if (obj.contains("tier")) info.tier = obj["tier"].toString();
+    if (obj.contains("lastUpdated")) info.lastUpdated = obj["lastUpdated"].toString();
+    if (obj.contains("variantType")) info.variantType = obj["variantType"].toString();
+    if (obj.contains("installNotes")) info.installNotes = obj["installNotes"].toString();
+    if (info.installNotes.isEmpty() && obj.contains("installNote"))
+        info.installNotes = obj["installNote"].toString();
+    if (obj.contains("specialDialog")) info.specialDialog = obj["specialDialog"].toString();
+
+    // Parse variants
+    if (obj.contains("variants")) {
+        info.variants.clear();
+        for (const auto& v : obj["variants"].toArray())
+            info.variants.append(v.toString());
+    }
+
+    // Parse contributors
+    if (obj.contains("contributors")) {
+        info.contributors.clear();
+        for (const auto& c : obj["contributors"].toArray()) {
+            QJsonObject co = c.toObject();
+            info.contributors.append(QVariantMap{
+                {"name", co["name"].toString()},
+                {"role", co["role"].toString()}
+            });
+        }
+    }
+
+    // Helper to parse steps
+    auto parseStepsArray = [](const QJsonArray& stepsArr) -> QList<InstallStep> {
+        QList<InstallStep> steps;
+        for (const auto& s : stepsArr) {
+            QJsonObject so = s.toObject();
+            InstallStep step;
+            step.action = so["action"].toString();
+            step.src = so["src"].toString();
+            step.dest = so["dest"].toString();
+            step.exe = so["exe"].toString();
+            step.fallback = so["fallback"].toString();
+            step.workDir = so["workDir"].toString("game");
+            step.language = so["language"].toString();
+            for (const auto& a : so["args"].toArray())
+                step.args.append(a.toString());
+            steps.append(step);
+        }
+        return steps;
+    };
+
+    // Parse installMethod
+    QJsonObject installMethod = obj["installMethod"].toObject();
+    if (!installMethod.isEmpty()) {
+        info.installMethodType = installMethod["type"].toString();
+        info.installMethodTarget = installMethod["target"].toString();
+        info.installSteps = parseStepsArray(installMethod["steps"].toArray());
+
+        info.installOptions.clear();
+        for (const auto& optVal : installMethod["options"].toArray()) {
+            QJsonObject optObj = optVal.toObject();
+            InstallOptionQt opt;
+            opt.id              = optObj["id"].toString();
+            opt.label           = optObj["label"].toString();
+            opt.description     = optObj["description"].toString();
+            opt.icon            = optObj["icon"].toString();
+            opt.defaultSelected = optObj["default"].toBool(false);
+            opt.subDir          = optObj["subDir"].toString();
+            opt.steps           = parseStepsArray(optObj["steps"].toArray());
+            info.installOptions.append(opt);
+        }
+
+        info.combinedSteps.clear();
+        QJsonObject combinedObj = installMethod["combinedSteps"].toObject();
+        for (auto cit = combinedObj.begin(); cit != combinedObj.end(); ++cit)
+            info.combinedSteps[cit.key()] = parseStepsArray(cit.value().toArray());
+
+        info.variantInstallOptions.clear();
+        QJsonObject variantOptsObj = installMethod["variantInstallOptions"].toObject();
+        for (auto vit = variantOptsObj.begin(); vit != variantOptsObj.end(); ++vit) {
+            QJsonObject vcObj = vit.value().toObject();
+            VariantConfigQt vc;
+            for (const auto& optVal : vcObj["options"].toArray()) {
+                QJsonObject optObj = optVal.toObject();
+                InstallOptionQt opt;
+                opt.id              = optObj["id"].toString();
+                opt.label           = optObj["label"].toString();
+                opt.description     = optObj["description"].toString();
+                opt.icon            = optObj["icon"].toString();
+                opt.defaultSelected = optObj["default"].toBool(false);
+                opt.subDir          = optObj["subDir"].toString();
+                opt.steps           = parseStepsArray(optObj["steps"].toArray());
+                vc.installOptions.append(opt);
+            }
+            QJsonObject vCombObj = vcObj["combinedSteps"].toObject();
+            for (auto csit = vCombObj.begin(); csit != vCombObj.end(); ++csit)
+                vc.combinedSteps[csit.key()] = parseStepsArray(csit.value().toArray());
+            info.variantInstallOptions[vit.key()] = vc;
+        }
+    }
+
+    // Parse storeIds
+    QJsonObject storeIdsObj = obj["storeIds"].toObject();
+    for (auto sit = storeIdsObj.begin(); sit != storeIdsObj.end(); ++sit) {
+        info.storeIds[sit.key()] = sit.value().toString();
+        if (sit.key() == "epic")
+            m_storeIdToSteamAppId["epic_" + sit.value().toString()] = steamAppId;
+        else if (sit.key() == "gog")
+            m_storeIdToSteamAppId["gog_" + sit.value().toString()] = steamAppId;
+    }
+
+    return true;
+}
+
+bool LocalPackageManager::isDetailLoaded(const QString& steamAppId) const
+{
+    // In UI-only mode, we don't track detailLoaded per-entry — check installMethodType as proxy
+    auto it = m_packages.find(steamAppId);
+    if (it == m_packages.end()) return false;
+    // If enrichPackageDetail was called, it would have set installMethodType
+    return !it->installMethodType.isEmpty() || !it->installSteps.isEmpty();
+}
+
+void LocalPackageManager::parseIndexJson(const QString& indexPath)
+{
+    QFile file(indexPath);
+    if (!file.open(QIODevice::ReadOnly)) return;
+
+    QJsonParseError err;
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
+    file.close();
+
+    if (err.error != QJsonParseError::NoError) {
+        qWarning() << "Index parse error:" << err.errorString();
+        return;
+    }
+
+    QJsonObject root = doc.object();
+    QJsonObject packages = root["packages"].toObject();
+
+    for (auto it = packages.begin(); it != packages.end(); ++it) {
+        QJsonObject entry = it.value().toObject();
+        PackageInfo info;
+        info.steamAppId = it.key();
+        info.gameName   = entry["name"].toString();
+        info.version    = entry["v"].toString();
+        info.dirName    = entry["dirName"].toString();
+        info.sizeBytes  = static_cast<qint64>(entry["sizeBytes"].toDouble());
+        info.installType = "overlay";
+        info.tier = "free";
+
+        m_packages[info.steamAppId] = info;
+    }
 }
 
 void LocalPackageManager::loadManifest(const QString& manifestPath)
@@ -828,6 +1066,14 @@ QString LocalPackageManager::findMatchingAppId(const QString& folderName) const
             return it.key();
     }
 
+    return {};
+}
+
+QVariantList LocalPackageManager::findMatchingGamesFromFiles(
+    const QStringList& /*exeNames*/, const QString& /*engine*/,
+    const QStringList& /*topEntries*/, const QString& /*folderName*/) const
+{
+    // UI-only mode: no fingerprint matching (requires core catalog)
     return {};
 }
 

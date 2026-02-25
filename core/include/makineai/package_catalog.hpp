@@ -82,6 +82,27 @@ struct VariantConfig {
 };
 
 /**
+ * @brief File-based fingerprint for identifying a game from its files
+ *
+ * Used when a game is manually added (drag-drop, CD, copied folder).
+ * Multi-signal matching: exe names + key files + engine hint → confidence score.
+ */
+struct GameFingerprint {
+    std::vector<std::string> exeNames;   // Expected executable names (lowercase)
+    std::vector<std::string> keyFiles;   // Paths/files unique to this game
+    std::string engineHint;              // Normalized engine type for cross-check
+};
+
+/**
+ * @brief Result of fingerprint-based game matching
+ */
+struct FingerprintMatch {
+    std::string steamAppId;
+    int confidence{0};       // 0-100
+    std::string matchedBy;   // Debug info: "exeName", "keyFiles+engine", etc.
+};
+
+/**
  * @brief Full metadata for a translation package in the catalog
  *
  * Represents one entry in the manifest, enriched with filesystem
@@ -111,6 +132,8 @@ struct PackageCatalogEntry {
     std::unordered_map<std::string, std::vector<InstallStep>> combinedSteps; // e.g. "dubbing+patch" -> steps
     std::string specialDialog;  // "" or "eldenRing" — triggers themed install dialog
     std::unordered_map<std::string, VariantConfig> variantInstallOptions; // variant -> options config
+    std::optional<GameFingerprint> fingerprint;  // File-based identification data
+    bool detailLoaded{false};  // true after enrichPackage merges per-game detail
 };
 
 /**
@@ -165,6 +188,36 @@ public:
      * @return true if at least one package was loaded
      */
     bool loadFromPath(const fs::path& translationDataPath);
+
+    /**
+     * @brief Load catalog from lightweight index.json (network-only mode)
+     *
+     * Parses the index at @p indexPath (contains gameName, version, size, dirName)
+     * and sets @p packageCacheRoot as the data path. Detail fields (installMethod,
+     * contributors, etc.) are loaded later via enrichPackage().
+     *
+     * @param indexPath Path to the cached index.json
+     * @param packageCacheRoot Path where downloaded packages are extracted
+     * @return true if at least one package was loaded
+     */
+    bool loadFromIndex(const fs::path& indexPath, const fs::path& packageCacheRoot);
+
+    /**
+     * @brief Merge per-game detail JSON into an existing catalog entry
+     *
+     * Called when packages/{appId}.json is fetched on-demand.
+     * Populates installMethod, contributors, variants, storeIds, fingerprint, etc.
+     *
+     * @param steamAppId The app ID to enrich
+     * @param detailJson Raw JSON string of the per-game detail file
+     * @return true if entry was found and enriched
+     */
+    bool enrichPackage(const std::string& steamAppId, const std::string& detailJson);
+
+    /**
+     * @brief Check if per-game detail has been loaded for a given app
+     */
+    [[nodiscard]] bool isDetailLoaded(const std::string& steamAppId) const;
 
     // =========================================================================
     // PACKAGE QUERIES
@@ -244,6 +297,28 @@ public:
     [[nodiscard]] std::string findMatchingAppId(const std::string& folderName) const;
 
     // =========================================================================
+    // FILE-BASED GAME IDENTIFICATION
+    // =========================================================================
+
+    /**
+     * @brief Match a game folder against catalog fingerprints using multi-signal scoring
+     *
+     * Compares executable names, key file paths, and engine type against
+     * stored fingerprints (explicit or auto-derived from manifest data).
+     *
+     * @param exeNames    Executable names found in game folder (lowercase)
+     * @param engine      Detected engine type string
+     * @param topEntries  Top-level file/dir names in game folder
+     * @param folderName  Folder name (bonus signal)
+     * @return Matches sorted by confidence (descending), max 5 results
+     */
+    [[nodiscard]] std::vector<FingerprintMatch> findMatchingGames(
+        const std::vector<std::string>& exeNames,
+        const std::string& engine,
+        const std::vector<std::string>& topEntries,
+        const std::string& folderName = {}) const;
+
+    // =========================================================================
     // INSTALLED STATE MANAGEMENT
     // =========================================================================
 
@@ -303,6 +378,11 @@ private:
     void loadManifest(const fs::path& manifestPath);
 
     /**
+     * @brief Parse index.json (lightweight) and populate packages_
+     */
+    void parseIndex(const fs::path& indexPath);
+
+    /**
      * @brief Scan pak/ directory for legacy package directories
      */
     void scanPackageDirectories(const fs::path& basePath);
@@ -311,6 +391,8 @@ private:
      * @brief Scan root-level game-name directories (new format)
      */
     void scanGameNameDirectories(const fs::path& basePath);
+
+    void deriveFingerprint(PackageCatalogEntry& entry) const;
 
     // steamAppId -> PackageCatalogEntry
     std::unordered_map<std::string, PackageCatalogEntry> packages_;

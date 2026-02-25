@@ -54,6 +54,7 @@ public:
     static QString manifestIndexFile()    { return cacheDir() + QStringLiteral("/manifest_index.json"); }
     static QString manifestEtagFile()     { return cacheDir() + QStringLiteral("/manifest_etag.txt"); }
     static QString packageDetailDir()     { return cacheDir() + QStringLiteral("/packages"); }
+    static QString packagesDir()         { return root() + QStringLiteral("/packages"); }
     static QString installedPackagesFile(){ return dataDir()  + QStringLiteral("/installed_packages.json"); }
     static QString pendingOperationFile() { return dataDir()  + QStringLiteral("/pending_operation.json"); }
     static QString perfReportFile()      { return logsDir()  + QStringLiteral("/perf_report.json"); }
@@ -65,7 +66,8 @@ public:
         const QStringList dirs = {
             logsDir(), cacheDir(), dataDir(), backupsDir(),
             updateDetectionDir(), crashReportsDir(),
-            imageCacheDir(), downloadTempDir(), updateTempDir(), packageDetailDir()
+            imageCacheDir(), downloadTempDir(), updateTempDir(), packageDetailDir(),
+            packagesDir()
         };
         for (const auto& d : dirs)
             QDir().mkpath(d);

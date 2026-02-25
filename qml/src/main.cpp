@@ -610,11 +610,7 @@ int main(int argc, char *argv[])
 
     auto* translationDownloader = new TranslationDownloader(&app);
     translationDownloader->setManifestSync(manifestSync);
-    {
-        QSettings s("MakineAI", "MakineAI");
-        translationDownloader->setDataPath(
-            s.value("paths/translationData", "C:/cedra/translation_data").toString());
-    }
+    translationDownloader->setDataPath(makineai::AppPaths::packagesDir());
     engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
@@ -781,9 +777,26 @@ int main(int argc, char *argv[])
         gameService->initialize();
         logToFile(QString("GameService initialized at %1 ms").arg(startupTimer.elapsed()));
 
-        // Start remote catalog sync after local data is loaded
+        // Start remote catalog sync (index.json only — lightweight)
         manifestSync->syncCatalog();
     });
+
+    // Catalog index ready → reload PackageCatalog from cached index
+    QObject::connect(manifestSync, &makineai::ManifestSyncService::catalogReady,
+        gameService, [gameService]() {
+            if (auto* bridge = makineai::CoreBridge::instance())
+                bridge->refreshPackageManifest();
+        });
+
+    // Per-game detail ready → enrich PackageCatalog entry
+    QObject::connect(manifestSync, &makineai::ManifestSyncService::packageDetailReady,
+        gameService, [manifestSync](const QString& appId) {
+            if (auto* bridge = makineai::CoreBridge::instance()) {
+                QVariantMap detail = manifestSync->getPackageDetail(appId);
+                QJsonDocument doc(QJsonObject::fromVariantMap(detail));
+                bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
+            }
+        });
 
     // ===== Phase 10: Pre-render + finalize =====
 #ifdef Q_OS_WIN

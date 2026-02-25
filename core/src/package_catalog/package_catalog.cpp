@@ -172,8 +172,306 @@ bool PackageCatalog::loadFromPath(const fs::path& translationDataPath)
     return !packages_.empty();
 }
 
+bool PackageCatalog::loadFromIndex(const fs::path& indexPath, const fs::path& packageCacheRoot)
+{
+    packages_.clear();
+    storeIdToSteamAppId_.clear();
+    dataPath_ = packageCacheRoot;
+
+    std::error_code ec;
+    if (!fs::exists(indexPath, ec)) {
+        MAKINEAI_LOG_WARN(log::PACKAGE, "Index file does not exist: {}",
+                          indexPath.string());
+        return false;
+    }
+
+    parseIndex(indexPath);
+
+    MAKINEAI_LOG_INFO(log::PACKAGE, "PackageCatalog: loaded {} packages from index (network-only)",
+                      packages_.size());
+    return !packages_.empty();
+}
+
 // =============================================================================
-// MANIFEST PARSING
+// SHARED PARSE HELPERS (free functions, used by loadManifest and enrichPackage)
+// =============================================================================
+
+namespace {
+
+std::vector<InstallStep> parseStepsArray(const json& stepsArr)
+{
+    std::vector<InstallStep> steps;
+    if (!stepsArr.is_array()) return steps;
+    for (const auto& s : stepsArr) {
+        if (!s.is_object()) continue;
+        InstallStep step;
+        step.action   = s.value("action", "");
+        step.src      = s.value("src", "");
+        step.dest     = s.value("dest", "");
+        step.exe      = s.value("exe", "");
+        step.fallback = s.value("fallback", "");
+        step.workDir  = s.value("workDir", "game");
+        step.language = s.value("language", "");
+        if (s.contains("args") && s["args"].is_array()) {
+            for (const auto& a : s["args"]) {
+                if (a.is_string()) {
+                    step.args.push_back(a.get<std::string>());
+                }
+            }
+        }
+        steps.push_back(std::move(step));
+    }
+    return steps;
+}
+
+void parseInstallMethod(PackageCatalogEntry& entry, const json& obj)
+{
+    if (!obj.contains("installMethod") || !obj["installMethod"].is_object()) return;
+
+    const auto& installMethod = obj["installMethod"];
+    entry.installMethodType   = installMethod.value("type", "");
+    entry.installMethodTarget = installMethod.value("target", "");
+
+    if (installMethod.contains("steps")) {
+        entry.installSteps = parseStepsArray(installMethod["steps"]);
+    }
+
+    if (installMethod.contains("options") && installMethod["options"].is_array()) {
+        for (const auto& opt : installMethod["options"]) {
+            if (!opt.is_object()) continue;
+            InstallOption option;
+            option.id              = opt.value("id", "");
+            option.label           = opt.value("label", "");
+            option.description     = opt.value("description", "");
+            option.icon            = opt.value("icon", "");
+            option.defaultSelected = opt.value("default", false);
+            option.subDir          = opt.value("subDir", "");
+            if (opt.contains("steps")) {
+                option.steps = parseStepsArray(opt["steps"]);
+            }
+            entry.installOptions.push_back(std::move(option));
+        }
+    }
+
+    if (installMethod.contains("combinedSteps") && installMethod["combinedSteps"].is_object()) {
+        for (auto cit = installMethod["combinedSteps"].begin();
+             cit != installMethod["combinedSteps"].end(); ++cit)
+        {
+            entry.combinedSteps[cit.key()] = parseStepsArray(cit.value());
+        }
+    }
+
+    if (installMethod.contains("variantInstallOptions") && installMethod["variantInstallOptions"].is_object()) {
+        for (auto vit = installMethod["variantInstallOptions"].begin();
+             vit != installMethod["variantInstallOptions"].end(); ++vit)
+        {
+            if (!vit.value().is_object()) continue;
+            VariantConfig vc;
+            const auto& vcObj = vit.value();
+
+            if (vcObj.contains("options") && vcObj["options"].is_array()) {
+                for (const auto& opt : vcObj["options"]) {
+                    if (!opt.is_object()) continue;
+                    InstallOption option;
+                    option.id              = opt.value("id", "");
+                    option.label           = opt.value("label", "");
+                    option.description     = opt.value("description", "");
+                    option.icon            = opt.value("icon", "");
+                    option.defaultSelected = opt.value("default", false);
+                    option.subDir          = opt.value("subDir", "");
+                    if (opt.contains("steps")) {
+                        option.steps = parseStepsArray(opt["steps"]);
+                    }
+                    vc.installOptions.push_back(std::move(option));
+                }
+            }
+
+            if (vcObj.contains("combinedSteps") && vcObj["combinedSteps"].is_object()) {
+                for (auto csit = vcObj["combinedSteps"].begin();
+                     csit != vcObj["combinedSteps"].end(); ++csit)
+                {
+                    vc.combinedSteps[csit.key()] = parseStepsArray(csit.value());
+                }
+            }
+
+            entry.variantInstallOptions[vit.key()] = std::move(vc);
+        }
+    }
+}
+
+void parseStoreIds(PackageCatalogEntry& entry, const json& obj,
+                    std::unordered_map<std::string, std::string>& reverseIndex)
+{
+    if (!obj.contains("storeIds") || !obj["storeIds"].is_object()) return;
+
+    for (auto sit = obj["storeIds"].begin(); sit != obj["storeIds"].end(); ++sit) {
+        const std::string store   = sit.key();
+        const std::string storeId = sit.value().get<std::string>();
+        entry.storeIds[store] = storeId;
+
+        if (store == "epic") {
+            reverseIndex["epic_" + storeId] = entry.steamAppId;
+        } else if (store == "gog") {
+            reverseIndex["gog_" + storeId] = entry.steamAppId;
+        }
+    }
+}
+
+void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
+{
+    if (!obj.contains("fingerprint") || !obj["fingerprint"].is_object()) return;
+
+    const auto& fp = obj["fingerprint"];
+    GameFingerprint gfp;
+    if (fp.contains("exeNames") && fp["exeNames"].is_array()) {
+        for (const auto& e : fp["exeNames"]) {
+            if (e.is_string()) gfp.exeNames.push_back(e.get<std::string>());
+        }
+    }
+    if (fp.contains("keyFiles") && fp["keyFiles"].is_array()) {
+        for (const auto& k : fp["keyFiles"]) {
+            if (k.is_string()) gfp.keyFiles.push_back(k.get<std::string>());
+        }
+    }
+    gfp.engineHint = fp.value("engineHint", "");
+    entry.fingerprint = std::move(gfp);
+}
+
+void parseContributors(PackageCatalogEntry& entry, const json& obj)
+{
+    if (!obj.contains("contributors") || !obj["contributors"].is_array()) return;
+
+    entry.contributors.clear();
+    for (const auto& c : obj["contributors"]) {
+        if (!c.is_object()) continue;
+        ContributorInfo ci;
+        ci.name = c.value("name", "");
+        ci.role = c.value("role", "");
+        entry.contributors.push_back(std::move(ci));
+    }
+}
+
+} // anonymous namespace (parse helpers)
+
+bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::string& detailJson)
+{
+    auto it = packages_.find(steamAppId);
+    if (it == packages_.end()) {
+        MAKINEAI_LOG_WARN(log::PACKAGE, "enrichPackage: unknown appId {}", steamAppId);
+        return false;
+    }
+
+    json doc;
+    try {
+        doc = json::parse(detailJson);
+    } catch (const json::parse_error& e) {
+        MAKINEAI_LOG_WARN(log::PACKAGE, "enrichPackage parse error for {}: {}", steamAppId, e.what());
+        return false;
+    }
+
+    if (!doc.is_object()) return false;
+
+    auto& entry = it->second;
+
+    // Merge basic fields that may be richer in detail
+    if (doc.contains("engine") && doc["engine"].is_string())
+        entry.engine = doc["engine"].get<std::string>();
+    if (doc.contains("installType") && doc["installType"].is_string())
+        entry.installType = doc["installType"].get<std::string>();
+    if (doc.contains("tier") && doc["tier"].is_string())
+        entry.tier = doc["tier"].get<std::string>();
+    if (doc.contains("lastUpdated") && doc["lastUpdated"].is_string())
+        entry.lastUpdated = doc["lastUpdated"].get<std::string>();
+    if (doc.contains("variantType") && doc["variantType"].is_string())
+        entry.variantType = doc["variantType"].get<std::string>();
+    if (doc.contains("installNotes") && doc["installNotes"].is_string())
+        entry.installNotes = doc["installNotes"].get<std::string>();
+    if (entry.installNotes.empty() && doc.contains("installNote") && doc["installNote"].is_string())
+        entry.installNotes = doc["installNote"].get<std::string>();
+    if (doc.contains("specialDialog") && doc["specialDialog"].is_string())
+        entry.specialDialog = doc["specialDialog"].get<std::string>();
+
+    // Parse variants array
+    if (doc.contains("variants") && doc["variants"].is_array()) {
+        entry.variants.clear();
+        for (const auto& v : doc["variants"]) {
+            if (v.is_string()) entry.variants.push_back(v.get<std::string>());
+        }
+    }
+
+    // Parse complex fields via shared helpers
+    parseContributors(entry, doc);
+    parseInstallMethod(entry, doc);
+    parseStoreIds(entry, doc, storeIdToSteamAppId_);
+    parseFingerprint(entry, doc);
+
+    // Auto-derive fingerprint if not explicit
+    if (!entry.fingerprint.has_value())
+        deriveFingerprint(entry);
+
+    entry.detailLoaded = true;
+
+    MAKINEAI_LOG_DEBUG(log::PACKAGE, "enrichPackage: {} enriched (installMethod={})",
+                       steamAppId, entry.installMethodType);
+    return true;
+}
+
+bool PackageCatalog::isDetailLoaded(const std::string& steamAppId) const
+{
+    auto it = packages_.find(steamAppId);
+    if (it == packages_.end()) return false;
+    return it->second.detailLoaded;
+}
+
+// =============================================================================
+// INDEX PARSING (lightweight catalog from index.json)
+// =============================================================================
+
+void PackageCatalog::parseIndex(const fs::path& indexPath)
+{
+    std::ifstream file(indexPath);
+    if (!file.is_open()) {
+        MAKINEAI_LOG_WARN(log::PACKAGE, "Cannot open index: {}", indexPath.string());
+        return;
+    }
+
+    json doc;
+    try {
+        doc = json::parse(file);
+    } catch (const json::parse_error& e) {
+        MAKINEAI_LOG_WARN(log::PACKAGE, "Index parse error: {}", e.what());
+        return;
+    }
+
+    if (!doc.contains("packages") || !doc["packages"].is_object()) {
+        MAKINEAI_LOG_WARN(log::PACKAGE, "Index missing 'packages' object");
+        return;
+    }
+
+    const auto& packagesObj = doc["packages"];
+
+    for (auto it = packagesObj.begin(); it != packagesObj.end(); ++it) {
+        const auto& entry = it.value();
+        if (!entry.is_object()) continue;
+
+        PackageCatalogEntry info;
+        info.steamAppId = it.key();
+        info.gameName   = entry.value("name", "");
+        info.version    = entry.value("v", "");
+        info.dirName    = entry.value("dirName", "");
+        info.sizeBytes  = entry.value("sizeBytes", static_cast<int64_t>(0));
+        info.installType = "overlay";  // default, enriched later
+        info.tier = "free";            // default, enriched later
+        info.detailLoaded = false;
+
+        packages_[info.steamAppId] = std::move(info);
+    }
+
+    MAKINEAI_LOG_DEBUG(log::PACKAGE, "Index loaded: {} packages", packages_.size());
+}
+
+// =============================================================================
+// MANIFEST PARSING (full manifest — used by loadFromPath for local mode)
 // =============================================================================
 
 void PackageCatalog::loadManifest(const fs::path& manifestPath)
@@ -224,17 +522,6 @@ void PackageCatalog::loadManifest(const fs::path& manifestPath)
             }
         }
 
-        // Parse contributors array [{name, role}]
-        if (pkgObj.contains("contributors") && pkgObj["contributors"].is_array()) {
-            for (const auto& c : pkgObj["contributors"]) {
-                if (!c.is_object()) continue;
-                ContributorInfo ci;
-                ci.name = c.value("name", "");
-                ci.role = c.value("role", "");
-                info.contributors.push_back(std::move(ci));
-            }
-        }
-
         // Parse installNotes (support both field names)
         info.installNotes = pkgObj.value("installNotes", "");
         if (info.installNotes.empty()) {
@@ -244,128 +531,22 @@ void PackageCatalog::loadManifest(const fs::path& manifestPath)
         // Parse specialDialog
         info.specialDialog = pkgObj.value("specialDialog", "");
 
-        // Helper lambda to parse a steps array
-        auto parseSteps = [](const json& stepsArr) -> std::vector<InstallStep> {
-            std::vector<InstallStep> steps;
-            if (!stepsArr.is_array()) return steps;
-            for (const auto& s : stepsArr) {
-                if (!s.is_object()) continue;
-                InstallStep step;
-                step.action   = s.value("action", "");
-                step.src      = s.value("src", "");
-                step.dest     = s.value("dest", "");
-                step.exe      = s.value("exe", "");
-                step.fallback = s.value("fallback", "");
-                step.workDir  = s.value("workDir", "game");
-                step.language = s.value("language", "");
-                if (s.contains("args") && s["args"].is_array()) {
-                    for (const auto& a : s["args"]) {
-                        if (a.is_string()) {
-                            step.args.push_back(a.get<std::string>());
-                        }
-                    }
-                }
-                steps.push_back(std::move(step));
-            }
-            return steps;
-        };
+        // Use shared parse helpers
+        parseContributors(info, pkgObj);
+        parseInstallMethod(info, pkgObj);
+        parseStoreIds(info, pkgObj, storeIdToSteamAppId_);
+        parseFingerprint(info, pkgObj);
 
-        // Parse installMethod
-        if (pkgObj.contains("installMethod") && pkgObj["installMethod"].is_object()) {
-            const auto& installMethod = pkgObj["installMethod"];
-            info.installMethodType   = installMethod.value("type", "");
-            info.installMethodTarget = installMethod.value("target", "");
-
-            // Parse top-level steps (for "script" type)
-            if (installMethod.contains("steps")) {
-                info.installSteps = parseSteps(installMethod["steps"]);
-            }
-
-            // Parse options array (for "options" type)
-            if (installMethod.contains("options") && installMethod["options"].is_array()) {
-                for (const auto& opt : installMethod["options"]) {
-                    if (!opt.is_object()) continue;
-                    InstallOption option;
-                    option.id              = opt.value("id", "");
-                    option.label           = opt.value("label", "");
-                    option.description     = opt.value("description", "");
-                    option.icon            = opt.value("icon", "");
-                    option.defaultSelected = opt.value("default", false);
-                    option.subDir          = opt.value("subDir", "");
-                    if (opt.contains("steps")) {
-                        option.steps = parseSteps(opt["steps"]);
-                    }
-                    info.installOptions.push_back(std::move(option));
-                }
-            }
-
-            // Parse combinedSteps (for "options" type)
-            if (installMethod.contains("combinedSteps") && installMethod["combinedSteps"].is_object()) {
-                for (auto cit = installMethod["combinedSteps"].begin();
-                     cit != installMethod["combinedSteps"].end(); ++cit)
-                {
-                    info.combinedSteps[cit.key()] = parseSteps(cit.value());
-                }
-            }
-
-            // Parse variantInstallOptions (variant-specific options for multi-game packages)
-            if (installMethod.contains("variantInstallOptions") && installMethod["variantInstallOptions"].is_object()) {
-                for (auto vit = installMethod["variantInstallOptions"].begin();
-                     vit != installMethod["variantInstallOptions"].end(); ++vit)
-                {
-                    if (!vit.value().is_object()) continue;
-                    VariantConfig vc;
-                    const auto& vcObj = vit.value();
-
-                    // Parse options array within the variant config
-                    if (vcObj.contains("options") && vcObj["options"].is_array()) {
-                        for (const auto& opt : vcObj["options"]) {
-                            if (!opt.is_object()) continue;
-                            InstallOption option;
-                            option.id              = opt.value("id", "");
-                            option.label           = opt.value("label", "");
-                            option.description     = opt.value("description", "");
-                            option.icon            = opt.value("icon", "");
-                            option.defaultSelected = opt.value("default", false);
-                            option.subDir          = opt.value("subDir", "");
-                            if (opt.contains("steps")) {
-                                option.steps = parseSteps(opt["steps"]);
-                            }
-                            vc.installOptions.push_back(std::move(option));
-                        }
-                    }
-
-                    // Parse combinedSteps within the variant config
-                    if (vcObj.contains("combinedSteps") && vcObj["combinedSteps"].is_object()) {
-                        for (auto csit = vcObj["combinedSteps"].begin();
-                             csit != vcObj["combinedSteps"].end(); ++csit)
-                        {
-                            vc.combinedSteps[csit.key()] = parseSteps(csit.value());
-                        }
-                    }
-
-                    info.variantInstallOptions[vit.key()] = std::move(vc);
-                }
-            }
-        }
-
-        // Parse storeIds for cross-store resolution
-        if (pkgObj.contains("storeIds") && pkgObj["storeIds"].is_object()) {
-            for (auto sit = pkgObj["storeIds"].begin(); sit != pkgObj["storeIds"].end(); ++sit) {
-                const std::string store   = sit.key();
-                const std::string storeId = sit.value().get<std::string>();
-                info.storeIds[store] = storeId;
-
-                // Build reverse index for non-steam stores
-                if (store == "epic") {
-                    storeIdToSteamAppId_["epic_" + storeId] = info.steamAppId;
-                } else if (store == "gog") {
-                    storeIdToSteamAppId_["gog_" + storeId] = info.steamAppId;
-                }
-            }
-        }
+        info.detailLoaded = true;  // Full manifest has all detail
 
         packages_[info.steamAppId] = std::move(info);
+    }
+
+    // Auto-derive fingerprints for packages that don't have explicit ones
+    for (auto& [appId, entry] : packages_) {
+        if (!entry.fingerprint.has_value()) {
+            deriveFingerprint(entry);
+        }
     }
 
     MAKINEAI_LOG_DEBUG(log::PACKAGE, "Manifest loaded: {} packages, {} store ID mappings",
@@ -664,6 +845,270 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
     }
 
     return {};
+}
+
+// =============================================================================
+// FILE-BASED GAME IDENTIFICATION
+// =============================================================================
+
+namespace {
+
+// Normalize engine string to a lowercase hint for comparison
+std::string normalizeEngine(const std::string& engine)
+{
+    std::string lower;
+    lower.reserve(engine.size());
+    for (char c : engine) {
+        lower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    // Map common engine names to canonical hints
+    if (lower.find("unreal") != std::string::npos) return "unreal";
+    if (lower.find("unity") != std::string::npos)  return "unity";
+    if (lower.find("renpy") != std::string::npos || lower.find("ren'py") != std::string::npos) return "renpy";
+    if (lower.find("rpg maker") != std::string::npos || lower.find("rpgmaker") != std::string::npos) return "rpgmaker";
+    if (lower.find("gamemaker") != std::string::npos) return "gamemaker";
+    if (lower.find("godot") != std::string::npos)  return "godot";
+    if (lower.find("source") != std::string::npos)  return "source";
+    if (lower.find("cryengine") != std::string::npos) return "cryengine";
+    if (lower.find("frostbite") != std::string::npos) return "frostbite";
+    if (lower.find("id tech") != std::string::npos) return "idtech";
+    if (lower.find("bethesda") != std::string::npos || lower.find("creation") != std::string::npos) return "bethesda";
+    if (lower.find("re engine") != std::string::npos) return "reengine";
+
+    return "custom";
+}
+
+// Derive possible exe names from a game name
+std::vector<std::string> deriveExeNames(const std::string& gameName)
+{
+    std::vector<std::string> names;
+    if (gameName.empty()) return names;
+
+    auto toLowerStr = [](const std::string& s) {
+        std::string r;
+        r.reserve(s.size());
+        for (char c : s) r += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return r;
+    };
+
+    auto removeChars = [](const std::string& s, const std::string& chars) {
+        std::string r;
+        r.reserve(s.size());
+        for (char c : s) {
+            if (chars.find(c) == std::string::npos) r += c;
+        }
+        return r;
+    };
+
+    // "Hades" -> "hades.exe"
+    names.push_back(toLowerStr(gameName) + ".exe");
+
+    // "The Witcher" -> "thewitcher.exe" (no spaces)
+    std::string noSpace = removeChars(gameName, " ");
+    std::string noSpaceLower = toLowerStr(noSpace);
+    if (noSpaceLower + ".exe" != names[0])
+        names.push_back(noSpaceLower + ".exe");
+
+    // "DOOM (2016)" -> "doom.exe" (remove parens, colons, etc.)
+    std::string cleaned = removeChars(gameName, ":'-()!.,");
+    // Also collapse multiple spaces and trim
+    std::string collapsed;
+    bool prevSpace = false;
+    for (char c : cleaned) {
+        if (c == ' ') {
+            if (!prevSpace && !collapsed.empty()) collapsed += ' ';
+            prevSpace = true;
+        } else {
+            collapsed += c;
+            prevSpace = false;
+        }
+    }
+    while (!collapsed.empty() && collapsed.back() == ' ') collapsed.pop_back();
+
+    std::string cleanedLower = toLowerStr(collapsed);
+    if (cleanedLower + ".exe" != names[0])
+        names.push_back(cleanedLower + ".exe");
+
+    // No-space version of cleaned
+    std::string cleanedNoSpace = removeChars(collapsed, " ");
+    std::string cleanedNoSpaceLower = toLowerStr(cleanedNoSpace);
+    if (cleanedNoSpaceLower + ".exe" != names[0] && cleanedNoSpaceLower + ".exe" != noSpaceLower + ".exe")
+        names.push_back(cleanedNoSpaceLower + ".exe");
+
+    return names;
+}
+
+// Extract the top-level directory component from an install step dest path
+std::string extractTopDir(const std::string& path)
+{
+    if (path.empty()) return {};
+    // "Content/Game/Text" -> "Content"
+    // "Data/Starfield - Localization.ba2" -> "Data"
+    auto pos = path.find('/');
+    if (pos == std::string::npos) pos = path.find('\\');
+    if (pos != std::string::npos) return path.substr(0, pos);
+    // Single component with extension is a file, not useful as keyFile
+    if (path.find('.') != std::string::npos) return {};
+    return path;
+}
+
+} // anonymous namespace
+
+void PackageCatalog::deriveFingerprint(PackageCatalogEntry& entry) const
+{
+    GameFingerprint fp;
+
+    // 1. Derive exe names from gameName
+    fp.exeNames = deriveExeNames(entry.gameName);
+
+    // Also try dirName if different from gameName
+    if (!entry.dirName.empty() && entry.dirName != entry.gameName) {
+        auto dirExes = deriveExeNames(entry.dirName);
+        for (auto& e : dirExes) {
+            if (std::find(fp.exeNames.begin(), fp.exeNames.end(), e) == fp.exeNames.end())
+                fp.exeNames.push_back(std::move(e));
+        }
+    }
+
+    // 2. Derive keyFiles from install steps dest paths
+    std::set<std::string> keySet;
+    for (const auto& step : entry.installSteps) {
+        if (step.action == "copyDir" || step.action == "copy" || step.action == "copyFile") {
+            std::string top = extractTopDir(step.dest);
+            if (!top.empty()) keySet.insert(top);
+        }
+    }
+    // Also check install options steps
+    for (const auto& opt : entry.installOptions) {
+        for (const auto& step : opt.steps) {
+            std::string top = extractTopDir(step.dest);
+            if (!top.empty()) keySet.insert(top);
+        }
+    }
+    fp.keyFiles.assign(keySet.begin(), keySet.end());
+
+    // 3. Engine hint
+    fp.engineHint = normalizeEngine(entry.engine);
+
+    entry.fingerprint = std::move(fp);
+}
+
+std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
+    const std::vector<std::string>& exeNames,
+    const std::string& engine,
+    const std::vector<std::string>& topEntries,
+    const std::string& folderName) const
+{
+    const std::string engineHint = normalizeEngine(engine);
+
+    // Build a lowercase set of top-level entries for fast lookup
+    std::set<std::string> topSet;
+    for (const auto& e : topEntries) {
+        std::string lower;
+        lower.reserve(e.size());
+        for (char c : e) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        topSet.insert(std::move(lower));
+    }
+
+    // Build lowercase set of exe names
+    std::set<std::string> exeSet;
+    for (const auto& e : exeNames) {
+        std::string lower;
+        lower.reserve(e.size());
+        for (char c : e) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        exeSet.insert(std::move(lower));
+    }
+
+    const std::string folderLower = toLower(trim(folderName));
+
+    std::vector<FingerprintMatch> results;
+
+    for (const auto& [appId, entry] : packages_) {
+        if (!entry.fingerprint.has_value()) continue;
+        const auto& fp = entry.fingerprint.value();
+
+        int score = 0;
+        std::string matchedBy;
+
+        // Tier 1: Exe name matching (+60 exact, +40 gameName-derived)
+        bool exeExact = false;
+        for (const auto& expected : fp.exeNames) {
+            if (exeSet.count(expected)) {
+                exeExact = true;
+                break;
+            }
+        }
+
+        if (exeExact) {
+            score += 60;
+            matchedBy = "exeName";
+        } else {
+            // Check if any game exe matches gameName-derived pattern
+            std::string nameExe = toLower(entry.gameName) + ".exe";
+            if (exeSet.count(nameExe)) {
+                score += 40;
+                matchedBy = "gameNameExe";
+            }
+        }
+
+        // Tier 2: Key file/dir matching (+25 all, +15 partial)
+        if (!fp.keyFiles.empty()) {
+            int matched = 0;
+            for (const auto& kf : fp.keyFiles) {
+                std::string kfLower;
+                kfLower.reserve(kf.size());
+                for (char c : kf) kfLower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (topSet.count(kfLower)) matched++;
+            }
+
+            const double ratio = static_cast<double>(matched) / static_cast<double>(fp.keyFiles.size());
+            if (ratio >= 1.0) {
+                score += 25;
+                matchedBy += matchedBy.empty() ? "keyFiles" : "+keyFiles";
+            } else if (ratio > 0.5) {
+                score += 15;
+                matchedBy += matchedBy.empty() ? "keyFilesPartial" : "+keyFilesPartial";
+            }
+        }
+
+        // Tier 3: Engine cross-check (+15 match, -20 contradiction)
+        if (!fp.engineHint.empty() && !engineHint.empty()) {
+            if (fp.engineHint == engineHint) {
+                score += 15;
+                matchedBy += matchedBy.empty() ? "engine" : "+engine";
+            } else if (fp.engineHint != "custom" && engineHint != "custom" && engineHint != "unknown") {
+                // Contradiction — only penalize if both are specific
+                score -= 20;
+            }
+        }
+
+        // Bonus: folder name match (+10)
+        if (!folderLower.empty()) {
+            const std::string dirLower = toLower(entry.dirName);
+            const std::string nameLower = toLower(entry.gameName);
+            if (folderLower == dirLower || folderLower == nameLower) {
+                score += 10;
+                matchedBy += matchedBy.empty() ? "folderName" : "+folderName";
+            }
+        }
+
+        if (score > 0) {
+            results.push_back({appId, std::min(score, 100), matchedBy});
+        }
+    }
+
+    // Sort by confidence descending
+    std::sort(results.begin(), results.end(),
+              [](const FingerprintMatch& a, const FingerprintMatch& b) {
+                  return a.confidence > b.confidence;
+              });
+
+    // Return top 5 at most
+    if (results.size() > 5)
+        results.resize(5);
+
+    return results;
 }
 
 // =============================================================================

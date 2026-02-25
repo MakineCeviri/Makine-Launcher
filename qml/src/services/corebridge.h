@@ -192,6 +192,13 @@ public:
     QString findMatchingAppId(const QString& folderName);
 
     /**
+     * @brief Match a game folder against catalog fingerprints using file-based signals
+     * @param gamePath Full path to the game folder
+     * @return List of {steamAppId, confidence, matchedBy} sorted by confidence
+     */
+    Q_INVOKABLE QVariantList findMatchingGamesFromFiles(const QString& gamePath);
+
+    /**
      * @brief Check if package is installed for game
      */
     bool isPackageInstalled(const QString& gameId);
@@ -213,9 +220,25 @@ public:
     bool uninstallPackage(const QString& gameId, const QString& gamePath);
 
     /**
-     * @brief Refresh package manifest from disk (reload LocalPackageManager)
+     * @brief Refresh package catalog from cached index.json
      */
     Q_INVOKABLE void refreshPackageManifest();
+
+    /**
+     * @brief Ensure per-game detail is loaded (from disk cache or needs fetch)
+     * @return true if detail was loaded from cache, false if fetch is needed
+     */
+    Q_INVOKABLE bool ensurePackageDetail(const QString& steamAppId);
+
+    /**
+     * @brief Check if per-game detail has been loaded into catalog
+     */
+    Q_INVOKABLE bool isPackageDetailLoaded(const QString& steamAppId);
+
+    /**
+     * @brief Enrich catalog entry with per-game detail JSON data
+     */
+    void enrichPackageFromJson(const QString& steamAppId, const QByteArray& jsonData);
 
 signals:
     // Scanning signals
@@ -227,6 +250,7 @@ signals:
 
     // Package signals
     void packageManifestRefreshed(int packageCount);
+    void packageDetailEnriched(const QString& steamAppId);
     void packageInstallError(const QString& error);
     void packageInstallProgress(double progress, const QString& status);
     void packageInstallCompleted(bool success, const QString& message);

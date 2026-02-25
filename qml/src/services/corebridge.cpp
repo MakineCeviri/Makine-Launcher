@@ -7,6 +7,7 @@
 #include "corebridge.h"
 #include "profiler.h"
 #include "appprotection.h"
+#include "apppaths.h"
 
 #include <QDebug>
 #include <QDir>
@@ -482,21 +483,24 @@ void CoreBridge::scanAllLibraries()
     // Capture raw pointer for thread-safe package lookups (manager lives on main thread)
     LocalPackageManager* pkgMgr = m_localPkgManager;
 
-    // Load translation packages path (actual loading happens in background)
-    QSettings settings("MakineAI", "MakineAI");
-    QString translationPath = settings.value("paths/translationData",
-        "C:/cedra/translation_data").toString();
+    // Load translation packages from cached index (network-only mode)
+    QString indexPath = AppPaths::manifestIndexFile();
+    QString packageCache = AppPaths::packagesDir();
 
-    (void)QtConcurrent::run([this, pkgMgr, translationPath]() {
+    (void)QtConcurrent::run([this, pkgMgr, indexPath, packageCache]() {
         MAKINE_THREAD_NAME("Worker-Scan");
 #ifndef MAKINEAI_UI_ONLY
         // Lazy Core init — runs once in background, doesn't block UI
         ensureCoreInitialized();
 #endif
 
-        // Load translation packages directly in background thread (avoid main-thread block)
+        // Load translation packages from index (lightweight catalog)
         emit scanProgress(0.0, tr("Çeviri paketleri yükleniyor..."));
-        pkgMgr->loadFromPath(translationPath);
+        if (QFile::exists(indexPath)) {
+            pkgMgr->loadFromIndex(indexPath, packageCache);
+        } else {
+            qDebug() << "CoreBridge: No cached index yet, waiting for sync...";
+        }
 
         // Collect games in a thread-local list to avoid data race on m_detectedGames
         QList<DetectedGame> games;
@@ -869,6 +873,43 @@ QString CoreBridge::findMatchingAppId(const QString& folderName)
     return m_localPkgManager->findMatchingAppId(folderName);
 }
 
+QVariantList CoreBridge::findMatchingGamesFromFiles(const QString& gamePath)
+{
+    MAKINE_ZONE_NAMED("CoreBridge::findMatchingGamesFromFiles");
+    if (!m_localPkgManager) return {};
+
+    QDir dir(gamePath);
+    if (!dir.exists()) return {};
+
+    // Collect exe names and top-level entries from the game folder
+    QStringList exeNames;
+    QStringList topEntries;
+    const auto entries = dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const auto& info : entries) {
+        topEntries.append(info.fileName());
+        if (info.isFile() && info.suffix().toLower() == QStringLiteral("exe")) {
+            const QString name = info.fileName().toLower();
+            // Skip known non-game executables
+            if (!name.contains(QStringLiteral("launcher")) &&
+                !name.contains(QStringLiteral("crash")) &&
+                !name.contains(QStringLiteral("unins")) &&
+                !name.contains(QStringLiteral("redist")) &&
+                !name.contains(QStringLiteral("setup")) &&
+                !name.contains(QStringLiteral("dxsetup")) &&
+                !name.contains(QStringLiteral("vcredist")) &&
+                !name.contains(QStringLiteral("dotnet"))) {
+                exeNames.append(name);
+            }
+        }
+    }
+
+    // Detect engine
+    QString engine = detectEngineReal(gamePath);
+
+    const QString folderName = QFileInfo(gamePath).fileName();
+    return m_localPkgManager->findMatchingGamesFromFiles(exeNames, engine, topEntries, folderName);
+}
+
 bool CoreBridge::isPackageInstalled(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("CoreBridge::isPackageInstalled");
@@ -914,14 +955,55 @@ void CoreBridge::refreshPackageManifest()
         return;
     }
 
-    // Reload manifest from disk
-    QSettings settings("MakineAI", "MakineAI");
-    QString translationPath = settings.value("paths/translationData",
-        "C:/cedra/translation_data").toString();
-    m_localPkgManager->loadFromPath(translationPath);
+    // Reload from cached index.json (lightweight catalog)
+    QString indexPath = AppPaths::manifestIndexFile();
+    QString packageCache = AppPaths::packagesDir();
+    if (QFile::exists(indexPath)) {
+        m_localPkgManager->loadFromIndex(indexPath, packageCache);
+    } else {
+        qDebug() << "CoreBridge::refreshPackageManifest: No cached index available";
+    }
 
     int count = m_localPkgManager->packageCount();
     emit packageManifestRefreshed(count);
+}
+
+bool CoreBridge::ensurePackageDetail(const QString& steamAppId)
+{
+    if (!m_localPkgManager) return false;
+
+    // Already enriched in catalog?
+    if (m_localPkgManager->isDetailLoaded(steamAppId))
+        return true;
+
+    // Check disk cache
+    QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(steamAppId);
+    if (QFile::exists(cachePath)) {
+        QFile file(cachePath);
+        if (file.open(QIODevice::ReadOnly)) {
+            QByteArray data = file.readAll();
+            enrichPackageFromJson(steamAppId, data);
+            return true;
+        }
+    }
+
+    // Caller needs to trigger ManifestSync.fetchPackageDetail()
+    return false;
+}
+
+bool CoreBridge::isPackageDetailLoaded(const QString& steamAppId)
+{
+    if (!m_localPkgManager) return false;
+    return m_localPkgManager->isDetailLoaded(steamAppId);
+}
+
+void CoreBridge::enrichPackageFromJson(const QString& steamAppId, const QByteArray& jsonData)
+{
+    if (!m_localPkgManager) return;
+
+    if (m_localPkgManager->enrichPackageDetail(steamAppId, jsonData)) {
+        emit packageDetailEnriched(steamAppId);
+    }
 }
 
 } // namespace makineai

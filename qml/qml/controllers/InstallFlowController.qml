@@ -23,6 +23,10 @@ QtObject {
     // Pending download state for R2 packages
     property var _pendingDownload: null
 
+    // Pending detail fetch state (waiting for package detail to load)
+    property string _pendingDetailGameId: ""
+    property string _pendingDetailGameName: ""
+
     // Signals to activate dialog loaders in Main.qml
     signal showAntiCheatWarning()
     signal showInstallNotes()
@@ -59,6 +63,20 @@ QtObject {
     }
 
     function _continueAfterAntiCheat(gameId, gameName) {
+        // Pre-flight: Ensure package detail is loaded (for install steps)
+        if (!CoreBridge.isPackageDetailLoaded(gameId)) {
+            if (!CoreBridge.ensurePackageDetail(gameId)) {
+                // Need to fetch from network — save state and wait
+                _pendingDetailGameId = gameId
+                _pendingDetailGameName = gameName
+                ManifestSync.fetchPackageDetail(gameId)
+                return
+            }
+        }
+        _continueWithDetail(gameId, gameName)
+    }
+
+    function _continueWithDetail(gameId, gameName) {
         // Pre-flight: Install notes check
         var notes = GameService.getInstallNotes(gameId)
         if (notes && notes.length > 0) {
@@ -68,6 +86,17 @@ QtObject {
         }
 
         _continueAfterNotes(gameId, gameName)
+    }
+
+    // Called when package detail arrives from network
+    function onPackageDetailEnriched(appId) {
+        if (_pendingDetailGameId === appId) {
+            var gId = _pendingDetailGameId
+            var gName = _pendingDetailGameName
+            _pendingDetailGameId = ""
+            _pendingDetailGameName = ""
+            _continueWithDetail(gId, gName)
+        }
     }
 
     // ===== INSTALL NOTES: User accepted =====

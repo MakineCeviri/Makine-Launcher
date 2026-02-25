@@ -99,6 +99,9 @@ public:
     explicit LocalPackageManager(QObject *parent = nullptr);
 
     bool loadFromPath(const QString& translationDataPath);
+    bool loadFromIndex(const QString& indexPath, const QString& packageCacheRoot);
+    bool enrichPackageDetail(const QString& steamAppId, const QByteArray& jsonData);
+    bool isDetailLoaded(const QString& steamAppId) const;
 
     bool hasPackage(const QString& steamAppId) const;
     std::optional<PackageInfo> getPackage(const QString& steamAppId) const;
@@ -126,6 +129,12 @@ public:
 
     // Match a folder name against package catalog (case-insensitive, matches gameName or dirName)
     QString findMatchingAppId(const QString& folderName) const;
+
+    // Match a game folder against catalog fingerprints using multi-signal scoring
+    QVariantList findMatchingGamesFromFiles(const QStringList& exeNames,
+                                            const QString& engine,
+                                            const QStringList& topEntries,
+                                            const QString& folderName = {}) const;
 
     void setJournal(OperationJournal* journal) { m_journal = journal; }
 
@@ -160,6 +169,7 @@ private:
 #else
     // UI-only fallback: full QJsonDocument-based implementation
     void loadManifest(const QString& manifestPath);
+    void parseIndexJson(const QString& indexPath);
     void scanPackageDirectories(const QString& basePath);
     void scanGameNameDirectories(const QString& basePath);
     void loadInstalledState();
