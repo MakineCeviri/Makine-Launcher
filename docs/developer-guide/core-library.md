@@ -43,10 +43,11 @@ core/
 │   ├── patch_engine.hpp   # Patch uygulama
 │   ├── game_detector.hpp  # Oyun tespiti
 │   ├── package_manager.hpp # Paket yonetimi
+│   ├── package_catalog.hpp # Ceviri paketi katalogu
 │   ├── version_tracker.hpp # Versiyon takibi
 │   ├── security.hpp       # Imza dogrulama
 │   ├── ssl_pinning.hpp    # SSL pinning
-│   └── sandbox.hpp        # Sandbox islemleri
+│   └── sandbox.hpp        # Sandbox islemleri (build disi)
 │
 └── src/
     ├── game_detector/     # Steam, Epic, GOG tarama

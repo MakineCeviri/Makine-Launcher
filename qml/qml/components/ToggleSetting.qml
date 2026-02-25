@@ -1,106 +1,101 @@
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Layouts
 import MakineAI 1.0
 
-Rectangle {
-    id: root
+/**
+ * ToggleSetting.qml - Toggle switch setting row with accessibility
+ */
+Item {
+    id: _toggleRoot
     property string title: ""
     property string description: ""
     property bool checked: false
+    property bool disableAnimations: false
     signal toggled()
-
-    Accessible.role: Accessible.CheckBox
-    Accessible.name: root.title
-    Accessible.checked: root.checked
     activeFocusOnTab: true
-    Keys.onReturnPressed: { root.checked = !root.checked; root.toggled() }
-    Keys.onSpacePressed: { root.checked = !root.checked; root.toggled() }
-
+    Keys.onReturnPressed: toggled()
+    Keys.onSpacePressed: toggled()
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: title
+    Accessible.description: description
+    Accessible.checked: checked
+    Accessible.onToggleAction: toggled()
     Layout.fillWidth: true
     Layout.preferredHeight: 72
-    color: mouseArea.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.04) : "transparent"
-    radius: Dimensions.radiusStandard
-
-    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-    // Focus indicator
-    FocusRing {
-        target: root
-        offset: -1
-    }
-
-    MouseArea {
-        id: mouseArea
+    Rectangle {
         anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            root.checked = !root.checked
-            root.toggled()
-        }
+        color: _toggleMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.02) : "transparent"
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
     }
-
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: Dimensions.marginML
         anchors.rightMargin: Dimensions.marginML
         spacing: Dimensions.spacingXL
-
-        // Content (title and subtitle)
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Dimensions.spacingXS
-
             Label {
-                text: root.title
-                font.pixelSize: Dimensions.fontMD
-                font.weight: Font.Medium
-                color: Theme.textPrimary
+                Layout.fillWidth: true; text: title
+                font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
+                color: Theme.textPrimary; elide: Text.ElideRight
             }
-
             Label {
-                text: root.description
-                font.pixelSize: Dimensions.fontBody
-                color: Theme.textMuted
+                Layout.fillWidth: true; text: description
+                font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
+                elide: Text.ElideRight
             }
         }
-
-        // Custom Square Toggle - Kare görünüm, hafif oval köşe
         Rectangle {
-            id: customToggle
-            width: Dimensions.toggleWidth
-            height: Dimensions.toggleHeight
+            id: _toggleTrack
+            Layout.preferredWidth: Dimensions.toggleWidth
+            Layout.preferredHeight: Dimensions.toggleHeight
             radius: Dimensions.toggleRadius
-            color: root.checked ? Theme.primary : Theme.withAlpha(Theme.textMuted, 0.3)
-
-            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-            // Knob (kare görünümlü)
+            color: checked ? Theme.primary : Theme.withAlpha(Theme.textPrimary, 0.1)
+            property bool showGlow: _toggleMouse.containsMouse || _toggleRoot.activeFocus
+            border.color: showGlow
+                ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Theme.withAlpha(Theme.textPrimary, 0.3))
+                : "transparent"
+            border.width: 1.5
+            scale: _toggleMouse.containsMouse ? 1.05 : 1.0
+            Behavior on color {
+                ColorAnimation {
+                    duration: _toggleRoot.disableAnimations ? 0 : 200
+                    easing.type: Easing.OutCubic
+                }
+            }
+            Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+            Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
             Rectangle {
-                id: knob
                 width: Dimensions.toggleKnobSize
                 height: Dimensions.toggleKnobSize
                 radius: Dimensions.toggleKnobRadius
-                x: root.checked ? parent.width - width - 3 : 3
-                y: (parent.height - height) / 2
                 color: Theme.textOnColor
-
+                x: checked ? parent.width - width - 3 : 3
+                anchors.verticalCenter: parent.verticalCenter
+                Rectangle {
+                    anchors.fill: parent; anchors.margins: -1
+                    radius: Dimensions.radiusStandard
+                    color: "transparent"
+                    border.color: Theme.withAlpha(Theme.bgPrimary, 0.15)
+                    border.width: 1; z: -1
+                }
                 Behavior on x {
                     NumberAnimation {
-                        duration: Dimensions.animFast
+                        duration: _toggleRoot.disableAnimations ? 0 : 200
                         easing.type: Easing.OutCubic
                     }
                 }
+                scale: _toggleMouse.pressed ? 0.85 : 1.0
+                Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
             }
-
             MouseArea {
+                id: _toggleMouse
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.checked = !root.checked
-                    root.toggled()
-                }
+                onClicked: _toggleRoot.toggled()
             }
         }
     }

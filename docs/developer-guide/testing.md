@@ -27,6 +27,10 @@ core/
         └── unreal_game/
 ```
 
+> **Not:** Game-specific integration testler engine handler implementasyonu
+> bekledigi icin devre disi birakilmistir. `makineai_tests` unit test
+> target'i aktiftir.
+
 ---
 
 ## Unit Test Örnekleri

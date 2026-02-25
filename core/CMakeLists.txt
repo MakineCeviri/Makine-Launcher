@@ -170,7 +170,6 @@ set(MAKINEAI_HEADERS
     include/makineai/version.hpp
     include/makineai/memory.hpp
     include/makineai/lazy.hpp
-    include/makineai/scanner_base.hpp
     include/makineai/sandbox.hpp
     include/makineai/path_utils.hpp
     include/makineai/utf_utils.hpp

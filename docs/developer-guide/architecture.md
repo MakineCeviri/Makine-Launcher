@@ -17,7 +17,8 @@ MakineAI'nin sistem mimarisini açıklar.
 │  │             Qt Services Layer                    │ │
 │  │  GameService │ CoreBridge │ SettingsManager      │ │
 │  │  BackupManager │ ProcessScanner │ SystemTray     │ │
-│  │  LocalPackageManager │ BatchOperationService     │ │
+│  │  LocalPackageManager │ ManifestSyncService       │ │
+│  │  BatchOperationService │ PackageCatalog (Core)   │ │
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
 │               MakineAI (Motor)                        │
@@ -86,6 +87,13 @@ Uygulama ayarları:
 - Dil, tema, bildirim tercihleri
 - Çeviri veri yolu (`translationDataPath`)
 - QSettings ile persist
+
+### ManifestSyncService
+Hibrit katalog senkronizasyonu:
+- Başlangıçta `index.json` indir (93 KB, ETag cache)
+- Oyun detay ekranında `packages/{appId}.json` fetch et (~700 B)
+- `catalogReady` sinyali → PackageCatalog.loadFromIndex()
+- `packageDetailReady` sinyali → PackageCatalog.enrichPackage()
 
 ### IntegrityService
 Binary bütünlük kontrolü:
@@ -198,6 +206,7 @@ hızlı QML iterasyonu gerektiğinde kullanılır.
 | [0002](../adr/0002-result-based-error-handling.md) | Result-based Error Handling | Geçerli |
 | [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Geçerli |
 | [0006](../adr/0006-adaptation-engine-direction.md) | Adaptation Engine Direction | Geçerli |
+| [0007](../adr/0007-memory-translation-extractor.md) | Memory Translation Extractor | Geçerli |
 
 ---
 

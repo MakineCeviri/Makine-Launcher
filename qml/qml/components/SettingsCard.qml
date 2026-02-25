@@ -1,56 +1,19 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
 
 /**
- * SettingsCard.qml - Ayarlar kartı bileşeni
+ * SettingsCard.qml - Settings card container
+ *
+ * Simple bordered card that wraps settings content.
+ * Children are placed in a zero-spacing ColumnLayout.
  */
 Rectangle {
-    id: root
-
-    property string title: ""
-    property string description: ""
-    default property alias content: contentColumn.children
-
-    implicitHeight: mainColumn.implicitHeight + 32
+    default property alias content: _cc.data
+    implicitHeight: _cc.implicitHeight
     radius: Dimensions.radiusStandard
-    color: Theme.withAlpha(Theme.bgSecondary, 0.5)
-    border.color: Theme.withAlpha(Theme.textMuted, 0.1)
+    color: Theme.surface
+    border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
     border.width: 1
-
-    ColumnLayout {
-        id: mainColumn
-        anchors.fill: parent
-        anchors.margins: Dimensions.marginMD
-        spacing: Dimensions.spacingLG
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Dimensions.spacingXS
-            visible: root.title !== ""
-
-            Text {
-                text: root.title
-                font.pixelSize: Dimensions.fontLG
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: root.description
-                font.pixelSize: Dimensions.fontBody
-                color: Theme.textMuted
-                wrapMode: Text.WordWrap
-                visible: root.description !== ""
-            }
-        }
-
-        ColumnLayout {
-            id: contentColumn
-            Layout.fillWidth: true
-            spacing: Dimensions.spacingMD
-        }
-    }
+    ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
 }

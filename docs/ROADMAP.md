@@ -1,175 +1,167 @@
-# MakineAI Yol Haritası
+# MakineAI Yol Haritasi
 
-**Son Güncelleme:** 2026-02-18
+**Son Guncelleme:** 2026-02-25
 
 ---
 
 ## Genel Durum
 
 ```
-█████████████████░░░░░░░░░░░  60%  GENEL TAMAMLANMA
+██████████████████████░░░░░░  75%  GENEL TAMAMLANMA
 ```
 
-| Bölüm | Tamamlanma | Durum |
+| Bolum | Tamamlanma | Durum |
 |-------|-----------|-------|
-| Makine: Oyun Tespit & Tarama | %90 | Steam/Epic/GOG gerçek tarama çalışıyor |
-| Makine: Çeviri Paket Kurulumu | %70 | Yerel paketler kurulabiliyor |
-| Makine: Sunucu & Dağıtım | %5 | Henüz başlanmadı |
-| MakineAI: Güncelleme Tespiti | %5 | İskelet sınıf yapısı mevcut |
-| MakineAI: Adaptasyon Motoru | %0 | Tasarım aşaması |
-| UI & Kullanıcı Deneyimi | %80 | Alpha kalitesinde, çalışır durumda |
-| CI/CD & DevOps | %75 | Pipeline çalışıyor |
+| Makine: Oyun Tespit & Tarama | %95 | Steam/Epic/GOG tarama + anti-cheat + motor tespiti |
+| Makine: Ceviri Paket Kurulumu | %85 | Yerel + R2 paketler kurulabiliyor, variant destegi |
+| Makine: Dagitim Sistemi | %60 | Hibrit katalog (index+detail), R2 indirme, ETag cache |
+| MakineAI: Guncelleme Tespiti | %10 | UpdateDetection + FileIntegrity modulleri mevcut |
+| MakineAI: Adaptasyon Motoru | %5 | Memory Translation Extractor tasarlandi |
+| UI & Kullanici Deneyimi | %85 | Alpha kalitesinde, component konsolidasyonu tamamlandi |
+| CI/CD & DevOps | %75 | GitHub Actions pipeline calisiyor |
 
 ---
 
-## Makine — Çeviri Dağıtım Platformu
+## Makine — Ceviri Dagitim Platformu
 
-### Faz 1: Temel İşlevsellik ✅ (%85 Tamamlandı)
+### Faz 1: Temel Islevsellik (%95 Tamamlandi)
 
-- [x] Steam kütüphanesi tarama (Registry + VDF + ACF)
+- [x] Steam kutuphanesi tarama (Registry + VDF + ACF)
 - [x] Epic Games tarama (Manifest JSON)
 - [x] GOG tarama (Registry)
-- [x] Oyun motoru tespiti (dosya imzaları)
+- [x] Oyun motoru tespiti (dosya imzalari)
 - [x] Anti-cheat tespiti (EAC, BattlEye, Vanguard)
-- [x] Çeviri paketi kurma/kaldırma (dosya kopyalama)
-- [x] Yedekleme ve geri yükleme
-- [x] Performans: lazy loading, visibility-aware timers
-- [ ] Hata yönetimi iyileştirmeleri (devam ediyor)
+- [x] Ceviri paketi kurma/kaldirma (overlay, script, options)
+- [x] Yedekleme ve geri yukleme
+- [x] Variant sistemi (version/platform/game secimi)
+- [x] InstallOptionsDialog (checkbox-style kurulum secenekleri)
+- [x] PackageCatalog (saf C++ is mantigi)
+- [ ] Hata yonetimi iyilestirmeleri (devam ediyor)
 
-### Faz 2: Dağıtım Sistemi (%5)
+### Faz 2: Dagitim Sistemi (%60)
 
-| Görev | Durum | Öncelik |
+| Gorev | Durum | Oncelik |
 |-------|-------|---------|
-| Çeviri paketi sunucu formatı | Başlanmadı | Kritik |
-| Paket indirme mekanizması | Başlanmadı | Kritik |
-| Versiyon kontrolü ve güncelleme | Başlanmadı | Yüksek |
-| Paket imzalama/doğrulama | Başlanmadı | Yüksek |
-| CDN veya GitHub Releases entegrasyonu | Başlanmadı | Orta |
+| Hibrit katalog (index.json + on-demand detail) | **Tamamlandi** | Kritik |
+| R2 paket indirme (zstd + AES-256-GCM) | **Tamamlandi** | Kritik |
+| ETag cache (index + per-game detail) | **Tamamlandi** | Yuksek |
+| MakineAI-Assets repo (index + packages + images) | **Tamamlandi** | Kritik |
+| Pre-fetch (GameDetailScreen acildiginda) | **Tamamlandi** | Orta |
+| Paket imzalama/dogrulama | Baslanmadi | Yuksek |
+| Delta guncelleme (sadece degisen dosyalar) | Baslanmadi | Orta |
 
 ### Faz 3: Topluluk (%0)
 
-| Görev | Durum | Öncelik |
+| Gorev | Durum | Oncelik |
 |-------|-------|---------|
-| Çevirmen katkı sistemi | Başlanmadı | Orta |
-| Çeviri kalite puanlama | Başlanmadı | Düşük |
-| Oyun talep sistemi | Başlanmadı | Düşük |
+| Cevirmen katki sistemi | Baslanmadi | Orta |
+| Ceviri kalite puanlama | Baslanmadi | Dusuk |
+| Oyun talep sistemi | Baslanmadi | Dusuk |
 
 ---
 
 ## MakineAI — Adaptasyon Motoru
 
-### Faz A: Güncelleme Tespiti (%0)
+### Faz A: Guncelleme Tespiti (%10)
 
-> **Gerçek Sorun:** Oyun güncellendi → Türkçe yama bozuldu
+> **Gercek Sorun:** Oyun guncellendi -> Turkce yama bozuldu
 
-| Görev | Durum | Açıklama |
+| Gorev | Durum | Aciklama |
 |-------|-------|----------|
-| Dosya hash kaydı | Başlanmadı | Yama kurulurken her dosyanın hash'ini kaydet |
-| Değişiklik tespiti | Başlanmadı | Uygulama açıldığında dosya hash'lerini karşılaştır |
-| Steam versiyon kontrolü | Başlanmadı | Steam API'den oyun versiyonunu al |
-| Kullanıcı bildirimi | Başlanmadı | "Oyun güncellendi, yama kontrol ediliyor" |
+| Dosya hash kaydi | **Modul hazir** | FileIntegrity modulu mevcut |
+| Degisiklik tespiti | **Modul hazir** | UpdateDetection modulu mevcut |
+| Steam versiyon kontrolu | Baslanmadi | Steam API/VDF'den version al |
+| Kullanici bildirimi | Baslanmadi | "Oyun guncellendi" uyarisi |
 
-### Faz B: Analiz (%0)
+### Faz B: Analiz (%5)
 
-| Görev | Durum | Açıklama |
+| Gorev | Durum | Aciklama |
 |-------|-------|----------|
-| Dosya diff sistemi | Başlanmadı | Eski vs yeni dosya karşılaştırması |
-| String değişiklik haritası | Başlanmadı | Hangi stringler eklendi/silindi/taşındı |
-| Yapı değişikliği tespiti | Başlanmadı | Dosya formatı/yapısı değişti mi |
+| Memory Translation Extractor | **Tasarlandi** | Process memory'den string cikarma |
+| Dosya diff sistemi | Baslanmadi | Eski vs yeni dosya karsilastirmasi |
+| String degisiklik haritasi | Baslanmadi | Hangi stringler eklendi/silindi/tasindi |
 
 ### Faz C: Otomatik Uyarlama (%0)
 
-| Görev | Durum | Açıklama |
+| Gorev | Durum | Aciklama |
 |-------|-------|----------|
-| Değişmeyen dosyaları koru | Başlanmadı | Hash eşleşen dosyalara dokunma |
-| Fuzzy string matching | Başlanmadı | Taşınan stringleri bul ve yeniden eşle |
-| Yeni string işaretleme | Başlanmadı | Çeviri gerektiren yeni stringleri belirle |
-| Akıllı merge | Başlanmadı | Çatışan dosyaları birleştir |
-| Adaptasyon doğrulama | Başlanmadı | Uyarlanan yamanın bütünlüğünü kontrol et |
+| Degismeyen dosyalari koru | Baslanmadi | Hash eslesen dosyalara dokunma |
+| Fuzzy string matching | Baslanmadi | Tasinan stringleri bul ve yeniden esle |
+| Akilli merge | Baslanmadi | Catisan dosyalari birlestir |
+| Adaptasyon dogrulama | Baslanmadi | Uyarlanan yamanin butunlugunu kontrol et |
 
 ---
 
-## Kapalı / Ertelenmiş Özellikler
+## Kapatilan / Ertelenmis Ozellikler
 
-Aşağıdaki özellikler mevcut yönle uyumsuz veya önceliği düşük:
-
-| Özellik | Durum | Neden |
+| Ozellik | Durum | Neden |
 |---------|-------|-------|
-| Font analizi | **Kapatıldı** | Pratik değeri düşük, motor çeşitliliği çok fazla |
-| Engine Handler'lar | **Kaldırıldı** | Koddan silindi (2026-02-12, ~6800 satır). ADR-0006 |
-| Translation Pipeline | **Kaldırıldı** | Koddan silindi. ADR-0003 geçersiz |
-| String Classifier | **Kaldırıldı** | Koddan silindi. Motor bazlı araçlara devredildi |
-| Translation Memory | **Ertelendi** | Adaptasyon motoruna entegre edilecek (Faz C) |
-| QA servisi | **Ertelendi** | Topluluk aşamasında değerlendirilecek |
-| Gaming Companion AI | **v2.0+** | Öncelik değil, temel sorunlar çözmeli |
+| Font analizi | **Kapatildi** | Pratik degeri dusuk |
+| Engine Handler'lar | **Kaldirildi** | Stub interface'ler korundu (IEngineHandler) |
+| Translation Pipeline | **Kaldirildi** | Stub header'lar silindi (2026-02-25) |
+| Translation Memory | **Ertelendi** | Adaptasyon motoruna entegre edilecek |
+| Glossary Service | **Ertelendi** | Stub header silindi (2026-02-25) |
+| QA Service | **Ertelendi** | Stub header silindi (2026-02-25) |
+| Gaming Companion AI | **v2.0+** | Oncelik degil |
 
 ---
 
-## Öncelik Sırası
+## Oncelik Sirasi
 
 ```
-1. Makine Faz 2: Dağıtım sistemi (sunucu + indirme)
-   ↓
-2. MakineAI Faz A: Güncelleme tespiti
-   ↓
-3. MakineAI Faz B: Analiz
-   ↓
+1. Alpha Release Hazirligi (UI kalite, component temizligi)
+   |
+2. MakineAI Faz A: Guncelleme tespiti (hash + versiyon)
+   |
+3. MakineAI Faz B: Analiz (Memory Extractor + diff)
+   |
 4. MakineAI Faz C: Otomatik uyarlama
-   ↓
-5. Makine Faz 3: Topluluk özellikleri
+   |
+5. Makine Faz 3: Topluluk ozellikleri
 ```
 
 ---
 
-## Risk Matrisi
+## Araclar
 
-| Risk | Etki | Olasılık | Önlem |
-|------|------|----------|-------|
-| Oyun güncelleme formatları çok çeşitli | Yüksek | Yüksek | Motor bazlı adaptasyon stratejileri |
-| Sunucu maliyeti | Orta | Orta | GitHub Releases / CDN başlangıcı |
-| Çevirmen topluluğu yetersiz | Yüksek | Orta | Önce mevcut çevirilerle başlangıç |
-| Binary dosya formatları değişken | Yüksek | Yüksek | Metin tabanlı dosyalara öncelik ver |
-
----
-
-## Araçlar
-
-### Geliştirme
+### Gelistirme
 - Qt 6.10.1 + MinGW 13.1.0
-- Visual Studio 2022 (Core için MSVC)
+- Visual Studio 2022 (Core icin MSVC)
 - CMake 3.28+ + Ninja
-- vcpkg (19 bağımlılık)
+- vcpkg (19 bagimllik)
 
 ### DevOps
 - GitHub Actions (CI/CD)
-- CodeQL (güvenlik analizi)
-- clang-format + clang-tidy (kod kalitesi)
+- CodeQL (guvenlik analizi)
 
 ---
 
----
+## Son Degisiklikler
 
-## Son Değişiklikler
+### 2026-02-25: Alpha hazirlik — buyuk temizlik
+- Hibrit katalog sistemi (index.json + on-demand detail) tamamlandi
+- fwd.hpp %51 kucultuldu (373 -> 176 satir, 48 kullanilmayan forward declaration silindi)
+- 4 bos stub header silindi (glossary_service, translation_memory, qa_service, translation_pipeline)
+- scanner_base.hpp silindi (kullanilmayan v2 scanner interface)
+- Settings component'leri konsolide edildi (6 dosyadan ~503 satir tekrar kaldirdildi)
+- 3 shared component guncellendi (SettingsCard, ToggleSetting, DisabledSetting)
+- Integration test'ler devre disi birakildi (handler impl bekleniyor)
+- MakineAI-Assets'ten eski manifest.json silindi (245 KB tasarruf)
 
 ### 2026-02-18: Kod kalitesi & performans
-- Güvenlik denetimi (14 bulgu düzeltildi)
-- Modülerlik iyileştirmeleri (GameService decoupling, detail/ header yapısı)
-- Kod minimizasyonu (gereksiz yorumlar, kullanılmayan import'lar)
-- Qt Quick performans optimizasyonları (Image sourceSize, redundant clip)
-- Dokümantasyon güncellemesi (build preset açıklamaları, Core entegrasyon durumu)
+- Guvenlik denetimi (14 bulgu duzeltildi)
+- Modurerlik iyilestirmeleri (GameService decoupling)
+- Qt Quick performans optimizasyonlari
 
-### 2026-02-14: Dead code temizliği
-- GameListModel, dead Q_INVOKABLE/Q_PROPERTY/signal'lar kaldırıldı
-- Dimensions.qml 76 dead property, DebugHelper.qml 7 dead fonksiyon kaldırıldı
+### 2026-02-14: Dead code temizligi
+- Dead Q_INVOKABLE/Q_PROPERTY/signal'lar kaldirildi
+- Dimensions.qml 76 dead property kaldirildi
 
-### 2026-02-12: Büyük temizlik
-- ~32K satır dead code kaldırıldı (handler'lar, TM, Glossary, QA, Pipeline)
-- 13 ölü QML bileşeni silindi
-- Veri hataları düzeltildi (D2R fallback mapping, Vulkan probe UB)
-- Build system temizlendi (gereksiz lib, Qt modülleri)
-- ADR-0006 oluşturuldu (adaptasyon motoru yön değişikliği)
+### 2026-02-12: Buyuk temizlik
+- ~32K satir dead code kaldirildi
+- 13 olu QML bileseni silindi
+- ADR-0006 olusturuldu (adaptasyon motoru yon degisikligi)
 
 ---
 
-*Bu doküman aktif olarak güncellenmektedir.*
 *MakineAI — 2026*

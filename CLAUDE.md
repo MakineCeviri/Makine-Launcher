@@ -41,9 +41,18 @@ export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"
 ```
 qml/src/services/     — C++ backend services (GameService, CoreBridge, etc.)
 qml/qml/              — QML UI files (Main.qml, screens/, components/, dialogs/)
+qml/qml/controllers/  — QML logic controllers (InstallFlowController)
 core/src/              — C++ core library (asset_parser, game_detector, security, etc.)
 core/include/makineai/ — Public headers (.hpp, snake_case)
 ```
+
+### Package Catalog Architecture
+
+Hybrid index + on-demand detail system:
+- **Startup:** `index.json` (93 KB) → lightweight catalog metadata
+- **On-demand:** `packages/{appId}.json` (~700 B) → install steps, contributors, variants
+- **Core:** `PackageCatalog::loadFromIndex()` + `enrichPackage()`
+- **Assets repo:** `jlceaser/MakineAI-Assets` (index.json + packages/ + images/)
 
 ## Coding Conventions
 
@@ -75,6 +84,7 @@ core/include/makineai/ — Public headers (.hpp, snake_case)
 - **vcpkg classic mode**: Use `--classic` flag and `-DVCPKG_MANIFEST_MODE=OFF`
 - **QML Theme**: Use `Theme.bgPrimary` (not `Theme.background` — doesn't exist)
 - **Forward declarations**: Include at file top with `#ifdef` blocks, not inside them (AUTOMOC issues)
+- **QML `component X:`**: Local component definitions shadow shared components — avoid naming collisions
 
 ## Important Rules
 
@@ -82,3 +92,10 @@ core/include/makineai/ — Public headers (.hpp, snake_case)
 - Do NOT output build artifacts to Desktop
 - Commit convention: Conventional Commits (`feat(scope): message`)
 - Scopes: `core`, `ui`, `build`, `ci`, `docs`
+
+## Deferred Features
+
+These modules are intentionally deferred — stub headers removed:
+- Translation Memory, Glossary Service, QA Service, Translation Pipeline
+- Engine Handlers (only interface `IEngineHandler` in `engine_handler.hpp`)
+- Integration tests disabled until handlers are implemented

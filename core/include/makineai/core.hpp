@@ -67,10 +67,6 @@
 #include "runtime_manager.hpp"
 #include "security.hpp"
 #include "version_tracker.hpp"
-#include "translation_memory.hpp"
-#include "glossary_service.hpp"
-#include "qa_service.hpp"
-#include "translation_pipeline.hpp"
 
 // Third-party includes
 #include <spdlog/spdlog.h>
@@ -293,37 +289,6 @@ public:
      */
     [[nodiscard]] VersionTracker& versionTracker();
 
-    // =========================================================================
-    // Translation Services
-    // =========================================================================
-
-    /**
-     * @brief Get translation memory (nullptr if deferred)
-     */
-    [[nodiscard]] TranslationMemory* translationMemory() noexcept {
-        return translationMemory_.get();
-    }
-
-    /**
-     * @brief Get glossary service (nullptr if deferred)
-     */
-    [[nodiscard]] GlossaryService* glossaryService() noexcept {
-        return glossaryService_.get();
-    }
-
-    /**
-     * @brief Get QA service (nullptr if deferred)
-     */
-    [[nodiscard]] QAService* qaService() noexcept {
-        return qaService_.get();
-    }
-
-    /**
-     * @brief Get translation pipeline (nullptr if deferred)
-     */
-    [[nodiscard]] TranslationPipeline* translationPipeline() noexcept {
-        return translationPipeline_.get();
-    }
 
     // =========================================================================
     // Async Operations
@@ -423,10 +388,6 @@ private:
     std::unique_ptr<RuntimeManager> runtimeManager_;
     std::unique_ptr<SecurityManager> securityManager_;
     std::unique_ptr<VersionTracker> versionTracker_;
-    std::unique_ptr<TranslationMemory> translationMemory_;
-    std::unique_ptr<GlossaryService> glossaryService_;
-    std::unique_ptr<QAService> qaService_;
-    std::unique_ptr<TranslationPipeline> translationPipeline_;
 
     // Background task queue
     AsyncQueue taskQueue_;

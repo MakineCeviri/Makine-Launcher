@@ -28,19 +28,6 @@ ColumnLayout {
     onShowNotificationsChanged: SettingsManager.showNotifications = showNotifications
     onGameUpdateMonitoringChanged: SettingsManager.gameUpdateMonitoring = gameUpdateMonitoring
 
-    // -- Local component overrides (pixel-match SettingsScreen inline versions) --
-    component SettingsCard: Rectangle {
-        default property alias content: _cc.data
-        implicitHeight: _cc.implicitHeight
-        radius: Dimensions.radiusStandard
-        color: Theme.surface
-        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
-        border.width: 1
-        ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
-    }
-
-
-
     component ThemeSetting: Item {
         property bool isDarkTheme: SettingsManager.isDarkMode
         Layout.fillWidth: true
@@ -124,139 +111,6 @@ ColumnLayout {
             }
         }
     }
-
-    component ToggleSetting: Item {
-        id: _toggleRoot
-        property string title: ""
-        property string description: ""
-        property bool checked: false
-        signal toggled()
-        activeFocusOnTab: true
-        Keys.onReturnPressed: toggled()
-        Keys.onSpacePressed: toggled()
-        Accessible.role: Accessible.CheckBox
-        Accessible.name: title
-        Accessible.description: description
-        Accessible.checked: checked
-        Accessible.onToggleAction: toggled()
-        Layout.fillWidth: true
-        Layout.preferredHeight: 72
-        Rectangle {
-            anchors.fill: parent
-            color: _toggleMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.02) : "transparent"
-            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-        }
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginML
-            anchors.rightMargin: Dimensions.marginML
-            spacing: Dimensions.spacingXL
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Dimensions.spacingXS
-                Label {
-                    Layout.fillWidth: true; text: title
-                    font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
-                    color: Theme.textPrimary; elide: Text.ElideRight
-                }
-                Label {
-                    Layout.fillWidth: true; text: description
-                    font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
-                    elide: Text.ElideRight
-                }
-            }
-            Rectangle {
-                id: _toggleTrack
-                Layout.preferredWidth: Dimensions.toggleWidth
-                Layout.preferredHeight: Dimensions.toggleHeight
-                radius: Dimensions.toggleRadius
-                color: checked ? Theme.primary : Theme.withAlpha(Theme.textPrimary, 0.1)
-                property bool showGlow: _toggleMouse.containsMouse || _toggleRoot.activeFocus
-                border.color: showGlow
-                    ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Theme.withAlpha(Theme.textPrimary, 0.3))
-                    : "transparent"
-                border.width: 1.5
-                scale: _toggleMouse.containsMouse ? 1.05 : 1.0
-                Behavior on color {
-                    ColorAnimation {
-                        duration: generalRoot.disableAnimations ? 0 : 200
-                        easing.type: Easing.OutCubic
-                    }
-                }
-                Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-                Rectangle {
-                    width: Dimensions.toggleKnobSize
-                    height: Dimensions.toggleKnobSize
-                    radius: Dimensions.toggleKnobRadius
-                    color: Theme.textOnColor
-                    x: checked ? parent.width - width - 3 : 3
-                    anchors.verticalCenter: parent.verticalCenter
-                    Rectangle {
-                        anchors.fill: parent; anchors.margins: -1
-                        radius: Dimensions.radiusStandard
-                        color: "transparent"
-                        border.color: Theme.withAlpha(Theme.bgPrimary, 0.15)
-                        border.width: 1; z: -1
-                    }
-                    Behavior on x {
-                        NumberAnimation {
-                            duration: generalRoot.disableAnimations ? 0 : 200
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                    scale: _toggleMouse.pressed ? 0.85 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
-                }
-                MouseArea {
-                    id: _toggleMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: _toggleRoot.toggled()
-                }
-            }
-        }
-    }
-
-    component DisabledSetting: Item {
-        property string title: ""
-        property string description: ""
-        Layout.fillWidth: true
-        Layout.preferredHeight: 72
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginML
-            anchors.rightMargin: Dimensions.marginML
-            spacing: Dimensions.spacingXL
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Dimensions.spacingXS
-                Label {
-                    text: title; font.pixelSize: Dimensions.fontMD
-                    font.weight: Font.Medium; color: Theme.textMuted
-                    Layout.fillWidth: true; elide: Text.ElideRight
-                }
-                Label {
-                    text: description; font.pixelSize: Dimensions.fontBody
-                    color: Theme.withAlpha(Theme.textMuted, 0.7)
-                    Layout.fillWidth: true; elide: Text.ElideRight
-                }
-            }
-            Rectangle {
-                Layout.preferredWidth: _yLbl.width + 24
-                Layout.preferredHeight: 28; radius: 14
-                color: Theme.withAlpha(Theme.textPrimary, 0.08)
-                Label {
-                    id: _yLbl; anchors.centerIn: parent
-                    text: qsTr("Yakında")
-                    font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold
-                    color: Theme.textMuted
-                }
-            }
-        }
-    }
-    // -- End local component overrides --
 
     SettingsCard {
         Layout.fillWidth: true
@@ -380,6 +234,7 @@ ColumnLayout {
                 title: qsTr("Otomatik Oyun Tespiti")
                 description: qsTr("Oyunları otomatik olarak tespit et")
                 checked: generalRoot.autoDetectGames
+                disableAnimations: generalRoot.disableAnimations
                 onToggled: generalRoot.autoDetectGames = !generalRoot.autoDetectGames
             }
 
@@ -389,6 +244,7 @@ ColumnLayout {
                 title: qsTr("Windows ile Başlat")
                 description: qsTr("Bilgisayar açıldığında otomatik başlat")
                 checked: generalRoot.startWithWindows
+                disableAnimations: generalRoot.disableAnimations
                 onToggled: generalRoot.startWithWindows = !generalRoot.startWithWindows
             }
 
@@ -398,6 +254,7 @@ ColumnLayout {
                 title: qsTr("Sistem Tepsisine Küçült")
                 description: qsTr("Kapatıldığında arka planda çalışır")
                 checked: generalRoot.minimizeToTray
+                disableAnimations: generalRoot.disableAnimations
                 onToggled: generalRoot.minimizeToTray = !generalRoot.minimizeToTray
             }
 
@@ -407,6 +264,7 @@ ColumnLayout {
                 title: qsTr("Güncelleme Kontrolü")
                 description: qsTr("Başlatıldığında yeni sürüm olup olmadığını kontrol et")
                 checked: generalRoot.showNotifications
+                disableAnimations: generalRoot.disableAnimations
                 onToggled: generalRoot.showNotifications = !generalRoot.showNotifications
             }
         }
@@ -424,6 +282,7 @@ ColumnLayout {
                 title: qsTr("Oyun Güncelleme İzleme")
                 description: qsTr("Arka planda oyun güncellemelerini tespit et ve çeviri uyumluluğunu kontrol et")
                 checked: generalRoot.gameUpdateMonitoring
+                disableAnimations: generalRoot.disableAnimations
                 onToggled: generalRoot.gameUpdateMonitoring = !generalRoot.gameUpdateMonitoring
             }
 

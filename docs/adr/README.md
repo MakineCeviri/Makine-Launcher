@@ -14,6 +14,7 @@ An Architecture Decision Record (ADR) is a document that captures an important a
 | [ADR-0002](0002-result-based-error-handling.md) | Result-Based Error Handling | Accepted | 2026-01 |
 | [ADR-0004](0004-optional-library-integration.md) | Optional Library Integration Pattern | Accepted | 2026-01 |
 | [ADR-0006](0006-adaptation-engine-direction.md) | Adaptation Engine Direction | Accepted | 2026-02 |
+| [ADR-0007](0007-memory-translation-extractor.md) | Memory Translation Extractor | Accepted | 2026-02 |
 
 ## References
 

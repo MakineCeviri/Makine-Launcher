@@ -110,7 +110,7 @@ Soğuk teknik mesajlar değil, samimi bilgilendirme.
 >
 > 1. ✅ Oyun kütüphanelerini gerçekten tara (Steam/Epic/GOG)
 > 2. ✅ Çeviri paketini kur/kaldır
-> 3. ⏳ Sunucudan çeviri paketi indir
+> 3. ✅ Sunucudan çeviri paketi indir (hibrit katalog + R2)
 > 4. ⏳ Oyun güncellemesini tespit et
 > 5. ⏳ Değişiklik analizi yap
 > 6. ⏳ Çevirileri otomatik uyarla

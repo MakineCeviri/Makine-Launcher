@@ -176,10 +176,6 @@ void Core::shutdown() {
     AuditLogger::instance().logSystemEvent("core_shutdown", "Normal shutdown");
 
     // Cleanup modules in reverse initialization order
-    translationPipeline_.reset();
-    qaService_.reset();
-    glossaryService_.reset();
-    translationMemory_.reset();
     versionTracker_.reset();
     securityManager_.reset();
     runtimeManager_.reset();

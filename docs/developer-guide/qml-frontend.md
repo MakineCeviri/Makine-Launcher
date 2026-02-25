@@ -41,6 +41,9 @@ qml/
 │   ├── SettingsScreen.qml    # Ayarlar
 │   ├── GameDetailScreen.qml  # Oyun detay
 │   │
+│   ├── controllers/          # QML logic controllers
+│   │   └── InstallFlowController.qml
+│   │
 │   ├── theme/                # Tema sistemi
 │   │   ├── Theme.qml         # Renkler (singleton)
 │   │   └── Dimensions.qml    # Boyutlar (singleton)
@@ -78,7 +81,7 @@ QtObject {
     readonly property color accent: "#F59E0B"
 
     // Arka plan
-    readonly property color background: "#0F0F23"
+    readonly property color bgPrimary: "#0F0F23"
     readonly property color surface: "#1A1A2E"
     readonly property color surfaceHover: "#252542"
 
@@ -336,9 +339,10 @@ Rectangle {
 
 // DOGRU
 Rectangle {
-    color: Theme.surface
+    color: Theme.surface       // veya Theme.bgPrimary
     radius: Dimensions.radiusMD
 }
+// NOT: Theme.background YOKTUR — Theme.bgPrimary kullanin
 ```
 
 ### 2. ID Kullanımı

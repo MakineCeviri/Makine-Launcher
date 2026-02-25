@@ -9,18 +9,6 @@ import MakineAI 1.0
 ColumnLayout {
     spacing: Dimensions.spacingXL
 
-    // -- Local component overrides (pixel-match SettingsScreen inline versions) --
-    component SettingsCard: Rectangle {
-        default property alias content: _cc.data
-        implicitHeight: _cc.implicitHeight
-        radius: Dimensions.radiusStandard
-        color: Theme.surface
-        border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
-        border.width: 1
-        ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
-    }
-    // -- End local component overrides --
-
     // Backup list card
     SettingsCard {
         Layout.fillWidth: true
