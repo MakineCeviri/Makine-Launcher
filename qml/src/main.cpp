@@ -111,6 +111,8 @@ public:
     SplashWindow(const SplashWindow&) = delete;
     SplashWindow& operator=(const SplashWindow&) = delete;
 
+    void setInterFont(bool loaded) { m_interLoaded = loaded; }
+
     // Load logo from QImage (call before show — main thread, before splash thread starts)
     void setLogo(const QImage& img) {
         if (img.isNull()) return;
@@ -292,23 +294,34 @@ private:
             HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
             HBITMAP oldBmp = (HBITMAP)SelectObject(mem, bmp);
 
-            HBRUSH bg = CreateSolidBrush(RGB(10, 10, 15));
-            FillRect(mem, &rc, bg);
-            DeleteObject(bg);
+            // Soft dark background — subtle vertical gradient
+            for (int y = 0; y < h; ++y) {
+                float t = (float)y / (float)h;
+                int r = (int)(12 + t * 6);
+                int g = (int)(12 + t * 5);
+                int b = (int)(18 + t * 8);
+                HBRUSH rowBr = CreateSolidBrush(RGB(r, g, b));
+                RECT rowRc = {0, y, w, y + 1};
+                FillRect(mem, &rowRc, rowBr);
+                DeleteObject(rowBr);
+            }
 
-            // Subtle center glow
-            struct { int rx, ry; COLORREF c; } glows[] = {
-                {140, 70, RGB(15, 15, 24)},
-                {100, 50, RGB(18, 18, 28)},
-                {60,  30, RGB(22, 22, 34)},
-            };
-            int cx = w / 2, cy = h / 2 - 16;
+            int cx = w / 2, cy = h / 2 - 20;
+
+            // Soft radial glow behind logo — large, diffuse, gentle
             HPEN nullPen = CreatePen(PS_NULL, 0, 0);
             HPEN oldPen = (HPEN)SelectObject(mem, nullPen);
-            for (auto& g : glows) {
-                HBRUSH gbr = CreateSolidBrush(g.c);
+            struct { int rx, ry; COLORREF c; } glows[] = {
+                {180, 100, RGB(16, 15, 24)},  // outermost — barely visible
+                {140, 80,  RGB(19, 17, 28)},  // outer
+                {100, 60,  RGB(22, 20, 33)},  // mid
+                {65,  42,  RGB(26, 23, 38)},  // inner
+                {35,  25,  RGB(30, 26, 42)},  // core glow
+            };
+            for (auto& gl : glows) {
+                HBRUSH gbr = CreateSolidBrush(gl.c);
                 HBRUSH oldBr = (HBRUSH)SelectObject(mem, gbr);
-                Ellipse(mem, cx - g.rx, cy - g.ry, cx + g.rx, cy + g.ry);
+                Ellipse(mem, cx - gl.rx, cy - gl.ry, cx + gl.rx, cy + gl.ry);
                 SelectObject(mem, oldBr);
                 DeleteObject(gbr);
             }
@@ -336,24 +349,13 @@ private:
                 bf.AlphaFormat = AC_SRC_ALPHA;
 
                 int logoX = (w - self->m_logoWidth) / 2;
-                int logoY = 25;
+                int logoY = cy - self->m_logoHeight / 2;
                 alphaBlend(mem, logoX, logoY, self->m_logoWidth, self->m_logoHeight,
                            logoDC, 0, 0, self->m_logoWidth, self->m_logoHeight, bf);
 
                 SelectObject(logoDC, oldLogoBmp);
                 DeleteDC(logoDC);
             }
-
-            // Tagline
-            HFONT tagFont = CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
-                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-            HFONT oldFont = (HFONT)SelectObject(mem, tagFont);
-            SetTextColor(mem, RGB(120, 120, 145));
-            RECT tagRc = {0, 115, w, 140};
-            DrawTextW(mem, L"Oyunlar\u0131n\u0131 T\u00FCrk\u00E7e Oynaman\u0131n En Kolay Yolu",
-                      -1, &tagRc, DT_CENTER | DT_SINGLELINE);
-            SelectObject(mem, oldFont);
-            DeleteObject(tagFont);
 
             // Status text
             if (self) {
@@ -364,7 +366,7 @@ private:
                 }
                 if (statusBuf[0]) {
                     HFONT statusFont = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0,
-                        DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
+                        DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, (self && self->m_interLoaded) ? L"Inter" : L"Segoe UI");
                     HFONT oldSFont = (HFONT)SelectObject(mem, statusFont);
                     SetTextColor(mem, RGB(100, 100, 120));
                     RECT statusRc = {0, h - 78, w, h - 62};
@@ -381,8 +383,8 @@ private:
 
             // Version
             HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
-                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
-            oldFont = (HFONT)SelectObject(mem, verFont);
+                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, (self && self->m_interLoaded) ? L"Inter" : L"Segoe UI");
+            HFONT oldFont = (HFONT)SelectObject(mem, verFont);
             SetTextColor(mem, RGB(60, 60, 75));
             RECT verRc = {0, h - 24, w - 14, h - 8};
             DrawTextW(mem, L"v0.1.0-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
@@ -478,6 +480,7 @@ private:
     HBITMAP m_logoBitmap{nullptr};
     int m_logoWidth{0};
     int m_logoHeight{0};
+    bool m_interLoaded{false};
 };
 #endif
 
@@ -588,6 +591,18 @@ int main(int argc, char *argv[])
 
 #ifdef Q_OS_WIN
     SplashWindow splash;
+    // Load Inter font for splash (before splash thread starts)
+    bool interLoaded = false;
+    {
+        QFile fontFile(":/qt/qml/MakineAI/resources/fonts/Inter-Medium.ttf");
+        if (fontFile.open(QIODevice::ReadOnly)) {
+            QByteArray fontData = fontFile.readAll();
+            DWORD numFonts = 0;
+            HANDLE hFont = AddFontMemResourceEx(fontData.data(), fontData.size(), nullptr, &numFonts);
+            interLoaded = (hFont != nullptr && numFonts > 0);
+        }
+    }
+    splash.setInterFont(interLoaded);
     // Load logo from Qt resources and scale for splash
     {
         QImage logoImg(":/qt/qml/MakineAI/resources/images/logo.png");
