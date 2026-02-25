@@ -55,17 +55,25 @@ Item {
     function showLibraryPage() { currentPage = 1 }
 
     // Sub-pages share the same slot, switched by visibility
-    HomePage {
-        id: homePage
+    // Async-loaded: defers heavyweight creation (GameDetectionCard,
+    // AnnouncementCard, CatalogSection with 2× strip) until after first frame.
+    Loader {
+        id: homePageLoader
         anchors.fill: parent
+        active: true
         visible: root.currentPage === 0
-        animationsEnabled: root.animationsEnabled
-        contentMargin: root.contentMargin
-        onGameSelected: function(gameId, gameName, installPath, engine) {
-            root.gameSelected(gameId, gameName, installPath, engine)
+        asynchronous: true
+        sourceComponent: Component {
+            HomePage {
+                animationsEnabled: root.animationsEnabled
+                contentMargin: root.contentMargin
+                onGameSelected: function(gameId, gameName, installPath, engine) {
+                    root.gameSelected(gameId, gameName, installPath, engine)
+                }
+                onManualFolderRequested: root.manualFolderRequested()
+                onSettingsRequested: root.settingsRequested()
+            }
         }
-        onManualFolderRequested: root.manualFolderRequested()
-        onSettingsRequested: root.settingsRequested()
     }
 
     Loader {

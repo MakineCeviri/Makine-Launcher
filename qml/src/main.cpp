@@ -755,6 +755,10 @@ int main(int argc, char *argv[])
     logToFile(QString("Phase 8 (QML compiled) at %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 9: Create root window =====
+    // Note: QQmlIncubator::Asynchronous does NOT work for root objects
+    // (Qt forces synchronous creation without an incubation controller).
+    // The 4+ seconds here is Qt framework overhead (module loading, type registration,
+    // shader compilation). Optimize by reducing QML module surface, not creation strategy.
 #ifdef Q_OS_WIN
     splash.setStatus(L"Pencere olu\u015Fturuluyor...");
     splash.pumpMessages();

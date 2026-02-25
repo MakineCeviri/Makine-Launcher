@@ -35,8 +35,9 @@ ApplicationWindow {
     // Force quit flag — bypasses minimize-to-tray on close
     property bool forceQuit: false
 
-    // Onboarding: local flag so Loader doesn't depend on SettingsManager binding
-    property bool _onboardingActive: true
+    // Onboarding: start false to avoid creating/destroying OnboardingWizard
+    // for returning users. Component.onCompleted flips to true if needed.
+    property bool _onboardingActive: false
 
     Component.onDestruction: pageChangeTimer.stop()
 
