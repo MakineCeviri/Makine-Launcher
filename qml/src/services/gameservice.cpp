@@ -167,6 +167,19 @@ void GameService::initialize()
 
 GameService::~GameService() = default;
 
+void GameService::setManifestSync(ManifestSyncService* sync)
+{
+    m_manifestSync = sync;
+    if (sync) {
+        connect(sync, &ManifestSyncService::catalogReady, this, [this]() {
+            // Remote catalog updated — invalidate supported games cache
+            m_supportedCacheValid = false;
+            m_supportedGamesCache.clear();
+            emit gamesChanged();
+        });
+    }
+}
+
 GameService* GameService::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {
     Q_UNUSED(qmlEngine)
@@ -782,22 +795,45 @@ QVariantList GameService::supportedGames() const
         return m_supportedGamesCache;
     }
 
-    if (!m_coreBridge) return {};
+    // Primary: remote catalog from ManifestSyncService (GitHub index.json)
+    // Fallback: local catalog from CoreBridge → LocalPackageManager
+    if (m_manifestSync && m_manifestSync->catalogCount() > 0) {
+        m_supportedGamesCache = m_manifestSync->catalog();
+    } else if (m_coreBridge) {
+        m_supportedGamesCache = m_coreBridge->allSupportedGames();
+    } else {
+        return {};
+    }
 
-    m_supportedGamesCache = m_coreBridge->allSupportedGames();
-
-    // Enrich with cached packageInstalled status
+    // Enrich each entry with local state using O(1) hash lookups
     for (int i = 0; i < m_supportedGamesCache.size(); ++i) {
         QVariantMap entry = m_supportedGamesCache[i].toMap();
-        const QString steamAppId = entry["steamAppId"].toString();
+        const QString steamAppId = entry[QStringLiteral("steamAppId")].toString();
+
+        // Install status from local game list (O(1) via m_steamAppIdToIndex)
+        auto gameIt = m_steamAppIdToIndex.constFind(steamAppId);
+        if (gameIt != m_steamAppIdToIndex.constEnd()) {
+            const auto& game = m_games[gameIt.value()];
+            entry[QStringLiteral("isInstalled")] = game.isInstalled;
+            entry[QStringLiteral("installPath")] = game.installPath;
+            entry[QStringLiteral("id")] = game.id;
+            entry[QStringLiteral("source")] = game.source;
+            entry[QStringLiteral("engine")] = game.engine;
+        } else {
+            entry[QStringLiteral("isInstalled")] = false;
+            entry[QStringLiteral("id")] = steamAppId;
+        }
+
+        // Package installed status (cached)
         auto cacheIt = m_packageInstalledCache.constFind(steamAppId);
         if (cacheIt != m_packageInstalledCache.constEnd()) {
-            entry["packageInstalled"] = *cacheIt;
-        } else {
+            entry[QStringLiteral("packageInstalled")] = *cacheIt;
+        } else if (m_coreBridge) {
             bool installed = m_coreBridge->isPackageInstalled(steamAppId);
             m_packageInstalledCache[steamAppId] = installed;
-            entry["packageInstalled"] = installed;
+            entry[QStringLiteral("packageInstalled")] = installed;
         }
+
         m_supportedGamesCache[i] = entry;
     }
 
@@ -808,6 +844,8 @@ QVariantList GameService::supportedGames() const
 
 int GameService::supportedGameCount() const
 {
+    if (m_manifestSync && m_manifestSync->catalogCount() > 0)
+        return m_manifestSync->catalogCount();
     if (!m_coreBridge) return 0;
     return m_coreBridge->supportedGameCount();
 }

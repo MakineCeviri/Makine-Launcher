@@ -99,6 +99,7 @@ set(BACKEND_SOURCES
     src/services/operationjournal.cpp
     src/services/appprotection.cpp
     src/services/imagecachemanager.cpp
+    src/services/manifestsyncservice.cpp
     src/services/perfreporter.cpp
     src/services/frametimer.cpp
     src/services/sceneprofiler.cpp
@@ -123,6 +124,7 @@ set(BACKEND_HEADERS
     src/services/appprotection.h
     src/services/obfstring.h
     src/services/imagecachemanager.h
+    src/services/manifestsyncservice.h
     src/services/apppaths.h
     src/services/profiler.h
     src/services/perfreporter.h

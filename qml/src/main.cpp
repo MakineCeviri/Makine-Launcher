@@ -457,6 +457,7 @@ void logToFile(const QString& msg) {
 #include "services/updatechecker.h"
 #include "services/operationjournal.h"
 #include "services/imagecachemanager.h"
+#include "services/manifestsyncservice.h"
 #include "services/corebridge.h"
 #ifdef MAKINEAI_DEV_TOOLS
 #include "services/frametimer.h"
@@ -598,11 +599,20 @@ int main(int argc, char *argv[])
     auto* imageCache = new ImageCacheManager(&app);
     engine.rootContext()->setContextProperty("ImageCache", imageCache);
 
+    // ===== Phase 2.5: Manifest sync (loads cached index, starts background sync) =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Katalog haz\u0131rlan\u0131yor...");
+#endif
+    auto* manifestSync = new ManifestSyncService(&app);
+    engine.rootContext()->setContextProperty("ManifestSync", manifestSync);
+    // Sync starts after QML creation (non-blocking)
+
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi haz\u0131rlan\u0131yor...");
 #endif
     auto* gameService = new GameService(&app);
+    gameService->setManifestSync(manifestSync);
     engine.rootContext()->setContextProperty("GameService", gameService);
     // initialize() deferred to after QML creation for faster first frame
     logToFile(QString("Phase 3 (GameService created) at %1 ms").arg(startupTimer.elapsed()));
@@ -757,9 +767,12 @@ int main(int argc, char *argv[])
     // ===== Phase 9.5: Deferred data loading =====
     // Schedule GameService init for AFTER first frame renders.
     // QML shows instantly with empty data, then caches load and QML updates.
-    QTimer::singleShot(0, gameService, [gameService, &startupTimer]() {
+    QTimer::singleShot(0, gameService, [gameService, manifestSync, &startupTimer]() {
         gameService->initialize();
         logToFile(QString("GameService initialized at %1 ms").arg(startupTimer.elapsed()));
+
+        // Start remote catalog sync after local data is loaded
+        manifestSync->syncCatalog();
     });
 
     // ===== Phase 10: Pre-render + finalize =====

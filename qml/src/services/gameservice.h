@@ -19,6 +19,7 @@
 #include <QNetworkAccessManager>
 
 #include "corebridge.h"
+#include "manifestsyncservice.h"
 #include "updatedetectionservice.h"
 
 namespace makineai {
@@ -117,6 +118,9 @@ public:
     /// Deferred initialization — call after construction to load caches.
     /// Separated from constructor so splash screen stays responsive.
     void initialize();
+
+    /// Connect to ManifestSyncService for remote catalog data.
+    void setManifestSync(ManifestSyncService* sync);
 
     static GameService* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
@@ -347,6 +351,7 @@ private:
     void saveSteamDetailsCache();
 
     CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
+    ManifestSyncService* m_manifestSync{nullptr};  // Non-owning. Set by setManifestSync().
     UpdateDetectionService m_updateService;
     QNetworkAccessManager m_networkManager;
     QList<GameInfo> m_games;
