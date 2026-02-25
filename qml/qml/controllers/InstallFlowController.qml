@@ -20,6 +20,9 @@ QtObject {
     property var pendingInstallNotes: null
     property var pendingInstallOptionsData: null
 
+    // Pending download state for R2 packages
+    property var _pendingDownload: null
+
     // Signals to activate dialog loaders in Main.qml
     signal showAntiCheatWarning()
     signal showInstallNotes()
@@ -98,7 +101,7 @@ QtObject {
     function onOptionsConfirmed(selectedIds) {
         if (pendingInstallOptionsData) {
             var variant = pendingInstallOptionsData.variant || ""
-            GameService.installTranslation(pendingInstallOptionsData.gameId, variant, selectedIds)
+            _doInstall(pendingInstallOptionsData.gameId, variant, selectedIds)
             pendingInstallOptionsData = null
         }
     }
@@ -116,8 +119,8 @@ QtObject {
             return
         }
 
-        // All checks passed — install
-        GameService.installTranslation(gameId)
+        // All checks passed — install (with download gate)
+        _doInstall(gameId, "", [])
     }
 
     // ===== VARIANT SELECTION: User chose a variant =====
@@ -141,7 +144,60 @@ QtObject {
             return
         }
 
-        GameService.installTranslation(gameId, variant)
+        _doInstall(gameId, variant, [])
+    }
+
+    // ===== DOWNLOAD GATE: check local package, download from R2 if needed =====
+    function _doInstall(gameId, variant, selectedOptions) {
+        // If local package already exists, install directly
+        if (GameService.hasLocalPackage(gameId)) {
+            GameService.installTranslation(gameId, variant, selectedOptions)
+            return
+        }
+
+        // Check catalog for dataUrl (R2 download)
+        var catalog = GameService.getCatalogEntry(gameId)
+        var dataUrl = catalog ? (catalog.dataUrl || "") : ""
+
+        if (!dataUrl || dataUrl === "") {
+            // No remote package available, try local install anyway
+            GameService.installTranslation(gameId, variant, selectedOptions)
+            return
+        }
+
+        // Resolve dirName: catalog → CoreBridge fallback → gameName
+        var dirName = catalog.dirName || ""
+        if (!dirName)
+            dirName = CoreBridge.getPackageDirName(gameId)
+        if (!dirName)
+            dirName = (catalog.gameName || catalog.name || gameId)
+
+        // Save pending state and start download
+        _pendingDownload = {
+            gameId: gameId,
+            variant: variant,
+            selectedOptions: selectedOptions
+        }
+
+        TranslationDownloader.downloadPackage(gameId, dataUrl, dirName)
+    }
+
+    // ===== DOWNLOAD CALLBACKS (connected from Main.qml) =====
+    function onDownloadReady(appId) {
+        if (!_pendingDownload || _pendingDownload.gameId !== appId) return
+        var pending = _pendingDownload
+        _pendingDownload = null
+
+        // Reload LocalPackageManager so CoreBridge picks up the new package
+        CoreBridge.refreshPackageManifest()
+
+        GameService.installTranslation(pending.gameId, pending.variant, pending.selectedOptions)
+    }
+
+    function onDownloadFailed(appId, error) {
+        if (!_pendingDownload || _pendingDownload.gameId !== appId) return
+        _pendingDownload = null
+        // Error is shown via GameDetailScreen download connections
     }
 
     // ===== CANCEL HANDLERS =====

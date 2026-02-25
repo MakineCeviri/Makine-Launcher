@@ -1762,4 +1762,27 @@ QVariantMap GameService::checkAntiCheat(const QString& gameId)
     };
 }
 
+bool GameService::hasLocalPackage(const QString& steamAppId) const
+{
+    return m_coreBridge && m_coreBridge->hasTranslationPackage(steamAppId);
+}
+
+QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
+{
+    const QVariantList catalog = supportedGames();
+    for (const auto& entry : catalog) {
+        QVariantMap m = entry.toMap();
+        if (m.value("steamAppId").toString() == steamAppId) {
+            // Enrich with dirName from local manifest if missing
+            if (!m.contains("dirName") && m_coreBridge) {
+                QString dirName = m_coreBridge->getPackageDirName(steamAppId);
+                if (!dirName.isEmpty())
+                    m["dirName"] = dirName;
+            }
+            return m;
+        }
+    }
+    return {};
+}
+
 } // namespace makineai

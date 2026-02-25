@@ -113,6 +113,7 @@ private:
         qint64 downloadSize{0}; // encrypted .mkpkg size (what user downloads)
         QString dataUrl;        // R2 download URL
         QString checksum;       // SHA-256 of .mkpkg file
+        QString dirName;        // filesystem directory name in translation_data
     };
 
     QHash<QString, CatalogEntry> m_catalog;  // appId -> entry

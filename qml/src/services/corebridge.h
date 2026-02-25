@@ -128,6 +128,12 @@ public:
     std::optional<TranslationPackageQt> getPackageForGame(const QString& gameId);
 
     /**
+     * @brief Get filesystem directory name for a package (from local manifest)
+     * @return dirName string, or empty if not found
+     */
+    Q_INVOKABLE QString getPackageDirName(const QString& steamAppId) const;
+
+    /**
      * @brief Download and install translation package
      */
     void installPackage(const QString& packageId, const QString& gamePath,
@@ -207,9 +213,9 @@ public:
     bool uninstallPackage(const QString& gameId, const QString& gamePath);
 
     /**
-     * @brief Refresh package manifest from server
+     * @brief Refresh package manifest from disk (reload LocalPackageManager)
      */
-    void refreshPackageManifest();
+    Q_INVOKABLE void refreshPackageManifest();
 
 signals:
     // Scanning signals

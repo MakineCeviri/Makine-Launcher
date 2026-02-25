@@ -28,6 +28,7 @@ Item {
     required property string installStatus
     required property bool installCompleted
     property var updateImpact: null
+    property bool isDownloading: false
 
     signal translateClicked()
 
@@ -345,6 +346,8 @@ Item {
                             if (heroRoot.packageInstalled || heroRoot.installCompleted)
                                 return qsTr("Türkçe Yama Kurulu")
                             if (heroRoot.isInstallingTranslation) {
+                                if (heroRoot.isDownloading && heroRoot.installStatus !== "")
+                                    return heroRoot.installStatus
                                 if (heroRoot.installProgress > 0)
                                     return qsTr("Kuruluyor... %1%").arg(Math.round(heroRoot.installProgress * 100))
                                 return heroRoot.installStatus || qsTr("Hazırlanıyor...")
@@ -419,7 +422,12 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: GameService.cancelInstallation()
+                            onClicked: {
+                                if (heroRoot.isDownloading)
+                                    TranslationDownloader.cancelDownload(heroRoot.gameId)
+                                else
+                                    GameService.cancelInstallation()
+                            }
                         }
                     }
                 }

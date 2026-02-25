@@ -134,6 +134,9 @@ def main():
             "v": last_updated,
             "sizeBytes": size_bytes,
         }
+        # dirName is required for R2 download → extract flow
+        if dir_name:
+            index_entry["dirName"] = dir_name
         # dataUrl will be added in Phase 4 (R2 upload)
         # checksum will be added when compressed archives are created
         index_packages[app_id] = index_entry

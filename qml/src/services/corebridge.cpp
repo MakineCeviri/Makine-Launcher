@@ -713,6 +713,13 @@ std::optional<TranslationPackageQt> CoreBridge::getPackageForGame(const QString&
     return qtPkg;
 }
 
+QString CoreBridge::getPackageDirName(const QString& steamAppId) const
+{
+    if (!m_localPkgManager) return {};
+    auto pkg = m_localPkgManager->getPackage(steamAppId);
+    return pkg ? pkg->dirName : QString{};
+}
+
 void CoreBridge::installPackage(const QString& packageId, const QString& gamePath,
                                 const QString& variant, const QStringList& selectedOptions)
 {

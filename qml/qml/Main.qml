@@ -92,6 +92,20 @@ ApplicationWindow {
         }
     }
 
+    // ===== TRANSLATION DOWNLOADER: route signals to InstallFlowController =====
+    Connections {
+        target: TranslationDownloader
+        function onPackageReady(appId, dirName) {
+            installFlow.onDownloadReady(appId)
+        }
+        function onDownloadError(appId, error) {
+            installFlow.onDownloadFailed(appId, error)
+        }
+        function onDownloadCancelled(appId) {
+            installFlow.onDownloadFailed(appId, "")
+        }
+    }
+
     // ===== GAME SERVICE: anti-cheat + translation impact signals =====
     Connections {
         target: GameService

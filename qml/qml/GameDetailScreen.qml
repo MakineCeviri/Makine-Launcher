@@ -73,6 +73,9 @@ Item {
     property string installStatus: ""
     property bool installCompleted: false    // Just finished installing
 
+    // ===== DOWNLOAD STATE =====
+    property bool isDownloading: false
+
     // ===== UPDATE IMPACT =====
     property var updateImpact: null  // { level, summary, totalFiles, ... }
 
@@ -99,7 +102,7 @@ Item {
         unityBackend = ""; unityVersion = ""; hasAntiCheat = false
         antiCheatName = ""; isInstallingRuntime = false
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
-        installCompleted = false; autoInstall = false
+        installCompleted = false; autoInstall = false; isDownloading = false
         isGameInstalled = false; packageInstalled = false
         isManualGame = false; updateImpact = null
         descriptionExpanded = false
@@ -220,6 +223,50 @@ Item {
                     root.packageInstalled = true
                 }
             }
+        }
+    }
+
+    // ===== DOWNLOAD SIGNALS (TranslationDownloader) =====
+    Connections {
+        target: TranslationDownloader
+        function onDownloadProgress(appId, received, total) {
+            if (appId !== root.gameId) return
+            root.isDownloading = true
+            root.isInstallingTranslation = true
+            if (total > 0) {
+                root.installProgress = received / total
+                var mbReceived = (received / 1048576).toFixed(1)
+                var mbTotal = (total / 1048576).toFixed(1)
+                root.installStatus = qsTr("İndiriliyor... %1 / %2 MB").arg(mbReceived).arg(mbTotal)
+            } else {
+                root.installStatus = qsTr("İndiriliyor...")
+            }
+        }
+        function onExtractionStarted(appId) {
+            if (appId !== root.gameId) return
+            root.installProgress = 0
+            root.installStatus = qsTr("Çıkartılıyor...")
+        }
+        function onPackageReady(appId, dirName) {
+            if (appId !== root.gameId) return
+            root.isDownloading = false
+            root.installProgress = 0
+            root.installStatus = qsTr("Kuruluyor...")
+            // Install flow continues via InstallFlowController.onDownloadReady
+        }
+        function onDownloadError(appId, error) {
+            if (appId !== root.gameId) return
+            root.isDownloading = false
+            root.isInstallingTranslation = false
+            root.installProgress = 0
+            root.installStatus = ""
+        }
+        function onDownloadCancelled(appId) {
+            if (appId !== root.gameId) return
+            root.isDownloading = false
+            root.isInstallingTranslation = false
+            root.installProgress = 0
+            root.installStatus = ""
         }
     }
 
@@ -426,6 +473,7 @@ Item {
                 installProgress: root.installProgress
                 installStatus: root.installStatus
                 installCompleted: root.installCompleted
+                isDownloading: root.isDownloading
                 updateImpact: root.updateImpact
 
                 onTranslateClicked: root.translateClicked()

@@ -304,6 +304,18 @@ public:
      */
     Q_INVOKABLE void acknowledgeAntiCheat(const QString& gameId);
 
+    /**
+     * @brief Check if a local translation package exists for a game
+     * Used by InstallFlowController to decide whether to download from R2
+     */
+    Q_INVOKABLE bool hasLocalPackage(const QString& steamAppId) const;
+
+    /**
+     * @brief Get catalog entry with dataUrl/downloadSize for a game
+     * @return Map from supportedGames() cache, or empty if not found
+     */
+    Q_INVOKABLE QVariantMap getCatalogEntry(const QString& steamAppId) const;
+
 signals:
     void gamesChanged();
     void isScanningChanged();
