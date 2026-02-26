@@ -32,7 +32,6 @@ Rectangle {
     color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
     border.color: Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
-    clip: false
 
     // Ambient accent glow
     AmbientGlow {

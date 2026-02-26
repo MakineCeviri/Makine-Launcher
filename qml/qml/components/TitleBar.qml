@@ -48,7 +48,6 @@ Rectangle {
             radius: Dimensions.radiusStandard
             visible: titleBarRoot.libraryMode
             color: Theme.turkishRed
-            clip: true
 
             Rectangle {
                 x: 3; y: 4.5
@@ -93,7 +92,6 @@ Rectangle {
             sourceSize: Qt.size(18, 18)
             fillMode: Image.PreserveAspectFit
             asynchronous: true
-            smooth: true
             mipmap: true
 
             Rectangle {

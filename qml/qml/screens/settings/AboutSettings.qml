@@ -262,7 +262,6 @@ ColumnLayout {
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
                     visible: UpdateChecker.downloading
-                    clip: true
 
                     Behavior on Layout.preferredHeight {
                         NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
@@ -312,7 +311,6 @@ ColumnLayout {
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
                     visible: UpdateChecker.downloadError !== ""
-                    clip: true
 
                     Behavior on Layout.preferredHeight {
                         NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }

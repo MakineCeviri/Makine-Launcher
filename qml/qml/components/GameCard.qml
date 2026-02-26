@@ -39,20 +39,21 @@ Item {
         }
     }
 
+    // Placeholder — only for games with no image
     Rectangle {
         anchors.fill: parent
-        radius: Dimensions.cardBorderRadius
         color: Theme.surfaceLight
-        clip: true
+        visible: !root._src || img.status === Image.Error
+    }
 
-        Image {
-            anchors.fill: parent
-            source: root._src
-            fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(260, 370)
-            asynchronous: true
-            cache: false
-        }
+    Image {
+        id: img
+        anchors.fill: parent
+        source: root._src
+        fillMode: Image.PreserveAspectCrop
+        sourceSize: Qt.size(260, 370)
+        asynchronous: true
+        cache: false
     }
 
     scale: _hovered ? 1.03 : 1.0

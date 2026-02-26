@@ -39,14 +39,14 @@ ColumnLayout {
                 required property string modelData
                 width: 380; height: 214
                 radius: Dimensions.radiusStandard
-                color: Theme.surfaceActive; clip: true
+                color: Theme.surfaceActive
 
                 Image {
                     anchors.fill: parent
                     source: modelData
                     fillMode: Image.PreserveAspectCrop
                     sourceSize: Qt.size(760, 428)
-                    asynchronous: true; cache: true
+                    asynchronous: true
                 }
                 Rectangle {
                     anchors.fill: parent; radius: parent.radius

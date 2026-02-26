@@ -81,31 +81,31 @@ SectionContainer {
                 section.gameClicked(gameId, gameName, installPath, engine)
         }
 
-        // Left edge fade
+        // Left edge fade — anchored to section container (same as CatalogSection)
         Rectangle {
-            anchors.left: parent.left
-            anchors.top: parent.top; anchors.bottom: parent.bottom
-            width: 24; z: 10
-            visible: gameStrip.canScrollLeft
+            anchors.left: section.left
+            anchors.top: section.top; anchors.bottom: section.bottom
+            anchors.topMargin: 40
+            width: 28; z: 10
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
-                GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.30) }
+                GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.25) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }
 
-        // Right edge fade
+        // Right edge fade — anchored to section container (same as CatalogSection)
         Rectangle {
-            anchors.right: parent.right
-            anchors.top: parent.top; anchors.bottom: parent.bottom
-            width: 24; z: 10
-            visible: gameStrip.canScrollRight
+            anchors.right: section.right
+            anchors.top: section.top; anchors.bottom: section.bottom
+            anchors.topMargin: 40
+            width: 28; z: 10; rotation: 180
             gradient: Gradient {
                 orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.6; color: Qt.rgba(0.055, 0.055, 0.055, 0.30) }
-                GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
+                GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
+                GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.25) }
+                GradientStop { position: 1.0; color: "transparent" }
             }
         }
 

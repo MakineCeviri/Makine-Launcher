@@ -31,6 +31,7 @@
 #include <windows.h>
 #include <psapi.h>     // EmptyWorkingSet
 #include <dwmapi.h>    // DwmExtendFrameIntoClientArea
+#include <cmath>
 #include <atomic>
 #include <mutex>
 
@@ -245,26 +246,69 @@ private:
         DeleteDC(dibDC);
     }
 
-    static void drawLoadingDots(HDC hdc, int cx, int cy, float phase) {
-        HPEN nullPen = CreatePen(PS_NULL, 0, 0);
-        HPEN oldPen = (HPEN)SelectObject(hdc, nullPen);
-        for (int i = 0; i < 3; ++i) {
-            int dx = (i - 1) * 16;
-            // Pulse: each dot fades in/out with offset
-            float p = phase * 3.0f - (float)i;
-            p = p - (float)(int)p;
-            if (p < 0.0f) p += 1.0f;
-            float brightness = (p < 0.5f) ? p * 2.0f : (1.0f - p) * 2.0f;
-            int gray = 60 + (int)(brightness * 100.0f);
-            int r = 3;
-            HBRUSH br = CreateSolidBrush(RGB(gray, gray, gray + 20));
-            HBRUSH oldBr = (HBRUSH)SelectObject(hdc, br);
-            Ellipse(hdc, cx + dx - r, cy - r, cx + dx + r, cy + r);
-            SelectObject(hdc, oldBr);
-            DeleteObject(br);
+    // Soft breathing glow — brand colors blend and pulse gently around logo
+    static void drawBreathingGlow(HDC hdc, int cx, int cy, int radius, float elapsed) {
+        int size = radius * 2;
+        int x0 = cx - radius, y0 = cy - radius;
+
+        BITMAPINFO bmi{};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = size;
+        bmi.bmiHeader.biHeight = -size;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        BYTE* pixels = nullptr;
+        HBITMAP dib = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS,
+                                       reinterpret_cast<void**>(&pixels), nullptr, 0);
+        if (!dib || !pixels) return;
+        memset(pixels, 0, size * size * 4);
+
+        // Slow color cycling — blend between two adjacent brand colors
+        float colorT = elapsed * 0.3f; // full cycle ~3.3s per color pair
+        colorT = colorT - (float)(int)colorT;
+        int ci = (int)(colorT * kColorCount) % kColorCount;
+        int ci2 = (ci + 1) % kColorCount;
+        float cf = colorT * kColorCount - (float)(int)(colorT * kColorCount);
+        COLORREF glowColor = lerpColor(kBrandColors[ci], kBrandColors[ci2], cf);
+
+        // Breathing pulse — smooth sine wave
+        float breath = 0.5f + 0.5f * sinf(elapsed * 1.8f); // ~0.55 Hz
+        float peakAlpha = 0.12f + breath * 0.13f; // range: 0.12 → 0.25
+
+        float invR = 1.0f / (float)radius;
+        BYTE gr = GetRValue(glowColor), gg = GetGValue(glowColor), gb = GetBValue(glowColor);
+
+        for (int py = 0; py < size; ++py) {
+            float dy = (float)(py - radius) * invR;
+            for (int px = 0; px < size; ++px) {
+                float dx = (float)(px - radius) * invR;
+                float dist2 = dx * dx + dy * dy;
+                if (dist2 > 1.0f) continue;
+
+                // Gaussian-like radial falloff
+                float alpha = peakAlpha * expf(-dist2 * 3.0f);
+                if (alpha < 0.003f) continue;
+
+                int off = (py * size + px) * 4;
+                pixels[off + 0] = (BYTE)(gb * alpha);
+                pixels[off + 1] = (BYTE)(gg * alpha);
+                pixels[off + 2] = (BYTE)(gr * alpha);
+                pixels[off + 3] = (BYTE)(alpha * 255.0f);
+            }
         }
-        SelectObject(hdc, oldPen);
-        DeleteObject(nullPen);
+
+        HDC dibDC = CreateCompatibleDC(hdc);
+        HBITMAP oldBmp = (HBITMAP)SelectObject(dibDC, dib);
+        BLENDFUNCTION bf{};
+        bf.BlendOp = AC_SRC_OVER;
+        bf.SourceConstantAlpha = 255;
+        bf.AlphaFormat = AC_SRC_ALPHA;
+        alphaBlend(hdc, x0, y0, size, size, dibDC, 0, 0, size, size, bf);
+        SelectObject(dibDC, oldBmp);
+        DeleteObject(dib);
+        DeleteDC(dibDC);
     }
 
     // AlphaBlend via dynamic loading (avoids link-time msimg32 dependency)
@@ -308,30 +352,13 @@ private:
 
             int cx = w / 2, cy = h / 2 - 20;
 
-            // Soft radial glow behind logo — large, diffuse, gentle
-            HPEN nullPen = CreatePen(PS_NULL, 0, 0);
-            HPEN oldPen = (HPEN)SelectObject(mem, nullPen);
-            struct { int rx, ry; COLORREF c; } glows[] = {
-                {180, 100, RGB(16, 15, 24)},  // outermost — barely visible
-                {140, 80,  RGB(19, 17, 28)},  // outer
-                {100, 60,  RGB(22, 20, 33)},  // mid
-                {65,  42,  RGB(26, 23, 38)},  // inner
-                {35,  25,  RGB(30, 26, 42)},  // core glow
-            };
-            for (auto& gl : glows) {
-                HBRUSH gbr = CreateSolidBrush(gl.c);
-                HBRUSH oldBr = (HBRUSH)SelectObject(mem, gbr);
-                Ellipse(mem, cx - gl.rx, cy - gl.ry, cx + gl.rx, cy + gl.ry);
-                SelectObject(mem, oldBr);
-                DeleteObject(gbr);
-            }
-            SelectObject(mem, oldPen);
-            DeleteObject(nullPen);
-
             // Animated gradient phase from elapsed time
             DWORD showTime = self ? self->m_showTime.load(std::memory_order_relaxed) : 0;
             float elapsed = showTime ? (GetTickCount() - showTime) / 1000.0f : 0.0f;
             float gp = 0.25f + elapsed * 0.15f; // slow sweep
+
+            // Soft breathing glow around logo
+            drawBreathingGlow(mem, cx, cy, 100, elapsed);
 
             // Top gradient bar (3px)
             drawAnimatedGradientBar(mem, 0, 0, w, 3, gp);
@@ -369,17 +396,12 @@ private:
                         DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, (self && self->m_interLoaded) ? L"Inter" : L"Segoe UI");
                     HFONT oldSFont = (HFONT)SelectObject(mem, statusFont);
                     SetTextColor(mem, RGB(100, 100, 120));
-                    RECT statusRc = {0, h - 78, w, h - 62};
+                    RECT statusRc = {0, h - 62, w, h - 46};
                     DrawTextW(mem, statusBuf, -1, &statusRc, DT_CENTER | DT_SINGLELINE);
                     SelectObject(mem, oldSFont);
                     DeleteObject(statusFont);
                 }
             }
-
-            // Animated loading dots
-            float dotPhase = elapsed * 0.8f;
-            dotPhase = dotPhase - (float)(int)dotPhase;
-            drawLoadingDots(mem, w / 2, h - 55, dotPhase);
 
             // Version
             HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
@@ -391,8 +413,8 @@ private:
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
 
-            // Bottom gradient bar (2px)
-            drawAnimatedGradientBar(mem, 0, h - 2, w, 2, gp);
+            // Bottom gradient bar (3px)
+            drawAnimatedGradientBar(mem, 0, h - 3, w, 3, gp);
 
             BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
             SelectObject(mem, oldBmp);
@@ -939,6 +961,15 @@ int main(int argc, char *argv[])
 
             window->setGraphicsConfiguration(gfxConfig);
         }
+
+        // Preload Settings page behind splash (~1.2s, hidden from user)
+        splash.setStatus(L"Sayfalar haz\u0131rlan\u0131yor...");
+        splash.pumpMessages();
+        {
+            MAKINE_ZONE_NAMED("Preload::SettingsScreen");
+            rootObject->setProperty("_settingsPreload", true);
+        }
+        logToFile(QString("Settings preloaded at %1 ms").arg(startupTimer.elapsed()));
 
 #ifdef Q_OS_WIN
         // Release GPU resources + trim working set when hidden/minimized

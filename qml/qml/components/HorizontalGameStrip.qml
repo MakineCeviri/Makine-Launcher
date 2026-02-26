@@ -15,6 +15,8 @@ Item {
     property alias count: view.count
     property real dragWeight: 0.35
     property bool wrapAround: false
+    property bool largeCards: false
+    property bool wheelEnabled: true
     property bool _initialCentered: false
     property bool _wrapReady: false
 
@@ -49,36 +51,34 @@ Item {
             _wrapActivation.restart()
     }
 
-    // Deferred wrap: load 1x first (fast), expand to 3x after settling
+    // Deferred wrap: load 1x first (fast), expand to 2x after settling
     Timer {
         id: _wrapActivation
         interval: 600
         onTriggered: {
             if (!strip.wrapAround || !strip.model || strip.model.length < 2)
                 return
-            var oldX = view.contentX
-            var oldWidth = view.contentWidth
             strip._wrapReady = true
-            // Teleport contentX into the middle copy so user sees no jump
+            // Center view on the junction between the two copies
             Qt.callLater(function() {
-                if (strip._jumpWidth > 0 && oldWidth > 0)
-                    view.contentX = strip._jumpWidth + oldX
+                if (strip._jumpWidth > 0)
+                    view.contentX = strip._jumpWidth - view.width / 2
             })
         }
     }
 
-    // 3x repeated model for seamless infinite scroll (deferred when wrapAround)
+    // 2x repeated model for seamless infinite scroll (deferred when wrapAround)
     readonly property var _viewModel: {
         var src = model
         if (!src || src.length === 0) return src || []
         if (!wrapAround || src.length < 2 || !_wrapReady) return src
-        return src.concat(src, src)
+        return src.concat(src)
     }
 
     // Pixel width of one model copy (jump distance for wrap teleport)
     readonly property real _jumpWidth: {
         if (!wrapAround || !_wrapReady || view.contentWidth <= 0 || (model || []).length < 2) return 0
-        return (view.contentWidth + view.spacing) / 3
+        return (view.contentWidth + view.spacing) / 2
     }
 
     // Smooth scroll for arrow navigation
@@ -93,11 +93,12 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        height: Math.min(Dimensions.cardHeight, parent.height)
+        height: strip.largeCards
+                    ? Math.min(parent.height, Math.round(Dimensions.cardHeight * 1.3))
+                    : Math.min(Dimensions.cardHeight, parent.height)
         orientation: ListView.Horizontal
         spacing: Dimensions.cardGap
         model: strip._viewModel
-        clip: !strip.wrapAround
         interactive: false
         cacheBuffer: strip.wrapAround ? 0 : 100
         displayMarginBeginning: 0
@@ -109,9 +110,8 @@ Item {
         onContentWidthChanged: {
             if (!strip._initialCentered && contentWidth > width && count > 0) {
                 if (strip.wrapAround && strip._wrapReady && strip._jumpWidth > 0) {
-                    // 3x mode: center in the middle copy
-                    var seg = strip._jumpWidth
-                    contentX = seg + Math.max(0, (seg - width) / 2)
+                    // 2x mode: center at junction between two copies
+                    contentX = strip._jumpWidth - width / 2
                 } else {
                     // 1x mode or non-wrap: simple center
                     contentX = (contentWidth - width) / 2
@@ -175,8 +175,8 @@ Item {
             } else {
                 var jw = strip._jumpWidth
                 if (jw > 0) {
-                    if (newX < jw * 0.3) newX += jw
-                    else if (newX > jw * 1.7) newX -= jw
+                    if (newX < jw * 0.15) newX += jw
+                    else if (newX > jw * 1.15) newX -= jw
                 }
             }
 
@@ -240,8 +240,8 @@ Item {
             } else {
                 var jw = strip._jumpWidth
                 if (jw > 0) {
-                    if (newX < jw * 0.3) newX += jw
-                    else if (newX > jw * 1.7) newX -= jw
+                    if (newX < jw * 0.15) newX += jw
+                    else if (newX > jw * 1.15) newX -= jw
                 }
             }
 
@@ -250,6 +250,7 @@ Item {
     }
 
     WheelHandler {
+        enabled: strip.wheelEnabled
         orientation: Qt.Vertical
         property real _prev: 0
         onRotationChanged: {

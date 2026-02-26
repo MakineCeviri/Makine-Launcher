@@ -30,7 +30,6 @@ Item {
         anchors.fill: parent
         anchors.margins: -4
         anchors.bottomMargin: -8
-        radius: Dimensions.cardBorderRadius
         color: Theme.withAlpha(Theme.bgPrimary, 0.15)
         z: -1
     }
@@ -39,9 +38,7 @@ Item {
     Rectangle {
         id: cardContainer
         anchors.fill: parent
-        radius: Dimensions.cardBorderRadius
         color: Theme.surfaceLight
-        clip: true
 
         // Image area skeleton
         SkeletonLoader {

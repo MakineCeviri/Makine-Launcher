@@ -23,6 +23,7 @@ Rectangle {
     // Internal state
     readonly property real contentPadding: 16
     property string searchQuery: ""
+    readonly property bool _isSearching: searchQuery.length > 0
     property var filteredGames: allGames
     property var row1Games: []
     property var row2Games: []
@@ -30,21 +31,36 @@ Rectangle {
 
     function _recomputeFiltered() {
         var src = allGames
-        if (searchQuery) {
+        var searching = searchQuery.length > 0
+
+        if (searching) {
             var q = searchQuery.toLowerCase()
+            var seen = {}
             src = allGames.filter(function(g) {
-                return (g.name || "").toLowerCase().indexOf(q) !== -1
+                if ((g.name || "").toLowerCase().indexOf(q) === -1) return false
+                var id = g.gameId || g.id || ""
+                if (!id || seen[id]) return false
+                seen[id] = true
+                return true
             })
         }
-        filteredGames = src
-        var half = Math.ceil(src.length / 2)
-        row1Games = src.slice(0, half)
 
-        if (_row2Ready || searchQuery) {
-            row2Games = src.slice(half)
-        } else {
+        filteredGames = src
+
+        if (searching) {
+            // Single row with large cards during search
+            row1Games = src
             row2Games = []
-            _row2Defer.start()
+        } else {
+            var half = Math.ceil(src.length / 2)
+            row1Games = src.slice(0, half)
+
+            if (_row2Ready) {
+                row2Games = src.slice(half)
+            } else {
+                row2Games = []
+                _row2Defer.start()
+            }
         }
     }
     onAllGamesChanged: _recomputeFiltered()
@@ -200,12 +216,14 @@ Rectangle {
             }
         }
 
-        // Row 1
+        // Row 1 (expands to full height with large cards during search)
         HorizontalGameStrip {
             Layout.fillWidth: true; Layout.fillHeight: true
             visible: catalog.filteredGames.length > 0
             model: catalog.row1Games
-            wrapAround: true
+            wrapAround: !catalog._isSearching
+            largeCards: catalog._isSearching
+            wheelEnabled: !catalog._isSearching || catalog.filteredGames.length >= 4
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }

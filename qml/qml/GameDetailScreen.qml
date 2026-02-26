@@ -308,7 +308,6 @@ Item {
             source: root.heroImageUrl !== "" ? root.heroImageUrl : root.imageUrl
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            cache: true
             opacity: 0.30
             visible: source !== ""
             transform: Translate { y: -mainFlick.contentY * 0.15 }
@@ -323,7 +322,7 @@ Item {
             height: parent.height * 0.6
             fillMode: Image.PreserveAspectFit
             source: root.steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + root.steamAppId + "/logo.png" : ""
-            asynchronous: true; cache: true
+            asynchronous: true
             visible: status === Image.Ready
             opacity: 0
             states: State {

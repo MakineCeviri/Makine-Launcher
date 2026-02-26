@@ -37,7 +37,7 @@ Item {
         interactive: libraryRoot.needsScroll
         boundsBehavior: Flickable.StopAtBounds
         flickDeceleration: 3000
-        ScrollBar.vertical: StyledScrollBar {}
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOff }
 
         ColumnLayout {
             id: contentColumn

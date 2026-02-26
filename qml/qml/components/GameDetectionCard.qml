@@ -26,7 +26,6 @@ ColumnLayout {
         color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
         border.color: Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
-        clip: true
 
         // Ambient glow
         AmbientGlow {
@@ -58,7 +57,6 @@ ColumnLayout {
                 Canvas {
                     id: arcCanvas
                     anchors.fill: parent
-                    rotation: 0
                     NumberAnimation on rotation {
                         from: 0; to: 360; duration: 3000
                         loops: Animation.Infinite; running: root.visible && root.animationsEnabled
@@ -135,11 +133,11 @@ ColumnLayout {
                 // Turkish flag icon
                 Rectangle {
                     anchors.centerIn: parent; width: 24; height: 24
-                    radius: 12; color: "#E30A17"; clip: true
+                    radius: 12; color: "#E30A17"
                     Rectangle { x: 4; y: 7; width: 10; height: 10; radius: 5; color: "#FFFFFF" }
                     Rectangle { x: 6.5; y: 8; width: 8; height: 8; radius: 4; color: "#E30A17" }
                     Canvas {
-                        x: 13; y: 9; width: 6; height: 6; antialiasing: true
+                        x: 13; y: 9; width: 6; height: 6
                         onPaint: {
                             var ctx = getContext("2d")
                             var cx = 3, cy = 3, R = 2.8, r = R * 0.382
@@ -256,7 +254,6 @@ ColumnLayout {
         color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
         border.color: secMa.containsMouse ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
-        clip: true
 
         // Ambient glow
         AmbientGlow {

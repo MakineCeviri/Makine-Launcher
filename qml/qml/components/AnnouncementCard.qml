@@ -21,7 +21,6 @@ Rectangle {
 
     radius: Dimensions.radiusSection
     color: Theme.surface
-    clip: true
     border.color: bannerMa.containsMouse
         ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
@@ -47,7 +46,6 @@ Rectangle {
         source: root._bannerUrl
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        cache: true
         visible: false
     }
 

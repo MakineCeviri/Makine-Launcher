@@ -26,7 +26,6 @@ Rectangle {
     border.color: hovered ? Theme.withAlpha(root.accentColor, 0.25)
                           : Theme.withAlpha(Theme.textPrimary, 0.08)
     border.width: 1
-    clip: true
 
     property bool hovered: false
     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

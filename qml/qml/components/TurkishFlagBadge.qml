@@ -11,7 +11,6 @@ Rectangle {
     width: flagWidth; height: flagHeight
     radius: Dimensions.badgeRadius
     color: Theme.turkishRed
-    clip: true
 
     Canvas {
         anchors.fill: parent

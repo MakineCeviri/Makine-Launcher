@@ -40,8 +40,9 @@ ApplicationWindow {
     // for returning users. Component.onCompleted flips to true if needed.
     property bool _onboardingActive: false
 
-    // No eager preload — pages load on-demand when user navigates.
-    // This avoids async overhead that degrades every frame during startup.
+    // Settings preloaded behind splash (C++ trigger in main.cpp).
+    // GameDetail stays on-demand with _keepAlive — acceptable first-visit delay.
+    property bool _settingsPreload: false
 
     Component.onDestruction: pageChangeTimer.stop()
 
@@ -247,7 +248,6 @@ ApplicationWindow {
             Layout.preferredHeight: visible ? 32 : 0
             visible: IntegrityService.status === "failed"
             color: Theme.warningBg
-            clip: true
 
             Behavior on Layout.preferredHeight {
                 NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
@@ -347,7 +347,6 @@ ApplicationWindow {
             id: contentStackContainer
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
 
             property int currentIndex: 0
             property int previousIndex: 0
@@ -491,7 +490,7 @@ ApplicationWindow {
                 id: settingsLoader
                 property bool _keepAlive: false
                 anchors.fill: parent
-                active: contentStackContainer.settingsVisible || _keepAlive
+                active: contentStackContainer.settingsVisible || _keepAlive || window._settingsPreload
                 visible: contentStackContainer.settingsVisible
                 asynchronous: false
                 onLoaded: {
@@ -499,6 +498,7 @@ ApplicationWindow {
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("SettingsScreen")
                 }
+                onVisibleChanged: if (visible && item) Qt.callLater(item.resetScroll)
                 sourceComponent: Component {
                     SettingsScreen {
                         onBack: {

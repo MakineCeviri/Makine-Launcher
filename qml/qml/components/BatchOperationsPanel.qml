@@ -21,7 +21,6 @@ Rectangle {
     Layout.preferredHeight: shouldShow ? contentCol.implicitHeight + 24 : 0
     Layout.topMargin: 0
     visible: shouldShow
-    clip: true
 
     radius: Dimensions.radiusStandard
     color: Theme.withAlpha(Theme.textPrimary, 0.03)

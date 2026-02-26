@@ -43,7 +43,6 @@ Item {
         width: 240; height: 340
         radius: Dimensions.cardBorderRadius
         color: Theme.surfaceActive
-        clip: true
         z: 2
 
         Image {
@@ -52,7 +51,7 @@ Item {
             source: heroRoot.imageUrl
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(440, 620)
-            asynchronous: true; cache: true
+            asynchronous: true
             visible: false
             property bool triedFallback: false
             onStatusChanged: {
@@ -306,7 +305,6 @@ Item {
                     anchors.margins: 2
                     width: progressFill.width
                     radius: parent.radius - 2
-                    clip: true
 
                     property real shimmerPos: 0
                     NumberAnimation on shimmerPos {

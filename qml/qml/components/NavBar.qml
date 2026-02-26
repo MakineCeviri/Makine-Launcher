@@ -9,7 +9,6 @@ pragma ComponentBehavior: Bound
  */
 Item {
     id: navBarRoot
-    clip: false
 
     property int currentIndex: 0
     property bool animationsEnabled: true
@@ -100,7 +99,7 @@ Item {
                 anchors.centerIn: parent
                 width: Dimensions.navbarIconSizeLogo; height: Dimensions.navbarIconSizeLogo
                 radius: Dimensions.navbarIconSizeLogo * 0.25
-                color: "transparent"; clip: true
+                color: "transparent"
 
                 Image {
                     anchors.fill: parent
@@ -108,7 +107,7 @@ Item {
                     sourceSize: Qt.size(64, 64)
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
-                    smooth: true; mipmap: true
+                    mipmap: true
                 }
             }
 

@@ -45,7 +45,6 @@ Rectangle {
     implicitHeight: 20
 
     radius: circular ? Math.min(width, height) / 2 : skeletonRadius
-    clip: true
 
     // Shimmer animation phase
     property real shimmerPhase: 0.0

@@ -18,6 +18,12 @@ Item {
 
     property int selectedCategory: 0
 
+    // Called from Main.qml when Settings becomes visible
+    function resetScroll() {
+        pageContainer.updateHeight()
+        contentEntryAnim.restart()
+    }
+
     property var categories: [
         { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın") },
         { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin") },
@@ -66,7 +72,6 @@ Item {
                     anchors.fill: parent
                     clip: true
                     contentWidth: availableWidth
-
                     ScrollBar.vertical: StyledScrollBar {}
 
                     ColumnLayout {
@@ -110,10 +115,29 @@ Item {
                             Layout.rightMargin: Dimensions.marginXL
                             Layout.preferredWidth: Math.min(settingsScrollView.availableWidth - 64, 640)
 
-                            // Height tracks the active page's content
-                            implicitHeight: {
+                            // Height tracks the active page's content.
+                            // Use a Timer to re-evaluate after layout settles (fixes
+                            // first-visit scroll — ColumnLayout needs a frame to compute).
+                            implicitHeight: _measuredHeight
+                            property real _measuredHeight: 200
+
+                            Timer {
+                                id: heightFixTimer
+                                interval: 50
+                                onTriggered: {
+                                    var loader = pageRepeater.itemAt(root.selectedCategory)
+                                    if (loader && loader.item)
+                                        pageContainer._measuredHeight = loader.item.implicitHeight
+                                }
+                            }
+
+                            function updateHeight() {
                                 var loader = pageRepeater.itemAt(root.selectedCategory)
-                                return (loader && loader.item) ? loader.item.implicitHeight : 200
+                                if (loader && loader.item) {
+                                    _measuredHeight = loader.item.implicitHeight
+                                    // Also schedule a delayed re-measure for layout settling
+                                    heightFixTimer.restart()
+                                }
                             }
 
                             // Entry animation (same visual as before)
@@ -151,6 +175,8 @@ Item {
                                         pageContainer._visited = v
                                     }
 
+                                    pageContainer.updateHeight()
+
                                     // If already loaded — animate immediately
                                     var loader = pageRepeater.itemAt(root.selectedCategory)
                                     if (loader && loader.status === Loader.Ready) {
@@ -180,6 +206,7 @@ Item {
 
                                     onLoaded: {
                                         if (root.selectedCategory === index) {
+                                            pageContainer.updateHeight()
                                             contentEntryAnim.restart()
                                             if (typeof SceneProfiler !== "undefined")
                                                 SceneProfiler.endInteraction()
