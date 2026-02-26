@@ -18,13 +18,13 @@ Rectangle {
     signal closeClicked()
     signal trayClicked()
 
-    color: Theme.withAlpha(Theme.surface, 0.7)
+    color: Theme.surface70
 
     Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width
         height: 1
-        color: Theme.withAlpha(Theme.textPrimary, 0.08)
+        color: Theme.textPrimary08
     }
 
     MouseArea {

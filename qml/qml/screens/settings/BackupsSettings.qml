@@ -42,8 +42,8 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
                 Layout.margins: Dimensions.marginML
-                radius: Dimensions.radiusStandard
-                color: Theme.withAlpha(Theme.textPrimary, 0.03)
+                radius: Dimensions.radiusMD
+                color: Theme.primary04
                 visible: BackupManager.backups.length === 0
 
                 // Fade-in + scale on appear
@@ -85,9 +85,9 @@ ColumnLayout {
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
                     Layout.topMargin: Dimensions.spacingSM
-                    radius: Dimensions.radiusStandard
-                    color: backupItemMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.textPrimary, 0.03)
-                    border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                    radius: Dimensions.radiusMD
+                    color: backupItemMouse.containsMouse ? Theme.primary06 : Theme.primary04
+                    border.color: Theme.primary08
                     border.width: 1
 
                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -101,8 +101,8 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: 48
                             Layout.preferredHeight: 48
-                            radius: Dimensions.radiusStandard
-                            color: Theme.surfaceActive
+                            radius: Dimensions.radiusMD
+                            color: Theme.primary12
 
                             Text {
                                 textFormat: Text.PlainText
@@ -146,7 +146,7 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: restoreBtnContent.width + 20
                             Layout.preferredHeight: 32
-                            radius: Dimensions.radiusStandard
+                            radius: Dimensions.radiusMD
                             color: restoreBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
                             scale: restoreBtnMouse.pressed ? 0.92 : 1.0
 
@@ -200,8 +200,8 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: 32
                             Layout.preferredHeight: 32
-                            radius: Dimensions.radiusStandard
-                            color: deleteBtnMouse.containsMouse ? Theme.withAlpha(Theme.error, 0.15) : "transparent"
+                            radius: Dimensions.radiusMD
+                            color: deleteBtnMouse.containsMouse ? Theme.error15 : "transparent"
                             scale: deleteBtnMouse.pressed ? 0.85 : 1.0
 
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

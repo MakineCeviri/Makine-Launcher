@@ -47,7 +47,7 @@ Rectangle {
             implicitWidth: badgeText.implicitWidth + 28
             implicitHeight: 32
             radius: Dimensions.radiusFull
-            color: Theme.withAlpha(Theme.primary, 0.15)
+            color: Theme.primary15
 
             Text {
                 textFormat: Text.PlainText

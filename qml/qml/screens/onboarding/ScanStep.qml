@@ -59,7 +59,7 @@ Item {
             Layout.preferredWidth: 360
             Layout.preferredHeight: scanContent.implicitHeight + 40
             radius: 12
-            color: Theme.withAlpha(Theme.surface, 0.5)
+            color: Theme.surface50
             border.color: Theme.glassBorder
             border.width: 1
 
@@ -208,7 +208,7 @@ Item {
 
                 background: Rectangle {
                     radius: 8
-                    color: parent.parent.hovered ? Theme.withAlpha(Theme.surface, 0.6) : "transparent"
+                    color: parent.parent.hovered ? Theme.surface60 : "transparent"
                 }
 
                 onClicked: scanStep.previousStep()

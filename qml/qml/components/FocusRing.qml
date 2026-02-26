@@ -16,7 +16,7 @@ Rectangle {
 
     property Item target: parent
     property bool showRing: target ? target.activeFocus : false
-    property color ringColor: Theme.withAlpha(Theme.primary, 0.6)
+    property color ringColor: Theme.primary60
     property int offset: -2
 
     anchors.fill: target

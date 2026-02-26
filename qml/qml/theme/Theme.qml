@@ -54,14 +54,14 @@ QtObject {
     // ANA RENKLER
     // =========================================================================
 
-    /// Birincil mavi
-    readonly property color primary: darkMode ? "#3B82F6" : lightPrimary
+    /// Birincil renk (accent preset'e bağlı)
+    readonly property color primary: accentBase
 
     /// Birincil hover
-    readonly property color primaryHover: "#2563EB"
+    readonly property color primaryHover: accentDark
 
-    /// Birincil glow (alfa ile)
-    readonly property color primaryGlow: Qt.rgba(0.231, 0.510, 0.965, 0.25) // #3B82F640
+    /// Birincil glow (alfa ile — uses pre-computed accentBase property binding)
+    readonly property color primaryGlow: withAlpha(accentBase, 0.25)
 
     // =========================================================================
     // ACCENT COLOR SYSTEM (user-configurable via SettingsManager.accentPreset)
@@ -88,18 +88,18 @@ QtObject {
     }
 
     /// Accent tones (lightest → darkest)
-    property color accentLightest: _accentColors[0]
-    property color accentLight:    _accentColors[1]
-    property color accentBase:     _accentColors[2]
-    property color accentDark:     _accentColors[3]
-    property color accentDarkest:  _accentColors[4]
+    readonly property color accentLightest: _accentColors[0]
+    readonly property color accentLight:    _accentColors[1]
+    readonly property color accentBase:     _accentColors[2]
+    readonly property color accentDark:     _accentColors[3]
+    readonly property color accentDarkest:  _accentColors[4]
 
     /// Full gradient array for Canvas usage
-    property var accentGradient: [accentLightest, accentLight, accentBase, accentDark, accentDarkest]
+    readonly property var accentGradient: [accentLightest, accentLight, accentBase, accentDark, accentDarkest]
 
     /// Backwards compatibility aliases
-    property color secondary: accentBase
-    property color secondaryHover: accentDark
+    readonly property color secondary: accentBase
+    readonly property color secondaryHover: accentDark
 
     /// Vurgu cyan
     readonly property color accent: "#06B6D4"
@@ -161,8 +161,8 @@ QtObject {
     /// Vurgulu kenar
     readonly property color borderHover: darkMode ? "#3F3F46" : "#D4D4D8"
 
-    /// Odak kenarlığı
-    readonly property color borderFocus: "#3B82F6"
+    /// Odak kenarlığı (accent preset'e bağlı)
+    readonly property color borderFocus: accentBase
 
     /// Outlined button border
     readonly property color outlinedBorder: darkMode ? "#334155" : "#CBD5E1"
@@ -341,13 +341,141 @@ QtObject {
     readonly property color errorBadgeText: "#EF4444"
 
     // =========================================================================
+    // PRE-COMPUTED ALPHA COLORS (zero-rebinding optimization)
+    // Naming: <colorName><alphaPercent> — e.g. textPrimary06 = textPrimary @ 6%
+    // =========================================================================
+
+    // textPrimary + alpha
+    readonly property color textPrimary03: withAlpha(textPrimary, 0.03)
+    readonly property color textPrimary04: withAlpha(textPrimary, 0.04)
+    readonly property color textPrimary05: withAlpha(textPrimary, 0.05)
+    readonly property color textPrimary06: withAlpha(textPrimary, 0.06)
+    readonly property color textPrimary08: withAlpha(textPrimary, 0.08)
+    readonly property color textPrimary10: withAlpha(textPrimary, 0.10)
+    readonly property color textPrimary12: withAlpha(textPrimary, 0.12)
+    readonly property color textPrimary15: withAlpha(textPrimary, 0.15)
+    readonly property color textPrimary20: withAlpha(textPrimary, 0.20)
+    readonly property color textPrimary25: withAlpha(textPrimary, 0.25)
+
+    // primary + alpha
+    readonly property color primary03: withAlpha(primary, 0.03)
+    readonly property color primary04: withAlpha(primary, 0.04)
+    readonly property color primary05: withAlpha(primary, 0.05)
+    readonly property color primary06: withAlpha(primary, 0.06)
+    readonly property color primary08: withAlpha(primary, 0.08)
+    readonly property color primary10: withAlpha(primary, 0.10)
+    readonly property color primary12: withAlpha(primary, 0.12)
+    readonly property color primary15: withAlpha(primary, 0.15)
+    readonly property color primary20: withAlpha(primary, 0.20)
+    readonly property color primary25: withAlpha(primary, 0.25)
+    readonly property color primary30: withAlpha(primary, 0.30)
+    readonly property color primary35: withAlpha(primary, 0.35)
+    readonly property color primary40: withAlpha(primary, 0.40)
+    readonly property color primary50: withAlpha(primary, 0.50)
+    readonly property color primary60: withAlpha(primary, 0.60)
+    readonly property color primary85: withAlpha(primary, 0.85)
+
+    // accent + alpha
+    readonly property color accent06: withAlpha(accent, 0.06)
+    readonly property color accent10: withAlpha(accent, 0.10)
+    readonly property color accent15: withAlpha(accent, 0.15)
+    readonly property color accent18: withAlpha(accent, 0.18)
+    readonly property color accent20: withAlpha(accent, 0.20)
+    readonly property color accent25: withAlpha(accent, 0.25)
+    readonly property color accent30: withAlpha(accent, 0.30)
+    readonly property color accent40: withAlpha(accent, 0.40)
+    readonly property color accent85: withAlpha(accent, 0.85)
+
+    // error + alpha
+    readonly property color error06: withAlpha(error, 0.06)
+    readonly property color error08: withAlpha(error, 0.08)
+    readonly property color error10: withAlpha(error, 0.10)
+    readonly property color error12: withAlpha(error, 0.12)
+    readonly property color error15: withAlpha(error, 0.15)
+    readonly property color error20: withAlpha(error, 0.20)
+    readonly property color error25: withAlpha(error, 0.25)
+    readonly property color error30: withAlpha(error, 0.30)
+    readonly property color error40: withAlpha(error, 0.40)
+
+    // warning + alpha
+    readonly property color warning06: withAlpha(warning, 0.06)
+    readonly property color warning08: withAlpha(warning, 0.08)
+    readonly property color warning10: withAlpha(warning, 0.10)
+    readonly property color warning12: withAlpha(warning, 0.12)
+    readonly property color warning15: withAlpha(warning, 0.15)
+    readonly property color warning20: withAlpha(warning, 0.20)
+    readonly property color warning25: withAlpha(warning, 0.25)
+    readonly property color warning60: withAlpha(warning, 0.60)
+
+    // success + alpha
+    readonly property color success08: withAlpha(success, 0.08)
+    readonly property color success10: withAlpha(success, 0.10)
+    readonly property color success12: withAlpha(success, 0.12)
+    readonly property color success20: withAlpha(success, 0.20)
+    readonly property color success60: withAlpha(success, 0.60)
+    readonly property color success85: withAlpha(success, 0.85)
+
+    // bgPrimary + alpha
+    readonly property color bgPrimary15: withAlpha(bgPrimary, 0.15)
+    readonly property color bgPrimary40: withAlpha(bgPrimary, 0.40)
+    readonly property color bgPrimary50: withAlpha(bgPrimary, 0.50)
+    readonly property color bgPrimary60: withAlpha(bgPrimary, 0.60)
+    readonly property color bgPrimary65: withAlpha(bgPrimary, 0.65)
+    readonly property color bgPrimary70: withAlpha(bgPrimary, 0.70)
+    readonly property color bgPrimary82: withAlpha(bgPrimary, 0.82)
+    readonly property color bgPrimary85: withAlpha(bgPrimary, 0.85)
+    readonly property color bgPrimary90: withAlpha(bgPrimary, 0.90)
+
+    // surface + alpha
+    readonly property color surface50: withAlpha(surface, 0.50)
+    readonly property color surface60: withAlpha(surface, 0.60)
+    readonly property color surface70: withAlpha(surface, 0.70)
+    readonly property color surface92: withAlpha(surface, 0.92)
+
+    // destructive + alpha
+    readonly property color destructive08: withAlpha(destructive, 0.08)
+    readonly property color destructive10: withAlpha(destructive, 0.10)
+    readonly property color destructive12: withAlpha(destructive, 0.12)
+    readonly property color destructive15: withAlpha(destructive, 0.15)
+    readonly property color destructive20: withAlpha(destructive, 0.20)
+    readonly property color destructive25: withAlpha(destructive, 0.25)
+
+    // accentBase + alpha
+    readonly property color accentBase30: withAlpha(accentBase, 0.30)
+    readonly property color accentBase40: withAlpha(accentBase, 0.40)
+
+    // textMuted + alpha
+    readonly property color textMuted05: withAlpha(textMuted, 0.05)
+    readonly property color textMuted08: withAlpha(textMuted, 0.08)
+    readonly property color textMuted10: withAlpha(textMuted, 0.10)
+    readonly property color textMuted15: withAlpha(textMuted, 0.15)
+    readonly property color textMuted70: withAlpha(textMuted, 0.70)
+
+    // surfaceActive + alpha
+    readonly property color surfaceActive50: withAlpha(surfaceActive, 0.50)
+
+    // Steam blue (HeroSection)
+    readonly property color steamBlue: "#66c0f4"
+    readonly property color steamBlue50: withAlpha(steamBlue, 0.50)
+    readonly property color steamBlue20: withAlpha(steamBlue, 0.20)
+
+    // =========================================================================
     // HELPER FUNCTIONS
     // =========================================================================
 
-    /// Rengi alfa ile döndür
+    /// Alpha color cache (invalidated on accent change)
+    property var _alphaCache: ({})
+    on_AccentColorsChanged: _alphaCache = ({})
+
+    /// Rengi alfa ile döndür (cached for dynamic colors)
     function withAlpha(color, alpha) {
         if (!color) return Qt.rgba(0, 0, 0, alpha)
-        return Qt.rgba(color.r, color.g, color.b, alpha)
+        var key = "" + color + alpha
+        var cached = _alphaCache[key]
+        if (cached !== undefined) return cached
+        var result = Qt.rgba(color.r, color.g, color.b, alpha)
+        _alphaCache[key] = result
+        return result
     }
 
     /// Rengi koyulaştır

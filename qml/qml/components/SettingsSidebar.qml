@@ -16,7 +16,7 @@ Rectangle {
     signal categorySelected(int index)
 
     width: Dimensions.sidebarWidth
-    color: Theme.withAlpha(Theme.surface, 0.5)
+    color: Theme.surface50
 
     // Local CategoryItem component (matches SettingsScreen inline version)
     component CategoryItem: Rectangle {
@@ -37,11 +37,11 @@ Rectangle {
         height: 36
         radius: 0
         color: isSelected
-            ? Theme.withAlpha(Theme.textPrimary, 0.08)
+            ? Theme.primary10
             : catMouse.pressed
-                ? Theme.withAlpha(Theme.textPrimary, 0.06)
+                ? Theme.textPrimary06
                 : catMouse.containsMouse
-                    ? Theme.withAlpha(Theme.textPrimary, 0.04)
+                    ? Theme.textPrimary04
                     : "transparent"
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -88,7 +88,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         width: 1
-        color: Theme.withAlpha(Theme.textPrimary, 0.06)
+        color: Theme.textPrimary06
     }
 
     ColumnLayout {

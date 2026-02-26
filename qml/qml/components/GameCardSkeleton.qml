@@ -30,7 +30,7 @@ Item {
         anchors.fill: parent
         anchors.margins: -4
         anchors.bottomMargin: -8
-        color: Theme.withAlpha(Theme.bgPrimary, 0.15)
+        color: Theme.bgPrimary15
         z: -1
     }
 
@@ -47,7 +47,7 @@ Item {
             skeletonRadius: 4
             animationsEnabled: root.animationsEnabled
             animationDelay: root.animationDelay
-            baseColor: Theme.withAlpha(Theme.textPrimary, 0.04)
+            baseColor: Theme.textPrimary04
         }
 
         // Gradient overlay (matches GameCard)
@@ -55,7 +55,7 @@ Item {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.5; color: "transparent" }
-                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.bgPrimary, 0.7) }
+                GradientStop { position: 1.0; color: Theme.bgPrimary70 }
             }
         }
 
@@ -70,7 +70,7 @@ Item {
             skeletonRadius: 4
             animationsEnabled: root.animationsEnabled
             animationDelay: root.animationDelay + 50
-            baseColor: Theme.withAlpha(Theme.textPrimary, 0.08)
+            baseColor: Theme.textPrimary08
         }
 
         // Title area at bottom
@@ -88,7 +88,7 @@ Item {
                 skeletonRadius: 2
                 animationsEnabled: root.animationsEnabled
                 animationDelay: root.animationDelay + 100
-                baseColor: Theme.withAlpha(Theme.textPrimary, 0.15)
+                baseColor: Theme.textPrimary15
             }
 
             // Title line 2 (shorter)
@@ -98,7 +98,7 @@ Item {
                 skeletonRadius: 2
                 animationsEnabled: root.animationsEnabled
                 animationDelay: root.animationDelay + 150
-                baseColor: Theme.withAlpha(Theme.textPrimary, 0.1)
+                baseColor: Theme.textPrimary10
             }
         }
     }

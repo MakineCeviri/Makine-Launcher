@@ -101,6 +101,8 @@ set(BACKEND_SOURCES
     src/services/imagecachemanager.cpp
     src/services/manifestsyncservice.cpp
     src/services/translationdownloader.cpp
+    src/services/supportedgamesmodel.cpp
+    src/services/catalogproxymodel.cpp
 )
 
 set(BACKEND_HEADERS
@@ -124,6 +126,8 @@ set(BACKEND_HEADERS
     src/services/imagecachemanager.h
     src/services/manifestsyncservice.h
     src/services/translationdownloader.h
+    src/services/supportedgamesmodel.h
+    src/services/catalogproxymodel.h
     src/services/mkpkformat.h
     src/services/apppaths.h
     src/services/profiler.h

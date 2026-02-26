@@ -38,7 +38,7 @@ ColumnLayout {
             delegate: Rectangle {
                 required property string modelData
                 width: 380; height: 214
-                radius: Dimensions.radiusStandard
+                radius: Dimensions.radiusLG
                 color: Theme.surfaceActive
 
                 Image {
@@ -61,7 +61,7 @@ ColumnLayout {
             anchors.left: parent.left; anchors.leftMargin: Dimensions.spacingMD
             anchors.verticalCenter: parent.verticalCenter
             width: 36; height: 36; radius: 18
-            color: ssLeftMouse.containsMouse ? Theme.withAlpha(Theme.bgPrimary, 0.90) : Theme.withAlpha(Theme.bgPrimary, 0.65)
+            color: ssLeftMouse.containsMouse ? Theme.bgPrimary90 : Theme.bgPrimary65
             border.color: Theme.glassBorder; border.width: 1
             visible: screenshotList.contentX > screenshotList.originX + 10
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -83,7 +83,7 @@ ColumnLayout {
             anchors.right: parent.right; anchors.rightMargin: Dimensions.spacingMD
             anchors.verticalCenter: parent.verticalCenter
             width: 36; height: 36; radius: 18
-            color: ssRightMouse.containsMouse ? Theme.withAlpha(Theme.bgPrimary, 0.90) : Theme.withAlpha(Theme.bgPrimary, 0.65)
+            color: ssRightMouse.containsMouse ? Theme.bgPrimary90 : Theme.bgPrimary65
             border.color: Theme.glassBorder; border.width: 1
             visible: screenshotList.contentX < screenshotList.contentWidth - screenshotList.width - 10
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

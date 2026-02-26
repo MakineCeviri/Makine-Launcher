@@ -71,7 +71,7 @@ Rectangle {
     width: showDetails ? 280 : 80
     height: showDetails ? contentColumn.height + 16 : 32
     radius: Dimensions.radiusStandard
-    color: Theme.withAlpha(Theme.bgPrimary, 0.85)
+    color: Theme.bgPrimary85
     border.color: fpsColor
     border.width: 1
 
@@ -162,7 +162,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Theme.withAlpha(Theme.textPrimary, 0.1)
+                color: Theme.textPrimary10
             }
 
             // Frame time
@@ -346,7 +346,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: Theme.withAlpha(Theme.textPrimary, 0.1)
+                color: Theme.textPrimary10
                 Layout.topMargin: Dimensions.marginXXS
             }
 
@@ -371,7 +371,7 @@ Rectangle {
         Layout.fillWidth: true
         Layout.topMargin: 2
         height: 18
-        color: sectionMa.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.05) : "transparent"
+        color: sectionMa.containsMouse ? Theme.textPrimary05 : "transparent"
         radius: 2
 
         RowLayout {

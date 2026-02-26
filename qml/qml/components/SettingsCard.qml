@@ -12,9 +12,9 @@ pragma ComponentBehavior: Bound
 Rectangle {
     default property alias content: _cc.data
     implicitHeight: _cc.implicitHeight
-    radius: Dimensions.radiusStandard
+    radius: Dimensions.radiusMD
     color: Theme.surface
-    border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
+    border.color: Theme.primary06
     border.width: 1
     ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
 }

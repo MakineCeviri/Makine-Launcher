@@ -6,12 +6,17 @@ pragma ComponentBehavior: Bound
 
 /**
  * CatalogSection.qml - Game catalog with search and two scrollable rows.
+ * Uses CatalogProxyModel (C++) instead of JS filter/slice/concat.
  */
 Rectangle {
     id: catalog
 
-    property var allGames: []
     signal gameClicked(string gameId, string gameName, string installPath, string engine)
+
+    function replayContentFade() {
+        catalogContent.opacity = 0
+        catalogContentFade.start()
+    }
 
     Layout.fillWidth: true
     Layout.fillHeight: true
@@ -24,64 +29,44 @@ Rectangle {
     readonly property real contentPadding: 16
     property string searchQuery: ""
     readonly property bool _isSearching: searchQuery.length > 0
-    property var filteredGames: allGames
-    property var row1Games: []
-    property var row2Games: []
     property bool _row2Ready: false
 
-    function _recomputeFiltered() {
-        var src = allGames
-        var searching = searchQuery.length > 0
+    readonly property int _totalCount: GameService.supportedGamesModel
+                                        ? GameService.supportedGamesModel.count : 0
+    readonly property int _half: Math.ceil(_totalCount / 2)
 
-        if (searching) {
-            var q = searchQuery.toLowerCase()
-            var seen = {}
-            src = allGames.filter(function(g) {
-                if ((g.name || "").toLowerCase().indexOf(q) === -1) return false
-                var id = g.gameId || g.id || ""
-                if (!id || seen[id]) return false
-                seen[id] = true
-                return true
-            })
-        }
-
-        filteredGames = src
-
-        if (searching) {
-            // Single row with large cards during search
-            row1Games = src
-            row2Games = []
-        } else {
-            var half = Math.ceil(src.length / 2)
-            row1Games = src.slice(0, half)
-
-            if (_row2Ready) {
-                row2Games = src.slice(half)
-            } else {
-                row2Games = []
-                _row2Defer.start()
-            }
-        }
+    // Row 1 proxy: first half (or all during search)
+    CatalogProxyModel {
+        id: row1Proxy
+        sourceModel: GameService.supportedGamesModel
+        searchFilter: catalog.searchQuery
+        rowOffset: 0
+        rowLimit: catalog._isSearching ? -1 : catalog._half
+        wrapAround: !catalog._isSearching
     }
-    onAllGamesChanged: _recomputeFiltered()
+
+    // Row 2 proxy: second half (hidden during search)
+    CatalogProxyModel {
+        id: row2Proxy
+        sourceModel: catalog._row2Ready ? GameService.supportedGamesModel : null
+        searchFilter: catalog.searchQuery
+        rowOffset: catalog._half
+        rowLimit: -1
+        wrapAround: true
+    }
 
     Timer {
         id: _row2Defer
         interval: 800
-        onTriggered: {
-            catalog._row2Ready = true
-            var src = catalog.filteredGames
-            catalog.row2Games = src.slice(Math.ceil(src.length / 2))
-        }
+        onTriggered: catalog._row2Ready = true
     }
+
+    Component.onCompleted: _row2Defer.start()
 
     Timer {
         id: searchDebounce
         interval: 200
-        onTriggered: {
-            catalog.searchQuery = searchInput.text.trim()
-            catalog._recomputeFiltered()
-        }
+        onTriggered: catalog.searchQuery = searchInput.text.trim()
     }
 
     // Square off bottom corners
@@ -92,12 +77,21 @@ Rectangle {
     }
 
     ColumnLayout {
+        id: catalogContent
         anchors.fill: parent
         anchors.topMargin: 10
         anchors.leftMargin: catalog.contentPadding
         anchors.rightMargin: catalog.contentPadding
         anchors.bottomMargin: catalog.contentPadding
         spacing: 0
+        opacity: 0
+
+        Component.onCompleted: catalogContentFade.start()
+        NumberAnimation {
+            id: catalogContentFade
+            target: catalogContent; property: "opacity"
+            from: 0; to: 1; duration: 300; easing.type: Easing.OutCubic
+        }
 
         // Header
         RowLayout {
@@ -127,10 +121,10 @@ Rectangle {
                 Layout.preferredWidth: searchInput.activeFocus || searchInput.text ? 240 : 200
                 Behavior on Layout.preferredWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                 radius: Dimensions.radiusMD
-                color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                color: Theme.textPrimary06
                 border.color: searchInput.activeFocus
-                    ? Theme.withAlpha(Theme.accentBase, 0.40)
-                    : Theme.withAlpha(Theme.textPrimary, 0.08)
+                    ? Theme.accentBase40
+                    : Theme.textPrimary08
                 border.width: 1
 
                 Row {
@@ -161,7 +155,7 @@ Rectangle {
                             textFormat: Text.PlainText
                             anchors.fill: parent
                             verticalAlignment: Text.AlignVCenter
-                            text: qsTr("Oyun ara... (%1)").arg(catalog.allGames.length)
+                            text: qsTr("Oyun ara... (%1)").arg(catalog._totalCount)
                             font.pixelSize: Dimensions.fontXS
                             color: Theme.textMuted
                             visible: !searchInput.text && !searchInput.activeFocus
@@ -176,7 +170,7 @@ Rectangle {
         // Loading state
         Item {
             Layout.fillWidth: true; Layout.fillHeight: true
-            visible: catalog.allGames.length === 0 && !catalog.searchQuery
+            visible: catalog._totalCount === 0 && !catalog.searchQuery
 
             Column {
                 anchors.centerIn: parent; spacing: 12
@@ -196,7 +190,7 @@ Rectangle {
         // Empty search state
         Item {
             Layout.fillWidth: true; Layout.fillHeight: true
-            visible: catalog.filteredGames.length === 0 && catalog.searchQuery.length > 0
+            visible: row1Proxy.sourceCount === 0 && catalog.searchQuery.length > 0
 
             Column {
                 anchors.centerIn: parent; spacing: 8
@@ -219,11 +213,12 @@ Rectangle {
         // Row 1 (expands to full height with large cards during search)
         HorizontalGameStrip {
             Layout.fillWidth: true; Layout.fillHeight: true
-            visible: catalog.filteredGames.length > 0
-            model: catalog.row1Games
+            visible: row1Proxy.count > 0 || catalog._totalCount > 0
+            model: row1Proxy
             wrapAround: !catalog._isSearching
             largeCards: catalog._isSearching
-            wheelEnabled: !catalog._isSearching || catalog.filteredGames.length >= 4
+            wheelEnabled: !catalog._isSearching || row1Proxy.sourceCount >= 4
+            driftSpeed: catalog._isSearching ? 0 : -15
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }
@@ -232,16 +227,17 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: 1
             Layout.leftMargin: parent.width * 0.2; Layout.rightMargin: parent.width * 0.2
-            visible: catalog.row2Games.length > 0
-            color: Theme.withAlpha(Theme.textPrimary, 0.08)
+            visible: !catalog._isSearching && catalog._row2Ready && row2Proxy.count > 0
+            color: Theme.textPrimary08
         }
 
         // Row 2
         HorizontalGameStrip {
             Layout.fillWidth: true; Layout.fillHeight: true
-            visible: catalog.row2Games.length > 0
-            model: catalog.row2Games
+            visible: !catalog._isSearching && catalog._row2Ready && row2Proxy.count > 0
+            model: row2Proxy
             wrapAround: true
+            driftSpeed: 15
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }

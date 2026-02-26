@@ -57,7 +57,7 @@ ColumnLayout {
                 }
             }
             SettingsDivider {}
-            InfoRow { label: qsTr("Geliştirici"); value: qsTr("MakineAI Ekibi") }
+            InfoRow { label: qsTr("Geliştirici"); value: qsTr("Makine Çeviri") }
             SettingsDivider {}
             InfoRow { label: qsTr("Lisans"); value: qsTr("Ücretsiz Lisans") }
             SettingsDivider {}
@@ -130,9 +130,9 @@ ColumnLayout {
                             Rectangle {
                                 Layout.preferredWidth: _keyLbl.width + 16
                                 Layout.preferredHeight: 24
-                                radius: 4
-                                color: Theme.withAlpha(Theme.textPrimary, 0.06)
-                                border.color: Theme.withAlpha(Theme.textPrimary, 0.10)
+                                radius: Dimensions.radiusMD
+                                color: Theme.primary08
+                                border.color: Theme.primary12
                                 border.width: 1
 
                                 Label {

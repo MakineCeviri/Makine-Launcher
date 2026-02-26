@@ -9,7 +9,7 @@ pragma ComponentBehavior: Bound
 Item {
     id: heroRoot
     Layout.fillWidth: true
-    Layout.preferredHeight: 360
+    Layout.preferredHeight: 400
 
     // Required properties from parent
     required property string gameId
@@ -31,6 +31,9 @@ Item {
     property var updateImpact: null
     property bool isDownloading: false
 
+    // Throttle: integer percent reduces text binding updates from ~6000x to ~100x
+    readonly property int _progressPct: Math.round(installProgress * 100)
+
     signal translateClicked()
 
     // Cover image (tall, left side, overlaps below)
@@ -39,8 +42,8 @@ Item {
         anchors.left: parent.left
         anchors.leftMargin: Dimensions.marginXL
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: -40
-        width: 240; height: 340
+        anchors.bottomMargin: -30
+        width: 180; height: 255
         radius: Dimensions.cardBorderRadius
         color: Theme.surfaceActive
         z: 2
@@ -50,14 +53,19 @@ Item {
             anchors.fill: parent
             source: heroRoot.imageUrl
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(440, 620)
+            sourceSize: Qt.size(360, 510)
             asynchronous: true
             visible: false
-            property bool triedFallback: false
+            property int _fallbackStage: 0  // 0=original, 1=library_600x900, 2=header
             onStatusChanged: {
-                if (status === Image.Error && !triedFallback && heroRoot.steamAppId !== "") {
-                    triedFallback = true
-                    source = "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/header.jpg"
+                if (status === Image.Error && heroRoot.steamAppId !== "") {
+                    if (_fallbackStage === 0) {
+                        _fallbackStage = 1
+                        source = "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/library_600x900_2x.jpg"
+                    } else if (_fallbackStage === 1) {
+                        _fallbackStage = 2
+                        source = "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/header.jpg"
+                    }
                 }
             }
         }
@@ -99,6 +107,7 @@ Item {
 
     // Info column (right of cover, bottom-aligned)
     ColumnLayout {
+        id: infoColumn
         anchors.left: coverFrame.right
         anchors.leftMargin: Dimensions.marginLG
         anchors.right: parent.right
@@ -144,8 +153,8 @@ Item {
                 visible: heroRoot.updateImpact && heroRoot.updateImpact.level === "broken"
                 width: brokenRow.width + 20; height: 26
                 radius: Dimensions.radiusFull
-                color: Theme.withAlpha(Theme.error, 0.12)
-                border.color: Theme.withAlpha(Theme.error, 0.25); border.width: 1
+                color: Theme.error12
+                border.color: Theme.error25; border.width: 1
 
                 Row {
                     id: brokenRow
@@ -171,8 +180,8 @@ Item {
                 visible: heroRoot.updateImpact && heroRoot.updateImpact.level === "lost"
                 width: lostRow.width + 20; height: 26
                 radius: Dimensions.radiusFull
-                color: Theme.withAlpha(Theme.warning, 0.12)
-                border.color: Theme.withAlpha(Theme.warning, 0.25); border.width: 1
+                color: Theme.warning12
+                border.color: Theme.warning25; border.width: 1
 
                 Row {
                     id: lostRow
@@ -199,8 +208,8 @@ Item {
                 visible: heroRoot.isEditorsPick
                 width: editorsPickRow.width + 20; height: 26
                 radius: Dimensions.radiusFull
-                color: Theme.withAlpha(Theme.warning, 0.12)
-                border.color: Theme.withAlpha(Theme.warning, 0.25); border.width: 1
+                color: Theme.warning12
+                border.color: Theme.warning25; border.width: 1
 
                 Row {
                     id: editorsPickRow
@@ -267,17 +276,17 @@ Item {
                 // Background: glass style
                 color: {
                     if (heroRoot.packageInstalled || heroRoot.installCompleted)
-                        return Theme.withAlpha(Theme.accent, 0.10)
+                        return Theme.accent10
                     if (heroRoot.isInstallingTranslation)
-                        return Theme.withAlpha(Theme.accent, 0.06)
-                    return Theme.withAlpha(Theme.textPrimary, 0.04)
+                        return Theme.accent06
+                    return Theme.textPrimary04
                 }
                 border.color: {
                     if (heroRoot.packageInstalled || heroRoot.installCompleted)
-                        return Theme.withAlpha(Theme.accent, 0.30)
+                        return Theme.accent30
                     if (heroRoot.isInstallingTranslation)
-                        return Theme.withAlpha(Theme.accent, 0.20)
-                    return Theme.withAlpha(Theme.textPrimary, 0.08)
+                        return Theme.accent20
+                    return Theme.textPrimary08
                 }
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animNormal } }
@@ -291,7 +300,7 @@ Item {
                     anchors.margins: 2
                     width: Math.max(0, (parent.width - 4) * heroRoot.installProgress)
                     radius: parent.radius - 2
-                    color: Theme.withAlpha(Theme.accent, 0.18)
+                    color: Theme.accent18
                     Behavior on width { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
                 }
 
@@ -323,7 +332,7 @@ Item {
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: Math.max(0, shimmerRect.shimmerPos - 0.15); color: "transparent" }
-                        GradientStop { position: Math.max(0, Math.min(1, shimmerRect.shimmerPos)); color: Theme.withAlpha(Theme.accent, 0.15) }
+                        GradientStop { position: Math.max(0, Math.min(1, shimmerRect.shimmerPos)); color: Theme.accent15 }
                         GradientStop { position: Math.min(1, shimmerRect.shimmerPos + 0.15); color: "transparent" }
                     }
                 }
@@ -401,7 +410,7 @@ Item {
                                 if (heroRoot.isDownloading && heroRoot.installStatus !== "")
                                     return heroRoot.installStatus
                                 if (heroRoot.installProgress > 0)
-                                    return qsTr("Kuruluyor... %1%").arg(Math.round(heroRoot.installProgress * 100))
+                                    return qsTr("Kuruluyor... %1%").arg(heroRoot._progressPct)
                                 return heroRoot.installStatus || qsTr("Hazırlanıyor...")
                             }
                             return qsTr("Türkçe Yama Mevcut")
@@ -429,15 +438,15 @@ Item {
                         Layout.preferredWidth: pctText.width + 12
                         Layout.preferredHeight: 22
                         radius: 11
-                        color: Theme.withAlpha(Theme.accent, 0.15)
-                        border.color: Theme.withAlpha(Theme.accent, 0.25)
+                        color: Theme.accent15
+                        border.color: Theme.accent25
                         border.width: 1
 
                         Text {
                             textFormat: Text.PlainText
                             id: pctText
                             anchors.centerIn: parent
-                            text: qsTr("%1%").arg(Math.round(heroRoot.installProgress * 100))
+                            text: qsTr("%1%").arg(heroRoot._progressPct)
                             font.pixelSize: Dimensions.fontMicro
                             font.weight: Font.Bold
                             color: Theme.accent
@@ -450,11 +459,11 @@ Item {
                         Layout.preferredWidth: 22; Layout.preferredHeight: 22
                         radius: 11
                         color: cancelMouse.containsMouse
-                            ? Theme.withAlpha(Theme.error, 0.20)
-                            : Theme.withAlpha(Theme.textMuted, 0.10)
+                            ? Theme.error20
+                            : Theme.textMuted10
                         border.color: cancelMouse.containsMouse
-                            ? Theme.withAlpha(Theme.error, 0.40)
-                            : Theme.withAlpha(Theme.textMuted, 0.15)
+                            ? Theme.error40
+                            : Theme.textMuted15
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                         Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
@@ -488,7 +497,7 @@ Item {
 
                 Accessible.role: Accessible.ProgressBar
                 Accessible.name: heroRoot.isInstallingTranslation
-                    ? qsTr("Installing %1%").arg(Math.round(heroRoot.installProgress * 100))
+                    ? qsTr("Installing %1%").arg(heroRoot._progressPct)
                     : heroRoot.packageInstalled ? qsTr("Installed") : qsTr("Available")
 
                 // Click to install if not yet installed/installing
@@ -507,8 +516,8 @@ Item {
                 visible: heroRoot.isManualGame && !heroRoot.hasTranslation
                 implicitWidth: noTransRow.width + 36; implicitHeight: 42
                 radius: Dimensions.radiusStandard
-                color: Theme.withAlpha(Theme.textMuted, 0.08)
-                border.color: Theme.withAlpha(Theme.textMuted, 0.15); border.width: 1
+                color: Theme.textMuted08
+                border.color: Theme.textMuted15; border.width: 1
 
                 Row {
                     id: noTransRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
@@ -536,8 +545,8 @@ Item {
                 radius: Dimensions.radiusStandard
                 color: steamMouse.containsMouse ? "#2a475e" : "#1b2838"
                 border.color: steamMouse.containsMouse
-                    ? Theme.withAlpha("#66c0f4", 0.50)
-                    : Theme.withAlpha("#66c0f4", 0.20)
+                    ? Theme.steamBlue50
+                    : Theme.steamBlue20
                 border.width: 1
 
                 Behavior on color { ColorAnimation { duration: 180 } }

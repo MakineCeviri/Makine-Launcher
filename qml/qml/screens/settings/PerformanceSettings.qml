@@ -87,8 +87,8 @@ ColumnLayout {
                         Layout.preferredWidth: backendRow.width + 8
                         Layout.preferredHeight: 36
                         Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                        radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                        radius: Dimensions.radiusMD
+                        color: Theme.primary06
 
                         Row {
                             id: backendRow
@@ -107,14 +107,14 @@ ColumnLayout {
                                 Rectangle {
                                     required property var modelData
                                     width: backendLbl.width + 20; height: 28
-                                    radius: Dimensions.radiusStandard
+                                    radius: Dimensions.radiusMD
                                     color: backendRow.current === modelData.id
-                                        ? Theme.withAlpha(Theme.primary, 0.20)
+                                        ? Theme.primary20
                                         : backendBtnMouse.containsMouse
-                                            ? Theme.withAlpha(Theme.textPrimary, 0.08)
+                                            ? Theme.primary08
                                             : "transparent"
                                     border.color: backendRow.current === modelData.id
-                                        ? Theme.withAlpha(Theme.primary, 0.40)
+                                        ? Theme.primary40
                                         : "transparent"
                                     border.width: 1
 

@@ -65,17 +65,15 @@ Canvas {
             cx = originX
         } else if (position === "bottom-center") {
             cx = width / 2
-        } else if (position === "bottom-left") {
+        } else if (position === "bottom-left" || position === "top-left") {
             cx = 40
         } else {
             cx = width - 40
         }
         if (originY >= 0) {
             cy = originY
-        } else if (position === "bottom-center") {
+        } else if (position === "bottom-center" || position === "bottom-left") {
             cy = height - 20
-        } else if (position === "bottom-left") {
-            cy = height - 30
         } else {
             cy = 30
         }

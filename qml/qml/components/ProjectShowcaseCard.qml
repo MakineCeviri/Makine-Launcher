@@ -21,10 +21,10 @@ Rectangle {
     Layout.fillWidth: true
     implicitHeight: 96
     radius: Dimensions.radiusStandard
-    color: hovered ? Theme.withAlpha(Theme.textPrimary, 0.06)
-                   : Theme.withAlpha(Theme.textPrimary, 0.03)
+    color: hovered ? Theme.textPrimary06
+                   : Theme.textPrimary03
     border.color: hovered ? Theme.withAlpha(root.accentColor, 0.25)
-                          : Theme.withAlpha(Theme.textPrimary, 0.08)
+                          : Theme.textPrimary08
     border.width: 1
 
     property bool hovered: false
@@ -57,7 +57,7 @@ Rectangle {
         anchors.right: parent.right
         height: root.progress >= 0 ? 3 : 2
         radius: 1
-        color: root.progress >= 0 ? Theme.withAlpha(Theme.textPrimary, 0.06) : "transparent"
+        color: root.progress >= 0 ? Theme.textPrimary06 : "transparent"
 
         Rectangle {
             width: root.progress >= 0

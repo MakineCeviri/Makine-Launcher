@@ -178,7 +178,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
     }
 
@@ -222,12 +222,12 @@ BaseDialog {
                     if (isChecked)
                         return Theme.withAlpha(root.accentColor, 0.12)
                     if (_optMouse.containsMouse)
-                        return Theme.withAlpha(Theme.textPrimary, 0.06)
-                    return Theme.withAlpha(Theme.textPrimary, 0.03)
+                        return Theme.textPrimary06
+                    return Theme.textPrimary03
                 }
                 border.color: isChecked
                     ? Theme.withAlpha(root.accentColor, 0.40)
-                    : Theme.withAlpha(Theme.textPrimary, 0.10)
+                    : Theme.textPrimary10
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                 Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
@@ -245,7 +245,7 @@ BaseDialog {
                         Layout.alignment: Qt.AlignTop
                         radius: 4
                         color: isChecked ? root.accentColor : "transparent"
-                        border.color: isChecked ? root.accentColor : Theme.withAlpha(Theme.textPrimary, 0.25)
+                        border.color: isChecked ? root.accentColor : Theme.textPrimary25
                         border.width: 1.5
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                         Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
@@ -406,7 +406,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
 
         RowLayout {
@@ -430,8 +430,8 @@ BaseDialog {
                 Layout.preferredWidth: _cancelLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34
                 radius: Dimensions.radiusStandard
-                color: _cancelMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
+                color: _cancelMouse.containsMouse ? Theme.textPrimary08 : "transparent"
+                border.color: Theme.textPrimary12
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 

@@ -41,8 +41,8 @@ BaseDialog {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
                 radius: 16
-                color: Theme.withAlpha(Theme.accent, 0.10)
-                border.color: Theme.withAlpha(Theme.accent, 0.20)
+                color: Theme.accent10
+                border.color: Theme.accent20
                 border.width: 1
 
                 Canvas {
@@ -83,7 +83,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
     }
 
@@ -116,6 +116,7 @@ BaseDialog {
             Rectangle {
                 required property int index
                 required property string modelData
+                readonly property bool isSelected: root.selectedIndex === index
 
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.paddingLG
@@ -123,15 +124,15 @@ BaseDialog {
                 Layout.preferredHeight: 42
                 radius: Dimensions.radiusStandard
                 color: {
-                    if (root.selectedIndex === index)
-                        return Theme.withAlpha(Theme.accent, 0.15)
+                    if (isSelected)
+                        return Theme.accent15
                     if (_variantMouse.containsMouse)
-                        return Theme.withAlpha(Theme.textPrimary, 0.06)
-                    return Theme.withAlpha(Theme.textPrimary, 0.03)
+                        return Theme.textPrimary06
+                    return Theme.textPrimary03
                 }
-                border.color: root.selectedIndex === index
-                    ? Theme.withAlpha(Theme.accent, 0.40)
-                    : Theme.withAlpha(Theme.textPrimary, 0.10)
+                border.color: isSelected
+                    ? Theme.accent40
+                    : Theme.textPrimary10
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                 Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
@@ -148,9 +149,9 @@ BaseDialog {
                         Layout.preferredHeight: 18
                         radius: 9
                         color: "transparent"
-                        border.color: root.selectedIndex === index
+                        border.color: isSelected
                             ? Theme.accent
-                            : Theme.withAlpha(Theme.textPrimary, 0.25)
+                            : Theme.textPrimary25
                         border.width: 1.5
                         Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -159,8 +160,8 @@ BaseDialog {
                             width: 10; height: 10
                             radius: 5
                             color: Theme.accent
-                            visible: root.selectedIndex === index
-                            scale: root.selectedIndex === index ? 1 : 0
+                            visible: isSelected
+                            scale: isSelected ? 1 : 0
                             Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutBack } }
                         }
                     }
@@ -169,8 +170,8 @@ BaseDialog {
                         textFormat: Text.PlainText
                         text: modelData
                         font.pixelSize: Dimensions.fontSM
-                        font.weight: root.selectedIndex === index ? Font.DemiBold : Font.Normal
-                        color: root.selectedIndex === index ? Theme.textPrimary : Theme.textSecondary
+                        font.weight: isSelected ? Font.DemiBold : Font.Normal
+                        color: isSelected ? Theme.textPrimary : Theme.textSecondary
                         Layout.fillWidth: true
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     }
@@ -194,7 +195,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
 
         RowLayout {
@@ -217,8 +218,8 @@ BaseDialog {
                 Layout.preferredWidth: _cancelLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34
                 radius: Dimensions.radiusStandard
-                color: _cancelMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
+                color: _cancelMouse.containsMouse ? Theme.textPrimary08 : "transparent"
+                border.color: Theme.textPrimary12
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -253,8 +254,8 @@ BaseDialog {
                 radius: Dimensions.radiusStandard
                 opacity: root.selectedIndex >= 0 ? 1.0 : 0.5
                 color: {
-                    if (root.selectedIndex < 0) return Theme.withAlpha(Theme.accent, 0.4)
-                    return _installMouse.containsMouse ? Theme.accent : Theme.withAlpha(Theme.accent, 0.85)
+                    if (root.selectedIndex < 0) return Theme.accent40
+                    return _installMouse.containsMouse ? Theme.accent : Theme.accent85
                 }
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                 Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }

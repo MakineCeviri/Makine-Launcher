@@ -252,7 +252,7 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.preferredHeight: 34
         radius: 14
         color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-        border.color: secMa.containsMouse ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
+        border.color: secMa.containsMouse ? Theme.accentBase30 : Qt.rgba(1, 1, 1, 0.06)
         border.width: 1
 
         // Ambient glow

@@ -17,7 +17,7 @@ Item {
     signal libraryClicked()
     signal settingsClicked()
 
-    readonly property color _bgColor: Theme.withAlpha(Theme.surface, 0.7)
+    readonly property color _bgColor: Theme.surface70
 
     // Main background
     Rectangle {
@@ -65,7 +65,7 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: 1
-        color: Theme.withAlpha(Theme.textPrimary, 0.08)
+        color: Theme.textPrimary08
         opacity: navBarRoot.currentIndex === 2 ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
     }

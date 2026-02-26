@@ -22,7 +22,7 @@ Rectangle {
     radius: Dimensions.radiusSection
     color: Theme.surface
     border.color: bannerMa.containsMouse
-        ? Theme.withAlpha(Theme.accentBase, 0.30) : Qt.rgba(1, 1, 1, 0.06)
+        ? Theme.accentBase30 : Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
     Behavior on border.color { ColorAnimation { duration: Dimensions.animNormal } }
 

@@ -7,6 +7,9 @@ pragma ComponentBehavior: Bound
  * Built-in GameCard delegate, weighted drag, batched wheel scroll.
  * Usage: model + onGameClicked — that's it.
  * Set wrapAround: true for infinite circular scrolling (HomePage only).
+ *
+ * When model is a CatalogProxyModel with wrapAround, the proxy handles 2x
+ * doubling. When model is a JS array, this strip duplicates it internally.
  */
 Item {
     id: strip
@@ -17,8 +20,23 @@ Item {
     property bool wrapAround: false
     property bool largeCards: false
     property bool wheelEnabled: true
+    property real driftSpeed: 0  // px/sec, negative=left, positive=right (wrapAround only)
     property bool _initialCentered: false
+
+    // Is the model a C++ QAbstractItemModel (proxy)?
+    readonly property bool _isProxyModel: model && typeof model.rowCount === "function"
+
+    // For JS array models: build 2x view model internally
+    property var _viewModel: []
     property bool _wrapReady: false
+
+    function _updateViewModel() {
+        if (_isProxyModel) return // proxy handles doubling
+        var src = model
+        if (!src || src.length === 0) { _viewModel = src || []; return }
+        if (!wrapAround || src.length < 2 || !_wrapReady) { _viewModel = src; return }
+        _viewModel = src.concat(src)
+    }
 
     // Scroll state for edge navigation
     readonly property bool canScrollLeft: !wrapAround && view.contentWidth > view.width
@@ -43,23 +61,25 @@ Item {
 
     signal gameClicked(string gameId, string gameName, string installPath, string engine)
 
-    // Re-center when model changes (search filtering, data reload)
+    // Re-center when model changes
     onModelChanged: {
         _initialCentered = false
-        _wrapReady = false
-        if (wrapAround && model && model.length >= 2)
-            _wrapActivation.restart()
+        if (!_isProxyModel) {
+            _wrapReady = false
+            _updateViewModel()
+            if (wrapAround && model && model.length >= 2)
+                _wrapActivation.restart()
+        }
     }
 
-    // Deferred wrap: load 1x first (fast), expand to 2x after settling
+    // Deferred wrap for JS array models
     Timer {
         id: _wrapActivation
         interval: 600
         onTriggered: {
-            if (!strip.wrapAround || !strip.model || strip.model.length < 2)
+            if (strip._isProxyModel || !strip.wrapAround || !strip.model || strip.model.length < 2)
                 return
             strip._wrapReady = true
-            // Center view on the junction between the two copies
             Qt.callLater(function() {
                 if (strip._jumpWidth > 0)
                     view.contentX = strip._jumpWidth - view.width / 2
@@ -67,17 +87,21 @@ Item {
         }
     }
 
-    // 2x repeated model for seamless infinite scroll (deferred when wrapAround)
-    readonly property var _viewModel: {
-        var src = model
-        if (!src || src.length === 0) return src || []
-        if (!wrapAround || src.length < 2 || !_wrapReady) return src
-        return src.concat(src)
-    }
+    onWrapAroundChanged: if (!_isProxyModel) _updateViewModel()
+    on_WrapReadyChanged: if (!_isProxyModel) _updateViewModel()
+    Component.onCompleted: if (!_isProxyModel) _updateViewModel()
 
     // Pixel width of one model copy (jump distance for wrap teleport)
     readonly property real _jumpWidth: {
-        if (!wrapAround || !_wrapReady || view.contentWidth <= 0 || (model || []).length < 2) return 0
+        if (!wrapAround || view.contentWidth <= 0 || view.count <= 0) return 0
+        if (_isProxyModel) {
+            // Proxy model: count is already 2x, half is one copy
+            var halfCount = Math.floor(view.count / 2)
+            if (halfCount <= 0) return 0
+            return halfCount * (Dimensions.cardWidth + Dimensions.cardGap)
+        }
+        // JS array: _viewModel is 2x
+        if (!_wrapReady || !model || model.length < 2) return 0
         return (view.contentWidth + view.spacing) / 2
     }
 
@@ -98,7 +122,7 @@ Item {
                     : Math.min(Dimensions.cardHeight, parent.height)
         orientation: ListView.Horizontal
         spacing: Dimensions.cardGap
-        model: strip._viewModel
+        model: strip._isProxyModel ? strip.model : strip._viewModel
         interactive: false
         cacheBuffer: strip.wrapAround ? 0 : 100
         displayMarginBeginning: 0
@@ -109,11 +133,9 @@ Item {
         // Center the strip initially
         onContentWidthChanged: {
             if (!strip._initialCentered && contentWidth > width && count > 0) {
-                if (strip.wrapAround && strip._wrapReady && strip._jumpWidth > 0) {
-                    // 2x mode: center at junction between two copies
+                if (strip.wrapAround && strip._jumpWidth > 0) {
                     contentX = strip._jumpWidth - width / 2
                 } else {
-                    // 1x mode or non-wrap: simple center
                     contentX = (contentWidth - width) / 2
                 }
                 strip._initialCentered = true
@@ -121,17 +143,17 @@ Item {
         }
 
         delegate: GameCard {
-            required property var modelData
+            required property var model
             required property int index
             height: ListView.view.height
-            gameId: modelData.gameId || modelData.id || ""
-            gameName: modelData.name || modelData.gameName || ""
-            steamAppId: modelData.steamAppId || ""
-            installPath: modelData.installPath || ""
+            gameId: model.gameId ?? model.id ?? ""
+            gameName: model.name ?? model.gameName ?? ""
+            steamAppId: model.steamAppId ?? ""
+            installPath: model.installPath ?? ""
             onClicked: strip.gameClicked(
-                modelData.gameId || modelData.id || "",
-                modelData.name || modelData.gameName || "",
-                modelData.installPath || "", modelData.engine || ""
+                model.gameId ?? model.id ?? "",
+                model.name ?? model.gameName ?? "",
+                model.installPath ?? "", model.engine ?? ""
             )
         }
     }
@@ -218,8 +240,7 @@ Item {
         id: momentumAnim
         running: false
         onTriggered: {
-            // Frame-rate independent decay: 0.88 per 16ms baseline
-            var dt = Math.min(frameTime, 0.05) // cap at 50ms to avoid spiral
+            var dt = Math.min(frameTime, 0.05)
             strip._velocity *= Math.pow(0.82, dt / 0.016)
 
             if (Math.abs(strip._velocity) < 0.3) {
@@ -229,7 +250,6 @@ Item {
                 return
             }
 
-            // Scale displacement by actual frame time for consistent speed
             var displacement = strip._velocity * (dt / 0.016)
             var newX = view.contentX - displacement
 
@@ -259,6 +279,27 @@ Item {
             strip._velocity += Math.max(-20, Math.min(20, rotation - _prev)) * 0.6
             _prev = rotation
             momentumAnim.restart()
+        }
+    }
+
+    // Subtle continuous drift (only when wrapAround is active)
+    FrameAnimation {
+        id: driftAnim
+        running: strip.driftSpeed !== 0 && strip.wrapAround
+                 && strip._jumpWidth > 0
+                 && !momentumAnim.running
+        onTriggered: {
+            var dt = Math.min(frameTime, 0.05)
+            var displacement = strip.driftSpeed * dt
+            var newX = view.contentX + displacement
+
+            var jw = strip._jumpWidth
+            if (jw > 0) {
+                if (newX < jw * 0.15) newX += jw
+                else if (newX > jw * 1.15) newX -= jw
+            }
+
+            view.contentX = newX
         }
     }
 }

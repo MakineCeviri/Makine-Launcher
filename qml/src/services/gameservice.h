@@ -21,6 +21,7 @@
 #include "corebridge.h"
 #include "manifestsyncservice.h"
 #include "updatedetectionservice.h"
+#include "supportedgamesmodel.h"
 
 namespace makineai {
 
@@ -101,15 +102,17 @@ class GameService : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(QVariantList games READ games NOTIFY gamesChanged)
-    Q_PROPERTY(int gameCount READ gameCount NOTIFY gamesChanged)
+    Q_PROPERTY(QVariantList games READ games NOTIFY gameListChanged)
+    Q_PROPERTY(int gameCount READ gameCount NOTIFY gameListChanged)
     Q_PROPERTY(bool isScanning READ isScanning NOTIFY isScanningChanged)
     Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanStatusChanged)
-    Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY gamesChanged)
-    Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY gamesChanged)
-    Q_PROPERTY(QVariantList installedTranslations READ installedTranslations NOTIFY gamesChanged)
-    Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY gamesChanged)
+    Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY translationStatusChanged)
+    Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY supportedGamesChanged)
+    Q_PROPERTY(QVariantList installedTranslations READ installedTranslations NOTIFY translationStatusChanged)
+    Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY supportedGamesChanged)
+    Q_PROPERTY(int installedTranslationCount READ installedTranslationCount NOTIFY translationStatusChanged)
     Q_PROPERTY(int gameUpdateCount READ gameUpdateCount NOTIFY gameUpdateCountChanged)
+    Q_PROPERTY(SupportedGamesModel* supportedGamesModel READ supportedGamesModel CONSTANT)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -133,6 +136,8 @@ public:
     QVariantList supportedGames() const;
     QVariantList installedTranslations() const;
     int supportedGameCount() const;
+    SupportedGamesModel* supportedGamesModel() const { return m_supportedGamesModel; }
+    int installedTranslationCount() const;
     int gameUpdateCount() const;
 
     // Q_INVOKABLE methods for QML
@@ -300,7 +305,9 @@ public:
     Q_INVOKABLE QVariantMap getCatalogEntry(const QString& steamAppId) const;
 
 signals:
-    void gamesChanged();
+    void gameListChanged();
+    void translationStatusChanged();
+    void supportedGamesChanged();
     void isScanningChanged();
     void scanStatusChanged();
     void gameDetected(const QString& gameId);
@@ -332,7 +339,10 @@ private:
     void finalizeManualGame(const QString& path, const QString& folderName,
                             const QString& engine, const QString& matchedAppId);
     void finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex);
-    void invalidateCache();
+    void invalidateGameListCache();
+    void invalidateTranslationCache();
+    void invalidateSupportedCache();
+    void invalidateAllCaches();
     void rebuildCache();
     void ensureSupportedGamesCache();
     bool isValidGamePath(const QString& path) const;
@@ -366,6 +376,7 @@ private:
     mutable bool m_translationCacheValid{false};
     mutable bool m_installedCacheValid{false};
     QSet<QString> m_antiCheatAcknowledged;
+    SupportedGamesModel* m_supportedGamesModel{nullptr};
 };
 
 } // namespace makineai

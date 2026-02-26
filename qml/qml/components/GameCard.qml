@@ -56,16 +56,14 @@ Item {
         cache: false
     }
 
-    scale: _hovered ? 1.03 : 1.0
+    scale: cardMouse.containsMouse ? 1.03 : 1.0
     Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-    property bool _hovered: false
-
     MouseArea {
+        id: cardMouse
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: root.clicked()
-        onContainsMouseChanged: root._hovered = containsMouse
     }
 }

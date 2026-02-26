@@ -39,8 +39,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Dimensions.radiusStandard
-        color: mouseArea.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.03) : "transparent"
+        radius: Dimensions.radiusMD
+        color: mouseArea.containsMouse ? Theme.primary05 : "transparent"
 
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -56,8 +56,8 @@ Item {
                 Layout.preferredHeight: 40
                 radius: Dimensions.radiusStandard
                 color: root.isDestructive
-                    ? Theme.withAlpha(Theme.error, 0.1)
-                    : Theme.withAlpha(Theme.textPrimary, 0.06)
+                    ? Theme.error10
+                    : Theme.primary08
                 visible: root.icon !== "" || root.iconSource !== ""
 
                 scale: mouseArea.pressed ? 0.95 : 1.0
@@ -116,11 +116,14 @@ Item {
             }
 
             // Arrow icon
-            Image {
+            Text {
+                textFormat: Text.PlainText
+                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                 visible: root.showArrow
-                source: "qrc:/qt/qml/MakineAI/resources/icons/arrow_right.svg"
-                sourceSize: Qt.size(16, 16)
-                asynchronous: true
+                text: "\uE76C"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 14
+                color: Theme.primary
                 opacity: mouseArea.containsMouse ? 0.8 : 0.4
 
                 Behavior on opacity {

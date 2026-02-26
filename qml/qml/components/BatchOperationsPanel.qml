@@ -23,10 +23,10 @@ Rectangle {
     visible: shouldShow
 
     radius: Dimensions.radiusStandard
-    color: Theme.withAlpha(Theme.textPrimary, 0.03)
+    color: Theme.textPrimary03
     border.color: BatchOperationService.isRunning
-                  ? Theme.withAlpha(Theme.primary, 0.3)
-                  : Theme.withAlpha(Theme.textPrimary, 0.08)
+                  ? Theme.primary30
+                  : Theme.textPrimary08
     border.width: 1
 
     Behavior on Layout.preferredHeight {
@@ -91,7 +91,7 @@ Rectangle {
                 Layout.preferredHeight: 20
                 Layout.preferredWidth: completedLabel.width + 12
                 radius: Dimensions.badgeRadius
-                color: Theme.withAlpha(Theme.success, 0.12)
+                color: Theme.success12
 
                 Label {
                     textFormat: Text.PlainText
@@ -109,7 +109,7 @@ Rectangle {
                 Layout.preferredHeight: 20
                 Layout.preferredWidth: failedLabel.width + 12
                 radius: Dimensions.badgeRadius
-                color: Theme.withAlpha(Theme.destructive, 0.12)
+                color: Theme.destructive12
 
                 Label {
                     textFormat: Text.PlainText
@@ -134,11 +134,11 @@ Rectangle {
                 Keys.onSpacePressed: { if (BatchOperationService.isRunning) BatchOperationService.cancel(); else BatchOperationService.clearResults() }
                 color: actionBtnMouse.containsMouse
                        ? (BatchOperationService.isRunning
-                          ? Theme.withAlpha(Theme.destructive, 0.2)
-                          : Theme.withAlpha(Theme.textPrimary, 0.1))
+                          ? Theme.destructive20
+                          : Theme.textPrimary10)
                        : (BatchOperationService.isRunning
-                          ? Theme.withAlpha(Theme.destructive, 0.1)
-                          : Theme.withAlpha(Theme.textPrimary, 0.05))
+                          ? Theme.destructive10
+                          : Theme.textPrimary05)
 
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -189,7 +189,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 6
                 radius: 3
-                color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                color: Theme.textPrimary06
 
                 Rectangle {
                     width: parent.width * BatchOperationService.overallProgress
@@ -208,14 +208,14 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 3
                 radius: 2
-                color: Theme.withAlpha(Theme.textPrimary, 0.04)
+                color: Theme.textPrimary04
                 visible: BatchOperationService.currentItemProgress > 0
 
                 Rectangle {
                     width: parent.width * BatchOperationService.currentItemProgress
                     height: parent.height
                     radius: 2
-                    color: Theme.withAlpha(Theme.primary, 0.5)
+                    color: Theme.primary50
 
                     Behavior on width {
                         NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
@@ -244,8 +244,8 @@ Rectangle {
                     height: 22
                     radius: Dimensions.badgeRadius
                     color: modelData.success
-                           ? Theme.withAlpha(Theme.success, 0.08)
-                           : Theme.withAlpha(Theme.destructive, 0.08)
+                           ? Theme.success08
+                           : Theme.destructive08
 
                     Row {
                         id: resultItemRow
@@ -279,7 +279,7 @@ Rectangle {
                 width: moreLabel.width + 12
                 height: 22
                 radius: Dimensions.badgeRadius
-                color: Theme.withAlpha(Theme.textPrimary, 0.05)
+                color: Theme.textPrimary05
 
                 Label {
                     textFormat: Text.PlainText

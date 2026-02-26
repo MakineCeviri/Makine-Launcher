@@ -100,6 +100,7 @@ namespace makineai {
 
 GameService::GameService(QObject *parent)
     : QObject(parent)
+    , m_supportedGamesModel(new SupportedGamesModel(this))
 {
     m_updateService.setGameService(this);
 
@@ -216,6 +217,8 @@ void GameService::initialize()
                                          g = std::move(games),
                                          s = std::move(steamDetails),
                                          p = std::move(pkgCache)]() mutable {
+            MAKINE_ZONE_NAMED("GameService::initialize (main thread)");
+
             m_games = std::move(g);
             m_steamDetailsCache = std::move(s);
             m_packageInstalledCache = std::move(p);
@@ -226,7 +229,9 @@ void GameService::initialize()
                 QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
             }
 
-            emit gamesChanged();
+            emit gameListChanged();
+            emit translationStatusChanged();
+            emit supportedGamesChanged();
             ensureSupportedGamesCache();
         }, Qt::QueuedConnection);
     });
@@ -242,9 +247,13 @@ void GameService::setManifestSync(ManifestSyncService* sync)
             // Remote catalog updated — invalidate supported games cache
             m_supportedCacheValid = false;
             m_supportedGamesCache.clear();
-            // Defer QML re-evaluation to next event loop iteration
-            // so refreshPackageManifest completes first and a frame renders between
-            QTimer::singleShot(0, this, &GameService::gamesChanged);
+            qDebug() << "catalogReady received — rebuilding model";
+            // Defer to next event loop so refreshPackageManifest completes first
+            QTimer::singleShot(0, this, [this]{
+                // Trigger cache rebuild + model population via supportedGames()
+                supportedGames();
+                emit supportedGamesChanged();
+            });
         });
     }
 }
@@ -329,8 +338,12 @@ void GameService::setupCoreBridge()
                         if (idx >= 0 && idx < m_games.count()) {
                             m_games[idx].hasTranslation = true;
                             m_games[idx].isVerified = true;
-                            invalidateCache();
-                            emit gamesChanged();
+                            invalidateTranslationCache();
+                            invalidateSupportedCache();
+                            // Granular model update (no full reset)
+                            m_supportedGamesModel->updatePackageStatus(m_games[idx].steamAppId, true);
+                            emit translationStatusChanged();
+                            emit supportedGamesChanged();
 
                             // Record store version + take file snapshot
                             const auto& game = m_games[idx];
@@ -427,10 +440,14 @@ void GameService::onScanCompleted(int count)
 
     saveCachedGames();
 
-    // Defer gamesChanged to next event loop iteration so onScanCompleted
+    // Defer signal emission to next event loop iteration so onScanCompleted
     // returns immediately. QML binding re-evaluation happens after control
     // returns to the event loop, preventing a 3.5s main thread freeze.
-    QTimer::singleShot(0, this, &GameService::gamesChanged);
+    QTimer::singleShot(0, this, [this]{
+        emit gameListChanged();
+        emit translationStatusChanged();
+        emit supportedGamesChanged();
+    });
 
     // Defer supported games cache warm-up: let UI render first, then
     // lazy-compute on next QML access via supportedGames() getter.
@@ -535,8 +552,8 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
         if (idx >= 0 && idx < m_games.count()) {
             m_games[idx].installPath = path;
             m_games[idx].isInstalled = true;
-            invalidateCache();
-            emit gamesChanged();
+            invalidateGameListCache();
+            emit gameListChanged();
             emit manualGameAdded(game.id);
             return;
         }
@@ -547,8 +564,9 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
     if (!game.steamAppId.isEmpty())
         m_steamAppIdToIndex[game.steamAppId] = m_games.count() - 1;
 
-    invalidateCache();
-    emit gamesChanged();
+    invalidateAllCaches();
+    emit gameListChanged();
+    emit supportedGamesChanged();
     emit gameDetected(game.id);
     emit manualGameAdded(game.id);
 
@@ -832,6 +850,7 @@ QVariantList GameService::supportedGames() const
     } else {
         return {};
     }
+    qDebug() << "supportedGames() catalog loaded:" << m_supportedGamesCache.size() << "items";
 
     // Enrich each entry with local state using O(1) hash lookups
     for (int i = 0; i < m_supportedGamesCache.size(); ++i) {
@@ -867,7 +886,24 @@ QVariantList GameService::supportedGames() const
 
     m_supportedCacheValid = true;
 
+    // Populate the QAbstractListModel from the enriched cache
+    m_supportedGamesModel->resetFromCatalog(m_supportedGamesCache);
+
     return m_supportedGamesCache;
+}
+
+int GameService::installedTranslationCount() const
+{
+    if (m_installedCacheValid)
+        return m_installedTranslationsCache.count();
+
+    if (!m_coreBridge) return 0;
+    int count = 0;
+    for (const auto& game : m_games) {
+        if (m_coreBridge->isPackageInstalled(game.id))
+            ++count;
+    }
+    return count;
 }
 
 int GameService::supportedGameCount() const
@@ -991,7 +1027,9 @@ void GameService::loadCachedGames()
     rebuildCache();
 
     qDebug() << "Loaded" << m_games.count() << "games from cache";
-    emit gamesChanged();
+    emit gameListChanged();
+    emit translationStatusChanged();
+    emit supportedGamesChanged();
     ensureSupportedGamesCache();
 }
 
@@ -1030,17 +1068,31 @@ void GameService::saveCachedGames()
     });
 }
 
-void GameService::invalidateCache()
+void GameService::invalidateGameListCache()
 {
     m_cacheValid = false;
-    m_supportedCacheValid = false;
+    m_gamesCache.clear();
+}
+
+void GameService::invalidateTranslationCache()
+{
     m_translationCacheValid = false;
     m_installedCacheValid = false;
-    m_gamesCache.clear();
-    m_supportedGamesCache.clear();
     m_translationGamesCache.clear();
     m_installedTranslationsCache.clear();
-    m_packageInstalledCache.clear();
+}
+
+void GameService::invalidateSupportedCache()
+{
+    m_supportedCacheValid = false;
+    m_supportedGamesCache.clear();
+}
+
+void GameService::invalidateAllCaches()
+{
+    invalidateGameListCache();
+    invalidateTranslationCache();
+    invalidateSupportedCache();
 }
 
 void GameService::rebuildCache()
@@ -1058,16 +1110,9 @@ void GameService::rebuildCache()
             m_steamAppIdToIndex[m_games[i].steamAppId] = i;
     }
 
-    // Invalidate QVariantList caches but preserve packageInstalledCache
-    // (it may have been pre-warmed in background or still be valid)
-    m_cacheValid = false;
-    m_supportedCacheValid = false;
-    m_translationCacheValid = false;
-    m_installedCacheValid = false;
-    m_gamesCache.clear();
-    m_supportedGamesCache.clear();
-    m_translationGamesCache.clear();
-    m_installedTranslationsCache.clear();
+    // Invalidate all QVariantList caches (preserves packageInstalledCache
+    // which may have been pre-warmed in background or still be valid)
+    invalidateAllCaches();
 }
 
 void GameService::ensureSupportedGamesCache()
@@ -1436,8 +1481,10 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
     if (success && gameIndex >= 0 && gameIndex < m_games.count()) {
         m_games[gameIndex].hasTranslation = false;
         m_packageInstalledCache[gameId] = false;
-        invalidateCache();
-        emit gamesChanged();
+        // Granular model update
+        m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
+        invalidateTranslationCache();
+        emit translationStatusChanged();
 
         m_updateService.removeSnapshot(gameId);
         m_updateService.removeStoreVersion(gameId);
@@ -1467,6 +1514,7 @@ void GameService::checkAllInstalledTranslations()
             emit translationImpactDetected(game.id, game.name, impact);
         }
     }
+    qDebug() << "checkAllInstalledTranslations:" << m_games.count() << "games checked";
 }
 
 void GameService::recoverTranslation(const QString& gameId)

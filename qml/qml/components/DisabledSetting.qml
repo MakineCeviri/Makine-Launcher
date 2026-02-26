@@ -29,14 +29,14 @@ Item {
             Label {
                 textFormat: Text.PlainText
                 text: description; font.pixelSize: Dimensions.fontBody
-                color: Theme.withAlpha(Theme.textMuted, 0.7)
+                color: Theme.textMuted70
                 Layout.fillWidth: true; elide: Text.ElideRight
             }
         }
         Rectangle {
             Layout.preferredWidth: _yLbl.width + 24
             Layout.preferredHeight: 28; radius: 14
-            color: Theme.withAlpha(Theme.textPrimary, 0.08)
+            color: Theme.primary10
             Label {
                 textFormat: Text.PlainText
                 id: _yLbl; anchors.centerIn: parent

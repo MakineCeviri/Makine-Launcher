@@ -36,8 +36,8 @@ BaseDialog {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
                 radius: 16
-                color: Theme.withAlpha(Theme.warning, 0.10)
-                border.color: Theme.withAlpha(Theme.warning, 0.20)
+                color: Theme.warning10
+                border.color: Theme.warning20
                 border.width: 1
 
                 Canvas {
@@ -82,7 +82,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
     }
 
@@ -98,8 +98,8 @@ BaseDialog {
             Layout.rightMargin: Dimensions.paddingLG
             Layout.preferredHeight: notesLabel.implicitHeight + Dimensions.paddingMD * 2
             radius: Dimensions.radiusStandard
-            color: Theme.withAlpha(Theme.warning, 0.06)
-            border.color: Theme.withAlpha(Theme.warning, 0.15)
+            color: Theme.warning06
+            border.color: Theme.warning15
             border.width: 1
 
             Label {
@@ -123,7 +123,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
 
         RowLayout {
@@ -146,8 +146,8 @@ BaseDialog {
                 Layout.preferredWidth: _cancelLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34
                 radius: Dimensions.radiusStandard
-                color: _cancelMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
+                color: _cancelMouse.containsMouse ? Theme.textPrimary08 : "transparent"
+                border.color: Theme.textPrimary12
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -180,7 +180,7 @@ BaseDialog {
                 Layout.preferredWidth: _continueLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34
                 radius: Dimensions.radiusStandard
-                color: _continueMouse.containsMouse ? Theme.accent : Theme.withAlpha(Theme.accent, 0.85)
+                color: _continueMouse.containsMouse ? Theme.accent : Theme.accent85
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                 scale: _continueMouse.pressed ? Dimensions.pressScale : 1.0
                 Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }

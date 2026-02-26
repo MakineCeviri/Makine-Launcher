@@ -22,14 +22,14 @@ Rectangle {
 
     radius: Dimensions.radiusSM
     color: {
-        if (notificationType === "error") return Theme.withAlpha(Theme.destructive, 0.10)
-        if (notificationType === "warning") return Theme.withAlpha(Theme.warning, 0.10)
-        return Theme.withAlpha(Theme.primary, 0.08)
+        if (notificationType === "error") return Theme.destructive10
+        if (notificationType === "warning") return Theme.warning10
+        return Theme.primary08
     }
     border.color: {
-        if (notificationType === "error") return Theme.withAlpha(Theme.destructive, 0.25)
-        if (notificationType === "warning") return Theme.withAlpha(Theme.warning, 0.25)
-        return Theme.withAlpha(Theme.primary, 0.15)
+        if (notificationType === "error") return Theme.destructive25
+        if (notificationType === "warning") return Theme.warning25
+        return Theme.primary15
     }
     border.width: 1
 

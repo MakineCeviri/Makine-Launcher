@@ -537,6 +537,8 @@ void logToFile(const QString& msg) {
 
 // Backend services
 #include "services/gameservice.h"
+#include "services/supportedgamesmodel.h"
+#include "services/catalogproxymodel.h"
 #include "services/settingsmanager.h"
 #include "services/backupmanager.h"
 #include "services/processscanner.h"
@@ -714,6 +716,11 @@ int main(int argc, char *argv[])
     translationDownloader->setManifestSync(manifestSync);
     translationDownloader->setDataPath(makineai::AppPaths::packagesDir());
     engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
+
+    // Register model types for QML
+    qmlRegisterUncreatableType<makineai::SupportedGamesModel>("MakineAI", 1, 0,
+        "SupportedGamesModel", "Use GameService.supportedGamesModel");
+    qmlRegisterType<makineai::CatalogProxyModel>("MakineAI", 1, 0, "CatalogProxyModel");
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
 #ifdef Q_OS_WIN

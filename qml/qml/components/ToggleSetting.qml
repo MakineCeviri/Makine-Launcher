@@ -26,7 +26,7 @@ Item {
     Layout.preferredHeight: 72
     Rectangle {
         anchors.fill: parent
-        color: _toggleMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.02) : "transparent"
+        color: _toggleMouse.containsMouse ? Theme.primary03 : "transparent"
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
     }
     RowLayout {
@@ -55,10 +55,10 @@ Item {
             Layout.preferredWidth: Dimensions.toggleWidth
             Layout.preferredHeight: Dimensions.toggleHeight
             radius: Dimensions.toggleRadius
-            color: checked ? Theme.primary : Theme.withAlpha(Theme.textPrimary, 0.1)
+            color: checked ? Theme.primary : Theme.primary12
             property bool showGlow: _toggleMouse.containsMouse || _toggleRoot.activeFocus
             border.color: showGlow
-                ? (checked ? Theme.withAlpha(Theme.primary, 0.6) : Theme.withAlpha(Theme.textPrimary, 0.3))
+                ? (checked ? Theme.primary60 : Theme.primary25)
                 : "transparent"
             border.width: 1.5
             scale: _toggleMouse.containsMouse ? 1.05 : 1.0
@@ -81,7 +81,7 @@ Item {
                     anchors.fill: parent; anchors.margins: -1
                     radius: Dimensions.radiusStandard
                     color: "transparent"
-                    border.color: Theme.withAlpha(Theme.bgPrimary, 0.15)
+                    border.color: Theme.bgPrimary15
                     border.width: 1; z: -1
                 }
                 Behavior on x {

@@ -49,7 +49,7 @@ ColumnLayout {
                     }
                     Rectangle {
                         width: _ykLbl.width + 10; height: 16; radius: 8
-                        color: Theme.withAlpha(Theme.textPrimary, 0.1)
+                        color: Theme.primary12
                         Label {
                             textFormat: Text.PlainText
                             id: _ykLbl; anchors.centerIn: parent
@@ -69,8 +69,8 @@ ColumnLayout {
             Rectangle {
                 Layout.preferredWidth: _themeRow.width + 8
                 Layout.preferredHeight: 40
-                radius: Dimensions.radiusStandard
-                color: Theme.withAlpha(Theme.textPrimary, 0.06)
+                radius: Dimensions.radiusMD
+                color: Theme.primary06
                 Row {
                     id: _themeRow
                     anchors.centerIn: parent
@@ -78,7 +78,7 @@ ColumnLayout {
                     // Light theme - disabled
                     Rectangle {
                         width: _lightRow.width + 28; height: 32
-                        radius: Dimensions.radiusStandard
+                        radius: Dimensions.radiusMD
                         color: "transparent"; opacity: 0.4
                         Row {
                             id: _lightRow
@@ -96,9 +96,9 @@ ColumnLayout {
                     // Dark theme - active
                     Rectangle {
                         width: _darkRow.width + 28; height: 32
-                        radius: Dimensions.radiusStandard
-                        color: Theme.withAlpha(Theme.textPrimary, 0.12)
-                        border.color: Theme.withAlpha(Theme.textPrimary, 0.2)
+                        radius: Dimensions.radiusMD
+                        color: Theme.primary15
+                        border.color: Theme.primary35
                         border.width: 1
                         Row {
                             id: _darkRow
@@ -168,13 +168,13 @@ ColumnLayout {
 
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 52
-                                radius: Dimensions.radiusStandard
+                                radius: Dimensions.radiusMD
                                 color: _presetMouse.containsMouse
-                                    ? Theme.withAlpha(Theme.textPrimary, 0.06)
-                                    : (isSelected ? Theme.withAlpha(Theme.textPrimary, 0.04) : "transparent")
+                                    ? Theme.primary06
+                                    : (isSelected ? Theme.primary06 : "transparent")
                                 border.color: isSelected
                                     ? Theme.withAlpha(modelData.colors[2], 0.6)
-                                    : (_presetMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.12) : Theme.withAlpha(Theme.textPrimary, 0.06))
+                                    : (_presetMouse.containsMouse ? Theme.primary12 : Theme.primary06)
                                 border.width: isSelected ? 1.5 : 1
 
                                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -349,11 +349,11 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: _updateBtnLbl.width + 24
                             Layout.preferredHeight: 28
-                            radius: Dimensions.radiusStandard
+                            radius: Dimensions.radiusMD
                             visible: !UpdateChecker.checking && !UpdateChecker.downloading && !UpdateChecker.readyToInstall
                             color: _updateBtnMouse.containsMouse
-                                ? Theme.withAlpha(Theme.primary, 0.20)
-                                : Theme.withAlpha(Theme.primary, 0.10)
+                                ? Theme.primary20
+                                : Theme.primary10
                             scale: _updateBtnMouse.pressed ? 0.94 : 1.0
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -381,9 +381,9 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: _dlBtnLbl.width + 24
                             Layout.preferredHeight: 28
-                            radius: Dimensions.radiusStandard
+                            radius: Dimensions.radiusMD
                             visible: UpdateChecker.updateAvailable && !UpdateChecker.checking && !UpdateChecker.downloading && !UpdateChecker.readyToInstall
-                            color: _dlBtnMouse.containsMouse ? Theme.success : Theme.withAlpha(Theme.success, 0.85)
+                            color: _dlBtnMouse.containsMouse ? Theme.success : Theme.success85
                             scale: _dlBtnMouse.pressed ? 0.94 : 1.0
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -411,11 +411,11 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: _cancelBtnLbl.width + 24
                             Layout.preferredHeight: 28
-                            radius: Dimensions.radiusStandard
+                            radius: Dimensions.radiusMD
                             visible: UpdateChecker.downloading
                             color: _cancelBtnMouse.containsMouse
-                                ? Theme.withAlpha(Theme.error, 0.20)
-                                : Theme.withAlpha(Theme.error, 0.10)
+                                ? Theme.error20
+                                : Theme.error10
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                             Label {
@@ -441,9 +441,9 @@ ColumnLayout {
                         Rectangle {
                             Layout.preferredWidth: _installBtnLbl.width + 24
                             Layout.preferredHeight: 28
-                            radius: Dimensions.radiusStandard
+                            radius: Dimensions.radiusMD
                             visible: UpdateChecker.readyToInstall
-                            color: _installBtnMouse.containsMouse ? Theme.success : Theme.withAlpha(Theme.success, 0.85)
+                            color: _installBtnMouse.containsMouse ? Theme.success : Theme.success85
                             scale: _installBtnMouse.pressed ? 0.94 : 1.0
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -498,7 +498,7 @@ ColumnLayout {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 6
                             radius: 3
-                            color: Theme.withAlpha(Theme.primary, 0.15)
+                            color: Theme.primary15
 
                             Rectangle {
                                 width: parent.width * UpdateChecker.downloadProgress
@@ -557,8 +557,8 @@ ColumnLayout {
                             Layout.preferredHeight: 24
                             radius: Dimensions.radiusSM
                             color: _retryMouse.containsMouse
-                                ? Theme.withAlpha(Theme.primary, 0.20)
-                                : Theme.withAlpha(Theme.primary, 0.10)
+                                ? Theme.primary20
+                                : Theme.primary10
 
                             Label {
                                 textFormat: Text.PlainText
@@ -622,10 +622,10 @@ ColumnLayout {
                     Rectangle {
                         Layout.preferredWidth: _clearCacheLbl.width + 24
                         Layout.preferredHeight: 28
-                        radius: Dimensions.radiusStandard
+                        radius: Dimensions.radiusMD
                         color: _clearCacheMouse.containsMouse
-                            ? Theme.withAlpha(Theme.warning, 0.20)
-                            : Theme.withAlpha(Theme.warning, 0.10)
+                            ? Theme.warning20
+                            : Theme.warning10
                         scale: _clearCacheMouse.pressed ? 0.94 : 1.0
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                         Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -663,18 +663,18 @@ ColumnLayout {
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: Dimensions.marginML
-            anchors.rightMargin: Dimensions.marginML
+            anchors.rightMargin: 0
 
             Item { Layout.fillWidth: true }
 
             Rectangle {
                 Layout.preferredWidth: _resetLbl.width + 32
                 Layout.preferredHeight: 34
-                radius: Dimensions.radiusStandard
+                radius: Dimensions.radiusMD
                 color: _resetMouse.containsMouse
-                    ? Theme.withAlpha(Theme.error, 0.12)
+                    ? Theme.error12
                     : "transparent"
-                border.color: Theme.withAlpha(Theme.error, 0.25)
+                border.color: Theme.error25
                 border.width: 1
                 scale: _resetMouse.pressed ? 0.94 : 1.0
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

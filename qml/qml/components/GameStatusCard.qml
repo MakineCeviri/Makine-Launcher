@@ -23,7 +23,7 @@ Rectangle {
 
     radius: Dimensions.radiusSection
     color: Theme.surface
-    border.color: Theme.withAlpha(Theme.textPrimary, 0.06)
+    border.color: Theme.textPrimary06
     border.width: 1
 
     ColumnLayout {
@@ -50,7 +50,7 @@ Rectangle {
                 spacing: 2
                 Label {
                     textFormat: Text.PlainText
-                    text: (GameService.games || []).length
+                    text: GameService.gameCount
                     font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.primary
@@ -68,7 +68,7 @@ Rectangle {
                 spacing: 2
                 Label {
                     textFormat: Text.PlainText
-                    text: (GameService.installedTranslations() || []).length
+                    text: GameService.installedTranslationCount
                     font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.accentBase
@@ -109,9 +109,9 @@ Rectangle {
             Layout.preferredHeight: 32
             radius: Dimensions.radiusSM
             color: addFolderMa.containsMouse
-                ? Theme.withAlpha(Theme.primary, 0.12)
-                : Theme.withAlpha(Theme.textPrimary, 0.04)
-            border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
+                ? Theme.primary12
+                : Theme.textPrimary04
+            border.color: Theme.textPrimary08
             border.width: 1
 
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

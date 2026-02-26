@@ -30,7 +30,7 @@ Rectangle {
         anchors.right: parent.right
         height: parent.height * 0.5
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.03) }
+            GradientStop { position: 0.0; color: Theme.primary03 }
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
@@ -102,8 +102,8 @@ Rectangle {
                         height: 6
                         radius: 3
                         color: index === root.currentStep ? Theme.primary
-                             : index < root.currentStep ? Theme.withAlpha(Theme.success, 0.6)
-                             : Theme.withAlpha(Theme.surfaceActive, 0.5)
+                             : index < root.currentStep ? Theme.success60
+                             : Theme.surfaceActive50
 
                     }
                 }

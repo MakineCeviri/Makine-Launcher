@@ -13,5 +13,5 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.preferredHeight: 1
-    color: Theme.withAlpha(Theme.textPrimary, variant === "section" ? 0.06 : 0.04)
+    color: variant === "section" ? Theme.textPrimary06 : Theme.textPrimary04
 }

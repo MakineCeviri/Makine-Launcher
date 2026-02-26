@@ -29,8 +29,8 @@ Rectangle {
     Layout.fillWidth: true
     Layout.preferredHeight: contentCol.implicitHeight + 2 * Dimensions.spacingXL
     radius: Dimensions.radiusStandard
-    color: Theme.withAlpha(Theme.textPrimary, 0.03)
-    border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
+    color: Theme.textPrimary03
+    border.color: Theme.textPrimary08
     border.width: 1
 
     ColumnLayout {
@@ -82,7 +82,7 @@ Rectangle {
             }
             background: Rectangle {
                 radius: Dimensions.radiusSM
-                color: parent.hovered ? Theme.withAlpha(Theme.accent, 0.1) : "transparent"
+                color: parent.hovered ? Theme.accent10 : "transparent"
             }
         }
     }

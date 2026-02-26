@@ -37,8 +37,8 @@ Rectangle {
     property int animationDelay: 0  // For staggered animations in lists
 
     // Colors
-    property color baseColor: Theme.withAlpha(Theme.textPrimary, 0.06)
-    property color shimmerColor: Theme.withAlpha(Theme.textPrimary, 0.12)
+    property color baseColor: Theme.textPrimary06
+    property color shimmerColor: Theme.textPrimary12
 
     // Size
     implicitWidth: 100

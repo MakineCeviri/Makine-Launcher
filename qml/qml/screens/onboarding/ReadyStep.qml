@@ -24,8 +24,8 @@ Item {
             Layout.preferredWidth: 64
             Layout.preferredHeight: 64
             radius: 32
-            color: Theme.withAlpha(Theme.success, 0.1)
-            border.color: Theme.withAlpha(Theme.success, 0.2)
+            color: Theme.success10
+            border.color: Theme.success20
             border.width: 1
 
             Text {

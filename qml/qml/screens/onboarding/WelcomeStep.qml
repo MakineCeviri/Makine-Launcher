@@ -81,7 +81,7 @@ Item {
                 Layout.preferredHeight: 64
                 Layout.topMargin: index > 0 ? 8 : 0
                 radius: 10
-                color: Theme.withAlpha(Theme.surface, 0.5)
+                color: Theme.surface50
                 border.color: Theme.glassBorder
                 border.width: 1
 
@@ -98,7 +98,7 @@ Item {
                         radius: 8
                         color: modelData.useTrBadge
                                ? "transparent"
-                               : Theme.withAlpha(Theme.primary, 0.08)
+                               : Theme.primary08
 
                         TurkishFlagBadge {
                             visible: modelData.useTrBadge

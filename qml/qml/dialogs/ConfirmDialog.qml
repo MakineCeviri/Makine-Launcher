@@ -83,7 +83,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
     }
 
@@ -113,7 +113,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
 
         RowLayout {
@@ -136,8 +136,8 @@ BaseDialog {
                 Layout.preferredWidth: _cancelLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34
                 radius: Dimensions.radiusStandard
-                color: _cancelMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                border.color: Theme.withAlpha(Theme.textPrimary, 0.12)
+                color: _cancelMouse.containsMouse ? Theme.textPrimary08 : "transparent"
+                border.color: Theme.textPrimary12
                 border.width: 1
                 scale: _cancelMouse.pressed ? Dimensions.pressScale : 1.0
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }

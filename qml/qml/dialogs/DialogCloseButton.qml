@@ -17,7 +17,7 @@ Rectangle {
     implicitWidth: 28
     implicitHeight: 28
     radius: 14
-    color: _mouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
+    color: _mouse.containsMouse ? Theme.textPrimary08 : "transparent"
 
     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 

@@ -60,7 +60,7 @@ Dialog {
     }
 
     Overlay.modal: Rectangle {
-        color: Theme.withAlpha(Theme.bgPrimary, 0.60)
+        color: Theme.bgPrimary60
         Behavior on opacity { NumberAnimation { duration: Dimensions.animMedium } }
     }
 

@@ -21,7 +21,16 @@ Item {
     // Called from Main.qml when Settings becomes visible
     function resetScroll() {
         pageContainer.updateHeight()
-        contentEntryAnim.restart()
+        _playEntryAnim()
+    }
+
+    function _playEntryAnim() {
+        settingsEntryAnim.stop()
+        contentEntryAnim.stop()
+        sidebar.opacity = 0; sidebarTranslate.x = -40
+        contentArea.opacity = 0; contentAreaTranslate.y = 20
+        pageContainer.opacity = 1; contentTranslate.y = 0
+        settingsEntryAnim.start()
     }
 
     property var categories: [
@@ -52,6 +61,8 @@ Item {
             SettingsSidebar {
                 id: sidebar
                 height: parent.height
+                opacity: 0
+                transform: Translate { id: sidebarTranslate; x: -40 }
                 selectedCategory: root.selectedCategory
                 categories: root.categories
                 onCategorySelected: function(index) {
@@ -64,6 +75,8 @@ Item {
                 id: contentArea
                 width: parent.width - sidebar.width
                 height: parent.height
+                opacity: 0
+                transform: Translate { id: contentAreaTranslate; y: 20 }
 
                 ScrollView {
                     id: settingsScrollView
@@ -229,6 +242,25 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // ===== ENTRY ANIMATION =====
+    ParallelAnimation {
+        id: settingsEntryAnim
+
+        // Sidebar — slide from left
+        NumberAnimation { target: sidebar; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        NumberAnimation { target: sidebarTranslate; property: "x"; from: -40; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+
+        // Content area — delay 100ms, fade + slide up
+        SequentialAnimation {
+            PauseAnimation { duration: 100 }
+            NumberAnimation { target: contentArea; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 100 }
+            NumberAnimation { target: contentAreaTranslate; property: "y"; from: 20; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
     }
 

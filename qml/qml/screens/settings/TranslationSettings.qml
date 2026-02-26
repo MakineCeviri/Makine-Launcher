@@ -40,7 +40,7 @@ ColumnLayout {
             Rectangle {
                 Layout.preferredWidth: Math.max(_bLbl.width + 28, 70)
                 Layout.preferredHeight: 28; radius: 14
-                color: Theme.withAlpha(Theme.primary, 0.15)
+                color: Theme.primary15
                 Label {
                     textFormat: Text.PlainText
                     id: _bLbl; anchors.centerIn: parent; text: badgeText

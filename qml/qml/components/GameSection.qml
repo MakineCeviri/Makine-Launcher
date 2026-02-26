@@ -27,6 +27,12 @@ SectionContainer {
         Layout.fillWidth: true
         spacing: Dimensions.spacingSM
 
+        Rectangle {
+            Layout.preferredWidth: 6; Layout.preferredHeight: 6
+            radius: 3; color: Theme.accentBase
+            Layout.alignment: Qt.AlignVCenter
+        }
+
         Label {
             textFormat: Text.PlainText
             text: section.title
@@ -43,24 +49,6 @@ SectionContainer {
         }
 
         Item { Layout.fillWidth: true }
-
-        Rectangle {
-            Layout.preferredHeight: 20
-            Layout.preferredWidth: countLabel.width + 14
-            radius: 10
-            color: Theme.withAlpha(section.badgeColor, 0.12)
-            border.color: Theme.withAlpha(section.badgeColor, 0.20)
-            border.width: 1
-            Label {
-                textFormat: Text.PlainText
-                id: countLabel
-                anchors.centerIn: parent
-                text: (section.model || []).length
-                font.pixelSize: Dimensions.fontXS
-                font.weight: Font.Medium
-                color: section.badgeColor
-            }
-        }
     }
 
     // Separator
@@ -109,65 +97,6 @@ SectionContainer {
             }
         }
 
-        // Left arrow button
-        Rectangle {
-            id: leftArrow
-            anchors.left: parent.left; anchors.leftMargin: 6
-            anchors.verticalCenter: parent.verticalCenter
-            width: 32; height: 32; radius: 16; z: 20
-            visible: gameStrip.canScrollLeft
-            color: leftMouse.containsMouse
-                ? Theme.withAlpha(Theme.bgPrimary, 0.92)
-                : Theme.withAlpha(Theme.bgPrimary, 0.70)
-            border.color: Theme.glassBorder; border.width: 1
-            scale: leftMouse.pressed ? 0.90 : 1.0
-            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-            Text {
-                textFormat: Text.PlainText
-                anchors.centerIn: parent
-                text: "\u2039"
-                font.pixelSize: Dimensions.fontTitle
-                color: Theme.textPrimary
-            }
-
-            MouseArea {
-                id: leftMouse; anchors.fill: parent
-                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: gameStrip.scrollLeft()
-            }
-        }
-
-        // Right arrow button
-        Rectangle {
-            id: rightArrow
-            anchors.right: parent.right; anchors.rightMargin: 6
-            anchors.verticalCenter: parent.verticalCenter
-            width: 32; height: 32; radius: 16; z: 20
-            visible: gameStrip.canScrollRight
-            color: rightMouse.containsMouse
-                ? Theme.withAlpha(Theme.bgPrimary, 0.92)
-                : Theme.withAlpha(Theme.bgPrimary, 0.70)
-            border.color: Theme.glassBorder; border.width: 1
-            scale: rightMouse.pressed ? 0.90 : 1.0
-            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-            Text {
-                textFormat: Text.PlainText
-                anchors.centerIn: parent
-                text: "\u203A"
-                font.pixelSize: Dimensions.fontTitle
-                color: Theme.textPrimary
-            }
-
-            MouseArea {
-                id: rightMouse; anchors.fill: parent
-                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: gameStrip.scrollRight()
-            }
-        }
     }
 
     // Empty state

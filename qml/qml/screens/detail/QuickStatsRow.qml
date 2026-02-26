@@ -6,8 +6,6 @@ pragma ComponentBehavior: Bound
 Flow {
     id: statsRoot
     Layout.fillWidth: true
-    Layout.leftMargin: Dimensions.marginXL
-    Layout.rightMargin: Dimensions.marginXL
     spacing: Dimensions.spacingMD
 
     // Required properties from parent
@@ -85,8 +83,8 @@ Flow {
         visible: statsRoot.genres.length > 0
         width: genreText.width + 20; height: 30
         radius: Dimensions.radiusFull
-        color: Theme.withAlpha(Theme.textPrimary, 0.05)
-        border.color: Theme.withAlpha(Theme.textPrimary, 0.08); border.width: 1
+        color: Theme.textPrimary05
+        border.color: Theme.textPrimary08; border.width: 1
         Text {
             textFormat: Text.PlainText
             id: genreText
@@ -103,8 +101,8 @@ Flow {
         visible: statsRoot.hasWindows || statsRoot.hasMac || statsRoot.hasLinux
         width: platText.width + 20; height: 30
         radius: Dimensions.radiusFull
-        color: Theme.withAlpha(Theme.textPrimary, 0.05)
-        border.color: Theme.withAlpha(Theme.textPrimary, 0.08); border.width: 1
+        color: Theme.textPrimary05
+        border.color: Theme.textPrimary08; border.width: 1
         Text {
             textFormat: Text.PlainText
             id: platText; anchors.centerIn: parent

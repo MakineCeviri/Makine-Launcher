@@ -8,8 +8,8 @@ pragma ComponentBehavior: Bound
 /**
  * GameDetailScreen.qml — Modern cinematic game detail page
  *
- * Layout: Full-width hero with parallax → glass cards below
- * Sections: Hero, Quick Stats, About, Screenshots, Translation Status,
+ * Layout: Full-width hero with parallax → SectionContainer cards below
+ * Sections: Hero, Disclaimer, About, Screenshots, Contributors,
  *           Runtime (Unity), Backup Management
  */
 Item {
@@ -79,11 +79,12 @@ Item {
 
     // ===== UPDATE IMPACT =====
     property var updateImpact: null  // { level, summary, totalFiles, ... }
+    readonly property string _impactLevel: updateImpact ? updateImpact.level : ""
 
     // ===== UI STATE =====
     property bool descriptionExpanded: false
-    property real scrollY: 0
-    property int _reveal: -1
+    property bool _initialComplete: false
+    readonly property bool _animEnabled: Dimensions.animSlow > 0
 
     signal backClicked()
     signal translateClicked()
@@ -127,6 +128,106 @@ Item {
         hasSteamDetails = true
         isLoadingSteamDetails = false
     }
+
+    // ===== ENTRY ANIMATION =====
+
+    function _replayEntryAnim() {
+        _entryAnim.stop()
+
+        if (!root._animEnabled) {
+            // Animations disabled — show everything instantly
+            heroSection.opacity = 1; heroScale.xScale = 1.0; heroScale.yScale = 1.0
+            quickStatsSection.opacity = 1; quickStatsTranslate.y = 0
+            aboutSection.opacity = 1; aboutTranslate.y = 0
+            screenshotsLoader.opacity = 1; screenshotsTranslate.y = 0
+            contributorsLoader.opacity = 1; contributorsTranslate.y = 0
+            runtimeLoader.opacity = 1; runtimeTranslate.y = 0
+            backupLoader.opacity = 1; backupTranslate.y = 0
+            return
+        }
+
+        // Reset all sections to initial state
+        heroSection.opacity = 0; heroScale.xScale = 1.03; heroScale.yScale = 1.03
+        quickStatsSection.opacity = 0; quickStatsTranslate.y = 18
+        aboutSection.opacity = 0; aboutTranslate.y = 18
+        screenshotsLoader.opacity = 0; screenshotsTranslate.y = 18
+        contributorsLoader.opacity = 0; contributorsTranslate.y = 18
+        runtimeLoader.opacity = 0; runtimeTranslate.y = 18
+        backupLoader.opacity = 0; backupTranslate.y = 18
+
+        _entryAnim.start()
+    }
+
+    ParallelAnimation {
+        id: _entryAnim
+
+        // Hero — 0ms, scale+fade
+        NumberAnimation { target: heroSection; property: "opacity"; from: 0; to: 1; duration: 500; easing.type: Easing.OutCubic }
+        NumberAnimation { target: heroScale; property: "xScale"; from: 1.03; to: 1.0; duration: 600; easing.type: Easing.OutCubic }
+        NumberAnimation { target: heroScale; property: "yScale"; from: 1.03; to: 1.0; duration: 600; easing.type: Easing.OutCubic }
+
+        // Quick Stats — 100ms delay
+        SequentialAnimation {
+            PauseAnimation { duration: 100 }
+            NumberAnimation { target: quickStatsSection; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 100 }
+            NumberAnimation { target: quickStatsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+
+        // About — 180ms delay
+        SequentialAnimation {
+            PauseAnimation { duration: 180 }
+            NumberAnimation { target: aboutSection; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 180 }
+            NumberAnimation { target: aboutTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+
+        // Screenshots — 260ms delay
+        SequentialAnimation {
+            PauseAnimation { duration: 260 }
+            NumberAnimation { target: screenshotsLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 260 }
+            NumberAnimation { target: screenshotsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+
+        // Contributors — 340ms delay
+        SequentialAnimation {
+            PauseAnimation { duration: 340 }
+            NumberAnimation { target: contributorsLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 340 }
+            NumberAnimation { target: contributorsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+
+        // Runtime — 420ms delay
+        SequentialAnimation {
+            PauseAnimation { duration: 420 }
+            NumberAnimation { target: runtimeLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 420 }
+            NumberAnimation { target: runtimeTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+
+        // Backup — 500ms delay
+        SequentialAnimation {
+            PauseAnimation { duration: 500 }
+            NumberAnimation { target: backupLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+        SequentialAnimation {
+            PauseAnimation { duration: 500 }
+            NumberAnimation { target: backupTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        }
+    }
+
+    // ===== SIGNALS & CONNECTIONS =====
 
     onSteamAppIdChanged: {
         if (steamAppId === "") return
@@ -172,12 +273,9 @@ Item {
             updateImpact = null
         }
 
-        // Reset scroll and start staggered entrance
+        // Reset scroll and play entry animation
         mainFlick.contentY = 0
-        root._reveal = -1
-        _contentSlide.y = 20
-        _slideAnim.restart()
-        _stagger.restart()
+        _replayEntryAnim()
     }
 
     Connections {
@@ -308,7 +406,7 @@ Item {
             source: root.heroImageUrl !== "" ? root.heroImageUrl : root.imageUrl
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            opacity: 0.30
+            opacity: 0.35
             visible: source !== ""
             transform: Translate { y: -mainFlick.contentY * 0.15 }
         }
@@ -327,29 +425,19 @@ Item {
             opacity: 0
             states: State {
                 name: "visible"; when: gameLogo.status === Image.Ready
-                PropertyChanges { target: gameLogo; opacity: 0.15 }
+                PropertyChanges { target: gameLogo; opacity: 0.10 }
             }
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
         }
 
-        // Fade mask: logo fades out toward the bottom
+        // Unified gradient overlay
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.20; color: Theme.withAlpha(Theme.bgPrimary, 0.30) }
-                GradientStop { position: 0.45; color: Theme.withAlpha(Theme.bgPrimary, 0.80) }
-                GradientStop { position: 0.65; color: Theme.bgPrimary }
-            }
-        }
-
-        // Main gradient overlay
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.bgPrimary, 0.15) }
-                GradientStop { position: 0.35; color: Theme.withAlpha(Theme.bgPrimary, 0.75) }
-                GradientStop { position: 0.65; color: Theme.bgPrimary }
+                GradientStop { position: 0.25; color: Theme.bgPrimary40 }
+                GradientStop { position: 0.50; color: Theme.bgPrimary85 }
+                GradientStop { position: 0.70; color: Theme.bgPrimary }
             }
         }
     }
@@ -366,8 +454,8 @@ Item {
         topLeftRadius: 0; bottomLeftRadius: 0
         topRightRadius: 12; bottomRightRadius: 12
         color: backMouse.containsMouse
-            ? Theme.withAlpha(Theme.bgPrimary, 0.82)
-            : Theme.withAlpha(Theme.bgPrimary, 0.50)
+            ? Theme.bgPrimary82
+            : Theme.bgPrimary50
         border { color: Theme.glassBorder; width: 1 }
         z: Dimensions.zDialog
 
@@ -405,28 +493,6 @@ Item {
     }
 
     // =========================================================================
-    // CONTENT ENTRANCE ANIMATION
-    // =========================================================================
-
-    // Global slide + per-section staggered fade
-    NumberAnimation {
-        id: _slideAnim
-        target: _contentSlide; property: "y"
-        from: 20; to: 0; duration: Dimensions.animSlow
-        easing.type: Easing.OutCubic
-    }
-
-    Timer {
-        id: _stagger
-        interval: 80; repeat: true
-        onTriggered: {
-            root._reveal++
-            if (root._reveal >= 6) stop()
-        }
-    }
-    Component.onDestruction: _stagger.stop()
-
-    // =========================================================================
     // MAIN CONTENT
     // =========================================================================
 
@@ -437,7 +503,6 @@ Item {
         contentHeight: contentCol.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        // scrollY binding removed — use mainFlick.contentY directly
 
         ScrollBar.vertical: StyledScrollBar {}
 
@@ -445,21 +510,17 @@ Item {
             id: contentCol
             width: mainFlick.width
             spacing: 0
-            transform: Translate { id: _contentSlide }
 
             // =================================================================
             // HERO SECTION
             // =================================================================
 
             HeroSection {
-                opacity: root._reveal >= 0 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
+                id: heroSection
+                opacity: 0
                 transform: Scale {
-                    origin.x: root.width / 2; origin.y: 200
-                    xScale: root._reveal >= 0 ? 1.0 : 1.03
-                    yScale: root._reveal >= 0 ? 1.0 : 1.03
-                    Behavior on xScale { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-                    Behavior on yScale { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+                    id: heroScale; origin.x: root.width / 2; origin.y: 200
+                    xScale: 1.03; yScale: 1.03
                 }
 
                 gameId: root.gameId
@@ -493,15 +554,15 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
                 Layout.topMargin: 56
-                visible: root.updateImpact && root.updateImpact.level !== "safe" && root.updateImpact.level !== "unknown"
+                visible: root._impactLevel !== "" && root._impactLevel !== "safe" && root._impactLevel !== "unknown"
                 implicitHeight: bannerContent.height + Dimensions.marginML * 2
-                radius: Dimensions.radiusStandard
-                color: root.updateImpact && root.updateImpact.level === "broken"
-                    ? Theme.withAlpha(Theme.error, 0.08)
-                    : Theme.withAlpha(Theme.warning, 0.08)
-                border.color: root.updateImpact && root.updateImpact.level === "broken"
-                    ? Theme.withAlpha(Theme.error, 0.25)
-                    : Theme.withAlpha(Theme.warning, 0.25)
+                radius: Dimensions.radiusLG
+                color: root._impactLevel === "broken"
+                    ? Theme.error08
+                    : Theme.warning08
+                border.color: root._impactLevel === "broken"
+                    ? Theme.error25
+                    : Theme.warning25
                 border.width: 1
 
                 ColumnLayout {
@@ -517,7 +578,7 @@ Item {
                             textFormat: Text.PlainText
                             text: "\u26A0"
                             font.pixelSize: Dimensions.fontTitle
-                            color: root.updateImpact && root.updateImpact.level === "broken"
+                            color: root._impactLevel === "broken"
                                 ? Theme.error : Theme.warning
                         }
 
@@ -526,7 +587,7 @@ Item {
                             spacing: Dimensions.spacingXXS
                             Text {
                                 textFormat: Text.PlainText
-                                text: root.updateImpact && root.updateImpact.level === "broken"
+                                text: root._impactLevel === "broken"
                                     ? qsTr("Oyun Güncellendi — Çeviri Bozulmuş")
                                     : qsTr("Bazı Çeviri Dosyaları Eksik")
                                 font.pixelSize: Dimensions.fontBody
@@ -552,9 +613,9 @@ Item {
                             implicitWidth: repairRow.width + 32; implicitHeight: 38
                             radius: Dimensions.radiusStandard
                             color: repairMouse.containsMouse
-                                ? Theme.withAlpha(Theme.accent, 0.20)
-                                : Theme.withAlpha(Theme.accent, 0.10)
-                            border.color: Theme.withAlpha(Theme.accent, 0.30); border.width: 1
+                                ? Theme.accent20
+                                : Theme.accent10
+                            border.color: Theme.accent30; border.width: 1
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                             Row {
@@ -588,36 +649,38 @@ Item {
             }
 
             // =================================================================
-            // QUICK STATS ROW
+            // COMMUNITY DISCLAIMER
             // =================================================================
 
-            Item { Layout.preferredHeight: updateBanner.visible ? Dimensions.spacingLG : 56; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: updateBanner.visible ? Dimensions.spacingLG : 16; Layout.fillWidth: true }
 
-            QuickStatsRow {
-                opacity: root._reveal >= 1 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                transform: Translate { y: root._reveal >= 1 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
-
-                hasSteamDetails: root.hasSteamDetails
-                metacriticScore: root.metacriticScore
-                price: root.price
-                discountPercent: root.discountPercent
-                genres: root.genres
-                hasWindows: root.hasWindows
-                hasMac: root.hasMac
-                hasLinux: root.hasLinux
+            Text {
+                id: quickStatsSection
+                textFormat: Text.PlainText
+                opacity: 0
+                transform: Translate { id: quickStatsTranslate; y: 18 }
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
+                text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
+                font.pixelSize: Dimensions.fontCaption
+                font.italic: true
+                color: Theme.textMuted
+                wrapMode: Text.WordWrap
             }
 
             // =================================================================
             // ABOUT SECTION
             // =================================================================
 
-            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
 
             AboutSection {
-                opacity: root._reveal >= 2 ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                transform: Translate { y: root._reveal >= 2 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
+                id: aboutSection
+                opacity: 0
+                transform: Translate { id: aboutTranslate; y: 18 }
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
 
                 description: root.description
                 developers: root.developers
@@ -631,39 +694,37 @@ Item {
             }
 
             // =================================================================
-            // SCREENSHOTS
+            // SCREENSHOTS — lazy loaded on data availability
             // =================================================================
 
-            // =================================================================
-            // SCREENSHOTS — lazy loaded on reveal
-            // =================================================================
-
-            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true; visible: root.screenshots.length > 0 }
+            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true; visible: root.screenshots.length > 0 }
 
             Loader {
+                id: screenshotsLoader
                 Layout.fillWidth: true
-                active: root._reveal >= 3
+                opacity: 0
+                transform: Translate { id: screenshotsTranslate; y: 18 }
+                active: root.screenshots.length > 0
                 sourceComponent: ScreenshotCarousel {
-                    opacity: root._reveal >= 3 ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                    transform: Translate { y: root._reveal >= 3 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
                     screenshots: root.screenshots
                 }
             }
 
             // =================================================================
-            // CONTRIBUTORS — lazy loaded on reveal
+            // CONTRIBUTORS — lazy loaded
             // =================================================================
 
-            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
 
             Loader {
+                id: contributorsLoader
                 Layout.fillWidth: true
-                active: root._reveal >= 4
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
+                opacity: 0
+                transform: Translate { id: contributorsTranslate; y: 18 }
+                active: true
                 sourceComponent: ContributorsSection {
-                    opacity: root._reveal >= 4 ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                    transform: Translate { y: root._reveal >= 4 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
                     contributors: root.contributors
                 }
             }
@@ -672,15 +733,17 @@ Item {
             // RUNTIME (Unity BepInEx) — lazy loaded, conditional
             // =================================================================
 
-            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true; visible: root.isUnityGame && root.runtimeNeeded }
+            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true; visible: root.isUnityGame && root.runtimeNeeded }
 
             Loader {
+                id: runtimeLoader
                 Layout.fillWidth: true
-                active: root._reveal >= 5 && root.isUnityGame && root.runtimeNeeded
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
+                opacity: 0
+                transform: Translate { id: runtimeTranslate; y: 18 }
+                active: root.isUnityGame && root.runtimeNeeded
                 sourceComponent: RuntimeSection {
-                    opacity: root._reveal >= 5 ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                    transform: Translate { y: root._reveal >= 5 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
                     gameId: root.gameId
                     isUnityGame: root.isUnityGame
                     runtimeNeeded: root.runtimeNeeded
@@ -697,25 +760,27 @@ Item {
             }
 
             // =================================================================
-            // BACKUP MANAGEMENT — lazy loaded on reveal
+            // BACKUP MANAGEMENT — lazy loaded
             // =================================================================
 
-            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
 
             Loader {
+                id: backupLoader
                 Layout.fillWidth: true
-                active: root._reveal >= 6
+                Layout.leftMargin: Dimensions.marginXL
+                Layout.rightMargin: Dimensions.marginXL
+                opacity: 0
+                transform: Translate { id: backupTranslate; y: 18 }
+                active: true
                 sourceComponent: BackupSection {
-                    opacity: root._reveal >= 6 ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                    transform: Translate { y: root._reveal >= 6 ? 0 : 18; Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } } }
                     gameId: root.gameId
                     updateImpact: root.updateImpact
                 }
             }
 
             // Bottom spacer
-            Item { Layout.preferredHeight: Dimensions.marginXXL; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
 
         } // end contentCol
     } // end Flickable
@@ -729,7 +794,7 @@ Item {
         y: parent.height * 0.45
         width: loadingRow.width + 40; height: 44
         radius: Dimensions.radiusFull
-        color: Theme.withAlpha(Theme.surface, 0.92)
+        color: Theme.surface92
         border.color: Theme.glassBorder; border.width: 1
         visible: root.isLoadingSteamDetails && !root.hasSteamDetails
         z: 5
@@ -752,7 +817,7 @@ Item {
         y: parent.height * 0.45
         width: errorCol.width + 40; height: errorCol.height + 24
         radius: Dimensions.radiusStandard
-        color: Theme.withAlpha(Theme.surface, 0.92)
+        color: Theme.surface92
         border.color: Theme.glassBorder; border.width: 1
         visible: root.steamFetchFailed && !root.hasSteamDetails
         z: 5

@@ -39,8 +39,8 @@ BaseDialog {
 
             Rectangle {
                 Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16
-                color: Theme.withAlpha(Theme.warning, 0.10)
-                border.color: Theme.withAlpha(Theme.warning, 0.20); border.width: 1
+                color: Theme.warning10
+                border.color: Theme.warning20; border.width: 1
                 Text {
                     textFormat: Text.PlainText
                     anchors.centerIn: parent
@@ -62,7 +62,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
     }
 
@@ -91,10 +91,8 @@ BaseDialog {
                 Layout.leftMargin: Dimensions.paddingLG; Layout.rightMargin: Dimensions.paddingLG
                 implicitHeight: gameRow.height + 20
                 radius: Dimensions.radiusStandard
-                color: Theme.withAlpha(
-                    modelData.impact.level === "broken" ? Theme.error : Theme.warning, 0.06)
-                border.color: Theme.withAlpha(
-                    modelData.impact.level === "broken" ? Theme.error : Theme.warning, 0.15)
+                color: modelData.impact.level === "broken" ? Theme.error06 : Theme.warning06
+                border.color: modelData.impact.level === "broken" ? Theme.error15 : Theme.warning15
                 border.width: 1
 
                 RowLayout {
@@ -123,8 +121,8 @@ BaseDialog {
                     Rectangle {
                         implicitWidth: repairLbl.width + 24; implicitHeight: 30
                         radius: Dimensions.radiusStandard
-                        color: repairBtnMa.containsMouse ? Theme.withAlpha(Theme.accent, 0.20) : Theme.withAlpha(Theme.accent, 0.10)
-                        border.color: Theme.withAlpha(Theme.accent, 0.25); border.width: 1
+                        color: repairBtnMa.containsMouse ? Theme.accent20 : Theme.accent10
+                        border.color: Theme.accent25; border.width: 1
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                         Text {
@@ -149,7 +147,7 @@ BaseDialog {
 
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.withAlpha(Theme.textPrimary, 0.06)
+            height: 1; color: Theme.textPrimary06
         }
 
         RowLayout {
@@ -163,8 +161,8 @@ BaseDialog {
             Rectangle {
                 Layout.preferredWidth: closeLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34; radius: Dimensions.radiusStandard
-                color: closeFooterMa.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.08) : "transparent"
-                border.color: Theme.withAlpha(Theme.textPrimary, 0.12); border.width: 1
+                color: closeFooterMa.containsMouse ? Theme.textPrimary08 : "transparent"
+                border.color: Theme.textPrimary12; border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Label {
@@ -184,7 +182,7 @@ BaseDialog {
                 visible: root.affectedGames.length > 1
                 Layout.preferredWidth: repairAllLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34; radius: Dimensions.radiusStandard
-                color: repairAllMa.containsMouse ? Theme.accent : Theme.withAlpha(Theme.accent, 0.85)
+                color: repairAllMa.containsMouse ? Theme.accent : Theme.accent85
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Label {
