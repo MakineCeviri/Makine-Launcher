@@ -9,7 +9,7 @@ pragma ComponentBehavior: Bound
  *
  * Structure:
  * - 280px sidebar (SettingsSidebar)
- * - Content area with 6 categories loaded via Loader
+ * - Content area with 5 categories loaded via Loader
  */
 Item {
     id: root
@@ -29,8 +29,7 @@ Item {
         { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin") },
         { name: qsTr("Yedekler"), description: qsTr("Tamamlanan çeviriler ve yedekler") },
         { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları") },
-        { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler") },
-        { name: qsTr("Geliştirici"), description: qsTr("Geliştirici araçları ve test özellikleri") }
+        { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler") }
     ]
 
     readonly property var panelSources: [
@@ -38,8 +37,7 @@ Item {
         "screens/settings/TranslationSettings.qml",
         "screens/settings/BackupsSettings.qml",
         "screens/settings/PerformanceSettings.qml",
-        "screens/settings/AboutSettings.qml",
-        "screens/settings/DeveloperSettings.qml"
+        "screens/settings/AboutSettings.qml"
     ]
 
     Rectangle {
@@ -156,7 +154,7 @@ Item {
                             }
 
                             // Track visited categories
-                            property var _visited: [true, false, false, false, false, false]
+                            property var _visited: [true, false, false, false, false]
 
                             // Pages load on first visit — no eager preload needed
 

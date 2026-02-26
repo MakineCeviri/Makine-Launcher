@@ -59,6 +59,17 @@ Item {
         }
     }
 
+    // Bottom separator line — visible only in Settings
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 1
+        color: Theme.withAlpha(Theme.textPrimary, 0.08)
+        opacity: navBarRoot.currentIndex === 2 ? 1.0 : 0.0
+        Behavior on opacity { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: Dimensions.marginLG

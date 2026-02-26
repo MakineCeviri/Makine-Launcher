@@ -65,7 +65,7 @@ ColumnLayout {
 
                         Label {
                             textFormat: Text.PlainText
-                            text: qsTr("Grafik Backend")
+                            text: qsTr("Grafik API")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Medium
                             color: Theme.textPrimary
@@ -86,6 +86,7 @@ ColumnLayout {
                     Rectangle {
                         Layout.preferredWidth: backendRow.width + 8
                         Layout.preferredHeight: 36
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                         radius: Dimensions.radiusStandard
                         color: Theme.withAlpha(Theme.textPrimary, 0.06)
 
@@ -98,9 +99,9 @@ ColumnLayout {
 
                             Repeater {
                                 model: [
-                                    { id: "vulkan", label: "Vulkan" },
+                                    { id: "opengl", label: "OpenGL" },
                                     { id: "d3d11", label: "D3D11" },
-                                    { id: "opengl", label: "OpenGL" }
+                                    { id: "vulkan", label: "Vulkan" }
                                 ]
 
                                 Rectangle {

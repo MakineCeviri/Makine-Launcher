@@ -16,11 +16,12 @@ ColumnLayout {
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: Dimensions.spacingLG
+            spacing: 0
 
             // Section header
-            RowLayout {
-                spacing: Dimensions.spacingMD
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 56
 
                 Text {
                     textFormat: Text.PlainText
@@ -28,31 +29,19 @@ ColumnLayout {
                     font.pixelSize: Dimensions.fontLG
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
-                }
-
-                Rectangle {
-                    width: backupCountText.width + 12
-                    height: 20
-                    radius: Dimensions.radiusStandard
-                    color: Theme.withAlpha(Theme.primary, 0.15)
-                    visible: BackupManager.backups.length > 0
-
-                    Text {
-                        textFormat: Text.PlainText
-                        id: backupCountText
-                        anchors.centerIn: parent
-                        text: BackupManager.backups.length
-                        font.pixelSize: Dimensions.fontXS
-                        font.weight: Font.Medium
-                        color: Theme.primary
-                    }
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: Dimensions.marginML
                 }
             }
+
+            SettingsDivider {}
 
             // Empty state
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
+                Layout.margins: Dimensions.marginML
                 radius: Dimensions.radiusStandard
                 color: Theme.withAlpha(Theme.textPrimary, 0.03)
                 visible: BackupManager.backups.length === 0
@@ -93,6 +82,9 @@ ColumnLayout {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 72
+                    Layout.leftMargin: Dimensions.marginML
+                    Layout.rightMargin: Dimensions.marginML
+                    Layout.topMargin: Dimensions.spacingSM
                     radius: Dimensions.radiusStandard
                     color: backupItemMouse.containsMouse ? Theme.withAlpha(Theme.textPrimary, 0.06) : Theme.withAlpha(Theme.textPrimary, 0.03)
                     border.color: Theme.withAlpha(Theme.textPrimary, 0.08)
@@ -257,6 +249,8 @@ ColumnLayout {
                     }
                 }
             }
+
+            Item { Layout.preferredHeight: Dimensions.marginML }
         }
     }
 
