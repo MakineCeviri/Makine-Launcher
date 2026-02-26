@@ -171,15 +171,26 @@ Item {
                 }
             }
 
-            // Community disclaimer
-            Text {
-                textFormat: Text.PlainText
+            // Community disclaimer container
+            Rectangle {
                 Layout.preferredWidth: 280
-                text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
-                font.pixelSize: Dimensions.fontCaption
-                font.italic: true
-                color: Theme.textMuted
-                wrapMode: Text.WordWrap
+                implicitHeight: disclaimerText.height + Dimensions.paddingMD * 2
+                radius: Dimensions.radiusMD
+                color: Theme.textPrimary03
+                border.color: Theme.glassBorder; border.width: 1
+
+                Text {
+                    id: disclaimerText
+                    textFormat: Text.PlainText
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: Dimensions.paddingMD
+                    text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
+                    font.pixelSize: Dimensions.fontCaption
+                    font.italic: true
+                    color: Theme.textMuted
+                    wrapMode: Text.WordWrap
+                }
             }
         }
 

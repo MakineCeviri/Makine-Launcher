@@ -136,8 +136,8 @@ Item {
 
         if (!root._animEnabled) {
             // Animations disabled — show everything instantly
-            heroSection.opacity = 1; heroScale.xScale = 1.0; heroScale.yScale = 1.0
-            aboutSection.opacity = 1; aboutTranslate.y = 0
+            heroSection.opacity = 1
+            aboutContainer.opacity = 1; aboutTranslate.y = 0
             contributorsLoader.opacity = 1; contributorsTranslate.y = 0
             runtimeLoader.opacity = 1; runtimeTranslate.y = 0
             backupLoader.opacity = 1; backupTranslate.y = 0
@@ -145,8 +145,8 @@ Item {
         }
 
         // Reset all sections to initial state
-        heroSection.opacity = 0; heroScale.xScale = 1.03; heroScale.yScale = 1.03
-        aboutSection.opacity = 0; aboutTranslate.y = 18
+        heroSection.opacity = 0
+        aboutContainer.opacity = 0; aboutTranslate.y = 18
         contributorsLoader.opacity = 0; contributorsTranslate.y = 18
         runtimeLoader.opacity = 0; runtimeTranslate.y = 18
         backupLoader.opacity = 0; backupTranslate.y = 18
@@ -157,15 +157,13 @@ Item {
     ParallelAnimation {
         id: _entryAnim
 
-        // Hero — 0ms, scale+fade
+        // Hero — 0ms, fade only
         NumberAnimation { target: heroSection; property: "opacity"; from: 0; to: 1; duration: 500; easing.type: Easing.OutCubic }
-        NumberAnimation { target: heroScale; property: "xScale"; from: 1.03; to: 1.0; duration: 600; easing.type: Easing.OutCubic }
-        NumberAnimation { target: heroScale; property: "yScale"; from: 1.03; to: 1.0; duration: 600; easing.type: Easing.OutCubic }
 
         // About — 150ms delay
         SequentialAnimation {
             PauseAnimation { duration: 150 }
-            NumberAnimation { target: aboutSection; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+            NumberAnimation { target: aboutContainer; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
             PauseAnimation { duration: 150 }
@@ -369,53 +367,12 @@ Item {
 
 
     // =========================================================================
-    // BACKGROUND — Hero image with parallax + gradient overlay
+    // BACKGROUND — Solid color
     // =========================================================================
 
     Rectangle {
         anchors.fill: parent
         color: Theme.bgPrimary
-
-        Image {
-            id: heroBackground
-            anchors.fill: parent
-            source: root.heroImageUrl !== "" ? root.heroImageUrl : root.imageUrl
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            opacity: 0.35
-            visible: source !== ""
-            transform: Translate { y: -mainFlick.contentY * 0.15 }
-        }
-
-        // Game logo overlay — full-width, fading top-to-bottom
-        Image {
-            id: gameLogo
-            anchors.left: parent.left
-            anchors.right: parent.right
-            y: 20 - mainFlick.contentY * 0.06
-            height: parent.height * 0.6
-            fillMode: Image.PreserveAspectFit
-            source: root.steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + root.steamAppId + "/logo.png" : ""
-            asynchronous: true
-            visible: status === Image.Ready
-            opacity: 0
-            states: State {
-                name: "visible"; when: gameLogo.status === Image.Ready
-                PropertyChanges { target: gameLogo; opacity: 0.10 }
-            }
-            Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-        }
-
-        // Unified gradient overlay
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.25; color: Theme.bgPrimary40 }
-                GradientStop { position: 0.50; color: Theme.bgPrimary85 }
-                GradientStop { position: 0.70; color: Theme.bgPrimary }
-            }
-        }
     }
 
     // =========================================================================
@@ -494,10 +451,6 @@ Item {
             HeroSection {
                 id: heroSection
                 opacity: 0
-                transform: Scale {
-                    id: heroScale; origin.x: root.width / 2; origin.y: 200
-                    xScale: 1.03; yScale: 1.03
-                }
 
                 gameId: root.gameId
                 gameName: root.gameName
@@ -626,27 +579,39 @@ Item {
             }
 
             // =================================================================
-            // ABOUT SECTION
+            // ABOUT SECTION (glass container)
             // =================================================================
 
-            Item { Layout.preferredHeight: updateBanner.visible ? Dimensions.spacingLG : Dimensions.spacingLG; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
 
-            AboutSection {
-                id: aboutSection
-                opacity: 0
-                transform: Translate { id: aboutTranslate; y: 18 }
+            Rectangle {
+                id: aboutContainer
+                Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.marginXL
                 Layout.rightMargin: Dimensions.marginXL
+                implicitHeight: aboutSection.height + Dimensions.paddingXL * 2
+                radius: Dimensions.radiusLG
+                color: Theme.textPrimary03
+                border.color: Theme.glassBorder; border.width: 1
+                opacity: 0
+                transform: Translate { id: aboutTranslate; y: 18 }
 
-                description: root.description
-                developers: root.developers
-                publishers: root.publishers
-                releaseDate: root.releaseDate
-                engine: root.engine
-                genres: root.genres
-                descriptionExpanded: root.descriptionExpanded
+                AboutSection {
+                    id: aboutSection
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Dimensions.paddingXL
 
-                onExpandDescription: root.descriptionExpanded = true
+                    description: root.description
+                    developers: root.developers
+                    publishers: root.publishers
+                    releaseDate: root.releaseDate
+                    engine: root.engine
+                    genres: root.genres
+                    descriptionExpanded: root.descriptionExpanded
+
+                    onExpandDescription: root.descriptionExpanded = true
+                }
             }
 
             // =================================================================

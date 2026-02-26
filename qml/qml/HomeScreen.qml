@@ -82,8 +82,8 @@ Item {
     Loader {
         id: libraryLoader
         anchors.fill: parent
-        active: root.currentPage === 1
-        visible: active
+        active: root.currentPage === 1 || libraryLoader.status === Loader.Ready
+        visible: root.currentPage === 1
         asynchronous: true
         sourceComponent: Component {
             Library {
