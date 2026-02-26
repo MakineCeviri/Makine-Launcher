@@ -134,11 +134,7 @@ Item {
                             // Track visited categories
                             property var _visited: [true, false, false, false, false, false]
 
-                            // Preload all pages shortly after Settings loads
-                            Timer {
-                                interval: 500; running: true
-                                onTriggered: pageContainer._visited = [true, true, true, true, true, true]
-                            }
+                            // Pages load on first visit — no eager preload needed
 
                             // Category change handler
                             Connections {

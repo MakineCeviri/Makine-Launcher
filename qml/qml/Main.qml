@@ -40,32 +40,8 @@ ApplicationWindow {
     // for returning users. Component.onCompleted flips to true if needed.
     property bool _onboardingActive: false
 
-    // Preload heavy pages in background after startup settles.
-    // Guard: never preload during a page transition (sync load blocks main thread).
-    // On collision, retry in 200ms (not full interval) so preload fires right after transition ends.
-    property bool _settingsPreloaded: false
-    property bool _gameDetailPreloaded: false
-    Timer {
-        id: _settingsPreloadTimer
-        interval: 3000; running: true
-        onTriggered: {
-            if (contentStackContainer.transitioning) {
-                interval = 200; restart(); return
-            }
-            window._settingsPreloaded = true
-            _gameDetailPreloadTimer.start()
-        }
-    }
-    Timer {
-        id: _gameDetailPreloadTimer
-        interval: 2000
-        onTriggered: {
-            if (contentStackContainer.transitioning) {
-                interval = 200; restart(); return
-            }
-            window._gameDetailPreloaded = true
-        }
-    }
+    // No eager preload — pages load on-demand when user navigates.
+    // This avoids async overhead that degrades every frame during startup.
 
     Component.onDestruction: pageChangeTimer.stop()
 
@@ -510,14 +486,16 @@ ApplicationWindow {
                 }
             }
 
-            // Lazy-loaded settings page
+            // Lazy-loaded settings page (keep alive after first load)
             Loader {
                 id: settingsLoader
+                property bool _keepAlive: false
                 anchors.fill: parent
-                active: contentStackContainer.settingsVisible || window._settingsPreloaded
+                active: contentStackContainer.settingsVisible || _keepAlive
                 visible: contentStackContainer.settingsVisible
                 asynchronous: false
                 onLoaded: {
+                    _keepAlive = true
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("SettingsScreen")
                 }
@@ -531,14 +509,16 @@ ApplicationWindow {
                 }
             }
 
-            // Lazy-loaded game detail page
+            // Lazy-loaded game detail page (keep alive after first load)
             Loader {
                 id: gameDetailLoader
+                property bool _keepAlive: false
                 anchors.fill: parent
-                active: contentStackContainer.gameDetailVisible || window._gameDetailPreloaded
+                active: contentStackContainer.gameDetailVisible || _keepAlive
                 visible: contentStackContainer.gameDetailVisible
                 asynchronous: false
                 onLoaded: {
+                    _keepAlive = true
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("GameDetailScreen")
                 }
