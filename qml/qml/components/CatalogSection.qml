@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * CatalogSection.qml - Game catalog with search and two scrollable rows.
@@ -50,7 +51,7 @@ Rectangle {
 
     Timer {
         id: _row2Defer
-        interval: 100
+        interval: 800
         onTriggered: {
             catalog._row2Ready = true
             var src = catalog.filteredGames
@@ -95,6 +96,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Yerelle\u015Ftirme K\u00FCt\u00FCphanesi")
                 font.pixelSize: Dimensions.fontLG
                 font.weight: Font.DemiBold
@@ -121,6 +123,7 @@ Rectangle {
                     spacing: 8
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.verticalCenter: parent.verticalCenter
                         text: "\uE721"
                         font.family: "Segoe MDL2 Assets"
@@ -139,6 +142,7 @@ Rectangle {
                         Keys.onEscapePressed: { text = ""; focus = false }
 
                         Text {
+                            textFormat: Text.PlainText
                             anchors.fill: parent
                             verticalAlignment: Text.AlignVCenter
                             text: qsTr("Oyun ara... (%1)").arg(catalog.allGames.length)
@@ -165,6 +169,7 @@ Rectangle {
                     running: visible; width: 32; height: 32
                 }
                 Text {
+                    textFormat: Text.PlainText
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: qsTr("Katalog y\u00FCkleniyor\u2026")
                     font.pixelSize: Dimensions.fontSM; color: Theme.textMuted
@@ -180,12 +185,14 @@ Rectangle {
             Column {
                 anchors.centerIn: parent; spacing: 8
                 Text {
+                    textFormat: Text.PlainText
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "\uE773"
                     font.family: "Segoe MDL2 Assets"
                     font.pixelSize: 28; color: Theme.textMuted; opacity: 0.5
                 }
                 Text {
+                    textFormat: Text.PlainText
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: qsTr("\"%1\" ile e\u015Fle\u015Fen oyun bulunamad\u0131").arg(catalog.searchQuery)
                     font.pixelSize: Dimensions.fontSM; color: Theme.textMuted

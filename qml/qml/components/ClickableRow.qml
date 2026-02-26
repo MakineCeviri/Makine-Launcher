@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * ClickableRow.qml - Clickable row component for settings pages
@@ -64,6 +65,7 @@ Item {
 
                 // Emoji/text icon
                 Label {
+                    textFormat: Text.PlainText
                     anchors.centerIn: parent
                     text: root.icon
                     font.pixelSize: Dimensions.fontXL
@@ -77,6 +79,7 @@ Item {
                     source: root.iconSource
                     sourceSize: Qt.size(20, 20)
                     visible: root.iconSource !== ""
+                    asynchronous: true
                     opacity: root.isDestructive ? 1.0 : 0.6
                 }
             }
@@ -88,6 +91,7 @@ Item {
                 visible: root.title !== ""
 
                 Label {
+                    textFormat: Text.PlainText
                     text: root.title
                     font.pixelSize: Dimensions.fontMD
                     font.weight: Font.Medium
@@ -95,6 +99,7 @@ Item {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     text: root.subtitle
                     font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted
@@ -115,6 +120,7 @@ Item {
                 visible: root.showArrow
                 source: "qrc:/qt/qml/MakineAI/resources/icons/arrow_right.svg"
                 sourceSize: Qt.size(16, 16)
+                asynchronous: true
                 opacity: mouseArea.containsMouse ? 0.8 : 0.4
 
                 Behavior on opacity {

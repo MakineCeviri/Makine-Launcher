@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * GameStatusCard.qml - Game scanning status overview card
@@ -32,6 +33,7 @@ Rectangle {
 
         // Title
         Label {
+            textFormat: Text.PlainText
             text: qsTr("Oyun Durumu")
             font.pixelSize: Dimensions.fontLG
             font.weight: Font.DemiBold
@@ -47,12 +49,14 @@ Rectangle {
             Column {
                 spacing: 2
                 Label {
+                    textFormat: Text.PlainText
                     text: (GameService.games || []).length
                     font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.primary
                 }
                 Label {
+                    textFormat: Text.PlainText
                     text: qsTr("Oyun Bulundu")
                     font.pixelSize: Dimensions.fontXS
                     color: Theme.textMuted
@@ -63,12 +67,14 @@ Rectangle {
             Column {
                 spacing: 2
                 Label {
+                    textFormat: Text.PlainText
                     text: (GameService.installedTranslations() || []).length
                     font.pixelSize: Dimensions.fontHero
                     font.weight: Font.Bold
                     color: Theme.accentBase
                 }
                 Label {
+                    textFormat: Text.PlainText
                     text: qsTr("Yama Kurulu")
                     font.pixelSize: Dimensions.fontXS
                     color: Theme.textMuted
@@ -90,6 +96,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Taranıyor...")
                 font.pixelSize: Dimensions.fontXS
                 color: Theme.textMuted
@@ -110,6 +117,7 @@ Rectangle {
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
             Label {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: qsTr("+ Klas\u00F6r Ekle")
                 font.pixelSize: Dimensions.fontSM

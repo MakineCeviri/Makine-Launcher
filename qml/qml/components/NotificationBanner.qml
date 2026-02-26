@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * NotificationBanner.qml - Dismissable notification bar for status messages
@@ -40,6 +41,7 @@ Rectangle {
 
         // Type icon
         Label {
+            textFormat: Text.PlainText
             text: {
                 if (root.notificationType === "error") return "\u26A0"
                 if (root.notificationType === "warning") return "\u26A0"
@@ -54,6 +56,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             text: root.notificationMessage
             font.pixelSize: Dimensions.fontSM
             color: Theme.textPrimary
@@ -63,6 +66,7 @@ Rectangle {
 
         // Settings link
         Label {
+            textFormat: Text.PlainText
             text: qsTr("Ayarlar")
             font.pixelSize: Dimensions.fontXS
             color: Theme.primary
@@ -77,6 +81,7 @@ Rectangle {
 
         // Dismiss button
         Label {
+            textFormat: Text.PlainText
             text: "\u2715"
             font.pixelSize: Dimensions.fontXS
             color: Theme.textMuted

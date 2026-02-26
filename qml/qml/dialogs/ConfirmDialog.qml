@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * ConfirmDialog.qml - Reusable confirmation dialog for destructive actions
@@ -66,6 +67,7 @@ BaseDialog {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: root.title
                 font.pixelSize: Dimensions.fontLG
                 font.weight: Font.DemiBold
@@ -92,6 +94,7 @@ BaseDialog {
         Item { Layout.preferredHeight: Dimensions.spacingXS }
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             Layout.leftMargin: Dimensions.paddingLG
             Layout.rightMargin: Dimensions.paddingLG
@@ -120,6 +123,7 @@ BaseDialog {
             spacing: Dimensions.spacingMD
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Esc")
                 font.pixelSize: Dimensions.fontMicro
                 color: Theme.textMuted
@@ -145,6 +149,7 @@ BaseDialog {
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _cancelLbl
                     anchors.centerIn: parent
                     text: qsTr("Vazgeç")
@@ -178,6 +183,7 @@ BaseDialog {
                 Keys.onReturnPressed: { root.confirmed(); root.close() }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _confirmLbl
                     anchors.centerIn: parent
                     text: root.confirmText

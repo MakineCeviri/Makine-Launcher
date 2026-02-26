@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * HorizontalGameStrip - Horizontal scrolling game card strip.

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 Flow {
     id: statsRoot
@@ -31,8 +32,21 @@ Flow {
         border.color: Theme.withAlpha(mc, 0.20); border.width: 1
         Row {
             id: mcRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
-            Text { text: "Metacritic"; font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: statsRoot.metacriticScore.toString(); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: parent.parent.mc; anchors.verticalCenter: parent.verticalCenter }
+            Text {
+                textFormat: Text.PlainText
+                text: "Metacritic"
+                font.pixelSize: Dimensions.fontCaption
+                color: Theme.textMuted
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                textFormat: Text.PlainText
+                text: statsRoot.metacriticScore.toString()
+                font.pixelSize: Dimensions.fontSM
+                font.weight: Font.DemiBold
+                color: parent.parent.mc
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 
@@ -46,8 +60,23 @@ Flow {
         border.color: Theme.withAlpha(pc, 0.20); border.width: 1
         Row {
             id: priceRow; anchors.centerIn: parent; spacing: Dimensions.spacingSM
-            Text { visible: statsRoot.discountPercent > 0; text: "-" + statsRoot.discountPercent + "%"; font.pixelSize: Dimensions.fontCaption; font.weight: Font.Bold; color: Theme.success; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: statsRoot.price; font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: parent.parent.pc; anchors.verticalCenter: parent.verticalCenter }
+            Text {
+                textFormat: Text.PlainText
+                visible: statsRoot.discountPercent > 0
+                text: "-" + statsRoot.discountPercent + "%"
+                font.pixelSize: Dimensions.fontCaption
+                font.weight: Font.Bold
+                color: Theme.success
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                textFormat: Text.PlainText
+                text: statsRoot.price
+                font.pixelSize: Dimensions.fontSM
+                font.weight: Font.DemiBold
+                color: parent.parent.pc
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 
@@ -58,7 +87,15 @@ Flow {
         radius: Dimensions.radiusFull
         color: Theme.withAlpha(Theme.textPrimary, 0.05)
         border.color: Theme.withAlpha(Theme.textPrimary, 0.08); border.width: 1
-        Text { id: genreText; anchors.centerIn: parent; text: statsRoot.genres.slice(0, 2).join(", "); font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
+        Text {
+            textFormat: Text.PlainText
+            id: genreText
+            anchors.centerIn: parent
+            text: statsRoot.genres.slice(0, 2).join(", ")
+            font.pixelSize: Dimensions.fontCaption
+            font.weight: Font.Medium
+            color: Theme.textSecondary
+        }
     }
 
     // Platforms
@@ -69,6 +106,7 @@ Flow {
         color: Theme.withAlpha(Theme.textPrimary, 0.05)
         border.color: Theme.withAlpha(Theme.textPrimary, 0.08); border.width: 1
         Text {
+            textFormat: Text.PlainText
             id: platText; anchors.centerIn: parent
             text: { var p = []; if (statsRoot.hasWindows) p.push("Win"); if (statsRoot.hasMac) p.push("Mac"); if (statsRoot.hasLinux) p.push("Linux"); return p.join(" / ") }
             font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary

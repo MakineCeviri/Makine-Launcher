@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 ColumnLayout {
     id: ssRoot
@@ -14,6 +15,7 @@ ColumnLayout {
     visible: screenshots.length > 0
 
     Text {
+        textFormat: Text.PlainText
         Layout.leftMargin: Dimensions.marginXL
         text: qsTr("Ekran Görüntüleri")
         font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
@@ -63,7 +65,13 @@ ColumnLayout {
             border.color: Theme.glassBorder; border.width: 1
             visible: screenshotList.contentX > screenshotList.originX + 10
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-            Text { anchors.centerIn: parent; text: "\u2190"; font.pixelSize: Dimensions.fontMD; color: Theme.textPrimary }
+            Text {
+                textFormat: Text.PlainText
+                anchors.centerIn: parent
+                text: "\u2190"
+                font.pixelSize: Dimensions.fontMD
+                color: Theme.textPrimary
+            }
             MouseArea {
                 id: ssLeftMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: screenshotList.contentX = Math.max(screenshotList.originX, screenshotList.contentX - 400)
@@ -79,7 +87,13 @@ ColumnLayout {
             border.color: Theme.glassBorder; border.width: 1
             visible: screenshotList.contentX < screenshotList.contentWidth - screenshotList.width - 10
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-            Text { anchors.centerIn: parent; text: "\u2192"; font.pixelSize: Dimensions.fontMD; color: Theme.textPrimary }
+            Text {
+                textFormat: Text.PlainText
+                anchors.centerIn: parent
+                text: "\u2192"
+                font.pixelSize: Dimensions.fontMD
+                color: Theme.textPrimary
+            }
             MouseArea {
                 id: ssRightMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: screenshotList.contentX = Math.min(screenshotList.contentWidth - screenshotList.width, screenshotList.contentX + 400)

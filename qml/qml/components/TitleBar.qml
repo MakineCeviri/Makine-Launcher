@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * TitleBar - Custom frameless window title bar with logo, title, and window controls
@@ -10,7 +11,7 @@ import MakineAI 1.0
 Rectangle {
     id: titleBarRoot
 
-    required property var windowRef
+    required property Window windowRef
     property bool libraryMode: false
 
     signal minimizeClicked()
@@ -91,6 +92,7 @@ Rectangle {
             source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
             sourceSize: Qt.size(18, 18)
             fillMode: Image.PreserveAspectFit
+            asynchronous: true
             smooth: true
             mipmap: true
 
@@ -106,6 +108,7 @@ Rectangle {
                 }
 
                 Text {
+                    textFormat: Text.PlainText
                     anchors.centerIn: parent
                     text: "M"
                     font.pixelSize: Dimensions.fontCaption
@@ -116,6 +119,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             text: "MakineAI"
             font.pixelSize: Dimensions.fontSM
             font.weight: Font.Medium
@@ -123,6 +127,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             text: Dimensions.appVersionFull
             font.pixelSize: Dimensions.fontMicro
             font.weight: Font.Medium
@@ -182,6 +187,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             anchors.centerIn: parent
             text: icon
             font.pixelSize: Dimensions.fontCaption

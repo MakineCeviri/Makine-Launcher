@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme"
+pragma ComponentBehavior: Bound
 
 /**
  * EmptyState.qml - Reusable empty/zero-data state indicator
@@ -38,6 +39,7 @@ Rectangle {
         spacing: Dimensions.spacingSM
 
         Label {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: root.icon
             font.pixelSize: Dimensions.fontBanner
@@ -45,6 +47,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: root.title
             font.pixelSize: Dimensions.fontMD
@@ -54,6 +57,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: root.subtitle
             font.pixelSize: Dimensions.fontSM

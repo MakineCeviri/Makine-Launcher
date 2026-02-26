@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * AmbientGlow.qml - Reusable radial glow effect with rounded-rect clipping.

@@ -47,7 +47,7 @@ public:
     QString antiCheatSummary() const { return m_antiCheatSummary; }
 
     // Q_INVOKABLE methods
-    static constexpr int kDefaultScanIntervalMs = 3000;
+    static constexpr int kDefaultScanIntervalMs = 10000;
     Q_INVOKABLE void startWatching(int intervalMs = kDefaultScanIntervalMs);
     void stopWatching();
 signals:

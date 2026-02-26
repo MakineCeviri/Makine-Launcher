@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 Item {
     id: root
@@ -19,6 +20,7 @@ Item {
             spacing: Dimensions.spacingXS
 
             Text {
+                textFormat: Text.PlainText
                 text: qsTr("Tema")
                 font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium
@@ -26,6 +28,7 @@ Item {
             }
 
             Text {
+                textFormat: Text.PlainText
                 text: qsTr("Uygulama görünümünü seç")
                 font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
@@ -56,6 +59,7 @@ Item {
                     Keys.onSpacePressed: SettingsManager.isDarkMode = false
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: qsTr("Açık")
                         font.pixelSize: Dimensions.fontSM
@@ -86,6 +90,7 @@ Item {
                     Keys.onSpacePressed: SettingsManager.isDarkMode = true
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: qsTr("Koyu")
                         font.pixelSize: Dimensions.fontSM

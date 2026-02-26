@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Window
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 Item {
     id: heroRoot
@@ -80,6 +81,7 @@ Item {
 
         // Placeholder
         Text {
+            textFormat: Text.PlainText
             anchors.centerIn: parent
             visible: coverImg.status !== Image.Ready
             text: heroRoot.gameName.length >= 2 ? heroRoot.gameName.substring(0, 2).toUpperCase() : "?"
@@ -120,8 +122,21 @@ Item {
                 Row {
                     id: verifiedRow
                     anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                    Text { text: "\u2713"; font.pixelSize: Dimensions.fontSM; color: Theme.verifiedText; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: qsTr("Onaylı Çeviri"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.verifiedText; anchors.verticalCenter: parent.verticalCenter }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: "\u2713"
+                        font.pixelSize: Dimensions.fontSM
+                        color: Theme.verifiedText
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr("Onaylı Çeviri")
+                        font.pixelSize: Dimensions.fontCaption
+                        font.weight: Font.DemiBold
+                        color: Theme.verifiedText
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
 
@@ -136,8 +151,20 @@ Item {
                 Row {
                     id: brokenRow
                     anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                    Text { text: "\u26A0"; font.pixelSize: Dimensions.fontCaption; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: qsTr("Güncelleme Gerekli"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: "\u26A0"
+                        font.pixelSize: Dimensions.fontCaption
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr("Güncelleme Gerekli")
+                        font.pixelSize: Dimensions.fontCaption
+                        font.weight: Font.DemiBold
+                        color: Theme.error
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
 
@@ -151,8 +178,20 @@ Item {
                 Row {
                     id: lostRow
                     anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                    Text { text: "\u26A0"; font.pixelSize: Dimensions.fontCaption; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: qsTr("Dosyalar Eksik"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: "\u26A0"
+                        font.pixelSize: Dimensions.fontCaption
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr("Dosyalar Eksik")
+                        font.pixelSize: Dimensions.fontCaption
+                        font.weight: Font.DemiBold
+                        color: Theme.warning
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
 
@@ -167,14 +206,27 @@ Item {
                 Row {
                     id: editorsPickRow
                     anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                    Text { text: "\u2B50"; font.pixelSize: Dimensions.fontCaption; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: qsTr("Editörün Seçimi"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: "\u2B50"
+                        font.pixelSize: Dimensions.fontCaption
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr("Editörün Seçimi")
+                        font.pixelSize: Dimensions.fontCaption
+                        font.weight: Font.DemiBold
+                        color: Theme.warning
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
         }
 
         // Game name
         Text {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: heroRoot.gameName
             font.pixelSize: Dimensions.fontHero
@@ -188,6 +240,7 @@ Item {
 
         // Editor's note (play recommendation)
         Text {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: heroRoot.isEditorsPick && heroRoot.editorsNote !== ""
             text: "\u201C" + heroRoot.editorsNote + "\u201D"
@@ -337,6 +390,7 @@ Item {
 
                     // Status text
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: {
                             if (heroRoot.updateImpact && heroRoot.updateImpact.level === "broken")
@@ -382,6 +436,7 @@ Item {
                         border.width: 1
 
                         Text {
+                            textFormat: Text.PlainText
                             id: pctText
                             anchors.centerIn: parent
                             text: qsTr("%1%").arg(Math.round(heroRoot.installProgress * 100))
@@ -410,6 +465,7 @@ Item {
                         Accessible.name: qsTr("Kurulumu iptal et")
 
                         Text {
+                            textFormat: Text.PlainText
                             anchors.centerIn: parent
                             text: "\u2715"
                             font.pixelSize: Dimensions.fontMicro
@@ -459,11 +515,13 @@ Item {
                 Row {
                     id: noTransRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
                     Text {
+                        textFormat: Text.PlainText
                         text: "\u26A0"
                         font.pixelSize: Dimensions.fontMD; color: Theme.textMuted
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
+                        textFormat: Text.PlainText
                         text: qsTr("Bu oyun için Türkçe yama mevcut değil")
                         font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
                         color: Theme.textMuted
@@ -499,6 +557,7 @@ Item {
                         source: "qrc:/qt/qml/MakineAI/resources/icons/steam.svg"
                         sourceSize: Qt.size(20, 20)
                         width: 20; height: 20
+                        asynchronous: true
                         anchors.verticalCenter: parent.verticalCenter
                         visible: false
                     }
@@ -511,6 +570,7 @@ Item {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         text: "Steam"
                         font.pixelSize: Dimensions.fontMD; font.weight: Font.DemiBold
                         color: steamMouse.containsMouse ? "#c5e8ff" : "#66c0f4"

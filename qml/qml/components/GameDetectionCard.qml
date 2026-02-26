@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 ColumnLayout {
     id: root
@@ -162,11 +163,13 @@ ColumnLayout {
                 spacing: 4
 
                 Label {
+                    textFormat: Text.PlainText
                     text: qsTr("Oyun Tespit Edilemedi")
                     font.pixelSize: Dimensions.fontLG; font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: qsTr("Desteklenen bir oyun bulunamad\u0131. Oyununuzu ba\u015Flat\u0131n ya da a\u015Fa\u011F\u0131dan manuel olarak ekleyin.")
                     font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
@@ -227,6 +230,7 @@ ColumnLayout {
                     }
 
                     Label {
+                        textFormat: Text.PlainText
                         id: btnLbl
                         text: qsTr("Oyun Ekle")
                         font.pixelSize: Dimensions.fontXS; font.weight: Font.Bold
@@ -270,19 +274,23 @@ ColumnLayout {
                 width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
                 source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
                 sourceSize: Qt.size(12, 12)
+                asynchronous: true
             }
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("G\u00FCvenli\u011Finiz i\u00E7in yaln\u0131zca")
                 font.pixelSize: Dimensions.fontMini; color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
             }
             Label {
+                textFormat: Text.PlainText
                 text: "makineai.com"
                 font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
                 color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
             }
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("\u00FCzerinden indirin")
                 font.pixelSize: Dimensions.fontMini; color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * ScanStep.qml - Second step of onboarding wizard
@@ -31,6 +32,7 @@ Item {
         width: Math.min(parent.width, 460)
 
         Text {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("Oyunlar\u0131m\u0131 Bul")
             font.pixelSize: 24
@@ -42,6 +44,7 @@ Item {
         Item { Layout.preferredHeight: 8 }
 
         Text {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("Kurulu oyunlar\u0131 tespit et")
             font.pixelSize: 14
@@ -73,6 +76,7 @@ Item {
                     spacing: 12
 
                     Text {
+                        textFormat: Text.PlainText
                         Layout.alignment: Qt.AlignHCenter
                         text: qsTr("Steam, Epic ve GOG oyunlar\u0131n\u0131 arar.")
                         font.pixelSize: 13
@@ -131,6 +135,7 @@ Item {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         Layout.alignment: Qt.AlignHCenter
                         text: scanStep.scanStage < scanStep.scanStageTexts.length
                               ? scanStep.scanStageTexts[scanStep.scanStage]
@@ -155,6 +160,7 @@ Item {
                     spacing: 8
 
                     Text {
+                        textFormat: Text.PlainText
                         Layout.alignment: Qt.AlignHCenter
                         text: scanStep.foundGames > 0
                               ? qsTr("%1 oyun tespit edildi").arg(scanStep.foundGames)
@@ -165,6 +171,7 @@ Item {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         Layout.alignment: Qt.AlignHCenter
                         Layout.maximumWidth: 300
                         text: scanStep.foundGames > 0

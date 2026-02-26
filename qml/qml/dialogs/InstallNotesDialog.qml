@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * InstallNotesDialog.qml - Show pre-install notes before installation
@@ -67,6 +68,7 @@ BaseDialog {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: root.title
                 font.pixelSize: Dimensions.fontLG
                 font.weight: Font.DemiBold
@@ -101,6 +103,7 @@ BaseDialog {
             border.width: 1
 
             Label {
+                textFormat: Text.PlainText
                 id: notesLabel
                 anchors.fill: parent
                 anchors.margins: Dimensions.paddingMD
@@ -130,6 +133,7 @@ BaseDialog {
             spacing: Dimensions.spacingMD
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Esc")
                 font.pixelSize: Dimensions.fontMicro
                 color: Theme.textMuted
@@ -153,6 +157,7 @@ BaseDialog {
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _cancelLbl
                     anchors.centerIn: parent
                     text: qsTr("Vazgeç")
@@ -186,6 +191,7 @@ BaseDialog {
                 Keys.onReturnPressed: { root.accepted(); root.close() }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _continueLbl
                     anchors.centerIn: parent
                     text: qsTr("Devam Et")

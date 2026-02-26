@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * DialogCloseButton.qml - Reusable 28x28 close (X) button for dialog headers

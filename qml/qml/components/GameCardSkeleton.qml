@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * GameCardSkeleton.qml - Loading placeholder for GameCard

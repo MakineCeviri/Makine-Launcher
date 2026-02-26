@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * WindowResizeHandles - 8 resize MouseAreas for frameless window edges and corners
@@ -7,7 +8,7 @@ import MakineAI 1.0
 Item {
     id: root
 
-    required property var windowRef
+    required property Window windowRef
     property int resizeMargin: 6
 
     // Right edge

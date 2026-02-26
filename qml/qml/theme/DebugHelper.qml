@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+pragma ComponentBehavior: Bound
 
 /**
  * DebugHelper - Lightweight debug logging

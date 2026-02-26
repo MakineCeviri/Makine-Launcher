@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * AntiCheatWarningDialog.qml - Anti-cheat detection warning dialog
@@ -194,6 +195,7 @@ Dialog {
                     border.width: 2
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: root.highestSeverity === "critical" ? "\u2620" : "\u26A0"
                         font.pixelSize: Dimensions.headlineXL
@@ -222,6 +224,7 @@ Dialog {
                 spacing: Dimensions.spacingSM
 
                 Text {
+                    textFormat: Text.PlainText
                     text: qsTr("Koruma Sistemi Tespit Edildi")
                     font.pixelSize: Dimensions.fontXL
                     font.weight: Font.Bold
@@ -232,6 +235,7 @@ Dialog {
                     spacing: Dimensions.spacingMD
 
                     Text {
+                        textFormat: Text.PlainText
                         text: root.gameName
                         font.pixelSize: Dimensions.fontBody
                         color: Theme.textSecondary
@@ -248,6 +252,7 @@ Dialog {
                                        getSeverityColor(root.highestSeverity).b, 0.2)
 
                         Text {
+                            textFormat: Text.PlainText
                             id: overallSeverityText
                             anchors.centerIn: parent
                             text: getSeverityLabel(root.highestSeverity)
@@ -279,6 +284,7 @@ Dialog {
                 Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Text {
+                    textFormat: Text.PlainText
                     anchors.centerIn: parent
                     text: "\u00D7"
                     font.pixelSize: Dimensions.fontHeadline
@@ -350,6 +356,7 @@ Dialog {
             border.width: 1
 
             Text {
+                textFormat: Text.PlainText
                 id: warningText
                 anchors.fill: parent
                 anchors.margins: Dimensions.marginMS
@@ -454,6 +461,7 @@ Dialog {
                                 border.width: 1
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: getSeverityIcon(modelData.severity)
                                     font.pixelSize: Dimensions.fontXL
@@ -470,6 +478,7 @@ Dialog {
                                 spacing: Dimensions.spacingBase
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: modelData.name || modelData.shortName
                                     font.pixelSize: Dimensions.fontSubtitle
                                     font.weight: Font.DemiBold
@@ -490,6 +499,7 @@ Dialog {
                                     border.width: 1
 
                                     Text {
+                                        textFormat: Text.PlainText
                                         id: severityLabelText
                                         anchors.centerIn: parent
                                         text: getSeverityLabel(modelData.severity)
@@ -501,6 +511,7 @@ Dialog {
                             }
 
                             Text {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: modelData.warning || modelData.description
                                 font.pixelSize: Dimensions.fontSM
@@ -579,6 +590,7 @@ Dialog {
                     spacing: Dimensions.spacingMD
 
                     Text {
+                        textFormat: Text.PlainText
                         text: "\u2715"  // X mark
                         font.pixelSize: Dimensions.fontMD
                         color: cancelBtnMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
@@ -588,6 +600,7 @@ Dialog {
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         text: qsTr("İptal Et")
                         font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
@@ -693,6 +706,7 @@ Dialog {
                         spacing: Dimensions.spacingBase
 
                         Text {
+                            textFormat: Text.PlainText
                             text: "\u26A0"
                             font.pixelSize: Dimensions.fontTitle
                             color: Theme.textOnColor
@@ -700,6 +714,7 @@ Dialog {
                         }
 
                         Text {
+                            textFormat: Text.PlainText
                             text: qsTr("Yine de Devam Et")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Bold

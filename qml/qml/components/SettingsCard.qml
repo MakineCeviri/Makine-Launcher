@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * SettingsCard.qml - Settings card container

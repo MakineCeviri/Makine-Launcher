@@ -183,11 +183,11 @@ void ImageCacheManager::clearCache()
 
 qint64 ImageCacheManager::cacheSizeBytes() const
 {
-    MAKINE_ZONE_NAMED("ImageCacheManager::cacheSizeBytes");
     if (m_cachedSizeBytes >= 0)
         return m_cachedSizeBytes;
 
     // First call: scan directory once, then track incrementally
+    MAKINE_ZONE_NAMED("ImageCacheManager::cacheSizeBytes (scan)");
     qint64 total = 0;
     QDirIterator it(m_cacheDir, QDir::Files, QDirIterator::NoIteratorFlags);
     while (it.hasNext()) {

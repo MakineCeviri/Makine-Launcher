@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * CategoryItem.qml - Kategori liste öğesi
@@ -40,11 +41,13 @@ Rectangle {
             source: root.iconSource
             sourceSize: Qt.size(18, 18)
             visible: root.iconSource !== ""
+            asynchronous: true
             opacity: root.isSelected ? 1.0 : 0.6
             Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
         }
 
         Text {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: root.text
             font.pixelSize: Dimensions.fontMD

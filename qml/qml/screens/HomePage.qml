@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
 import "../components"
+pragma ComponentBehavior: Bound
 
 /**
  * HomePage.qml - Main home view: game detection, announcements, catalog.
@@ -39,6 +40,7 @@ Item {
             }
 
             Text {
+                textFormat: Text.PlainText
                 text: UpdateChecker.statusType === "updateAvailable"
                       ? qsTr("%1 mevcut").arg(UpdateChecker.latestVersion)
                       : qsTr("G\u00FCncel")

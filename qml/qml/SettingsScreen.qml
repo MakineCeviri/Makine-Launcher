@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * SettingsScreen.qml
@@ -82,6 +83,7 @@ Item {
                             spacing: Dimensions.spacingMD
 
                             Label {
+                                textFormat: Text.PlainText
                                 text: categories[selectedCategory].name
                                 font.pixelSize: Dimensions.fontHero
                                 font.weight: Font.DemiBold
@@ -91,6 +93,7 @@ Item {
                             }
 
                             Label {
+                                textFormat: Text.PlainText
                                 text: categories[selectedCategory].description
                                 font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted

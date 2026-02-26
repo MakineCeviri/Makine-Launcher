@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 // Scalable Turkish flag badge (crescent + star, Canvas-rendered for crisp small sizes)
 Rectangle {

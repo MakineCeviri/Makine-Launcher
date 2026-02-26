@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * BackupsSettings.qml - Backup management panel
@@ -22,6 +23,7 @@ ColumnLayout {
                 spacing: Dimensions.spacingMD
 
                 Text {
+                    textFormat: Text.PlainText
                     text: qsTr("Yedekler")
                     font.pixelSize: Dimensions.fontLG
                     font.weight: Font.DemiBold
@@ -36,6 +38,7 @@ ColumnLayout {
                     visible: BackupManager.backups.length > 0
 
                     Text {
+                        textFormat: Text.PlainText
                         id: backupCountText
                         anchors.centerIn: parent
                         text: BackupManager.backups.length
@@ -69,11 +72,13 @@ ColumnLayout {
                     spacing: Dimensions.spacingLG
 
                     Text {
+                        textFormat: Text.PlainText
                         text: "\uD83D\uDCC1"
                         font.pixelSize: Dimensions.headlineLarge
                     }
 
                     Text {
+                        textFormat: Text.PlainText
                         text: qsTr("Henüz yedeklenmiş çeviri yok")
                         font.pixelSize: Dimensions.fontMD
                         color: Theme.textMuted
@@ -108,6 +113,7 @@ ColumnLayout {
                             color: Theme.surfaceActive
 
                             Text {
+                                textFormat: Text.PlainText
                                 anchors.centerIn: parent
                                 text: modelData.gameName ? modelData.gameName.substring(0, 2).toUpperCase() : "?"
                                 font.pixelSize: Dimensions.fontLG
@@ -122,6 +128,7 @@ ColumnLayout {
                             spacing: Dimensions.spacingXXS
 
                             Text {
+                                textFormat: Text.PlainText
                                 text: modelData.gameName || qsTr("Bilinmeyen Oyun")
                                 font.pixelSize: Dimensions.fontMD
                                 font.weight: Font.Medium
@@ -130,6 +137,7 @@ ColumnLayout {
                             }
 
                             Text {
+                                textFormat: Text.PlainText
                                 text: {
                                     var date = new Date(modelData.createdAt)
                                     return date.toLocaleDateString("tr-TR") + " - " +
@@ -165,6 +173,7 @@ ColumnLayout {
                                 spacing: Dimensions.spacingSM
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: "\u21A9"
                                     font.pixelSize: Dimensions.fontSM
                                     color: Theme.textOnColor
@@ -172,6 +181,7 @@ ColumnLayout {
                                 }
 
                                 Text {
+                                    textFormat: Text.PlainText
                                     text: qsTr("Geri Al")
                                     font.pixelSize: Dimensions.fontSM
                                     font.weight: Font.Medium
@@ -212,6 +222,7 @@ ColumnLayout {
                             Keys.onSpacePressed: BackupManager.deleteBackup(modelData.id)
 
                             Text {
+                                textFormat: Text.PlainText
                                 anchors.centerIn: parent
                                 text: "\uD83D\uDDD1"
                                 font.pixelSize: Dimensions.fontMD
@@ -265,6 +276,7 @@ ColumnLayout {
             }
 
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: BackupManager.restoreStatus || qsTr("Geri yükleniyor...")
                 font.pixelSize: Dimensions.fontMD

@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
 import "screens/onboarding"
+pragma ComponentBehavior: Bound
 
 /**
  * OnboardingWizard.qml - First-launch experience
@@ -112,6 +113,7 @@ Rectangle {
 
             // Skip / continue link (right side)
             Text {
+                textFormat: Text.PlainText
                 visible: !root.isLastStep
                 text: root.currentStep === 0 ? qsTr("Atla") : qsTr("Devam Et")
                 font.pixelSize: 13

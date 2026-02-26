@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * GameDataResolver.qml - Resolves game metadata for detail screen navigation

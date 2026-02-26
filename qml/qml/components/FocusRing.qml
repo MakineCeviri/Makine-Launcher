@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * FocusRing.qml - Reusable keyboard focus indicator

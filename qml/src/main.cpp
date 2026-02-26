@@ -686,7 +686,7 @@ int main(int argc, char *argv[])
 #endif
     auto* manifestSync = new ManifestSyncService(&app);
     engine.rootContext()->setContextProperty("ManifestSync", manifestSync);
-    // Sync starts after QML creation (non-blocking)
+    // syncCatalog() called in Phase 7.5 — loads catalog index before QML creation
 
     auto* translationDownloader = new TranslationDownloader(&app);
     translationDownloader->setManifestSync(manifestSync);
@@ -700,7 +700,7 @@ int main(int argc, char *argv[])
     auto* gameService = new GameService(&app);
     gameService->setManifestSync(manifestSync);
     engine.rootContext()->setContextProperty("GameService", gameService);
-    // initialize() deferred to after QML creation for faster first frame
+    // initialize() deferred to after first frame render (see Phase 10)
     logToFile(QString("Phase 3 (GameService created) at %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN
     splash.pumpMessages();
@@ -805,6 +805,29 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection
     );
 
+    // ===== Phase 7.5: Wire signals + sync catalog index =====
+    // Connect ManifestSync signals BEFORE syncing,
+    // so catalogReady/packageDetailReady are never missed.
+    QObject::connect(manifestSync, &makineai::ManifestSyncService::catalogReady,
+        gameService, [gameService]() {
+            if (auto* bridge = makineai::CoreBridge::instance())
+                bridge->refreshPackageManifest();
+        });
+    QObject::connect(manifestSync, &makineai::ManifestSyncService::packageDetailReady,
+        gameService, [manifestSync](const QString& appId) {
+            if (auto* bridge = makineai::CoreBridge::instance()) {
+                QVariantMap detail = manifestSync->getPackageDetail(appId);
+                QJsonDocument doc(QJsonObject::fromVariantMap(detail));
+                bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
+            }
+        });
+
+    // Sync catalog index (fast, ~10ms) — provides metadata for QML creation.
+    // GameService::initialize() deferred to after first frame render to avoid
+    // expired QML timer cascades during processEvents.
+    manifestSync->syncCatalog();
+    logToFile(QString("ManifestSync::syncCatalog() completed at %1 ms").arg(startupTimer.elapsed()));
+
     // ===== Phase 8: QML engine loading (heaviest single operation) =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Aray\u00FCz derleniyor...");
@@ -863,35 +886,6 @@ int main(int argc, char *argv[])
 
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
 
-    // ===== Phase 9.5: Deferred data loading =====
-    // Schedule GameService init for AFTER splash closes and first frames render.
-    // Delay ensures pre-render loop only warms up shaders with empty catalog state
-    // (BusyIndicator shown), then data loads AFTER window is visible.
-    QTimer::singleShot(300, gameService, [gameService, manifestSync, &startupTimer]() {
-        gameService->initialize();
-        logToFile(QString("GameService initialized at %1 ms").arg(startupTimer.elapsed()));
-
-        // Start remote catalog sync (index.json only — lightweight)
-        manifestSync->syncCatalog();
-    });
-
-    // Catalog index ready → reload PackageCatalog from cached index
-    QObject::connect(manifestSync, &makineai::ManifestSyncService::catalogReady,
-        gameService, [gameService]() {
-            if (auto* bridge = makineai::CoreBridge::instance())
-                bridge->refreshPackageManifest();
-        });
-
-    // Per-game detail ready → enrich PackageCatalog entry
-    QObject::connect(manifestSync, &makineai::ManifestSyncService::packageDetailReady,
-        gameService, [manifestSync](const QString& appId) {
-            if (auto* bridge = makineai::CoreBridge::instance()) {
-                QVariantMap detail = manifestSync->getPackageDetail(appId);
-                QJsonDocument doc(QJsonObject::fromVariantMap(detail));
-                bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
-            }
-        });
-
     // ===== Phase 10: Pre-render + finalize =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Son haz\u0131rl\u0131klar yap\u0131l\u0131yor...");
@@ -900,6 +894,9 @@ int main(int argc, char *argv[])
 
     // Release GPU resources when window is hidden/minimized (reclaimed on show)
     auto *window = qobject_cast<QQuickWindow*>(rootObject);
+#ifdef Q_OS_WIN
+    QMetaObject::Connection firstFrameConn;
+#endif
     if (window) {
         // Responsive sizing + centered positioning via Win32
         {
@@ -952,19 +949,36 @@ int main(int argc, char *argv[])
             }
         });
 
-        logToFile(QString("Phase 10 (pre-render start) at %1 ms").arg(startupTimer.elapsed()));
+        logToFile(QString("Phase 10 (first-frame setup) at %1 ms").arg(startupTimer.elapsed()));
 
-        // Pre-render: warm up shaders with the empty loading state (BusyIndicator).
-        // Only process rendering events — avoid firing deferred timers that trigger
-        // heavy data loading (GameService init, catalog sync, 265-game QML rebind).
-        {
-            MAKINE_ZONE_NAMED("Startup::preRender");
-            window->requestUpdate();
-            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 100);
-            splash.pumpMessages();
-        }
+        // Close splash on FIRST rendered frame, then dispatch game library load.
+        //
+        // Why not processEvents here? Any processEvents() call triggers expired
+        // QML timers (from createRootObject), which cascade into 4+ seconds of
+        // synchronous model resets. Instead, we let QML start with empty data
+        // (loading state), close splash on the first rendered frame, then
+        // populate data progressively via the event loop.
+        firstFrameConn = QObject::connect(window, &QQuickWindow::frameSwapped, &app,
+            [&firstFrameConn, &splash, &startupTimer, gameService]() {
+                // Guard: render thread may queue multiple frameSwapped before
+                // the first callback runs (threaded loop pipelining).
+                static bool done = false;
+                if (done) return;
+                done = true;
 
-        logToFile(QString("Phase 10 (pre-render done) at %1 ms").arg(startupTimer.elapsed()));
+                MAKINE_ZONE_NAMED("Startup::firstFrame");
+                QObject::disconnect(firstFrameConn);
+                splash.waitMinimumDisplay(200);
+                logToFile(QString("First frame rendered, closing splash at %1 ms")
+                              .arg(startupTimer.elapsed()));
+                splash.close();
+                // Dispatch game library loading — results arrive on subsequent
+                // event loop iterations, populating QML progressively.
+                gameService->initialize();
+            }, Qt::QueuedConnection);
+
+        window->requestUpdate();
+        logToFile(QString("Phase 10 (callback registered) at %1 ms").arg(startupTimer.elapsed()));
 #endif
 
         // Tracy: frame boundary marker (one FrameMark per rendered frame)
@@ -1016,11 +1030,12 @@ int main(int argc, char *argv[])
 #endif
     }
 
-    // Close splash — window is fully ready
+    // Fallback: close splash if window creation failed (normal path uses frameSwapped)
 #ifdef Q_OS_WIN
-    splash.waitMinimumDisplay(200);
-    logToFile(QString("Splash closed at %1 ms").arg(startupTimer.elapsed()));
-    splash.close();
+    if (!window) {
+        splash.close();
+        gameService->initialize();
+    }
 #endif
 
     // Trim working set after startup settles (DLL init, type registration, QML

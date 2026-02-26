@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * AnnouncementCard.qml - Discord community banner inside styled container.

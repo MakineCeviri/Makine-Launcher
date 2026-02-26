@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import MakineAI 1.0
 import "components"
 import "screens"
+pragma ComponentBehavior: Bound
 
 /**
  * HomeScreen.qml - Main container for Home and Library sub-pages
@@ -32,9 +33,11 @@ Item {
         scanDelayTimer.start()
     }
 
+    // Filesystem scan after app settles — cached data from initialize() already displayed.
+    // Interval must exceed createRootObject time (~4s) to avoid firing during pre-render.
     Timer {
         id: scanDelayTimer
-        interval: 500
+        interval: 5000
         onTriggered: {
             GameService.scanAllLibraries()
             if (SettingsManager.showNotifications)

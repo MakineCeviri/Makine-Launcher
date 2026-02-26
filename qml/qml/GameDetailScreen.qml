@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
 import "screens/detail"
+pragma ComponentBehavior: Bound
 
 /**
  * GameDetailScreen.qml — Modern cinematic game detail page
@@ -387,6 +388,7 @@ Item {
         Keys.onSpacePressed: root.backClicked()
 
         Text {
+            textFormat: Text.PlainText
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: -1
             text: "\u2190"
@@ -513,6 +515,7 @@ Item {
                         spacing: Dimensions.spacingLG
 
                         Text {
+                            textFormat: Text.PlainText
                             text: "\u26A0"
                             font.pixelSize: Dimensions.fontTitle
                             color: root.updateImpact && root.updateImpact.level === "broken"
@@ -523,6 +526,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: Dimensions.spacingXXS
                             Text {
+                                textFormat: Text.PlainText
                                 text: root.updateImpact && root.updateImpact.level === "broken"
                                     ? qsTr("Oyun Güncellendi — Çeviri Bozulmuş")
                                     : qsTr("Bazı Çeviri Dosyaları Eksik")
@@ -531,6 +535,7 @@ Item {
                                 color: Theme.textPrimary
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 text: root.updateImpact ? root.updateImpact.summary : ""
                                 font.pixelSize: Dimensions.fontCaption
                                 color: Theme.textMuted
@@ -555,8 +560,21 @@ Item {
 
                             Row {
                                 id: repairRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
-                                Text { text: "\u2699"; font.pixelSize: Dimensions.fontSM; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: qsTr("Onar"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter }
+                                Text {
+                                    textFormat: Text.PlainText
+                                    text: "\u2699"
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.accent
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    textFormat: Text.PlainText
+                                    text: qsTr("Onar")
+                                    font.pixelSize: Dimensions.fontSM
+                                    font.weight: Font.DemiBold
+                                    color: Theme.accent
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                             MouseArea {
                                 id: repairMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -720,7 +738,12 @@ Item {
         RowLayout {
             id: loadingRow; anchors.centerIn: parent; spacing: Dimensions.spacingLG
             BusyIndicator { width: 20; height: 20; running: visible }
-            Text { text: qsTr("Steam bilgileri yükleniyor..."); font.pixelSize: Dimensions.fontBody; color: Theme.textSecondary }
+            Text {
+                textFormat: Text.PlainText
+                text: qsTr("Steam bilgileri yükleniyor...")
+                font.pixelSize: Dimensions.fontBody
+                color: Theme.textSecondary
+            }
         }
     }
 
@@ -737,7 +760,13 @@ Item {
 
         ColumnLayout {
             id: errorCol; anchors.centerIn: parent; spacing: Dimensions.spacingMD
-            Text { text: qsTr("Steam bilgileri alınamadı"); font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; Layout.alignment: Qt.AlignHCenter }
+            Text {
+                textFormat: Text.PlainText
+                text: qsTr("Steam bilgileri alınamadı")
+                font.pixelSize: Dimensions.fontBody
+                color: Theme.textMuted
+                Layout.alignment: Qt.AlignHCenter
+            }
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: retryLbl.width + 24; implicitHeight: 30
@@ -748,7 +777,15 @@ Item {
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Tekrar Dene")
 
-                Text { id: retryLbl; anchors.centerIn: parent; text: qsTr("Tekrar Dene"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textOnColor }
+                Text {
+                    textFormat: Text.PlainText
+                    id: retryLbl
+                    anchors.centerIn: parent
+                    text: qsTr("Tekrar Dene")
+                    font.pixelSize: Dimensions.fontSM
+                    font.weight: Font.DemiBold
+                    color: Theme.textOnColor
+                }
                 MouseArea { id: retryMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) } }
             }
         }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * WelcomeStep.qml - First step of onboarding wizard
@@ -23,11 +24,13 @@ Item {
             source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
             sourceSize: Qt.size(80, 80)
             fillMode: Image.PreserveAspectFit
+            asynchronous: true
         }
 
         Item { Layout.preferredHeight: 24 }
 
         Text {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: "MakineAI"
             font.pixelSize: 32
@@ -39,6 +42,7 @@ Item {
         Item { Layout.preferredHeight: 8 }
 
         Text {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("Oyunlar\u0131n\u0131 T\u00fcrk\u00e7e oyna")
             font.pixelSize: 16
@@ -108,6 +112,7 @@ Item {
                             anchors.centerIn: parent
                             source: modelData.icon || ""
                             sourceSize: Qt.size(18, 18)
+                            asynchronous: true
                         }
                     }
 
@@ -116,12 +121,14 @@ Item {
                         spacing: 2
 
                         Text {
+                            textFormat: Text.PlainText
                             text: modelData.title
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
                             color: Theme.textPrimary
                         }
                         Text {
+                            textFormat: Text.PlainText
                             Layout.fillWidth: true
                             text: modelData.desc
                             font.pixelSize: 12

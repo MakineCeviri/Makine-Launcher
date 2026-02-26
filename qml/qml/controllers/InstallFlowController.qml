@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * InstallFlowController.qml - Manages the install dialog chain
@@ -12,7 +13,7 @@ QtObject {
     id: controller
 
     // References injected from Main.qml
-    property var gameDetailLoader: null
+    property Loader gameDetailLoader: null
 
     // Pending data for lazy-loaded dialogs
     property var pendingAntiCheatData: null

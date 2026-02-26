@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * GeneralSettings.qml - General application settings panel
@@ -41,11 +42,13 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Dimensions.spacingXS
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true; text: qsTr("Tema")
                     font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
                     color: Theme.textPrimary; elide: Text.ElideRight
                 }
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true; text: qsTr("Uygulama görünümünü seç")
                     font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
                     elide: Text.ElideRight
@@ -70,6 +73,7 @@ ColumnLayout {
                             anchors.centerIn: parent
                             spacing: Dimensions.spacingSM
                             Label {
+                                textFormat: Text.PlainText
                                 text: qsTr("Açık")
                                 font.pixelSize: Dimensions.fontBody; font.weight: Font.Medium
                                 color: Theme.textMuted
@@ -80,6 +84,7 @@ ColumnLayout {
                                 color: Theme.withAlpha(Theme.textPrimary, 0.1)
                                 anchors.verticalCenter: parent.verticalCenter
                                 Label {
+                                    textFormat: Text.PlainText
                                     id: _ykLbl; anchors.centerIn: parent
                                     text: qsTr("Yakında")
                                     font.pixelSize: Dimensions.fontCaption
@@ -100,6 +105,7 @@ ColumnLayout {
                             anchors.centerIn: parent
                             spacing: Dimensions.spacingSM
                             Label {
+                                textFormat: Text.PlainText
                                 text: qsTr("Koyu")
                                 font.pixelSize: Dimensions.fontBody; font.weight: Font.DemiBold
                                 color: Theme.textPrimary
@@ -138,6 +144,7 @@ ColumnLayout {
                     spacing: Dimensions.spacingLG
 
                     Label {
+                        textFormat: Text.PlainText
                         text: qsTr("Vurgu Rengi")
                         font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
@@ -198,6 +205,7 @@ ColumnLayout {
                                     }
 
                                     Label {
+                                        textFormat: Text.PlainText
                                         Layout.fillWidth: true
                                         text: modelData.name
                                         font.pixelSize: Dimensions.fontCaption
@@ -304,6 +312,7 @@ ColumnLayout {
                         spacing: Dimensions.spacingXS
 
                         Label {
+                            textFormat: Text.PlainText
                             text: qsTr("Çeviri Veri Dizini")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Medium
@@ -313,6 +322,7 @@ ColumnLayout {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             text: SettingsManager.translationDataPath
                             font.pixelSize: Dimensions.fontBody
                             color: Theme.textMuted
@@ -333,6 +343,7 @@ ColumnLayout {
                         Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                         Label {
+                            textFormat: Text.PlainText
                             id: _openDirLbl
                             anchors.centerIn: parent
                             text: qsTr("Klasörü Aç")
@@ -370,6 +381,7 @@ ColumnLayout {
                         spacing: Dimensions.spacingXS
 
                         Label {
+                            textFormat: Text.PlainText
                             text: qsTr("Önbellek Yönetimi")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Medium
@@ -379,6 +391,7 @@ ColumnLayout {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             text: qsTr("Uygulama önbellek dosyalarını temizle (%1)").arg(ImageCache.cacheSizeFormatted)
                             font.pixelSize: Dimensions.fontBody
                             color: Theme.textMuted
@@ -399,6 +412,7 @@ ColumnLayout {
                         Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                         Label {
+                            textFormat: Text.PlainText
                             id: _clearCacheLbl
                             anchors.centerIn: parent
                             text: qsTr("Temizle")
@@ -459,6 +473,7 @@ ColumnLayout {
                 Keys.onReturnPressed: generalRoot.resetSettingsRequested()
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _resetLbl
                     anchors.centerIn: parent
                     text: qsTr("Ayarları Sıfırla")

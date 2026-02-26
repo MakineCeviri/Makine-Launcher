@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * GameSection.qml - Reusable section: title + badge + horizontal game strip + empty state.
@@ -27,6 +28,7 @@ SectionContainer {
         spacing: Dimensions.spacingSM
 
         Label {
+            textFormat: Text.PlainText
             text: section.title
             font.pixelSize: Dimensions.fontLG
             font.weight: Font.DemiBold
@@ -50,6 +52,7 @@ SectionContainer {
             border.color: Theme.withAlpha(section.badgeColor, 0.20)
             border.width: 1
             Label {
+                textFormat: Text.PlainText
                 id: countLabel
                 anchors.centerIn: parent
                 text: (section.model || []).length
@@ -122,6 +125,7 @@ SectionContainer {
             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
             Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "\u2039"
                 font.pixelSize: Dimensions.fontTitle
@@ -151,6 +155,7 @@ SectionContainer {
             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
             Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "\u203A"
                 font.pixelSize: Dimensions.fontTitle
@@ -167,6 +172,7 @@ SectionContainer {
 
     // Empty state
     Label {
+        textFormat: Text.PlainText
         Layout.fillWidth: true
         Layout.fillHeight: true
         visible: (section.model || []).length === 0 && !section.loading

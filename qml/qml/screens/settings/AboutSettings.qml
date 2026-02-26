@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * AboutSettings.qml - About page with app info, updates, shortcuts, licenses
@@ -19,11 +20,13 @@ ColumnLayout {
             anchors.leftMargin: Dimensions.marginML
             anchors.rightMargin: Dimensions.marginML
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true; text: label
                 font.pixelSize: Dimensions.fontMD
                 color: Theme.textMuted; elide: Text.ElideRight
             }
             Label {
+                textFormat: Text.PlainText
                 text: value; font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium; color: Theme.textPrimary
             }
@@ -80,6 +83,7 @@ ColumnLayout {
                             spacing: Dimensions.spacingXS
 
                             Label {
+                                textFormat: Text.PlainText
                                 text: qsTr("Güncelleme Kontrolü")
                                 font.pixelSize: Dimensions.fontMD
                                 font.weight: Font.Medium
@@ -89,6 +93,7 @@ ColumnLayout {
                             }
 
                             Label {
+                                textFormat: Text.PlainText
                                 text: {
                                     if (UpdateChecker.downloading)
                                         return qsTr("İndiriliyor... %1%").arg(Math.round(UpdateChecker.downloadProgress * 100))
@@ -131,6 +136,7 @@ ColumnLayout {
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                             Label {
+                                textFormat: Text.PlainText
                                 id: _updateBtnLbl
                                 anchors.centerIn: parent
                                 text: qsTr("Kontrol Et")
@@ -160,6 +166,7 @@ ColumnLayout {
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                             Label {
+                                textFormat: Text.PlainText
                                 id: _dlBtnLbl
                                 anchors.centerIn: parent
                                 text: qsTr("İndir ve Kur")
@@ -189,6 +196,7 @@ ColumnLayout {
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                             Label {
+                                textFormat: Text.PlainText
                                 id: _cancelBtnLbl
                                 anchors.centerIn: parent
                                 text: qsTr("İptal")
@@ -218,6 +226,7 @@ ColumnLayout {
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                             Label {
+                                textFormat: Text.PlainText
                                 id: _installBtnLbl
                                 anchors.centerIn: parent
                                 text: qsTr("Şimdi Kur")
@@ -282,6 +291,7 @@ ColumnLayout {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             text: {
                                 var sizeMB = UpdateChecker.installerSize / (1024 * 1024)
                                 var downloadedMB = sizeMB * UpdateChecker.downloadProgress
@@ -313,6 +323,7 @@ ColumnLayout {
                         spacing: Dimensions.spacingSM
 
                         Label {
+                            textFormat: Text.PlainText
                             text: UpdateChecker.downloadError
                             font.pixelSize: Dimensions.fontSM
                             color: Theme.error
@@ -329,6 +340,7 @@ ColumnLayout {
                                 : Theme.withAlpha(Theme.primary, 0.10)
 
                             Label {
+                                textFormat: Text.PlainText
                                 id: _retryLbl
                                 anchors.centerIn: parent
                                 text: qsTr("Tekrar Dene")
@@ -408,6 +420,7 @@ ColumnLayout {
                     anchors.rightMargin: Dimensions.marginML
 
                     Label {
+                        textFormat: Text.PlainText
                         text: qsTr("Klavye Kısayolları")
                         font.pixelSize: Dimensions.fontMD
                         font.weight: Font.DemiBold
@@ -417,6 +430,7 @@ ColumnLayout {
                     Item { Layout.fillWidth: true }
 
                     Label {
+                        textFormat: Text.PlainText
                         text: "\u2328"
                         font.pixelSize: Dimensions.fontTitle
                         color: Theme.textMuted
@@ -430,6 +444,7 @@ ColumnLayout {
                 model: shortcutsSection.shortcuts
 
                 ColumnLayout {
+                    required property var modelData
                     Layout.fillWidth: true
                     spacing: 0
 
@@ -443,6 +458,7 @@ ColumnLayout {
                             anchors.rightMargin: Dimensions.marginML
 
                             Label {
+                                textFormat: Text.PlainText
                                 text: modelData.desc
                                 font.pixelSize: Dimensions.fontSM
                                 color: Theme.textSecondary
@@ -459,6 +475,7 @@ ColumnLayout {
                                 border.width: 1
 
                                 Label {
+                                    textFormat: Text.PlainText
                                     id: _keyLbl
                                     anchors.centerIn: parent
                                     text: modelData.key
@@ -508,6 +525,7 @@ ColumnLayout {
                     anchors.rightMargin: Dimensions.marginML
 
                     Label {
+                        textFormat: Text.PlainText
                         text: qsTr("Açık Kaynak Lisanslar")
                         font.pixelSize: Dimensions.fontMD
                         font.weight: Font.DemiBold
@@ -517,6 +535,7 @@ ColumnLayout {
                     Item { Layout.fillWidth: true }
 
                     Label {
+                        textFormat: Text.PlainText
                         text: licensesSection.licenseModel.length.toString()
                         font.pixelSize: Dimensions.fontSM
                         font.weight: Font.Medium
@@ -531,6 +550,7 @@ ColumnLayout {
                 model: licensesSection.licenseModel
 
                 ColumnLayout {
+                    required property var modelData
                     Layout.fillWidth: true
                     spacing: 0
 
@@ -544,6 +564,7 @@ ColumnLayout {
                             anchors.rightMargin: Dimensions.marginML
 
                             Label {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: modelData.name
                                 font.pixelSize: Dimensions.fontMD
@@ -553,6 +574,7 @@ ColumnLayout {
                             }
 
                             Label {
+                                textFormat: Text.PlainText
                                 text: modelData.license
                                 font.pixelSize: Dimensions.fontSM
                                 font.weight: Font.Medium

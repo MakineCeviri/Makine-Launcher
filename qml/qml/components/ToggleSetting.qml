@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * ToggleSetting.qml - Toggle switch setting row with accessibility
@@ -37,11 +38,13 @@ Item {
             Layout.fillWidth: true
             spacing: Dimensions.spacingXS
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true; text: title
                 font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
                 color: Theme.textPrimary; elide: Text.ElideRight
             }
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true; text: description
                 font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
                 elide: Text.ElideRight

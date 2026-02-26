@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 Rectangle {
     id: root
@@ -26,6 +27,7 @@ Rectangle {
             spacing: Dimensions.spacingXS
 
             Label {
+                textFormat: Text.PlainText
                 text: root.title
                 font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Medium
@@ -33,6 +35,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: root.description
                 font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
@@ -47,6 +50,7 @@ Rectangle {
             color: Theme.withAlpha(Theme.primary, 0.15)
 
             Text {
+                textFormat: Text.PlainText
                 id: badgeText
                 anchors.centerIn: parent
                 text: root.badgeText

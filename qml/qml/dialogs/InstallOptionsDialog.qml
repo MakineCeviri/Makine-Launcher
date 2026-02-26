@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * InstallOptionsDialog.qml - Checkbox-based install options (multiple selectable)
@@ -150,6 +151,7 @@ BaseDialog {
                 spacing: 1
 
                 Label {
+                    textFormat: Text.PlainText
                     text: root.gameName || root.title
                     font.pixelSize: Dimensions.fontLG
                     font.weight: Font.DemiBold
@@ -159,6 +161,7 @@ BaseDialog {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     visible: root.gameName.length > 0
                     text: root.title
                     font.pixelSize: Dimensions.fontXS
@@ -186,6 +189,7 @@ BaseDialog {
         Item { Layout.preferredHeight: Dimensions.spacingXS }
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             Layout.leftMargin: Dimensions.paddingLG
             Layout.rightMargin: Dimensions.paddingLG
@@ -316,6 +320,7 @@ BaseDialog {
                         spacing: 2
 
                         Label {
+                            textFormat: Text.PlainText
                             text: modelData.label || ""
                             font.pixelSize: Dimensions.fontSM
                             font.weight: isChecked ? Font.DemiBold : Font.Normal
@@ -325,6 +330,7 @@ BaseDialog {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             visible: (modelData.description || "").length > 0
                             text: modelData.description || ""
                             font.pixelSize: Dimensions.fontXS
@@ -374,12 +380,14 @@ BaseDialog {
                 spacing: Dimensions.spacingSM
 
                 Label {
+                    textFormat: Text.PlainText
                     text: "ℹ"
                     font.pixelSize: Dimensions.fontMD
                     color: root.accentColor
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     text: qsTr("eldenring.tr.exe otomatik olarak eldenring.exe olarak yeniden adlandırılacak")
                     font.pixelSize: Dimensions.fontXS
                     color: Theme.textSecondary
@@ -408,6 +416,7 @@ BaseDialog {
             spacing: Dimensions.spacingMD
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Esc")
                 font.pixelSize: Dimensions.fontMicro
                 color: Theme.textMuted
@@ -427,6 +436,7 @@ BaseDialog {
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _cancelLbl
                     anchors.centerIn: parent
                     text: qsTr("Vazgeç")
@@ -461,6 +471,7 @@ BaseDialog {
                 Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _installLbl
                     anchors.centerIn: parent
                     text: qsTr("Kur")

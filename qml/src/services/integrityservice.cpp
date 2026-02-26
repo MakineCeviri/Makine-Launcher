@@ -8,6 +8,7 @@
  */
 
 #include "integrityservice.h"
+#include "profiler.h"
 #include <QCoreApplication>
 #include <QtConcurrent>
 #include <QFileInfo>
@@ -41,6 +42,7 @@ IntegrityService* IntegrityService::create(QQmlEngine *qmlEngine, QJSEngine *jsE
 
 void IntegrityService::verify()
 {
+    MAKINE_ZONE_NAMED("IntegrityService::verify");
     if (m_checking) return;
 
 #ifndef MAKINEAI_RELEASE_VERIFIED
@@ -62,6 +64,8 @@ void IntegrityService::verify()
 
 void IntegrityService::performCheck()
 {
+    MAKINE_ZONE_NAMED("IntegrityService::performCheck");
+    MAKINE_THREAD_NAME("Worker-Integrity");
     const QString exePath = QCoreApplication::applicationFilePath();
 
 #ifndef MAKINEAI_UI_ONLY

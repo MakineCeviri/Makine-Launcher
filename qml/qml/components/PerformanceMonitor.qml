@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * PerformanceMonitor.qml - Real-time performance overlay (dev builds only)
@@ -132,6 +133,7 @@ Rectangle {
             }
 
             Text {
+                textFormat: Text.PlainText
                 text: Math.round(root.currentFps) + " FPS"
                 font.pixelSize: Dimensions.fontMD
                 font.weight: Font.Bold
@@ -143,6 +145,7 @@ Rectangle {
 
             // Collapse indicator
             Text {
+                textFormat: Text.PlainText
                 text: root.showDetails ? "▼" : "▶"
                 font.pixelSize: Dimensions.fontCaption
                 color: Theme.textMuted
@@ -349,6 +352,7 @@ Rectangle {
 
             // Help text
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: qsTr("Click: toggle • Dbl: reset")
                 font.pixelSize: Dimensions.fontMini
@@ -377,11 +381,13 @@ Rectangle {
             spacing: 4
 
             Text {
+                textFormat: Text.PlainText
                 text: parent.parent.expanded ? "▾" : "▸"
                 font.pixelSize: Dimensions.fontMini
                 color: Theme.textMuted
             }
             Text {
+                textFormat: Text.PlainText
                 text: parent.parent.text
                 font.pixelSize: Dimensions.fontCaption
                 font.weight: Font.DemiBold
@@ -410,6 +416,7 @@ Rectangle {
         spacing: Dimensions.spacingXS
 
         Text {
+            textFormat: Text.PlainText
             text: label
             font.pixelSize: Dimensions.fontCaption
             font.family: "Consolas"
@@ -419,6 +426,7 @@ Rectangle {
         Item { Layout.fillWidth: true }
 
         Text {
+            textFormat: Text.PlainText
             text: value
             font.pixelSize: Dimensions.fontCaption
             font.family: "Consolas"

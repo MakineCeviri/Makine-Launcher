@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * VariantSelectionDialog.qml - Select version or platform variant before install
@@ -68,6 +69,7 @@ BaseDialog {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: root.title
                 font.pixelSize: Dimensions.fontLG
                 font.weight: Font.DemiBold
@@ -92,6 +94,7 @@ BaseDialog {
         Item { Layout.preferredHeight: Dimensions.spacingXS }
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             Layout.leftMargin: Dimensions.paddingLG
             Layout.rightMargin: Dimensions.paddingLG
@@ -163,6 +166,7 @@ BaseDialog {
                     }
 
                     Label {
+                        textFormat: Text.PlainText
                         text: modelData
                         font.pixelSize: Dimensions.fontSM
                         font.weight: root.selectedIndex === index ? Font.DemiBold : Font.Normal
@@ -200,6 +204,7 @@ BaseDialog {
             spacing: Dimensions.spacingMD
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Esc")
                 font.pixelSize: Dimensions.fontMicro
                 color: Theme.textMuted
@@ -223,6 +228,7 @@ BaseDialog {
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _cancelLbl
                     anchors.centerIn: parent
                     text: qsTr("Vazgeç")
@@ -266,6 +272,7 @@ BaseDialog {
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: _installLbl
                     anchors.centerIn: parent
                     text: qsTr("Kur")

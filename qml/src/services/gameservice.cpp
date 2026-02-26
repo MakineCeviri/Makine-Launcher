@@ -22,12 +22,79 @@
 #include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QtConcurrent>
+#include <QFutureWatcher>
 #include <QProcess>
+#include <optional>
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
 constexpr qint64 kMaxSteamResponseBytes = 5 * 1024 * 1024; // 5 MB
+
+// Pure JSON parsing — no side effects, safe for background thread
+std::optional<makineai::SteamDetails> parseSteamJson(const QString& steamAppId, const QByteArray& data)
+{
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error != QJsonParseError::NoError)
+        return std::nullopt;
+
+    const QJsonObject root = doc.object();
+    const QJsonObject appObj = root.value(steamAppId).toObject();
+    if (!appObj.value("success").toBool())
+        return std::nullopt;
+
+    const QJsonObject appData = appObj.value("data").toObject();
+    if (appData.isEmpty())
+        return std::nullopt;
+
+    makineai::SteamDetails details;
+    details.description = appData.value("short_description").toString();
+    details.releaseDate = appData.value("release_date").toObject().value("date").toString();
+
+    const auto devArr = appData.value("developers").toArray();
+    details.developers.reserve(devArr.size());
+    for (const auto& dev : devArr)
+        details.developers.append(dev.toString());
+
+    const auto pubArr = appData.value("publishers").toArray();
+    details.publishers.reserve(pubArr.size());
+    for (const auto& pub : pubArr)
+        details.publishers.append(pub.toString());
+
+    const auto genreArr = appData.value("genres").toArray();
+    details.genres.reserve(genreArr.size());
+    for (const auto& genre : genreArr)
+        details.genres.append(genre.toObject().value("description").toString());
+
+    details.metacriticScore = appData.value("metacritic").toObject().value("score").toInt(0);
+
+    const QJsonObject platforms = appData.value("platforms").toObject();
+    details.hasWindows = platforms.value("windows").toBool(true);
+    details.hasMac = platforms.value("mac").toBool(false);
+    details.hasLinux = platforms.value("linux").toBool(false);
+
+    if (appData.value("is_free").toBool()) {
+        details.price = QObject::tr("\u00DCcretsiz");
+    } else {
+        const QJsonObject priceObj = appData.value("price_overview").toObject();
+        details.price = priceObj.value("final_formatted").toString();
+        details.discountPercent = priceObj.value("discount_percent").toInt(0);
+    }
+
+    const auto ssArr = appData.value("screenshots").toArray();
+    details.screenshots.reserve(ssArr.size());
+    for (const auto& ss : ssArr) {
+        const QString thumbUrl = ss.toObject().value("path_thumbnail").toString();
+        if (!thumbUrl.isEmpty())
+            details.screenshots.append(thumbUrl);
+    }
+
+    details.backgroundUrl = appData.value("background").toString();
+    details.fetchedAt = QDateTime::currentDateTime();
+
+    return details;
 }
+} // namespace
 
 namespace makineai {
 
@@ -672,101 +739,46 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
             return;
         }
 
-        parseSteamApiResponse(steamAppId, reply->readAll());
+        const QByteArray data = reply->readAll();
+
+        // Parse JSON on background thread (~100ms main thread → ~0ms)
+        auto *watcher = new QFutureWatcher<std::optional<SteamDetails>>(this);
+        connect(watcher, &QFutureWatcher<std::optional<SteamDetails>>::finished, this,
+                [this, watcher, steamAppId]() {
+            watcher->deleteLater();
+            auto result = watcher->result();
+            if (!result) {
+                emit steamDetailsFetchError(steamAppId,
+                    QStringLiteral("Failed to parse Steam API response"));
+                return;
+            }
+
+            // Cache eviction (main thread — accesses m_steamDetailsCache)
+            static constexpr int MAX_STEAM_CACHE = 80;
+            if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE) {
+                QStringList expired;
+                for (auto it = m_steamDetailsCache.constBegin();
+                     it != m_steamDetailsCache.constEnd(); ++it) {
+                    if (it->isExpired())
+                        expired.append(it.key());
+                }
+                for (const auto& key : expired)
+                    m_steamDetailsCache.remove(key);
+                if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE)
+                    m_steamDetailsCache.clear();
+            }
+
+            m_steamDetailsCache[steamAppId] = *result;
+            saveSteamDetailsCache();
+            emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(*result));
+        });
+
+        watcher->setFuture(QtConcurrent::run([steamAppId, data]() {
+            return parseSteamJson(steamAppId, data);
+        }));
     });
 }
 
-void GameService::parseSteamApiResponse(const QString& steamAppId, const QByteArray& data)
-{
-    MAKINE_ZONE_NAMED("GameService::parseSteamApiResponse");
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-    if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "Steam API JSON parse error:" << parseError.errorString();
-        emit steamDetailsFetchError(steamAppId, parseError.errorString());
-        return;
-    }
-
-    const QJsonObject root = doc.object();
-    const QJsonObject appObj = root.value(steamAppId).toObject();
-
-    if (!appObj.value("success").toBool()) {
-        emit steamDetailsFetchError(steamAppId, QStringLiteral("Steam API returned success=false"));
-        return;
-    }
-
-    const QJsonObject appData = appObj.value("data").toObject();
-    if (appData.isEmpty()) {
-        emit steamDetailsFetchError(steamAppId, QStringLiteral("Steam API returned empty data"));
-        return;
-    }
-
-    SteamDetails details;
-    details.description = appData.value("short_description").toString();
-    details.releaseDate = appData.value("release_date").toObject().value("date").toString();
-
-    // Developers & publishers
-    for (const auto& dev : appData.value("developers").toArray())
-        details.developers.append(dev.toString());
-    for (const auto& pub : appData.value("publishers").toArray())
-        details.publishers.append(pub.toString());
-
-    // Genres
-    for (const auto& genre : appData.value("genres").toArray())
-        details.genres.append(genre.toObject().value("description").toString());
-
-    // Metacritic
-    const QJsonObject metacritic = appData.value("metacritic").toObject();
-    details.metacriticScore = metacritic.value("score").toInt(0);
-
-    // Platforms
-    const QJsonObject platforms = appData.value("platforms").toObject();
-    details.hasWindows = platforms.value("windows").toBool(true);
-    details.hasMac = platforms.value("mac").toBool(false);
-    details.hasLinux = platforms.value("linux").toBool(false);
-
-    // Price
-    if (appData.value("is_free").toBool()) {
-        details.price = tr("Ücretsiz");
-    } else {
-        const QJsonObject priceObj = appData.value("price_overview").toObject();
-        details.price = priceObj.value("final_formatted").toString();
-        details.discountPercent = priceObj.value("discount_percent").toInt(0);
-    }
-
-    // Screenshots
-    for (const auto& ss : appData.value("screenshots").toArray()) {
-        const QString thumbUrl = ss.toObject().value("path_thumbnail").toString();
-        if (!thumbUrl.isEmpty())
-            details.screenshots.append(thumbUrl);
-    }
-
-    // Background
-    details.backgroundUrl = appData.value("background").toString();
-    details.fetchedAt = QDateTime::currentDateTime();
-
-    // Evict expired entries when cache grows large
-    static constexpr int MAX_STEAM_CACHE = 80;
-    if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE) {
-        QStringList expired;
-        for (auto it = m_steamDetailsCache.constBegin(); it != m_steamDetailsCache.constEnd(); ++it) {
-            if (it->isExpired())
-                expired.append(it.key());
-        }
-        for (const auto& key : expired)
-            m_steamDetailsCache.remove(key);
-        // If still too large, clear oldest half
-        if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE) {
-            m_steamDetailsCache.clear();
-        }
-    }
-
-    // Cache and persist
-    m_steamDetailsCache[steamAppId] = details;
-    saveSteamDetailsCache();
-
-    emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(details));
-}
 
 QVariantMap GameService::getSteamDetails(const QString& steamAppId)
 {

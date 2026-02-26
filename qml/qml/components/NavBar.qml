@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * NavBar - Minimal navigation bar: logo, page links, discord, settings.
@@ -106,6 +107,7 @@ Item {
                     source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
                     sourceSize: Qt.size(64, 64)
                     fillMode: Image.PreserveAspectFit
+                    asynchronous: true
                     smooth: true; mipmap: true
                 }
             }
@@ -140,6 +142,7 @@ Item {
             Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
             Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "\uE713"
                 font.family: "Segoe MDL2 Assets"

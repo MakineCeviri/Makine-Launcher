@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * ReadyStep.qml - Third/final step of onboarding wizard
@@ -28,6 +29,7 @@ Item {
             border.width: 1
 
             Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "\u2713"
                 font.pixelSize: 28
@@ -39,6 +41,7 @@ Item {
         Item { Layout.preferredHeight: 20 }
 
         Text {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("Haz\u0131rs\u0131n!")
             font.pixelSize: 28
@@ -50,6 +53,7 @@ Item {
         Item { Layout.preferredHeight: 8 }
 
         Text {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
             Layout.maximumWidth: 380
             text: qsTr("Bir oyun se\u00e7, T\u00fcrk\u00e7e \u00e7evirisini y\u00fckle, oyna.")

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * TranslationSettings.qml - Translation preferences panel
@@ -24,11 +25,13 @@ ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Dimensions.spacingXS
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true; text: title
                     font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
                     color: Theme.textPrimary; elide: Text.ElideRight
                 }
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true; text: description
                     font.pixelSize: Dimensions.fontBody
                     color: Theme.textMuted; elide: Text.ElideRight
@@ -39,6 +42,7 @@ ColumnLayout {
                 Layout.preferredHeight: 28; radius: 14
                 color: Theme.withAlpha(Theme.primary, 0.15)
                 Label {
+                    textFormat: Text.PlainText
                     id: _bLbl; anchors.centerIn: parent; text: badgeText
                     font.pixelSize: Dimensions.fontBody; font.weight: Font.DemiBold
                     color: Theme.primary; elide: Text.ElideRight

@@ -337,7 +337,6 @@ private:
     void ensureSupportedGamesCache();
     bool isValidGamePath(const QString& path) const;
 
-    void parseSteamApiResponse(const QString& steamAppId, const QByteArray& data);
     QVariantMap steamDetailsToVariantMap(const SteamDetails& details) const;
     void loadSteamDetailsCache();
     void saveSteamDetailsCache();

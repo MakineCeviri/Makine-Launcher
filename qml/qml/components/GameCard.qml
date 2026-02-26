@@ -1,5 +1,6 @@
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 Item {
     id: root
@@ -50,7 +51,7 @@ Item {
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(260, 370)
             asynchronous: true
-            cache: true
+            cache: false
         }
     }
 

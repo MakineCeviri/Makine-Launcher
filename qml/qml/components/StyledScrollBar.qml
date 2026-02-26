@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * StyledScrollBar.qml - Themed scrollbar for ScrollView/Flickable

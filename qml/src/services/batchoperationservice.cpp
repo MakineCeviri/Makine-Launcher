@@ -5,6 +5,7 @@
  */
 
 #include "batchoperationservice.h"
+#include "profiler.h"
 #include <QDebug>
 
 namespace makineai {
@@ -77,6 +78,7 @@ QVariantList BatchOperationService::results() const
 
 void BatchOperationService::startBatch(BatchOperationType type, const QVariantList& gameIds)
 {
+    MAKINE_ZONE_NAMED("BatchOp::startBatch");
     if (m_isRunning.load()) {
         emit batchError("A batch operation is already running");
         return;
@@ -151,6 +153,7 @@ void BatchOperationService::startBatch(BatchOperationType type, const QVariantLi
 
 void BatchOperationService::processNextItem()
 {
+    MAKINE_ZONE_NAMED("BatchOp::processNextItem");
     if (m_cancelRequested.load()) {
         // Mark remaining as skipped
         for (size_t i = m_currentIndex + 1; i < m_queue.size(); ++i) {
@@ -240,6 +243,7 @@ void BatchOperationService::onItemProgress(qreal progress, const QString& status
 
 void BatchOperationService::onItemCompleted(const QString& gameId, bool success, const QString& message)
 {
+    MAKINE_ZONE_NAMED("BatchOp::onItemCompleted");
     if (m_currentIndex < 0 || m_currentIndex >= static_cast<int>(m_queue.size())) return;
 
     auto& item = m_queue[m_currentIndex];
@@ -272,6 +276,7 @@ void BatchOperationService::onItemCompleted(const QString& gameId, bool success,
 
 void BatchOperationService::finishBatch()
 {
+    MAKINE_ZONE_NAMED("BatchOp::finishBatch");
     int succeeded = 0;
     int failed = 0;
     int skipped = 0;

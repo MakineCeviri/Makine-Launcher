@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 ColumnLayout {
     id: contribRoot
@@ -13,6 +14,7 @@ ColumnLayout {
     required property var contributors  // [{name, role}]
 
     Text {
+        textFormat: Text.PlainText
         text: qsTr("Özel Teşekkür")
         font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
         color: Theme.textPrimary
@@ -49,11 +51,13 @@ ColumnLayout {
                         Layout.fillWidth: true
                         spacing: Dimensions.spacingXXS
                         Text {
+                            textFormat: Text.PlainText
                             text: modelData.name || ""
                             font.pixelSize: Dimensions.fontBody; font.weight: Font.DemiBold
                             color: Theme.textPrimary
                         }
                         Text {
+                            textFormat: Text.PlainText
                             text: qsTr("Türkiye Oyuncu Topluluğu")
                             font.pixelSize: Dimensions.fontCaption
                             color: Theme.textMuted
@@ -77,7 +81,13 @@ ColumnLayout {
                 flagWidth: 26; flagHeight: 17
                 anchors.verticalCenter: parent.verticalCenter
             }
-            Text { text: qsTr("Türkiye Oyuncu Topluluğu"); font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+            Text {
+                textFormat: Text.PlainText
+                text: qsTr("Türkiye Oyuncu Topluluğu")
+                font.pixelSize: Dimensions.fontBody
+                color: Theme.textMuted
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 }

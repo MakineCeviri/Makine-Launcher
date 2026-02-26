@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 ColumnLayout {
     id: backupRoot
@@ -32,6 +33,7 @@ ColumnLayout {
     }
 
     Text {
+        textFormat: Text.PlainText
         text: qsTr("Yedekleme Yönetimi")
         font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold; color: Theme.textPrimary
     }
@@ -49,6 +51,7 @@ ColumnLayout {
             spacing: Dimensions.spacingLG
 
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: qsTr("Çeviri uygulamadan önce oyun dosyaları otomatik olarak yedeklenir.")
                 font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; wrapMode: Text.WordWrap
@@ -59,7 +62,12 @@ ColumnLayout {
                 visible: BackupManager.isRestoring
                 spacing: Dimensions.spacingMD
                 BusyIndicator { width: 20; height: 20; running: visible }
-                Text { text: BackupManager.restoreStatus; font.pixelSize: Dimensions.fontBody; color: Theme.primary }
+                Text {
+                    textFormat: Text.PlainText
+                    text: BackupManager.restoreStatus
+                    font.pixelSize: Dimensions.fontBody
+                    color: Theme.primary
+                }
             }
 
             // Has backups
@@ -75,16 +83,24 @@ ColumnLayout {
                     Rectangle {
                         width: 40; height: 40; radius: 20
                         color: Theme.withAlpha(Theme.success, 0.12)
-                        Text { anchors.centerIn: parent; text: "\u2713"; font.pixelSize: Dimensions.fontTitle; color: Theme.success }
+                        Text {
+                            textFormat: Text.PlainText
+                            anchors.centerIn: parent
+                            text: "\u2713"
+                            font.pixelSize: Dimensions.fontTitle
+                            color: Theme.success
+                        }
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: Dimensions.spacingXXS
                         Text {
+                            textFormat: Text.PlainText
                             text: qsTr("Son Yedek")
                             font.pixelSize: Dimensions.fontBody; font.weight: Font.DemiBold; color: Theme.textPrimary
                         }
                         Text {
+                            textFormat: Text.PlainText
                             text: {
                                 var b = backupRoot.latestBackup
                                 if (!b || !b.date) return ""
@@ -103,7 +119,15 @@ ColumnLayout {
                         width: countLbl.width + 12; height: 22
                         radius: Dimensions.radiusFull
                         color: Theme.withAlpha(Theme.textPrimary, 0.06)
-                        Text { id: countLbl; anchors.centerIn: parent; text: qsTr("%1 yedek").arg(backupRoot.gameBackups.length); font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
+                        Text {
+                            textFormat: Text.PlainText
+                            id: countLbl
+                            anchors.centerIn: parent
+                            text: qsTr("%1 yedek").arg(backupRoot.gameBackups.length)
+                            font.pixelSize: Dimensions.fontCaption
+                            font.weight: Font.Medium
+                            color: Theme.textSecondary
+                        }
                     }
                 }
 
@@ -123,8 +147,15 @@ ColumnLayout {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.margins: 12
                         spacing: Dimensions.spacingMD
-                        Text { text: "\u26A0"; font.pixelSize: Dimensions.fontSM; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
                         Text {
+                            textFormat: Text.PlainText
+                            text: "\u26A0"
+                            font.pixelSize: Dimensions.fontSM
+                            color: Theme.warning
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            textFormat: Text.PlainText
                             text: qsTr("Bu yedek eski oyun sürümüne ait. Geri yüklemek oyunu bozabilir.")
                             font.pixelSize: Dimensions.fontCaption; color: Theme.warning
                             wrapMode: Text.WordWrap; width: parent.width - 40
@@ -150,8 +181,21 @@ ColumnLayout {
 
                         Row {
                             id: restoreRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
-                            Text { text: "\u2715"; font.pixelSize: Dimensions.fontSM; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: qsTr("Yamayı Kaldır"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.error; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                textFormat: Text.PlainText
+                                text: "\u2715"
+                                font.pixelSize: Dimensions.fontSM
+                                color: Theme.error
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                textFormat: Text.PlainText
+                                text: qsTr("Yamayı Kaldır")
+                                font.pixelSize: Dimensions.fontSM
+                                font.weight: Font.DemiBold
+                                color: Theme.error
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
                         MouseArea {
                             id: restoreMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -171,7 +215,14 @@ ColumnLayout {
 
                         Row {
                             id: deleteRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
-                            Text { text: qsTr("Yedekleri Sil"); font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                textFormat: Text.PlainText
+                                text: qsTr("Yedekleri Sil")
+                                font.pixelSize: Dimensions.fontSM
+                                font.weight: Font.Medium
+                                color: Theme.textMuted
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
                         MouseArea {
                             id: deleteMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -185,8 +236,20 @@ ColumnLayout {
             Row {
                 visible: !backupRoot.hasBackups && !BackupManager.isRestoring
                 spacing: Dimensions.spacingLG
-                Text { text: "\u2139"; font.pixelSize: Dimensions.fontTitle; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: qsTr("Bu oyun için henüz yedek bulunmuyor."); font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; anchors.verticalCenter: parent.verticalCenter }
+                Text {
+                    textFormat: Text.PlainText
+                    text: "\u2139"
+                    font.pixelSize: Dimensions.fontTitle
+                    color: Theme.textMuted
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    textFormat: Text.PlainText
+                    text: qsTr("Bu oyun için henüz yedek bulunmuyor.")
+                    font.pixelSize: Dimensions.fontBody
+                    color: Theme.textMuted
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
         }
     }

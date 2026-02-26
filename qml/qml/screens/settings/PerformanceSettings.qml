@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * PerformanceSettings.qml - Performance and resource settings panel
@@ -63,6 +64,7 @@ ColumnLayout {
                         spacing: Dimensions.spacingXS
 
                         Label {
+                            textFormat: Text.PlainText
                             text: qsTr("Grafik Backend")
                             font.pixelSize: Dimensions.fontMD
                             font.weight: Font.Medium
@@ -70,6 +72,7 @@ ColumnLayout {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             text: backendSetting.needsRestart
                                 ? qsTr("Yeniden başlatma gerekli!")
                                 : qsTr("Aktif: %1").arg(backendSetting.activeApi)
@@ -115,6 +118,7 @@ ColumnLayout {
                                     border.width: 1
 
                                     Label {
+                                        textFormat: Text.PlainText
                                         id: backendLbl
                                         anchors.centerIn: parent
                                         text: modelData.label

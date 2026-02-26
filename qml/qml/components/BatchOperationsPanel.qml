@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * BatchOperationsPanel.qml - Inline panel for batch translation operations
@@ -70,6 +71,7 @@ Rectangle {
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: {
                     if (BatchOperationService.isRunning)
                         return qsTr("Toplu İşlem Devam Ediyor")
@@ -93,6 +95,7 @@ Rectangle {
                 color: Theme.withAlpha(Theme.success, 0.12)
 
                 Label {
+                    textFormat: Text.PlainText
                     id: completedLabel
                     anchors.centerIn: parent
                     text: BatchOperationService.completedItems + "/" + BatchOperationService.totalItems
@@ -110,6 +113,7 @@ Rectangle {
                 color: Theme.withAlpha(Theme.destructive, 0.12)
 
                 Label {
+                    textFormat: Text.PlainText
                     id: failedLabel
                     anchors.centerIn: parent
                     text: qsTr("%1 hata").arg(BatchOperationService.failedItems)
@@ -140,6 +144,7 @@ Rectangle {
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Label {
+                    textFormat: Text.PlainText
                     id: actionBtnLabel
                     anchors.centerIn: parent
                     text: BatchOperationService.isRunning ? qsTr("İptal") : qsTr("Temizle")
@@ -171,6 +176,7 @@ Rectangle {
 
             // Current game label
             Label {
+                textFormat: Text.PlainText
                 visible: BatchOperationService.currentGameName !== ""
                 text: BatchOperationService.statusMessage || BatchOperationService.currentGameName
                 font.pixelSize: Dimensions.fontXS
@@ -248,6 +254,7 @@ Rectangle {
                         spacing: Dimensions.spacingXS
 
                         Label {
+                            textFormat: Text.PlainText
                             text: modelData.success ? "\u2713" : "\u2717"
                             font.pixelSize: Dimensions.fontCaption
                             color: modelData.success ? Theme.success : Theme.destructive
@@ -255,6 +262,7 @@ Rectangle {
                         }
 
                         Label {
+                            textFormat: Text.PlainText
                             text: modelData.gameName || modelData.gameId || ""
                             font.pixelSize: Dimensions.fontCaption
                             color: Theme.textSecondary
@@ -275,6 +283,7 @@ Rectangle {
                 color: Theme.withAlpha(Theme.textPrimary, 0.05)
 
                 Label {
+                    textFormat: Text.PlainText
                     id: moreLabel
                     anchors.centerIn: parent
                     text: "+" + (BatchOperationService.results.length - 5)

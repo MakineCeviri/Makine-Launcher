@@ -101,10 +101,6 @@ set(BACKEND_SOURCES
     src/services/imagecachemanager.cpp
     src/services/manifestsyncservice.cpp
     src/services/translationdownloader.cpp
-    src/services/perfreporter.cpp
-    src/services/frametimer.cpp
-    src/services/sceneprofiler.cpp
-    src/services/memoryprofiler.cpp
 )
 
 set(BACKEND_HEADERS
@@ -131,10 +127,6 @@ set(BACKEND_HEADERS
     src/services/mkpkformat.h
     src/services/apppaths.h
     src/services/profiler.h
-    src/services/perfreporter.h
-    src/services/frametimer.h
-    src/services/sceneprofiler.h
-    src/services/memoryprofiler.h
 )
 
 
@@ -378,9 +370,18 @@ else()
 endif()
 
 # Dev tools (FrameTimer, PerfReporter, F3 overlay) — off in release builds
+# These sources are conditionally compiled to keep release binary clean:
+#   - PerfReporter: compiled when DEV_TOOLS or PROFILER is ON
+#   - FrameTimer/SceneProfiler/MemoryProfiler: compiled only when DEV_TOOLS is ON
 option(MAKINEAI_DEV_TOOLS "Enable dev-only performance tools (FrameTimer, PerfReporter, F3 overlay)" OFF)
 if(MAKINEAI_DEV_TOOLS)
     target_compile_definitions(MakineAI PRIVATE MAKINEAI_DEV_TOOLS MAKINEAI_PERF_REPORT)
+    target_sources(MakineAI PRIVATE
+        src/services/perfreporter.cpp src/services/perfreporter.h
+        src/services/frametimer.cpp   src/services/frametimer.h
+        src/services/sceneprofiler.cpp src/services/sceneprofiler.h
+        src/services/memoryprofiler.cpp src/services/memoryprofiler.h
+    )
     message(STATUS "MakineAI: Dev tools enabled (FrameTimer + PerfReporter + F3 overlay)")
 endif()
 
@@ -388,10 +389,20 @@ endif()
 if(MAKINEAI_PROFILER AND TARGET TracyClient)
     target_link_libraries(MakineAI PRIVATE TracyClient)
     target_compile_definitions(MakineAI PRIVATE TRACY_ENABLE)
+    if(NOT MAKINEAI_DEV_TOOLS)
+        # PerfReporter needed for Tracy zones but dev tools not enabled
+        target_compile_definitions(MakineAI PRIVATE MAKINEAI_PERF_REPORT)
+        target_sources(MakineAI PRIVATE
+            src/services/perfreporter.cpp src/services/perfreporter.h
+        )
+    endif()
     message(STATUS "MakineAI: Tracy profiler linked")
 elseif(MAKINEAI_PROFILER AND NOT MAKINEAI_DEV_TOOLS)
     # Standalone profiler mode (no dev tools, just PerfReporter)
     target_compile_definitions(MakineAI PRIVATE MAKINEAI_PERF_REPORT)
+    target_sources(MakineAI PRIVATE
+        src/services/perfreporter.cpp src/services/perfreporter.h
+    )
     message(STATUS "MakineAI: PerfReporter enabled (standalone)")
 endif()
 

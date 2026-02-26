@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Dialogs
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * Main.qml - Application main window with title bar, navigation, and content stack
@@ -287,10 +288,12 @@ ApplicationWindow {
                     sourceSize: Qt.size(14, 14)
                     Layout.preferredWidth: 14
                     Layout.preferredHeight: 14
+                    asynchronous: true
                     opacity: 0.8
                 }
 
                 Label {
+                    textFormat: Text.PlainText
                     text: qsTr("Bütünlük doğrulaması başarısız — bu çalıştırılabilir dosya değiştirilmiş olabilir.")
                     font.pixelSize: Dimensions.fontXS
                     font.weight: Font.Medium
@@ -309,6 +312,7 @@ ApplicationWindow {
                     Keys.onSpacePressed: integrityBanner.visible = false
 
                     Label {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: "\uE8BB"
                         font.pixelSize: Dimensions.fontCaption

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 ColumnLayout {
     id: aboutRoot
@@ -25,6 +26,7 @@ ColumnLayout {
     signal expandDescription()
 
     Text {
+        textFormat: Text.PlainText
         text: qsTr("Hakkında")
         font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
         color: Theme.textPrimary
@@ -46,6 +48,7 @@ ColumnLayout {
             spacing: Dimensions.spacingMD
 
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: aboutRoot.description
                 font.pixelSize: Dimensions.fontBody
@@ -56,6 +59,7 @@ ColumnLayout {
             }
 
             Text {
+                textFormat: Text.PlainText
                 visible: !aboutRoot.descriptionExpanded
                 text: qsTr("Daha fazla göster...")
                 font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium
@@ -98,7 +102,22 @@ ColumnLayout {
         property string value: ""
         Layout.fillWidth: true
         height: 28; spacing: 0
-        Text { Layout.preferredWidth: 110; text: label; font.pixelSize: Dimensions.fontBody; color: Theme.textMuted; elide: Text.ElideRight }
-        Text { Layout.fillWidth: true; text: value; font.pixelSize: Dimensions.fontBody; font.weight: Font.Medium; color: Theme.textPrimary; wrapMode: Text.WordWrap }
+        Text {
+            textFormat: Text.PlainText
+            Layout.preferredWidth: 110
+            text: label
+            font.pixelSize: Dimensions.fontBody
+            color: Theme.textMuted
+            elide: Text.ElideRight
+        }
+        Text {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            text: value
+            font.pixelSize: Dimensions.fontBody
+            font.weight: Font.Medium
+            color: Theme.textPrimary
+            wrapMode: Text.WordWrap
+        }
     }
 }

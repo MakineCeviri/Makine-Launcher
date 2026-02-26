@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * SettingsSidebar.qml - Settings screen sidebar navigation
@@ -59,6 +60,7 @@ Rectangle {
         }
 
         Label {
+            textFormat: Text.PlainText
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Dimensions.marginML
@@ -99,6 +101,7 @@ Rectangle {
             Layout.preferredHeight: Dimensions.navbarHeight
 
             Label {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.leftMargin: Dimensions.marginML
@@ -119,6 +122,8 @@ Rectangle {
             model: root.categories
 
             CategoryItem {
+                required property int index
+                required property var modelData
                 Layout.fillWidth: true
                 categoryIndex: index
                 name: modelData.name
@@ -133,6 +138,7 @@ Rectangle {
 
         // Version info at bottom
         Label {
+            textFormat: Text.PlainText
             Layout.leftMargin: Dimensions.marginML
             Layout.bottomMargin: Dimensions.marginML
             text: Dimensions.appName + " " + Dimensions.appVersionFull

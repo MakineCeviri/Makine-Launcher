@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 Item {
     id: navItemRoot
@@ -20,6 +21,7 @@ Item {
     Keys.onSpacePressed: clicked()
 
     Text {
+        textFormat: Text.PlainText
         id: navItemLabel
         anchors.centerIn: parent
         text: navItemRoot.text

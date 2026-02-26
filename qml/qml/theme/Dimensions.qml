@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * Dimensions.qml - Design system constants for MakineAI

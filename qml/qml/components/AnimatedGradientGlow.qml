@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Window
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * AnimatedGradientGlow.qml - Soft rotating rainbow glow

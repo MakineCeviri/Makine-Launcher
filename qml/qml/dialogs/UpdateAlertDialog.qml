@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 /**
  * UpdateAlertDialog.qml - Startup dialog showing games with broken translations
@@ -40,10 +41,17 @@ BaseDialog {
                 Layout.preferredWidth: 32; Layout.preferredHeight: 32; radius: 16
                 color: Theme.withAlpha(Theme.warning, 0.10)
                 border.color: Theme.withAlpha(Theme.warning, 0.20); border.width: 1
-                Text { anchors.centerIn: parent; text: "\u26A0"; font.pixelSize: 14; color: Theme.warning }
+                Text {
+                    textFormat: Text.PlainText
+                    anchors.centerIn: parent
+                    text: "\u26A0"
+                    font.pixelSize: 14
+                    color: Theme.warning
+                }
             }
 
             Label {
+                textFormat: Text.PlainText
                 text: qsTr("Çeviri Güncellemeleri Gerekli")
                 font.pixelSize: Dimensions.fontLG; font.weight: Font.DemiBold; color: Theme.textPrimary
                 elide: Text.ElideRight; Layout.fillWidth: true
@@ -65,6 +73,7 @@ BaseDialog {
         Item { Layout.preferredHeight: Dimensions.spacingXS }
 
         Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             Layout.leftMargin: Dimensions.paddingLG; Layout.rightMargin: Dimensions.paddingLG
             text: qsTr("Aşağıdaki oyunlar güncellendi ve çevirileri etkilenmiş olabilir.")
@@ -77,6 +86,7 @@ BaseDialog {
             model: root.affectedGames
 
             Rectangle {
+                required property var modelData
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.paddingLG; Layout.rightMargin: Dimensions.paddingLG
                 implicitHeight: gameRow.height + 20
@@ -97,11 +107,13 @@ BaseDialog {
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
                         Text {
+                            textFormat: Text.PlainText
                             text: modelData.gameName
                             font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textPrimary
                             elide: Text.ElideRight; Layout.fillWidth: true
                         }
                         Text {
+                            textFormat: Text.PlainText
                             text: modelData.impact.summary || ""
                             font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
                             elide: Text.ElideRight; Layout.fillWidth: true
@@ -116,6 +128,7 @@ BaseDialog {
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                         Text {
+                            textFormat: Text.PlainText
                             id: repairLbl; anchors.centerIn: parent
                             text: qsTr("Onar"); font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold; color: Theme.accent
                         }
@@ -154,7 +167,15 @@ BaseDialog {
                 border.color: Theme.withAlpha(Theme.textPrimary, 0.12); border.width: 1
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                Label { id: closeLbl; anchors.centerIn: parent; text: qsTr("Kapat"); font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium; color: Theme.textSecondary }
+                Label {
+                    textFormat: Text.PlainText
+                    id: closeLbl
+                    anchors.centerIn: parent
+                    text: qsTr("Kapat")
+                    font.pixelSize: Dimensions.fontSM
+                    font.weight: Font.Medium
+                    color: Theme.textSecondary
+                }
                 MouseArea { id: closeFooterMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.close() }
             }
 
@@ -166,7 +187,15 @@ BaseDialog {
                 color: repairAllMa.containsMouse ? Theme.accent : Theme.withAlpha(Theme.accent, 0.85)
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                Label { id: repairAllLbl; anchors.centerIn: parent; text: qsTr("Tümünü Onar"); font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textOnColor }
+                Label {
+                    textFormat: Text.PlainText
+                    id: repairAllLbl
+                    anchors.centerIn: parent
+                    text: qsTr("Tümünü Onar")
+                    font.pixelSize: Dimensions.fontSM
+                    font.weight: Font.DemiBold
+                    color: Theme.textOnColor
+                }
                 MouseArea {
                     id: repairAllMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: {

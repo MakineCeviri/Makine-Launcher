@@ -8,6 +8,7 @@
  */
 
 #include "operationjournal.h"
+#include "profiler.h"
 #include "apppaths.h"
 
 #include <QStandardPaths>
@@ -114,6 +115,7 @@ QString OperationJournal::journalPath()
 
 bool OperationJournal::beginOperation(const JournalEntry& entry)
 {
+    MAKINE_ZONE_NAMED("Journal::beginOperation");
     return m_journal->beginOperation(toCoreEntry(entry));
 }
 
@@ -144,6 +146,7 @@ JournalEntry OperationJournal::readPendingOperation() const
 
 bool OperationJournal::recover()
 {
+    MAKINE_ZONE_NAMED("Journal::recover");
     if (!hasPendingOperation()) return true;
 
     QString statePath = AppPaths::installedPackagesFile();
@@ -190,6 +193,7 @@ static OpType stringToOpType(const QString& s) {
 
 bool OperationJournal::beginOperation(const JournalEntry& entry)
 {
+    MAKINE_ZONE_NAMED("Journal::beginOperation");
     QMutexLocker lock(&m_mutex);
 
     if (m_active) {
@@ -276,6 +280,7 @@ JournalEntry OperationJournal::readPendingOperation() const
 
 bool OperationJournal::recover()
 {
+    MAKINE_ZONE_NAMED("Journal::recover");
     if (!hasPendingOperation()) return true;
 
     JournalEntry entry = readPendingOperation();
@@ -311,6 +316,7 @@ bool OperationJournal::recover()
 
 bool OperationJournal::recoverInstall(const JournalEntry& entry)
 {
+    MAKINE_ZONE_NAMED("Journal::recoverInstall");
     if (entry.gamePath.isEmpty() || !QDir(entry.gamePath).exists()) {
         qWarning() << "recoverInstall: game path missing:" << entry.gamePath;
         return false;
@@ -344,6 +350,7 @@ bool OperationJournal::recoverInstall(const JournalEntry& entry)
 
 bool OperationJournal::recoverUninstall(const JournalEntry& entry)
 {
+    MAKINE_ZONE_NAMED("Journal::recoverUninstall");
     QString statePath = AppPaths::installedPackagesFile();
     QFile stateFile(statePath);
     if (!stateFile.open(QIODevice::ReadOnly)) return true;

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 // Project card - clean design with subtle accent
 Rectangle {
@@ -76,6 +77,7 @@ Rectangle {
 
         // Percentage label
         Label {
+            textFormat: Text.PlainText
             anchors.right: parent.right
             anchors.rightMargin: Dimensions.spacingSM
             anchors.verticalCenter: parent.verticalCenter
@@ -106,7 +108,12 @@ Rectangle {
             border.width: 1
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
             Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-            Label { anchors.centerIn: parent; text: root.emoji; font.pixelSize: Dimensions.fontMD }
+            Label {
+                textFormat: Text.PlainText
+                anchors.centerIn: parent
+                text: root.emoji
+                font.pixelSize: Dimensions.fontMD
+            }
         }
 
         // Text content
@@ -118,6 +125,7 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true; spacing: Dimensions.spacingMD
                 Label {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true; text: root.title
                     font.pixelSize: Dimensions.fontBody; font.weight: Font.DemiBold
                     color: Theme.textPrimary; elide: Text.ElideRight
@@ -129,6 +137,7 @@ Rectangle {
                     border.color: Theme.withAlpha(root.statusColor, 0.15)
                     border.width: 1
                     Label {
+                        textFormat: Text.PlainText
                         id: statusLabel; anchors.centerIn: parent; text: root.status
                         font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: root.statusColor
                     }
@@ -137,6 +146,7 @@ Rectangle {
 
             // Description
             Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true; text: root.description
                 font.pixelSize: Dimensions.fontXS; color: Theme.textSecondary
                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineAI 1.0
+pragma ComponentBehavior: Bound
 
 ColumnLayout {
     id: rtRoot
@@ -26,6 +27,7 @@ ColumnLayout {
     visible: isUnityGame && runtimeNeeded
 
     Text {
+        textFormat: Text.PlainText
         text: qsTr("Çeviri Çalışma Ortamı")
         font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold; color: Theme.textPrimary
     }
@@ -50,6 +52,7 @@ ColumnLayout {
                     width: 40; height: 40; radius: 20
                     color: Theme.withAlpha(rtRoot.runtimeInstalled ? Theme.success : Theme.textPrimary, 0.12)
                     Text {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: rtRoot.runtimeInstalled ? "\u2713" : "\u2193"
                         font.pixelSize: Dimensions.fontTitle; font.weight: Font.Bold
@@ -60,6 +63,7 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: Dimensions.spacingXXS
                     Text {
+                        textFormat: Text.PlainText
                         text: rtRoot.runtimeInstalled
                             ? (rtRoot.runtimeUpToDate ? qsTr("BepInEx Kurulu ve Güncel") : qsTr("BepInEx Güncelleme Mevcut"))
                             : qsTr("BepInEx Kurulu Değil")
@@ -67,11 +71,13 @@ ColumnLayout {
                         color: rtRoot.runtimeInstalled ? Theme.success : Theme.textSecondary
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: rtRoot.runtimeInstalled && rtRoot.bepinexVersion !== ""
                         text: "BepInEx " + rtRoot.bepinexVersion
                         font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: !rtRoot.runtimeInstalled
                         text: qsTr("Çevirinin çalışması için BepInEx gereklidir")
                         font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
@@ -84,7 +90,15 @@ ColumnLayout {
                     width: backendLbl.width + 12; height: 24
                     radius: Dimensions.radiusFull
                     color: Theme.withAlpha(Theme.textPrimary, 0.06)
-                    Text { id: backendLbl; anchors.centerIn: parent; text: rtRoot.unityBackend; font.pixelSize: Dimensions.fontCaption; font.weight: Font.Medium; color: Theme.textSecondary }
+                    Text {
+                        textFormat: Text.PlainText
+                        id: backendLbl
+                        anchors.centerIn: parent
+                        text: rtRoot.unityBackend
+                        font.pixelSize: Dimensions.fontCaption
+                        font.weight: Font.Medium
+                        color: Theme.textSecondary
+                    }
                 }
             }
 
@@ -101,8 +115,14 @@ ColumnLayout {
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.top: parent.top; anchors.margins: Dimensions.marginSM
                     spacing: Dimensions.spacingMD
-                    Text { text: "\u26A0"; font.pixelSize: Dimensions.fontTitle; color: Theme.destructive }
                     Text {
+                        textFormat: Text.PlainText
+                        text: "\u26A0"
+                        font.pixelSize: Dimensions.fontTitle
+                        color: Theme.destructive
+                    }
+                    Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: qsTr("Bu oyunda %1 tespit edildi. BepInEx ile uyumsuz olabilir.").arg(rtRoot.antiCheatName)
                         font.pixelSize: Dimensions.fontBody; color: Theme.destructive
@@ -129,6 +149,7 @@ ColumnLayout {
                     Row {
                         id: rtBtnRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
                         Text {
+                            textFormat: Text.PlainText
                             text: rtRoot.isInstallingRuntime ? qsTr("Kuruluyor...") : (!rtRoot.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
                             font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textOnColor
                             anchors.verticalCenter: parent.verticalCenter
@@ -154,7 +175,14 @@ ColumnLayout {
                     Accessible.name: qsTr("BepInEx Kaldır")
                     Row {
                         id: rtUnRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
-                        Text { text: qsTr("Kaldır"); font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            textFormat: Text.PlainText
+                            text: qsTr("Kaldır")
+                            font.pixelSize: Dimensions.fontSM
+                            font.weight: Font.Medium
+                            color: Theme.textSecondary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                     MouseArea {
                         id: rtUnMouse; anchors.fill: parent; hoverEnabled: true
