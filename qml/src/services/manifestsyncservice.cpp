@@ -1,6 +1,6 @@
 /**
  * @file manifestsyncservice.cpp
- * @brief Remote manifest sync from GitHub Assets repository
+ * @brief Remote manifest sync from Cloudflare R2 CDN
  * @copyright (c) 2026 MakineAI Team
  */
 
@@ -20,8 +20,8 @@
 
 namespace makineai {
 
-static constexpr auto GITHUB_RAW_BASE =
-    "https://raw.githubusercontent.com/MakineCeviri/MakineAI-Assets/main/";
+static constexpr auto CDN_BASE =
+    "https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/assets/";
 
 ManifestSyncService::ManifestSyncService(QObject* parent)
     : QObject(parent)
@@ -35,12 +35,12 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
 
 QString ManifestSyncService::indexUrl()
 {
-    return QLatin1String(GITHUB_RAW_BASE) + QStringLiteral("index.json");
+    return QLatin1String(CDN_BASE) + QStringLiteral("index.json");
 }
 
 QString ManifestSyncService::packageUrl(const QString& appId)
 {
-    return QLatin1String(GITHUB_RAW_BASE) + QStringLiteral("packages/%1.json").arg(appId);
+    return QLatin1String(CDN_BASE) + QStringLiteral("packages/%1.json").arg(appId);
 }
 
 // ========== Catalog Sync ==========

@@ -1,6 +1,6 @@
 /**
  * @file imagecachemanager.cpp
- * @brief Disk-based image cache — downloads from GitHub Assets repo
+ * @brief Disk-based image cache — downloads from Cloudflare R2 CDN
  * @copyright (c) 2026 MakineAI Team
  */
 
@@ -18,9 +18,9 @@
 
 namespace makineai {
 
-// GitHub raw URL base for pre-baked game images (260x370 PNG, rounded corners)
-static constexpr auto GITHUB_IMAGE_BASE =
-    "https://raw.githubusercontent.com/MakineCeviri/MakineAI-Assets/main/images/";
+// R2 CDN URL base for pre-baked game images (260x370 PNG, rounded corners)
+static constexpr auto CDN_IMAGE_BASE =
+    "https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/assets/images/";
 
 ImageCacheManager::ImageCacheManager(QObject* parent)
     : QObject(parent)
@@ -50,7 +50,7 @@ QString ImageCacheManager::localPath(const QString& appId) const
 
 QString ImageCacheManager::remoteUrl(const QString& appId) const
 {
-    return QLatin1String(GITHUB_IMAGE_BASE) + appId + QStringLiteral(".png");
+    return QLatin1String(CDN_IMAGE_BASE) + appId + QStringLiteral(".png");
 }
 
 QString ImageCacheManager::steamCdnUrl(const QString& appId) const
