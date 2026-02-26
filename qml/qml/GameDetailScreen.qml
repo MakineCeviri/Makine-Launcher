@@ -6,11 +6,11 @@ import "screens/detail"
 pragma ComponentBehavior: Bound
 
 /**
- * GameDetailScreen.qml — Modern cinematic game detail page
+ * GameDetailScreen.qml — Store-style game detail page
  *
- * Layout: Full-width hero with parallax → SectionContainer cards below
- * Sections: Hero, Disclaimer, About, Screenshots, Contributors,
- *           Runtime (Unity), Backup Management
+ * Layout: Hero banner + two-column (cover + info/action) → section cards below
+ * Sections: Hero (banner + cover + action + screenshots), About,
+ *           Contributors, Runtime (Unity), Backup Management
  */
 Item {
     id: root
@@ -137,9 +137,7 @@ Item {
         if (!root._animEnabled) {
             // Animations disabled — show everything instantly
             heroSection.opacity = 1; heroScale.xScale = 1.0; heroScale.yScale = 1.0
-            quickStatsSection.opacity = 1; quickStatsTranslate.y = 0
             aboutSection.opacity = 1; aboutTranslate.y = 0
-            screenshotsLoader.opacity = 1; screenshotsTranslate.y = 0
             contributorsLoader.opacity = 1; contributorsTranslate.y = 0
             runtimeLoader.opacity = 1; runtimeTranslate.y = 0
             backupLoader.opacity = 1; backupTranslate.y = 0
@@ -148,9 +146,7 @@ Item {
 
         // Reset all sections to initial state
         heroSection.opacity = 0; heroScale.xScale = 1.03; heroScale.yScale = 1.03
-        quickStatsSection.opacity = 0; quickStatsTranslate.y = 18
         aboutSection.opacity = 0; aboutTranslate.y = 18
-        screenshotsLoader.opacity = 0; screenshotsTranslate.y = 18
         contributorsLoader.opacity = 0; contributorsTranslate.y = 18
         runtimeLoader.opacity = 0; runtimeTranslate.y = 18
         backupLoader.opacity = 0; backupTranslate.y = 18
@@ -166,63 +162,43 @@ Item {
         NumberAnimation { target: heroScale; property: "xScale"; from: 1.03; to: 1.0; duration: 600; easing.type: Easing.OutCubic }
         NumberAnimation { target: heroScale; property: "yScale"; from: 1.03; to: 1.0; duration: 600; easing.type: Easing.OutCubic }
 
-        // Quick Stats — 100ms delay
+        // About — 150ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 100 }
-            NumberAnimation { target: quickStatsSection; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-        SequentialAnimation {
-            PauseAnimation { duration: 100 }
-            NumberAnimation { target: quickStatsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-
-        // About — 180ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 180 }
+            PauseAnimation { duration: 150 }
             NumberAnimation { target: aboutSection; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 180 }
+            PauseAnimation { duration: 150 }
             NumberAnimation { target: aboutTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
 
-        // Screenshots — 260ms delay
+        // Contributors — 260ms delay
         SequentialAnimation {
             PauseAnimation { duration: 260 }
-            NumberAnimation { target: screenshotsLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-        SequentialAnimation {
-            PauseAnimation { duration: 260 }
-            NumberAnimation { target: screenshotsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-
-        // Contributors — 340ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 340 }
             NumberAnimation { target: contributorsLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 340 }
+            PauseAnimation { duration: 260 }
             NumberAnimation { target: contributorsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
 
-        // Runtime — 420ms delay
+        // Runtime — 370ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 420 }
+            PauseAnimation { duration: 370 }
             NumberAnimation { target: runtimeLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 420 }
+            PauseAnimation { duration: 370 }
             NumberAnimation { target: runtimeTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
 
-        // Backup — 500ms delay
+        // Backup — 480ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 500 }
+            PauseAnimation { duration: 480 }
             NumberAnimation { target: backupLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 500 }
+            PauseAnimation { duration: 480 }
             NumberAnimation { target: backupTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
     }
@@ -541,6 +517,7 @@ Item {
                 installCompleted: root.installCompleted
                 isDownloading: root.isDownloading
                 updateImpact: root.updateImpact
+                screenshots: root.screenshots
 
                 onTranslateClicked: root.translateClicked()
             }
@@ -649,31 +626,10 @@ Item {
             }
 
             // =================================================================
-            // COMMUNITY DISCLAIMER
-            // =================================================================
-
-            Item { Layout.preferredHeight: updateBanner.visible ? Dimensions.spacingLG : 16; Layout.fillWidth: true }
-
-            Text {
-                id: quickStatsSection
-                textFormat: Text.PlainText
-                opacity: 0
-                transform: Translate { id: quickStatsTranslate; y: 18 }
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
-                font.pixelSize: Dimensions.fontCaption
-                font.italic: true
-                color: Theme.textMuted
-                wrapMode: Text.WordWrap
-            }
-
-            // =================================================================
             // ABOUT SECTION
             // =================================================================
 
-            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: updateBanner.visible ? Dimensions.spacingLG : Dimensions.spacingLG; Layout.fillWidth: true }
 
             AboutSection {
                 id: aboutSection
@@ -691,23 +647,6 @@ Item {
                 descriptionExpanded: root.descriptionExpanded
 
                 onExpandDescription: root.descriptionExpanded = true
-            }
-
-            // =================================================================
-            // SCREENSHOTS — lazy loaded on data availability
-            // =================================================================
-
-            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true; visible: root.screenshots.length > 0 }
-
-            Loader {
-                id: screenshotsLoader
-                Layout.fillWidth: true
-                opacity: 0
-                transform: Translate { id: screenshotsTranslate; y: 18 }
-                active: root.screenshots.length > 0
-                sourceComponent: ScreenshotCarousel {
-                    screenshots: root.screenshots
-                }
             }
 
             // =================================================================
