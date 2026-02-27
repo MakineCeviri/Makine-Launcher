@@ -1,23 +1,17 @@
-# MakineAI
-
-[![CI](https://github.com/MakineCeviri/MakineAI/actions/workflows/ci.yml/badge.svg)](https://github.com/MakineCeviri/MakineAI/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/MakineCeviri/MakineAI/actions/workflows/codeql.yml/badge.svg)](https://github.com/MakineCeviri/MakineAI/actions/workflows/codeql.yml)
-![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)
-![Qt 6.10](https://img.shields.io/badge/Qt-6.10-green)
-![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey)
+# MakineAI Launcher
 
 Windows oyunlarını Türkçe'ye çeviren ve çevirileri güncel tutan masaüstü uygulaması.
 
-**Durum:** Alpha — oyun tarama ve yerel paket kurulumu çalışıyor. Sunucu dağıtımı ve adaptasyon motoru geliştirme aşamasında.
+**Durum:** Pre-Alpha — oyun tarama ve yerel paket kurulumu çalışıyor. Sunucu dağıtımı ve adaptasyon motoru geliştirme aşamasında.
 
 ## Mimari
 
-Proje iki katmandan oluşur:
+Proje iki katmanları:
 
-- **Makine** — Çeviri dağıtım platformu. Oyun tespiti, paket kurulum/kaldırma, katalog yönetimi.
-- **MakineAI** — Adaptasyon motoru. Oyun güncelleme tespiti, çeviri uyarlama, otomatik doğrulama. *(geliştiriliyor)*
+- **Makine Launcher** — Çeviri dağıtım platformu. Oyun tespiti, paket kurulum/kaldırma, katalog yönetimi.
+- **MakineAI** — CLI altyapısına sahip, launcher entegrasyonlu yapayzekâ motoru. Oyun güncelleme tespiti, çeviri uyarlama, otomatik doğrulama. *(geliştiriliyor)*
 
-UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüphanesi vcpkg bağımlılıkları ile gelişmiş dosya işleme sağlar.
+Launcher UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüphanesi vcpkg bağımlılıkları ile gelişmiş dosya işleme sağlar.
 
 ## Gereksinimler
 
@@ -182,22 +176,6 @@ just stats          # Proje istatistikleri
 | QML | PascalCase | `.qml` | `GameDetailScreen.qml` |
 | QML/UI C++ | camelCase | `.h` / `.cpp` | `gameservice.h` |
 | Core C++ | snake_case | `.hpp` / `.cpp` | `game_detector.hpp` |
-
-## Dokümantasyon
-
-Detaylı dokümantasyon `docs/` dizininde:
-
-- [Vizyon ve Yol Haritası](docs/VISION.md) — Proje yönü ve hedefler
-- [Mimari](docs/developer-guide/architecture.md) — Servis mimarisi ve veri akışı
-- [Geliştirme Ortamı](docs/developer-guide/setup.md) — IDE ve araç kurulumu
-- [QML Frontend](docs/developer-guide/qml-frontend.md) — UI yapısı ve kurallar
-- [Core Kütüphanesi](docs/developer-guide/core-library.md) — Core API ve modüller
-- [Servis API](docs/api-reference/services-api.md) — Backend servis referansı
-- [Oyun Motorları](docs/game-engines/) — Motor bazında çeviri rehberleri
-
-## Katkıda Bulunma
-
-Katkı kuralları ve geliştirme süreci için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın.
 
 ## Güvenlik
 
