@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 import QtQuick.Window
 import MakineAI 1.0
 pragma ComponentBehavior: Bound
@@ -9,77 +8,44 @@ pragma ComponentBehavior: Bound
 Item {
     id: heroRoot
     Layout.fillWidth: true
-    Layout.preferredHeight: heroBanner.height + contentRow.height + Dimensions.marginLG
+    Layout.preferredHeight: contribSection.y + contribSection.height + Dimensions.spacingMD
 
-    // Required properties from parent
-    required property string gameId
-    required property string gameName
-    required property string steamAppId
-    required property string imageUrl
-    required property bool verified
-    required property string engine
-    required property bool hasTranslation
-    required property bool isEditorsPick
-    required property string editorsNote
-    required property bool isManualGame
-    required property bool isGameInstalled
-    required property bool packageInstalled
-    required property bool isInstallingTranslation
-    required property real installProgress
-    required property string installStatus
-    required property bool installCompleted
-    property var updateImpact: null
-    property bool isDownloading: false
-    property var screenshots: []
-
-    // Throttle: integer percent reduces text binding updates from ~6000x to ~100x
-    readonly property int _progressPct: Math.round(installProgress * 100)
+    // Single ViewModel reference — all state accessed via vm
+    required property var vm
 
     signal translateClicked()
+    signal uninstallClicked()
 
     // =========================================================================
-    // HERO BANNER (full width, ~250px)
+    // HERO BANNER (full width, ~200px)
     // =========================================================================
 
     Rectangle {
         id: heroBanner
         width: parent.width
-        height: 250
+        height: 200
         color: Theme.surfaceActive
 
         Image {
             id: bannerImg
             anchors.fill: parent
             source: {
-                if (heroRoot.steamAppId !== "")
-                    return "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/library_hero.jpg"
-                return heroRoot.imageUrl
+                if (heroRoot.vm.steamAppId !== "")
+                    return "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.vm.steamAppId + "/library_hero.jpg"
+                return heroRoot.vm.imageUrl
             }
             fillMode: Image.PreserveAspectCrop
             verticalAlignment: Image.AlignTop
             asynchronous: true
             opacity: status === Image.Ready ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-
-            property int _fallbackStage: 0
-            onStatusChanged: {
-                if (status === Image.Error && heroRoot.steamAppId !== "") {
-                    if (_fallbackStage === 0) {
-                        _fallbackStage = 1
-                        source = "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/header.jpg"
-                    } else if (_fallbackStage === 1) {
-                        _fallbackStage = 2
-                        source = heroRoot.imageUrl
-                    }
-                }
-            }
         }
 
         // Bottom gradient fade into content area
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: 120
+            height: 180
             gradient: Gradient {
                 GradientStop { position: 0.0; color: "transparent" }
                 GradientStop { position: 1.0; color: Theme.bgPrimary }
@@ -94,14 +60,14 @@ Item {
     RowLayout {
         id: contentRow
         anchors.top: heroBanner.bottom
-        anchors.topMargin: -60
+        anchors.topMargin: -170
         anchors.left: parent.left
-        anchors.leftMargin: Dimensions.marginXL
+        anchors.leftMargin: Dimensions.marginLG
         anchors.right: parent.right
-        anchors.rightMargin: Dimensions.marginXL
-        spacing: Dimensions.spacingPage
+        anchors.rightMargin: Dimensions.marginLG
+        spacing: Dimensions.spacingXL
 
-        // ── LEFT COLUMN: Cover Art ──
+        // ── LEFT COLUMN: Cover Art + Disclaimer ──
         ColumnLayout {
             Layout.alignment: Qt.AlignTop
             spacing: Dimensions.spacingLG
@@ -109,58 +75,25 @@ Item {
             // Cover frame
             Rectangle {
                 id: coverFrame
-                Layout.preferredWidth: 280
-                Layout.preferredHeight: 392
+                Layout.preferredWidth: 220
+                Layout.preferredHeight: 310
                 radius: Dimensions.radiusLG
                 color: Theme.surfaceActive
+                clip: true
 
                 Image {
                     id: coverImg
                     anchors.fill: parent
-                    source: heroRoot.imageUrl
+                    source: heroRoot.vm.imageUrl !== ""
+                        ? heroRoot.vm.imageUrl
+                        : heroRoot.vm.steamAppId !== ""
+                            ? "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.vm.steamAppId + "/library_600x900_2x.jpg"
+                            : ""
                     fillMode: Image.PreserveAspectCrop
-                    sourceSize: Qt.size(560, 784)
+                    sourceSize: Qt.size(440, 620)
                     asynchronous: true
-                    visible: false
-
-                    property int _fallbackStage: 0
-                    onStatusChanged: {
-                        if (status === Image.Error && heroRoot.steamAppId !== "") {
-                            if (_fallbackStage === 0) {
-                                _fallbackStage = 1
-                                source = "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/library_600x900_2x.jpg"
-                            } else if (_fallbackStage === 1) {
-                                _fallbackStage = 2
-                                source = "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.steamAppId + "/header.jpg"
-                            }
-                        }
-                    }
-                }
-
-                // Rounded mask
-                Item {
-                    id: coverMask
-                    anchors.fill: parent; visible: false; layer.enabled: coverImg.status === Image.Ready
-                    Rectangle { anchors.fill: parent; radius: Dimensions.radiusLG; color: "white" }
-                }
-
-                MultiEffect {
-                    anchors.fill: parent
-                    source: coverImg
-                    maskEnabled: true; maskSource: coverMask
-                    opacity: coverImg.status === Image.Ready ? 1.0 : 0
+                    opacity: status === Image.Ready ? 1.0 : 0
                     Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                }
-
-                // Placeholder initials
-                Text {
-                    textFormat: Text.PlainText
-                    anchors.centerIn: parent
-                    visible: coverImg.status !== Image.Ready
-                    text: heroRoot.gameName.length >= 2 ? heroRoot.gameName.substring(0, 2).toUpperCase() : "?"
-                    font.pixelSize: Dimensions.fontBanner
-                    font.weight: Font.Bold
-                    color: Theme.textMuted
                 }
 
                 // Glass border
@@ -171,40 +104,48 @@ Item {
                 }
             }
 
-            // Community disclaimer container
-            Rectangle {
-                Layout.preferredWidth: 280
-                implicitHeight: disclaimerText.height + Dimensions.paddingMD * 2
-                radius: Dimensions.radiusMD
-                color: Theme.textPrimary03
-                border.color: Theme.glassBorder; border.width: 1
-
-                Text {
-                    id: disclaimerText
-                    textFormat: Text.PlainText
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.margins: Dimensions.paddingMD
-                    text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
-                    font.pixelSize: Dimensions.fontCaption
-                    font.italic: true
-                    color: Theme.textMuted
-                    wrapMode: Text.WordWrap
-                }
+            // Community disclaimer
+            Text {
+                textFormat: Text.PlainText
+                Layout.preferredWidth: 220
+                text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
+                font.pixelSize: Dimensions.fontCaption
+                font.italic: true
+                color: Theme.textMuted
+                wrapMode: Text.WordWrap
+                opacity: 0.7
             }
+
         }
 
-        // ── RIGHT COLUMN: Info + Action + Screenshots ──
+        // ── RIGHT COLUMN: Info + Action + About + Contributors ──
         ColumnLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignTop
-            spacing: Dimensions.spacingXL
+            spacing: Dimensions.spacingMD
 
-            // Game name
+            // Game logo (Steam) with text fallback
+            Image {
+                id: gameLogo
+                Layout.fillWidth: true
+                Layout.preferredHeight: status === Image.Ready ? implicitHeight * (width / implicitWidth) : 0
+                Layout.maximumHeight: 80
+                visible: status === Image.Ready
+                source: heroRoot.vm.steamAppId !== ""
+                    ? "https://cdn.akamai.steamstatic.com/steam/apps/" + heroRoot.vm.steamAppId + "/logo.png"
+                    : ""
+                fillMode: Image.PreserveAspectFit
+                horizontalAlignment: Image.AlignLeft
+                sourceSize.width: 600
+                asynchronous: true
+            }
+
+            // Game name (fallback when logo unavailable)
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
-                text: heroRoot.gameName
+                visible: gameLogo.status !== Image.Ready
+                text: heroRoot.vm.gameName
                 font.pixelSize: Dimensions.fontBanner
                 font.weight: Font.Bold
                 font.letterSpacing: Dimensions.letterSpacingHeadline
@@ -218,8 +159,8 @@ Item {
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
-                visible: heroRoot.isEditorsPick && heroRoot.editorsNote !== ""
-                text: "\u201C" + heroRoot.editorsNote + "\u201D"
+                visible: heroRoot.vm.isEditorsPick && heroRoot.vm.editorsNote !== ""
+                text: "\u201C" + heroRoot.vm.editorsNote + "\u201D"
                 font.pixelSize: Dimensions.fontBody
                 font.italic: true
                 color: Theme.textSecondary
@@ -235,14 +176,16 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
                 radius: Dimensions.radiusMD
-                visible: heroRoot.hasTranslation && heroRoot.isGameInstalled
+                visible: heroRoot.vm.hasTranslation && heroRoot.vm.isGameInstalled
 
                 color: {
-                    if (heroRoot.updateImpact && heroRoot.updateImpact.level === "broken")
+                    if (heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken")
                         return Theme.error
-                    if (heroRoot.packageInstalled || heroRoot.installCompleted)
+                    if (heroRoot.vm.installCompleted)
                         return Theme.accent
-                    if (heroRoot.isInstallingTranslation)
+                    if (heroRoot.vm.packageInstalled)
+                        return actionMouse.containsMouse ? "#8B2020" : Theme.accent
+                    if (heroRoot.vm.isInstallingTranslation)
                         return "#3A3A3E"
                     // Default: gold/yellow download button
                     return actionMouse.containsMouse ? "#D4940C" : "#E5A00D"
@@ -252,10 +195,10 @@ Item {
                 // Progress fill (during install)
                 Rectangle {
                     id: progressFill
-                    visible: heroRoot.isInstallingTranslation && heroRoot.installProgress > 0
+                    visible: heroRoot.vm.isInstallingTranslation && heroRoot.vm.installProgress > 0
                     anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
                     anchors.margins: 2
-                    width: Math.max(0, (parent.width - 4) * heroRoot.installProgress)
+                    width: Math.max(0, (parent.width - 4) * heroRoot.vm.installProgress)
                     radius: parent.radius - 2
                     color: Theme.accent18
                     Behavior on width { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
@@ -264,7 +207,7 @@ Item {
                 // Shimmer during install
                 Rectangle {
                     id: shimmerRect
-                    visible: heroRoot.isInstallingTranslation && heroRoot.installProgress > 0
+                    visible: heroRoot.vm.isInstallingTranslation && heroRoot.vm.installProgress > 0
                     anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
                     anchors.margins: 2
                     width: progressFill.width
@@ -297,16 +240,18 @@ Item {
                     Text {
                         textFormat: Text.PlainText
                         text: {
-                            if (heroRoot.updateImpact && heroRoot.updateImpact.level === "broken")
+                            if (heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken")
                                 return qsTr("ONARIM GEREKLİ")
-                            if (heroRoot.packageInstalled || heroRoot.installCompleted)
-                                return qsTr("Türkçe Yama Kurulu \u2713")
-                            if (heroRoot.isInstallingTranslation) {
-                                if (heroRoot.isDownloading && heroRoot.installStatus !== "")
-                                    return heroRoot.installStatus
-                                if (heroRoot.installProgress > 0)
-                                    return qsTr("Kuruluyor... %1%").arg(heroRoot._progressPct)
-                                return heroRoot.installStatus || qsTr("Hazırlanıyor...")
+                            if (heroRoot.vm.installCompleted)
+                                return qsTr("Türkçe Yama Kuruldu \u2713")
+                            if (heroRoot.vm.packageInstalled)
+                                return actionMouse.containsMouse ? qsTr("Yamayı Kaldır") : qsTr("Türkçe Yama Kurulu \u2713")
+                            if (heroRoot.vm.isInstallingTranslation) {
+                                if (heroRoot.vm.isDownloading && heroRoot.vm.installStatus !== "")
+                                    return heroRoot.vm.installStatus
+                                if (heroRoot.vm.installProgress > 0)
+                                    return qsTr("Kuruluyor... %1%").arg(heroRoot.vm.progressPercent)
+                                return heroRoot.vm.installStatus || qsTr("Hazırlanıyor...")
                             }
                             return qsTr("TÜRKÇE YAMA İNDİR")
                         }
@@ -314,7 +259,7 @@ Item {
                         font.weight: Font.Bold
                         font.letterSpacing: 0.5
                         color: {
-                            if (heroRoot.isInstallingTranslation)
+                            if (heroRoot.vm.isInstallingTranslation)
                                 return Theme.textPrimary
                             return Theme.textOnColor
                         }
@@ -322,7 +267,7 @@ Item {
 
                     // Cancel button (during install)
                     Rectangle {
-                        visible: heroRoot.isInstallingTranslation
+                        visible: heroRoot.vm.isInstallingTranslation
                         width: 26; height: 26; radius: 13
                         color: cancelMouse.containsMouse ? Theme.error20 : Theme.textMuted10
                         border.color: cancelMouse.containsMouse ? Theme.error40 : Theme.textMuted15
@@ -344,8 +289,8 @@ Item {
                             id: cancelMouse
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (heroRoot.isDownloading)
-                                    TranslationDownloader.cancelDownload(heroRoot.gameId)
+                                if (heroRoot.vm.isDownloading)
+                                    TranslationDownloader.cancelDownload(heroRoot.vm.gameId)
                                 else
                                     GameService.cancelInstallation()
                             }
@@ -353,24 +298,29 @@ Item {
                     }
                 }
 
-                Accessible.role: heroRoot.isInstallingTranslation ? Accessible.ProgressBar : Accessible.Button
-                Accessible.name: heroRoot.isInstallingTranslation
-                    ? qsTr("Installing %1%").arg(heroRoot._progressPct)
-                    : heroRoot.packageInstalled ? qsTr("Installed") : qsTr("Download Turkish Patch")
+                Accessible.role: heroRoot.vm.isInstallingTranslation ? Accessible.ProgressBar : Accessible.Button
+                Accessible.name: heroRoot.vm.isInstallingTranslation
+                    ? qsTr("Installing %1%").arg(heroRoot.vm.progressPercent)
+                    : heroRoot.vm.packageInstalled ? qsTr("Installed") : qsTr("Download Turkish Patch")
 
                 MouseArea {
                     id: actionMouse
                     anchors.fill: parent; hoverEnabled: true
-                    cursorShape: (!heroRoot.packageInstalled && !heroRoot.installCompleted && !heroRoot.isInstallingTranslation)
+                    cursorShape: (!heroRoot.vm.installCompleted && !heroRoot.vm.isInstallingTranslation)
                         ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    enabled: !heroRoot.packageInstalled && !heroRoot.installCompleted && !heroRoot.isInstallingTranslation
-                    onClicked: heroRoot.translateClicked()
+                    enabled: !heroRoot.vm.installCompleted && !heroRoot.vm.isInstallingTranslation
+                    onClicked: {
+                        if (heroRoot.vm.packageInstalled)
+                            heroRoot.uninstallClicked()
+                        else
+                            heroRoot.translateClicked()
+                    }
                 }
             }
 
             // ── No translation notice (manual games) ──
             Rectangle {
-                visible: heroRoot.isManualGame && !heroRoot.hasTranslation
+                visible: heroRoot.vm.isManualGame && !heroRoot.vm.hasTranslation
                 Layout.fillWidth: true
                 implicitHeight: 48
                 radius: Dimensions.radiusMD
@@ -401,7 +351,7 @@ Item {
 
                 // Verified badge
                 Rectangle {
-                    visible: heroRoot.verified
+                    visible: heroRoot.vm.verified
                     width: verifiedRow.width + 20; height: 26
                     radius: Dimensions.radiusFull
                     color: Theme.verifiedBg
@@ -429,7 +379,7 @@ Item {
 
                 // Update impact: broken
                 Rectangle {
-                    visible: heroRoot.updateImpact && heroRoot.updateImpact.level === "broken"
+                    visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken"
                     width: brokenRow.width + 20; height: 26
                     radius: Dimensions.radiusFull
                     color: Theme.error12
@@ -455,7 +405,7 @@ Item {
 
                 // Update impact: lost
                 Rectangle {
-                    visible: heroRoot.updateImpact && heroRoot.updateImpact.level === "lost"
+                    visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "lost"
                     width: lostRow.width + 20; height: 26
                     radius: Dimensions.radiusFull
                     color: Theme.warning12
@@ -481,7 +431,7 @@ Item {
 
                 // Editor's pick
                 Rectangle {
-                    visible: heroRoot.isEditorsPick
+                    visible: heroRoot.vm.isEditorsPick
                     width: editorsPickRow.width + 20; height: 26
                     radius: Dimensions.radiusFull
                     color: Theme.warning12
@@ -506,15 +456,27 @@ Item {
                 }
             }
 
-            // ── Screenshots (inline, reuses ScreenshotCarousel) ──
-            Loader {
-                id: screenshotsInHero
+            // ── About ──
+            AboutSection {
                 Layout.fillWidth: true
-                active: heroRoot.screenshots.length > 0
-                sourceComponent: ScreenshotCarousel {
-                    screenshots: heroRoot.screenshots
-                }
+                vm: heroRoot.vm
             }
+
         }
+    }
+
+    // =========================================================================
+    // CONTRIBUTORS (full width, below two-column layout)
+    // =========================================================================
+
+    ContributorsSection {
+        id: contribSection
+        anchors.top: contentRow.bottom
+        anchors.topMargin: Dimensions.spacingLG
+        anchors.left: parent.left
+        anchors.leftMargin: Dimensions.marginLG
+        anchors.right: parent.right
+        anchors.rightMargin: Dimensions.marginLG
+        contributors: heroRoot.vm.contributors
     }
 }

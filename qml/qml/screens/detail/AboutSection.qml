@@ -8,20 +8,11 @@ ColumnLayout {
     id: aboutRoot
     spacing: Dimensions.spacingLG
 
-    // Required properties from parent
-    required property string description
-    required property var developers
-    required property var publishers
-    required property string releaseDate
-    required property string engine
-    required property var genres
-    required property bool descriptionExpanded
+    // Single ViewModel reference — all state accessed via vm
+    required property var vm
 
     Layout.fillWidth: true
-    visible: description !== "" || developers.length > 0
-
-    // Signal to request description expansion
-    signal expandDescription()
+    visible: vm.description !== "" || vm.developers.length > 0
 
     Text {
         textFormat: Text.PlainText
@@ -34,20 +25,21 @@ ColumnLayout {
 
     // Description
     Text {
+        id: descText
         textFormat: Text.PlainText
         Layout.fillWidth: true
-        visible: aboutRoot.description !== ""
-        text: aboutRoot.description
+        visible: aboutRoot.vm.description !== ""
+        text: aboutRoot.vm.description
         font.pixelSize: Dimensions.fontBody
         color: Theme.textSecondary
         wrapMode: Text.WordWrap; lineHeight: 1.6
-        maximumLineCount: aboutRoot.descriptionExpanded ? 9999 : 4
+        maximumLineCount: aboutRoot.vm.descriptionExpanded ? 9999 : 4
         elide: Text.ElideRight
     }
 
     Text {
         textFormat: Text.PlainText
-        visible: aboutRoot.description !== "" && !aboutRoot.descriptionExpanded
+        visible: aboutRoot.vm.description !== "" && !aboutRoot.vm.descriptionExpanded && descText.truncated
         text: qsTr("Daha fazla göster...")
         font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium
         color: Theme.primary
@@ -55,22 +47,22 @@ ColumnLayout {
         MouseArea {
             id: expandMouse; anchors.fill: parent; anchors.margins: -4
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: aboutRoot.expandDescription()
+            onClicked: aboutRoot.vm.descriptionExpanded = true
         }
     }
 
     // Separator between description and details
     SettingsDivider {
         variant: "section"
-        visible: aboutRoot.description !== "" && (aboutRoot.developers.length > 0 || aboutRoot.publishers.length > 0)
+        visible: aboutRoot.vm.description !== "" && (aboutRoot.vm.developers.length > 0 || aboutRoot.vm.publishers.length > 0)
     }
 
     // Detail rows
-    DetailRow { label: qsTr("Geliştirici"); value: aboutRoot.developers.join(", "); visible: aboutRoot.developers.length > 0 }
-    DetailRow { label: qsTr("Yayıncı"); value: aboutRoot.publishers.join(", "); visible: aboutRoot.publishers.length > 0 }
-    DetailRow { label: qsTr("Çıkış Tarihi"); value: aboutRoot.releaseDate; visible: aboutRoot.releaseDate !== "" }
-    DetailRow { label: qsTr("Motor"); value: aboutRoot.engine; visible: aboutRoot.engine !== "" }
-    DetailRow { label: qsTr("Türler"); value: aboutRoot.genres.join(", "); visible: aboutRoot.genres.length > 0 }
+    DetailRow { label: qsTr("Geliştirici"); value: aboutRoot.vm.developers.join(", "); visible: aboutRoot.vm.developers.length > 0 }
+    DetailRow { label: qsTr("Yayıncı"); value: aboutRoot.vm.publishers.join(", "); visible: aboutRoot.vm.publishers.length > 0 }
+    DetailRow { label: qsTr("Çıkış Tarihi"); value: aboutRoot.vm.releaseDate; visible: aboutRoot.vm.releaseDate !== "" }
+    DetailRow { label: qsTr("Motor"); value: aboutRoot.vm.engine; visible: aboutRoot.vm.engine !== "" }
+    DetailRow { label: qsTr("Türler"); value: aboutRoot.vm.genres.join(", "); visible: aboutRoot.vm.genres.length > 0 }
 
     component DetailRow: RowLayout {
         property string label: ""

@@ -8,126 +8,24 @@ pragma ComponentBehavior: Bound
 /**
  * GameDetailScreen.qml — Store-style game detail page
  *
+ * Zero-rebinding architecture: all state lives in viewModel (GameDetailViewModel).
+ * Screen and children bind to viewModel ONCE — bindings never break on game switch.
+ *
  * Layout: Hero banner + two-column (cover + info/action) → section cards below
- * Sections: Hero (banner + cover + action + screenshots), About,
- *           Contributors, Runtime (Unity), Backup Management
+ * Sections: Hero (banner + cover + action + about + contributors),
+ *           Runtime (Unity)
  */
 Item {
     id: root
 
-    // ===== INPUT PROPERTIES (set by Main.qml) =====
-    property string gameId: ""
-    property string gameName: "Game Name"
-    property string steamAppId: ""
-    property string imageUrl: ""
-    property string heroImageUrl: ""
-    property bool verified: false
-    property string engine: ""
-    property bool hasTranslation: false
-    property bool isEditorsPick: false
-    property string editorsNote: ""
+    // Single entry point — all game state accessed via viewModel
+    required property var viewModel
 
-    // ===== STEAM DATA =====
-    property string description: ""
-    property var developers: []
-    property var publishers: []
-    property string releaseDate: ""
-    property var genres: []
-    property int metacriticScore: 0
-    property bool hasWindows: true
-    property bool hasMac: false
-    property bool hasLinux: false
-    property string price: ""
-    property int discountPercent: 0
-    property bool hasSteamDetails: false
-    property var screenshots: []
-    property bool isLoadingSteamDetails: false
-    property bool steamFetchFailed: false
-
-    // ===== CONTRIBUTORS =====
-    property var contributors: []  // [{name, role}]
-
-    // ===== RUNTIME (BepInEx) =====
-    property bool isUnityGame: false
-    property bool runtimeNeeded: false
-    property bool runtimeInstalled: false
-    property bool runtimeUpToDate: false
-    property string bepinexVersion: ""
-    property string xunityVersion: ""
-    property string unityBackend: ""
-    property string unityVersion: ""
-    property bool hasAntiCheat: false
-    property string antiCheatName: ""
-    property bool isInstallingRuntime: false
-
-    // ===== MANUAL GAME FLAG =====
-    property bool isManualGame: false
-
-    // ===== GAME INSTALL STATE =====
-    property bool isGameInstalled: false     // Game is installed on PC
-    property bool packageInstalled: false    // Translation already applied
-    property bool autoInstall: false         // Auto-start install on open
-
-    // ===== INSTALL STATE =====
-    property bool isInstallingTranslation: false
-    property real installProgress: 0
-    property string installStatus: ""
-    property bool installCompleted: false    // Just finished installing
-
-    // ===== DOWNLOAD STATE =====
-    property bool isDownloading: false
-
-    // ===== UPDATE IMPACT =====
-    property var updateImpact: null  // { level, summary, totalFiles, ... }
-    readonly property string _impactLevel: updateImpact ? updateImpact.level : ""
-
-    // ===== UI STATE =====
-    property bool descriptionExpanded: false
-    property bool _initialComplete: false
+    // UI-only state (not game data)
     readonly property bool _animEnabled: Dimensions.animSlow > 0
 
     signal backClicked()
     signal translateClicked()
-
-    // ===== DATA LOGIC =====
-
-    function resetDetails() {
-        description = ""; developers = []; publishers = []
-        releaseDate = ""; genres = []; metacriticScore = 0
-        hasWindows = true; hasMac = false; hasLinux = false
-        price = ""; discountPercent = 0; hasSteamDetails = false
-        screenshots = []; isLoadingSteamDetails = false; steamFetchFailed = false
-        contributors = []
-        isEditorsPick = false; editorsNote = ""
-        isUnityGame = false; runtimeNeeded = false; runtimeInstalled = false
-        runtimeUpToDate = false; bepinexVersion = ""; xunityVersion = ""
-        unityBackend = ""; unityVersion = ""; hasAntiCheat = false
-        antiCheatName = ""; isInstallingRuntime = false
-        isInstallingTranslation = false; installProgress = 0; installStatus = ""
-        installCompleted = false; autoInstall = false; isDownloading = false
-        isGameInstalled = false; packageInstalled = false
-        isManualGame = false; updateImpact = null
-        descriptionExpanded = false
-    }
-
-    function populateSteamDetails(details) {
-        description = details.description || ""
-        developers = details.developers || []
-        publishers = details.publishers || []
-        releaseDate = details.releaseDate || ""
-        genres = details.genres || []
-        metacriticScore = details.metacriticScore || 0
-        hasWindows = details.hasWindows !== undefined ? details.hasWindows : true
-        hasMac = details.hasMac || false
-        hasLinux = details.hasLinux || false
-        price = details.price || ""
-        discountPercent = details.discountPercent || 0
-        screenshots = details.screenshots || []
-        if (details.backgroundUrl && details.backgroundUrl !== "")
-            heroImageUrl = details.backgroundUrl
-        hasSteamDetails = true
-        isLoadingSteamDetails = false
-    }
 
     // ===== ENTRY ANIMATION =====
 
@@ -135,21 +33,13 @@ Item {
         _entryAnim.stop()
 
         if (!root._animEnabled) {
-            // Animations disabled — show everything instantly
             heroSection.opacity = 1
-            aboutContainer.opacity = 1; aboutTranslate.y = 0
-            contributorsLoader.opacity = 1; contributorsTranslate.y = 0
             runtimeLoader.opacity = 1; runtimeTranslate.y = 0
-            backupLoader.opacity = 1; backupTranslate.y = 0
             return
         }
 
-        // Reset all sections to initial state
         heroSection.opacity = 0
-        aboutContainer.opacity = 0; aboutTranslate.y = 18
-        contributorsLoader.opacity = 0; contributorsTranslate.y = 18
         runtimeLoader.opacity = 0; runtimeTranslate.y = 18
-        backupLoader.opacity = 0; backupTranslate.y = 18
 
         _entryAnim.start()
     }
@@ -157,193 +47,159 @@ Item {
     ParallelAnimation {
         id: _entryAnim
 
-        // Hero — 0ms, fade only
+        // Hero (includes about + contributors) — 0ms, fade only
         NumberAnimation { target: heroSection; property: "opacity"; from: 0; to: 1; duration: 500; easing.type: Easing.OutCubic }
 
-        // About — 150ms delay
+        // Runtime — 150ms delay
         SequentialAnimation {
             PauseAnimation { duration: 150 }
-            NumberAnimation { target: aboutContainer; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-        SequentialAnimation {
-            PauseAnimation { duration: 150 }
-            NumberAnimation { target: aboutTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-
-        // Contributors — 260ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 260 }
-            NumberAnimation { target: contributorsLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-        SequentialAnimation {
-            PauseAnimation { duration: 260 }
-            NumberAnimation { target: contributorsTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-
-        // Runtime — 370ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 370 }
             NumberAnimation { target: runtimeLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 370 }
+            PauseAnimation { duration: 150 }
             NumberAnimation { target: runtimeTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
+    }
 
-        // Backup — 480ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 480 }
-            NumberAnimation { target: backupLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+    // ===== VIEWMODEL WATCHERS =====
+
+    Connections {
+        target: root.viewModel
+        function onGameIdChanged() {
+            if (root.viewModel.gameId === "") return
+            mainFlick.contentY = 0
+            root._replayEntryAnim()
         }
-        SequentialAnimation {
-            PauseAnimation { duration: 480 }
-            NumberAnimation { target: backupTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
+        function onAutoInstallChanged() {
+            if (root.viewModel.autoInstall && root.viewModel.hasTranslation &&
+                root.viewModel.isGameInstalled && !root.viewModel.packageInstalled &&
+                !root.viewModel.isInstallingTranslation) {
+                autoInstallTimer.restart()
+            }
         }
     }
 
-    // ===== SIGNALS & CONNECTIONS =====
-
-    onSteamAppIdChanged: {
-        if (steamAppId === "") return
-        var cached = GameService.getSteamDetails(steamAppId)
-        if (cached && cached.description !== undefined)
-            populateSteamDetails(cached)
-        else
-            isLoadingSteamDetails = true
-        GameService.fetchSteamDetails(steamAppId)
-
-        // Pre-fetch package detail so install doesn't wait
-        if (!CoreBridge.isPackageDetailLoaded(steamAppId))
-            ManifestSync.fetchPackageDetail(steamAppId)
-    }
-
-    onGameIdChanged: {
-        if (gameId === "") return
-
-        if (typeof SceneProfiler !== "undefined")
-            SceneProfiler.screenLoaded("GameDetail")
-
-        var d = GameService.getGameDetails(gameId)
-
-        // Contributors
-        contributors = d.contributors || []
-
-        // Unity runtime
-        isUnityGame = d.isUnityGame || false
-        runtimeNeeded = d.runtimeNeeded || false
-        runtimeInstalled = d.runtimeInstalled || false
-        runtimeUpToDate = d.runtimeUpToDate || false
-        bepinexVersion = d.bepinexVersion || ""
-        xunityVersion = d.xunityVersion || ""
-        unityBackend = d.unityBackend || "unknown"
-        unityVersion = d.unityVersion || ""
-        hasAntiCheat = d.hasAntiCheat || false
-        antiCheatName = d.antiCheatName || ""
-
-        // Check update impact for installed translations
-        if (packageInstalled && GameService.hasGameUpdate(gameId)) {
-            updateImpact = GameService.checkUpdateImpact(gameId)
-        } else {
-            updateImpact = null
-        }
-
-        // Reset scroll and play entry animation
-        mainFlick.contentY = 0
-        _replayEntryAnim()
-    }
+    // ===== SERVICE CONNECTIONS =====
 
     Connections {
         target: GameService
         function onSteamDetailsFetched(appId, details) {
-            if (appId === root.steamAppId) root.populateSteamDetails(details)
+            if (appId === root.viewModel.steamAppId)
+                root.viewModel.populateSteamDetails(details)
         }
         function onSteamDetailsFetchError(appId, error) {
-            if (appId === root.steamAppId) {
-                root.isLoadingSteamDetails = false
-                root.steamFetchFailed = true
+            if (appId === root.viewModel.steamAppId) {
+                root.viewModel.isLoadingSteamDetails = false
+                root.viewModel.steamFetchFailed = true
             }
         }
         function onRuntimeInstallFinished(gId, success, error) {
-            if (gId === root.gameId) {
-                root.isInstallingRuntime = false
+            if (gId === root.viewModel.gameId) {
+                root.viewModel.isInstallingRuntime = false
                 if (success) {
-                    var rt = GameService.getRuntimeStatus(root.gameId)
+                    var rt = GameService.getRuntimeStatus(root.viewModel.gameId)
                     if (rt) {
-                        root.runtimeInstalled = rt.installed || false
-                        root.runtimeUpToDate = rt.upToDate || false
-                        root.bepinexVersion = rt.bepinexVersion || ""
-                        root.xunityVersion = rt.xunityVersion || ""
+                        root.viewModel.runtimeInstalled = rt.installed || false
+                        root.viewModel.runtimeUpToDate = rt.upToDate || false
+                        root.viewModel.bepinexVersion = rt.bepinexVersion || ""
+                        root.viewModel.xunityVersion = rt.xunityVersion || ""
                     }
                 }
             }
         }
         function onTranslationInstallStarted(gId) {
-            if (gId === root.gameId) {
-                root.isInstallingTranslation = true
-                root.installProgress = 0
-                root.installStatus = qsTr("Kuruluyor...")
+            if (gId === root.viewModel.gameId) {
+                root.viewModel.isInstallingTranslation = true
+                root.viewModel.installProgress = 0
+                root.viewModel.installStatus = qsTr("Kuruluyor...")
             }
         }
         function onTranslationInstallProgress(gId, progress, status) {
-            if (gId === root.gameId) {
-                root.installProgress = progress
-                root.installStatus = status || qsTr("Kuruluyor...")
+            if (gId === root.viewModel.gameId) {
+                root.viewModel.installProgress = progress
+                root.viewModel.installStatus = status || qsTr("Kuruluyor...")
             }
         }
         function onTranslationInstallCompleted(gId, success, message) {
-            if (gId === root.gameId) {
-                root.isInstallingTranslation = false
-                root.installProgress = 0
-                root.installStatus = ""
+            if (gId === root.viewModel.gameId) {
+                root.viewModel.isInstallingTranslation = false
+                root.viewModel.installProgress = 0
+                root.viewModel.installStatus = ""
                 if (success) {
-                    root.installCompleted = true
-                    root.packageInstalled = true
+                    root.viewModel.installCompleted = true
+                    root.viewModel.packageInstalled = true
+                    installSuccessTimer.restart()
                 }
             }
         }
+    }
+
+    // ===== BACKUP RESTORE SIGNAL =====
+    Connections {
+        target: BackupManager
+        function onBackupRestored(gId) {
+            if (gId === root.viewModel.gameId)
+                root.viewModel.packageInstalled = false
+        }
+    }
+
+    // ===== IMAGE CACHE (R2 async download complete) =====
+    Connections {
+        target: ImageCache
+        function onImageReady(appId) {
+            if (appId === root.viewModel.steamAppId || appId === root.viewModel.gameId)
+                root.viewModel.imageUrl = ImageCache.resolve(appId)
+        }
+    }
+
+    // Brief success indicator before showing uninstall button
+    Timer {
+        id: installSuccessTimer
+        interval: 3000
+        onTriggered: root.viewModel.installCompleted = false
     }
 
     // ===== DOWNLOAD SIGNALS (TranslationDownloader) =====
     Connections {
         target: TranslationDownloader
         function onDownloadProgress(appId, received, total) {
-            if (appId !== root.gameId) return
-            root.isDownloading = true
-            root.isInstallingTranslation = true
+            if (appId !== root.viewModel.gameId) return
+            root.viewModel.isDownloading = true
+            root.viewModel.isInstallingTranslation = true
             if (total > 0) {
-                root.installProgress = received / total
+                root.viewModel.installProgress = received / total
                 var mbReceived = (received / 1048576).toFixed(1)
                 var mbTotal = (total / 1048576).toFixed(1)
-                root.installStatus = qsTr("İndiriliyor... %1 / %2 MB").arg(mbReceived).arg(mbTotal)
+                root.viewModel.installStatus = qsTr("İndiriliyor... %1 / %2 MB").arg(mbReceived).arg(mbTotal)
             } else {
-                root.installStatus = qsTr("İndiriliyor...")
+                root.viewModel.installStatus = qsTr("İndiriliyor...")
             }
         }
         function onExtractionStarted(appId) {
-            if (appId !== root.gameId) return
-            root.installProgress = 0
-            root.installStatus = qsTr("Çıkartılıyor...")
+            if (appId !== root.viewModel.gameId) return
+            root.viewModel.installProgress = 0
+            root.viewModel.installStatus = qsTr("Çıkartılıyor...")
         }
         function onPackageReady(appId, dirName) {
-            if (appId !== root.gameId) return
-            root.isDownloading = false
-            root.installProgress = 0
-            root.installStatus = qsTr("Kuruluyor...")
+            if (appId !== root.viewModel.gameId) return
+            root.viewModel.isDownloading = false
+            root.viewModel.installProgress = 0
+            root.viewModel.installStatus = qsTr("Kuruluyor...")
             // Install flow continues via InstallFlowController.onDownloadReady
         }
         function onDownloadError(appId, error) {
-            if (appId !== root.gameId) return
-            root.isDownloading = false
-            root.isInstallingTranslation = false
-            root.installProgress = 0
-            root.installStatus = ""
+            if (appId !== root.viewModel.gameId) return
+            root.viewModel.isDownloading = false
+            root.viewModel.isInstallingTranslation = false
+            root.viewModel.installProgress = 0
+            root.viewModel.installStatus = ""
         }
         function onDownloadCancelled(appId) {
-            if (appId !== root.gameId) return
-            root.isDownloading = false
-            root.isInstallingTranslation = false
-            root.installProgress = 0
-            root.installStatus = ""
+            if (appId !== root.viewModel.gameId) return
+            root.viewModel.isDownloading = false
+            root.viewModel.isInstallingTranslation = false
+            root.viewModel.installProgress = 0
+            root.viewModel.installStatus = ""
         }
     }
 
@@ -353,15 +209,10 @@ Item {
         interval: 200
         repeat: false
         onTriggered: {
-            if (root.hasTranslation && root.isGameInstalled && !root.packageInstalled && !root.isInstallingTranslation) {
+            if (root.viewModel.hasTranslation && root.viewModel.isGameInstalled &&
+                !root.viewModel.packageInstalled && !root.viewModel.isInstallingTranslation) {
                 root.translateClicked()
             }
-        }
-    }
-
-    onAutoInstallChanged: {
-        if (autoInstall && hasTranslation && isGameInstalled && !packageInstalled && !isInstallingTranslation) {
-            autoInstallTimer.restart()
         }
     }
 
@@ -452,27 +303,10 @@ Item {
                 id: heroSection
                 opacity: 0
 
-                gameId: root.gameId
-                gameName: root.gameName
-                steamAppId: root.steamAppId
-                imageUrl: root.imageUrl
-                verified: root.verified
-                engine: root.engine
-                hasTranslation: root.hasTranslation
-                isEditorsPick: root.isEditorsPick
-                editorsNote: root.editorsNote
-                isManualGame: root.isManualGame
-                isGameInstalled: root.isGameInstalled
-                packageInstalled: root.packageInstalled
-                isInstallingTranslation: root.isInstallingTranslation
-                installProgress: root.installProgress
-                installStatus: root.installStatus
-                installCompleted: root.installCompleted
-                isDownloading: root.isDownloading
-                updateImpact: root.updateImpact
-                screenshots: root.screenshots
+                vm: root.viewModel
 
                 onTranslateClicked: root.translateClicked()
+                onUninstallClicked: GameService.uninstallTranslation(root.viewModel.gameId)
             }
 
             // =================================================================
@@ -484,13 +318,13 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
                 Layout.topMargin: 56
-                visible: root._impactLevel !== "" && root._impactLevel !== "safe" && root._impactLevel !== "unknown"
+                visible: root.viewModel.impactLevel !== "" && root.viewModel.impactLevel !== "safe" && root.viewModel.impactLevel !== "unknown"
                 implicitHeight: bannerContent.height + Dimensions.marginML * 2
                 radius: Dimensions.radiusLG
-                color: root._impactLevel === "broken"
+                color: root.viewModel.impactLevel === "broken"
                     ? Theme.error08
                     : Theme.warning08
-                border.color: root._impactLevel === "broken"
+                border.color: root.viewModel.impactLevel === "broken"
                     ? Theme.error25
                     : Theme.warning25
                 border.width: 1
@@ -508,7 +342,7 @@ Item {
                             textFormat: Text.PlainText
                             text: "\u26A0"
                             font.pixelSize: Dimensions.fontTitle
-                            color: root._impactLevel === "broken"
+                            color: root.viewModel.impactLevel === "broken"
                                 ? Theme.error : Theme.warning
                         }
 
@@ -517,7 +351,7 @@ Item {
                             spacing: Dimensions.spacingXXS
                             Text {
                                 textFormat: Text.PlainText
-                                text: root._impactLevel === "broken"
+                                text: root.viewModel.impactLevel === "broken"
                                     ? qsTr("Oyun Güncellendi — Çeviri Bozulmuş")
                                     : qsTr("Bazı Çeviri Dosyaları Eksik")
                                 font.pixelSize: Dimensions.fontBody
@@ -526,7 +360,7 @@ Item {
                             }
                             Text {
                                 textFormat: Text.PlainText
-                                text: root.updateImpact ? root.updateImpact.summary : ""
+                                text: root.viewModel.updateImpact ? root.viewModel.updateImpact.summary : ""
                                 font.pixelSize: Dimensions.fontCaption
                                 color: Theme.textMuted
                                 wrapMode: Text.WordWrap
@@ -569,8 +403,8 @@ Item {
                             MouseArea {
                                 id: repairMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    GameService.recoverTranslation(root.gameId)
-                                    root.updateImpact = null
+                                    GameService.recoverTranslation(root.viewModel.gameId)
+                                    root.viewModel.updateImpact = null
                                 }
                             }
                         }
@@ -579,65 +413,10 @@ Item {
             }
 
             // =================================================================
-            // ABOUT SECTION (glass container)
-            // =================================================================
-
-            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
-
-            Rectangle {
-                id: aboutContainer
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                implicitHeight: aboutSection.height + Dimensions.paddingXL * 2
-                radius: Dimensions.radiusLG
-                color: Theme.textPrimary03
-                border.color: Theme.glassBorder; border.width: 1
-                opacity: 0
-                transform: Translate { id: aboutTranslate; y: 18 }
-
-                AboutSection {
-                    id: aboutSection
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Dimensions.paddingXL
-
-                    description: root.description
-                    developers: root.developers
-                    publishers: root.publishers
-                    releaseDate: root.releaseDate
-                    engine: root.engine
-                    genres: root.genres
-                    descriptionExpanded: root.descriptionExpanded
-
-                    onExpandDescription: root.descriptionExpanded = true
-                }
-            }
-
-            // =================================================================
-            // CONTRIBUTORS — lazy loaded
-            // =================================================================
-
-            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
-
-            Loader {
-                id: contributorsLoader
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                opacity: 0
-                transform: Translate { id: contributorsTranslate; y: 18 }
-                active: true
-                sourceComponent: ContributorsSection {
-                    contributors: root.contributors
-                }
-            }
-
-            // =================================================================
             // RUNTIME (Unity BepInEx) — lazy loaded, conditional
             // =================================================================
 
-            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true; visible: root.isUnityGame && root.runtimeNeeded }
+            Item { Layout.preferredHeight: Dimensions.spacingXL; Layout.fillWidth: true; visible: root.viewModel.isUnityGame && root.viewModel.runtimeNeeded }
 
             Loader {
                 id: runtimeLoader
@@ -646,40 +425,20 @@ Item {
                 Layout.rightMargin: Dimensions.marginXL
                 opacity: 0
                 transform: Translate { id: runtimeTranslate; y: 18 }
-                active: root.isUnityGame && root.runtimeNeeded
+                active: root.viewModel.isUnityGame && root.viewModel.runtimeNeeded
                 sourceComponent: RuntimeSection {
-                    gameId: root.gameId
-                    isUnityGame: root.isUnityGame
-                    runtimeNeeded: root.runtimeNeeded
-                    runtimeInstalled: root.runtimeInstalled
-                    runtimeUpToDate: root.runtimeUpToDate
-                    bepinexVersion: root.bepinexVersion
-                    xunityVersion: root.xunityVersion
-                    unityBackend: root.unityBackend
-                    unityVersion: root.unityVersion
-                    hasAntiCheat: root.hasAntiCheat
-                    antiCheatName: root.antiCheatName
-                    isInstallingRuntime: root.isInstallingRuntime
-                }
-            }
-
-            // =================================================================
-            // BACKUP MANAGEMENT — lazy loaded
-            // =================================================================
-
-            Item { Layout.preferredHeight: Dimensions.spacingLG; Layout.fillWidth: true }
-
-            Loader {
-                id: backupLoader
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.marginXL
-                Layout.rightMargin: Dimensions.marginXL
-                opacity: 0
-                transform: Translate { id: backupTranslate; y: 18 }
-                active: true
-                sourceComponent: BackupSection {
-                    gameId: root.gameId
-                    updateImpact: root.updateImpact
+                    gameId: root.viewModel.gameId
+                    isUnityGame: root.viewModel.isUnityGame
+                    runtimeNeeded: root.viewModel.runtimeNeeded
+                    runtimeInstalled: root.viewModel.runtimeInstalled
+                    runtimeUpToDate: root.viewModel.runtimeUpToDate
+                    bepinexVersion: root.viewModel.bepinexVersion
+                    xunityVersion: root.viewModel.xunityVersion
+                    unityBackend: root.viewModel.unityBackend
+                    unityVersion: root.viewModel.unityVersion
+                    hasAntiCheat: root.viewModel.hasAntiCheat
+                    antiCheatName: root.viewModel.antiCheatName
+                    isInstallingRuntime: root.viewModel.isInstallingRuntime
                 }
             }
 
@@ -700,7 +459,7 @@ Item {
         radius: Dimensions.radiusFull
         color: Theme.surface92
         border.color: Theme.glassBorder; border.width: 1
-        visible: root.isLoadingSteamDetails && !root.hasSteamDetails
+        visible: root.viewModel.isLoadingSteamDetails && !root.viewModel.hasSteamDetails
         z: 5
 
         RowLayout {
@@ -723,7 +482,7 @@ Item {
         radius: Dimensions.radiusStandard
         color: Theme.surface92
         border.color: Theme.glassBorder; border.width: 1
-        visible: root.steamFetchFailed && !root.hasSteamDetails
+        visible: root.viewModel.steamFetchFailed && !root.viewModel.hasSteamDetails
         z: 5
 
         ColumnLayout {
@@ -754,7 +513,7 @@ Item {
                     font.weight: Font.DemiBold
                     color: Theme.textOnColor
                 }
-                MouseArea { id: retryMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { root.steamFetchFailed = false; root.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.steamAppId) } }
+                MouseArea { id: retryMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { root.viewModel.steamFetchFailed = false; root.viewModel.isLoadingSteamDetails = true; GameService.fetchSteamDetails(root.viewModel.steamAppId) } }
             }
         }
     }
@@ -764,5 +523,5 @@ Item {
     // =========================================================================
 
     Accessible.role: Accessible.Pane
-    Accessible.name: root.gameName
+    Accessible.name: root.viewModel.gameName
 }

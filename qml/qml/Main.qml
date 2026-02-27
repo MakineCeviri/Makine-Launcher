@@ -30,9 +30,6 @@ ApplicationWindow {
     property int currentNavIndex: 0
     property int previousNavIndex: 0  // Remember nav index before game detail
 
-    // Pending game detail data for lazy-loaded GameDetailScreen
-    property var pendingGameDetail: null
-
     // Force quit flag — bypasses minimize-to-tray on close
     property bool forceQuit: false
 
@@ -63,10 +60,11 @@ ApplicationWindow {
 
     // ===== CONTROLLERS =====
     GameDataResolver { id: gameDataResolver }
+    GameDetailViewModel { id: detailVM }
 
     InstallFlowController {
         id: installFlow
-        gameDetailLoader: gameDetailLoader
+        viewModel: detailVM
         onShowAntiCheatWarning: antiCheatWarningLoader.active = true
         onShowInstallNotes: installNotesLoader.active = true
         onShowInstallOptions: installOptionsLoader.active = true
@@ -468,18 +466,14 @@ ApplicationWindow {
                 animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
-                    var d = gameDataResolver.resolve(gameId, gameName, installPath, engine, false)
-                    window.pendingGameDetail = d
-                    _applyPendingGameDetail()
+                    detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, false))
                     window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
-                    var d = gameDataResolver.resolve(gameId, gameName, installPath, engine, true)
-                    window.pendingGameDetail = d
-                    _applyPendingGameDetail()
+                    detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
                     window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
@@ -524,55 +518,18 @@ ApplicationWindow {
                 }
                 sourceComponent: Component {
                     GameDetailScreen {
+                        viewModel: detailVM
                         onBackClicked: {
                             contentStackContainer.navigateTo(0)
                             window.currentNavIndex = window.previousNavIndex
                         }
                         onTranslateClicked: {
-                            installFlow.startInstallFlow(gameId, gameName)
-                        }
-                        Component.onCompleted: {
-                            if (window.pendingGameDetail) {
-                                var d = window.pendingGameDetail
-                                resetDetails()
-                                gameName = d.gameName
-                                engine = d.engine
-                                imageUrl = d.imageUrl
-                                verified = d.verified
-                                steamAppId = d.steamAppId
-                                hasTranslation = d.hasTranslation || false
-                                gameId = d.gameId
-                                isManualGame = d.isManualGame || false
-                                isGameInstalled = d.isGameInstalled || false
-                                packageInstalled = d.packageInstalled || false
-                                autoInstall = d.autoInstall || false
-                                window.pendingGameDetail = null
-                            }
+                            installFlow.startInstallFlow(detailVM.gameId, detailVM.gameName)
                         }
                     }
                 }
             }
 
-        }
-    }
-
-    // Helper: apply pending game data to already-loaded detail screen
-    function _applyPendingGameDetail() {
-        if (gameDetailLoader.item && window.pendingGameDetail) {
-            var d = window.pendingGameDetail
-            gameDetailLoader.item.resetDetails()
-            gameDetailLoader.item.gameName = d.gameName
-            gameDetailLoader.item.engine = d.engine
-            gameDetailLoader.item.imageUrl = d.imageUrl
-            gameDetailLoader.item.verified = d.verified
-            gameDetailLoader.item.steamAppId = d.steamAppId
-            gameDetailLoader.item.hasTranslation = d.hasTranslation
-            gameDetailLoader.item.gameId = d.gameId
-            gameDetailLoader.item.isManualGame = d.isManualGame
-            gameDetailLoader.item.isGameInstalled = d.isGameInstalled
-            gameDetailLoader.item.packageInstalled = d.packageInstalled
-            gameDetailLoader.item.autoInstall = d.autoInstall
-            window.pendingGameDetail = null
         }
     }
 

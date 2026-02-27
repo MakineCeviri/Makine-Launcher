@@ -249,6 +249,7 @@ qt_add_qml_module(MakineAI
 
         # Controllers (Main.qml decomposition)
         qml/controllers/GameDataResolver.qml
+        qml/controllers/GameDetailViewModel.qml
         qml/controllers/InstallFlowController.qml
 
         # Dialogs

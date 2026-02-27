@@ -12,8 +12,8 @@ pragma ComponentBehavior: Bound
 QtObject {
     id: controller
 
-    // References injected from Main.qml
-    property Loader gameDetailLoader: null
+    // ViewModel reference injected from Main.qml
+    property var viewModel: null
 
     // Pending data for lazy-loaded dialogs
     property var pendingAntiCheatData: null
@@ -34,9 +34,9 @@ QtObject {
     signal showInstallOptions()
     signal showVariantSelection()
 
-    // Get the current game detail screen reference
-    function _gd() {
-        return gameDetailLoader && gameDetailLoader.item ? gameDetailLoader.item : null
+    // Get the current ViewModel reference
+    function _vm() {
+        return viewModel
     }
 
     // ===== ENTRY POINT: Start the install flow from GameDetailScreen =====
@@ -57,10 +57,10 @@ QtObject {
 
     // ===== ANTI-CHEAT: User chose to continue =====
     function onAntiCheatContinue() {
-        var gd = _gd()
-        if (!gd) return
-        GameService.acknowledgeAntiCheat(gd.gameId)
-        _continueAfterAntiCheat(gd.gameId, gd.gameName)
+        var vm = _vm()
+        if (!vm) return
+        GameService.acknowledgeAntiCheat(vm.gameId)
+        _continueAfterAntiCheat(vm.gameId, vm.gameName)
     }
 
     function _continueAfterAntiCheat(gameId, gameName) {
@@ -105,8 +105,8 @@ QtObject {
         var data = pendingInstallNotes
         pendingInstallNotes = null
         if (!data) return
-        var gd = _gd()
-        var gameName = gd ? gd.gameName : ""
+        var vm = _vm()
+        var gameName = vm ? vm.gameName : ""
         _continueAfterNotes(data.gameId, gameName)
     }
 
@@ -162,12 +162,12 @@ QtObject {
         // Check for variant-specific install options (e.g. GTA III patch/dubbing)
         var variantOptions = GameService.getVariantInstallOptions(gameId, variant)
         if (variantOptions && variantOptions.length > 0) {
-            var gd = _gd()
+            var vm = _vm()
             pendingInstallOptionsData = {
                 gameId: gameId,
                 options: variantOptions,
                 specialDialog: GameService.getVariantSpecialDialog(gameId, variant),
-                gameName: gd ? gd.gameName : "",
+                gameName: vm ? vm.gameName : "",
                 variant: variant
             }
             showInstallOptions()
@@ -237,8 +237,8 @@ QtObject {
 
     // ===== EXTERNAL TRIGGER: Anti-cheat warning from GameService signal =====
     function onAntiCheatWarningNeeded(gameId, antiCheatData) {
-        var gd = _gd()
-        var gameName = gd ? gd.gameName : ""
+        var vm = _vm()
+        var gameName = vm ? vm.gameName : ""
         pendingAntiCheatData = {
             gameName: gameName,
             detectedSystems: antiCheatData.systems
