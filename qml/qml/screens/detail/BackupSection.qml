@@ -8,24 +8,23 @@ SectionContainer {
     id: backupRoot
     contentSpacing: Dimensions.spacingLG
 
-    // Required properties from parent
-    required property string gameId
-    property var updateImpact: null
+    // Single ViewModel reference — all backup state accessed via vm
+    required property var vm
 
-    property var gameBackups: BackupManager.getBackupsForGame(gameId)
+    property var gameBackups: BackupManager.getBackupsForGame(backupRoot.vm.gameId)
     property bool hasBackups: gameBackups.length > 0
-    property var latestBackup: BackupManager.getLatestBackup(gameId)
+    property var latestBackup: BackupManager.getLatestBackup(backupRoot.vm.gameId)
 
     Connections {
         target: BackupManager
         function onBackupsChanged() {
-            backupRoot.gameBackups = BackupManager.getBackupsForGame(backupRoot.gameId)
-            backupRoot.latestBackup = BackupManager.getLatestBackup(backupRoot.gameId)
+            backupRoot.gameBackups = BackupManager.getBackupsForGame(backupRoot.vm.gameId)
+            backupRoot.latestBackup = BackupManager.getLatestBackup(backupRoot.vm.gameId)
         }
         function onBackupRestored(gId) {
-            if (gId === backupRoot.gameId) {
-                backupRoot.gameBackups = BackupManager.getBackupsForGame(backupRoot.gameId)
-                backupRoot.latestBackup = BackupManager.getLatestBackup(backupRoot.gameId)
+            if (gId === backupRoot.vm.gameId) {
+                backupRoot.gameBackups = BackupManager.getBackupsForGame(backupRoot.vm.gameId)
+                backupRoot.latestBackup = BackupManager.getLatestBackup(backupRoot.vm.gameId)
             }
         }
     }
@@ -122,8 +121,8 @@ SectionContainer {
         // Stale backup warning
         Rectangle {
             Layout.fillWidth: true
-            visible: backupRoot.hasBackups && backupRoot.updateImpact
-                     && (backupRoot.updateImpact.level === "broken" || backupRoot.updateImpact.level === "lost")
+            visible: backupRoot.hasBackups && backupRoot.vm.updateImpact
+                     && (backupRoot.vm.updateImpact.level === "broken" || backupRoot.vm.updateImpact.level === "lost")
             implicitHeight: staleRow.height + 16
             radius: Dimensions.radiusSM
             color: Theme.warning08
@@ -187,7 +186,7 @@ SectionContainer {
                 }
                 MouseArea {
                     id: restoreMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: GameService.uninstallTranslation(backupRoot.gameId)
+                    onClicked: GameService.uninstallTranslation(backupRoot.vm.gameId)
                 }
             }
 

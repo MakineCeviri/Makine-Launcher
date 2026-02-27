@@ -24,16 +24,16 @@ Rectangle {
 
     radius: Dimensions.radiusStandard
     color: Theme.textPrimary03
-    border.color: BatchOperationService.isRunning
-                  ? Theme.primary30
-                  : Theme.textPrimary08
-    border.width: 1
+
+    GradientBorder {
+        cornerRadius: parent.radius
+        topColor: BatchOperationService.isRunning ? Theme.primary30 : Qt.rgba(1, 1, 1, 0.12)
+        bottomColor: BatchOperationService.isRunning ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.02)
+        Behavior on topColor { ColorAnimation { duration: Dimensions.transitionDuration } }
+    }
 
     Behavior on Layout.preferredHeight {
         NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic }
-    }
-    Behavior on border.color {
-        ColorAnimation { duration: Dimensions.transitionDuration }
     }
 
     ColumnLayout {

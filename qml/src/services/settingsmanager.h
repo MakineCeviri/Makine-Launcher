@@ -116,8 +116,6 @@ public:
     Q_INVOKABLE QVariantList accentPresets() const;
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
-    Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
-    Q_INVOKABLE QVariantMap windowGeometry() const;
     Q_INVOKABLE QString qtVersion() const;
     Q_INVOKABLE QString activeGraphicsApi() const;
 

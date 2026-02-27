@@ -36,7 +36,7 @@ QtObject {
             isManualGame: isManual,
             isGameInstalled: isInstalled,
             packageInstalled: pkgInstalled,
-            autoInstall: forceAutoInstall ? true : (isInstalled && hasTranslation && !pkgInstalled)
+            autoInstall: forceAutoInstall || false
         }
     }
 }

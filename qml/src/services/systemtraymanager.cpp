@@ -6,8 +6,10 @@
 
 #include "systemtraymanager.h"
 #include <QCoreApplication>
+#include <QGuiApplication>
 #include <QImage>
 #include <QPixmap>
+#include <QScreen>
 
 #ifdef Q_OS_WIN
 
@@ -57,17 +59,19 @@ void SystemTrayManager::handleTrayMessage(LPARAM lParam)
 
 void SystemTrayManager::showContextMenu()
 {
-    if (!m_contextMenu) return;
-
-    // Required: SetForegroundWindow before TrackPopupMenu, else menu won't dismiss
-    SetForegroundWindow(m_msgWindow);
-
     POINT pt;
     GetCursorPos(&pt);
-    TrackPopupMenu(m_contextMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_msgWindow, nullptr);
 
-    // Required: post empty message to dismiss menu properly
-    PostMessage(m_msgWindow, WM_NULL, 0, 0);
+    // Required by Windows for tray popup focus — without this the popup won't activate
+    SetForegroundWindow(m_msgWindow);
+
+    // Physical → logical pixel conversion for QML Window positioning
+    qreal dpr = 1.0;
+    auto *screen = QGuiApplication::screenAt(QPoint(pt.x, pt.y));
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    if (screen) dpr = screen->devicePixelRatio();
+
+    emit contextMenuRequested(qRound(pt.x / dpr), qRound(pt.y / dpr));
 }
 
 HICON SystemTrayManager::qIconToHicon(const QIcon &icon, int size)
@@ -139,23 +143,6 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
                                    0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
                                    GetModuleHandle(nullptr), nullptr);
 
-    // Build context menu
-    m_contextMenu = CreatePopupMenu();
-    // Title (grayed, acts as header)
-    QString title = "MakineAI v" + QCoreApplication::applicationVersion();
-    AppendMenuW(m_contextMenu, MF_STRING | MF_GRAYED, 0,
-                reinterpret_cast<LPCWSTR>(title.utf16()));
-    AppendMenuW(m_contextMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(m_contextMenu, MF_STRING, IdShow,
-                reinterpret_cast<LPCWSTR>(tr("MakineAI'ı Aç").utf16()));
-    AppendMenuW(m_contextMenu, MF_STRING, IdCheckUpdates,
-                reinterpret_cast<LPCWSTR>(tr("Güncelleme Kontrolü").utf16()));
-    AppendMenuW(m_contextMenu, MF_STRING, IdSettings,
-                reinterpret_cast<LPCWSTR>(tr("Ayarlar").utf16()));
-    AppendMenuW(m_contextMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(m_contextMenu, MF_STRING, IdQuit,
-                reinterpret_cast<LPCWSTR>(tr("Tamamen Kapat").utf16()));
-
     // Prepare NOTIFYICONDATA
     m_nid = NOTIFYICONDATAW{};
     m_nid.cbSize           = sizeof(NOTIFYICONDATAW);
@@ -181,9 +168,6 @@ SystemTrayManager::~SystemTrayManager()
     }
     if (m_hIcon) {
         DestroyIcon(m_hIcon);
-    }
-    if (m_contextMenu) {
-        DestroyMenu(m_contextMenu);
     }
     if (m_msgWindow) {
         DestroyWindow(m_msgWindow);
@@ -241,44 +225,6 @@ void SystemTrayManager::setBackgroundCheckEnabled(bool enabled)
     }
 
     emit backgroundCheckEnabledChanged();
-}
-
-void SystemTrayManager::showNotification(const QString &title, const QString &message,
-                                          int durationMs)
-{
-#ifdef Q_OS_WIN
-    if (!m_visible) return;
-
-    NOTIFYICONDATAW nid = m_nid;
-    nid.uFlags |= NIF_INFO;
-    nid.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
-    nid.uTimeout = static_cast<UINT>(durationMs);
-
-    wcsncpy_s(nid.szInfoTitle, reinterpret_cast<const wchar_t*>(title.utf16()),
-              _TRUNCATE);
-    wcsncpy_s(nid.szInfo, reinterpret_cast<const wchar_t*>(message.utf16()),
-              _TRUNCATE);
-
-    Shell_NotifyIconW(NIM_MODIFY, &nid);
-#else
-    Q_UNUSED(title); Q_UNUSED(message); Q_UNUSED(durationMs);
-#endif
-}
-
-void SystemTrayManager::enterServiceMode()
-{
-    if (m_serviceMode) return;
-    m_serviceMode = true;
-    updateTooltip();
-    emit serviceModeChanged(true);
-}
-
-void SystemTrayManager::exitServiceMode()
-{
-    if (!m_serviceMode) return;
-    m_serviceMode = false;
-    updateTooltip();
-    emit serviceModeChanged(false);
 }
 
 void SystemTrayManager::updateTooltip()

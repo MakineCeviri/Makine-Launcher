@@ -1,11 +1,10 @@
 /**
  * @file imagecachemanager.h
- * @brief Disk-based image cache for game images from GitHub Assets repo
+ * @brief Disk-based image cache for game images from R2 CDN
  * @copyright (c) 2026 MakineAI Team
  *
- * Downloads pre-baked game card images from MakineCeviri/MakineAI-Assets
- * on GitHub and stores them locally in AppData cache for instant
- * loading on subsequent launches.
+ * Downloads game card images from Cloudflare R2 CDN and stores them
+ * locally in AppData cache for instant loading on subsequent launches.
  */
 
 #pragma once
@@ -34,11 +33,11 @@ public:
      * @brief Resolve a game image to a local cached path.
      *
      * If the image is already cached on disk, returns a file:/// URL.
-     * Otherwise starts a background download from GitHub Assets repo
+     * Otherwise starts a background download from R2 CDN
      * and returns an empty string. When the download completes,
      * imageReady() is emitted.
      *
-     * @param appId  Steam App ID (used as cache key and GitHub filename)
+     * @param appId  Steam App ID (used as cache key and R2 filename)
      * @return file:/// URL if cached, empty string if download pending
      */
     Q_INVOKABLE QString resolve(const QString& appId);
@@ -80,7 +79,7 @@ private:
     QNetworkAccessManager m_nam;
     QSet<QString> m_pending;          // appIds currently downloading
     QSet<QString> m_failed;           // appIds that failed ALL sources
-    QSet<QString> m_githubFailed;     // appIds that failed GitHub (try Steam CDN)
+    QSet<QString> m_r2Failed;         // appIds that failed R2 CDN (try Steam CDN)
     QQueue<QString> m_queue;          // appIds waiting to download
     QSet<QString> m_queued;           // O(1) lookup for queue membership
     mutable qint64 m_cachedSizeBytes{-1};     // Incremental cache size tracking

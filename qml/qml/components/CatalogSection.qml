@@ -25,6 +25,8 @@ Rectangle {
     radius: Dimensions.radiusSection
     clip: true
 
+    GradientBorder { cornerRadius: parent.radius }
+
     // Internal state
     readonly property real contentPadding: 16
     property string searchQuery: ""
@@ -218,7 +220,7 @@ Rectangle {
             wrapAround: !catalog._isSearching
             largeCards: catalog._isSearching
             wheelEnabled: !catalog._isSearching || row1Proxy.sourceCount >= 4
-            driftSpeed: catalog._isSearching ? 0 : -15
+            driftSpeed: 0
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }
@@ -237,7 +239,7 @@ Rectangle {
             visible: !catalog._isSearching && catalog._row2Ready && row2Proxy.count > 0
             model: row2Proxy
             wrapAround: true
-            driftSpeed: 15
+            driftSpeed: 0
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }

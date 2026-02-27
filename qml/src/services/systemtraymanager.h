@@ -37,22 +37,14 @@ public:
     bool backgroundCheckEnabled() const { return m_backgroundCheckEnabled; }
     void setBackgroundCheckEnabled(bool enabled);
 
-    Q_INVOKABLE void showNotification(const QString &title, const QString &message,
-                                      int durationMs = 5000);
-
-    Q_INVOKABLE void enterServiceMode();
-    Q_INVOKABLE void exitServiceMode();
-
-    bool isServiceMode() const { return m_serviceMode; }
-
 signals:
-    void serviceModeChanged(bool serviceMode);
     void showWindowRequested();
     void settingsRequested();
     void quitRequested();
     void pendingUpdatesChanged();
     void backgroundCheckEnabledChanged();
     void updateCheckRequested();
+    void contextMenuRequested(int x, int y);
 
 private:
     void updateTooltip();
@@ -65,7 +57,6 @@ private:
 
     HWND m_msgWindow{nullptr};
     NOTIFYICONDATAW m_nid{};
-    HMENU m_contextMenu{nullptr};
     HICON m_hIcon{nullptr};
     bool m_visible{false};
 
@@ -74,6 +65,5 @@ private:
 
     int m_pendingUpdates{0};
     bool m_backgroundCheckEnabled{false};
-    bool m_serviceMode{false};
     QTimer m_updateCheckTimer;
 };

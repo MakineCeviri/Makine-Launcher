@@ -105,13 +105,8 @@ class GameService : public QObject
     Q_PROPERTY(QVariantList games READ games NOTIFY gameListChanged)
     Q_PROPERTY(int gameCount READ gameCount NOTIFY gameListChanged)
     Q_PROPERTY(bool isScanning READ isScanning NOTIFY isScanningChanged)
-    Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanStatusChanged)
-    Q_PROPERTY(QVariantList gamesWithTranslation READ gamesWithTranslation NOTIFY translationStatusChanged)
-    Q_PROPERTY(QVariantList supportedGames READ supportedGames NOTIFY supportedGamesChanged)
     Q_PROPERTY(QVariantList installedTranslations READ installedTranslations NOTIFY translationStatusChanged)
-    Q_PROPERTY(int supportedGameCount READ supportedGameCount NOTIFY supportedGamesChanged)
     Q_PROPERTY(int installedTranslationCount READ installedTranslationCount NOTIFY translationStatusChanged)
-    Q_PROPERTY(int gameUpdateCount READ gameUpdateCount NOTIFY gameUpdateCountChanged)
     Q_PROPERTY(SupportedGamesModel* supportedGamesModel READ supportedGamesModel CONSTANT)
 
 public:
@@ -131,14 +126,10 @@ public:
     QVariantList games() const;
     int gameCount() const { return m_games.count(); }
     bool isScanning() const { return m_isScanning; }
-    QString scanStatus() const { return m_scanStatus; }
-    QVariantList gamesWithTranslation() const;
     QVariantList supportedGames() const;
     QVariantList installedTranslations() const;
-    int supportedGameCount() const;
     SupportedGamesModel* supportedGamesModel() const { return m_supportedGamesModel; }
     int installedTranslationCount() const;
-    int gameUpdateCount() const;
 
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
@@ -149,20 +140,8 @@ public:
      */
     Q_INVOKABLE void addManualGame(const QString& path);
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
-    Q_INVOKABLE QVariantMap getGameBySteamAppId(const QString& steamAppId) const;
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
-    /**
-     * @brief Filter games by name (case-insensitive)
-     * Replaces JS Array.filter() in AllGamesDialog
-     */
-    Q_INVOKABLE QVariantList filterGames(const QString& query) const;
-
-    /**
-     * @brief Filter games that have translation packages, with optional name filter
-     * Replaces JS filteredModel() in TranslationLibraryPage for better performance
-     */
-    Q_INVOKABLE QVariantList filteredGamesWithTranslation(const QString& filter = {}) const;
 
     /**
      * @brief Get all game details in a single call
@@ -228,9 +207,6 @@ public:
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
 
     /**
-     * @brief Enable/disable background game update monitoring
-     */
-    /**
      * @brief Check all installed translations for game update impact
      * Emits translationImpactDetected for each affected game
      */
@@ -240,8 +216,6 @@ public:
      * @brief Recover a broken translation: uninstall + reinstall
      */
     Q_INVOKABLE void recoverTranslation(const QString& gameId);
-
-    Q_INVOKABLE void setUpdateMonitoringEnabled(bool enabled);
 
     /**
      * @brief Check if a game has a detected update (translation may be broken)
@@ -309,10 +283,8 @@ signals:
     void translationStatusChanged();
     void supportedGamesChanged();
     void isScanningChanged();
-    void scanStatusChanged();
     void gameDetected(const QString& gameId);
     void scanCompleted(int count);
-    void scanError(const QString& error);
     void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
     void manualGameAdded(const QString& gameId);
@@ -326,7 +298,6 @@ signals:
                             const QString& summary);
     void translationImpactDetected(const QString& gameId, const QString& gameName,
                                     const QVariantMap& impact);
-    void gameUpdateCountChanged();
 
 private:
     void loadCachedGames();

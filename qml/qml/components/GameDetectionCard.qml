@@ -24,8 +24,8 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.fillHeight: true
         radius: Dimensions.radiusSection
         color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-        border.color: Qt.rgba(1, 1, 1, 0.06)
-        border.width: 1
+
+        GradientBorder { cornerRadius: parent.radius }
 
         // Ambient glow
         AmbientGlow {
@@ -169,26 +169,75 @@ ColumnLayout {
                 Label {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
-                    text: qsTr("Desteklenen bir oyun bulunamad\u0131. Oyununuzu ba\u015Flat\u0131n ya da a\u015Fa\u011F\u0131dan manuel olarak ekleyin.")
+                    text: qsTr("Desteklenen bir oyun bulunamad\u0131. Oyununuzu ba\u015Flat\u0131n ya da manuel olarak bir oyun ekleyin.")
                     font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
                     wrapMode: Text.WordWrap; lineHeight: 1.4
                     maximumLineCount: 3; elide: Text.ElideRight
                 }
             }
 
-            // Button
+            // Premium CTA button
             Item {
                 id: btn
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: btnRow.implicitWidth + 28
-                Layout.preferredHeight: 34
+                Layout.preferredWidth: btnRow.implicitWidth + 32
+                Layout.preferredHeight: 38
 
-                scale: btnMa.containsMouse ? 1.03 : 1.0
-                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                scale: btnMa.containsMouse ? 1.04 : 1.0
+                Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
+                // Soft light beam glow — proportional to button size
+                Canvas {
+                    id: btnGlow
+                    anchors.centerIn: parent
+                    width: btn.width + 80; height: btn.height + 80
+                    opacity: btnMa.containsMouse ? 1.0 : 0
+                    Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var cx = width / 2, cy = height / 2
+                        var r = Math.max(width, height) * 0.48
+
+                        // Core warm glow
+                        var g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+                        g1.addColorStop(0.0, "rgba(252, 210, 120, 0.30)")
+                        g1.addColorStop(0.2, "rgba(248, 185, 115, 0.18)")
+                        g1.addColorStop(0.45, "rgba(230, 155, 140, 0.08)")
+                        g1.addColorStop(0.7, "rgba(190, 145, 200, 0.03)")
+                        g1.addColorStop(1.0, "rgba(150, 180, 220, 0.0)")
+                        ctx.fillStyle = g1
+                        ctx.fillRect(0, 0, width, height)
+
+                        // Cooler halo — offset up
+                        var g2 = ctx.createRadialGradient(cx, cy * 0.85, 0, cx, cy * 0.85, r * 0.8)
+                        g2.addColorStop(0.0, "rgba(200, 160, 220, 0.12)")
+                        g2.addColorStop(0.3, "rgba(170, 150, 210, 0.06)")
+                        g2.addColorStop(0.6, "rgba(140, 175, 220, 0.02)")
+                        g2.addColorStop(1.0, "rgba(140, 175, 220, 0.0)")
+                        ctx.fillStyle = g2
+                        ctx.fillRect(0, 0, width, height)
+                    }
+                    Component.onCompleted: requestPaint()
+                }
+
+                // Button body
                 Rectangle {
                     anchors.fill: parent
-                    radius: 8; color: btnMa.containsMouse ? "#F5F5F5" : "#FFFFFF"
+                    radius: 10
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: btnMa.containsMouse ? "#FFFFFF" : "#F8F8FA" }
+                        GradientStop { position: 1.0; color: btnMa.containsMouse ? "#F2F0F4" : "#ECEAEF" }
+                    }
+
+                    // Top highlight
+                    Rectangle {
+                        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                        anchors.topMargin: 1; anchors.leftMargin: 4; anchors.rightMargin: 4
+                        height: 1; radius: 1
+                        color: Qt.rgba(1, 1, 1, 0.85)
+                    }
                 }
 
                 Row {
@@ -206,7 +255,6 @@ ColumnLayout {
                             var c = Theme.accentDark
                             ctx.strokeStyle = c; ctx.fillStyle = c
                             ctx.lineWidth = 1.2; ctx.lineCap = "round"; ctx.lineJoin = "round"
-                            // Body
                             ctx.beginPath()
                             ctx.moveTo(4, 1); ctx.lineTo(12, 1)
                             ctx.quadraticCurveTo(15, 1, 15, 4)
@@ -217,11 +265,9 @@ ColumnLayout {
                             ctx.lineTo(1, 4)
                             ctx.quadraticCurveTo(1, 1, 4, 1)
                             ctx.closePath(); ctx.stroke()
-                            // D-pad
                             ctx.lineWidth = 1.2
                             ctx.beginPath(); ctx.moveTo(4, 6); ctx.lineTo(6.5, 6); ctx.stroke()
                             ctx.beginPath(); ctx.moveTo(5.25, 4.5); ctx.lineTo(5.25, 7.5); ctx.stroke()
-                            // Buttons
                             ctx.beginPath(); ctx.arc(10.5, 5, 0.8, 0, Math.PI * 2); ctx.fill()
                             ctx.beginPath(); ctx.arc(12.5, 7, 0.8, 0, Math.PI * 2); ctx.fill()
                         }
@@ -229,9 +275,8 @@ ColumnLayout {
 
                     Label {
                         textFormat: Text.PlainText
-                        id: btnLbl
                         text: qsTr("Oyun Ekle")
-                        font.pixelSize: Dimensions.fontXS; font.weight: Font.Bold
+                        font.pixelSize: Dimensions.fontSM; font.weight: Font.Bold
                         color: Theme.accentDark
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -252,15 +297,21 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.preferredHeight: 34
         radius: 14
         color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-        border.color: secMa.containsMouse ? Theme.accentBase30 : Qt.rgba(1, 1, 1, 0.06)
-        border.width: 1
+
+        GradientBorder {
+            cornerRadius: 14
+            topColor: secMa.containsMouse ? Theme.accentBase30 : Qt.rgba(1, 1, 1, 0.10)
+            bottomColor: secMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.02)
+            Behavior on topColor { ColorAnimation { duration: Dimensions.animNormal } }
+        }
 
         // Ambient glow
         AmbientGlow {
             anchors.fill: parent
             cornerRadius: 14
             originX: parent.width - 20; originY: -10
-            intensity: 0.10; spread: 0.6
+            intensity: 0.10; hoveredIntensity: 0.25; spread: 0.6
+            hovered: secMa.containsMouse
         }
 
         Row {

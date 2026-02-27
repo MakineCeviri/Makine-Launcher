@@ -53,7 +53,6 @@ Item {
         fillMode: Image.PreserveAspectCrop
         sourceSize: Qt.size(260, 370)
         asynchronous: true
-        cache: false
     }
 
     scale: cardMouse.containsMouse ? 1.03 : 1.0

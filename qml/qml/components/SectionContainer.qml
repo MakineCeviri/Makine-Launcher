@@ -25,13 +25,13 @@ Rectangle {
     Layout.fillWidth: true
     implicitHeight: contentLayout.implicitHeight + 2 * _padding
 
-    readonly property int _padding: 20
+    readonly property int _padding: Dimensions.paddingXL
     readonly property int _radius: Dimensions.radiusSection
 
     radius: _radius
     color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
-    border.color: Qt.rgba(1, 1, 1, 0.06)
-    border.width: 1
+
+    GradientBorder { cornerRadius: container._radius }
 
     // Ambient accent glow
     AmbientGlow {

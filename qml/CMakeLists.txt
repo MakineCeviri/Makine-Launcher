@@ -175,9 +175,10 @@ qt_add_qml_module(MakineAI
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
-        qml/screens/detail/QuickStatsRow.qml
+        qml/screens/detail/TranslationActionButton.qml
         qml/screens/detail/AboutSection.qml
-        qml/screens/detail/ScreenshotCarousel.qml
+        qml/screens/detail/UpdateBanner.qml
+        qml/screens/detail/GameDetailOverlay.qml
         qml/screens/detail/ContributorsSection.qml
         qml/screens/detail/RuntimeSection.qml
         qml/screens/detail/BackupSection.qml
@@ -223,7 +224,6 @@ qt_add_qml_module(MakineAI
         # Visual: Decorative and feedback
         qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip
         qml/components/AnimatedGradientGlow.qml   # Animated glow effect
-        qml/components/GradientBorderCanvas.qml   # Gradient border drawing
         qml/components/SkeletonLoader.qml         # Generic loading skeleton
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         #
@@ -243,6 +243,8 @@ qt_add_qml_module(MakineAI
         qml/components/EmptyState.qml             # Reusable empty/zero-data state
         qml/components/FocusRing.qml              # Keyboard focus indicator
         qml/components/StyledScrollBar.qml        # Themed scrollbar
+        qml/components/TrayPopup.qml              # System tray context menu
+        qml/components/GradientBorder.qml         # Apple-style gradient border
         qml/components/HorizontalGameStrip.qml  # Horizontal scrolling game card strip
         qml/components/NotificationBanner.qml     # Dismissable notification bar
         qml/components/GameStatusCard.qml         # Game scanning status card
@@ -258,20 +260,16 @@ qt_add_qml_module(MakineAI
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/ConfirmDialog.qml
         qml/dialogs/VariantSelectionDialog.qml
-        qml/dialogs/InstallNotesDialog.qml
         qml/dialogs/InstallOptionsDialog.qml
         qml/dialogs/UpdateAlertDialog.qml
 
     RESOURCES
-        # SVG icons (8 active)
+        # SVG icons
         resources/icons/arrow_right.svg
         resources/icons/discord.svg
         resources/icons/lock.svg
         resources/icons/shield-check.svg
-        resources/icons/shield-check-active.svg
         resources/icons/steam.svg
-        resources/icons/window-search.svg
-        resources/icons/window-search-active.svg
         # PNG images
         resources/images/logo.png
         # Showcase images (validated game headers, embedded in binary)

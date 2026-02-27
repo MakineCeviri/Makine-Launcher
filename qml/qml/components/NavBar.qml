@@ -12,6 +12,7 @@ Item {
 
     property int currentIndex: 0
     property bool animationsEnabled: true
+    property bool showBottomLine: false
 
     signal homeClicked()
     signal libraryClicked()
@@ -66,7 +67,7 @@ Item {
         anchors.bottom: parent.bottom
         height: 1
         color: Theme.textPrimary08
-        opacity: navBarRoot.currentIndex === 2 ? 1.0 : 0.0
+        opacity: navBarRoot.currentIndex === 2 || navBarRoot.showBottomLine ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
     }
 

@@ -28,6 +28,7 @@ QtObject {
     property bool isGameInstalled: false
     property bool packageInstalled: false
     property bool autoInstall: false
+    property bool fromLibrary: false
 
     // ===== STEAM DATA =====
     property string description: ""
@@ -47,6 +48,7 @@ QtObject {
 
     // ===== CONTRIBUTORS =====
     property var contributors: []
+    property string translationNotes: ""
 
     // ===== RUNTIME (BepInEx) =====
     property bool isUnityGame: false
@@ -80,6 +82,17 @@ QtObject {
     readonly property string impactLevel: updateImpact ? updateImpact.level : ""
     readonly property int progressPercent: Math.round(installProgress * 100)
 
+    // Pre-computed Steam CDN URLs — eliminates string concat in view bindings
+    readonly property string _steamBase: steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + steamAppId : ""
+    readonly property string heroUrl: _steamBase !== "" ? _steamBase + "/library_hero.jpg" : heroImageUrl
+    readonly property string coverUrl: imageUrl !== "" ? imageUrl : (_steamBase !== "" ? _steamBase + "/library_600x900_2x.jpg" : "")
+    readonly property string logoUrl: _steamBase !== "" ? _steamBase + "/logo.png" : ""
+
+    // Pre-joined detail strings — eliminates .join() in view bindings
+    readonly property string developersText: developers.join(", ")
+    readonly property string publishersText: publishers.join(", ")
+    readonly property string genresText: genres.join(", ")
+
     // ===== FUNCTIONS =====
 
     function reset() {
@@ -87,13 +100,13 @@ QtObject {
         heroImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
         isManualGame = false; isGameInstalled = false; packageInstalled = false
-        autoInstall = false
+        autoInstall = false; fromLibrary = false
         description = ""; developers = []; publishers = []
         releaseDate = ""; genres = []; metacriticScore = 0
         hasWindows = true; hasMac = false; hasLinux = false
         price = ""; discountPercent = 0; hasSteamDetails = false
         isLoadingSteamDetails = false; steamFetchFailed = false
-        contributors = []
+        contributors = []; translationNotes = ""
         isUnityGame = false; runtimeNeeded = false; runtimeInstalled = false
         runtimeUpToDate = false; bepinexVersion = ""; xunityVersion = ""
         unityBackend = ""; unityVersion = ""; hasAntiCheat = false
@@ -154,6 +167,7 @@ QtObject {
 
         var d = GameService.getGameDetails(gameId)
         contributors = d.contributors || []
+        translationNotes = d.installNotes || ""
         isUnityGame = d.isUnityGame || false
         runtimeNeeded = d.runtimeNeeded || false
         runtimeInstalled = d.runtimeInstalled || false

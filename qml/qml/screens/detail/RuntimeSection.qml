@@ -8,21 +8,10 @@ SectionContainer {
     id: rtRoot
     contentSpacing: Dimensions.spacingLG
 
-    // Required properties from parent
-    required property string gameId
-    required property bool isUnityGame
-    required property bool runtimeNeeded
-    required property bool runtimeInstalled
-    required property bool runtimeUpToDate
-    required property string bepinexVersion
-    required property string xunityVersion
-    required property string unityBackend
-    required property string unityVersion
-    required property bool hasAntiCheat
-    required property string antiCheatName
-    required property bool isInstallingRuntime
+    // Single ViewModel reference — all runtime state accessed via vm
+    required property var vm
 
-    visible: isUnityGame && runtimeNeeded
+    visible: rtRoot.vm.isUnityGame && rtRoot.vm.runtimeNeeded
 
     Text {
         textFormat: Text.PlainText
@@ -38,13 +27,13 @@ SectionContainer {
 
         Rectangle {
             width: 40; height: 40; radius: 20
-            color: rtRoot.runtimeInstalled ? Theme.success12 : Theme.textPrimary12
+            color: rtRoot.vm.runtimeInstalled ? Theme.success12 : Theme.textPrimary12
             Text {
                 textFormat: Text.PlainText
                 anchors.centerIn: parent
-                text: rtRoot.runtimeInstalled ? "\u2713" : "\u2193"
+                text: rtRoot.vm.runtimeInstalled ? "\u2713" : "\u2193"
                 font.pixelSize: Dimensions.fontTitle; font.weight: Font.Bold
-                color: rtRoot.runtimeInstalled ? Theme.success : Theme.textMuted
+                color: rtRoot.vm.runtimeInstalled ? Theme.success : Theme.textMuted
             }
         }
 
@@ -52,21 +41,21 @@ SectionContainer {
             Layout.fillWidth: true; spacing: Dimensions.spacingXXS
             Text {
                 textFormat: Text.PlainText
-                text: rtRoot.runtimeInstalled
-                    ? (rtRoot.runtimeUpToDate ? qsTr("BepInEx Kurulu ve Güncel") : qsTr("BepInEx Güncelleme Mevcut"))
+                text: rtRoot.vm.runtimeInstalled
+                    ? (rtRoot.vm.runtimeUpToDate ? qsTr("BepInEx Kurulu ve Güncel") : qsTr("BepInEx Güncelleme Mevcut"))
                     : qsTr("BepInEx Kurulu Değil")
                 font.pixelSize: Dimensions.fontMD; font.weight: Font.DemiBold
-                color: rtRoot.runtimeInstalled ? Theme.success : Theme.textSecondary
+                color: rtRoot.vm.runtimeInstalled ? Theme.success : Theme.textSecondary
             }
             Text {
                 textFormat: Text.PlainText
-                visible: rtRoot.runtimeInstalled && rtRoot.bepinexVersion !== ""
-                text: "BepInEx " + rtRoot.bepinexVersion
+                visible: rtRoot.vm.runtimeInstalled && rtRoot.vm.bepinexVersion !== ""
+                text: "BepInEx " + rtRoot.vm.bepinexVersion
                 font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
             }
             Text {
                 textFormat: Text.PlainText
-                visible: !rtRoot.runtimeInstalled
+                visible: !rtRoot.vm.runtimeInstalled
                 text: qsTr("Çevirinin çalışması için BepInEx gereklidir")
                 font.pixelSize: Dimensions.fontCaption; color: Theme.textMuted
             }
@@ -74,7 +63,7 @@ SectionContainer {
 
         // Backend badge
         Rectangle {
-            visible: rtRoot.unityBackend !== "" && rtRoot.unityBackend !== "unknown"
+            visible: rtRoot.vm.unityBackend !== "" && rtRoot.vm.unityBackend !== "unknown"
             width: backendLbl.width + 12; height: 24
             radius: Dimensions.radiusFull
             color: Theme.textPrimary06
@@ -82,7 +71,7 @@ SectionContainer {
                 textFormat: Text.PlainText
                 id: backendLbl
                 anchors.centerIn: parent
-                text: rtRoot.unityBackend
+                text: rtRoot.vm.unityBackend
                 font.pixelSize: Dimensions.fontCaption
                 font.weight: Font.Medium
                 color: Theme.textSecondary
@@ -92,7 +81,7 @@ SectionContainer {
 
     // Anti-cheat warning (own card style preserved)
     Rectangle {
-        Layout.fillWidth: true; visible: rtRoot.hasAntiCheat
+        Layout.fillWidth: true; visible: rtRoot.vm.hasAntiCheat
         implicitHeight: acRow.height + Dimensions.marginSM * 2
         radius: Dimensions.radiusStandard
         color: Theme.destructive08
@@ -112,7 +101,7 @@ SectionContainer {
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
-                text: qsTr("Bu oyunda %1 tespit edildi. BepInEx ile uyumsuz olabilir.").arg(rtRoot.antiCheatName)
+                text: qsTr("Bu oyunda %1 tespit edildi. BepInEx ile uyumsuz olabilir.").arg(rtRoot.vm.antiCheatName)
                 font.pixelSize: Dimensions.fontBody; color: Theme.destructive
                 wrapMode: Text.WordWrap
             }
@@ -128,31 +117,31 @@ SectionContainer {
             implicitWidth: rtBtnRow.width + 32; implicitHeight: 38
             radius: Dimensions.radiusStandard
             color: rtBtnMouse.containsMouse ? Theme.primaryHover : Theme.primary
-            opacity: rtRoot.isInstallingRuntime ? 0.6 : 1.0
+            opacity: rtRoot.vm.isInstallingRuntime ? 0.6 : 1.0
             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
             Accessible.role: Accessible.Button
-            Accessible.name: rtRoot.isInstallingRuntime ? qsTr("Kuruluyor...") : (!rtRoot.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
+            Accessible.name: rtRoot.vm.isInstallingRuntime ? qsTr("Kuruluyor...") : (!rtRoot.vm.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
 
             Row {
                 id: rtBtnRow; anchors.centerIn: parent; spacing: Dimensions.spacingMD
                 Text {
                     textFormat: Text.PlainText
-                    text: rtRoot.isInstallingRuntime ? qsTr("Kuruluyor...") : (!rtRoot.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
+                    text: rtRoot.vm.isInstallingRuntime ? qsTr("Kuruluyor...") : (!rtRoot.vm.runtimeInstalled ? qsTr("BepInEx Kur") : qsTr("Güncelle"))
                     font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold; color: Theme.textOnColor
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
             MouseArea {
                 id: rtBtnMouse; anchors.fill: parent; hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor; enabled: !rtRoot.isInstallingRuntime
-                onClicked: { rtRoot.isInstallingRuntime = true; GameService.installRuntime(rtRoot.gameId) }
+                cursorShape: Qt.PointingHandCursor; enabled: !rtRoot.vm.isInstallingRuntime
+                onClicked: { rtRoot.vm.isInstallingRuntime = true; GameService.installRuntime(rtRoot.vm.gameId) }
             }
         }
 
         // Uninstall
         Rectangle {
-            visible: rtRoot.runtimeInstalled
+            visible: rtRoot.vm.runtimeInstalled
             implicitWidth: rtUnRow.width + 32; implicitHeight: 38
             radius: Dimensions.radiusStandard
             color: rtUnMouse.containsMouse ? Theme.destructive15 : Theme.textPrimary06
@@ -175,7 +164,7 @@ SectionContainer {
             MouseArea {
                 id: rtUnMouse; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: GameService.uninstallRuntime(rtRoot.gameId)
+                onClicked: GameService.uninstallRuntime(rtRoot.vm.gameId)
             }
         }
     }

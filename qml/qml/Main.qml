@@ -66,30 +66,36 @@ ApplicationWindow {
         id: installFlow
         viewModel: detailVM
         onShowAntiCheatWarning: antiCheatWarningLoader.active = true
-        onShowInstallNotes: installNotesLoader.active = true
         onShowInstallOptions: installOptionsLoader.active = true
         onShowVariantSelection: variantSelectionLoader.active = true
     }
 
     // ===== SYSTEM TRAY =====
-    Connections {
-        target: SystemTrayManager
-        function onShowWindowRequested() {
-            window.show()
-            window.raise()
-            window.requestActivate()
+    TrayPopup {
+        id: trayPopup
+        onShowRequested: {
+            window.show(); window.raise(); window.requestActivate()
         }
-        function onSettingsRequested() {
-            window.show()
-            window.raise()
-            window.requestActivate()
+        onCheckUpdatesRequested: UpdateChecker.checkForUpdates()
+        onSettingsRequested: {
+            window.show(); window.raise(); window.requestActivate()
             window.currentNavIndex = 2
             contentStackContainer.navigateTo(1)
         }
-        function onQuitRequested() {
+        onQuitRequested: {
             window.forceQuit = true
             if (!window.visible) window.show()
             window.close()
+        }
+    }
+
+    Connections {
+        target: SystemTrayManager
+        function onShowWindowRequested() {
+            window.show(); window.raise(); window.requestActivate()
+        }
+        function onContextMenuRequested(x, y) {
+            trayPopup.showAt(x, y)
         }
         function onUpdateCheckRequested() {
             UpdateChecker.checkForUpdates()
@@ -134,6 +140,9 @@ ApplicationWindow {
         target: CoreBridge
         function onPackageDetailEnriched(appId) {
             installFlow.onPackageDetailEnriched(appId)
+            // Refresh ViewModel when detail arrives for the active game
+            if (detailVM.gameId === appId)
+                detailVM._applyGameDetails()
         }
     }
 
@@ -322,6 +331,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.navbarHeight
             currentIndex: window.currentNavIndex
+            showBottomLine: contentStackContainer.gameDetailVisible
             animationsEnabled: window.animationsEnabled
 
             onHomeClicked: {
@@ -467,6 +477,7 @@ ApplicationWindow {
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, false))
+                    detailVM.fromLibrary = (homeView.currentPage === 1)
                     window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
@@ -474,6 +485,7 @@ ApplicationWindow {
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
                     detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
+                    detailVM.fromLibrary = (homeView.currentPage === 1)
                     window.previousNavIndex = window.currentNavIndex
                     contentStackContainer.navigateTo(2)
                 }
@@ -519,10 +531,6 @@ ApplicationWindow {
                 sourceComponent: Component {
                     GameDetailScreen {
                         viewModel: detailVM
-                        onBackClicked: {
-                            contentStackContainer.navigateTo(0)
-                            window.currentNavIndex = window.previousNavIndex
-                        }
                         onTranslateClicked: {
                             installFlow.startInstallFlow(detailVM.gameId, detailVM.gameName)
                         }
@@ -583,30 +591,6 @@ ApplicationWindow {
                         gameName = installFlow.pendingAntiCheatData.gameName
                         detectedSystems = installFlow.pendingAntiCheatData.detectedSystems
                         installFlow.pendingAntiCheatData = null
-                    }
-                    open()
-                }
-            }
-        }
-    }
-
-    // ===== INSTALL NOTES DIALOG (lazy) =====
-    Loader {
-        id: installNotesLoader
-        active: false
-        sourceComponent: Component {
-            InstallNotesDialog {
-                parent: Overlay.overlay
-                onAccepted: installFlow.onInstallNotesAccepted()
-                onCancelled: installFlow.onInstallNotesCancelled()
-                onClosed: {
-                    installNotesLoader.active = false
-                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogClose("InstallNotes")
-                }
-                Component.onCompleted: {
-                    if (typeof SceneProfiler !== "undefined") SceneProfiler.markDialogOpen("InstallNotes")
-                    if (installFlow.pendingInstallNotes) {
-                        notes = installFlow.pendingInstallNotes.notes
                     }
                     open()
                 }

@@ -21,19 +21,9 @@ Rectangle {
 
     radius: Dimensions.radiusSection
     color: Theme.surface
-    border.color: bannerMa.containsMouse
-        ? Theme.accentBase30 : Qt.rgba(1, 1, 1, 0.06)
-    border.width: 1
-    Behavior on border.color { ColorAnimation { duration: Dimensions.animNormal } }
 
-    // Ambient glow — hover-responsive radial glow
-    AmbientGlow {
-        anchors.fill: parent; z: 1
-        glowColor: Theme.accentBase
-        cornerRadius: Dimensions.radiusSection
-        originX: 30; originY: height - 20
-        intensity: 0.22; hoveredIntensity: 0.50; spread: 0.50
-        hovered: bannerMa.containsMouse
+    GradientBorder {
+        cornerRadius: root.radius
     }
 
     readonly property string _bannerUrl:
@@ -73,12 +63,13 @@ Rectangle {
         anchors.top: parent.top
         anchors.leftMargin: 1; anchors.rightMargin: 1; anchors.topMargin: 1
         height: 1; radius: Dimensions.radiusSection; z: 5
+        opacity: 0.7
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.2; color: Qt.rgba(1, 1, 1, 0.08) }
-            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.14) }
-            GradientStop { position: 0.8; color: Qt.rgba(1, 1, 1, 0.08) }
+            GradientStop { position: 0.2; color: Qt.rgba(1, 1, 1, 0.10) }
+            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.18) }
+            GradientStop { position: 0.8; color: Qt.rgba(1, 1, 1, 0.10) }
             GradientStop { position: 1.0; color: "transparent" }
         }
     }

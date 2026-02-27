@@ -107,8 +107,6 @@ GameService::GameService(QObject *parent)
     // Forward update detection signals
     connect(&m_updateService, &UpdateDetectionService::gameUpdateDetected,
             this, &GameService::gameUpdateDetected);
-    connect(&m_updateService, &UpdateDetectionService::gamesWithUpdatesChanged,
-            this, &GameService::gameUpdateCountChanged);
 
     // Start monitoring after first scan completes
     connect(this, &GameService::scanCompleted, this, [this](int) {
@@ -295,7 +293,6 @@ void GameService::scanAllLibraries()
 
     m_scanProgress = 0;
     m_scanStatus = tr("Oyun kütüphaneleri taranıyor...");
-    emit scanStatusChanged();
 
     // Use CoreBridge for actual scanning
     if (m_coreBridge) {
@@ -313,9 +310,6 @@ void GameService::setupCoreBridge()
             this, &GameService::onScanCompleted);
     connect(m_coreBridge, &CoreBridge::gameDetected,
             this, &GameService::onGameDetected);
-    connect(m_coreBridge, &CoreBridge::scanError,
-            this, &GameService::scanError);
-
     // Forward package install signals with gameId context
     connect(m_coreBridge, &CoreBridge::packageInstallProgress,
             this, [this](double progress, const QString& status) {
@@ -386,9 +380,7 @@ void GameService::onScanProgress(qreal progress, const QString& status)
         m_scanStatus = status;
         changed = true;
     }
-    if (changed) {
-        emit scanStatusChanged();
-    }
+    Q_UNUSED(changed);
 }
 
 void GameService::onScanCompleted(int count)
@@ -434,6 +426,11 @@ void GameService::onScanCompleted(int count)
 
     rebuildCache();
 
+    // Clear stale package-installed cache — it may have been populated
+    // before m_localPkgManager was initialized (returns false for all).
+    // Next access will re-query via CoreBridge with the now-available catalog.
+    m_packageInstalledCache.clear();
+
     m_isScanning = false;
     emit isScanningChanged();
     emit scanCompleted(count);
@@ -468,13 +465,13 @@ void GameService::addManualGame(const QString& path)
     MAKINE_ZONE_NAMED("GameService::addManualGame");
     // Security: Validate path (sync — fast)
     if (!isValidGamePath(path)) {
-        emit scanError(tr("Geçersiz oyun klasörü: %1").arg(path));
+        qWarning() << "addManualGame: invalid path" << path;
         return;
     }
 
     QDir dir(path);
     if (!dir.exists()) {
-        emit scanError(tr("Belirtilen klasör bulunamadı: %1").arg(path));
+        qWarning() << "addManualGame: path not found" << path;
         return;
     }
 
@@ -613,83 +610,18 @@ QVariantMap GameService::getGameById(const QString& id) const
     return {};
 }
 
-QVariantMap GameService::getGameBySteamAppId(const QString& steamAppId) const
-{
-    MAKINE_ZONE_NAMED("GameService::getGameBySteamAppId");
-    if (steamAppId.isEmpty())
-        return {};
-
-    auto idxIt = m_steamAppIdToIndex.constFind(steamAppId);
-    if (idxIt != m_steamAppIdToIndex.constEnd()) {
-        int index = *idxIt;
-        if (index >= 0 && index < m_games.count())
-            return m_games[index].toVariantMap();
-    }
-
-    // Fallback: search catalog
-    if (m_coreBridge) {
-        const QVariantList catalog = m_coreBridge->allSupportedGames();
-        for (const auto& entry : catalog) {
-            QVariantMap map = entry.toMap();
-            if (map.value("steamAppId").toString() == steamAppId)
-                return map;
-        }
-    }
-
-    return {};
-}
-
-QVariantList GameService::filterGames(const QString& query) const
-{
-    MAKINE_ZONE_NAMED("GameService::filterGames");
-    if (query.isEmpty())
-        return supportedGames();
-
-    const QVariantList allGames = supportedGames();
-    QVariantList result;
-    result.reserve(allGames.size());
-    for (const auto& entry : allGames) {
-        const QVariantMap map = entry.toMap();
-        const QString name = map.value("name").toString();
-        if (name.contains(query, Qt::CaseInsensitive))
-            result.append(entry);
-    }
-    result.squeeze();
-    return result;
-}
-
-QVariantList GameService::filteredGamesWithTranslation(const QString& filter) const
-{
-    MAKINE_ZONE_NAMED("GameService::filteredGamesWithTranslation");
-    const QVariantList allGames = supportedGames();
-    QVariantList result;
-    result.reserve(allGames.size());
-    for (const auto& entry : allGames) {
-        const QVariantMap map = entry.toMap();
-        if (!map.value("hasTranslation").toBool())
-            continue;
-        if (!filter.isEmpty()) {
-            const QString name = map.value("name").toString();
-            if (!name.contains(filter, Qt::CaseInsensitive))
-                continue;
-        }
-        result.append(entry);
-    }
-    result.squeeze();
-    return result;
-}
-
 QVariantMap GameService::getGameDetails(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("GameService::getGameDetails");
     QVariantMap result;
 
-    // Contributors from package manifest
+    // Contributors + install notes from package manifest
     QVariantList contributors;
     if (m_coreBridge) {
         auto pkg = m_coreBridge->getPackageForGame(gameId);
         if (pkg)
             contributors = pkg->contributors;
+        result["installNotes"] = m_coreBridge->getInstallNotesForGame(gameId);
     }
     result["contributors"] = contributors;
 
@@ -904,42 +836,6 @@ int GameService::installedTranslationCount() const
             ++count;
     }
     return count;
-}
-
-int GameService::supportedGameCount() const
-{
-    if (m_manifestSync && m_manifestSync->catalogCount() > 0)
-        return m_manifestSync->catalogCount();
-    if (!m_coreBridge) return 0;
-    return m_coreBridge->supportedGameCount();
-}
-
-QVariantList GameService::gamesWithTranslation() const
-{
-    MAKINE_ZONE_NAMED("GameService::gamesWithTranslation");
-    if (m_translationCacheValid)
-        return m_translationGamesCache;
-
-    m_translationGamesCache.clear();
-    for (const auto& game : m_games) {
-        bool hasPackage = m_coreBridge && m_coreBridge->hasTranslationPackage(game.id);
-        if (game.hasTranslation || hasPackage) {
-            QVariantMap map = game.toVariantMap();
-            auto cacheIt = m_packageInstalledCache.constFind(game.id);
-            if (cacheIt != m_packageInstalledCache.constEnd()) {
-                map["packageInstalled"] = *cacheIt;
-            } else if (m_coreBridge) {
-                bool installed = m_coreBridge->isPackageInstalled(game.id);
-                m_packageInstalledCache[game.id] = installed;
-                map["packageInstalled"] = installed;
-            } else {
-                map["packageInstalled"] = false;
-            }
-            m_translationGamesCache.append(map);
-        }
-    }
-    m_translationCacheValid = true;
-    return m_translationGamesCache;
 }
 
 QVariantList GameService::installedTranslations() const
@@ -1539,19 +1435,6 @@ void GameService::recoverTranslation(const QString& gameId)
         }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
     uninstallTranslation(gameId);
-}
-
-void GameService::setUpdateMonitoringEnabled(bool enabled)
-{
-    if (enabled)
-        m_updateService.startMonitoring();
-    else
-        m_updateService.stopMonitoring();
-}
-
-int GameService::gameUpdateCount() const
-{
-    return m_updateService.gamesWithUpdates();
 }
 
 bool GameService::hasGameUpdate(const QString& gameId) const

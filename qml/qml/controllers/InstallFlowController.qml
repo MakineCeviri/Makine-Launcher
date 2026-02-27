@@ -18,7 +18,6 @@ QtObject {
     // Pending data for lazy-loaded dialogs
     property var pendingAntiCheatData: null
     property var pendingVariantData: null
-    property var pendingInstallNotes: null
     property var pendingInstallOptionsData: null
 
     // Pending download state for R2 packages
@@ -30,7 +29,6 @@ QtObject {
 
     // Signals to activate dialog loaders in Main.qml
     signal showAntiCheatWarning()
-    signal showInstallNotes()
     signal showInstallOptions()
     signal showVariantSelection()
 
@@ -78,14 +76,8 @@ QtObject {
     }
 
     function _continueWithDetail(gameId, gameName) {
-        // Pre-flight: Install notes check
-        var notes = GameService.getInstallNotes(gameId)
-        if (notes && notes.length > 0) {
-            pendingInstallNotes = { gameId: gameId, notes: notes }
-            showInstallNotes()
-            return
-        }
-
+        // Install notes are shown in AboutSection as "Yama Notları" —
+        // skip the blocking dialog and go straight to install options
         _continueAfterNotes(gameId, gameName)
     }
 
@@ -98,16 +90,6 @@ QtObject {
             _pendingDetailGameName = ""
             _continueWithDetail(gId, gName)
         }
-    }
-
-    // ===== INSTALL NOTES: User accepted =====
-    function onInstallNotesAccepted() {
-        var data = pendingInstallNotes
-        pendingInstallNotes = null
-        if (!data) return
-        var vm = _vm()
-        var gameName = vm ? vm.gameName : ""
-        _continueAfterNotes(data.gameId, gameName)
     }
 
     function _continueAfterNotes(gameId, gameName) {
@@ -231,7 +213,6 @@ QtObject {
     }
 
     // ===== CANCEL HANDLERS =====
-    function onInstallNotesCancelled() { pendingInstallNotes = null }
     function onOptionsCancelled() { pendingInstallOptionsData = null }
     function onVariantCancelled() { pendingVariantData = null }
 

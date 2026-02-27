@@ -151,9 +151,9 @@ void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
         }
 
         if (!success) {
-            if (!useSteamCdn && !m_githubFailed.contains(appId)) {
-                // GitHub failed — try Steam CDN as fallback
-                m_githubFailed.insert(appId);
+            if (!useSteamCdn && !m_r2Failed.contains(appId)) {
+                // R2 CDN failed — try Steam CDN as fallback
+                m_r2Failed.insert(appId);
                 startDownload(appId, true);
                 return;
             }
@@ -174,7 +174,7 @@ void ImageCacheManager::clearCache()
         dir.mkpath(QStringLiteral("."));
     }
     m_failed.clear();
-    m_githubFailed.clear();
+    m_r2Failed.clear();
     m_queued.clear();
     m_cachedSizeBytes = 0;
     m_cachedImageCount = 0;
