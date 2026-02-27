@@ -61,6 +61,15 @@ Item {
         }
     }
 
+    // First load: Connections miss the gameId change that happened before
+    // the Loader created this component. Catch up here.
+    Component.onCompleted: {
+        if (root.viewModel.gameId !== "") {
+            mainFlick.contentY = 0
+            root._replayEntryAnim()
+        }
+    }
+
     // ===== VIEWMODEL WATCHERS =====
 
     Connections {

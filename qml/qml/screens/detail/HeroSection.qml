@@ -24,7 +24,7 @@ Item {
         id: heroBanner
         width: parent.width
         height: 200
-        color: Theme.surfaceActive
+        color: "transparent"
 
         Image {
             id: bannerImg
@@ -78,7 +78,7 @@ Item {
                 Layout.preferredWidth: 220
                 Layout.preferredHeight: 310
                 radius: Dimensions.radiusLG
-                color: Theme.surfaceActive
+                color: "transparent"
                 clip: true
 
                 Image {
@@ -96,12 +96,6 @@ Item {
                     Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
                 }
 
-                // Glass border
-                Rectangle {
-                    anchors.fill: parent; radius: parent.radius
-                    color: "transparent"
-                    border.color: Theme.glassBorder; border.width: 1
-                }
             }
 
             // Community disclaimer
@@ -349,34 +343,6 @@ Item {
             Row {
                 spacing: Dimensions.spacingMD
 
-                // Verified badge
-                Rectangle {
-                    visible: heroRoot.vm.verified
-                    width: verifiedRow.width + 20; height: 26
-                    radius: Dimensions.radiusFull
-                    color: Theme.verifiedBg
-
-                    Row {
-                        id: verifiedRow
-                        anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                        Text {
-                            textFormat: Text.PlainText
-                            text: "\u2713"
-                            font.pixelSize: Dimensions.fontSM
-                            color: Theme.verifiedText
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            textFormat: Text.PlainText
-                            text: qsTr("Onaylı Çeviri")
-                            font.pixelSize: Dimensions.fontCaption
-                            font.weight: Font.DemiBold
-                            color: Theme.verifiedText
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
-
                 // Update impact: broken
                 Rectangle {
                     visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken"
@@ -455,6 +421,9 @@ Item {
                     }
                 }
             }
+
+            // Spacer: align About section with cover bottom edge
+            Item { Layout.fillHeight: true }
 
             // ── About ──
             AboutSection {
