@@ -30,9 +30,26 @@ jobs:
           python3 -c "
           import json, urllib.request, sys
 
-          print('Fetching index.json from cdn.makineceviri.net...')
-          data = json.loads(urllib.request.urlopen(
-              'https://cdn.makineceviri.net/assets/index.json').read())
+          CDN = 'https://cdn.makineceviri.net'
+          R2  = 'https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev'
+
+          def fetch(url):
+              req = urllib.request.Request(url)
+              req.add_header('User-Agent', 'MakineAI-CI/1.0')
+              return urllib.request.urlopen(req, timeout=15)
+
+          # Try custom domain first, fallback to R2 direct
+          for base in [CDN, R2]:
+              try:
+                  print(f'Fetching index.json from {base}...')
+                  data = json.loads(fetch(f'{base}/assets/index.json').read())
+                  print(f'  OK ({base})')
+                  break
+              except Exception as e:
+                  print(f'  Failed: {e}')
+                  if base == R2:
+                      print('FATAL: Cannot reach index.json on either domain')
+                      sys.exit(1)
 
           version = data['version']
           packages = data['packages']
@@ -47,7 +64,7 @@ jobs:
           missing_fields = [k for k,v in packages.items()
                            if not all(v.get(f) for f in required)]
 
-          # Spot check: verify 5 .mkpkg files are reachable (GET with range)
+          # Spot check: verify 5 .mkpkg files are reachable
           import random
           sample_ids = random.sample(list(packages.keys()), min(5, total))
           missing_data = []
@@ -55,15 +72,15 @@ jobs:
               url = packages[app_id]['dataUrl']
               try:
                   req = urllib.request.Request(url)
+                  req.add_header('User-Agent', 'MakineAI-CI/1.0')
                   req.add_header('Range', 'bytes=0-0')
                   resp = urllib.request.urlopen(req, timeout=10)
-                  status = resp.status  # 200 or 206
               except Exception:
                   missing_data.append(app_id)
 
           # Report
-          print(f'')
-          print(f'=== R2 Manifest Health Check ===')
+          print()
+          print('=== R2 Manifest Health Check ===')
           print(f'Version:        {version}')
           print(f'Packages:       {total}')
           print(f'Wrong domain:   {len(bad_domain)}')
@@ -76,8 +93,8 @@ jobs:
               print(f'FAIL: Wrong domain in {bad_domain[:5]}')
               sys.exit(1)
 
-          print('')
-          print('✓ All checks passed')
+          print()
+          print('All checks passed')
           "
 
       - name: Full sync to R2
@@ -87,13 +104,17 @@ jobs:
         run: |
           npm install -g wrangler
 
-          # Download current index
-          curl -sf "https://cdn.makineceviri.net/assets/index.json" -o /tmp/index.json
+          CDN="https://cdn.makineceviri.net"
+          R2="https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev"
+
+          # Download current index (try custom domain, fallback to R2)
+          curl -sf -A "MakineAI-CI/1.0" "${CDN}/assets/index.json" -o /tmp/index.json || \
+          curl -sf -A "MakineAI-CI/1.0" "${R2}/assets/index.json" -o /tmp/index.json
 
           # Upload index
           wrangler r2 object put makineai-translations/assets/index.json \
             --file=/tmp/index.json --content-type="application/json" --remote
-          echo "✓ index.json"
+          echo "index.json uploaded"
 
           # Download and upload each package JSON
           count=0
@@ -103,10 +124,12 @@ jobs:
           for app_id in data['packages']:
               print(app_id)
           " | while read app_id; do
-            curl -sf "https://cdn.makineceviri.net/assets/packages/${app_id}.json" \
+            curl -sf -A "MakineAI-CI/1.0" "${CDN}/assets/packages/${app_id}.json" \
+              -o "/tmp/${app_id}.json" 2>/dev/null || \
+            curl -sf -A "MakineAI-CI/1.0" "${R2}/assets/packages/${app_id}.json" \
               -o "/tmp/${app_id}.json" 2>/dev/null || continue
             wrangler r2 object put "makineai-translations/assets/packages/${app_id}.json" \
               --file="/tmp/${app_id}.json" --content-type="application/json" --remote 2>/dev/null
             count=$((count+1))
           done
-          echo "✓ Package files synced"
+          echo "Package files synced: $count"
