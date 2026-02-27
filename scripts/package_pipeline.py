@@ -378,8 +378,8 @@ def main():
                         help="Include deferred large packages")
     parser.add_argument("--update-manifest", action="store_true",
                         help="Update index.json and per-game JSONs with pipeline results")
-    parser.add_argument("--r2-base-url", default="https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/data",
-                        help="R2 base URL for data downloads (e.g. https://pub-xxx.r2.dev/data)")
+    parser.add_argument("--r2-base-url", default="https://cdn.makineceviri.net/data",
+                        help="R2 base URL for data downloads")
     args = parser.parse_args()
 
     # Resolve key path relative to script directory

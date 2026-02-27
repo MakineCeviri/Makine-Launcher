@@ -6,6 +6,7 @@
 
 #include "manifestsyncservice.h"
 #include "apppaths.h"
+#include "cdnconfig.h"
 #include "profiler.h"
 #include "crashreporter.h"
 
@@ -21,8 +22,7 @@
 
 namespace makineai {
 
-static constexpr auto CDN_BASE =
-    "https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/assets/";
+static constexpr auto CDN_BASE = cdn::kAssetsBase;
 
 ManifestSyncService::ManifestSyncService(QObject* parent)
     : QObject(parent)

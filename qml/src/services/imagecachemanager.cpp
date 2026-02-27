@@ -6,6 +6,7 @@
 
 #include "imagecachemanager.h"
 #include "apppaths.h"
+#include "cdnconfig.h"
 #include "profiler.h"
 
 #include <QDir>
@@ -18,9 +19,7 @@
 
 namespace makineai {
 
-// R2 CDN URL base for pre-baked game images (260x370 PNG, rounded corners)
-static constexpr auto CDN_IMAGE_BASE =
-    "https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/assets/images/";
+static constexpr auto CDN_IMAGE_BASE = cdn::kImagesBase;
 
 ImageCacheManager::ImageCacheManager(QObject* parent)
     : QObject(parent)

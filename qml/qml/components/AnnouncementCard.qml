@@ -27,7 +27,7 @@ Rectangle {
     }
 
     readonly property string _bannerUrl:
-        "https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/assets/banners/announcement.png"
+        "https://cdn.makineceviri.net/assets/banners/announcement.png"
 
     // Banner image (hidden — rendered via MultiEffect mask)
     Image {

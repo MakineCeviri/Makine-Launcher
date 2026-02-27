@@ -6,6 +6,7 @@
 
 #include "updateservice.h"
 #include "selfupdater.h"
+#include "cdnconfig.h"
 #include "profiler.h"
 #include "apppaths.h"
 #include "crashreporter.h"
@@ -23,8 +24,7 @@
 
 namespace makineai {
 
-static constexpr const char* kUpdateJsonUrl =
-    "https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev/assets/update.json";
+static constexpr const char* kUpdateJsonUrl = cdn::kUpdateJson;
 
 // Only check once per 24 hours to avoid unnecessary requests
 static constexpr qint64 kCheckIntervalSecs = 24 * 60 * 60;
@@ -202,8 +202,8 @@ void UpdateService::download()
 
     // Validate download URL domain against allowlist
     static const QStringList allowedHosts = {
-        QStringLiteral("pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev"),
-        QStringLiteral("r2.dev"),
+        QString::fromLatin1(cdn::kDomain),
+        QStringLiteral("makineceviri.net"),
 #ifdef MAKINEAI_DEV_TOOLS
         QStringLiteral("localhost"),
         QStringLiteral("127.0.0.1"),
