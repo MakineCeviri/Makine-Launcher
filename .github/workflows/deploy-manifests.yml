@@ -1,0 +1,121 @@
+name: Deploy Manifests to R2
+
+# Triggers:
+#   1. Manual (workflow_dispatch) — "Deploy" butonu GitHub'da
+#   2. Push to main when manifest-related files change
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (preview only)'
+        type: boolean
+        default: false
+
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/package_pipeline.py'
+      - 'scripts/deploy.py'
+      - 'scripts/migrate_cdn_urls.py'
+
+jobs:
+  deploy-manifests:
+    name: Sync Manifests → R2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Setup Node (for wrangler)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download current manifests from R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          mkdir -p /tmp/manifests/packages
+
+          # Download index.json
+          curl -sf "https://cdn.makineceviri.net/assets/index.json" \
+            -o /tmp/manifests/index.json
+
+          # Extract all appIds and download per-game JSONs
+          python3 -c "
+          import json
+          data = json.loads(open('/tmp/manifests/index.json').read())
+          for app_id in data['packages']:
+              print(app_id)
+          " | while read app_id; do
+            curl -sf "https://cdn.makineceviri.net/assets/packages/${app_id}.json" \
+              -o "/tmp/manifests/packages/${app_id}.json" 2>/dev/null || true
+          done
+
+          echo "Downloaded $(ls /tmp/manifests/packages/*.json 2>/dev/null | wc -l) package files"
+
+      - name: Verify manifest integrity
+        run: |
+          python3 -c "
+          import json, sys
+          index = json.loads(open('/tmp/manifests/index.json').read())
+          pkg_count = len(index['packages'])
+          version = index['version']
+
+          # Check all dataUrls use correct domain
+          bad = [k for k,v in index['packages'].items()
+                 if 'cdn.makineceviri.net' not in v.get('dataUrl','')]
+          if bad:
+              print(f'ERROR: {len(bad)} packages with wrong domain: {bad[:5]}')
+              sys.exit(1)
+
+          # Check required fields
+          missing = [k for k,v in index['packages'].items()
+                     if not all(v.get(f) for f in ['name','dataUrl','checksum','size'])]
+          if missing:
+              print(f'WARNING: {len(missing)} packages missing fields: {missing[:5]}')
+
+          print(f'OK: v{version}, {pkg_count} packages, all URLs correct')
+          "
+
+      - name: Upload manifests to R2
+        if: ${{ !inputs.dry_run }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          # Upload index.json
+          npx wrangler r2 object put makineai-translations/assets/index.json \
+            --file=/tmp/manifests/index.json \
+            --content-type="application/json" --remote
+          echo "✓ index.json"
+
+          # Upload per-game JSONs
+          count=0
+          for f in /tmp/manifests/packages/*.json; do
+            filename=$(basename "$f")
+            npx wrangler r2 object put "makineai-translations/assets/packages/$filename" \
+              --file="$f" \
+              --content-type="application/json" --remote 2>/dev/null
+            count=$((count+1))
+          done
+          echo "✓ $count package files uploaded"
+
+      - name: Verify deployment
+        run: |
+          # Quick smoke test
+          curl -sf "https://cdn.makineceviri.net/assets/index.json" | \
+            python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          print(f'Live: v{data[\"version\"]}, {len(data[\"packages\"])} packages')
+          sample = list(data['packages'].values())[0]
+          assert 'cdn.makineceviri.net' in sample['dataUrl'], 'Domain mismatch!'
+          print('✓ Domain verified')
+          "
