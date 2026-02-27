@@ -7,6 +7,7 @@
 #include "translationdownloader.h"
 #include "apppaths.h"
 #include "profiler.h"
+#include "crashreporter.h"
 
 #include <QDir>
 #include <QFile>
@@ -31,6 +32,8 @@ void TranslationDownloader::downloadPackage(
     const QString& dirName)
 {
     MAKINE_ZONE_NAMED("TranslationDownloader::downloadPackage");
+    CrashReporter::addBreadcrumb("download",
+        QStringLiteral("downloadPackage: %1").arg(appId).toUtf8().constData());
 
     if (appId.isEmpty() || dataUrl.isEmpty() || dirName.isEmpty()) {
         emit downloadError(appId, tr("Missing download parameters"));
@@ -239,6 +242,8 @@ void TranslationDownloader::processDownloadedFile(
             qDebug() << "TranslationDownloader: package ready" << appId
                      << "-" << fileCount << "files extracted to" << dirName;
 
+            CrashReporter::addBreadcrumb("download",
+                QStringLiteral("packageReady: %1 (%2 files)").arg(appId).arg(fileCount).toUtf8().constData());
             emit packageReady(appId, dirName);
         });
 

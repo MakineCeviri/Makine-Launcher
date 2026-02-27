@@ -7,6 +7,7 @@
 #include "manifestsyncservice.h"
 #include "apppaths.h"
 #include "profiler.h"
+#include "crashreporter.h"
 
 #include <QDir>
 #include <QFile>
@@ -48,6 +49,7 @@ QString ManifestSyncService::packageUrl(const QString& appId)
 void ManifestSyncService::syncCatalog()
 {
     MAKINE_ZONE_NAMED("ManifestSync::syncCatalog");
+    CrashReporter::addBreadcrumb("manifest", "ManifestSync::syncCatalog");
 
     if (m_syncing)
         return;

@@ -26,6 +26,7 @@
 #include <QQmlComponent>
 #include <QJsonObject>
 #include "services/profiler.h"
+#include "services/crashreporter.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -637,6 +638,10 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
+    // === Phase 0: Crash reporting (as early as possible after QApp) ===
+    makineai::CrashReporter::initialize();
+    makineai::CrashReporter::installQtMessageHandler();
+
     // Anti-RE: run all checks before anything else (no-op in debug builds)
     makineai::protection::initialize();
 
@@ -712,6 +717,7 @@ int main(int argc, char *argv[])
     startupTimer.start();
 
     // ===== Phase 1: Directory structure + configuration =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 1: Directory structure + configuration");
 #ifdef Q_OS_WIN
     splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
 #endif
@@ -758,6 +764,7 @@ int main(int argc, char *argv[])
     // UpdateService registered as singleton instance in Phase 7 (below)
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 3: Game library construction");
 #ifdef Q_OS_WIN
     splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi haz\u0131rlan\u0131yor...");
 #endif
@@ -808,6 +815,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
     // ===== Phase 7: Update service + system tray =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
 #ifdef Q_OS_WIN
     splash.setStatus(L"G\u00FCncelleme servisi haz\u0131rlan\u0131yor...");
 #endif
@@ -927,6 +935,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
         splash.close();
 #endif
+        makineai::CrashReporter::shutdown();
         return -1;
     }
 
@@ -951,6 +960,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
         splash.close();
 #endif
+        makineai::CrashReporter::shutdown();
         return -1;
     }
     engine.setObjectOwnership(rootObject, QQmlEngine::JavaScriptOwnership);
@@ -958,6 +968,7 @@ int main(int argc, char *argv[])
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 10: Pre-render + finalize =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 10: Pre-render + finalize");
 #ifdef Q_OS_WIN
     splash.setStatus(L"Son haz\u0131rl\u0131klar yap\u0131l\u0131yor...");
     splash.pumpMessages();
@@ -1172,5 +1183,7 @@ int main(int argc, char *argv[])
     // Anti-RE: periodic re-checks once event loop is running
     makineai::protection::schedulePeriodicChecks();
 
-    return app.exec();
+    int exitCode = app.exec();
+    makineai::CrashReporter::shutdown();
+    return exitCode;
 }

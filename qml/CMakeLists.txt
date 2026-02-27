@@ -112,6 +112,7 @@ set(BACKEND_SOURCES
     src/services/translationdownloader.cpp
     src/services/supportedgamesmodel.cpp
     src/services/catalogproxymodel.cpp
+    src/services/crashreporter.cpp
 )
 
 set(BACKEND_HEADERS
@@ -138,6 +139,7 @@ set(BACKEND_HEADERS
     src/services/translationdownloader.h
     src/services/supportedgamesmodel.h
     src/services/catalogproxymodel.h
+    src/services/crashreporter.h
     src/services/mkpkformat.h
     src/services/apppaths.h
     src/services/profiler.h
@@ -424,6 +426,26 @@ elseif(MAKINEAI_PROFILER AND NOT MAKINEAI_DEV_TOOLS)
         src/services/perfreporter.cpp src/services/perfreporter.h
     )
     message(STATUS "MakineAI: PerfReporter enabled (standalone)")
+endif()
+
+# Sentry crash reporting (optional)
+if(MAKINEAI_CRASH_REPORTING AND TARGET sentry)
+    target_link_libraries(MakineAI PRIVATE sentry)
+    target_compile_definitions(MakineAI PRIVATE
+        MAKINEAI_HAS_SENTRY
+        SENTRY_DSN="https://b45e1f0c15f8930397fc27e44699da53@o4510959114387456.ingest.de.sentry.io/4510959470444624"
+    )
+    message(STATUS "MakineAI: Sentry crash reporting linked")
+
+    # Copy crashpad_handler.exe next to binary (crashpad backend only)
+    if(NOT MINGW AND TARGET crashpad_handler)
+        add_custom_command(TARGET MakineAI POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:crashpad_handler>
+                $<TARGET_FILE_DIR:MakineAI>/crashpad_handler.exe
+            COMMENT "Copying crashpad_handler.exe"
+        )
+    endif()
 endif()
 
 # Windows specific

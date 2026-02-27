@@ -9,6 +9,7 @@
 #include "updatedetectionservice.h"
 #include "apppaths.h"
 #include "profiler.h"
+#include "crashreporter.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -116,6 +117,7 @@ GameService::GameService(QObject *parent)
 
 void GameService::initialize()
 {
+    CrashReporter::addBreadcrumb("game", "GameService::initialize");
     setupCoreBridge();
 
     // Load caches in background thread to avoid blocking the UI
@@ -434,6 +436,9 @@ void GameService::onScanCompleted(int count)
     m_isScanning = false;
     emit isScanningChanged();
     emit scanCompleted(count);
+
+    CrashReporter::addBreadcrumb("game",
+        QStringLiteral("Scan completed: %1 games detected").arg(count).toUtf8().constData());
 
     saveCachedGames();
 

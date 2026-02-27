@@ -15,6 +15,7 @@
 #include "pathsecurity.h"
 #include "appprotection.h"
 #include "apppaths.h"
+#include "crashreporter.h"
 
 #include <QDir>
 #include <QFile>
@@ -1200,6 +1201,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 {
     MAKINE_ZONE_NAMED("LPM::installPackage");
     INTEGRITY_GATE();
+    CrashReporter::addBreadcrumb("package",
+        QStringLiteral("installPackage: %1").arg(steamAppId).toUtf8().constData());
     m_cancelRequested.store(false, std::memory_order_relaxed);
 
     // Retrieve package info (works in both build modes)
@@ -2433,6 +2436,8 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 {
     MAKINE_ZONE_NAMED("LPM::uninstallPackage");
     INTEGRITY_GATE();
+    CrashReporter::addBreadcrumb("package",
+        QStringLiteral("uninstallPackage: %1").arg(steamAppId).toUtf8().constData());
 
 #ifndef MAKINEAI_UI_ONLY
     // Get installed state from core catalog

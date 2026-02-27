@@ -8,6 +8,7 @@
 #include "profiler.h"
 #include "appprotection.h"
 #include "apppaths.h"
+#include "crashreporter.h"
 
 #include <QDebug>
 #include <QDir>
@@ -49,11 +50,13 @@ static bool ensureCoreInitialized() {
             auto result = core.initialize();
             if (result) {
                 qDebug() << "Core initialized successfully in" << result->initDuration.count() << "ms";
+                CrashReporter::addBreadcrumb("core", "Core initialized successfully");
                 s_coreInitialized = true;
                 return true;
             } else {
                 qCritical() << "Core initialization FAILED:"
                            << QString::fromStdString(result.error().message());
+                CrashReporter::captureMessage("Core initialization failed", "error");
                 return false;
             }
         } else {
@@ -466,6 +469,7 @@ void CoreBridge::scanAllLibraries()
 {
     MAKINE_ZONE_NAMED("CoreBridge::scanAllLibraries");
     INTEGRITY_GATE();
+    CrashReporter::addBreadcrumb("core", "CoreBridge::scanAllLibraries");
     emit scanStarted();
     m_detectedGames.clear();
 

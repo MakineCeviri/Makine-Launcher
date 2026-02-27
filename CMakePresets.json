@@ -81,7 +81,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "MAKINEAI_UI_ONLY": "OFF",
-        "MAKINEAI_DEV_TOOLS": "ON"
+        "MAKINEAI_DEV_TOOLS": "ON",
+        "MAKINEAI_CRASH_REPORTING": "ON"
       }
     },
     {

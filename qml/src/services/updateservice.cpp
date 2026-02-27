@@ -8,6 +8,7 @@
 #include "selfupdater.h"
 #include "profiler.h"
 #include "apppaths.h"
+#include "crashreporter.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -75,6 +76,7 @@ void UpdateService::handlePostUpdate()
 void UpdateService::check()
 {
     MAKINE_ZONE_NAMED("UpdateService::check");
+    CrashReporter::addBreadcrumb("update", "UpdateService::check");
     if (m_state == Checking || m_state == Downloading)
         return;
 
@@ -194,6 +196,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
 void UpdateService::download()
 {
     MAKINE_ZONE_NAMED("UpdateService::download");
+    CrashReporter::addBreadcrumb("update", "UpdateService::download");
     if (m_state != Available || m_downloadUrl.isEmpty())
         return;
 

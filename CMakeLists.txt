@@ -15,6 +15,7 @@ option(MAKINEAI_UI_ONLY "Build UI only without core library" OFF)
 option(MAKINEAI_CORE_ONLY "Build core library only without UI" OFF)
 option(MAKINEAI_BUILD_TESTS "Build unit tests" OFF)
 option(MAKINEAI_PROFILER "Enable Tracy profiler instrumentation" OFF)
+option(MAKINEAI_CRASH_REPORTING "Enable Sentry crash reporting" OFF)
 
 # vcpkg integration (auto-detect when building core)
 if(NOT MAKINEAI_UI_ONLY)
@@ -55,6 +56,26 @@ if(MAKINEAI_PROFILER)
     message(STATUS "Tracy profiler: ENABLED (on-demand)")
 endif()
 
+# Sentry crash reporting (breakpad backend for MinGW compatibility)
+if(MAKINEAI_CRASH_REPORTING)
+    include(FetchContent)
+    FetchContent_Declare(sentry
+        GIT_REPOSITORY https://github.com/getsentry/sentry-native.git
+        GIT_TAG        0.9.1
+        GIT_SHALLOW    TRUE
+    )
+    # Use breakpad backend for MinGW (crashpad requires MSVC)
+    if(MINGW)
+        set(SENTRY_BACKEND "breakpad" CACHE STRING "" FORCE)
+    else()
+        set(SENTRY_BACKEND "crashpad" CACHE STRING "" FORCE)
+    endif()
+    set(SENTRY_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SENTRY_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(sentry)
+    message(STATUS "Sentry crash reporting: ENABLED (backend: ${SENTRY_BACKEND})")
+endif()
+
 # Core C++ library
 if(NOT MAKINEAI_UI_ONLY)
     set(BUILD_TESTING ${MAKINEAI_BUILD_TESTS})
@@ -74,6 +95,7 @@ message(STATUS "UI Only:  ${MAKINEAI_UI_ONLY}")
 message(STATUS "Core Only: ${MAKINEAI_CORE_ONLY}")
 message(STATUS "Tests:    ${MAKINEAI_BUILD_TESTS}")
 message(STATUS "Profiler: ${MAKINEAI_PROFILER}")
+message(STATUS "Sentry:   ${MAKINEAI_CRASH_REPORTING}")
 message(STATUS "Build:    ${CMAKE_BUILD_TYPE}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "====================================")
