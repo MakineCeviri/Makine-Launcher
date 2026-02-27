@@ -47,19 +47,18 @@ jobs:
           missing_fields = [k for k,v in packages.items()
                            if not all(v.get(f) for f in required)]
 
-          # Spot check: verify 5 .mkpkg files actually exist
+          # Spot check: verify 5 .mkpkg files are reachable (GET with range)
           import random
           sample_ids = random.sample(list(packages.keys()), min(5, total))
           missing_data = []
           for app_id in sample_ids:
               url = packages[app_id]['dataUrl']
               try:
-                  req = urllib.request.Request(url, method='HEAD')
-                  resp = urllib.request.urlopen(req)
-                  status = resp.status
+                  req = urllib.request.Request(url)
+                  req.add_header('Range', 'bytes=0-0')
+                  resp = urllib.request.urlopen(req, timeout=10)
+                  status = resp.status  # 200 or 206
               except Exception:
-                  status = 404
-              if status != 200:
                   missing_data.append(app_id)
 
           # Report
