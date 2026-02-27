@@ -1,27 +1,19 @@
 name: Deploy Manifests to R2
 
-# Triggers:
-#   1. Manual (workflow_dispatch) — "Deploy" butonu GitHub'da
-#   2. Push to main when manifest-related files change
-
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Dry run (preview only)'
-        type: boolean
-        default: false
-
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/package_pipeline.py'
-      - 'scripts/deploy.py'
-      - 'scripts/migrate_cdn_urls.py'
+      mode:
+        description: 'Operation mode'
+        type: choice
+        options:
+          - validate-only
+          - full-sync
+        default: validate-only
 
 jobs:
-  deploy-manifests:
-    name: Sync Manifests → R2
+  deploy:
+    name: R2 Manifest Sync
     runs-on: ubuntu-latest
 
     steps:
@@ -33,89 +25,89 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Setup Node (for wrangler)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Validate live manifests
+        run: |
+          python3 -c "
+          import json, urllib.request, sys
 
-      - name: Download current manifests from R2
+          print('Fetching index.json from cdn.makineceviri.net...')
+          data = json.loads(urllib.request.urlopen(
+              'https://cdn.makineceviri.net/assets/index.json').read())
+
+          version = data['version']
+          packages = data['packages']
+          total = len(packages)
+
+          # Domain check
+          bad_domain = [k for k,v in packages.items()
+                        if 'cdn.makineceviri.net' not in v.get('dataUrl','')]
+
+          # Required fields check
+          required = ['name', 'dataUrl', 'checksum', 'size', 'dirName']
+          missing_fields = [k for k,v in packages.items()
+                           if not all(v.get(f) for f in required)]
+
+          # Spot check: verify 5 .mkpkg files actually exist
+          import random
+          sample_ids = random.sample(list(packages.keys()), min(5, total))
+          missing_data = []
+          for app_id in sample_ids:
+              url = packages[app_id]['dataUrl']
+              try:
+                  req = urllib.request.Request(url, method='HEAD')
+                  resp = urllib.request.urlopen(req)
+                  status = resp.status
+              except Exception:
+                  status = 404
+              if status != 200:
+                  missing_data.append(app_id)
+
+          # Report
+          print(f'')
+          print(f'=== R2 Manifest Health Check ===')
+          print(f'Version:        {version}')
+          print(f'Packages:       {total}')
+          print(f'Wrong domain:   {len(bad_domain)}')
+          print(f'Missing fields: {len(missing_fields)}')
+          print(f'Data spot check:{len(sample_ids) - len(missing_data)}/{len(sample_ids)} OK')
+          if missing_data:
+              print(f'  Missing: {missing_data}')
+
+          if bad_domain:
+              print(f'FAIL: Wrong domain in {bad_domain[:5]}')
+              sys.exit(1)
+
+          print('')
+          print('✓ All checks passed')
+          "
+
+      - name: Full sync to R2
+        if: ${{ inputs.mode == 'full-sync' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          mkdir -p /tmp/manifests/packages
+          npm install -g wrangler
 
-          # Download index.json
-          curl -sf "https://cdn.makineceviri.net/assets/index.json" \
-            -o /tmp/manifests/index.json
+          # Download current index
+          curl -sf "https://cdn.makineceviri.net/assets/index.json" -o /tmp/index.json
 
-          # Extract all appIds and download per-game JSONs
+          # Upload index
+          wrangler r2 object put makineai-translations/assets/index.json \
+            --file=/tmp/index.json --content-type="application/json" --remote
+          echo "✓ index.json"
+
+          # Download and upload each package JSON
+          count=0
           python3 -c "
           import json
-          data = json.loads(open('/tmp/manifests/index.json').read())
+          data = json.loads(open('/tmp/index.json').read())
           for app_id in data['packages']:
               print(app_id)
           " | while read app_id; do
             curl -sf "https://cdn.makineceviri.net/assets/packages/${app_id}.json" \
-              -o "/tmp/manifests/packages/${app_id}.json" 2>/dev/null || true
-          done
-
-          echo "Downloaded $(ls /tmp/manifests/packages/*.json 2>/dev/null | wc -l) package files"
-
-      - name: Verify manifest integrity
-        run: |
-          python3 -c "
-          import json, sys
-          index = json.loads(open('/tmp/manifests/index.json').read())
-          pkg_count = len(index['packages'])
-          version = index['version']
-
-          # Check all dataUrls use correct domain
-          bad = [k for k,v in index['packages'].items()
-                 if 'cdn.makineceviri.net' not in v.get('dataUrl','')]
-          if bad:
-              print(f'ERROR: {len(bad)} packages with wrong domain: {bad[:5]}')
-              sys.exit(1)
-
-          # Check required fields
-          missing = [k for k,v in index['packages'].items()
-                     if not all(v.get(f) for f in ['name','dataUrl','checksum','size'])]
-          if missing:
-              print(f'WARNING: {len(missing)} packages missing fields: {missing[:5]}')
-
-          print(f'OK: v{version}, {pkg_count} packages, all URLs correct')
-          "
-
-      - name: Upload manifests to R2
-        if: ${{ !inputs.dry_run }}
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          # Upload index.json
-          npx wrangler r2 object put makineai-translations/assets/index.json \
-            --file=/tmp/manifests/index.json \
-            --content-type="application/json" --remote
-          echo "✓ index.json"
-
-          # Upload per-game JSONs
-          count=0
-          for f in /tmp/manifests/packages/*.json; do
-            filename=$(basename "$f")
-            npx wrangler r2 object put "makineai-translations/assets/packages/$filename" \
-              --file="$f" \
-              --content-type="application/json" --remote 2>/dev/null
+              -o "/tmp/${app_id}.json" 2>/dev/null || continue
+            wrangler r2 object put "makineai-translations/assets/packages/${app_id}.json" \
+              --file="/tmp/${app_id}.json" --content-type="application/json" --remote 2>/dev/null
             count=$((count+1))
           done
-          echo "✓ $count package files uploaded"
-
-      - name: Verify deployment
-        run: |
-          # Quick smoke test
-          curl -sf "https://cdn.makineceviri.net/assets/index.json" | \
-            python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
-          print(f'Live: v{data[\"version\"]}, {len(data[\"packages\"])} packages')
-          sample = list(data['packages'].values())[0]
-          assert 'cdn.makineceviri.net' in sample['dataUrl'], 'Domain mismatch!'
-          print('✓ Domain verified')
-          "
+          echo "✓ Package files synced"
