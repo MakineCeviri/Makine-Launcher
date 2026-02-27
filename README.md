@@ -1,4 +1,4 @@
-# MakineAI Launcher
+# Makine Çeviri - MakineAI Launcher
 
 Windows oyunlarını Türkçe'ye çeviren ve çevirileri güncel tutan masaüstü uygulaması.
 
@@ -179,10 +179,10 @@ just stats          # Proje istatistikleri
 
 ## Güvenlik
 
-Güvenlik açığı bildirmek için [Security Policy](.github/SECURITY.md) sayfasına bakın.
+Güvenlik açığı bildirmek için [Security Policy](.github/SECURITY.md).
 
 ## Lisans
 
 Proprietary — MakineAI. Tüm hakları saklıdır.
 
-Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Detaylar için [LICENSE](LICENSE).
