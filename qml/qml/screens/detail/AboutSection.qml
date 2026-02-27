@@ -21,6 +21,19 @@ Rectangle {
 
     readonly property int _padding: Dimensions.paddingXL
 
+    // Truncate text to ~2 lines with inline "daha fazla göster" link
+    function _truncatedText(w) {
+        var desc = _displayText
+        var avgCharW = Dimensions.fontBody * 0.52
+        var charsPerLine = Math.floor(w / avgCharW)
+        var cutAt = Math.max(20, charsPerLine * 2 - 24)
+        if (cutAt >= desc.length) return desc
+        var cut = desc.substring(0, cutAt)
+        var sp = cut.lastIndexOf(' ')
+        if (sp > cutAt * 0.5) cut = cut.substring(0, sp)
+        return cut + "<font color=\"" + Theme.primary + "\">... daha fazla göster</font>"
+    }
+
     radius: Dimensions.radiusSection
     color: Qt.rgba(0.05, 0.05, 0.07, 0.75)
     border.color: Qt.rgba(1, 1, 1, 0.07)
@@ -76,40 +89,38 @@ Rectangle {
 
         SettingsDivider { variant: "section" }
 
-        // Description — native elide, no hidden measurement Text
+        // Hidden measurement — detects if full text overflows 2 lines
+        Text {
+            id: _measure
+            visible: false
+            width: contentLayout.width
+            text: aboutRoot._displayText
+            font.pixelSize: Dimensions.fontBody
+            wrapMode: Text.WordWrap; lineHeight: 1.6
+            maximumLineCount: 2
+        }
+
+        // Description with inline "daha fazla göster" at end of line 2
         Text {
             id: descText
-            textFormat: Text.PlainText
+            textFormat: _measure.truncated && !aboutRoot.vm.descriptionExpanded
+                ? Text.StyledText : Text.PlainText
             Layout.fillWidth: true
             visible: aboutRoot._displayText !== ""
-            text: aboutRoot._displayText
+            text: aboutRoot.vm.descriptionExpanded || !_measure.truncated
+                ? aboutRoot._displayText
+                : aboutRoot._truncatedText(descText.width)
             font.pixelSize: Dimensions.fontBody
             color: Theme.textSecondary
             wrapMode: Text.WordWrap; lineHeight: 1.6
             maximumLineCount: aboutRoot.vm.descriptionExpanded ? 9999 : 2
-            elide: Text.ElideRight
 
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
-                cursorShape: descText.truncated && !aboutRoot.vm.descriptionExpanded
+                cursorShape: _measure.truncated && !aboutRoot.vm.descriptionExpanded
                     ? Qt.PointingHandCursor : Qt.ArrowCursor
-                enabled: descText.truncated && !aboutRoot.vm.descriptionExpanded
-                onClicked: aboutRoot.vm.descriptionExpanded = true
-            }
-        }
-
-        // "Daha fazla göster" link — only when collapsed and truncated
-        Text {
-            visible: descText.truncated && !aboutRoot.vm.descriptionExpanded
-            text: qsTr("daha fazla göster")
-            font.pixelSize: Dimensions.fontBody
-            color: Theme.primary
-            opacity: 0.9
-
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
+                enabled: _measure.truncated && !aboutRoot.vm.descriptionExpanded
                 onClicked: aboutRoot.vm.descriptionExpanded = true
             }
         }
