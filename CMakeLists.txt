@@ -30,6 +30,14 @@ project(MakineAI
     LANGUAGES CXX
 )
 
+# Version suffix (change here only — propagates everywhere)
+set(MAKINEAI_VERSION_SUFFIX "pre-alpha" CACHE STRING "Version pre-release suffix (empty for stable)")
+if(MAKINEAI_VERSION_SUFFIX)
+    set(MAKINEAI_VERSION_FULL "${PROJECT_VERSION}-${MAKINEAI_VERSION_SUFFIX}")
+else()
+    set(MAKINEAI_VERSION_FULL "${PROJECT_VERSION}")
+endif()
+
 # Keep all executables in the build root (avoid add_subdirectory nesting)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
@@ -61,7 +69,7 @@ endif()
 # Configuration summary
 message(STATUS "")
 message(STATUS "=== MakineAI Build Configuration ===")
-message(STATUS "Version:  ${PROJECT_VERSION}")
+message(STATUS "Version:  ${MAKINEAI_VERSION_FULL}")
 message(STATUS "UI Only:  ${MAKINEAI_UI_ONLY}")
 message(STATUS "Core Only: ${MAKINEAI_CORE_ONLY}")
 message(STATUS "Tests:    ${MAKINEAI_BUILD_TESTS}")

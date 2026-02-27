@@ -22,10 +22,6 @@ Item {
     signal settingsRequested()
     signal manualFolderRequested()
 
-    // ===== UPDATE CHECKER (C++ backend) =====
-    property bool updateAvailable: UpdateChecker.updateAvailable
-    property string latestVersion: UpdateChecker.latestVersion
-
     Component.onCompleted: {
         if (typeof SceneProfiler !== "undefined")
             SceneProfiler.screenLoaded("Home")
@@ -38,18 +34,10 @@ Item {
     Timer {
         id: scanDelayTimer
         interval: 5000
-        onTriggered: {
-            GameService.scanAllLibraries()
-            if (SettingsManager.showNotifications)
-                updateCheckTimer.start()
-        }
+        onTriggered: GameService.scanAllLibraries()
     }
 
-    Timer {
-        id: updateCheckTimer
-        interval: 2500
-        onTriggered: UpdateChecker.checkForUpdatesIfNeeded()
-    }
+    // Update check handled by UpdateService in main.cpp startup.
 
     // Current sub-page index: 0=Home, 1=Library
     property int currentPage: 0

@@ -56,12 +56,12 @@ constexpr int VERSION_PATCH = 0;
 /**
  * @brief Pre-release suffix (e.g., "alpha", "beta", "rc1", or empty)
  */
-constexpr const char* VERSION_PRERELEASE = "alpha";
+constexpr const char* VERSION_PRERELEASE = "pre-alpha";
 
 /**
  * @brief Full version string
  */
-constexpr const char* VERSION_STRING = "0.1.0-alpha";
+constexpr const char* VERSION_STRING = "0.1.0-pre-alpha";
 
 /**
  * @brief Short version string (no pre-release)
@@ -482,8 +482,15 @@ constexpr SemanticVersion CURRENT_VERSION{VERSION_MAJOR, VERSION_MINOR, VERSION_
 
 /**
  * @brief Version string macro
+ *
+ * If CMake defines MAKINEAI_APP_VERSION, use that (single source of truth).
+ * Otherwise fall back to the constexpr VERSION_STRING above.
  */
-#define MAKINEAI_VERSION_STRING "0.1.0-alpha"
+#ifdef MAKINEAI_APP_VERSION
+#define MAKINEAI_VERSION_STRING MAKINEAI_APP_VERSION
+#else
+#define MAKINEAI_VERSION_STRING "0.1.0-pre-alpha"
+#endif
 
 /**
  * @brief Encode version as single number

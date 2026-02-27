@@ -76,7 +76,7 @@ ApplicationWindow {
         onShowRequested: {
             window.show(); window.raise(); window.requestActivate()
         }
-        onCheckUpdatesRequested: UpdateChecker.checkForUpdates()
+        onCheckUpdatesRequested: UpdateService.check()
         onSettingsRequested: {
             window.show(); window.raise(); window.requestActivate()
             window.currentNavIndex = 2
@@ -98,7 +98,7 @@ ApplicationWindow {
             trayPopup.showAt(x, y)
         }
         function onUpdateCheckRequested() {
-            UpdateChecker.checkForUpdates()
+            UpdateService.check()
         }
     }
 

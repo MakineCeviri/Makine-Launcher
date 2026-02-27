@@ -138,6 +138,138 @@ Item {
 
         Item { Layout.fillWidth: true }
 
+        // Update status badge — premium dot + label, all driven by C++
+        Rectangle {
+            id: updateBadge
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: _badgeRow.width + 16
+            Layout.preferredHeight: 26
+            radius: 13
+            color: UpdateService.indicatorVisible
+                   ? (_statusMouse.containsMouse ? Theme.primary15 : Theme.primary06)
+                   : "transparent"
+            border.width: UpdateService.indicatorVisible ? 1 : 0
+            border.color: Theme.primary20
+
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            // Subtle pulse for Available state
+            property real _pulse: 1.0
+            opacity: UpdateService.state === UpdateService.Available ? _pulse : 1.0
+            SequentialAnimation on _pulse {
+                running: UpdateService.state === UpdateService.Available
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.65; duration: 1200; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0; duration: 1200; easing.type: Easing.InOutSine }
+            }
+
+            Row {
+                id: _badgeRow
+                anchors.centerIn: parent
+                spacing: 6
+
+                // Status dot
+                Rectangle {
+                    width: 6; height: 6; radius: 3
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !UpdateService.busy
+                    color: UpdateService.indicatorVisible ? Theme.primary : Theme.success
+                }
+
+                // Spinning indicator for busy states
+                BusyIndicator {
+                    width: 14; height: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    running: UpdateService.busy
+                    visible: running
+                    palette.dark: Theme.primary
+                }
+
+                // Label — directly from C++
+                Text {
+                    textFormat: Text.PlainText
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: UpdateService.navLabel
+                    font.pixelSize: 11
+                    font.weight: UpdateService.indicatorVisible ? Font.DemiBold : Font.Medium
+                    color: UpdateService.indicatorVisible ? Theme.primary : Theme.textMuted
+                }
+
+                // Action icon for actionable states
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    textFormat: Text.PlainText
+                    font.family: "Segoe MDL2 Assets"
+                    font.pixelSize: 13
+                    visible: UpdateService.navIcon !== ""
+                    text: UpdateService.navIcon
+                    color: UpdateService.state === UpdateService.Ready ? Theme.success : Theme.primary
+                }
+
+                // Mini progress ring
+                Canvas {
+                    id: progressRing
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 16; height: 16
+                    visible: UpdateService.state === UpdateService.Downloading
+                             || UpdateService.state === UpdateService.Verifying
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var cx = width / 2, cy = height / 2, r = 6
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+                        ctx.strokeStyle = Theme.primary20
+                        ctx.lineWidth = 2
+                        ctx.stroke()
+                        if (UpdateService.progress > 0) {
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, -Math.PI / 2,
+                                    -Math.PI / 2 + UpdateService.progress * Math.PI * 2)
+                            ctx.strokeStyle = Theme.primary
+                            ctx.lineWidth = 2
+                            ctx.stroke()
+                        }
+                    }
+                    Connections {
+                        target: UpdateService
+                        function onProgressChanged() { progressRing.requestPaint() }
+                    }
+                }
+            }
+
+            ToolTip {
+                visible: _statusMouse.containsMouse && UpdateService.indicatorVisible
+                delay: 400
+                text: UpdateService.statusText
+            }
+
+            MouseArea {
+                id: _statusMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: UpdateService.actionable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: function(mouse) {
+                    if (!UpdateService.actionable) return
+                    if (mouse.button === Qt.RightButton) {
+                        if (UpdateService.state === UpdateService.Available)
+                            UpdateService.dismiss()
+                        return
+                    }
+                    switch (UpdateService.state) {
+                    case UpdateService.Available:
+                        UpdateService.download(); break
+                    case UpdateService.Downloading:
+                    case UpdateService.Verifying:
+                        UpdateService.cancel(); break
+                    case UpdateService.Ready:
+                        UpdateService.install(); break
+                    }
+                }
+            }
+        }
+
         // Settings
         Item {
             id: settingsItem

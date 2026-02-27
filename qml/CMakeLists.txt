@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(MakineAI VERSION 0.1.0 LANGUAGES CXX)
+# Version inherited from parent CMakeLists.txt (MAKINEAI_VERSION_FULL)
+# Fallback for standalone builds
+if(NOT DEFINED MAKINEAI_VERSION_FULL)
+    project(MakineAI VERSION 0.1.0 LANGUAGES CXX)
+    set(MAKINEAI_VERSION_SUFFIX "pre-alpha")
+    set(MAKINEAI_VERSION_FULL "${PROJECT_VERSION}-${MAKINEAI_VERSION_SUFFIX}")
+else()
+    project(MakineAI VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -95,7 +103,8 @@ set(BACKEND_SOURCES
     src/services/batchoperationservice.cpp
     src/services/localpackagemanager.cpp
     src/services/updatedetectionservice.cpp
-    src/services/updatechecker.cpp
+    src/services/updateservice.cpp
+    src/services/selfupdater.cpp
     src/services/operationjournal.cpp
     src/services/appprotection.cpp
     src/services/imagecachemanager.cpp
@@ -117,7 +126,8 @@ set(BACKEND_HEADERS
     src/services/localpackagemanager.h
     src/services/vdfparser.h
     src/services/updatedetectionservice.h
-    src/services/updatechecker.h
+    src/services/updateservice.h
+    src/services/selfupdater.h
     src/services/pathsecurity.h
     src/services/operationjournal.h
     src/services/appprotection.h
@@ -143,8 +153,10 @@ qt_add_executable(MakineAI
 )
 
 # Windows resource file: icon, manifest (DPI/UTF-8/visual styles), version info
+# Generated from app.rc.in — version strings come from CMake
 if(WIN32)
-    target_sources(MakineAI PRIVATE resources/app.rc)
+    configure_file(resources/app.rc.in "${CMAKE_CURRENT_BINARY_DIR}/app.rc" @ONLY)
+    target_sources(MakineAI PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
 endif()
 
 # Mark singleton files BEFORE qt_add_qml_module
@@ -371,6 +383,11 @@ else()
     # Define MAKINEAI_UI_ONLY macro for stub implementations
     target_compile_definitions(MakineAI PRIVATE MAKINEAI_UI_ONLY)
 endif()
+
+# Version string — single source from top-level CMakeLists.txt
+target_compile_definitions(MakineAI PRIVATE
+    MAKINEAI_APP_VERSION="${MAKINEAI_VERSION_FULL}"
+)
 
 # Dev tools (FrameTimer, PerfReporter, F3 overlay) — off in release builds
 # These sources are conditionally compiled to keep release binary clean:

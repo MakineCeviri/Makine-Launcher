@@ -36,11 +36,8 @@
 
 #pragma once
 
-// Version information
-#define MAKINEAI_VERSION_MAJOR 0
-#define MAKINEAI_VERSION_MINOR 1
-#define MAKINEAI_VERSION_PATCH 0
-#define MAKINEAI_VERSION_STRING "0.1.0-alpha"
+// Version — single source of truth in version.hpp
+#include "version.hpp"
 
 // Core headers
 #include "types.hpp"

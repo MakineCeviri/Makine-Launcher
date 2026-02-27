@@ -409,7 +409,9 @@ private:
             HFONT oldFont = (HFONT)SelectObject(mem, verFont);
             SetTextColor(mem, RGB(60, 60, 75));
             RECT verRc = {0, h - 24, w - 14, h - 8};
-            DrawTextW(mem, L"v0.1.0-alpha", -1, &verRc, DT_RIGHT | DT_SINGLELINE);
+            // Version from CMake — MAKINEAI_APP_VERSION is narrow, convert to wide
+            auto _verStr = QStringLiteral("v" MAKINEAI_APP_VERSION);
+            DrawTextW(mem, (LPCWSTR)_verStr.utf16(), -1, &verRc, DT_RIGHT | DT_SINGLELINE);
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
 
@@ -545,7 +547,7 @@ void logToFile(const QString& msg) {
 #include "services/systemtraymanager.h"
 #include "services/integrityservice.h"
 #include "services/batchoperationservice.h"
-#include "services/updatechecker.h"
+#include "services/updateservice.h"
 #include "services/operationjournal.h"
 #include "services/imagecachemanager.h"
 #include "services/manifestsyncservice.h"
@@ -588,25 +590,50 @@ int main(int argc, char *argv[])
     qputenv("QV4_MM_AGGRESSIVE_GC", "1");
 
     // Single instance check
-    QSharedMemory cleanupMemory("MakineAI_SingleInstance_Guard");
-    if (cleanupMemory.attach()) {
-        cleanupMemory.detach();
-    }
-
-    QSharedMemory singleInstanceGuard("MakineAI_SingleInstance_Guard");
-    if (!singleInstanceGuard.create(1)) {
-        if (singleInstanceGuard.attach()) {
-#ifdef Q_OS_WIN
-            MessageBoxW(nullptr,
-                L"MakineAI zaten çalışıyor.\n\n"
-                L"Lütfen sistem tepsisindeki simgeyi kontrol edin "
-                L"veya görev yöneticisinden kapatın.",
-                L"MakineAI",
-                MB_OK | MB_ICONWARNING);
-#endif
-            return 0;
+    // When launched with --post-update, the old process may still be exiting.
+    // Retry a few times to allow the kernel to release the shared memory handle.
+    bool isPostUpdate = false;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--post-update") == 0) {
+            isPostUpdate = true;
+            break;
         }
     }
+
+    const int maxRetries = isPostUpdate ? 10 : 1;
+    bool instanceAcquired = false;
+
+    for (int attempt = 0; attempt < maxRetries; ++attempt) {
+        QSharedMemory cleanupMemory("MakineAI_SingleInstance_Guard");
+        if (cleanupMemory.attach())
+            cleanupMemory.detach();
+
+        QSharedMemory testGuard("MakineAI_SingleInstance_Guard");
+        if (testGuard.create(1)) {
+            instanceAcquired = true;
+            break;
+        }
+
+        if (attempt + 1 < maxRetries)
+            Sleep(500);  // Wait 500ms before retry
+    }
+
+    // Persistent guard — lives for the lifetime of the process
+    QSharedMemory singleInstanceGuard("MakineAI_SingleInstance_Guard");
+    if (!instanceAcquired) {
+        // Last attempt failed — show error
+        singleInstanceGuard.attach(); // ensure cleanup on exit
+#ifdef Q_OS_WIN
+        MessageBoxW(nullptr,
+            L"MakineAI zaten çalışıyor.\n\n"
+            L"Lütfen sistem tepsisindeki simgeyi kontrol edin "
+            L"veya görev yöneticisinden kapatın.",
+            L"MakineAI",
+            MB_OK | MB_ICONWARNING);
+#endif
+        return 0;
+    }
+    singleInstanceGuard.create(1);
 
     QGuiApplication app(argc, argv);
 
@@ -639,7 +666,7 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(false);
     app.setApplicationName("MakineAI");
     app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - MakineAI"));
-    app.setApplicationVersion("0.1.0-alpha");
+    app.setApplicationVersion(MAKINEAI_APP_VERSION);
     app.setOrganizationName("MakineAI");
     app.setOrganizationDomain("makineai.com");
     app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
@@ -691,6 +718,12 @@ int main(int argc, char *argv[])
     AppPaths::ensureDirectories();
     AppPaths::migrateFromFlatLayout();
 
+    // Post-update cleanup (delegate to UpdateService)
+    if (isPostUpdate) {
+        UpdateService::handlePostUpdate();
+        logToFile("Post-update cleanup completed");
+    }
+
 #ifdef Q_OS_WIN
     splash.setStatus(L"Yap\u0131land\u0131rma y\u00FCkleniyor...");
 #endif
@@ -721,6 +754,8 @@ int main(int argc, char *argv[])
     qmlRegisterUncreatableType<makineai::SupportedGamesModel>("MakineAI", 1, 0,
         "SupportedGamesModel", "Use GameService.supportedGamesModel");
     qmlRegisterType<makineai::CatalogProxyModel>("MakineAI", 1, 0, "CatalogProxyModel");
+
+    // UpdateService registered as singleton instance in Phase 7 (below)
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
 #ifdef Q_OS_WIN
@@ -772,12 +807,19 @@ int main(int argc, char *argv[])
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
-    // ===== Phase 7: Update checker + system tray =====
+    // ===== Phase 7: Update service + system tray =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"G\u00FCncelleme servisi haz\u0131rlan\u0131yor...");
 #endif
-    auto* updateChecker = new UpdateChecker(&app);
-    engine.rootContext()->setContextProperty("UpdateChecker", updateChecker);
+    auto* updateService = UpdateService::create(nullptr, nullptr);
+    updateService->setParent(&app);
+    // Singleton instance: exposes BOTH the instance AND Q_ENUM(State) values to QML.
+    // (setContextProperty only exposes the instance — enum constants resolve to undefined)
+    qmlRegisterSingletonInstance("MakineAI", 1, 0, "UpdateService", updateService);
+
+    // Startup update check — once, async, unless we just updated
+    if (!isPostUpdate)
+        updateService->check();
 
 #ifdef Q_OS_WIN
     splash.setStatus(L"Sistem tepsisi yap\u0131land\u0131r\u0131l\u0131yor...");

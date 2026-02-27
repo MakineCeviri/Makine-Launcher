@@ -12,8 +12,8 @@ QtObject {
     // =========================================================================
 
     readonly property string appName: "MakineAI"
-    readonly property string appVersion: "0.1.0-alpha"
-    readonly property string appVersionFull: "v0.1.0-alpha"
+    readonly property string appVersion: Qt.application.version
+    readonly property string appVersionFull: "v" + Qt.application.version
 
     // =========================================================================
     // EXTERNAL LINKS

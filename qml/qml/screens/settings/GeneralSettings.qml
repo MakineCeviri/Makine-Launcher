@@ -286,7 +286,7 @@ ColumnLayout {
 
             SettingsDivider {}
 
-            // Update check
+            // Update check — single State enum drives all UI
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 0
@@ -318,26 +318,36 @@ ColumnLayout {
                             Label {
                                 textFormat: Text.PlainText
                                 text: {
-                                    if (UpdateChecker.downloading)
-                                        return qsTr("İndiriliyor... %1%").arg(Math.round(UpdateChecker.downloadProgress * 100))
-                                    if (UpdateChecker.readyToInstall)
+                                    switch (UpdateService.state) {
+                                    case UpdateService.Checking:
+                                        return qsTr("Kontrol ediliyor...")
+                                    case UpdateService.Available:
+                                        return qsTr("Yeni sürüm mevcut: %1").arg(UpdateService.version)
+                                    case UpdateService.Downloading:
+                                        return qsTr("İndiriliyor... %1%").arg(Math.round(UpdateService.progress * 100))
+                                    case UpdateService.Verifying:
+                                        return qsTr("Doğrulanıyor...")
+                                    case UpdateService.Ready:
                                         return qsTr("Güncelleme kurulmaya hazır")
-                                    switch (UpdateChecker.statusType) {
-                                        case "checking": return qsTr("Kontrol ediliyor...")
-                                        case "updateAvailable": return qsTr("Yeni sürüm mevcut: %1").arg(UpdateChecker.latestVersion)
-                                        case "upToDate": return qsTr("Güncel sürümdesiniz")
-                                        case "error": return qsTr("Kontrol başarısız oldu")
-                                        default: return qsTr("Son kontrol yapılmadı")
+                                    case UpdateService.Installing:
+                                        return qsTr("Güncelleme kuruluyor...")
+                                    case UpdateService.Idle:
+                                        return UpdateService.error ? qsTr("Kontrol başarısız oldu")
+                                                                   : qsTr("Güncel sürümdesiniz")
+                                    default:
+                                        return qsTr("Son kontrol yapılmadı")
                                     }
                                 }
                                 font.pixelSize: Dimensions.fontBody
                                 color: {
-                                    if (UpdateChecker.downloading) return Theme.primary
-                                    if (UpdateChecker.readyToInstall) return Theme.success
-                                    switch (UpdateChecker.statusType) {
-                                        case "updateAvailable": return Theme.success
-                                        case "error": return Theme.error
-                                        default: return Theme.textMuted
+                                    switch (UpdateService.state) {
+                                    case UpdateService.Available: return Theme.success
+                                    case UpdateService.Downloading:
+                                    case UpdateService.Verifying: return Theme.primary
+                                    case UpdateService.Ready: return Theme.success
+                                    case UpdateService.Idle:
+                                        return UpdateService.error ? Theme.error : Theme.textMuted
+                                    default: return Theme.textMuted
                                     }
                                 }
                                 Layout.fillWidth: true
@@ -345,12 +355,12 @@ ColumnLayout {
                             }
                         }
 
-                        // Check button
+                        // Check button — visible in Idle state
                         Rectangle {
                             Layout.preferredWidth: _updateBtnLbl.width + 24
                             Layout.preferredHeight: 28
                             radius: Dimensions.radiusMD
-                            visible: !UpdateChecker.checking && !UpdateChecker.downloading && !UpdateChecker.readyToInstall
+                            visible: UpdateService.state === UpdateService.Idle
                             color: _updateBtnMouse.containsMouse
                                 ? Theme.primary20
                                 : Theme.primary10
@@ -373,16 +383,16 @@ ColumnLayout {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateChecker.checkForUpdates()
+                                onClicked: UpdateService.check()
                             }
                         }
 
-                        // Download button
+                        // Download button — visible in Available state
                         Rectangle {
                             Layout.preferredWidth: _dlBtnLbl.width + 24
                             Layout.preferredHeight: 28
                             radius: Dimensions.radiusMD
-                            visible: UpdateChecker.updateAvailable && !UpdateChecker.checking && !UpdateChecker.downloading && !UpdateChecker.readyToInstall
+                            visible: UpdateService.state === UpdateService.Available
                             color: _dlBtnMouse.containsMouse ? Theme.success : Theme.success85
                             scale: _dlBtnMouse.pressed ? 0.94 : 1.0
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -403,16 +413,17 @@ ColumnLayout {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateChecker.downloadUpdate()
+                                onClicked: UpdateService.download()
                             }
                         }
 
-                        // Cancel button
+                        // Cancel button — visible while downloading/verifying
                         Rectangle {
                             Layout.preferredWidth: _cancelBtnLbl.width + 24
                             Layout.preferredHeight: 28
                             radius: Dimensions.radiusMD
-                            visible: UpdateChecker.downloading
+                            visible: UpdateService.state === UpdateService.Downloading
+                                     || UpdateService.state === UpdateService.Verifying
                             color: _cancelBtnMouse.containsMouse
                                 ? Theme.error20
                                 : Theme.error10
@@ -433,16 +444,16 @@ ColumnLayout {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateChecker.cancelDownload()
+                                onClicked: UpdateService.cancel()
                             }
                         }
 
-                        // Install button
+                        // Install button — visible when Ready
                         Rectangle {
                             Layout.preferredWidth: _installBtnLbl.width + 24
                             Layout.preferredHeight: 28
                             radius: Dimensions.radiusMD
-                            visible: UpdateChecker.readyToInstall
+                            visible: UpdateService.state === UpdateService.Ready
                             color: _installBtnMouse.containsMouse ? Theme.success : Theme.success85
                             scale: _installBtnMouse.pressed ? 0.94 : 1.0
                             Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
@@ -463,7 +474,7 @@ ColumnLayout {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateChecker.installUpdate()
+                                onClicked: UpdateService.install()
                             }
                         }
 
@@ -471,8 +482,8 @@ ColumnLayout {
                         BusyIndicator {
                             Layout.preferredWidth: 24
                             Layout.preferredHeight: 24
-                            running: UpdateChecker.checking
-                            visible: UpdateChecker.checking
+                            running: UpdateService.state === UpdateService.Checking
+                            visible: running
                             palette.dark: Theme.primary
                         }
                     }
@@ -481,10 +492,12 @@ ColumnLayout {
                 // Download progress bar
                 Item {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: UpdateChecker.downloading ? 28 : 0
+                    Layout.preferredHeight: (UpdateService.state === UpdateService.Downloading
+                                            || UpdateService.state === UpdateService.Verifying) ? 28 : 0
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
-                    visible: UpdateChecker.downloading
+                    visible: UpdateService.state === UpdateService.Downloading
+                             || UpdateService.state === UpdateService.Verifying
 
                     Behavior on Layout.preferredHeight {
                         NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
@@ -501,7 +514,7 @@ ColumnLayout {
                             color: Theme.primary15
 
                             Rectangle {
-                                width: parent.width * UpdateChecker.downloadProgress
+                                width: parent.width * UpdateService.progress
                                 height: parent.height
                                 radius: 3
                                 color: Theme.primary
@@ -515,8 +528,8 @@ ColumnLayout {
                         Label {
                             textFormat: Text.PlainText
                             text: {
-                                var sizeMB = UpdateChecker.installerSize / (1024 * 1024)
-                                var downloadedMB = sizeMB * UpdateChecker.downloadProgress
+                                var sizeMB = UpdateService.totalBytes / (1024 * 1024)
+                                var downloadedMB = sizeMB * UpdateService.progress
                                 return qsTr("%1 / %2 MB").arg(downloadedMB.toFixed(1)).arg(sizeMB.toFixed(1))
                             }
                             font.pixelSize: Dimensions.fontXS
@@ -530,10 +543,10 @@ ColumnLayout {
                 // Error message
                 Item {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: UpdateChecker.downloadError ? 32 : 0
+                    Layout.preferredHeight: UpdateService.error ? 32 : 0
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
-                    visible: UpdateChecker.downloadError !== ""
+                    visible: UpdateService.error !== ""
 
                     Behavior on Layout.preferredHeight {
                         NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
@@ -545,7 +558,7 @@ ColumnLayout {
 
                         Label {
                             textFormat: Text.PlainText
-                            text: UpdateChecker.downloadError
+                            text: UpdateService.error
                             font.pixelSize: Dimensions.fontSM
                             color: Theme.error
                             Layout.fillWidth: true
@@ -575,7 +588,7 @@ ColumnLayout {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateChecker.downloadUpdate()
+                                onClicked: UpdateService.download()
                             }
                         }
                     }
