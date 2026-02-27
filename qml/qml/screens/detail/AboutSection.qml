@@ -76,53 +76,40 @@ Rectangle {
 
         SettingsDivider { variant: "section" }
 
-        // Hidden measurement: detects if description overflows 2 lines
-        Text {
-            id: _descMeasure
-            visible: false
-            width: contentLayout.width
-            text: aboutRoot._displayText
-            font.pixelSize: Dimensions.fontBody
-            wrapMode: Text.WordWrap; lineHeight: 1.6
-            maximumLineCount: 2
-        }
-
-        // Description with inline "daha fazla göster"
+        // Description — native elide, no hidden measurement Text
         Text {
             id: descText
-            textFormat: _descMeasure.truncated && !aboutRoot.vm.descriptionExpanded
-                ? Text.StyledText : Text.PlainText
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: aboutRoot._displayText !== ""
-            text: {
-                var desc = aboutRoot._displayText
-                if (aboutRoot.vm.descriptionExpanded || !_descMeasure.truncated)
-                    return desc
-
-                // Estimate chars that fit in 2 lines, leave room for link
-                var avgCharW = Dimensions.fontBody * 0.52
-                var charsPerLine = Math.floor(descText.width / avgCharW)
-                var cutAt = Math.max(20, charsPerLine * 2 - 24)
-                if (cutAt >= desc.length) return desc
-
-                var cut = desc.substring(0, cutAt)
-                var sp = cut.lastIndexOf(' ')
-                if (sp > cutAt * 0.5) cut = cut.substring(0, sp)
-
-                return cut + "<font color=\"" + Theme.primary + "\">... daha fazla göster</font>"
-            }
+            text: aboutRoot._displayText
             font.pixelSize: Dimensions.fontBody
             color: Theme.textSecondary
             wrapMode: Text.WordWrap; lineHeight: 1.6
             maximumLineCount: aboutRoot.vm.descriptionExpanded ? 9999 : 2
+            elide: Text.ElideRight
 
             MouseArea {
-                id: expandMouse
                 anchors.fill: parent
                 hoverEnabled: true
-                cursorShape: _descMeasure.truncated && !aboutRoot.vm.descriptionExpanded
+                cursorShape: descText.truncated && !aboutRoot.vm.descriptionExpanded
                     ? Qt.PointingHandCursor : Qt.ArrowCursor
-                enabled: _descMeasure.truncated && !aboutRoot.vm.descriptionExpanded
+                enabled: descText.truncated && !aboutRoot.vm.descriptionExpanded
+                onClicked: aboutRoot.vm.descriptionExpanded = true
+            }
+        }
+
+        // "Daha fazla göster" link — only when collapsed and truncated
+        Text {
+            visible: descText.truncated && !aboutRoot.vm.descriptionExpanded
+            text: qsTr("daha fazla göster")
+            font.pixelSize: Dimensions.fontBody
+            color: Theme.primary
+            opacity: 0.9
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
                 onClicked: aboutRoot.vm.descriptionExpanded = true
             }
         }

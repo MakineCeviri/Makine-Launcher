@@ -124,9 +124,13 @@ Item {
             Image {
                 id: gameLogo
                 Layout.fillWidth: true
-                Layout.preferredHeight: status === Image.Ready ? implicitHeight * (width / implicitWidth) : 0
+                // Cache aspect ratio once on load — avoids recalc on every width change
+                property real _aspect: 0
+                onStatusChanged: if (status === Image.Ready && implicitWidth > 0)
+                    _aspect = implicitHeight / implicitWidth
+                Layout.preferredHeight: _aspect > 0 ? Math.min(width * _aspect, 80) : 0
                 Layout.maximumHeight: 80
-                visible: status === Image.Ready
+                visible: _aspect > 0
                 source: heroRoot.vm.logoUrl
                 fillMode: Image.PreserveAspectFit
                 horizontalAlignment: Image.AlignLeft
@@ -138,7 +142,7 @@ Item {
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
-                visible: gameLogo.status !== Image.Ready
+                visible: gameLogo._aspect === 0
                 text: heroRoot.vm.gameName
                 font.pixelSize: Dimensions.fontBanner
                 font.weight: Font.Bold
