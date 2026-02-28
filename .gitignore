@@ -167,6 +167,7 @@ CLAUDE.md
 .claude.local.md
 CONTRIBUTING.md
 CODE_OF_CONDUCT.md
+scripts/legacy/
 .wrangler/
 docs/_build/
 docs/html/
