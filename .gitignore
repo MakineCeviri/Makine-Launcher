@@ -1,13 +1,6 @@
-# ==============================================================================
-# MakineAI .gitignore
-# Qt6/QML + C++20/23 + vcpkg + CMake + Windows
-# ==============================================================================
+# MakineAI .gitignore — Qt6/QML + C++23 + vcpkg + CMake + Windows
 
-# ==============================================================================
-# BUILD OUTPUTS
-# ==============================================================================
-
-# CMake
+# Build
 build/
 build_*/
 out/
@@ -51,146 +44,82 @@ ipch/
 .qtcreator/
 .qt/
 
-# ==============================================================================
-# COMPILED & BINARY
-# ==============================================================================
-
-# Object files
+# Compiled
 *.o
 *.obj
 *.ko
 *.elf
-
-# Libraries
 *.a
 *.lib
 *.la
 *.lo
-
-# Shared libraries
 *.dll
 *.so
 *.so.*
 *.dylib
-
-# Executables
 *.exe
 *.out
 *.app
-
-# Debug symbols
 *.pdb
 *.ilk
 *.exp
 *.idb
 *.dSYM/
-
-# Linker maps & Windows resource outputs
 *.map
 *.res
-
-# Precompiled headers
 *.gch
 *.pch
 
-# ==============================================================================
-# QT SPECIFIC
-# ==============================================================================
-
-# MOC/UIC/RCC generated
+# Qt generated
 moc_*.cpp
 moc_*.h
 ui_*.h
 qrc_*.cpp
-
-# QML compiled
 *.qmlc
 *.jsc
-
-# Qt meta
 *_metatypes.json
 *_qmltyperegistrations.cpp
 *_qmlcache.qrc
 *.autosave
 *.windeployqt.log
 
-# ==============================================================================
-# VCPKG & DEPENDENCIES
-# ==============================================================================
-
+# Dependencies
 vcpkg_installed/
-
-# ==============================================================================
-# IDE & EDITORS
-# ==============================================================================
-
-# JetBrains
-.idea/
-*.iml
-*.iws
-*.ipr
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# Sublime
-*.sublime-project
-*.sublime-workspace
-
-# Vim
-*.swp
-*.swo
-*~
-Session.vim
-tags
-
-# Emacs
-\#*\#
-.#*
-*.elc
-
-# ==============================================================================
-# PACKAGE MANAGERS
-# ==============================================================================
-
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 
-# ==============================================================================
-# OS GENERATED
-# ==============================================================================
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+Session.vim
+tags
+\#*\#
+.#*
+*.elc
 
-# Windows
+# OS
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
-
-# macOS
 .DS_Store
-.AppleDouble
-.LSOverride
 ._*
-.Spotlight-V100
-.Trashes
-
-# Linux
 .fuse_hidden*
 .directory
 .Trash-*
 
-# ==============================================================================
-# LOGS & TEMP FILES
-# ==============================================================================
-
+# Logs & temp
 *.log
 *_log.txt
 logs/
@@ -203,18 +132,13 @@ logs/
 .cache/
 nul
 
-# ==============================================================================
-# SECRETS & CREDENTIALS
-# ==============================================================================
-
+# Secrets
 .env
 .env.*
 !.env.example
 *.local
-secrets.json
-secrets.yaml
-secrets.yml
-secrets.toml
+secrets.*
+!secrets.example.*
 *.key
 .encryption_key
 scripts/.encryption_key
@@ -223,14 +147,10 @@ scripts/r2_config.json
 *.p12
 *.pfx
 scripts/certs/
-credentials.json
-credentials.yaml
-credentials.yml
+credentials.*
+!credentials.example.*
 
-# ==============================================================================
-# TEST & COVERAGE
-# ==============================================================================
-
+# Test & coverage
 test_output/
 coverage/
 *.gcov
@@ -240,30 +160,17 @@ htmlcov/
 .coverage
 .pytest_cache/
 
-# ==============================================================================
-# PROJECT SPECIFIC
-# ==============================================================================
-
-# Translation data (large, separate repo)
+# Project specific
 translation_data/
-
-# AI assistants (personal/local only)
 .claude/
+CLAUDE.md
 .claude.local.md
-
-# Documentation build output
+.wrangler/
 docs/_build/
 docs/html/
 docs/latex/
-
-# Distribution outputs
 dist/
 dist-static/
-
-# Showcase image validation cache
 scripts/showcase_validation.json
-
-# Temporary scripts
 *.ps1
 !scripts/**/*.ps1
-
