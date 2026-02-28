@@ -228,7 +228,6 @@ qt_add_qml_module(MakineAI
         qml/components/TitleBar.qml               # Custom frameless title bar
         qml/components/NavBar.qml                 # Bottom navigation bar
         qml/components/NavItem.qml                # Navigation tab item
-        qml/components/WindowResizeHandles.qml    # Frameless window resize
         #
         # Layout: Section containers
         qml/components/SectionContainer.qml       # Glassmorphic section wrapper
@@ -237,7 +236,6 @@ qt_add_qml_module(MakineAI
         #
         # Visual: Decorative and feedback
         qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip
-        qml/components/AnimatedGradientGlow.qml   # Animated glow effect
         qml/components/SkeletonLoader.qml         # Generic loading skeleton
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         #
@@ -260,8 +258,6 @@ qt_add_qml_module(MakineAI
         qml/components/TrayPopup.qml              # System tray context menu
         qml/components/GradientBorder.qml         # Apple-style gradient border
         qml/components/HorizontalGameStrip.qml  # Horizontal scrolling game card strip
-        qml/components/NotificationBanner.qml     # Dismissable notification bar
-        qml/components/GameStatusCard.qml         # Game scanning status card
 
         # Controllers (Main.qml decomposition)
         qml/controllers/GameDataResolver.qml

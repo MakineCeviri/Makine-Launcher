@@ -248,7 +248,7 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
         }
     }
 
-    // Fetch from GitHub
+    // Fetch from CDN
     m_pendingDetails.insert(appId);
 
     QNetworkRequest req{QUrl{packageUrl(appId)}};

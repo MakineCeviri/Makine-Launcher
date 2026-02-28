@@ -245,8 +245,7 @@ void GameService::setManifestSync(ManifestSyncService* sync)
     if (sync) {
         connect(sync, &ManifestSyncService::catalogReady, this, [this]() {
             // Remote catalog updated — invalidate supported games cache
-            m_supportedCacheValid = false;
-            m_supportedGamesCache.clear();
+            invalidateSupportedCache();
             qDebug() << "catalogReady received — rebuilding model";
             // Defer to next event loop so refreshPackageManifest completes first
             QTimer::singleShot(0, this, [this]{
@@ -334,8 +333,7 @@ void GameService::setupCoreBridge()
                         if (idx >= 0 && idx < m_games.count()) {
                             m_games[idx].hasTranslation = true;
                             m_games[idx].isVerified = true;
-                            invalidateTranslationCache();
-                            invalidateSupportedCache();
+                            invalidateAllCaches();
                             // Granular model update (no full reset)
                             m_supportedGamesModel->updatePackageStatus(m_games[idx].steamAppId, true);
                             emit translationStatusChanged();
@@ -1384,7 +1382,7 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         m_packageInstalledCache[gameId] = false;
         // Granular model update
         m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
-        invalidateTranslationCache();
+        invalidateAllCaches();
         emit translationStatusChanged();
 
         m_updateService.removeSnapshot(gameId);
