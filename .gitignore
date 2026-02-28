@@ -165,6 +165,8 @@ translation_data/
 .claude/
 CLAUDE.md
 .claude.local.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
 .wrangler/
 docs/_build/
 docs/html/
