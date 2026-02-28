@@ -155,6 +155,18 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
         newCatalog.insert(it.key(), ce);
     }
 
+    // Invalidate detail cache for packages whose version changed
+    const QString detailDir = AppPaths::packageDetailDir();
+    for (auto it = newCatalog.constBegin(); it != newCatalog.constEnd(); ++it) {
+        auto old = m_catalog.constFind(it.key());
+        if (old != m_catalog.constEnd() && old->version != it->version) {
+            m_packageDetails.remove(it.key());
+            QFile::remove(detailDir + QStringLiteral("/%1.json").arg(it.key()));
+            qDebug() << "ManifestSync: invalidated detail cache for" << it.key()
+                     << "(version" << old->version << "->" << it->version << ")";
+        }
+    }
+
     m_catalog = std::move(newCatalog);
 }
 

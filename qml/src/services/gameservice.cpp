@@ -1442,6 +1442,12 @@ void GameService::recoverTranslation(const QString& gameId)
     uninstallTranslation(gameId);
 }
 
+bool GameService::hasTranslationUpdate(const QString& gameId) const
+{
+    if (!m_coreBridge) return false;
+    return m_coreBridge->hasTranslationUpdate(gameId);
+}
+
 bool GameService::hasGameUpdate(const QString& gameId) const
 {
     return m_updateService.hasUpdate(gameId);
@@ -1668,6 +1674,21 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
         }
     }
     return {};
+}
+
+void GameService::checkForUpdates()
+{
+    qInfo() << "GameService: checking for updates...";
+
+    // Re-sync manifest from CDN
+    if (m_manifestSync)
+        m_manifestSync->syncCatalog();
+
+    // Rescan game libraries
+    scanAllLibraries();
+
+    // Re-check installed translation states
+    checkAllInstalledTranslations();
 }
 
 } // namespace makineai

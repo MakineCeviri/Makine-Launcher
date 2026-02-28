@@ -387,8 +387,10 @@ else()
 endif()
 
 # Version string — single source from top-level CMakeLists.txt
+set(MAKINEAI_SENTRY_RELEASE "makineai@${MAKINEAI_VERSION_FULL}")
 target_compile_definitions(MakineAI PRIVATE
     MAKINEAI_APP_VERSION="${MAKINEAI_VERSION_FULL}"
+    MAKINEAI_SENTRY_RELEASE="${MAKINEAI_SENTRY_RELEASE}"
 )
 
 # Dev tools (FrameTimer, PerfReporter, F3 overlay) — off in release builds

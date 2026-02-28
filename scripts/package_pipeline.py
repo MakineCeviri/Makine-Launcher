@@ -309,6 +309,8 @@ def update_manifest(
     with open(manifest_path, "r", encoding="utf-8") as f:
         index = json.load(f)
 
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+
     updated_count = 0
     for app_id, r in result_map.items():
         if app_id in index.get("packages", {}):
@@ -316,6 +318,7 @@ def update_manifest(
             entry["size"] = r["encryptedSize"]
             entry["dataUrl"] = f"{r2_base_url}/{app_id}.mkpkg"
             entry["checksum"] = r["checksum"]
+            entry["v"] = today  # Bump version date for update detection
             updated_count += 1
 
     # Bump generatedAt
@@ -336,6 +339,7 @@ def update_manifest(
             pkg["compressedSize"] = r["encryptedSize"]
             pkg["compressedChecksum"] = r["checksum"]
             pkg["dataUrl"] = f"{r2_base_url}/{app_id}.mkpkg"
+            pkg["lastUpdated"] = today  # Bump version date
             with open(pkg_path, "w", encoding="utf-8") as f:
                 json.dump(pkg, f, indent=2, ensure_ascii=False)
             per_game_updated += 1

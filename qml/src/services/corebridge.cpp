@@ -914,6 +914,27 @@ QVariantList CoreBridge::findMatchingGamesFromFiles(const QString& gamePath)
     return m_localPkgManager->findMatchingGamesFromFiles(exeNames, engine, topEntries, folderName);
 }
 
+bool CoreBridge::hasTranslationUpdate(const QString& gameId)
+{
+    MAKINE_ZONE_NAMED("CoreBridge::hasTranslationUpdate");
+    if (!m_localPkgManager) return false;
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return false;
+
+    // Must be installed to have an update
+    auto installed = m_localPkgManager->getInstalledInfo(resolved);
+    if (!installed) return false;
+
+    // Compare installed version vs catalog version
+    auto pkg = m_localPkgManager->getPackage(resolved);
+    if (!pkg) return false;
+
+    return !installed->version.isEmpty()
+        && !pkg->version.isEmpty()
+        && installed->version != pkg->version;
+}
+
 bool CoreBridge::isPackageInstalled(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("CoreBridge::isPackageInstalled");

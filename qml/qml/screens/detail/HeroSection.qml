@@ -13,6 +13,7 @@ Item {
     required property var vm
 
     signal translateClicked()
+    signal updateClicked()
     signal uninstallClicked()
 
     // =========================================================================
@@ -172,6 +173,7 @@ Item {
             TranslationActionButton {
                 vm: heroRoot.vm
                 onTranslateClicked: heroRoot.translateClicked()
+                onUpdateClicked: heroRoot.updateClicked()
                 onUninstallClicked: heroRoot.uninstallClicked()
             }
 

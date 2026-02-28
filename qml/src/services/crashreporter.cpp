@@ -83,9 +83,8 @@ void CrashReporter::initialize()
 #endif
     sentry_options_set_dsn(options, dsn);
 
-    // Release tag for version tracking
-    QByteArray release = QByteArray("makineai@") + MAKINEAI_APP_VERSION;
-    sentry_options_set_release(options, release.constData());
+    // Release tag for version tracking (matches deploy.py Sentry release name)
+    sentry_options_set_release(options, MAKINEAI_SENTRY_RELEASE);
 
     // Environment
 #ifdef NDEBUG

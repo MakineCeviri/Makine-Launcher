@@ -112,6 +112,34 @@ run-static: release-static
     ./qml/build/release-static/MakineAI.exe
 
 # ============================================================================
+# TRANSLATION PACKAGE PUBLISHING
+# ============================================================================
+
+# Publish a single translation package (compress + encrypt + upload + manifest)
+publish app-id:
+    python scripts/deploy.py --app-id {{app-id}}
+
+# Publish all translation packages
+publish-all:
+    python scripts/deploy.py
+
+# Preview publish (no changes made)
+publish-dry app-id:
+    python scripts/deploy.py --app-id {{app-id}} --dry-run
+
+# ============================================================================
+# SENTRY (one-time setup)
+# ============================================================================
+
+# Configure Sentry GitHub integration + alert rules
+sentry-setup:
+    python scripts/sentry_setup.py
+
+# Preview Sentry setup (no changes)
+sentry-setup-dry:
+    python scripts/sentry_setup.py --dry-run
+
+# ============================================================================
 # DEPLOYMENT
 # ============================================================================
 

@@ -199,6 +199,12 @@ public:
     Q_INVOKABLE QVariantList findMatchingGamesFromFiles(const QString& gamePath);
 
     /**
+     * @brief Check if a translation update is available
+     * Compares installed version vs catalog version
+     */
+    bool hasTranslationUpdate(const QString& gameId);
+
+    /**
      * @brief Check if package is installed for game
      */
     bool isPackageInstalled(const QString& gameId);

@@ -136,6 +136,7 @@ Item {
                 if (success) {
                     root.viewModel.installCompleted = true
                     root.viewModel.packageInstalled = true
+                    root.viewModel.hasTranslationUpdate = false
                     installSuccessTimer.restart()
                 }
             }
@@ -264,6 +265,7 @@ Item {
                 vm: root.viewModel
 
                 onTranslateClicked: root.translateClicked()
+                onUpdateClicked: GameService.recoverTranslation(root.viewModel.gameId)
                 onUninstallClicked: GameService.uninstallTranslation(root.viewModel.gameId)
             }
 

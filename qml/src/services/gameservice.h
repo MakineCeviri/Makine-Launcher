@@ -218,6 +218,12 @@ public:
     Q_INVOKABLE void recoverTranslation(const QString& gameId);
 
     /**
+     * @brief Check if a translation package update is available
+     * Compares installed version vs catalog version
+     */
+    Q_INVOKABLE bool hasTranslationUpdate(const QString& gameId) const;
+
+    /**
      * @brief Check if a game has a detected update (translation may be broken)
      */
     Q_INVOKABLE bool hasGameUpdate(const QString& gameId) const;
@@ -277,6 +283,11 @@ public:
      * @return Map from supportedGames() cache, or empty if not found
      */
     Q_INVOKABLE QVariantMap getCatalogEntry(const QString& steamAppId) const;
+
+    /**
+     * @brief Check for all updates (re-sync manifest + rescan libraries + check translations)
+     */
+    Q_INVOKABLE void checkForUpdates();
 
 signals:
     void gameListChanged();

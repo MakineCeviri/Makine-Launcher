@@ -200,7 +200,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+R"
-        onActivated: GameService.scanAllLibraries()
+        onActivated: GameService.checkForUpdates()
     }
 
     // GPU Optimization: Disable animations only when minimized or hidden.

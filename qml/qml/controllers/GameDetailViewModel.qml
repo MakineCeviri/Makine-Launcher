@@ -27,6 +27,7 @@ QtObject {
     // ===== GAME INSTALL STATE =====
     property bool isGameInstalled: false
     property bool packageInstalled: false
+    property bool hasTranslationUpdate: false
     property bool autoInstall: false
     property bool fromLibrary: false
 
@@ -100,7 +101,7 @@ QtObject {
         heroImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
         isManualGame = false; isGameInstalled = false; packageInstalled = false
-        autoInstall = false; fromLibrary = false
+        hasTranslationUpdate = false; autoInstall = false; fromLibrary = false
         description = ""; developers = []; publishers = []
         releaseDate = ""; genres = []; metacriticScore = 0
         hasWindows = true; hasMac = false; hasLinux = false
@@ -133,6 +134,10 @@ QtObject {
 
         // Set gameId after other props so listeners see complete state
         gameId = d.gameId || ""
+
+        // Check for translation package update (installed version vs catalog)
+        if (packageInstalled && gameId !== "")
+            hasTranslationUpdate = GameService.hasTranslationUpdate(gameId)
 
         // Fetch additional game details (sync)
         _applyGameDetails()
