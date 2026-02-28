@@ -23,7 +23,9 @@
         "CMAKE_C_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/gcc.exe",
         "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
         "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       },
       "condition": {
         "type": "equals",
@@ -129,13 +131,17 @@
     },
     {
       "name": "release-static",
-      "displayName": "Release Static (Single EXE, UI-only)",
-      "description": "Single-file static EXE — UI only, no core deps",
+      "displayName": "Release Static (Single EXE)",
+      "description": "Fully static single-EXE release (Qt static + MinGW static)",
       "inherits": "mingw-static",
-      "binaryDir": "${sourceDir}/qml/build/release-static",
+      "binaryDir": "${sourceDir}/build/release-static",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_UI_ONLY": "ON"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64_static",
+        "MAKINEAI_UI_ONLY": "OFF",
+        "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
+        "VCPKG_MANIFEST_MODE": "OFF"
       }
     },
     {

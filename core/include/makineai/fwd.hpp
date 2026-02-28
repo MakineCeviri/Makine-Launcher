@@ -141,12 +141,6 @@ class SteamScanner;
 class EpicScanner;
 class GOGScanner;
 
-// --- Asset Parsing ---
-class AssetParser;
-class IAssetFormatParser;
-struct StringEntry;
-struct ParseResult;
-
 // --- Patching ---
 class PatchEngine;
 class IFileBackupStorage;
@@ -173,35 +167,5 @@ template<typename T> class SecureBuffer;
 
 // --- Version Tracking ---
 class VersionTracker;
-
-// --- Translation Services ---
-class TranslationAPI;
-
-// --- Engine Handlers ---
-namespace handlers {
-class IEngineHandler;
-class EngineHandlerBase;
-class UnityHandler;
-class UnrealHandler;
-class RenPyHandler;
-class RPGMakerHandler;
-class GameMakerHandler;
-}  // namespace handlers
-
-// --- Parser Formats ---
-namespace formats {
-class UnityBundleParser;
-class UnrealPakParser;
-class BethesdaBA2Parser;
-class GameMakerDataParser;
-}  // namespace formats
-
-// --- Parser Namespace Alias ---
-namespace parsers {
-using ::makineai::AssetParser;
-using ::makineai::IAssetFormatParser;
-using ::makineai::StringEntry;
-using ::makineai::ParseResult;
-}  // namespace parsers
 
 }  // namespace makineai

@@ -1,12 +1,12 @@
-# MakineAI C++ Native Core
+# MakineAI C++ Native Core — Launcher Library
 # Copyright (c) 2026 MakineAI Team
-# Modern C++20/23 game translation platform
+# Game detection, package management, patching, security
 
 cmake_minimum_required(VERSION 3.28)
 
 project(MakineAI
     VERSION 0.1.0
-    DESCRIPTION "Turkish Game Translation Platform - Native Core"
+    DESCRIPTION "Turkish Game Translation Launcher - Native Core"
     LANGUAGES CXX
 )
 
@@ -32,7 +32,10 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         CACHE STRING "Vcpkg toolchain file")
 endif()
 
-# Find required packages (existing)
+# ===== Shared library (makine-common) =====
+add_subdirectory(${PROJECT_SOURCE_DIR}/../common common_build)
+
+# Find required packages
 find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
@@ -43,17 +46,10 @@ find_package(zstd CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 
-# Find new packages (from awesome-cpp research)
+# Launcher-specific optional packages
 find_package(bit7z CONFIG QUIET)           # 7-zip C++ wrapper
 find_package(LibArchive CONFIG QUIET)      # Multi-format archive (zip, tar, etc.)
-find_package(simdjson CONFIG QUIET)        # Fast JSON parsing
 find_package(efsw CONFIG QUIET)            # Filesystem watcher
-find_package(mio CONFIG QUIET)             # Memory-mapped I/O
-find_package(Taskflow CONFIG QUIET)        # Parallel task framework
-find_package(unofficial-concurrentqueue CONFIG QUIET)  # Lock-free queue
-find_package(simdutf CONFIG QUIET)         # SIMD UTF conversion
-find_package(SQLiteCpp CONFIG QUIET)       # SQLite C++ wrapper
-find_package(unofficial-sodium CONFIG QUIET)  # Modern crypto
 
 # Build options
 option(BUILD_TESTING "Build unit tests" OFF)
@@ -66,27 +62,16 @@ endif()
 # Include directories
 set(MAKINEAI_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# Source files
+# Source files — launcher only (intelligence code moved to Makine/engine)
 set(MAKINEAI_SOURCES
     # Core
     src/core.cpp
 
-    # Config
-    src/config/config.cpp
-
-    # Database
-    src/database/database.cpp
-
-    # Asset Parsers
-    src/asset_parser/asset_parser.cpp
-    src/asset_parser/unity_bundle_parser.cpp
-    src/asset_parser/unity_bundle_patcher.cpp
-    src/asset_parser/unreal_pak_parser.cpp
-    src/asset_parser/bethesda_ba2_parser.cpp
-    src/asset_parser/gamemaker_data_parser.cpp
-
     # Patch Engine
     src/patch_engine/patch_engine.cpp
+
+    # Unity Bundle Patcher (used by QML install flow)
+    src/asset_parser/unity_bundle_patcher.cpp
 
     # Game Detector
     src/game_detector/game_detector.cpp
@@ -100,7 +85,7 @@ set(MAKINEAI_SOURCES
     # Package Catalog (pure C++ catalog extracted from QML LocalPackageManager)
     src/package_catalog/package_catalog.cpp
 
-    # Runtime (BepInEx/XUnity integration)
+    # Runtime Manager (BepInEx/XUnity — used by package_manager install flow)
     src/runtime/runtime_manager.cpp
 
     # Security
@@ -120,13 +105,6 @@ set(MAKINEAI_SOURCES
     # Crash Recovery
     src/crash_recovery/crash_recovery.cpp
 
-    # Translation API
-    src/translation/translation_api.cpp
-
-    # Formats (archive parsers)
-    src/formats/pickle_reader.cpp
-    src/formats/rpa_archive.cpp
-
     # Platform (Windows)
     src/platform/windows/registry.cpp
     src/platform/windows/filesystem.cpp
@@ -135,16 +113,6 @@ set(MAKINEAI_SOURCES
 # Header files (for IDE)
 set(MAKINEAI_HEADERS
     include/makineai/core.hpp
-    include/makineai/fwd.hpp
-    include/makineai/pimpl.hpp
-    include/makineai/config.hpp
-    include/makineai/logging.hpp
-    include/makineai/parallel.hpp
-    include/makineai/mio_utils.hpp
-    include/makineai/json_utils.hpp
-    include/makineai/database.hpp
-    include/makineai/asset_parser.hpp
-    include/makineai/parsers_factory.hpp
     include/makineai/patch_engine.hpp
     include/makineai/game_detector.hpp
     include/makineai/vdf_parser.hpp
@@ -152,51 +120,17 @@ set(MAKINEAI_HEADERS
     include/makineai/package_catalog.hpp
     include/makineai/runtime_manager.hpp
     include/makineai/security.hpp
-    include/makineai/version_tracker.hpp
-    include/makineai/translation_api.hpp
-    include/makineai/types.hpp
-    include/makineai/error.hpp
-    include/makineai/async.hpp
-    include/makineai/cache.hpp
-    include/makineai/validation.hpp
-    include/makineai/metrics.hpp
-    include/makineai/health.hpp
-    include/makineai/debug.hpp
-    include/makineai/string_pool.hpp
-    include/makineai/detail/debug.hpp
-    include/makineai/detail/string_pool.hpp
-    include/makineai/detail/mio_utils.hpp
-    include/makineai/audit.hpp
-    include/makineai/version.hpp
-    include/makineai/memory.hpp
-    include/makineai/lazy.hpp
-    include/makineai/sandbox.hpp
-    include/makineai/path_utils.hpp
-    include/makineai/utf_utils.hpp
-    include/makineai/sqlite_utils.hpp
-    include/makineai/crypto_utils.hpp
-    include/makineai/archive_utils.hpp
-    include/makineai/concurrent_queue.hpp
+    include/makineai/ssl_pinning.hpp
     include/makineai/credential_store.hpp
-    include/makineai/package_builder.hpp
+    include/makineai/version_tracker.hpp
     include/makineai/update_detection.hpp
     include/makineai/file_integrity.hpp
     include/makineai/crash_recovery.hpp
-
-    # Modular Type Headers (Faz 3 refactor)
-    include/makineai/types/common.hpp
-    include/makineai/types/game_types.hpp
-    include/makineai/types/patch_types.hpp
-    include/makineai/types/translation_types.hpp
     include/makineai/unity_bundle_patcher.hpp
-    include/formats/unity_bundle.hpp
-    include/formats/unreal_pak.hpp
-    include/formats/bethesda_ba2.hpp
-    include/formats/gamemaker_data.hpp
-    include/formats/renpy_rpa.hpp
+    include/makineai/package_builder.hpp
 )
 
-# Static library (for linking with FFI)
+# Static library
 add_library(makineai_core STATIC ${MAKINEAI_SOURCES} ${MAKINEAI_HEADERS})
 
 # ===== Security Hardening =====
@@ -221,28 +155,30 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
     )
 endif()
 
+# Include directories:
+# - core/include — launcher-specific headers
+# - common/include/makineai — allows bare #include "types.hpp" from core headers
+#   (core headers use quoted includes without makineai/ prefix since they were
+#    originally in the same directory)
+set(MAKINE_COMMON_MAKINEAI_DIR ${PROJECT_SOURCE_DIR}/../common/include/makineai)
+
 target_include_directories(makineai_core
     PUBLIC
         $<BUILD_INTERFACE:${MAKINEAI_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${MAKINE_COMMON_MAKINEAI_DIR}>
         $<INSTALL_INTERFACE:include>
 )
 
 target_link_libraries(makineai_core
     PUBLIC
-        # Core dependencies (required)
-        Boost::filesystem
-        OpenSSL::SSL
-        OpenSSL::Crypto
+        # Shared library (types, config, database, utilities, formats)
+        makine_common
+
+        # Launcher-specific dependencies
         CURL::libcurl
-        nlohmann_json::nlohmann_json
-        lz4::lz4
-        ZLIB::ZLIB
-        $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
-        unofficial::sqlite3::sqlite3
-        spdlog::spdlog
 )
 
-# Link new libraries (optional - graceful degradation if not found)
+# Launcher-specific optional libraries
 if(TARGET bit7z::bit7z)
     target_link_libraries(makineai_core PUBLIC bit7z::bit7z)
     target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_BIT7Z)
@@ -255,52 +191,10 @@ if(TARGET LibArchive::LibArchive)
     message(STATUS "libarchive found - Multi-format archive support enabled")
 endif()
 
-if(TARGET simdjson::simdjson)
-    target_link_libraries(makineai_core PUBLIC simdjson::simdjson)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDJSON)
-    message(STATUS "simdjson found - Fast JSON parsing enabled")
-endif()
-
 if(TARGET efsw::efsw)
     target_link_libraries(makineai_core PUBLIC efsw::efsw)
     target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_EFSW)
     message(STATUS "efsw found - Filesystem watcher enabled")
-endif()
-
-if(TARGET mio::mio)
-    target_link_libraries(makineai_core PUBLIC mio::mio)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_MIO)
-    message(STATUS "mio found - Memory-mapped I/O enabled")
-endif()
-
-if(TARGET Taskflow::Taskflow)
-    target_link_libraries(makineai_core PUBLIC Taskflow::Taskflow)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_TASKFLOW)
-    message(STATUS "Taskflow found - Parallel task framework enabled")
-endif()
-
-if(TARGET unofficial::concurrentqueue::concurrentqueue)
-    target_link_libraries(makineai_core PUBLIC unofficial::concurrentqueue::concurrentqueue)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_CONCURRENTQUEUE)
-    message(STATUS "concurrentqueue found - Lock-free queue enabled")
-endif()
-
-if(TARGET simdutf::simdutf)
-    target_link_libraries(makineai_core PUBLIC simdutf::simdutf)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDUTF)
-    message(STATUS "simdutf found - Fast UTF conversion enabled")
-endif()
-
-if(TARGET SQLiteCpp)
-    target_link_libraries(makineai_core PUBLIC SQLiteCpp)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SQLITECPP)
-    message(STATUS "SQLiteCpp found - Modern SQLite wrapper enabled")
-endif()
-
-if(TARGET unofficial-sodium::sodium)
-    target_link_libraries(makineai_core PUBLIC unofficial-sodium::sodium)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SODIUM)
-    message(STATUS "libsodium found - Modern crypto enabled")
 endif()
 
 # Windows-specific libraries
@@ -314,20 +208,16 @@ if(WIN32)
     )
 endif()
 
-# NOTE: FFI shared library removed - using Qt/QML integration instead
-
 # Unit tests
 if(GTest_FOUND)
     enable_testing()
 
     add_executable(makineai_tests
         tests/test_main.cpp
-        tests/test_asset_parser.cpp
         tests/test_patch_engine.cpp
         tests/test_game_detector.cpp
         tests/test_security.cpp
         tests/test_version_tracker.cpp
-        tests/test_rpa_parser.cpp
     )
 
     target_link_libraries(makineai_tests PRIVATE
@@ -343,9 +233,6 @@ if(GTest_FOUND)
     gtest_discover_tests(makineai_tests)
 endif()
 
-# NOTE: Standalone test executables (test_undertale, test_unity, test_game_scan)
-# removed — they depend on handler headers that are not yet implemented.
-
 # Install targets
 install(TARGETS makineai_core
     ARCHIVE DESTINATION lib
@@ -357,12 +244,12 @@ install(DIRECTORY include/ DESTINATION include)
 
 # Print configuration summary
 message(STATUS "")
-message(STATUS "=== MakineAI C++ Core Configuration ===")
+message(STATUS "=== MakineAI Launcher Core Configuration ===")
 message(STATUS "Version: ${PROJECT_VERSION}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "Install Prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "Tests: ${GTest_FOUND}")
-message(STATUS "========================================")
+message(STATUS "=============================================")
 message(STATUS "")

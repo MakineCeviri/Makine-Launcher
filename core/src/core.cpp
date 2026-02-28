@@ -95,12 +95,6 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
         return std::unexpected(modResult.error());
     }
 
-    if (auto transResult = initializeTranslationServices(config); !transResult) {
-        MAKINEAI_LOG_ERROR(log::CORE, "Translation services initialization failed: {}",
-            transResult.error().message());
-        return std::unexpected(transResult.error());
-    }
-
     if (options.enableAuditLog) {
         configureAuditLogger(config);
     }
@@ -182,7 +176,6 @@ void Core::shutdown() {
     packageManager_.reset();
     gameDetector_.reset();
     patchEngine_.reset();
-    assetParser_.reset();
 
     // Database last (others may depend on it)
     // Database is a singleton, so just ensure it's clean
@@ -253,9 +246,6 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
     auto timer = Metrics::instance().timer("modules_init");
 
     try {
-        // Asset Parser
-        assetParser_ = std::make_unique<AssetParser>();
-
         // Patch Engine
         patchEngine_ = std::make_unique<PatchEngine>();
         patchEngine_->setBackupDirectory(fs::path(config.dataDirectory) / "backups");
@@ -268,7 +258,7 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         packageManager_->setApiUrl(config.apiBaseUrl);
         packageManager_->setCacheDirectory(fs::path(config.cacheDirectory) / "packages");
 
-        // Runtime Manager
+        // Runtime Manager (BepInEx/XUnity — used by package install flow)
         runtimeManager_ = std::make_unique<RuntimeManager>();
         runtimeManager_->setBundleDirectory(fs::path(config.dataDirectory) / "runtime");
 
@@ -309,13 +299,6 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         return std::unexpected(Error(ErrorCode::Unknown,
             std::string("Module initialization failed: ") + ex.what()));
     }
-}
-
-Result<void> Core::initializeTranslationServices(const CoreConfig& /*config*/) {
-    // Translation services (TM, Glossary, QA, Pipeline) are deferred
-    // to the adaptation engine milestone. Skip initialization for now.
-    MAKINEAI_LOG_DEBUG(log::CORE, "Translation services deferred (adaptation engine)");
-    return {};
 }
 
 void Core::configureHealthChecker(const CoreConfig& config) {
@@ -383,13 +366,6 @@ HealthStatus Core::getHealthStatus() const {
 
 Database& Core::database() {
     return Database::instance();
-}
-
-AssetParser& Core::assetParser() {
-    if (!assetParser_) {
-        throw Exception(Error(ErrorCode::InvalidArgument, "AssetParser not initialized"));
-    }
-    return *assetParser_;
 }
 
 PatchEngine& Core::patchEngine() {

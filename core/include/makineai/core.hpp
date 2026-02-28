@@ -55,9 +55,8 @@
 #include "cache.hpp"
 #include "async.hpp"
 
-// Module headers
+// Module headers (launcher only — intelligence code in Makine/engine)
 #include "database.hpp"
-#include "asset_parser.hpp"
 #include "patch_engine.hpp"
 #include "game_detector.hpp"
 #include "package_manager.hpp"
@@ -252,11 +251,6 @@ public:
     [[nodiscard]] Database& database();
 
     /**
-     * @brief Get asset parser
-     */
-    [[nodiscard]] AssetParser& assetParser();
-
-    /**
      * @brief Get patch engine
      */
     [[nodiscard]] PatchEngine& patchEngine();
@@ -272,7 +266,7 @@ public:
     [[nodiscard]] PackageManager& packageManager();
 
     /**
-     * @brief Get runtime manager (BepInEx/XUnity)
+     * @brief Get runtime manager (BepInEx/XUnity — used by package install flow)
      */
     [[nodiscard]] RuntimeManager& runtimeManager();
 
@@ -367,7 +361,6 @@ private:
     Result<void> initializeLogging(const CoreConfig& config, bool verbose);
     Result<void> initializeDatabase(const CoreConfig& config);
     Result<void> initializeModules(const CoreConfig& config);
-    Result<void> initializeTranslationServices(const CoreConfig& config);
     void configureHealthChecker(const CoreConfig& config);
     void configureAuditLogger(const CoreConfig& config);
     void logFeatureAvailability();
@@ -377,8 +370,7 @@ private:
     InitResult initResult_;
     std::shared_ptr<spdlog::logger> logger_;
 
-    // Module instances (owned)
-    std::unique_ptr<AssetParser> assetParser_;
+    // Module instances (owned) — launcher modules only
     std::unique_ptr<PatchEngine> patchEngine_;
     std::unique_ptr<GameDetector> gameDetector_;
     std::unique_ptr<PackageManager> packageManager_;

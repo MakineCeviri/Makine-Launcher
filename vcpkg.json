@@ -18,12 +18,8 @@
     "spdlog",
     "bit7z",
     "libarchive",
-    "simdjson",
     "efsw",
     "mio",
-    "taskflow",
-    "concurrentqueue",
-    "simdutf",
     "sqlitecpp",
     "libsodium"
   ],
