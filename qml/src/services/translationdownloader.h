@@ -1,13 +1,14 @@
 /**
  * @file translationdownloader.h
- * @brief Download, decrypt, and extract translation packages from R2
+ * @brief Download, verify, decrypt, and extract translation packages from R2
  * @copyright (c) 2026 MakineAI Team
  *
  * Handles the complete flow:
  *   1. HTTP GET from Cloudflare R2 (with progress)
- *   2. AES-256-GCM decryption (MKPK format)
- *   3. Zstandard decompression
- *   4. Tar extraction to local data directory
+ *   2. Download .sig file and verify Ed25519 signature
+ *   3. AES-256-GCM decryption (MKPK format)
+ *   4. Zstandard decompression
+ *   5. Tar extraction to local data directory
  *
  * After extraction, the normal LocalPackageManager install flow takes over.
  */
@@ -41,7 +42,7 @@ public:
      * @param dataUrl   R2 download URL (from manifest)
      * @param dirName   Target directory name under data path
      *
-     * Flow: download → temp file → decrypt+decompress+extract → data/{dirName}/
+     * Flow: download → sig verify → decrypt+decompress+extract → data/{dirName}/
      */
     Q_INVOKABLE void downloadPackage(const QString& appId,
                                      const QString& dataUrl,
@@ -84,6 +85,28 @@ signals:
 private:
     void processDownloadedFile(const QString& appId, const QString& tempPath,
                                const QString& dirName);
+
+    /**
+     * @brief Download .sig file and verify package signature.
+     *
+     * Chains async download of {dataUrl}.sig, then verifies:
+     *   1. SHA-256 hash of the .mkpkg matches the hash in .sig
+     *   2. Ed25519 signature over the hash is valid
+     *
+     * On success, continues to processDownloadedFile.
+     * On failure, deletes the .mkpkg and emits downloadError.
+     */
+    void verifyAndProcess(const QString& appId, const QString& dataUrl,
+                          const QString& tempPath, const QString& dirName);
+
+    /**
+     * @brief Verify Ed25519 signature using embedded public key.
+     * @param data      Raw data that was signed (the hash hex string)
+     * @param sigBase64 Base64-encoded Ed25519 signature
+     * @return true if signature is valid
+     */
+    static bool verifyEd25519Signature(const QByteArray& data,
+                                       const QByteArray& sigBase64);
 
     struct DownloadState {
         QNetworkReply* reply{nullptr};
