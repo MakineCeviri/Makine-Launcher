@@ -186,42 +186,6 @@ ColumnLayout {
                 scale: btnMa.containsMouse ? 1.04 : 1.0
                 Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
-                // Soft light beam glow — proportional to button size
-                Canvas {
-                    id: btnGlow
-                    anchors.centerIn: parent
-                    width: btn.width + 80; height: btn.height + 80
-                    opacity: btnMa.containsMouse ? 1.0 : 0
-                    Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        var cx = width / 2, cy = height / 2
-                        var r = Math.max(width, height) * 0.48
-
-                        // Core warm glow
-                        var g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-                        g1.addColorStop(0.0, "rgba(252, 210, 120, 0.30)")
-                        g1.addColorStop(0.2, "rgba(248, 185, 115, 0.18)")
-                        g1.addColorStop(0.45, "rgba(230, 155, 140, 0.08)")
-                        g1.addColorStop(0.7, "rgba(190, 145, 200, 0.03)")
-                        g1.addColorStop(1.0, "rgba(150, 180, 220, 0.0)")
-                        ctx.fillStyle = g1
-                        ctx.fillRect(0, 0, width, height)
-
-                        // Cooler halo — offset up
-                        var g2 = ctx.createRadialGradient(cx, cy * 0.85, 0, cx, cy * 0.85, r * 0.8)
-                        g2.addColorStop(0.0, "rgba(200, 160, 220, 0.12)")
-                        g2.addColorStop(0.3, "rgba(170, 150, 210, 0.06)")
-                        g2.addColorStop(0.6, "rgba(140, 175, 220, 0.02)")
-                        g2.addColorStop(1.0, "rgba(140, 175, 220, 0.0)")
-                        ctx.fillStyle = g2
-                        ctx.fillRect(0, 0, width, height)
-                    }
-                    Component.onCompleted: requestPaint()
-                }
-
                 // Button body
                 Rectangle {
                     anchors.fill: parent
@@ -332,7 +296,7 @@ ColumnLayout {
             }
             Label {
                 textFormat: Text.PlainText
-                text: "makineai.com"
+                text: "makineceviri.net"
                 font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
                 color: Theme.textSecondary
                 anchors.verticalCenter: parent.verticalCenter
@@ -348,7 +312,7 @@ ColumnLayout {
         MouseArea {
             id: secMa; anchors.fill: parent; hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: Qt.openUrlExternally("https://makineai.com")
+            onClicked: Qt.openUrlExternally("https://makineceviri.net")
         }
     }
 }

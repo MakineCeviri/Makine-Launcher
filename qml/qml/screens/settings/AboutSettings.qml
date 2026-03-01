@@ -278,7 +278,7 @@ ColumnLayout {
             ClickableRow {
                 title: qsTr("Geri Bildirim")
                 subtitle: qsTr("Hata bildirimi ve öneriler için web sitemizi ziyaret edin")
-                onClicked: Qt.openUrlExternally("https://makineai.com/feedback")
+                onClicked: Qt.openUrlExternally("https://makineceviri.net/feedback")
             }
 
             SettingsDivider {}
@@ -286,7 +286,7 @@ ColumnLayout {
             ClickableRow {
                 title: qsTr("Aramıza Katıl")
                 subtitle: qsTr("MakineAI ekibine katılın")
-                onClicked: Qt.openUrlExternally("https://makineai.com")
+                onClicked: Qt.openUrlExternally("https://makineceviri.net")
             }
         }
     }

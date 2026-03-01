@@ -68,35 +68,6 @@ SectionContainer {
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 section.gameClicked(gameId, gameName, installPath, engine)
         }
-
-        // Left edge fade — anchored to section container (same as CatalogSection)
-        Rectangle {
-            anchors.left: section.left
-            anchors.top: section.top; anchors.bottom: section.bottom
-            anchors.topMargin: 40
-            width: 28; z: 10
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
-                GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.25) }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-        }
-
-        // Right edge fade — anchored to section container (same as CatalogSection)
-        Rectangle {
-            anchors.right: section.right
-            anchors.top: section.top; anchors.bottom: section.bottom
-            anchors.topMargin: 40
-            width: 28; z: 10; rotation: 180
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
-                GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.25) }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-        }
-
     }
 
     // Empty state
