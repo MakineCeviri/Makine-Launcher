@@ -248,30 +248,29 @@ def wrangler_download_file(bucket: str, key: str, dest: Path) -> bool:
     return True
 
 
-def wrangler_upload_json(bucket: str, key: str, data: dict) -> bool:
-    """Upload a JSON payload to R2 via wrangler."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tmp:
-        json.dump(data, tmp, indent=2, ensure_ascii=False)
-        tmp_path = Path(tmp.name)
+def cf_api_upload_json(bucket: str, key: str, data: dict) -> bool:
+    """Upload a JSON payload to R2 via Cloudflare REST API."""
+    token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+    account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+    if not token or not account_id:
+        print("ERROR: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID not set", file=sys.stderr)
+        return False
 
-    try:
-        result = subprocess.run(
-            [NPX, "wrangler", "r2", "object", "put",
-             f"{bucket}/{key}",
-             f"--file={tmp_path}",
-             "--content-type=application/json", "--remote"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            err = result.stderr.replace("\x1b[31m", "").replace("\x1b[0m", "")[:200]
-            print(f"upload error: {err}", file=sys.stderr)
-            return False
-        return True
-    finally:
-        tmp_path.unlink(missing_ok=True)
+    url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/buckets/{bucket}/objects/{key}"
+    body = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
+    resp = requests.put(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        data=body,
+        timeout=30,
+    )
+    if resp.status_code != 200 or not resp.json().get("success"):
+        print(f"upload error: {resp.status_code} {resp.text[:200]}", file=sys.stderr)
+        return False
+    return True
 
 
 # ── Main Logic ──
@@ -299,15 +298,16 @@ def sign_package(
     with tempfile.TemporaryDirectory(prefix="mkpkg_sign_") as tmp_dir:
         local_path = Path(tmp_dir) / f"{app_id}.mkpkg"
 
-        # Download the package
-        if s3_client:
-            try:
-                s3_download_file(s3_client, bucket, pkg_key, local_path)
-            except Exception as e:
-                return {"appId": app_id, "status": "error", "error": f"download: {e}"}
-        else:
-            if not wrangler_download_file(bucket, pkg_key, local_path):
-                return {"appId": app_id, "status": "error", "error": "download failed"}
+        # Download the package via public CDN (no auth needed, no rate limits)
+        cdn_url = f"{CDN_BASE_URL}/{R2_PREFIX}{app_id}.mkpkg"
+        try:
+            resp = requests.get(cdn_url, stream=True, timeout=120)
+            resp.raise_for_status()
+            with open(local_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=8 * 1024 * 1024):
+                    f.write(chunk)
+        except Exception as e:
+            return {"appId": app_id, "status": "error", "error": f"CDN download: {e}"}
 
         if not local_path.exists() or local_path.stat().st_size == 0:
             return {"appId": app_id, "status": "error", "error": "empty download"}
@@ -329,7 +329,7 @@ def sign_package(
         except Exception as e:
             return {"appId": app_id, "status": "error", "error": f"upload: {e}"}
     else:
-        if not wrangler_upload_json(bucket, sig_key, sig_payload):
+        if not cf_api_upload_json(bucket, sig_key, sig_payload):
             return {"appId": app_id, "status": "error", "error": "sig upload failed"}
 
     return {
@@ -503,6 +503,10 @@ def main():
         else:
             errors += 1
             print(f"    FAILED: {result.get('error', 'unknown')}")
+
+        # Rate limit: brief pause between packages to avoid R2 throttling
+        if i < sign_count and not args.dry_run:
+            time.sleep(0.5)
 
     elapsed = time.monotonic() - t0
 

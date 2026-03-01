@@ -88,10 +88,15 @@ def load_encryption_key(key_path: Path) -> bytes:
 def compress_directory(dir_path: Path) -> bytes:
     """Create tar archive of directory, then compress with zstd level 9."""
     # Phase 1: Create tar in memory
+    # File extensions to exclude from packages (backups, temporaries)
+    excluded_suffixes = {'.bak', '.bak2', '.orig'}
+
     tar_buffer = io.BytesIO()
     with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
         for entry in sorted(dir_path.rglob("*")):
             if entry.is_file():
+                if entry.suffix.lower() in excluded_suffixes:
+                    continue
                 arcname = entry.relative_to(dir_path).as_posix()
                 tar.add(str(entry), arcname=arcname)
     tar_data = tar_buffer.getvalue()
