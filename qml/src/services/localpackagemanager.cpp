@@ -841,6 +841,13 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
+            // H-3: Reject path traversal sequences before any canonicalization
+            if (exePath.contains("..")) {
+                qWarning() << "Recipe run: path traversal rejected:" << exePath;
+                errors++;
+                continue;
+            }
+
             // H-3: Validate executable is within game or package directory (no arbitrary execution)
             QString canonExe = QFileInfo(exePath).canonicalFilePath();
             QString canonGame = QDir(gamePath).canonicalPath();
@@ -882,6 +889,9 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 resolved.replace("${packageDir}", packageDir);
                 resolvedArgs.append(resolved);
             }
+
+            qInfo() << "Recipe run: executing" << exePath
+                    << "args:" << resolvedArgs << "workDir:" << workDir;
 
             QProcess proc;
             proc.setWorkingDirectory(workDir);
@@ -1212,6 +1222,11 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     qWarning() << "Run: executable not found:" << step.exe;
                     errors++; continue;
                 }
+                // Reject path traversal sequences before canonicalization
+                if (exePath.contains("..")) {
+                    qWarning() << "Run: path traversal rejected:" << exePath;
+                    errors++; continue;
+                }
                 // Validate exe location
                 QString canonExe = QFileInfo(exePath).canonicalFilePath();
                 QString canonPkg = QDir(optionDir).canonicalPath();
@@ -1227,6 +1242,8 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 }
                 emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(QFileInfo(exePath).fileName()));
                 QString workDir = (step.workDir == "package") ? optionDir : gamePath;
+                qInfo() << "Run: executing" << exePath
+                        << "args:" << step.args << "workDir:" << workDir;
                 QProcess proc;
                 proc.setWorkingDirectory(workDir);
                 proc.setProcessChannelMode(QProcess::MergedChannels);

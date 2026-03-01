@@ -59,7 +59,7 @@ void ManifestSyncService::syncCatalog()
 
     QNetworkRequest req{QUrl{indexUrl()}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
+                     QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(10000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
 
@@ -68,6 +68,14 @@ void ManifestSyncService::syncCatalog()
         req.setRawHeader("If-None-Match", m_etag.toUtf8());
 
     QNetworkReply* reply = m_nam.get(req);
+
+    // Abort if response exceeds 1 MB (index.json is ~93 KB normally)
+    connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
+        if (received > 1 * 1024 * 1024) {
+            qWarning() << "ManifestSync: index.json response too large, aborting";
+            reply->abort();
+        }
+    });
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
@@ -253,11 +261,19 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
 
     QNetworkRequest req{QUrl{packageUrl(appId)}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
+                     QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(10000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
 
     QNetworkReply* reply = m_nam.get(req);
+
+    // Abort if response exceeds 1 MB (package detail is ~700 B normally)
+    connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
+        if (received > 1 * 1024 * 1024) {
+            qWarning() << "ManifestSync: package detail response too large, aborting";
+            reply->abort();
+        }
+    });
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, appId]() {
         reply->deleteLater();

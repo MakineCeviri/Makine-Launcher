@@ -13,6 +13,7 @@
 #include <QFile>
 #include <QNetworkReply>
 #include <QUrl>
+#include <QUuid>
 
 #ifndef MAKINEAI_UI_ONLY
 #include "mkpkformat.h"
@@ -51,18 +52,16 @@ void TranslationDownloader::downloadPackage(
     return;
 #else
 
-    // Prepare temp file path
+    // Prepare temp file path with random suffix to prevent symlink attacks
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir().mkpath(tempDir);
-    const QString tempPath = tempDir + QStringLiteral("/%1.mkpkg").arg(appId);
-
-    // Clean up any leftover temp file
-    QFile::remove(tempPath);
+    const QString tempPath = tempDir + QStringLiteral("/%1_%2.mkpkg")
+        .arg(appId, QUuid::createUuid().toString(QUuid::Id128).left(8));
 
     // Start HTTP download
     QNetworkRequest req{QUrl{dataUrl}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
+                     QNetworkRequest::SameOriginRedirectPolicy);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
 
     QNetworkReply* reply = m_nam.get(req);

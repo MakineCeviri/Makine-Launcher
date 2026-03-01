@@ -318,7 +318,7 @@ private:
                            BLENDFUNCTION bf) {
         using Fn = BOOL(WINAPI*)(HDC,int,int,int,int,HDC,int,int,int,int,BLENDFUNCTION);
         static Fn fn = reinterpret_cast<Fn>(
-            GetProcAddress(LoadLibraryW(L"msimg32.dll"), "AlphaBlend"));
+            GetProcAddress(LoadLibraryExW(L"msimg32.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32), "AlphaBlend"));
         if (fn) return fn(dest, dx, dy, dw, dh, src, sx, sy, sw, sh, bf);
         return BitBlt(dest, dx, dy, dw, dh, src, sx, sy, SRCCOPY);
     }

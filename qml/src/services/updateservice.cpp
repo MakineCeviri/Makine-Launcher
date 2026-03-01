@@ -100,6 +100,15 @@ void UpdateService::check()
     request.setTransferTimeout(15000);
 
     auto *reply = m_nam.get(request);
+
+    // Abort if response exceeds 1 MB (update.json is a few hundred bytes normally)
+    connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
+        if (received > 1 * 1024 * 1024) {
+            qWarning() << "UpdateService: update.json response too large, aborting";
+            reply->abort();
+        }
+    });
+
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         onCheckFinished(reply);
     });
@@ -213,7 +222,7 @@ void UpdateService::download()
     QString host = dlUrlCheck.host().toLower();
     bool hostAllowed = false;
     for (const auto& allowed : allowedHosts) {
-        if (host == allowed || host.endsWith(QLatin1Char('.') + allowed)) {
+        if (host == allowed) {
             hostAllowed = true;
             break;
         }
@@ -251,7 +260,7 @@ void UpdateService::download()
     QNetworkRequest request{dlUrl};
     request.setRawHeader("User-Agent", "MakineAI-UpdateService");
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
+                         QNetworkRequest::SameOriginRedirectPolicy);
 
     m_downloadReply = m_nam.get(request);
 

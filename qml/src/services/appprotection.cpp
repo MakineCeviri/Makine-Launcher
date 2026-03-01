@@ -53,7 +53,7 @@ template <typename FuncPtr>
 FuncPtr resolveApi(const std::string& dll, const std::string& func)
 {
     HMODULE mod = GetModuleHandleA(dll.c_str());
-    if (!mod) mod = LoadLibraryA(dll.c_str());
+    if (!mod) mod = LoadLibraryExA(dll.c_str(), NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (!mod) return nullptr;
     return reinterpret_cast<FuncPtr>(GetProcAddress(mod, func.c_str()));
 }

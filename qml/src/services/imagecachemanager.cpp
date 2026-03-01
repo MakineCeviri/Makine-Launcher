@@ -114,7 +114,7 @@ void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
     const QString url = useSteamCdn ? steamCdnUrl(appId) : remoteUrl(appId);
     QNetworkRequest req{QUrl{url}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
+                     QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(15000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
 

@@ -47,19 +47,6 @@ struct CertPin {
  *   openssl pkey -pubin -outform der | \
  *   openssl dgst -sha256 -binary | openssl enc -base64
  */
-// Build-time guard: ensure placeholder pins are replaced before release
-#ifdef NDEBUG
-namespace detail {
-inline constexpr bool pinsContainPlaceholder() {
-    // If any pin contains "PLACEHOLDER", compilation fails in release mode
-    return false; // TODO: Replace pins and remove this guard
-}
-static_assert(!pinsContainPlaceholder() || true,
-    "WARNING: SSL pins contain placeholders. Replace before production release. "
-    "See ssl_pinning.hpp PINNED_CERTS array.");
-} // namespace detail
-#endif
-
 inline constexpr std::array<CertPin, 4> PINNED_CERTS = {{
     // Primary: MakineAI API server
     {"api.makineai.com",
@@ -81,6 +68,24 @@ inline constexpr std::array<CertPin, 4> PINNED_CERTS = {{
      "sha256//PLACEHOLDER_CDN_BACKUP_UPDATE_BEFORE_RELEASE=",
      true},
 }};
+
+// Build-time guard: ensure placeholder pins are replaced before release
+namespace detail {
+inline constexpr bool pinsContainPlaceholder() {
+    constexpr std::string_view marker = "PLACEHOLDER";
+    for (const auto& pin : PINNED_CERTS) {
+        if (pin.pinHash.find(marker) != std::string_view::npos)
+            return true;
+    }
+    return false;
+}
+} // namespace detail
+
+#ifdef MAKINEAI_RELEASE_VERIFIED
+static_assert(!detail::pinsContainPlaceholder(),
+    "SSL certificate pins contain placeholders — replace before release build. "
+    "See ssl_pinning.hpp PINNED_CERTS array.");
+#endif
 
 /**
  * @brief Domains that should be pinned
