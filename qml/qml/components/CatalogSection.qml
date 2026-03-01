@@ -67,7 +67,7 @@ Rectangle {
 
     Timer {
         id: searchDebounce
-        interval: 200
+        interval: 100
         onTriggered: catalog.searchQuery = searchInput.text.trim()
     }
 
