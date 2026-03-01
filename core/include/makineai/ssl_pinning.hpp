@@ -48,24 +48,24 @@ struct CertPin {
  *   openssl dgst -sha256 -binary | openssl enc -base64
  */
 inline constexpr std::array<CertPin, 4> PINNED_CERTS = {{
-    // Primary: MakineAI API server
-    {"api.makineai.com",
-     "sha256//PLACEHOLDER_PRIMARY_PIN_UPDATE_BEFORE_RELEASE=",
+    // Primary: makineceviri.net (website + update endpoint)
+    {"makineceviri.net",
+     "sha256//mC/RiYlbhN0AdU/u23BPTNwoLlj5OTigvIL0IbnGppg=",
      false},
 
-    // Backup: MakineAI API (next certificate)
-    {"api.makineai.com",
-     "sha256//PLACEHOLDER_BACKUP_PIN_UPDATE_BEFORE_RELEASE=",
+    // Backup: Cloudflare intermediate CA (survives leaf cert rotation)
+    {"makineceviri.net",
+     "sha256//kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
      true},
 
-    // Primary: MakineAI CDN (package downloads)
-    {"cdn.makineai.com",
-     "sha256//PLACEHOLDER_CDN_PIN_UPDATE_BEFORE_RELEASE=",
+    // Primary: cdn.makineceviri.net (package downloads + assets)
+    {"cdn.makineceviri.net",
+     "sha256//MNGoZIDCbt1ZzepaJUqaasJVrbMUfnnEl6FyLjMClrE=",
      false},
 
-    // Backup: MakineAI CDN
-    {"cdn.makineai.com",
-     "sha256//PLACEHOLDER_CDN_BACKUP_UPDATE_BEFORE_RELEASE=",
+    // Backup: Cloudflare intermediate CA (survives leaf cert rotation)
+    {"cdn.makineceviri.net",
+     "sha256//kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
      true},
 }};
 
@@ -94,8 +94,8 @@ static_assert(!detail::pinsContainPlaceholder(),
  * All other domains use standard TLS verification only.
  */
 inline constexpr std::array<std::string_view, 2> PINNED_DOMAINS = {{
-    "api.makineai.com",
-    "cdn.makineai.com",
+    "makineceviri.net",
+    "cdn.makineceviri.net",
 }};
 
 // =============================================================================

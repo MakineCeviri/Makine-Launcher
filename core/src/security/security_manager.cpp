@@ -82,29 +82,18 @@ public:
     }
 };
 
-// Embedded public key for package signature verification.
-// Replace this placeholder with the actual production key before release.
-// Generate with: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
-//                openssl rsa -in private.pem -pubout -out public.pem
+// Embedded Ed25519 public key for package signature verification.
+// Private key: scripts/certs/signing_private.pem (NEVER commit this)
+// Regenerate with: openssl genpkey -algorithm Ed25519 -out private.pem
+//                  openssl pkey -in private.pem -pubout -out public.pem
 static constexpr const char* EMBEDDED_PUBLIC_KEY_PEM = R"(
 -----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0000000000000000PLAC
-EHOLDER000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000REPL
-ACE_WITH_REAL_KEY_BEFORE_RELEASE00000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000AQAB
+MCowBQYDK2VwAyEAenbLqZcQ4eoWsVvjpg3FQrkd0V1Q8b3P/OJSMkudvWo=
 -----END PUBLIC KEY-----
 )";
 
-// Set to true when the placeholder above is replaced with a real key
-static constexpr bool EMBEDDED_KEY_IS_REAL = false;
-
-// Enable this assert for production releases only (not dev/CI builds).
-// Uncomment when a real RSA key is generated and embedded above.
-// static_assert(EMBEDDED_KEY_IS_REAL,
-//     "Replace the placeholder public key with the real production RSA key "
-//     "before building a release. See security_manager.cpp line 89.");
+// Production key is embedded — Ed25519 (32-byte, fast, side-channel resistant)
+static constexpr bool EMBEDDED_KEY_IS_REAL = true;
 
 SecurityManager::SecurityManager() : impl_(std::make_unique<Impl>()) {
 #ifdef MAKINEAI_HAS_SODIUM
