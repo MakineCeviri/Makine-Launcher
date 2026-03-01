@@ -20,10 +20,8 @@ find_package(GTest CONFIG REQUIRED)
 add_executable(makineai_tests
     test_main.cpp
     test_game_detector.cpp
-    test_asset_parser.cpp
     test_patch_engine.cpp
     test_security.cpp
-    test_version_tracker.cpp
     test_config.cpp
     test_database.cpp
 )

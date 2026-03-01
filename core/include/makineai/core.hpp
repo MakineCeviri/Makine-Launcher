@@ -59,10 +59,8 @@
 #include "database.hpp"
 #include "patch_engine.hpp"
 #include "game_detector.hpp"
-#include "package_manager.hpp"
 #include "runtime_manager.hpp"
 #include "security.hpp"
-#include "version_tracker.hpp"
 
 // Third-party includes
 #include <spdlog/spdlog.h>
@@ -261,11 +259,6 @@ public:
     [[nodiscard]] GameDetector& gameDetector();
 
     /**
-     * @brief Get package manager
-     */
-    [[nodiscard]] PackageManager& packageManager();
-
-    /**
      * @brief Get runtime manager (BepInEx/XUnity — used by package install flow)
      */
     [[nodiscard]] RuntimeManager& runtimeManager();
@@ -274,11 +267,6 @@ public:
      * @brief Get security manager
      */
     [[nodiscard]] SecurityManager& securityManager();
-
-    /**
-     * @brief Get version tracker
-     */
-    [[nodiscard]] VersionTracker& versionTracker();
 
 
     // =========================================================================
@@ -292,20 +280,6 @@ public:
      * @return Async operation that resolves to game list
      */
     [[nodiscard]] AsyncOperationPtr<std::vector<GameInfo>> scanGamesAsync(
-        ProgressCallback progress = nullptr
-    );
-
-    /**
-     * @brief Apply translation package asynchronously
-     *
-     * @param game Target game
-     * @param packageId Translation package ID
-     * @param progress Optional progress callback
-     * @return Async operation that resolves to patch result
-     */
-    [[nodiscard]] AsyncOperationPtr<PatchResult> applyTranslationAsync(
-        const GameInfo& game,
-        const std::string& packageId,
         ProgressCallback progress = nullptr
     );
 
@@ -373,11 +347,8 @@ private:
     // Module instances (owned) — launcher modules only
     std::unique_ptr<PatchEngine> patchEngine_;
     std::unique_ptr<GameDetector> gameDetector_;
-    std::unique_ptr<PackageManager> packageManager_;
     std::unique_ptr<RuntimeManager> runtimeManager_;
     std::unique_ptr<SecurityManager> securityManager_;
-    std::unique_ptr<VersionTracker> versionTracker_;
-
     // Background task queue
     AsyncQueue taskQueue_;
 

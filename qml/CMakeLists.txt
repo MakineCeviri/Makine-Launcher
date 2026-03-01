@@ -102,7 +102,6 @@ set(BACKEND_SOURCES
     src/services/integrityservice.cpp
     src/services/batchoperationservice.cpp
     src/services/localpackagemanager.cpp
-    src/services/updatedetectionservice.cpp
     src/services/updateservice.cpp
     src/services/selfupdater.cpp
     src/services/operationjournal.cpp
@@ -126,7 +125,6 @@ set(BACKEND_HEADERS
     src/services/batchoperationservice.h
     src/services/localpackagemanager.h
     src/services/vdfparser.h
-    src/services/updatedetectionservice.h
     src/services/updateservice.h
     src/services/selfupdater.h
     src/services/pathsecurity.h

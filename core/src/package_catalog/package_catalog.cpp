@@ -1,10 +1,11 @@
 /**
  * @file package_catalog.cpp
- * @brief Local translation package catalog implementation
+ * @brief Network-based translation package catalog implementation
  * @copyright (c) 2026 MakineAI Team
  *
  * Pure C++ implementation — no Qt dependency.
- * Extracts business logic from LocalPackageManager (QML layer).
+ * Loads lightweight index.json from CDN cache, enriches on-demand
+ * with per-game detail JSON.
  */
 
 #include "makineai/package_catalog.hpp"
@@ -23,52 +24,11 @@ namespace packages {
 using json = nlohmann::json;
 
 // =============================================================================
-// FALLBACK MAPPING
-// =============================================================================
-// Used when manifest.json is not available (transition period).
-// Maps legacy pak/ directory names to {steamAppId, gameName}.
-
-static const std::unordered_map<std::string, std::pair<std::string, std::string>> s_fallbackMapping = {
-    {"ER1080",          {"1245620", "Elden Ring"}},
-    {"BMW_10714712",    {"2358720", "Black Myth: Wukong"}},
-    {"SF10310Hv16",     {"1716740", "Starfield"}},
-    {"RDR2TRV17F",      {"1174180", "Red Dead Redemption 2"}},
-    {"AH1010",          {"668580",  "Atomic Heart"}},
-    {"CS21015V1",       {"949230",  "Cities: Skylines II"}},
-    {"ACM107",          {"3035570", "Assassin's Creed Mirage"}},
-    {"ACS100",          {"3159330", "Assassin's Creed Shadows"}},
-    {"ACV170DLC123",    {"2208920", "Assassin's Creed Valhalla"}},
-    {"ACO156D1234",     {"812140",  "Assassin's Creed Odyssey"}},
-    {"ACOR160D12F",     {"582160",  "Assassin's Creed Origins"}},
-    {"AW2_1012V1",      {"3611110", "Alan Wake 2"}},
-    {"BAK1620V1",       {"208650",  "Batman: Arkham Knight"}},
-    {"COTL101877",      {"1313140", "Cult of the Lamb"}},
-    {"COTDG12444",      {"1123770", "Curse of the Dead Gods"}},
-    {"DOS2",            {"435150",  "Divinity: Original Sin 2"}},
-    {"DOSEE",           {"373420",  "Divinity: Original Sin Enhanced Edition"}},
-    {"EW104D",          {"1065310", "Evil West"}},
-    {"HL_1120320",      {"1583230", "High On Life"}},
-    {"IFR134D2",        {"2221920", "Immortals Fenyx Rising"}},
-    {"MEA",             {"1238000", "Mass Effect: Andromeda"}},
-    {"POE_1381318",     {"291650",  "Pillars of Eternity"}},
-    {"SM2_113010",      {"2651280", "Marvel's Spider-Man 2"}},
-    {"TEATS109V1",      {"1708010", "The Expanse: A Telltale Series"}},
-    {"TES4OR_04111400", {"22330",   "The Elder Scrolls IV: Oblivion Remastered"}},
-    {"COE33_56442",     {"1903340", "Clair Obscur: Expedition 33"}},
-    {"JGC_1000",        {"2677660", "Indiana Jones and the Great Circle"}},
-    {"D2R_1471776",     {"1293830", "Diablo II: Resurrected"}},
-    {"TCP_1544020",     {"1544020", "The Callisto Protocol"}},
-};
-
-// =============================================================================
 // HELPERS
 // =============================================================================
 
 namespace {
 
-/**
- * @brief Convert a string to lowercase (ASCII-safe)
- */
 std::string toLower(const std::string& s) {
     std::string result;
     result.reserve(s.size());
@@ -78,9 +38,6 @@ std::string toLower(const std::string& s) {
     return result;
 }
 
-/**
- * @brief Trim whitespace from both ends of a string
- */
 std::string trim(const std::string& s) {
     auto start = s.find_first_not_of(" \t\r\n");
     if (start == std::string::npos) return {};
@@ -88,39 +45,11 @@ std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
-/**
- * @brief Count files and total size under a directory recursively
- * @return {fileCount, totalSizeBytes}
- */
-std::pair<int, int64_t> countFilesAndSize(const fs::path& dir) {
-    int count = 0;
-    int64_t totalSize = 0;
-    std::error_code ec;
-
-    for (auto it = fs::recursive_directory_iterator(dir, fs::directory_options::skip_permission_denied, ec);
-         it != fs::recursive_directory_iterator(); it.increment(ec))
-    {
-        if (ec) continue;
-        if (it->is_regular_file(ec) && !ec) {
-            count++;
-            totalSize += static_cast<int64_t>(it->file_size(ec));
-            if (ec) ec.clear(); // ignore individual file size errors
-        }
-    }
-
-    return {count, totalSize};
-}
-
-/**
- * @brief Find a subdirectory starting with "extracted_" inside the given directory
- * @return The full path to the first extracted_* subdirectory, or empty path
- */
 fs::path findExtractedSubdir(const fs::path& dir) {
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(dir, ec)) {
         if (!entry.is_directory(ec) || ec) continue;
-        const auto name = entry.path().filename().string();
-        if (name.starts_with("extracted_")) {
+        if (entry.path().filename().string().starts_with("extracted_")) {
             return entry.path();
         }
     }
@@ -138,39 +67,6 @@ PackageCatalog::PackageCatalog() = default;
 // =============================================================================
 // LOADING
 // =============================================================================
-
-bool PackageCatalog::loadFromPath(const fs::path& translationDataPath)
-{
-    dataPath_ = translationDataPath;
-    packages_.clear();
-    storeIdToSteamAppId_.clear();
-
-    std::error_code ec;
-    if (!fs::is_directory(translationDataPath, ec)) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Translation data path does not exist: {}",
-                          translationDataPath.string());
-        return false;
-    }
-
-    // Try loading manifest.json first
-    fs::path manifestPath = translationDataPath / "manifest.json";
-    if (fs::exists(manifestPath, ec)) {
-        loadManifest(manifestPath);
-    }
-
-    // Scan pak/ directories for legacy packages (mc-main format)
-    fs::path pakPath = translationDataPath / "pak";
-    if (fs::is_directory(pakPath, ec)) {
-        scanPackageDirectories(pakPath);
-    }
-
-    // Scan root-level game-name directories (new format)
-    scanGameNameDirectories(translationDataPath);
-
-    MAKINEAI_LOG_INFO(log::PACKAGE, "PackageCatalog: loaded {} packages from {}",
-                      packages_.size(), translationDataPath.string());
-    return !packages_.empty();
-}
 
 bool PackageCatalog::loadFromIndex(const fs::path& indexPath, const fs::path& packageCacheRoot)
 {
@@ -468,208 +364,6 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
     }
 
     MAKINEAI_LOG_DEBUG(log::PACKAGE, "Index loaded: {} packages", packages_.size());
-}
-
-// =============================================================================
-// MANIFEST PARSING (full manifest — used by loadFromPath for local mode)
-// =============================================================================
-
-void PackageCatalog::loadManifest(const fs::path& manifestPath)
-{
-    std::ifstream file(manifestPath);
-    if (!file.is_open()) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Cannot open manifest: {}", manifestPath.string());
-        return;
-    }
-
-    json doc;
-    try {
-        doc = json::parse(file);
-    } catch (const json::parse_error& e) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Manifest parse error: {}", e.what());
-        return;
-    }
-
-    if (!doc.contains("packages") || !doc["packages"].is_object()) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Manifest missing 'packages' object");
-        return;
-    }
-
-    const auto& packagesObj = doc["packages"];
-
-    for (auto it = packagesObj.begin(); it != packagesObj.end(); ++it) {
-        const auto& pkgObj = it.value();
-        if (!pkgObj.is_object()) continue;
-
-        PackageCatalogEntry info;
-        info.steamAppId   = it.key();
-        info.packageId    = pkgObj.value("packageId", "");
-        info.gameName     = pkgObj.value("gameName", "");
-        info.engine       = pkgObj.value("engine", "");
-        info.version      = pkgObj.value("version", "");
-        info.installType  = pkgObj.value("installType", "overlay");
-        info.tier         = pkgObj.value("tier", "free");
-        info.lastUpdated  = pkgObj.value("lastUpdated", "");
-        info.dirName      = pkgObj.value("dirName", "");
-        info.variantType  = pkgObj.value("variantType", "");
-
-        // Parse variants array
-        if (pkgObj.contains("variants") && pkgObj["variants"].is_array()) {
-            for (const auto& v : pkgObj["variants"]) {
-                if (v.is_string()) {
-                    info.variants.push_back(v.get<std::string>());
-                }
-            }
-        }
-
-        // Parse installNotes (support both field names)
-        info.installNotes = pkgObj.value("installNotes", "");
-        if (info.installNotes.empty()) {
-            info.installNotes = pkgObj.value("installNote", "");
-        }
-
-        // Parse specialDialog
-        info.specialDialog = pkgObj.value("specialDialog", "");
-
-        // Use shared parse helpers
-        parseContributors(info, pkgObj);
-        parseInstallMethod(info, pkgObj);
-        parseStoreIds(info, pkgObj, storeIdToSteamAppId_);
-        parseFingerprint(info, pkgObj);
-
-        info.detailLoaded = true;  // Full manifest has all detail
-
-        packages_[info.steamAppId] = std::move(info);
-    }
-
-    // Auto-derive fingerprints for packages that don't have explicit ones
-    for (auto& [appId, entry] : packages_) {
-        if (!entry.fingerprint.has_value()) {
-            deriveFingerprint(entry);
-        }
-    }
-
-    MAKINEAI_LOG_DEBUG(log::PACKAGE, "Manifest loaded: {} packages, {} store ID mappings",
-                       packages_.size(), storeIdToSteamAppId_.size());
-}
-
-// =============================================================================
-// PACKAGE DIRECTORY SCANNING (pak/ legacy format)
-// =============================================================================
-
-void PackageCatalog::scanPackageDirectories(const fs::path& basePath)
-{
-    std::error_code ec;
-
-    for (const auto& entry : fs::directory_iterator(basePath, ec)) {
-        if (!entry.is_directory(ec) || ec) continue;
-
-        const std::string dirName = entry.path().filename().string();
-        const fs::path fullPath = entry.path();
-
-        // Check for extracted_* subdirectory
-        fs::path extractedPath = findExtractedSubdir(fullPath);
-        bool hasExtracted = !extractedPath.empty();
-
-        // If already loaded from manifest by packageId, update with disk info
-        bool foundInManifest = false;
-        for (auto& [appId, pkg] : packages_) {
-            if (pkg.packageId == dirName) {
-                foundInManifest = true;
-                if (hasExtracted && pkg.fileCount == 0) {
-                    auto [count, totalSize] = countFilesAndSize(extractedPath);
-                    pkg.fileCount = count;
-                    pkg.sizeBytes = totalSize;
-                }
-                break;
-            }
-        }
-
-        if (foundInManifest) continue;
-
-        // Fallback: use hardcoded mapping if manifest didn't provide this package
-        auto mappingIt = s_fallbackMapping.find(dirName);
-        if (mappingIt == s_fallbackMapping.end()) {
-            continue; // Unknown package, skip
-        }
-
-        const std::string& steamAppId = mappingIt->second.first;
-        const std::string& gameName   = mappingIt->second.second;
-
-        // Skip if already loaded (e.g. manifest had it by steamAppId)
-        if (packages_.contains(steamAppId)) {
-            auto& pkg = packages_[steamAppId];
-            if (pkg.packageId.empty()) {
-                pkg.packageId = dirName;
-            }
-            if (hasExtracted && pkg.fileCount == 0) {
-                auto [count, totalSize] = countFilesAndSize(extractedPath);
-                pkg.fileCount = count;
-                pkg.sizeBytes = totalSize;
-            }
-            continue;
-        }
-
-        // Create package info from directory scan + fallback mapping
-        PackageCatalogEntry info;
-        info.packageId   = dirName;
-        info.steamAppId  = steamAppId;
-        info.gameName    = gameName;
-        info.installType = "overlay";
-        info.storeIds["steam"] = steamAppId;
-
-        if (hasExtracted) {
-            auto [count, totalSize] = countFilesAndSize(extractedPath);
-            info.fileCount = count;
-            info.sizeBytes = totalSize;
-        }
-
-        packages_[steamAppId] = std::move(info);
-    }
-}
-
-// =============================================================================
-// GAME-NAME DIRECTORY SCANNING (new format)
-// =============================================================================
-
-void PackageCatalog::scanGameNameDirectories(const fs::path& basePath)
-{
-    static const std::set<std::string> skipDirs = {"pak", "mc-main", ".git"};
-
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(basePath, ec)) {
-        if (!entry.is_directory(ec) || ec) continue;
-
-        const std::string dirName = entry.path().filename().string();
-        if (skipDirs.contains(dirName)) continue;
-
-        // Find manifest entry that matches this dirName
-        bool found = false;
-        for (auto& [appId, pkg] : packages_) {
-            if (pkg.dirName == dirName) {
-                found = true;
-                // Update file stats if not already set
-                if (pkg.fileCount == 0) {
-                    fs::path scanPath = basePath / dirName;
-                    // If has variants, count files in first variant
-                    if (!pkg.variants.empty()) {
-                        scanPath = basePath / dirName / pkg.variants.front();
-                    }
-                    if (fs::is_directory(scanPath, ec)) {
-                        auto [count, totalSize] = countFilesAndSize(scanPath);
-                        pkg.fileCount = count;
-                        pkg.sizeBytes = totalSize;
-                    }
-                }
-                break;
-            }
-        }
-
-        if (!found) {
-            MAKINEAI_LOG_DEBUG(log::PACKAGE,
-                "scanGameNameDirectories: unrecognized directory {}", dirName);
-        }
-    }
 }
 
 // =============================================================================

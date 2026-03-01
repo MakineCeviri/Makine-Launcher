@@ -20,7 +20,6 @@
 
 #include "corebridge.h"
 #include "manifestsyncservice.h"
-#include "updatedetectionservice.h"
 #include "supportedgamesmodel.h"
 
 namespace makineai {
@@ -224,24 +223,6 @@ public:
     Q_INVOKABLE bool hasTranslationUpdate(const QString& gameId) const;
 
     /**
-     * @brief Check if a game has a detected update (translation may be broken)
-     */
-    Q_INVOKABLE bool hasGameUpdate(const QString& gameId) const;
-
-    /**
-     * @brief Quick impact assessment for installed translation after game update
-     * @return Map with: level (safe/lost/broken/unknown), summary, totalFiles, etc.
-     */
-    Q_INVOKABLE QVariantMap checkUpdateImpact(const QString& gameId);
-
-    /**
-     * @brief Check translation compatibility after game update
-     * @return Map with: level (compatible/partial/incompatible/unknown),
-     *         integrityPercent, modifiedCount, addedCount, removedCount, summary
-     */
-    Q_INVOKABLE QVariantMap checkCompatibility(const QString& gameId);
-
-    /**
      * @brief Check if a game has anti-cheat protection
      * @return Map with: hasAntiCheat, systems (list of {name, shortName, severity, warning})
      */
@@ -305,10 +286,6 @@ signals:
     void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
     void antiCheatWarningNeeded(const QString& gameId, const QVariantMap& antiCheatData);
-    void gameUpdateDetected(const QString& gameId, const QString& gameName,
-                            const QString& summary);
-    void translationImpactDetected(const QString& gameId, const QString& gameName,
-                                    const QVariantMap& impact);
 
 private:
     void loadCachedGames();
@@ -335,7 +312,6 @@ private:
 
     CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
     ManifestSyncService* m_manifestSync{nullptr};  // Non-owning. Set by setManifestSync().
-    UpdateDetectionService m_updateService;
     QNetworkAccessManager m_networkManager;
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;       // O(1) lookup by ID

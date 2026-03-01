@@ -3,10 +3,9 @@
  * @brief Local translation package management
  * @copyright (c) 2026 MakineAI Team
  *
- * Manages translation packages from the local filesystem.
- * When built with core library (not MAKINEAI_UI_ONLY), delegates
- * catalog/query operations to makineai::packages::PackageCatalog.
- * Install/uninstall file operations always stay in this QML service.
+ * Manages translation packages via network-based catalog.
+ * Delegates catalog/query operations to makineai::packages::PackageCatalog.
+ * Install/uninstall file operations stay in this QML service.
  */
 
 #pragma once
@@ -20,9 +19,7 @@
 #include <optional>
 #include <atomic>
 
-#ifndef MAKINEAI_UI_ONLY
 #include <makineai/package_catalog.hpp>
-#endif
 
 namespace makineai {
 
@@ -98,7 +95,6 @@ class LocalPackageManager : public QObject
 public:
     explicit LocalPackageManager(QObject *parent = nullptr);
 
-    bool loadFromPath(const QString& translationDataPath);
     bool loadFromIndex(const QString& indexPath, const QString& packageCacheRoot);
     bool enrichPackageDetail(const QString& steamAppId, const QByteArray& jsonData);
     bool isDetailLoaded(const QString& steamAppId) const;
@@ -154,34 +150,10 @@ private:
     void installWithOptions(const PackageInfo& pkg, const QString& gamePath,
                             const QString& basePackageDir, const QStringList& selectedOptions);
 
-    // Unity bundle patching: replace serialized assets inside .bundle files
-    void executeUnityPatch(const PackageInfo& pkg, const QString& gamePath,
-                           const QString& packageDir);
-
     QString installedStatePath() const;
 
-#ifndef MAKINEAI_UI_ONLY
-    // Core catalog handles manifest loading, queries, installed state, etc.
     packages::PackageCatalog m_catalog;
-
-    // Convert core PackageCatalogEntry to QML-facing PackageInfo
     static PackageInfo fromCatalogEntry(const packages::PackageCatalogEntry& entry);
-#else
-    // UI-only fallback: full QJsonDocument-based implementation
-    void loadManifest(const QString& manifestPath);
-    void parseIndexJson(const QString& indexPath);
-    void scanPackageDirectories(const QString& basePath);
-    void scanGameNameDirectories(const QString& basePath);
-    void loadInstalledState();
-    void saveInstalledState();
-
-    // steamAppId -> PackageInfo
-    QHash<QString, PackageInfo> m_packages;
-    // steamAppId -> installed package info
-    QHash<QString, InstalledPackageInfo> m_installed;
-    // Reverse index: any store ID -> steamAppId
-    QHash<QString, QString> m_storeIdToSteamAppId;
-#endif
 
     bool isCancelled() const { return m_cancelRequested.load(std::memory_order_relaxed); }
 

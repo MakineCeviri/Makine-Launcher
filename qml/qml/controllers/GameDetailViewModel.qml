@@ -184,11 +184,7 @@ QtObject {
         hasAntiCheat = d.hasAntiCheat || false
         antiCheatName = d.antiCheatName || ""
 
-        if (packageInstalled && GameService.hasGameUpdate(gameId)) {
-            updateImpact = GameService.checkUpdateImpact(gameId)
-        } else {
-            updateImpact = null
-        }
+        updateImpact = null
     }
 
     function _fetchSteamDetails() {

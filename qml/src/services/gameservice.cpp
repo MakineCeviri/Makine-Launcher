@@ -6,7 +6,6 @@
 
 #include "gameservice.h"
 #include "backupmanager.h"
-#include "updatedetectionservice.h"
 #include "apppaths.h"
 #include "profiler.h"
 #include "crashreporter.h"
@@ -103,16 +102,6 @@ GameService::GameService(QObject *parent)
     : QObject(parent)
     , m_supportedGamesModel(new SupportedGamesModel(this))
 {
-    m_updateService.setGameService(this);
-
-    // Forward update detection signals
-    connect(&m_updateService, &UpdateDetectionService::gameUpdateDetected,
-            this, &GameService::gameUpdateDetected);
-
-    // Start monitoring after first scan completes
-    connect(this, &GameService::scanCompleted, this, [this](int) {
-        m_updateService.startMonitoring();
-    }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 }
 
 void GameService::initialize()
@@ -276,7 +265,7 @@ QVariantList GameService::games() const
 
     for (const auto& game : m_games) {
         QVariantMap map = game.toVariantMap();
-        map["hasUpdate"] = hasGameUpdate(game.id);
+        map["hasUpdate"] = false;
         m_gamesCache.append(map);
     }
 
@@ -339,21 +328,6 @@ void GameService::setupCoreBridge()
                             emit translationStatusChanged();
                             emit supportedGamesChanged();
 
-                            // Record store version + take file snapshot
-                            const auto& game = m_games[idx];
-                            {
-                                auto pkg = m_coreBridge->getPackageForGame(gameId);
-                                QString patchVer = pkg.has_value() ? pkg->version : "unknown";
-                                m_updateService.recordStoreVersion(gameId, game.installPath, game.source);
-                                m_updateService.takeSnapshot(gameId, patchVer, game.installPath, game.engine);
-                                m_updateService.clearUpdate(gameId);
-
-                                // Record store version in installed package info
-                                QString storeVer = m_updateService.getRecordedStoreVersionId(gameId);
-                                if (!storeVer.isEmpty()) {
-                                    m_coreBridge->updateInstalledStoreVersion(gameId, storeVer, game.source);
-                                }
-                            }
 
                         }
                     }
@@ -859,7 +833,7 @@ QVariantList GameService::installedTranslations() const
 
         QVariantMap entry = game.toVariantMap();
         entry["packageInstalled"] = true;
-        entry["hasUpdate"] = hasGameUpdate(game.id);
+        entry["hasUpdate"] = false;
 
         auto pkg = m_coreBridge->getPackageForGame(game.id);
         if (pkg) {
@@ -1301,7 +1275,7 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
                         m_coreBridge->installPackage(gameId, installPath, variant, selectedOptions);
                     }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
-                QString storeVer = m_updateService.getRecordedStoreVersionId(gameId);
+                QString storeVer;
                 QString patchVer = pkg.has_value() ? pkg->version : QString();
                 bm->createSelectiveBackupAsync(gameId, m_games[m_gameIdToIndex.value(gameId)].name,
                                                 installPath, filesToOverwrite, storeVer, patchVer);
@@ -1385,8 +1359,6 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         invalidateAllCaches();
         emit translationStatusChanged();
 
-        m_updateService.removeSnapshot(gameId);
-        m_updateService.removeStoreVersion(gameId);
     }
 
     emit translationUninstalled(gameId, success,
@@ -1396,24 +1368,8 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
 
 void GameService::checkAllInstalledTranslations()
 {
-    MAKINE_ZONE_NAMED("GameService::checkAllInstalledTranslations");
-    if (!m_coreBridge) return;
-
-    for (const auto& game : m_games) {
-        if (!game.hasTranslation) continue;
-
-        // Quick Tier 1 check: has store version changed?
-        if (!m_updateService.hasUpdate(game.id)) continue;
-
-        // Detailed impact assessment
-        QVariantMap impact = m_updateService.assessImpact(game.id);
-        QString level = impact.value("level").toString();
-
-        if (level != "safe" && level != "unknown") {
-            emit translationImpactDetected(game.id, game.name, impact);
-        }
-    }
-    qDebug() << "checkAllInstalledTranslations:" << m_games.count() << "games checked";
+    // Update detection moved to Makine engine — stub for now
+    qDebug() << "checkAllInstalledTranslations: update detection deferred to Makine engine";
 }
 
 void GameService::recoverTranslation(const QString& gameId)
@@ -1444,23 +1400,6 @@ bool GameService::hasTranslationUpdate(const QString& gameId) const
 {
     if (!m_coreBridge) return false;
     return m_coreBridge->hasTranslationUpdate(gameId);
-}
-
-bool GameService::hasGameUpdate(const QString& gameId) const
-{
-    return m_updateService.hasUpdate(gameId);
-}
-
-QVariantMap GameService::checkUpdateImpact(const QString& gameId)
-{
-    MAKINE_ZONE_NAMED("GameService::checkUpdateImpact");
-    return m_updateService.assessImpact(gameId);
-}
-
-QVariantMap GameService::checkCompatibility(const QString& gameId)
-{
-    MAKINE_ZONE_NAMED("GameService::checkCompatibility");
-    return m_updateService.checkCompatibility(gameId);
 }
 
 QVariantMap GameService::getRuntimeStatus(const QString& gameId)

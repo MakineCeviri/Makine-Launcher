@@ -143,11 +143,8 @@ class GOGScanner;
 
 // --- Patching ---
 class PatchEngine;
-class IFileBackupStorage;
+class IBackupStorage;
 class FileBackupStorage;
-
-// --- Package Management ---
-class PackageManager;
 
 // --- Package Catalog (pure C++) ---
 namespace packages {
@@ -164,8 +161,5 @@ class RuntimeManager;
 // --- Security ---
 class SecurityManager;
 template<typename T> class SecureBuffer;
-
-// --- Version Tracking ---
-class VersionTracker;
 
 }  // namespace makineai

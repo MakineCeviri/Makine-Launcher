@@ -166,7 +166,8 @@ struct InstalledPackageState {
  * Usage:
  * @code
  *   PackageCatalog catalog;
- *   catalog.loadFromPath("C:/translation_data");
+ *   catalog.loadFromIndex("index.json", "C:/cache/packages");
+ *   catalog.enrichPackage("1245620", detailJsonStr);
  *   catalog.loadInstalledState("C:/Users/.../installed_packages.json");
  *
  *   if (catalog.hasPackage("1245620")) {
@@ -183,14 +184,7 @@ public:
     explicit PackageCatalog();
 
     /**
-     * @brief Load catalog from translation data directory
-     * @param translationDataPath Root path containing manifest.json, pak/, and game dirs
-     * @return true if at least one package was loaded
-     */
-    bool loadFromPath(const fs::path& translationDataPath);
-
-    /**
-     * @brief Load catalog from lightweight index.json (network-only mode)
+     * @brief Load catalog from lightweight index.json (network-based)
      *
      * Parses the index at @p indexPath (contains gameName, version, size, dirName)
      * and sets @p packageCacheRoot as the data path. Detail fields (installMethod,
@@ -373,24 +367,9 @@ public:
 
 private:
     /**
-     * @brief Parse manifest.json and populate packages_ and storeIdToSteamAppId_
-     */
-    void loadManifest(const fs::path& manifestPath);
-
-    /**
      * @brief Parse index.json (lightweight) and populate packages_
      */
     void parseIndex(const fs::path& indexPath);
-
-    /**
-     * @brief Scan pak/ directory for legacy package directories
-     */
-    void scanPackageDirectories(const fs::path& basePath);
-
-    /**
-     * @brief Scan root-level game-name directories (new format)
-     */
-    void scanGameNameDirectories(const fs::path& basePath);
 
     void deriveFingerprint(PackageCatalogEntry& entry) const;
 

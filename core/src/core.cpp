@@ -170,10 +170,8 @@ void Core::shutdown() {
     AuditLogger::instance().logSystemEvent("core_shutdown", "Normal shutdown");
 
     // Cleanup modules in reverse initialization order
-    versionTracker_.reset();
     securityManager_.reset();
     runtimeManager_.reset();
-    packageManager_.reset();
     gameDetector_.reset();
     patchEngine_.reset();
 
@@ -253,11 +251,6 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         // Game Detector
         gameDetector_ = std::make_unique<GameDetector>();
 
-        // Package Manager
-        packageManager_ = std::make_unique<PackageManager>();
-        packageManager_->setApiUrl(config.apiBaseUrl);
-        packageManager_->setCacheDirectory(fs::path(config.cacheDirectory) / "packages");
-
         // Runtime Manager (BepInEx/XUnity — used by package install flow)
         runtimeManager_ = std::make_unique<RuntimeManager>();
         runtimeManager_->setBundleDirectory(fs::path(config.dataDirectory) / "runtime");
@@ -287,10 +280,6 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
                 MAKINEAI_LOG_INFO(log::CORE, "Embedded public key loaded successfully");
             }
         }
-
-        // Version Tracker
-        versionTracker_ = std::make_unique<VersionTracker>();
-        versionTracker_->setDatabasePath(fs::path(config.dataDirectory) / "versions.db");
 
         MAKINEAI_LOG_DEBUG(log::CORE, "Core modules initialized");
         return {};
@@ -382,13 +371,6 @@ GameDetector& Core::gameDetector() {
     return *gameDetector_;
 }
 
-PackageManager& Core::packageManager() {
-    if (!packageManager_) {
-        throw Exception(Error(ErrorCode::InvalidArgument, "PackageManager not initialized"));
-    }
-    return *packageManager_;
-}
-
 RuntimeManager& Core::runtimeManager() {
     if (!runtimeManager_) {
         throw Exception(Error(ErrorCode::InvalidArgument, "RuntimeManager not initialized"));
@@ -401,13 +383,6 @@ SecurityManager& Core::securityManager() {
         throw Exception(Error(ErrorCode::InvalidArgument, "SecurityManager not initialized"));
     }
     return *securityManager_;
-}
-
-VersionTracker& Core::versionTracker() {
-    if (!versionTracker_) {
-        throw Exception(Error(ErrorCode::InvalidArgument, "VersionTracker not initialized"));
-    }
-    return *versionTracker_;
 }
 
 // Translation service accessors are now inline in core.hpp (nullable pointers)
@@ -436,76 +411,6 @@ AsyncOperationPtr<std::vector<GameInfo>> Core::scanGamesAsync(ProgressCallback p
     });
 }
 
-AsyncOperationPtr<PatchResult> Core::applyTranslationAsync(
-    const GameInfo& game,
-    const std::string& packageId,
-    ProgressCallback progress
-) {
-    return executeAsync<PatchResult>(
-        [this, game, packageId, progress](AsyncOperation<PatchResult>& op) -> Result<PatchResult> {
-        op.reportProgress(0.0f, "Fetching package information...", 0, 4);
-
-        if (!packageManager_) {
-            return std::unexpected(Error(ErrorCode::InvalidArgument,
-                "PackageManager not initialized"));
-        }
-        if (!patchEngine_) {
-            return std::unexpected(Error(ErrorCode::InvalidArgument,
-                "PatchEngine not initialized"));
-        }
-
-        // Step 1: Get package metadata
-        auto pkgResult = packageManager_->getPackage(packageId);
-        if (!pkgResult) {
-            return std::unexpected(pkgResult.error());
-        }
-        auto& package = *pkgResult;
-
-        if (op.cancellationRequested()) {
-            return std::unexpected(Error(ErrorCode::Cancelled, "Operation cancelled"));
-        }
-
-        // Step 2: Download package
-        op.reportProgress(0.25f, "Downloading translation package...", 1, 4);
-
-        auto downloadResult = packageManager_->download(package);
-        if (!downloadResult) {
-            return std::unexpected(downloadResult.error());
-        }
-
-        if (op.cancellationRequested()) {
-            return std::unexpected(Error(ErrorCode::Cancelled, "Operation cancelled"));
-        }
-
-        // Step 3: Verify package integrity
-        op.reportProgress(0.50f, "Verifying package integrity...", 2, 4);
-
-        auto verifyResult = packageManager_->verifyPackage(*downloadResult, package);
-        if (!verifyResult) {
-            return std::unexpected(verifyResult.error());
-        }
-
-        if (op.cancellationRequested()) {
-            return std::unexpected(Error(ErrorCode::Cancelled, "Operation cancelled"));
-        }
-
-        // Step 4: Install translation
-        op.reportProgress(0.75f, "Installing translation...", 3, 4);
-
-        auto installResult = packageManager_->install(package, game, progress);
-        if (!installResult) {
-            return std::unexpected(installResult.error());
-        }
-
-        op.reportProgress(1.0f, "Translation applied successfully", 4, 4);
-
-        Metrics::instance().increment("translations_applied");
-        MAKINEAI_LOG_INFO(log::CORE, "Translation applied: {} -> {} ({} files patched)",
-            packageId, game.name, installResult->filesPatched);
-
-        return *installResult;
-    });
-}
 
 // =============================================================================
 // Shutdown Callbacks

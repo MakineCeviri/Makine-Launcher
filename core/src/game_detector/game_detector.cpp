@@ -264,34 +264,9 @@ Result<VerificationResult> GameDetector::verify(const GameInfo& game) const {
     result.expectedHash = game.id.exeHash;
     result.verified = (result.actualHash == result.expectedHash);
 
-    // Check against package manifest for known versions
+    // Translation availability is determined by QML layer (PackageCatalog + ManifestSync)
     result.isKnownVersion = false;
     result.hasTranslation = false;
-
-    if (Core::instance().isInitialized()) {
-        auto& packageManager = Core::instance().packageManager();
-        const auto& manifest = packageManager.cachedManifest();
-
-        for (const auto& pkg : manifest.packages) {
-            // Check by game ID
-            if (pkg.gameId == game.id.storeId) {
-                result.isKnownVersion = true;
-                result.hasTranslation = true;
-                break;
-            }
-
-            // Check by hash
-            for (const auto& hash : pkg.supportedGameHashes) {
-                if (hash == result.actualHash) {
-                    result.isKnownVersion = true;
-                    result.hasTranslation = true;
-                    break;
-                }
-            }
-
-            if (result.hasTranslation) break;
-        }
-    }
 
     return result;
 }
@@ -695,43 +670,9 @@ Result<std::string> GameDetector::calculateHash(const fs::path& file) const {
 std::vector<GameInfo> GameDetector::filterWithTranslations(
     const std::vector<GameInfo>& games
 ) const {
-    if (!Core::instance().isInitialized()) {
-        return games;  // Return all if not initialized
-    }
-
-    auto& packageManager = Core::instance().packageManager();
-    const auto& manifest = packageManager.cachedManifest();
-
-    if (manifest.packages.empty()) {
-        return games;  // Return all if no manifest loaded
-    }
-
-    // Build a set of game IDs and hashes that have translations
-    std::unordered_set<std::string> translatedGameIds;
-    std::unordered_set<std::string> translatedHashes;
-
-    for (const auto& pkg : manifest.packages) {
-        translatedGameIds.insert(pkg.gameId);
-        for (const auto& hash : pkg.supportedGameHashes) {
-            translatedHashes.insert(hash);
-        }
-    }
-
-    // Filter games
-    std::vector<GameInfo> filtered;
-    filtered.reserve(games.size());
-
-    for (const auto& game : games) {
-        if (translatedGameIds.count(game.id.storeId) > 0 ||
-            translatedHashes.count(game.id.exeHash) > 0) {
-            filtered.push_back(game);
-        }
-    }
-
-    logger()->debug("Filtered {} games to {} with translations",
-        games.size(), filtered.size());
-
-    return filtered;
+    // Translation filtering is handled by the QML layer (PackageCatalog).
+    // Core returns all detected games; the UI cross-references against the catalog.
+    return games;
 }
 
 // =============================================================================

@@ -70,19 +70,13 @@ set(MAKINEAI_SOURCES
     # Patch Engine
     src/patch_engine/patch_engine.cpp
 
-    # Unity Bundle Patcher (used by QML install flow)
-    src/asset_parser/unity_bundle_patcher.cpp
-
     # Game Detector
     src/game_detector/game_detector.cpp
     src/game_detector/steam_scanner.cpp
     src/game_detector/epic_scanner.cpp
     src/game_detector/gog_scanner.cpp
 
-    # Package Manager
-    src/package_manager/package_manager.cpp
-
-    # Package Catalog (pure C++ catalog extracted from QML LocalPackageManager)
+    # Package Catalog (pure C++ catalog — network-based index + enrichment)
     src/package_catalog/package_catalog.cpp
 
     # Runtime Manager (BepInEx/XUnity — used by package_manager install flow)
@@ -92,12 +86,6 @@ set(MAKINEAI_SOURCES
     src/security/security_manager.cpp
     src/security/credential_store.cpp
     src/security/ssl_pinning.cpp
-
-    # Version Tracker
-    src/version_tracker/version_tracker.cpp
-
-    # Update Detection
-    src/update_detection/update_detection.cpp
 
     # File Integrity
     src/file_integrity/file_integrity.cpp
@@ -116,18 +104,13 @@ set(MAKINEAI_HEADERS
     include/makineai/patch_engine.hpp
     include/makineai/game_detector.hpp
     include/makineai/vdf_parser.hpp
-    include/makineai/package_manager.hpp
     include/makineai/package_catalog.hpp
     include/makineai/runtime_manager.hpp
     include/makineai/security.hpp
     include/makineai/ssl_pinning.hpp
     include/makineai/credential_store.hpp
-    include/makineai/version_tracker.hpp
-    include/makineai/update_detection.hpp
     include/makineai/file_integrity.hpp
     include/makineai/crash_recovery.hpp
-    include/makineai/unity_bundle_patcher.hpp
-    include/makineai/package_builder.hpp
 )
 
 # Static library

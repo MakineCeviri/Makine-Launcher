@@ -34,7 +34,6 @@ public:
     static QString cacheDir()           { return root() + QStringLiteral("/cache"); }
     static QString dataDir()            { return root() + QStringLiteral("/data"); }
     static QString backupsDir()         { return root() + QStringLiteral("/backups"); }
-    static QString updateDetectionDir() { return root() + QStringLiteral("/update_detection"); }
     static QString crashReportsDir()    { return root() + QStringLiteral("/crash-reports"); }
 
     // Temp: AppData/Local/Temp/MakineAI
@@ -65,7 +64,7 @@ public:
     static void ensureDirectories() {
         const QStringList dirs = {
             logsDir(), cacheDir(), dataDir(), backupsDir(),
-            updateDetectionDir(), crashReportsDir(),
+            crashReportsDir(),
             imageCacheDir(), downloadTempDir(), updateTempDir(), packageDetailDir(),
             packagesDir()
         };

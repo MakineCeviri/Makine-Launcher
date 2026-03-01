@@ -151,31 +151,6 @@ target_link_options(fuzz_translation_memory PRIVATE
 )
 
 # ===========================================================================
-# Path Validation Fuzzer
-# ===========================================================================
-
-add_executable(fuzz_path_validation
-    fuzz_path_validation.cpp
-)
-
-target_link_libraries(fuzz_path_validation PRIVATE
-    makineai_core
-)
-
-target_include_directories(fuzz_path_validation PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-target_compile_options(fuzz_path_validation PRIVATE
-    ${FUZZ_COMMON_FLAGS}
-    ${FUZZER_FLAGS}
-)
-
-target_link_options(fuzz_path_validation PRIVATE
-    ${FUZZER_FLAGS}
-)
-
-# ===========================================================================
 # Custom Target for All Fuzzers
 # ===========================================================================
 
@@ -185,7 +160,6 @@ add_custom_target(fuzz_all
         fuzz_gamemaker_data
         fuzz_json_parser
         fuzz_translation_memory
-        fuzz_path_validation
     COMMENT "Building all fuzzers"
 )
 
@@ -209,7 +183,6 @@ install(TARGETS
     fuzz_gamemaker_data
     fuzz_json_parser
     fuzz_translation_memory
-    fuzz_path_validation
     DESTINATION bin/fuzz
     OPTIONAL
 )
@@ -220,7 +193,6 @@ message(STATUS "  - fuzz_unity_bundle")
 message(STATUS "  - fuzz_gamemaker_data")
 message(STATUS "  - fuzz_json_parser")
 message(STATUS "  - fuzz_translation_memory")
-message(STATUS "  - fuzz_path_validation")
 message(STATUS "")
 message(STATUS "Build with: cmake --build . --target fuzz_all")
 message(STATUS "Run example: ./fuzz_unity_bundle corpus/unity_bundle -max_len=65536")
