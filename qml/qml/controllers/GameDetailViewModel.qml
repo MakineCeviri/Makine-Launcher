@@ -69,6 +69,7 @@ QtObject {
     property real installProgress: 0
     property string installStatus: ""
     property bool installCompleted: false
+    property string installErrorMessage: ""
 
     // ===== DOWNLOAD STATE =====
     property bool isDownloading: false
@@ -113,7 +114,7 @@ QtObject {
         unityBackend = ""; unityVersion = ""; hasAntiCheat = false
         antiCheatName = ""; isInstallingRuntime = false
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
-        installCompleted = false; isDownloading = false
+        installCompleted = false; installErrorMessage = ""; isDownloading = false
         updateImpact = null; descriptionExpanded = false
     }
 

@@ -7,7 +7,7 @@ pragma ComponentBehavior: Bound
 /**
  * UpdateAlertDialog.qml - Startup dialog showing games with broken translations
  *
- * Collects translationImpactDetected signals and shows a list of affected games
+ * Shows games with broken or outdated translations, with per-game repair action
  * with per-game repair and "Repair All" bulk action.
  */
 BaseDialog {

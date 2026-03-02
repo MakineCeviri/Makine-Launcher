@@ -24,7 +24,8 @@ Rectangle {
     Layout.preferredHeight: 52
     radius: Dimensions.radiusLG
     visible: actionBtn.vm.hasTranslation && actionBtn.vm.isGameInstalled && actionBtn.vm.fromLibrary
-    border.width: 0
+    border.width: _state === "installed" && _hovered ? 2 : 0
+    border.color: Theme.error
 
     // ── State resolution ──
     readonly property string _state: {
@@ -56,7 +57,7 @@ Rectangle {
         case "update":
             return _hovered ? Theme.primaryHover : Theme.primary
         case "installed":
-            return _hovered ? Theme.error20 : Theme.surfaceLight
+            return _hovered ? Theme.error : Theme.success12
         case "download":
         default:
             return _hovered ? Theme.primaryHover : Theme.primary
@@ -133,7 +134,7 @@ Rectangle {
 
             property color iconColor: {
                 if (actionBtn._state === "installed")
-                    return actionBtn._hovered ? Theme.error : Theme.textSecondary
+                    return actionBtn._hovered ? Theme.textOnColor : Theme.success
                 return Theme.textOnColor
             }
             Behavior on iconColor { ColorAnimation { duration: Dimensions.animFast } }
@@ -178,17 +179,19 @@ Rectangle {
                     break
 
                 case "update":
-                    // Circular arrow (refresh)
+                    // Download arrow (update = download new version)
                     ctx.beginPath()
-                    ctx.arc(cx, cy, 5.5, -Math.PI * 0.75, Math.PI * 0.6)
+                    ctx.moveTo(cx, 3)
+                    ctx.lineTo(cx, 11.5)
                     ctx.stroke()
-                    // Arrowhead
-                    var ax = cx + Math.cos(Math.PI * 0.6) * 5.5
-                    var ay = cy + Math.sin(Math.PI * 0.6) * 5.5
                     ctx.beginPath()
-                    ctx.moveTo(ax - 3, ay - 1.5)
-                    ctx.lineTo(ax, ay + 2)
-                    ctx.lineTo(ax + 3, ay - 1)
+                    ctx.moveTo(cx - 4, 8)
+                    ctx.lineTo(cx, 12)
+                    ctx.lineTo(cx + 4, 8)
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.moveTo(4, 15)
+                    ctx.lineTo(14, 15)
                     ctx.stroke()
                     break
 
@@ -291,7 +294,7 @@ Rectangle {
             color: {
                 switch (actionBtn._state) {
                 case "installing": return Theme.textPrimary
-                case "installed":  return actionBtn._hovered ? Theme.error : Theme.textSecondary
+                case "installed":  return actionBtn._hovered ? Theme.textOnColor : Theme.success
                 default:           return Theme.textOnColor
                 }
             }

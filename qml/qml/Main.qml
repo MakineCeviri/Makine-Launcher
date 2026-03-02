@@ -122,17 +122,6 @@ ApplicationWindow {
         function onAntiCheatWarningNeeded(gameId, antiCheatData) {
             installFlow.onAntiCheatWarningNeeded(gameId, antiCheatData)
         }
-        function onTranslationImpactDetected(gameId, gameName, impact) {
-            // Queue affected games; dialog opens when loader completes
-            if (!window._pendingImpacts) window._pendingImpacts = []
-            window._pendingImpacts.push({gameId: gameId, gameName: gameName, impact: impact})
-            updateAlertLoader.active = true
-            if (updateAlertLoader.item) {
-                updateAlertLoader.item.addAffectedGame(gameId, gameName, impact)
-                if (!updateAlertLoader.item.visible)
-                    updateAlertLoader.item.open()
-            }
-        }
     }
 
     // ===== CORE BRIDGE: package detail enrichment =====
@@ -498,7 +487,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 active: contentStackContainer.settingsVisible || _keepAlive || window._settingsPreload
                 visible: contentStackContainer.settingsVisible
-                asynchronous: false
+                asynchronous: true
                 onLoaded: {
                     _keepAlive = true
                     if (typeof SceneProfiler !== "undefined")
@@ -522,7 +511,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 active: contentStackContainer.gameDetailVisible || _keepAlive
                 visible: contentStackContainer.gameDetailVisible
-                asynchronous: false
+                asynchronous: true
                 onLoaded: {
                     _keepAlive = true
                     if (typeof SceneProfiler !== "undefined")

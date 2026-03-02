@@ -16,6 +16,8 @@ Item {
 
     signal gameSelected(string gameId, string gameName, string installPath, string engine)
 
+    // No heavy operations on screen entry — use refresh buttons instead
+
     // Minimum height per section: padding(40) + header(30) + divider(1) + card(185)
     readonly property real sectionMinHeight: 256
     // Available height for sections after margins and spacing
@@ -69,6 +71,8 @@ Item {
                 loading: GameService.isScanning
                 emptyText: qsTr("Kurulu oyun bulunamad\u0131")
                 badgeColor: Theme.primary
+                refreshable: true
+                onRefreshClicked: GameService.scanAllLibraries()
                 glowPosition: "bottom-left"
                 Layout.fillWidth: true
                 Layout.preferredHeight: libraryRoot.sectionHeight
@@ -81,6 +85,12 @@ Item {
                 model: GameService.installedTranslations
                 emptyText: qsTr("Kurulu yama yok")
                 badgeColor: Theme.accent
+                notificationCount: GameService.outdatedPatchCount
+                notificationText: GameService.outdatedPatchCount > 0
+                    ? qsTr("%1 yamanız güncel değil").arg(GameService.outdatedPatchCount)
+                    : ""
+                refreshable: true
+                onRefreshClicked: GameService.checkForUpdates()
                 glowPosition: "top-left"
                 Layout.fillWidth: true
                 Layout.preferredHeight: libraryRoot.sectionHeight

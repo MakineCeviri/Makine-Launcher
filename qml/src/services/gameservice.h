@@ -106,6 +106,7 @@ class GameService : public QObject
     Q_PROPERTY(bool isScanning READ isScanning NOTIFY isScanningChanged)
     Q_PROPERTY(QVariantList installedTranslations READ installedTranslations NOTIFY translationStatusChanged)
     Q_PROPERTY(int installedTranslationCount READ installedTranslationCount NOTIFY translationStatusChanged)
+    Q_PROPERTY(int outdatedPatchCount READ outdatedPatchCount NOTIFY translationStatusChanged)
     Q_PROPERTY(SupportedGamesModel* supportedGamesModel READ supportedGamesModel CONSTANT)
 
 public:
@@ -130,6 +131,7 @@ public:
     SupportedGamesModel* supportedGamesModel() const { return m_supportedGamesModel; }
     int installedTranslationCount() const;
 
+    int outdatedPatchCount() const;
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
     /**
@@ -204,12 +206,6 @@ public:
      * @brief Uninstall translation package from a game
      */
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
-
-    /**
-     * @brief Check all installed translations for game update impact
-     * Emits translationImpactDetected for each affected game
-     */
-    Q_INVOKABLE void checkAllInstalledTranslations();
 
     /**
      * @brief Recover a broken translation: uninstall + reinstall
@@ -333,6 +329,7 @@ private:
     mutable bool m_supportedCacheValid{false};
     mutable bool m_translationCacheValid{false};
     mutable bool m_installedCacheValid{false};
+    mutable int m_outdatedPatchCount{0};
     QSet<QString> m_antiCheatAcknowledged;
     SupportedGamesModel* m_supportedGamesModel{nullptr};
 };

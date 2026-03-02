@@ -39,6 +39,10 @@ QtObject {
 
     // ===== ENTRY POINT: Start the install flow from GameDetailScreen =====
     function startInstallFlow(gameId, gameName) {
+        if (!viewModel) {
+            console.warn("InstallFlowController: viewModel not set")
+            return
+        }
         // Pre-flight: Anti-cheat check
         var antiCheat = GameService.checkAntiCheat(gameId)
         if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
@@ -161,6 +165,7 @@ QtObject {
 
     // ===== DOWNLOAD GATE: check local package, download from R2 if needed =====
     function _doInstall(gameId, variant, selectedOptions) {
+        _pendingDownload = null  // Clear any previous state
         // If local package already exists, install directly
         if (GameService.hasLocalPackage(gameId)) {
             GameService.installTranslation(gameId, variant, selectedOptions)

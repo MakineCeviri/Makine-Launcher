@@ -226,7 +226,11 @@ void GameService::initialize()
     });
 }
 
-GameService::~GameService() = default;
+GameService::~GameService()
+{
+    if (m_coreBridge)
+        disconnect(m_coreBridge, nullptr, this, nullptr);
+}
 
 void GameService::setManifestSync(ManifestSyncService* sync)
 {
@@ -427,8 +431,6 @@ void GameService::onScanCompleted(int count)
     // lazy-compute on next QML access via supportedGames() getter.
     // The cache flag is already invalid from rebuildCache() above.
 
-    // Check installed translations for game update impacts
-    QTimer::singleShot(500, this, &GameService::checkAllInstalledTranslations);
 }
 
 void GameService::onGameDetected(const QString& gameId, const QString& gameName)
@@ -815,6 +817,13 @@ int GameService::installedTranslationCount() const
     return count;
 }
 
+int GameService::outdatedPatchCount() const
+{
+    if (!m_installedCacheValid)
+        installedTranslations();  // populates cache + m_outdatedPatchCount
+    return m_outdatedPatchCount;
+}
+
 QVariantList GameService::installedTranslations() const
 {
     MAKINE_ZONE_NAMED("GameService::installedTranslations");
@@ -822,6 +831,7 @@ QVariantList GameService::installedTranslations() const
         return m_installedTranslationsCache;
 
     m_installedTranslationsCache.clear();
+    m_outdatedPatchCount = 0;
     if (!m_coreBridge) {
         m_installedCacheValid = true;
         return m_installedTranslationsCache;
@@ -833,7 +843,9 @@ QVariantList GameService::installedTranslations() const
 
         QVariantMap entry = game.toVariantMap();
         entry["packageInstalled"] = true;
-        entry["hasUpdate"] = false;
+        const bool hasUpdate = m_coreBridge->hasTranslationUpdate(game.id);
+        entry["hasUpdate"] = hasUpdate;
+        if (hasUpdate) ++m_outdatedPatchCount;
 
         auto pkg = m_coreBridge->getPackageForGame(game.id);
         if (pkg) {
@@ -1213,10 +1225,15 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
+        qWarning() << "GameService::installTranslation: No package found for" << gameId
+                   << "- hasTranslationPackage:" << m_coreBridge->hasTranslationPackage(gameId);
         emit translationInstallCompleted(gameId, false,
             tr("No translation package available for this game"));
         return;
     }
+
+    qInfo() << "GameService::installTranslation: Starting for" << gameId
+            << "pkg:" << pkg->packageId << "v" << pkg->version;
 
     if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
         emit translationInstallCompleted(gameId, false,
@@ -1224,17 +1241,12 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         return;
     }
 
-    // Security: Anti-cheat warning
-    auto antiCheat = checkAntiCheat(gameId);
-    if (antiCheat.value("hasAntiCheat").toBool()) {
-        emit antiCheatWarningNeeded(gameId, antiCheat);
-        // Don't block — QML will show warning and call installTranslation again
-        // with user confirmation. Use a flag to skip re-checking.
-        if (!m_antiCheatAcknowledged.contains(gameId)) {
-            return;
-        }
-        m_antiCheatAcknowledged.remove(gameId);
-    }
+    // Anti-cheat: skip duplicate check here — InstallFlowController already
+    // handles the warning dialog and calls acknowledgeAntiCheat() before
+    // reaching installTranslation(). The old code emitted antiCheatWarningNeeded
+    // which re-triggered the dialog in a loop.
+    // Just consume the acknowledgement flag if present.
+    m_antiCheatAcknowledged.remove(gameId);
 
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
@@ -1364,12 +1376,6 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
     emit translationUninstalled(gameId, success,
         success ? tr("Translation removed successfully")
                 : tr("Failed to remove translation"));
-}
-
-void GameService::checkAllInstalledTranslations()
-{
-    // Update detection moved to Makine engine — stub for now
-    qDebug() << "checkAllInstalledTranslations: update detection deferred to Makine engine";
 }
 
 void GameService::recoverTranslation(const QString& gameId)
@@ -1610,6 +1616,7 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
             return m;
         }
     }
+    qDebug() << "GameService::getCatalogEntry: not found for" << steamAppId;
     return {};
 }
 
@@ -1624,8 +1631,6 @@ void GameService::checkForUpdates()
     // Rescan game libraries
     scanAllLibraries();
 
-    // Re-check installed translation states
-    checkAllInstalledTranslations();
 }
 
 } // namespace makineai

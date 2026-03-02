@@ -142,6 +142,7 @@ secrets.*
 *.key
 .encryption_key
 scripts/.encryption_key
+encryption_key.h
 scripts/r2_config.json
 *.pem
 *.p12

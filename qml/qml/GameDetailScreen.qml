@@ -91,6 +91,7 @@ Item {
 
     Connections {
         target: GameService
+        enabled: root.visible
         function onSteamDetailsFetched(appId, details) {
             if (appId === root.viewModel.steamAppId)
                 root.viewModel.populateSteamDetails(details)
@@ -137,7 +138,11 @@ Item {
                     root.viewModel.installCompleted = true
                     root.viewModel.packageInstalled = true
                     root.viewModel.hasTranslationUpdate = false
+                    root.viewModel.installErrorMessage = ""
                     installSuccessTimer.restart()
+                } else {
+                    root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
+                    installErrorTimer.restart()
                 }
             }
         }
@@ -168,9 +173,30 @@ Item {
         onTriggered: root.viewModel.installCompleted = false
     }
 
+    // Auto-clear error message after display
+    Timer {
+        id: installErrorTimer
+        interval: 6000
+        onTriggered: root.viewModel.installErrorMessage = ""
+    }
+
+    // Steam details fetch timeout — reset loading state after 10s
+    Timer {
+        id: steamDetailTimeout
+        interval: 10000
+        running: root.viewModel.isLoadingSteamDetails
+        onTriggered: {
+            if (root.viewModel.isLoadingSteamDetails && !root.viewModel.hasSteamDetails) {
+                root.viewModel.isLoadingSteamDetails = false
+                root.viewModel.steamFetchFailed = true
+            }
+        }
+    }
+
     // ===== DOWNLOAD SIGNALS (TranslationDownloader) =====
     Connections {
         target: TranslationDownloader
+        enabled: root.visible
         function onDownloadProgress(appId, received, total) {
             if (appId !== root.viewModel.gameId) return
             root.viewModel.isDownloading = true
@@ -202,6 +228,8 @@ Item {
             root.viewModel.isInstallingTranslation = false
             root.viewModel.installProgress = 0
             root.viewModel.installStatus = ""
+            root.viewModel.installErrorMessage = error || qsTr("Indirme basarisiz oldu")
+            installErrorTimer.restart()
         }
         function onDownloadCancelled(appId) {
             if (appId !== root.viewModel.gameId) return

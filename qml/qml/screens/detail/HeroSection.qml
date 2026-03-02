@@ -177,6 +177,34 @@ Item {
                 onUninstallClicked: heroRoot.uninstallClicked()
             }
 
+            // -- Install error message --
+            Rectangle {
+                visible: heroRoot.vm.installErrorMessage !== ""
+                Layout.fillWidth: true
+                implicitHeight: _errRow.height + 16
+                radius: Dimensions.radiusMD
+                color: Theme.error08
+                border.color: Theme.error20; border.width: 1
+
+                Row {
+                    id: _errRow
+                    anchors.centerIn: parent; spacing: Dimensions.spacingSM
+                    width: parent.width - 24
+                    Text {
+                        textFormat: Text.PlainText
+                        text: heroRoot.vm.installErrorMessage
+                        font.pixelSize: Dimensions.fontSM
+                        color: Theme.error
+                        wrapMode: Text.WordWrap
+                        width: parent.width
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                opacity: visible ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
+            }
+
             // -- No translation notice (manual games) --
             Rectangle {
                 visible: heroRoot.vm.isManualGame && !heroRoot.vm.hasTranslation

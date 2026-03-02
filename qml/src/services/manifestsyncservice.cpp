@@ -279,12 +279,19 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
         reply->deleteLater();
         m_pendingDetails.remove(appId);
 
-        if (reply->error() != QNetworkReply::NoError)
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "ManifestSync: package detail network error for" << appId
+                       << reply->errorString();
+            emit packageDetailReady(appId);  // Unblock waiting QML
             return;
+        }
 
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (status >= 200 && status < 300) {
             onDetailFetched(appId, reply->readAll());
+        } else {
+            qWarning() << "ManifestSync: package detail HTTP" << status << "for" << appId;
+            emit packageDetailReady(appId);  // Unblock waiting QML
         }
     });
 }
@@ -294,8 +301,11 @@ void ManifestSyncService::onDetailFetched(const QString& appId, const QByteArray
     QJsonParseError err;
     const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
 
-    if (err.error != QJsonParseError::NoError || !doc.isObject())
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        qWarning() << "ManifestSync: invalid JSON for package detail" << appId;
+        emit packageDetailReady(appId);  // Unblock waiting QML
         return;
+    }
 
     // Cache in memory
     m_packageDetails.insert(appId, doc.object().toVariantMap());
