@@ -335,7 +335,7 @@ ApplicationWindow {
 
                 Label {
                     textFormat: Text.PlainText
-                    text: ""
+                    text: ""
                     font.pixelSize: 14
                     font.family: "Segoe MDL2 Assets"
                     color: Theme.error
