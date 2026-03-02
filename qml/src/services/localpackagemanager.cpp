@@ -647,6 +647,229 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     });
 }
 
+// =============================================================================
+// UPDATE PACKAGE (in-place, no backup)
+// =============================================================================
+
+void LocalPackageManager::updatePackage(const QString& steamAppId, const QString& gamePath,
+                                        const QString& variant,
+                                        const QStringList& selectedOptions)
+{
+    MAKINE_ZONE_NAMED("LPM::updatePackage");
+    INTEGRITY_GATE();
+    CrashReporter::addBreadcrumb("package",
+        QStringLiteral("updatePackage: %1").arg(steamAppId).toUtf8().constData());
+    m_cancelRequested.store(false, std::memory_order_relaxed);
+
+    auto maybePkg = getPackage(steamAppId);
+    if (!maybePkg) {
+        emit installCompleted(false, tr("Package not found for AppID: %1").arg(steamAppId));
+        return;
+    }
+
+    const PackageInfo pkg = *maybePkg;
+
+    // Must already be installed to update
+    auto oldState = m_catalog.getInstalledState(steamAppId.toStdString());
+    if (!oldState) {
+        emit installCompleted(false, tr("Package not installed, cannot update: %1").arg(pkg.gameName));
+        return;
+    }
+
+    // Handle recipe-based packages: clean old added files, re-run recipe
+    if (!pkg.installSteps.isEmpty() || pkg.installMethodType == "options") {
+        // Collect old addedFiles for cleanup
+        QStringList oldAdded;
+        for (const auto& f : oldState->addedFiles)
+            oldAdded.append(QString::fromStdString(f));
+
+        // Delete stale added files (files we added that may no longer be in new recipe)
+        for (const QString& relPath : oldAdded) {
+            if (relPath.startsWith("_")) continue; // skip meta entries like _steamlang
+            QString filePath = QDir::cleanPath(gamePath + "/" + relPath);
+            if (QFile::exists(filePath))
+                QFile::remove(filePath);
+        }
+
+        // Re-run install (which handles recipe/options)
+        installPackage(steamAppId, gamePath, variant, selectedOptions);
+        return;
+    }
+
+    // --- Default overlay update ---
+
+    QString sourcePath;
+    if (!pkg.dirName.isEmpty()) {
+        sourcePath = !variant.isEmpty()
+            ? m_dataPath + "/" + pkg.dirName + "/" + variant
+            : m_dataPath + "/" + pkg.dirName;
+    }
+
+    // Fall back to legacy pak/ format
+    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+        QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
+        QDir pkgDir(pkgDirPath);
+        if (pkgDir.exists()) {
+            const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+            for (const QString& sub : subDirs) {
+                if (sub.startsWith("extracted_")) {
+                    sourcePath = pkgDirPath + "/" + sub;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+        emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+        return;
+    }
+
+    // Collect old state sets
+    std::set<std::string> oldAddedSet(oldState->addedFiles.begin(), oldState->addedFiles.end());
+    std::set<std::string> oldReplacedSet(oldState->replacedFiles.begin(), oldState->replacedFiles.end());
+
+    (void)QtConcurrent::run([this, steamAppId, gamePath, sourcePath, pkg,
+                              oldAddedSet, oldReplacedSet]() {
+        emit installProgress(0.0, tr("Güncelleme hazırlanıyor..."));
+
+        if (m_journal) {
+            JournalEntry je;
+            je.type = OpType::Install;
+            je.gameId = steamAppId;
+            je.gamePath = gamePath;
+            m_journal->beginOperation(je);
+        }
+
+        // Scan new package files
+        QList<QPair<QString, QString>> filesToCopy;
+        QDirIterator it(sourcePath, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            QString relPath = it.filePath().mid(sourcePath.length() + 1);
+            filesToCopy.append({it.filePath(), relPath});
+        }
+
+        if (filesToCopy.isEmpty()) {
+            emit installCompleted(false, tr("No files to install"));
+            return;
+        }
+
+        // Build new file set for stale detection
+        std::set<std::string> newFileSet;
+        for (const auto& [src, rel] : filesToCopy)
+            newFileSet.insert(rel.toStdString());
+
+        // Delete stale files: old addedFiles that are NOT in the new package
+        // Only delete files WE added — replacedFiles are backed up originals, don't touch
+        int staleDeleted = 0;
+        for (const auto& oldFile : oldAddedSet) {
+            if (newFileSet.count(oldFile) == 0) {
+                QString filePath = QDir::cleanPath(gamePath + "/" + QString::fromStdString(oldFile));
+                if (QFile::exists(filePath)) {
+                    QFile::remove(filePath);
+                    staleDeleted++;
+                }
+            }
+        }
+        if (staleDeleted > 0)
+            qDebug() << "updatePackage: removed" << staleDeleted << "stale added files";
+
+        // Copy all new files (same loop as installPackage)
+        int total = filesToCopy.size();
+        int copied = 0;
+        int errors = 0;
+        int lastReported = 0;
+        QStringList installedFiles;
+        QStringList addedFiles;
+        QStringList replacedFiles;
+
+        QString canonGamePath = QDir(gamePath).canonicalPath();
+        if (canonGamePath.isEmpty())
+            canonGamePath = QDir::cleanPath(gamePath);
+
+        for (const auto& [srcPath, relPath] : filesToCopy) {
+            if (isCancelled()) {
+                if (m_journal) m_journal->abortOperation();
+                emit installCompleted(false, tr("Kurulum iptal edildi"));
+                return;
+            }
+
+            QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
+
+            if (!destPath.startsWith(canonGamePath)) {
+                qWarning() << "Path traversal blocked during update:" << relPath;
+                errors++;
+                continue;
+            }
+
+            QFileInfo destInfo(destPath);
+            if (!QDir().mkpath(destInfo.absolutePath())) {
+                qWarning() << "Failed to create directory:" << destInfo.absolutePath();
+                errors++;
+                continue;
+            }
+
+            // Classify: a file is "replaced" if it was replaced in the original install
+            // (meaning there's a backup of the original). New files are "added".
+            bool wasReplaced = oldReplacedSet.count(relPath.toStdString()) > 0;
+            bool existed = QFile::exists(destPath);
+
+            if (existed)
+                QFile::remove(destPath);
+
+            if (QFile::copy(srcPath, destPath)) {
+                copied++;
+                installedFiles.append(relPath);
+                if (wasReplaced)
+                    replacedFiles.append(relPath);
+                else if (!existed && oldAddedSet.count(relPath.toStdString()) == 0)
+                    addedFiles.append(relPath); // truly new file
+                else
+                    addedFiles.append(relPath); // was added before, still added
+                if (m_journal) m_journal->recordFileModified(relPath);
+            } else {
+                qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
+                errors++;
+            }
+
+            int done = copied + errors;
+            if (done - lastReported >= 10 || done == total) {
+                lastReported = done;
+                double progress = static_cast<double>(done) / total;
+                emit installProgress(progress,
+                    tr("Güncelleniyor %1/%2: %3").arg(copied).arg(total).arg(QFileInfo(relPath).fileName()));
+            }
+        }
+
+        if (errors == 0) {
+            QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg,
+                                              installedFiles, addedFiles, replacedFiles]() {
+                packages::InstalledPackageState state;
+                state.version = pkg.version.toStdString();
+                state.gamePath = gamePath.toStdString();
+                for (const QString& f : installedFiles)
+                    state.installedFiles.push_back(f.toStdString());
+                for (const QString& f : addedFiles)
+                    state.addedFiles.push_back(f.toStdString());
+                for (const QString& f : replacedFiles)
+                    state.replacedFiles.push_back(f.toStdString());
+                state.installedAt = QDateTime::currentSecsSinceEpoch();
+                m_catalog.markInstalled(steamAppId.toStdString(), state);
+                saveCatalogInstalledState(m_catalog, installedStatePath());
+                if (m_journal) m_journal->commitOperation();
+            }, Qt::QueuedConnection);
+
+            emit installCompleted(true,
+                tr("%1 dosya başarıyla güncellendi").arg(copied));
+        } else {
+            if (m_journal) m_journal->abortOperation();
+            emit installCompleted(false,
+                tr("%1/%2 dosya güncellenemedi").arg(errors).arg(total));
+        }
+    });
+}
+
 // -- Execute install steps (recipe-based) -------------------------------------
 
 void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QString& gamePath,

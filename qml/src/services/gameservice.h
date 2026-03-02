@@ -203,6 +203,14 @@ public:
     Q_INVOKABLE void cancelInstallation();
 
     /**
+     * @brief Update an installed translation package (no backup step)
+     * Downloads new files, overwrites old ones, updates version.
+     */
+    Q_INVOKABLE void updateTranslation(const QString& gameId,
+                                        const QString& variant = {},
+                                        const QStringList& selectedOptions = {});
+
+    /**
      * @brief Uninstall translation package from a game
      */
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);

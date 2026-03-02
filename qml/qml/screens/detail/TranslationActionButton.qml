@@ -55,7 +55,7 @@ Rectangle {
         case "installing":
             return Theme.surface
         case "update":
-            return _hovered ? Theme.primaryHover : Theme.primary
+            return _hovered ? Theme.darken(Theme.warning, 0.12) : Theme.warning
         case "installed":
             return _hovered ? Theme.error : Theme.success12
         case "download":
@@ -77,6 +77,7 @@ Rectangle {
             case "installing": return Qt.rgba(1, 1, 1, 0.08)
             case "installed":  return actionBtn._hovered ? Qt.rgba(1, 0.3, 0.3, 0.2) : Qt.rgba(1, 1, 1, 0.10)
             case "broken":     return Qt.rgba(1, 0.4, 0.4, 0.25)
+            case "update":    return Qt.rgba(1, 0.85, 0.3, 0.2)
             default:           return Qt.rgba(1, 1, 1, 0.18)
             }
         }

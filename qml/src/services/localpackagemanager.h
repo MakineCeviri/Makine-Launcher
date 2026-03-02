@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  * @file localpackagemanager.h
  * @brief Local translation package management
@@ -110,6 +112,9 @@ public:
     void installPackage(const QString& steamAppId, const QString& gamePath,
                         const QString& variant = {},
                         const QStringList& selectedOptions = {});
+    void updatePackage(const QString& steamAppId, const QString& gamePath,
+                       const QString& variant = {},
+                       const QStringList& selectedOptions = {});
     void cancelInstall();
     bool uninstallPackage(const QString& steamAppId, const QString& gamePath);
 

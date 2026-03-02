@@ -141,6 +141,14 @@ public:
                         const QStringList& selectedOptions = {});
 
     /**
+     * @brief Update an already-installed translation package
+     * Skips backup — overwrites translation files and updates version.
+     */
+    void updatePackage(const QString& packageId, const QString& gamePath,
+                       const QString& variant = {},
+                       const QStringList& selectedOptions = {});
+
+    /**
      * @brief Cancel an in-progress installation
      */
     void cancelInstall();

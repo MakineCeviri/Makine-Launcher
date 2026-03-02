@@ -23,6 +23,9 @@ QtObject {
     // Pending download state for R2 packages
     property var _pendingDownload: null
 
+    // Pending update flow flag (true = update, false = install)
+    property bool _pendingUpdateFlow: false
+
     // Pending detail fetch state (waiting for package detail to load)
     property string _pendingDetailGameId: ""
     property string _pendingDetailGameName: ""
@@ -35,6 +38,27 @@ QtObject {
     // Get the current ViewModel reference
     function _vm() {
         return viewModel
+    }
+
+    // ===== ENTRY POINT: Start the update flow (no backup, overwrite only) =====
+    function startUpdateFlow(gameId, gameName) {
+        if (!viewModel) {
+            console.warn("InstallFlowController: viewModel not set")
+            return
+        }
+        _pendingUpdateFlow = true
+
+        // Ensure package detail is loaded
+        if (!CoreBridge.isPackageDetailLoaded(gameId)) {
+            if (!CoreBridge.ensurePackageDetail(gameId)) {
+                _pendingDetailGameId = gameId
+                _pendingDetailGameName = gameName
+                ManifestSync.fetchPackageDetail(gameId)
+                return
+            }
+        }
+
+        _doUpdate(gameId, "", [])
     }
 
     // ===== ENTRY POINT: Start the install flow from GameDetailScreen =====
@@ -92,7 +116,11 @@ QtObject {
             var gName = _pendingDetailGameName
             _pendingDetailGameId = ""
             _pendingDetailGameName = ""
-            _continueWithDetail(gId, gName)
+            if (_pendingUpdateFlow) {
+                _doUpdate(gId, "", [])
+            } else {
+                _continueWithDetail(gId, gName)
+            }
         }
     }
 
@@ -163,9 +191,46 @@ QtObject {
         _doInstall(gameId, variant, [])
     }
 
+    // ===== UPDATE: download gate + call updateTranslation =====
+    function _doUpdate(gameId, variant, selectedOptions) {
+        _pendingDownload = null
+        _pendingUpdateFlow = true
+
+        if (GameService.hasLocalPackage(gameId)) {
+            GameService.updateTranslation(gameId, variant, selectedOptions)
+            _pendingUpdateFlow = false
+            return
+        }
+
+        // Need to download from R2 first
+        var catalog = GameService.getCatalogEntry(gameId)
+        var dataUrl = catalog ? (catalog.dataUrl || "") : ""
+
+        if (!dataUrl || dataUrl === "") {
+            GameService.updateTranslation(gameId, variant, selectedOptions)
+            _pendingUpdateFlow = false
+            return
+        }
+
+        var dirName = catalog.dirName || ""
+        if (!dirName)
+            dirName = CoreBridge.getPackageDirName(gameId)
+        if (!dirName)
+            dirName = (catalog.gameName || catalog.name || gameId)
+
+        _pendingDownload = {
+            gameId: gameId,
+            variant: variant,
+            selectedOptions: selectedOptions
+        }
+
+        TranslationDownloader.downloadPackage(gameId, dataUrl, dirName)
+    }
+
     // ===== DOWNLOAD GATE: check local package, download from R2 if needed =====
     function _doInstall(gameId, variant, selectedOptions) {
         _pendingDownload = null  // Clear any previous state
+        _pendingUpdateFlow = false
         // If local package already exists, install directly
         if (GameService.hasLocalPackage(gameId)) {
             GameService.installTranslation(gameId, variant, selectedOptions)
@@ -203,23 +268,30 @@ QtObject {
     function onDownloadReady(appId) {
         if (!_pendingDownload || _pendingDownload.gameId !== appId) return
         var pending = _pendingDownload
+        var isUpdate = _pendingUpdateFlow
         _pendingDownload = null
+        _pendingUpdateFlow = false
 
         // Reload LocalPackageManager so CoreBridge picks up the new package
         CoreBridge.refreshPackageManifest()
 
-        GameService.installTranslation(pending.gameId, pending.variant, pending.selectedOptions)
+        if (isUpdate) {
+            GameService.updateTranslation(pending.gameId, pending.variant, pending.selectedOptions)
+        } else {
+            GameService.installTranslation(pending.gameId, pending.variant, pending.selectedOptions)
+        }
     }
 
     function onDownloadFailed(appId, error) {
         if (!_pendingDownload || _pendingDownload.gameId !== appId) return
         _pendingDownload = null
+        _pendingUpdateFlow = false
         // Error is shown via GameDetailScreen download connections
     }
 
     // ===== CANCEL HANDLERS =====
-    function onOptionsCancelled() { pendingInstallOptionsData = null }
-    function onVariantCancelled() { pendingVariantData = null }
+    function onOptionsCancelled() { pendingInstallOptionsData = null; _pendingUpdateFlow = false }
+    function onVariantCancelled() { pendingVariantData = null; _pendingUpdateFlow = false }
 
     // ===== EXTERNAL TRIGGER: Anti-cheat warning from GameService signal =====
     function onAntiCheatWarningNeeded(gameId, antiCheatData) {

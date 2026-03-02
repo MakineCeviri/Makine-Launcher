@@ -293,7 +293,7 @@ Item {
                 vm: root.viewModel
 
                 onTranslateClicked: root.translateClicked()
-                onUpdateClicked: GameService.recoverTranslation(root.viewModel.gameId)
+                onUpdateClicked: installFlow.startUpdateFlow(root.viewModel.gameId, root.viewModel.gameName)
                 onUninstallClicked: GameService.uninstallTranslation(root.viewModel.gameId)
             }
 

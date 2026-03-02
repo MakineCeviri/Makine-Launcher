@@ -745,6 +745,23 @@ void CoreBridge::installPackage(const QString& packageId, const QString& gamePat
     }
 }
 
+void CoreBridge::updatePackage(const QString& packageId, const QString& gamePath,
+                               const QString& variant, const QStringList& selectedOptions)
+{
+    MAKINE_ZONE_NAMED("CoreBridge::updatePackage");
+    if (!m_localPkgManager) {
+        emit packageInstallCompleted(false, tr("Paket yöneticisi başlatılamadı"));
+        return;
+    }
+
+    QString resolved = resolveToSteamAppId(packageId);
+    if (!resolved.isEmpty() && m_localPkgManager->hasPackage(resolved)) {
+        m_localPkgManager->updatePackage(resolved, gamePath, variant, selectedOptions);
+    } else {
+        emit packageInstallCompleted(false, tr("Paket bulunamadı: %1").arg(packageId));
+    }
+}
+
 void CoreBridge::cancelInstall()
 {
     if (m_localPkgManager)

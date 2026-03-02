@@ -1317,6 +1317,94 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
     }));
 }
 
+void GameService::updateTranslation(const QString& gameId, const QString& variant,
+                                     const QStringList& selectedOptions)
+{
+    MAKINE_ZONE_NAMED("GameService::updateTranslation");
+    if (!m_coreBridge) {
+        emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
+        return;
+    }
+
+    if (!m_installingGameId.isEmpty()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Another installation is in progress"));
+        return;
+    }
+
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
+        emit translationInstallCompleted(gameId, false, tr("Game not found: %1").arg(gameId));
+        return;
+    }
+
+    const GameInfo& game = m_games[*it];
+
+    auto pkg = m_coreBridge->getPackageForGame(gameId);
+    if (!pkg.has_value()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("No translation package available for this game"));
+        return;
+    }
+
+    if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Game install path not found: %1").arg(game.installPath));
+        return;
+    }
+
+    // Safety: backup must exist — if not, suggest repair instead
+    BackupManager* bm = BackupManager::instance();
+    if (bm && !bm->hasBackup(gameId)) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Yedek bulunamadı. Güncelleme yerine Onarma yapın."));
+        return;
+    }
+
+    m_installingGameId = gameId;
+    emit translationInstallStarted(gameId);
+    emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
+
+    // Async game running check
+    QString installPath = game.installPath;
+    auto* watcher = new QFutureWatcher<QString>(this);
+    connect(watcher, &QFutureWatcher<QString>::finished, this,
+        [this, watcher, gameId, installPath, variant, selectedOptions]() {
+            QString runningExe = watcher->result();
+            watcher->deleteLater();
+
+            if (!runningExe.isEmpty()) {
+                m_installingGameId.clear();
+                emit translationInstallCompleted(gameId, false,
+                    tr("Bu oyun şu anda çalışıyor (%1). Güncelleme için oyunu kapatın.").arg(runningExe));
+                return;
+            }
+
+            // NO BACKUP STEP — go straight to update
+            qDebug() << "Updating translation for" << gameId
+                     << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                     << "options:" << selectedOptions
+                     << "path:" << installPath;
+
+            m_coreBridge->updatePackage(gameId, installPath, variant, selectedOptions);
+        });
+
+    watcher->setFuture(QtConcurrent::run([installPath]() -> QString {
+        QDir gameDir(installPath);
+        QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
+        for (const QString& exe : exeFiles) {
+            QProcess tasklist;
+            tasklist.start("tasklist", {"/FI", "IMAGENAME eq " + exe, "/FO", "CSV", "/NH"});
+            tasklist.waitForFinished(2000);
+            QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
+            if (output.contains(exe, Qt::CaseInsensitive) && !output.contains("INFO:")) {
+                return exe;
+            }
+        }
+        return {};
+    }));
+}
+
 void GameService::uninstallTranslation(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("GameService::uninstallTranslation");
