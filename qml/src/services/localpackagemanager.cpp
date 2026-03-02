@@ -29,6 +29,7 @@
 #include <QDateTime>
 #include <QProcess>
 #include <QStorageInfo>
+#include <QThread>
 #include <QtConcurrent>
 
 #include <map>
@@ -330,6 +331,49 @@ QString LocalPackageManager::installedStatePath() const
     return AppPaths::installedPackagesFile();
 }
 
+// -- Smart copy helper --------------------------------------------------------
+
+LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
+    const QString& src, const QString& dest)
+{
+    // Remove existing dest first; if removal fails, classify immediately
+    if (QFile::exists(dest)) {
+        if (!QFile::remove(dest)) {
+            // dest exists but cannot be removed — probe why
+            QFile probe(dest);
+            if (!probe.open(QIODevice::WriteOnly)) {
+                auto fe = probe.error();
+                if (fe == QFileDevice::PermissionsError)
+                    return {false, CopyError::PermissionDenied};
+                if (fe == QFileDevice::ResourceError)
+                    return {false, CopyError::DiskFull};
+            }
+            // Most likely locked by another process
+            return {false, CopyError::FileLocked};
+        }
+    }
+
+    if (QFile::copy(src, dest)) return {true, CopyError::None};
+
+    // Copy failed — classify by probing destination writability
+    QFile probe(dest);
+    if (!probe.open(QIODevice::WriteOnly)) {
+        auto fe = probe.error();
+        if (fe == QFileDevice::PermissionsError)
+            return {false, CopyError::PermissionDenied};
+        if (fe == QFileDevice::ResourceError)
+            return {false, CopyError::DiskFull};
+        // OpenError is generic (dir, path too long, lock, etc.) — treat as FileLocked
+        // only if dest parent dir exists (otherwise it is a path issue = Other)
+        if (fe == QFileDevice::OpenError && QFileInfo(dest).absoluteDir().exists())
+            return {false, CopyError::FileLocked};
+    } else {
+        probe.close();
+        probe.remove();
+    }
+    return {false, CopyError::Other};
+}
+
 // -- Install package ----------------------------------------------------------
 
 void LocalPackageManager::cancelInstall()
@@ -346,6 +390,11 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     CrashReporter::addBreadcrumb("package",
         QStringLiteral("installPackage: %1").arg(steamAppId).toUtf8().constData());
     m_cancelRequested.store(false, std::memory_order_relaxed);
+
+    if (gamePath.trimmed().isEmpty()) {
+        emit installCompleted(false, tr("Oyun klasörü belirtilmedi"));
+        return;
+    }
 
     // Retrieve package info (works in both build modes)
     auto maybePkg = getPackage(steamAppId);
@@ -371,6 +420,19 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 return;
             }
         }
+    }
+
+    // Write permission pre-check
+    {
+        QString testPath = gamePath + "/.makineai_write_test";
+        QFile testFile(testPath);
+        if (!testFile.open(QIODevice::WriteOnly)) {
+            emit installCompleted(false,
+                tr("Bu klasöre yazma izni yok. Uygulamayı yönetici olarak çalıştırmayı deneyin."));
+            return;
+        }
+        testFile.close();
+        testFile.remove();
     }
 
     // Handle variant-specific options install (e.g. GTA Trilogy: variant selects game, then options for patch/dubbing)
@@ -475,10 +537,27 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 if (!QDir().mkpath(destInfo.absolutePath())) {
                     errors++; continue;
                 }
-                if (QFile::exists(destPath)) QFile::remove(destPath);
-                if (QFile::copy(srcPath, destPath)) {
+                auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+                if (copyOk) {
                     copied++;
                     installedFiles.append(relPath);
+                } else if (copyErr == CopyError::DiskFull) {
+                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                    return;
+                } else if (copyErr == CopyError::PermissionDenied) {
+                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else if (copyErr == CopyError::FileLocked) {
+                    QThread::msleep(150);
+                    auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                    if (ok2) { copied++; installedFiles.append(relPath); }
+                    else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, err2 == CopyError::DiskFull
+                            ? tr("Disk alanı doldu, kurulum durduruluyor")
+                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                        return;
+                    } else { errors++; }
                 } else {
                     errors++;
                 }
@@ -546,6 +625,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         }
 
         if (filesToCopy.isEmpty()) {
+            if (m_journal) m_journal->abortOperation();
             emit installCompleted(false, tr("Kurulacak dosya bulunamadı"));
             return;
         }
@@ -590,12 +670,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             // Classify: added (new) vs replaced (overwritten)
             bool existed = QFile::exists(destPath);
 
-            // Copy file (overwrite if exists)
-            if (existed) {
-                QFile::remove(destPath);
-            }
-
-            if (QFile::copy(srcPath, destPath)) {
+            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+            if (copyOk) {
                 copied++;
                 installedFiles.append(relPath);
                 if (existed)
@@ -603,6 +679,33 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 else
                     addedFiles.append(relPath);
                 if (m_journal) m_journal->recordFileModified(relPath);
+            } else if (copyErr == CopyError::DiskFull) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                return;
+            } else if (copyErr == CopyError::PermissionDenied) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                return;
+            } else if (copyErr == CopyError::FileLocked) {
+                QThread::msleep(150);
+                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                if (ok2) {
+                    copied++;
+                    installedFiles.append(relPath);
+                    if (existed) replacedFiles.append(relPath);
+                    else addedFiles.append(relPath);
+                    if (m_journal) m_journal->recordFileModified(relPath);
+                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, err2 == CopyError::DiskFull
+                        ? tr("Disk alanı doldu, kurulum durduruluyor")
+                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else {
+                    qWarning() << "Failed to copy (locked):" << srcPath << "->" << destPath;
+                    errors++;
+                }
             } else {
                 qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
                 errors++;
@@ -640,7 +743,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             emit installCompleted(true,
                 tr("%1 dosya başarıyla kuruldu").arg(copied));
         } else {
-            if (m_journal) m_journal->abortOperation();
+            if (m_journal) m_journal->commitOperation();
             emit installCompleted(false,
                 tr("%1/%2 dosya kopyalanamadı").arg(errors).arg(total));
         }
@@ -751,6 +854,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         }
 
         if (filesToCopy.isEmpty()) {
+            if (m_journal) m_journal->abortOperation();
             emit installCompleted(false, tr("Kurulacak dosya bulunamadı"));
             return;
         }
@@ -815,19 +919,44 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
             bool wasReplaced = oldReplacedSet.count(relPath.toStdString()) > 0;
             bool existed = QFile::exists(destPath);
 
-            if (existed)
-                QFile::remove(destPath);
-
-            if (QFile::copy(srcPath, destPath)) {
+            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+            if (copyOk) {
                 copied++;
                 installedFiles.append(relPath);
                 if (wasReplaced)
                     replacedFiles.append(relPath);
                 else if (!existed && oldAddedSet.count(relPath.toStdString()) == 0)
-                    addedFiles.append(relPath); // truly new file
+                    addedFiles.append(relPath);
                 else
-                    addedFiles.append(relPath); // was added before, still added
+                    addedFiles.append(relPath);
                 if (m_journal) m_journal->recordFileModified(relPath);
+            } else if (copyErr == CopyError::DiskFull) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                return;
+            } else if (copyErr == CopyError::PermissionDenied) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                return;
+            } else if (copyErr == CopyError::FileLocked) {
+                QThread::msleep(150);
+                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                if (ok2) {
+                    copied++;
+                    installedFiles.append(relPath);
+                    if (wasReplaced) replacedFiles.append(relPath);
+                    else addedFiles.append(relPath);
+                    if (m_journal) m_journal->recordFileModified(relPath);
+                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, err2 == CopyError::DiskFull
+                        ? tr("Disk alanı doldu, kurulum durduruluyor")
+                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else {
+                    qWarning() << "Failed to copy (locked):" << srcPath << "->" << destPath;
+                    errors++;
+                }
             } else {
                 qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
                 errors++;
@@ -863,7 +992,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
             emit installCompleted(true,
                 tr("%1 dosya başarıyla güncellendi").arg(copied));
         } else {
-            if (m_journal) m_journal->abortOperation();
+            if (m_journal) m_journal->commitOperation();
             emit installCompleted(false,
                 tr("%1/%2 dosya güncellenemedi").arg(errors).arg(total));
         }
@@ -936,13 +1065,34 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 continue;
             }
 
-            if (QFile::exists(destPath)) {
-                QFile::remove(destPath);
-            }
-
-            if (QFile::copy(srcPath, destPath)) {
+            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+            if (copyOk) {
                 installedFiles.append(step.dest);
                 if (m_journal) m_journal->recordFileModified(step.dest);
+            } else if (copyErr == CopyError::DiskFull) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                return;
+            } else if (copyErr == CopyError::PermissionDenied) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                return;
+            } else if (copyErr == CopyError::FileLocked) {
+                QThread::msleep(150);
+                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                if (ok2) {
+                    installedFiles.append(step.dest);
+                    if (m_journal) m_journal->recordFileModified(step.dest);
+                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, err2 == CopyError::DiskFull
+                        ? tr("Disk alanı doldu, kurulum durduruluyor")
+                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else {
+                    qWarning() << "Recipe copy failed (locked):" << srcPath << "->" << destPath;
+                    errors++;
+                }
             } else {
                 qWarning() << "Recipe copy failed:" << srcPath << "->" << destPath;
                 errors++;
@@ -977,11 +1127,36 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 if (!QDir().mkpath(destInfo.absolutePath())) {
                     errors++; continue;
                 }
-                if (QFile::exists(destPath)) QFile::remove(destPath);
-                if (QFile::copy(dirIt.filePath(), destPath)) {
+                auto [copyOk, copyErr] = tryCopyFile(dirIt.filePath(), destPath);
+                if (copyOk) {
                     QString fullRelPath = step.dest + "/" + relPath;
                     installedFiles.append(fullRelPath);
                     if (m_journal) m_journal->recordFileModified(fullRelPath);
+                } else if (copyErr == CopyError::DiskFull) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                    return;
+                } else if (copyErr == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else if (copyErr == CopyError::FileLocked) {
+                    QThread::msleep(150);
+                    auto [ok2, err2] = tryCopyFile(dirIt.filePath(), destPath);
+                    if (ok2) {
+                        QString fullRelPath = step.dest + "/" + relPath;
+                        installedFiles.append(fullRelPath);
+                        if (m_journal) m_journal->recordFileModified(fullRelPath);
+                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, err2 == CopyError::DiskFull
+                            ? tr("Disk alanı doldu, kurulum durduruluyor")
+                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                        return;
+                    } else {
+                        qWarning() << "copyDir failed (locked):" << dirIt.filePath() << "->" << destPath;
+                        errors++;
+                    }
                 } else {
                     qWarning() << "copyDir failed:" << dirIt.filePath() << "->" << destPath;
                     errors++;
@@ -1025,12 +1200,38 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                 QString fontName = fontIt.fileName();
                 QString destFont = userFontsDir + "/" + fontName;
 
-                if (QFile::exists(destFont)) QFile::remove(destFont);
-                if (QFile::copy(fontIt.filePath(), destFont)) {
+                auto [copyOk, copyErr] = tryCopyFile(fontIt.filePath(), destFont);
+                if (copyOk) {
                     QString fontEntry = "_font:" + fontName;
                     installedFiles.append(fontEntry);
                     if (m_journal) m_journal->recordFileModified(fontEntry);
                     qDebug() << "Font installed:" << fontName;
+                } else if (copyErr == CopyError::DiskFull) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                    return;
+                } else if (copyErr == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else if (copyErr == CopyError::FileLocked) {
+                    QThread::msleep(150);
+                    auto [ok2, err2] = tryCopyFile(fontIt.filePath(), destFont);
+                    if (ok2) {
+                        QString fontEntry = "_font:" + fontName;
+                        installedFiles.append(fontEntry);
+                        if (m_journal) m_journal->recordFileModified(fontEntry);
+                        qDebug() << "Font installed (retry):" << fontName;
+                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, err2 == CopyError::DiskFull
+                            ? tr("Disk alanı doldu, kurulum durduruluyor")
+                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                        return;
+                    } else {
+                        qWarning() << "Font install failed (locked):" << fontName;
+                        errors++;
+                    }
                 } else {
                     qWarning() << "Font install failed:" << fontName;
                     errors++;
@@ -1178,11 +1379,35 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 
             emit installProgress(progress, tr("Adım %1/%2: Masaüstüne kopyalanıyor %3").arg(current).arg(total).arg(step.dest));
 
-            if (QFile::exists(destPath)) QFile::remove(destPath);
-            if (QFile::copy(srcPath, destPath)) {
+            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+            if (copyOk) {
                 installedFiles.append("_desktop:" + step.dest);
                 if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
                 qDebug() << "Copied to desktop:" << step.dest;
+            } else if (copyErr == CopyError::DiskFull) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                return;
+            } else if (copyErr == CopyError::PermissionDenied) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                return;
+            } else if (copyErr == CopyError::FileLocked) {
+                QThread::msleep(150);
+                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                if (ok2) {
+                    installedFiles.append("_desktop:" + step.dest);
+                    if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
+                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, err2 == CopyError::DiskFull
+                        ? tr("Disk alanı doldu, kurulum durduruluyor")
+                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else {
+                    qWarning() << "copyToDesktop failed (locked):" << srcPath << "->" << destPath;
+                    errors++;
+                }
             } else {
                 qWarning() << "copyToDesktop failed:" << srcPath << "->" << destPath;
                 errors++;
@@ -1296,7 +1521,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         emit installCompleted(true,
             tr("%1 adım başarıyla tamamlandı").arg(total));
     } else {
-        if (m_journal) m_journal->abortOperation();
+        if (m_journal) m_journal->commitOperation();
         emit installCompleted(false,
             tr("%1/%2 adımda hata oluştu").arg(errors).arg(total));
     }
@@ -1390,10 +1615,34 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
                 QFileInfo destInfo(destPath);
                 if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
-                if (QFile::exists(destPath)) QFile::remove(destPath);
-                if (QFile::copy(srcPath, destPath)) {
+                auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+                if (copyOk) {
                     installedFiles.append(step.dest);
                     if (m_journal) m_journal->recordFileModified(step.dest);
+                } else if (copyErr == CopyError::DiskFull) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                    return;
+                } else if (copyErr == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else if (copyErr == CopyError::FileLocked) {
+                    QThread::msleep(150);
+                    auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                    if (ok2) {
+                        installedFiles.append(step.dest);
+                        if (m_journal) m_journal->recordFileModified(step.dest);
+                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, err2 == CopyError::DiskFull
+                            ? tr("Disk alanı doldu, kurulum durduruluyor")
+                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                        return;
+                    } else {
+                        qWarning() << "Copy failed (locked):" << srcPath << "->" << destPath;
+                        errors++;
+                    }
                 } else {
                     qWarning() << "Copy failed:" << srcPath << "->" << destPath;
                     errors++;
@@ -1418,11 +1667,35 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     QString destPath = QDir::cleanPath(destDir + "/" + relPath);
                     QFileInfo destInfo(destPath);
                     if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
-                    if (QFile::exists(destPath)) QFile::remove(destPath);
-                    if (QFile::copy(dirIt.filePath(), destPath)) {
+                    auto [copyOk, copyErr] = tryCopyFile(dirIt.filePath(), destPath);
+                    if (copyOk) {
                         QString fullRelPath = step.dest + "/" + relPath;
                         installedFiles.append(fullRelPath);
                         if (m_journal) m_journal->recordFileModified(fullRelPath);
+                    } else if (copyErr == CopyError::DiskFull) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                        return;
+                    } else if (copyErr == CopyError::PermissionDenied) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                        return;
+                    } else if (copyErr == CopyError::FileLocked) {
+                        QThread::msleep(150);
+                        auto [ok2, err2] = tryCopyFile(dirIt.filePath(), destPath);
+                        if (ok2) {
+                            QString fullRelPath = step.dest + "/" + relPath;
+                            installedFiles.append(fullRelPath);
+                            if (m_journal) m_journal->recordFileModified(fullRelPath);
+                        } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                            if (m_journal) m_journal->commitOperation();
+                            emit installCompleted(false, err2 == CopyError::DiskFull
+                                ? tr("Disk alanı doldu, kurulum durduruluyor")
+                                : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                            return;
+                        } else {
+                            errors++;
+                        }
                     } else {
                         errors++;
                     }
@@ -1493,10 +1766,33 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
                 QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
                 emit installProgress(progress, tr("%1 — Adım %2/%3: Masaüstüne %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
-                if (QFile::exists(destPath)) QFile::remove(destPath);
-                if (QFile::copy(srcPath, destPath)) {
+                auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+                if (copyOk) {
                     installedFiles.append("_desktop:" + step.dest);
                     if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
+                } else if (copyErr == CopyError::DiskFull) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                    return;
+                } else if (copyErr == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    return;
+                } else if (copyErr == CopyError::FileLocked) {
+                    QThread::msleep(150);
+                    auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+                    if (ok2) {
+                        installedFiles.append("_desktop:" + step.dest);
+                        if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
+                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                        if (m_journal) m_journal->commitOperation();
+                        emit installCompleted(false, err2 == CopyError::DiskFull
+                            ? tr("Disk alanı doldu, kurulum durduruluyor")
+                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                        return;
+                    } else {
+                        errors++;
+                    }
                 } else {
                     errors++;
                 }
@@ -1543,6 +1839,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                     if (QFile::exists(destPath)) QFile::remove(destPath);
                     if (QFile::rename(srcPath, destPath)) {
                         installedFiles.append("_rename:" + step.src + ":" + step.dest);
+                        if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
                     } else {
                         errors++;
                     }
@@ -1568,7 +1865,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         emit installCompleted(true,
             tr("Kurulum başarıyla tamamlandı"));
     } else {
-        if (m_journal) m_journal->abortOperation();
+        if (m_journal) m_journal->commitOperation();
         emit installCompleted(false,
             tr("%1 adımda hata oluştu").arg(errors));
     }

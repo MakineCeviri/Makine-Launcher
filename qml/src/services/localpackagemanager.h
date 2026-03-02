@@ -157,6 +157,10 @@ private:
 
     QString installedStatePath() const;
 
+    enum class CopyError { None, DiskFull, PermissionDenied, FileLocked, Other };
+    struct CopyResult { bool ok; CopyError error; };
+    CopyResult tryCopyFile(const QString& src, const QString& dest);
+
     packages::PackageCatalog m_catalog;
     static PackageInfo fromCatalogEntry(const packages::PackageCatalogEntry& entry);
 
