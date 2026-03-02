@@ -177,10 +177,6 @@ just stats          # Proje istatistikleri
 | QML/UI C++ | camelCase | `.h` / `.cpp` | `gameservice.h` |
 | Core C++ | snake_case | `.hpp` / `.cpp` | `game_detector.hpp` |
 
-## Güvenlik
-
-Güvenlik açığı bildirmek için [Security Policy](.github/SECURITY.md).
-
 ## Lisans
 
 Proprietary — MakineAI. Tüm hakları saklıdır.
