@@ -178,3 +178,12 @@ dist-static/
 scripts/showcase_validation.json
 *.ps1
 !scripts/**/*.ps1
+
+# Test artifacts
+backup_*/
+_1.0.0/
+has_backup_test/
+list_backup_*/
+verify_backup/
+backup_restore/
+external/

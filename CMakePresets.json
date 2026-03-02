@@ -159,12 +159,19 @@
       "name": "core",
       "displayName": "Core Library",
       "description": "Build core library only (for CI/testing)",
-      "inherits": "vcpkg-base",
+      "inherits": "vcpkg-mingw",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/core/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_CORE_ONLY": "ON"
+        "MAKINEAI_CORE_ONLY": "ON",
+        "BUILD_TESTING": "ON",
+        "MAKINEAI_BUILD_TESTS": "ON",
+        "VCPKG_MANIFEST_MODE": "OFF",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+        "CMAKE_C_COMPILER_LAUNCHER": "",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "",
+        "VCPKG_APPLOCAL_DEPS": "OFF"
       },
       "condition": {
         "type": "equals",
