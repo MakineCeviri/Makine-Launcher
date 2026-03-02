@@ -30,6 +30,10 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
     // Load cached index for instant offline catalog display
     loadCachedEtag();
     loadCachedIndex();
+
+    // Retry timer: periodically re-attempt catalog sync when offline
+    m_retryTimer.setInterval(15000);  // 15 seconds
+    connect(&m_retryTimer, &QTimer::timeout, this, &ManifestSyncService::syncCatalog);
 }
 
 // ========== URL Helpers ==========
@@ -85,6 +89,7 @@ void ManifestSyncService::syncCatalog()
         if (reply->error() != QNetworkReply::NoError) {
             // Network error — catalog stays as-is (from cache)
             if (m_catalog.isEmpty()) {
+                setOffline(true);
                 emit syncError(tr("Katalog indirilemedi: %1").arg(reply->errorString()));
             }
             // If we have cached data, silently continue with it
@@ -96,6 +101,7 @@ void ManifestSyncService::syncCatalog()
         if (status == 304) {
             // Not modified — cached version is current
             qDebug() << "ManifestSync: 304 Not Modified — catalog is current";
+            setOffline(false);
             QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             return;
         }
@@ -121,6 +127,7 @@ void ManifestSyncService::onIndexFetched(const QByteArray& data, const QString& 
         saveCachedIndex(data, etag);
         m_etag = etag;
         qDebug() << "ManifestSync: catalog synced —" << m_catalog.size() << "packages";
+        setOffline(false);
         // Defer signal to next event loop iteration — breaks synchronous chain
         // that otherwise blocks main thread ~4s (refreshPackageManifest + QML rebind)
         QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
@@ -373,6 +380,23 @@ void ManifestSyncService::loadCachedEtag()
     QFile file(AppPaths::manifestEtagFile());
     if (file.open(QIODevice::ReadOnly))
         m_etag = QString::fromUtf8(file.readAll()).trimmed();
+}
+
+void ManifestSyncService::setOffline(bool offline)
+{
+    if (m_offline == offline)
+        return;
+    m_offline = offline;
+    emit offlineChanged();
+
+    if (offline) {
+        if (!m_retryTimer.isActive())
+            m_retryTimer.start();
+        qDebug() << "ManifestSync: offline mode — retrying every 15s";
+    } else {
+        m_retryTimer.stop();
+        qDebug() << "ManifestSync: back online";
+    }
 }
 
 } // namespace makineai

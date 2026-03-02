@@ -20,6 +20,7 @@
 #include <QVariantMap>
 #include <QSet>
 #include <QNetworkAccessManager>
+#include <QTimer>
 
 namespace makineai {
 
@@ -28,6 +29,7 @@ class ManifestSyncService : public QObject
     Q_OBJECT
 
     Q_PROPERTY(bool isSyncing READ isSyncing NOTIFY syncStatusChanged)
+    Q_PROPERTY(bool isOffline READ isOffline NOTIFY offlineChanged)
     Q_PROPERTY(int catalogCount READ catalogCount NOTIFY catalogReady)
     Q_PROPERTY(QString lastSyncTime READ lastSyncTime NOTIFY catalogReady)
 
@@ -75,6 +77,7 @@ public:
     QString catalogGameName(const QString& appId) const;
 
     bool isSyncing() const { return m_syncing; }
+    bool isOffline() const { return m_offline; }
     int catalogCount() const { return m_catalog.size(); }
     QString lastSyncTime() const { return m_lastSync; }
 
@@ -90,7 +93,11 @@ signals:
     /** Emitted on network or parse errors */
     void syncError(const QString& error);
 
+    /** Emitted when offline state changes (no cache + sync failed) */
+    void offlineChanged();
+
 private:
+    void setOffline(bool offline);
     void parseIndex(const QByteArray& data);
     void loadCachedIndex();
     void saveCachedIndex(const QByteArray& rawData, const QString& etag);
@@ -120,6 +127,8 @@ private:
     QHash<QString, QVariantMap> m_packageDetails;  // appId -> full detail (in-memory)
 
     bool m_syncing{false};
+    bool m_offline{false};
+    QTimer m_retryTimer;
     QSet<QString> m_pendingDetails;  // appIds currently being fetched
 };
 

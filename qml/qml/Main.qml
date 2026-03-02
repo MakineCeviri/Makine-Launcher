@@ -314,6 +314,61 @@ ApplicationWindow {
             Accessible.name: qsTr("Güvenlik uyarısı: bütünlük doğrulaması başarısız")
         }
 
+
+        // ===== CONNECTION BANNER =====
+        Rectangle {
+            id: connectionBanner
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 36 : 0
+            visible: ManifestSync.isOffline
+            color: Theme.error08
+
+            Behavior on Layout.preferredHeight {
+                NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Dimensions.marginMD
+                anchors.rightMargin: Dimensions.marginMD
+                spacing: Dimensions.spacingMD
+
+                Label {
+                    textFormat: Text.PlainText
+                    text: ""
+                    font.pixelSize: 14
+                    font.family: "Segoe MDL2 Assets"
+                    color: Theme.error
+                    opacity: 0.8
+                    Layout.preferredWidth: 14
+                    Layout.preferredHeight: 14
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Label {
+                    textFormat: Text.PlainText
+                    text: qsTr("İnternet bağlantısı bulunamadı — bağlanmaya çalışılıyor...")
+                    font.pixelSize: Dimensions.fontXS
+                    font.weight: Font.Medium
+                    color: Theme.error
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
+
+                Label {
+                    textFormat: Text.PlainText
+                    text: qsTr("Tekrar deneniyor...")
+                    font.pixelSize: Dimensions.fontXS
+                    color: Theme.textMuted
+                    visible: ManifestSync.isSyncing
+                }
+            }
+
+            Accessible.role: Accessible.AlertMessage
+            Accessible.name: qsTr("Bağlantı uyarısı: internet bağlantısı yok")
+        }
+
         // ===== NAV BAR =====
         NavBar {
             id: navBar

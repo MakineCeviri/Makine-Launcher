@@ -164,12 +164,11 @@ Item {
         function onBackupRestored(gId) {
             if (gId === root.viewModel.gameId)
                 root.viewModel.packageInstalled = false
-        
+        }
         function onBackupError(error) {
             root.viewModel.installErrorMessage = error
             installErrorTimer.restart()
         }
-}
     }
 
     // ===== IMAGE CACHE (R2 async download complete) =====
@@ -221,14 +220,13 @@ Item {
                 var mbReceived = (received / 1048576).toFixed(1)
                 var mbTotal = (total / 1048576).toFixed(1)
                 root.viewModel.installStatus = qsTr("İndiriliyor... %1 / %2 MB").arg(mbReceived).arg(mbTotal)
-            
+            } else {
+                root.viewModel.installStatus = qsTr("İndiriliyor...")
+            }
+        }
         function onDownloadRetrying(appId, attempt, maxAttempts) {
             if (appId !== root.viewModel.gameId) return
             root.viewModel.installStatus = qsTr("Bağlantı kesildi, tekrar deneniyor... (%1/%2)").arg(attempt).arg(maxAttempts)
-        }
-} else {
-                root.viewModel.installStatus = qsTr("İndiriliyor...")
-            }
         }
         function onExtractionStarted(appId) {
             if (appId !== root.viewModel.gameId) return
