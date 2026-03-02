@@ -121,7 +121,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}",
-        "MAKINEAI_UI_ONLY": "OFF"
+        "MAKINEAI_UI_ONLY": "OFF",
+        "MAKINEAI_RELEASE_VERIFIED": "ON"
       },
       "condition": {
         "type": "equals",

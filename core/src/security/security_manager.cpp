@@ -22,9 +22,11 @@
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/crypto.h>  // CRYPTO_memcmp (SEC-2)
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <set>
 #include <nlohmann/json.hpp>
 
 // Optional: libsodium for modern cryptography
@@ -237,7 +239,9 @@ bool SecurityManager::verifyHash(ByteSpan data, const std::string& expectedHash,
                                   HashAlgorithm algo) const {
     auto result = hash(data, algo);
     if (!result) return false;
-    return *result == expectedHash;
+    // Constant-time comparison to prevent timing side-channel attacks (SEC-2)
+    if (result->size() != expectedHash.size()) return false;
+    return CRYPTO_memcmp(result->data(), expectedHash.data(), result->size()) == 0;
 }
 
 VoidResult SecurityManager::loadEmbeddedKey() {
@@ -365,9 +369,13 @@ Result<SignatureResult> SecurityManager::verifySignature(
     }
 
     bool verified = false;
-    if (EVP_DigestVerifyInit(ctx, nullptr, EVP_sha256(), nullptr, impl_->publicKey) == 1 &&
-        EVP_DigestVerifyUpdate(ctx, data.data(), data.size()) == 1) {
-        int verifyResult = EVP_DigestVerifyFinal(ctx, signature.data(), signature.size());
+    // Ed25519: pass nullptr for digest type — Ed25519 uses its own SHA-512 internally.
+    // Use one-shot EVP_DigestVerify instead of Update+Final pattern (SEC-1 fix).
+    if (EVP_DigestVerifyInit(ctx, nullptr, nullptr, nullptr, impl_->publicKey) == 1) {
+        int verifyResult = EVP_DigestVerify(
+            ctx,
+            signature.data(), signature.size(),
+            data.data(), data.size());
         verified = (verifyResult == 1);
     }
 
@@ -415,11 +423,12 @@ Result<SignatureResult> SecurityManager::verifyPackageSignature(
         return result;
     }
 
-    // Compare hash
-    if (*hashResult != signature.packageHash) {
+    // Compare hash — hashFile returns hex, sig has "sha256:<hex>" format
+    std::string computedHashWithPrefix = "sha256:" + *hashResult;
+    if (computedHashWithPrefix != signature.packageHash) {
         result.message = "Package hash mismatch";
         MAKINEAI_LOG_WARN(log::SECURITY, "Package hash mismatch for {}: expected={}, got={}",
-            packagePath.string(), signature.packageHash, *hashResult);
+            packagePath.string(), signature.packageHash, computedHashWithPrefix);
         AuditLogger::logSignatureVerification(packagePath.string(), false,
             "Hash mismatch - possible tampering or corruption detected");
         metrics().increment("security.package_verify_failures");
@@ -427,10 +436,10 @@ Result<SignatureResult> SecurityManager::verifyPackageSignature(
         return result;
     }
 
-    MAKINEAI_LOG_DEBUG(log::SECURITY, "Package hash verified: {}", *hashResult);
+    MAKINEAI_LOG_DEBUG(log::SECURITY, "Package hash verified: {}", computedHashWithPrefix);
 
-    // Verify signature
-    ByteBuffer hashBytes(hashResult->begin(), hashResult->end());
+    // Verify signature over the full hash string (matches signer: "sha256:<hex>")
+    ByteBuffer hashBytes(computedHashWithPrefix.begin(), computedHashWithPrefix.end());
     auto sigResult = verifySignature(hashBytes, signature.signature);
     if (!sigResult) {
         MAKINEAI_LOG_ERROR(log::SECURITY, "Signature verification error for package {}",

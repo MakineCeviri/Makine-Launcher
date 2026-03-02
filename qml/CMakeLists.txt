@@ -427,9 +427,18 @@ endif()
 # Sentry crash reporting (optional)
 if(MAKINEAI_CRASH_REPORTING AND TARGET sentry)
     target_link_libraries(MakineAI PRIVATE sentry)
+
+    # Read DSN from environment — never hardcode in source (SEC-13)
+    if(DEFINED ENV{MAKINEAI_SENTRY_DSN} AND NOT "$ENV{MAKINEAI_SENTRY_DSN}" STREQUAL "")
+        set(_sentry_dsn "$ENV{MAKINEAI_SENTRY_DSN}")
+    else()
+        message(WARNING "MAKINEAI_SENTRY_DSN not set — Sentry crash reporting will be disabled at runtime")
+        set(_sentry_dsn "")
+    endif()
+
     target_compile_definitions(MakineAI PRIVATE
         MAKINEAI_HAS_SENTRY
-        SENTRY_DSN="https://b45e1f0c15f8930397fc27e44699da53@o4510959114387456.ingest.de.sentry.io/4510959470444624"
+        SENTRY_DSN="${_sentry_dsn}"
     )
     message(STATUS "MakineAI: Sentry crash reporting linked")
 

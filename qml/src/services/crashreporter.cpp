@@ -50,9 +50,60 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
     }
 }
 
-// beforeSend callback — strip PII, add context
+// Strip Windows username from file paths (SEC-14: PII stripping)
+static std::string sanitizePath(const char* raw) {
+    if (!raw) return {};
+    std::string path(raw);
+    // Replace C:\Users\<username>\ with C:\Users\[redacted]\ (both slash styles)
+    for (const auto& sep : {std::string("Users\\"), std::string("Users/")}) {
+        auto pos = path.find(sep);
+        if (pos != std::string::npos) {
+            auto nameStart = pos + sep.size();
+            char slashChar = sep.back();
+            auto nameEnd = path.find(slashChar, nameStart);
+            if (nameEnd != std::string::npos)
+                path.replace(nameStart, nameEnd - nameStart, "[redacted]");
+            break;
+        }
+    }
+    return path;
+}
+
+// Sanitize stack frame values containing file paths
+static void sanitizeFrame(sentry_value_t frame) {
+    static const char* pathKeys[] = {"filename", "abs_path", "module", "package", nullptr};
+    for (const char** key = pathKeys; *key; ++key) {
+        sentry_value_t v = sentry_value_get_by_key(frame, *key);
+        if (!sentry_value_is_null(v) &&
+            sentry_value_get_type(v) == SENTRY_VALUE_TYPE_STRING) {
+            auto sanitized = sanitizePath(sentry_value_as_string(v));
+            if (!sanitized.empty()) {
+                sentry_value_set_by_key(frame, *key,
+                    sentry_value_new_string(sanitized.c_str()));
+            }
+        }
+    }
+}
+
+// beforeSend callback — strip PII, add context (SEC-14)
 sentry_value_t beforeSend(sentry_value_t event, void* /*hint*/, void* /*closure*/)
 {
+    // Strip file paths from stack frames to remove Windows usernames
+    sentry_value_t exception = sentry_value_get_by_key(event, "exception");
+    if (!sentry_value_is_null(exception)) {
+        sentry_value_t values = sentry_value_get_by_key(exception, "values");
+        auto len = sentry_value_get_length(values);
+        for (size_t i = 0; i < len; ++i) {
+            sentry_value_t exc = sentry_value_get_by_index(values, i);
+            sentry_value_t stacktrace = sentry_value_get_by_key(exc, "stacktrace");
+            sentry_value_t frames = sentry_value_get_by_key(stacktrace, "frames");
+            auto frameLen = sentry_value_get_length(frames);
+            for (size_t j = 0; j < frameLen; ++j) {
+                sanitizeFrame(sentry_value_get_by_index(frames, j));
+            }
+        }
+    }
+
     // Add app version tag
     sentry_value_t tags = sentry_value_get_by_key(event, "tags");
     if (sentry_value_is_null(tags)) {

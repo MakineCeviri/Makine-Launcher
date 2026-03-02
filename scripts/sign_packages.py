@@ -153,9 +153,13 @@ def create_signature(
     private_key: Ed25519PrivateKey, sha256_hex: str
 ) -> dict:
     """Sign a SHA-256 hash with Ed25519 and return the .sig JSON payload."""
-    # Sign the raw hash bytes (32 bytes from the SHA-256 digest)
-    hash_bytes = bytes.fromhex(sha256_hex)
-    signature_bytes = private_key.sign(hash_bytes)
+    # Sign the hash string exactly as it appears in the .sig JSON "hash" field.
+    # The C++ verifier (translationdownloader.cpp) passes sigHash.toUtf8() — the
+    # full "sha256:<hex>" string — to EVP_DigestVerify, so we must sign the same
+    # representation here. Previously this signed raw 32-byte hash bytes, which
+    # caused a verification mismatch (SEC-8).
+    hash_string = f"sha256:{sha256_hex}"
+    signature_bytes = private_key.sign(hash_string.encode("utf-8"))
     signature_b64 = base64.b64encode(signature_bytes).decode("ascii")
 
     return {
