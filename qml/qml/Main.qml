@@ -809,4 +809,22 @@ ApplicationWindow {
         onActivated: window.showPerformanceMonitor = !window.showPerformanceMonitor
     }
 
+    // ===== GAME DETECTION TOAST =====
+    GameToast {
+        id: gameToast
+    }
+
+    Connections {
+        target: ProcessScanner
+        function onGameDetected(gameId, gameName) {
+            gameToast.show(gameId, gameName)
+        }
+        function onProcessResolved(gameId, gameName, installPath) {
+            // User manually resolved a process to a catalog game
+            gameToast.show(gameId, gameName,
+                gameName + " k\u00fct\u00fcphaneye eklendi!",
+                "K\u00fct\u00fcphaneden T\u00fcrk\u00e7e yama y\u00fckleyebilirsiniz.")
+        }
+    }
+
 }

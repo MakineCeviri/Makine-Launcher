@@ -2,25 +2,31 @@
  * @file processscanner.h
  * @brief Running game process detection
  * @copyright (c) 2026 MakineAI Team
+ *
+ * Three-layer detection:
+ * 1. Known exe match (disk scan + catalog fingerprints) - automatic
+ * 2. Heavy process detection (>300MB RAM) - shows candidates to user
+ * 3. User selects process - system resolves game and adds to library
  */
 
 #pragma once
 
 #include <QObject>
+#include <QHash>
 #include <QString>
 #include <QTimer>
+#include <QVariantList>
 #include <QQmlEngine>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 namespace makineai {
 
-/**
- * @brief Process Scanner - Monitors running processes for game detection
- *
- * Provides:
- * - Real-time process monitoring
- * - Game process detection
- * - Anti-cheat detection warnings
- */
+class GameService;
+class LocalPackageManager;
+
 class ProcessScanner : public QObject
 {
     Q_OBJECT
@@ -31,6 +37,7 @@ class ProcessScanner : public QObject
     Q_PROPERTY(QString runningGameName READ runningGameName NOTIFY runningGameChanged)
     Q_PROPERTY(bool hasAntiCheat READ hasAntiCheat NOTIFY antiCheatChanged)
     Q_PROPERTY(QString antiCheatSummary READ antiCheatSummary NOTIFY antiCheatChanged)
+    Q_PROPERTY(QVariantList heavyProcesses READ heavyProcesses NOTIFY heavyProcessesChanged)
 
 public:
     explicit ProcessScanner(QObject *parent = nullptr);
@@ -38,33 +45,72 @@ public:
 
     static ProcessScanner* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
-    // Properties
+    void setGameService(GameService* service) { m_gameService = service; }
+    void setPackageManager(LocalPackageManager* manager) { m_packageManager = manager; }
+
     bool isWatching() const { return m_isWatching; }
     bool gameRunning() const { return m_gameRunning; }
     QString runningGameId() const { return m_runningGameId; }
     QString runningGameName() const { return m_runningGameName; }
     bool hasAntiCheat() const { return m_hasAntiCheat; }
     QString antiCheatSummary() const { return m_antiCheatSummary; }
+    QVariantList heavyProcesses() const { return m_heavyProcesses; }
 
-    // Q_INVOKABLE methods
     static constexpr int kDefaultScanIntervalMs = 10000;
     Q_INVOKABLE void startWatching(int intervalMs = kDefaultScanIntervalMs);
     void stopWatching();
+
+    /**
+     * @brief User selected a heavy process as their game
+     *
+     * Called from QML when user picks a process from the heavy process list.
+     * Resolves the process path, identifies the game via fingerprinting,
+     * and adds it to the library.
+     *
+     * @param pid Process ID of the selected process
+     * @return Game install path (empty if resolution failed)
+     */
+    Q_INVOKABLE QString resolveSelectedProcess(qint64 pid);
+
+public slots:
+    void rebuildProcessMap();
+
 signals:
     void isWatchingChanged();
     void gameRunningChanged();
     void runningGameChanged();
     void antiCheatChanged();
+    void heavyProcessesChanged();
+
+    // Emitted when a KNOWN game is detected (auto, not in library)
     void gameDetected(const QString& gameId, const QString& gameName);
     void gameClosed(const QString& gameId);
     void antiCheatDetected(const QString& system, const QString& severity);
+
+    // Emitted when user resolves a process to a game
+    void processResolved(const QString& gameId, const QString& gameName, const QString& installPath);
 
 private slots:
     void performScan();
 
 private:
-    void detectRunningGames(const QStringList& processes);
-    QStringList getRunningProcesses();
+    struct ProcessInfo {
+        QString exeName;
+#ifdef Q_OS_WIN
+        DWORD pid{0};
+#else
+        uint32_t pid{0};
+#endif
+    };
+
+    void detectRunningGames(const QList<ProcessInfo>& processes);
+    void updateHeavyProcessList(const QList<ProcessInfo>& processes);
+    QList<ProcessInfo> getRunningProcesses();
+
+#ifdef Q_OS_WIN
+    QString getProcessFullPath(DWORD processId) const;
+    SIZE_T getProcessMemoryUsage(DWORD processId) const;
+#endif
 
     QTimer m_scanTimer;
     bool m_isWatching{false};
@@ -74,8 +120,16 @@ private:
     bool m_hasAntiCheat{false};
     QString m_antiCheatSummary;
 
-    // Known game processes (simplified - would be loaded from database)
-    QMap<QString, QString> m_knownProcesses;
+    QString m_runningExeName;  // For fast-path check
+    unsigned m_scanCycle{0};
+
+    QHash<QString, QString> m_knownProcesses;  // exe name -> appId
+    QHash<QString, QString> m_appIdToPath;     // appId -> install dir
+
+    QVariantList m_heavyProcesses;  // [{name, pid, memoryMB}] for QML
+
+    GameService* m_gameService{nullptr};
+    LocalPackageManager* m_packageManager{nullptr};
 };
 
 } // namespace makineai

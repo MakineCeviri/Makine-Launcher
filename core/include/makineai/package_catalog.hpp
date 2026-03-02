@@ -365,6 +365,14 @@ public:
      */
     [[nodiscard]] std::vector<PackageCatalogEntry> allPackages() const;
 
+    /**
+     * @brief Build exe name -> steamAppId map from all package fingerprints
+     *
+     * Returns lowercase exe names mapped to their canonical Steam App ID.
+     * Used by ProcessScanner for dynamic running-game detection.
+     */
+    [[nodiscard]] std::unordered_map<std::string, std::string> getAllExeMap() const;
+
 private:
     /**
      * @brief Parse index.json (lightweight) and populate packages_

@@ -17,6 +17,7 @@
 #include <cctype>
 #include <fstream>
 #include <set>
+#include <unordered_map>
 
 namespace makineai {
 namespace packages {
@@ -992,6 +993,19 @@ std::vector<PackageCatalogEntry> PackageCatalog::allPackages() const
         result.push_back(pkg);
     }
     return result;
+}
+
+std::unordered_map<std::string, std::string> PackageCatalog::getAllExeMap() const
+{
+    std::unordered_map<std::string, std::string> map;
+    for (const auto& [appId, entry] : packages_) {
+        if (entry.fingerprint) {
+            for (const auto& exe : entry.fingerprint->exeNames) {
+                map[exe] = appId;
+            }
+        }
+    }
+    return map;
 }
 
 } // namespace packages

@@ -73,6 +73,9 @@ public:
     // Set crash recovery journal (forwarded to LocalPackageManager)
     void setJournal(OperationJournal* journal);
 
+    // Access to package manager (for ProcessScanner dynamic map)
+    LocalPackageManager* packageManager() const { return m_localPkgManager; }
+
     // ========== Game Detection ==========
 
     /**

@@ -312,6 +312,23 @@ QVariantList LocalPackageManager::allPackagesAsList() const
     return result;
 }
 
+QVariantMap LocalPackageManager::getAllExeMap() const
+{
+    QVariantMap result;
+    auto map = m_catalog.getAllExeMap();
+    for (const auto& [exe, appId] : map) {
+        result.insert(QString::fromStdString(exe), QString::fromStdString(appId));
+    }
+    return result;
+}
+
+QString LocalPackageManager::getGameName(const QString& steamAppId) const
+{
+    auto pkg = m_catalog.getPackage(steamAppId.toStdString());
+    if (pkg) return QString::fromStdString(pkg->gameName);
+    return {};
+}
+
 // -- Installed state persistence (delegated to core) --------------------------
 
 // Private helper: save installed state through core catalog

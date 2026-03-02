@@ -142,6 +142,12 @@ public:
     int packageCount() const;
     QVariantList allPackagesAsList() const;
 
+    // Build exe name -> steamAppId map from catalog fingerprints (for ProcessScanner)
+    QVariantMap getAllExeMap() const;
+
+    // Get game name by steamAppId (for ProcessScanner display)
+    QString getGameName(const QString& steamAppId) const;
+
 signals:
     void installProgress(double progress, const QString& status);
     void installCompleted(bool success, const QString& message);

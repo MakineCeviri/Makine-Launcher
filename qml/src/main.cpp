@@ -802,7 +802,17 @@ int main(int argc, char *argv[])
     splash.setStatus(L"S\u00FCrec izleyici ba\u015Flat\u0131l\u0131yor...");
 #endif
     auto* processScanner = new ProcessScanner(&app);
+    processScanner->setGameService(gameService);
     engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
+
+    // Rebuild process map when game library scan completes
+    // PackageManager is lazy-init (created during first scanAllLibraries),
+    // so we inject it + rebuild on every scanCompleted
+    QObject::connect(gameService, &GameService::scanCompleted,
+                     processScanner, [processScanner]() {
+        processScanner->setPackageManager(CoreBridge::instance()->packageManager());
+        processScanner->rebuildProcessMap();
+    });
 
     // ===== Phase 6: Security + integrity =====
 #ifdef Q_OS_WIN

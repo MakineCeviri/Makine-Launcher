@@ -220,6 +220,7 @@ qt_add_qml_module(MakineAI
         qml/components/GameCardSkeleton.qml      # Loading placeholder for GameCard
         qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
         qml/components/GameDetectionCard.qml      # Game detection status + manual add
+        qml/components/GameToast.qml               # Overlay notification for detected games
         qml/components/ProjectShowcaseCard.qml    # Showcase project display
         #
         # Navigation: Window chrome and nav

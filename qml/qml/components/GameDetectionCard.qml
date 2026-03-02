@@ -12,6 +12,12 @@ ColumnLayout {
     property real layoutCardSpacing: 8
     property real layoutTopRowHeight: 200
 
+    // Dynamic game detection state
+    property bool gameDetected: ProcessScanner.gameRunning
+    property string detectedGameName: ProcessScanner.runningGameName
+    property var heavyProcs: ProcessScanner.heavyProcesses
+    property bool hasHeavyProcesses: heavyProcs.length > 0 && !gameDetected
+
     signal manualFolderRequested()
 
     Layout.fillWidth: true
@@ -162,17 +168,90 @@ ColumnLayout {
 
                 Label {
                     textFormat: Text.PlainText
-                    text: qsTr("Oyun Tespit Edilemedi")
+                    text: root.gameDetected ? root.detectedGameName + qsTr(" çalışıyor")
+                          : root.hasHeavyProcesses ? qsTr("Oyun tespit ediliyor...")
+                          : qsTr("Oyun Tespit Edilemedi")
                     font.pixelSize: Dimensions.fontLG; font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
                 Label {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
-                    text: qsTr("Desteklenen bir oyun bulunamad\u0131. Oyununuzu ba\u015Flat\u0131n ya da manuel olarak bir oyun ekleyin.")
+                    visible: !root.gameDetected && !root.hasHeavyProcesses
+                    text: qsTr("Kütüphaneye Git")
                     font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
                     wrapMode: Text.WordWrap; lineHeight: 1.4
                     maximumLineCount: 3; elide: Text.ElideRight
+                }
+
+                // Game running description
+                Label {
+                    textFormat: Text.PlainText
+                    Layout.fillWidth: true
+                    visible: root.gameDetected
+                    text: qsTr("T\u00fcrk\u00e7e yama y\u00fcklemek i\u00e7in oyunu kapat\u0131n.")
+                    font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
+                    wrapMode: Text.WordWrap; lineHeight: 1.4
+                }
+
+                // Heavy process selection list
+                Column {
+                    Layout.fillWidth: true
+                    visible: root.hasHeavyProcesses
+                    spacing: 3
+
+                    Label {
+                        text: qsTr("Oyununuz bunlardan biri olabilir:")
+                        font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
+                    }
+
+                    Repeater {
+                        model: root.heavyProcs
+
+                        Rectangle {
+                            id: procItem
+                            required property var modelData
+                            required property int index
+                            width: parent.width
+                            height: 26
+                            radius: 6
+                            color: procMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+                            Behavior on color { ColorAnimation { duration: 120 } }
+
+                            Row {
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.leftMargin: 6; anchors.rightMargin: 6
+                                spacing: 6
+
+                                Label {
+                                    textFormat: Text.PlainText
+                                    text: procItem.modelData.name
+                                    font.pixelSize: Dimensions.fontXS
+                                    font.weight: Font.Medium
+                                    color: Theme.textPrimary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    elide: Text.ElideRight
+                                    width: parent.width - memLabel.width - 18
+                                }
+
+                                Label {
+                                    id: memLabel
+                                    textFormat: Text.PlainText
+                                    text: procItem.modelData.memoryMB + " MB"
+                                    font.pixelSize: Dimensions.fontMini
+                                    color: Theme.textMuted
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: procMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: ProcessScanner.resolveSelectedProcess(procItem.modelData.pid)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -180,8 +259,9 @@ ColumnLayout {
             Item {
                 id: btn
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: btnRow.implicitWidth + 32
-                Layout.preferredHeight: 38
+                visible: !root.hasHeavyProcesses
+                Layout.preferredWidth: root.hasHeavyProcesses ? 0 : btnRow.implicitWidth + 32
+                Layout.preferredHeight: root.hasHeavyProcesses ? 0 : 38
 
                 scale: btnMa.containsMouse ? 1.04 : 1.0
                 Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -239,7 +319,8 @@ ColumnLayout {
 
                     Label {
                         textFormat: Text.PlainText
-                        text: qsTr("Oyun Ekle")
+                        text: root.gameDetected ? qsTr("Kütüphaneye Git") : qsTr("Oyun Ekle")
+                        visible: !root.hasHeavyProcesses
                         font.pixelSize: Dimensions.fontSM; font.weight: Font.Bold
                         color: Theme.accentDark
                         anchors.verticalCenter: parent.verticalCenter
