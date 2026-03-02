@@ -1205,19 +1205,19 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 {
     MAKINE_ZONE_NAMED("GameService::installTranslation");
     if (!m_coreBridge) {
-        emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
+        emit translationInstallCompleted(gameId, false, tr("Uygulama başlatılıyor, lütfen bekleyin"));
         return;
     }
 
     if (!m_installingGameId.isEmpty()) {
         emit translationInstallCompleted(gameId, false,
-            tr("Another installation is in progress"));
+            tr("Zaten bir kurulum devam ediyor"));
         return;
     }
 
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
-        emit translationInstallCompleted(gameId, false, tr("Game not found: %1").arg(gameId));
+        emit translationInstallCompleted(gameId, false, tr("Oyun bulunamadı"));
         return;
     }
 
@@ -1228,7 +1228,7 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         qWarning() << "GameService::installTranslation: No package found for" << gameId
                    << "- hasTranslationPackage:" << m_coreBridge->hasTranslationPackage(gameId);
         emit translationInstallCompleted(gameId, false,
-            tr("No translation package available for this game"));
+            tr("Bu oyun için çeviri paketi bulunamadı"));
         return;
     }
 
@@ -1237,7 +1237,7 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
     if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
         emit translationInstallCompleted(gameId, false,
-            tr("Game install path not found: %1").arg(game.installPath));
+            tr("Oyun klasörü bulunamadı: %1").arg(game.installPath));
         return;
     }
 
@@ -1322,19 +1322,19 @@ void GameService::updateTranslation(const QString& gameId, const QString& varian
 {
     MAKINE_ZONE_NAMED("GameService::updateTranslation");
     if (!m_coreBridge) {
-        emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
+        emit translationInstallCompleted(gameId, false, tr("Uygulama başlatılıyor, lütfen bekleyin"));
         return;
     }
 
     if (!m_installingGameId.isEmpty()) {
         emit translationInstallCompleted(gameId, false,
-            tr("Another installation is in progress"));
+            tr("Zaten bir kurulum devam ediyor"));
         return;
     }
 
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
-        emit translationInstallCompleted(gameId, false, tr("Game not found: %1").arg(gameId));
+        emit translationInstallCompleted(gameId, false, tr("Oyun bulunamadı"));
         return;
     }
 
@@ -1343,13 +1343,13 @@ void GameService::updateTranslation(const QString& gameId, const QString& varian
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
         emit translationInstallCompleted(gameId, false,
-            tr("No translation package available for this game"));
+            tr("Bu oyun için çeviri paketi bulunamadı"));
         return;
     }
 
     if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
         emit translationInstallCompleted(gameId, false,
-            tr("Game install path not found: %1").arg(game.installPath));
+            tr("Oyun klasörü bulunamadı: %1").arg(game.installPath));
         return;
     }
 
@@ -1409,13 +1409,13 @@ void GameService::uninstallTranslation(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("GameService::uninstallTranslation");
     if (!m_coreBridge) {
-        emit translationUninstalled(gameId, false, tr("Core bridge not available"));
+        emit translationUninstalled(gameId, false, tr("Uygulama başlatılıyor, lütfen bekleyin"));
         return;
     }
 
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
-        emit translationUninstalled(gameId, false, tr("Game not found"));
+        emit translationUninstalled(gameId, false, tr("Oyun bulunamadı"));
         return;
     }
 
@@ -1462,14 +1462,14 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
     }
 
     emit translationUninstalled(gameId, success,
-        success ? tr("Translation removed successfully")
-                : tr("Failed to remove translation"));
+        success ? tr("Yama başarıyla kaldırıldı")
+                : tr("Yama kaldırılamadı"));
 }
 
 void GameService::recoverTranslation(const QString& gameId)
 {
     if (!m_coreBridge) {
-        emit translationInstallCompleted(gameId, false, tr("Core bridge not available"));
+        emit translationInstallCompleted(gameId, false, tr("Uygulama başlatılıyor, lütfen bekleyin"));
         return;
     }
 

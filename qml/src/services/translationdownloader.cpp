@@ -11,9 +11,12 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QNetworkReply>
 #include <QUrl>
 #include <QUuid>
+#include <QDateTime>
+#include <QTimer>
 
 #ifndef MAKINEAI_UI_ONLY
 #include "mkpkformat.h"
@@ -31,8 +34,49 @@ namespace makineai {
 TranslationDownloader::TranslationDownloader(QObject* parent)
     : QObject(parent)
 {
+    // Clean stale .part files older than 7 days
+    const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
+    QDir dir(tempDir);
+    if (dir.exists()) {
+        const auto entries = dir.entryInfoList({QStringLiteral("*.mkpkg.part")}, QDir::Files);
+        const qint64 staleThreshold = QDateTime::currentSecsSinceEpoch() - 7 * 24 * 3600;
+        for (const auto& fi : entries) {
+            if (fi.lastModified().toSecsSinceEpoch() < staleThreshold) {
+                QFile::remove(fi.absoluteFilePath());
+                qDebug() << "TranslationDownloader: removed stale part file" << fi.fileName();
+            }
+        }
+    }
 }
 
+bool TranslationDownloader::shouldRetry(QNetworkReply::NetworkError err, int httpStatus)
+{
+    // Never retry user cancellation
+    if (err == QNetworkReply::OperationCanceledError)
+        return false;
+
+    // Never retry client errors (4xx) except 408 (timeout) and 429 (rate limit)
+    if (httpStatus >= 400 && httpStatus < 500 && httpStatus != 408 && httpStatus != 429)
+        return false;
+
+    // Retry on server errors (5xx)
+    if (httpStatus >= 500)
+        return true;
+
+    // Retry on network-level errors
+    switch (err) {
+    case QNetworkReply::TimeoutError:
+    case QNetworkReply::ConnectionRefusedError:
+    case QNetworkReply::RemoteHostClosedError:
+    case QNetworkReply::TemporaryNetworkFailureError:
+    case QNetworkReply::NetworkSessionFailedError:
+        return true;
+    default:
+        break;
+    }
+
+    return false;
+}
 void TranslationDownloader::downloadPackage(
     const QString& appId,
     const QString& dataUrl,
@@ -43,7 +87,7 @@ void TranslationDownloader::downloadPackage(
         QStringLiteral("downloadPackage: %1").arg(appId).toUtf8().constData());
 
     if (appId.isEmpty() || dataUrl.isEmpty() || dirName.isEmpty()) {
-        emit downloadError(appId, tr("Missing download parameters"));
+        emit downloadError(appId, tr("İndirme bilgileri eksik"));
         return;
     }
 
@@ -54,106 +98,223 @@ void TranslationDownloader::downloadPackage(
     }
 
 #ifdef MAKINEAI_UI_ONLY
-    emit downloadError(appId, tr("Downloads are not available in this build"));
+    emit downloadError(appId, tr("Bu sürümde indirme desteklenmiyor"));
     return;
 #else
 
-    // Prepare temp file path with random suffix to prevent symlink attacks
+    // Prepare paths
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir().mkpath(tempDir);
+
     const QString tempPath = tempDir + QStringLiteral("/%1_%2.mkpkg")
         .arg(appId, QUuid::createUuid().toString(QUuid::Id128).left(8));
+    const QString partPath = tempDir + QStringLiteral("/%1.mkpkg.part").arg(appId);
 
-    // Start HTTP download
-    QNetworkRequest req{QUrl{dataUrl}};
+    // Set up download state
+    DownloadState state;
+    state.tempPath = tempPath;
+    state.partPath = partPath;
+    state.dirName = dirName;
+    state.dataUrl = dataUrl;
+    state.cancelled = false;
+    state.retryCount = 0;
+    state.resumeOffset = 0;
+    m_activeDownloads.insert(appId, state);
+    emit activeDownloadsChanged();
+
+    // Start the HTTP request (handles resume from existing .part)
+    startHttpRequest(appId);
+
+#endif // !MAKINEAI_UI_ONLY
+}
+
+void TranslationDownloader::startHttpRequest(const QString& appId)
+{
+#ifndef MAKINEAI_UI_ONLY
+    auto it = m_activeDownloads.find(appId);
+    if (it == m_activeDownloads.end()) return;
+    auto& state = it.value();
+
+    // Check if we have a partial file to resume from
+    QFileInfo partInfo(state.partPath);
+    if (partInfo.exists() && partInfo.size() > 0) {
+        state.resumeOffset = partInfo.size();
+        qDebug() << "TranslationDownloader: resuming from offset" << state.resumeOffset
+                 << "for" << appId;
+    } else {
+        state.resumeOffset = 0;
+    }
+
+    // Build request with Range header for resume
+    QNetworkRequest req{QUrl{state.dataUrl}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
 
+    if (state.resumeOffset > 0) {
+        req.setRawHeader("Range",
+            QStringLiteral("bytes=%1-").arg(state.resumeOffset).toUtf8());
+    }
+
     QNetworkReply* reply = m_nam.get(req);
-
-    DownloadState state;
     state.reply = reply;
-    state.tempPath = tempPath;
-    state.dirName = dirName;
-    state.cancelled = false;
-    m_activeDownloads.insert(appId, state);
-    emit activeDownloadsChanged();
 
-    qDebug() << "TranslationDownloader: starting download" << appId << "from" << dataUrl;
+    qDebug() << "TranslationDownloader: starting HTTP request" << appId
+             << "from" << state.dataUrl
+             << "offset:" << state.resumeOffset
+             << "attempt:" << (state.retryCount + 1);
 
-    // Progress tracking
-    connect(reply, &QNetworkReply::downloadProgress, this,
-        [this, appId](qint64 received, qint64 total) {
-            emit downloadProgress(appId, received, total);
-        });
+    // Open part file (append mode for resume, write mode for fresh)
+    QFile* partFile = new QFile(state.partPath, reply); // parent = reply for auto cleanup
+    QIODevice::OpenMode mode = (state.resumeOffset > 0)
+        ? QIODevice::Append
+        : QIODevice::WriteOnly;
 
-    // Save data incrementally to temp file
-    QFile* tempFile = new QFile(tempPath, reply); // parent = reply for auto cleanup
-    if (!tempFile->open(QIODevice::WriteOnly)) {
+    if (!partFile->open(mode)) {
         reply->abort();
         m_activeDownloads.remove(appId);
         emit activeDownloadsChanged();
-        emit downloadError(appId, tr("Cannot create temp file: %1").arg(tempPath));
+        emit downloadError(appId,
+            tr("Geçici dosya oluşturulamadı: %1").arg(state.partPath));
         return;
     }
 
-    connect(reply, &QNetworkReply::readyRead, this,
-        [reply, tempFile]() {
-            tempFile->write(reply->readAll());
+    const qint64 resumeOffset = state.resumeOffset;
+
+    // Progress tracking
+    connect(reply, &QNetworkReply::downloadProgress, this,
+        [this, appId, resumeOffset](qint64 received, qint64 total) {
+            // Adjust for resume: received is relative to Range request
+            const qint64 actualReceived = received + resumeOffset;
+            const qint64 actualTotal = (total > 0) ? total + resumeOffset : -1;
+            emit downloadProgress(appId, actualReceived, actualTotal);
         });
+
+    // Save data incrementally to part file
+    connect(reply, &QNetworkReply::readyRead, this,
+        [reply, partFile]() {
+            partFile->write(reply->readAll());
+        });
+
+    // Stall timeout: abort if no data received for 60 seconds
+    QTimer* stallTimer = new QTimer(reply); // parent = reply for auto cleanup
+    stallTimer->setSingleShot(true);
+    stallTimer->setInterval(60000);
+    connect(reply, &QNetworkReply::readyRead, stallTimer, [stallTimer]() {
+        stallTimer->start(); // Reset on each data chunk
+    });
+    connect(stallTimer, &QTimer::timeout, this, [this, appId, reply]() {
+        auto it = m_activeDownloads.find(appId);
+        if (it != m_activeDownloads.end()) it->stallAborted = true;
+        reply->abort();
+    });
+    stallTimer->start();
 
     // Download complete handler
     connect(reply, &QNetworkReply::finished, this,
-        [this, reply, tempFile, appId, dataUrl, tempPath, dirName]() {
+        [this, reply, partFile, appId]() {
             reply->deleteLater();
-            tempFile->close();
+            partFile->close();
+
+            auto it = m_activeDownloads.find(appId);
+            if (it == m_activeDownloads.end()) return;
+            auto& state = it.value();
 
             // Check if cancelled
-            auto it = m_activeDownloads.find(appId);
-            if (it != m_activeDownloads.end() && it->cancelled) {
-                QFile::remove(tempPath);
+            if (state.cancelled) {
+                QFile::remove(state.partPath);
                 m_activeDownloads.remove(appId);
                 emit activeDownloadsChanged();
                 emit downloadCancelled(appId);
                 return;
             }
 
+            const int httpStatus = reply->attribute(
+                QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+            // Handle 200 when we expected 206 (server doesn't support Range)
+            if (httpStatus == 200 && state.resumeOffset > 0) {
+                qDebug() << "TranslationDownloader: server ignored Range header, restarting"
+                         << appId;
+                QFile::remove(state.partPath);
+                state.resumeOffset = 0;
+                QMetaObject::invokeMethod(this, [this, appId]() {
+                    startHttpRequest(appId);
+                }, Qt::QueuedConnection);
+                return;
+            }
+
             // Check for errors
             if (reply->error() != QNetworkReply::NoError) {
-                QFile::remove(tempPath);
+                // DON'T delete partial file -- keep it for resume
+
+                // Stall abort should be retried (shouldRetry rejects OperationCanceled)
+                const bool retryable = state.stallAborted
+                    || shouldRetry(reply->error(), httpStatus);
+                state.stallAborted = false;
+
+                if (retryable
+                    && state.retryCount < kMaxRetries) {
+                    // Retry with backoff
+                    const int delay = kRetryDelaysMs[state.retryCount];
+                    state.retryCount++;
+                    qDebug() << "TranslationDownloader: retrying" << appId
+                             << "attempt" << state.retryCount
+                             << "after" << delay << "ms";
+                    emit downloadRetrying(appId, state.retryCount, kMaxRetries);
+                    QTimer::singleShot(delay, this, [this, appId]() {
+                        startHttpRequest(appId);
+                    });
+                    return;
+                }
+
+                // Max retries exhausted or non-retryable error
+                QFile::remove(state.partPath);
                 m_activeDownloads.remove(appId);
                 emit activeDownloadsChanged();
 
-                const int status = reply->attribute(
-                    QNetworkRequest::HttpStatusCodeAttribute).toInt();
-
                 QString errorMsg;
-                if (status == 404) {
-                    errorMsg = tr("Translation package not found on server");
-                } else if (status >= 500) {
-                    errorMsg = tr("Server error (%1). Try again later.").arg(status);
+                if (httpStatus == 404) {
+                    errorMsg = tr("Çeviri paketi sunucuda bulunamadı");
+                } else if (httpStatus >= 500) {
+                    errorMsg = tr("Sunucu hatası (%1). Lütfen tekrar deneyin.").arg(httpStatus);
                 } else {
-                    errorMsg = tr("Download failed: %1").arg(reply->errorString());
+                    errorMsg = tr("İndirme başarısız oldu. İnternet bağlantınızı kontrol edin.");
                 }
 
                 emit downloadError(appId, errorMsg);
                 return;
             }
 
-            const int status = reply->attribute(
-                QNetworkRequest::HttpStatusCodeAttribute).toInt();
-
-            if (status < 200 || status >= 300) {
-                QFile::remove(tempPath);
+            if (httpStatus < 200 || httpStatus >= 300) {
+                QFile::remove(state.partPath);
                 m_activeDownloads.remove(appId);
                 emit activeDownloadsChanged();
-                emit downloadError(appId, tr("Unexpected HTTP status: %1").arg(status));
+                emit downloadError(appId, tr("Beklenmeyen sunucu yanıtı: %1").arg(httpStatus));
                 return;
             }
 
             qDebug() << "TranslationDownloader: download complete" << appId
                      << "- verifying signature...";
+
+            // Rename .part to final temp path for verification
+            const QString tempPath = state.tempPath;
+            const QString partPath = state.partPath;
+            const QString dirName = state.dirName;
+            const QString dataUrl = state.dataUrl;
+
+            if (!QFile::rename(partPath, tempPath)) {
+                // Fallback: copy + delete
+                if (QFile::copy(partPath, tempPath)) {
+                    QFile::remove(partPath);
+                } else {
+                    m_activeDownloads.remove(appId);
+                    emit activeDownloadsChanged();
+                    emit downloadError(appId,
+                        tr("Geçici dosya oluşturulamadı"));
+                    return;
+                }
+            }
 
             // Verify signature before processing
             verifyAndProcess(appId, dataUrl, tempPath, dirName);
@@ -206,7 +367,7 @@ void TranslationDownloader::processDownloadedFile(
             return {-1, "Downloaded file is empty"};
         }
 
-        // Full pipeline: decrypt → decompress → extract
+        // Full pipeline: decrypt -> decompress -> extract
         mkpk::MkpkError err{""};
         int fileCount = mkpk::process_mkpkg(
             reinterpret_cast<const uint8_t*>(rawData.constData()),
@@ -238,7 +399,7 @@ void TranslationDownloader::processDownloadedFile(
             if (fileCount < 0) {
                 QFile::remove(tempPath); // Clean up on error too
                 emit downloadError(appId,
-                    tr("Extraction failed: %1").arg(QString::fromStdString(errorMsg)));
+                    tr("Paket açma hatası: %1").arg(QString::fromStdString(errorMsg)));
                 return;
             }
 
@@ -260,8 +421,6 @@ void TranslationDownloader::processDownloadedFile(
 
 #ifndef MAKINEAI_UI_ONLY
 
-// Embedded Ed25519 public key — must match core/src/security/security_manager.cpp.
-// Private key: scripts/certs/signing_private.pem (NEVER commit this)
 static constexpr const char* kSigningPublicKeyPEM = R"(
 -----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAenbLqZcQ4eoWsVvjpg3FQrkd0V1Q8b3P/OJSMkudvWo=
@@ -321,7 +480,7 @@ void TranslationDownloader::verifyAndProcess(
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("sigDownloadFailed: %1").arg(appId).toUtf8().constData());
             emit downloadError(appId,
-                tr("Signature verification failed: cannot download signature file"));
+                tr("İmza dosyası indirilemedi, paket doğrulanamadı"));
             return;
         }
 
@@ -332,7 +491,7 @@ void TranslationDownloader::verifyAndProcess(
             m_activeDownloads.remove(appId);
             emit activeDownloadsChanged();
             emit downloadError(appId,
-                tr("Signature verification failed: empty signature file"));
+                tr("İmza dosyası boş, paket doğrulanamadı"));
             return;
         }
 
@@ -348,7 +507,7 @@ void TranslationDownloader::verifyAndProcess(
             m_activeDownloads.remove(appId);
             emit activeDownloadsChanged();
             emit downloadError(appId,
-                tr("Signature verification failed: malformed signature file"));
+                tr("İmza dosyası bozuk, paket doğrulanamadı"));
             return;
         }
 
@@ -366,7 +525,7 @@ void TranslationDownloader::verifyAndProcess(
             m_activeDownloads.remove(appId);
             emit activeDownloadsChanged();
             emit downloadError(appId,
-                tr("Signature verification failed: missing hash or signature"));
+                tr("İmza bilgileri eksik, paket doğrulanamadı"));
             return;
         }
 
@@ -379,7 +538,7 @@ void TranslationDownloader::verifyAndProcess(
             m_activeDownloads.remove(appId);
             emit activeDownloadsChanged();
             emit downloadError(appId,
-                tr("Signature verification failed: unsupported algorithm '%1'").arg(sigAlgorithm));
+                tr("İmza algoritması desteklenmiyor: %1").arg(sigAlgorithm));
             return;
         }
 
@@ -393,7 +552,7 @@ void TranslationDownloader::verifyAndProcess(
             m_activeDownloads.remove(appId);
             emit activeDownloadsChanged();
             emit downloadError(appId,
-                tr("Signature verification failed: cannot read downloaded package"));
+                tr("İndirilen paket okunamadı, doğrulama başarısız"));
             return;
         }
 
@@ -423,7 +582,7 @@ void TranslationDownloader::verifyAndProcess(
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("hashMismatch: %1").arg(appId).toUtf8().constData());
             emit downloadError(appId,
-                tr("Signature verification failed: package hash mismatch (possible tampering)"));
+                tr("Paket bütünlüğü doğrulanamadı, dosya bozulmuş olabilir"));
             return;
         }
 
@@ -444,7 +603,7 @@ void TranslationDownloader::verifyAndProcess(
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("sigInvalid: %1 keyId=%2").arg(appId, sigKeyId).toUtf8().constData());
             emit downloadError(appId,
-                tr("Signature verification failed: invalid signature (possible tampering)"));
+                tr("Paket imzası geçersiz, dosya bozulmuş olabilir"));
             return;
         }
 

@@ -19,6 +19,8 @@
 #include <QHash>
 #include <QString>
 #include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QTimer>
 
 namespace makineai {
 
@@ -79,6 +81,9 @@ signals:
     /// Download was cancelled by user
     void downloadCancelled(const QString& appId);
 
+    /// Retry attempt in progress
+    void downloadRetrying(const QString& appId, int attempt, int maxAttempts);
+
     /// Active downloads list changed
     void activeDownloadsChanged();
 
@@ -108,11 +113,22 @@ private:
     static bool verifyEd25519Signature(const QByteArray& data,
                                        const QByteArray& sigBase64);
 
+    static constexpr int kMaxRetries = 2;  // total 3 attempts
+    static constexpr int kRetryDelaysMs[kMaxRetries] = {2000, 5000};
+    static bool shouldRetry(QNetworkReply::NetworkError err, int httpStatus);
+
+    void startHttpRequest(const QString& appId);
+
     struct DownloadState {
         QNetworkReply* reply{nullptr};
-        QString tempPath;
+        QString tempPath;       // UUID final temp (for verify)
+        QString partPath;       // {appId}.mkpkg.part — persistent partial file
         QString dirName;
+        QString dataUrl;        // Stored for resume/retry
         bool cancelled{false};
+        bool stallAborted{false};
+        int retryCount{0};
+        qint64 resumeOffset{0};
     };
 
     QNetworkAccessManager m_nam;

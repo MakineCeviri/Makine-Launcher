@@ -350,7 +350,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     // Retrieve package info (works in both build modes)
     auto maybePkg = getPackage(steamAppId);
     if (!maybePkg) {
-        emit installCompleted(false, tr("Package not found for AppID: %1").arg(steamAppId));
+        emit installCompleted(false, tr("Yükleme paketi bulunamadı"));
         return;
     }
 
@@ -379,7 +379,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     {
         QString variantDir = m_dataPath + "/" + pkg.dirName + "/" + variant;
         if (!QDir(variantDir).exists()) {
-            emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+            emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
             return;
         }
         // Build a temporary PackageInfo with variant-specific options
@@ -398,7 +398,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     if (pkg.installMethodType == "options" && !selectedOptions.isEmpty()) {
         QString baseDir = m_dataPath + "/" + pkg.dirName;
         if (!QDir(baseDir).exists()) {
-            emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+            emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
             return;
         }
         (void)QtConcurrent::run([this, steamAppId, gamePath, baseDir, pkg, selectedOptions]() {
@@ -434,7 +434,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     }
 
     if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
-        emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+        emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
         return;
     }
 
@@ -444,7 +444,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         const QString targetPath = QDir::cleanPath(userHome + "/" + pkg.installMethodTarget);
 
         (void)QtConcurrent::run([this, steamAppId, targetPath, sourcePath, pkg]() {
-            emit installProgress(0.0, tr("Dosyalar hazirlaniyor..."));
+            emit installProgress(0.0, tr("Dosyalar hazırlanıyor..."));
 
             QDir().mkpath(targetPath);
 
@@ -500,9 +500,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     m_catalog.markInstalled(steamAppId.toStdString(), state);
                     saveCatalogInstalledState(m_catalog, installedStatePath());
                 }, Qt::QueuedConnection);
-                emit installCompleted(true, tr("%1 dosya basariyla kuruldu").arg(copied));
+                emit installCompleted(true, tr("%1 dosya başarıyla kuruldu").arg(copied));
             } else {
-                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadi").arg(errors).arg(total));
+                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı").arg(errors).arg(total));
             }
         });
         return;
@@ -525,7 +525,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     // Default overlay: copy all files preserving directory structure
     (void)QtConcurrent::run([this, steamAppId, gamePath, sourcePath, pkg]() {
         const QString extractedPath = sourcePath;
-        emit installProgress(0.0, tr("Dosyalar hazirlanyor..."));
+        emit installProgress(0.0, tr("Dosyalar hazırlanıyor..."));
 
         // Begin crash recovery journal
         if (m_journal) {
@@ -546,7 +546,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         }
 
         if (filesToCopy.isEmpty()) {
-            emit installCompleted(false, tr("No files to install"));
+            emit installCompleted(false, tr("Kurulacak dosya bulunamadı"));
             return;
         }
 
@@ -638,11 +638,11 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             }, Qt::QueuedConnection);
 
             emit installCompleted(true,
-                tr("%1 dosya basariyla kuruldu").arg(copied));
+                tr("%1 dosya başarıyla kuruldu").arg(copied));
         } else {
             if (m_journal) m_journal->abortOperation();
             emit installCompleted(false,
-                tr("%1/%2 dosya kopyalanamadi").arg(errors).arg(total));
+                tr("%1/%2 dosya kopyalanamadı").arg(errors).arg(total));
         }
     });
 }
@@ -663,7 +663,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
 
     auto maybePkg = getPackage(steamAppId);
     if (!maybePkg) {
-        emit installCompleted(false, tr("Package not found for AppID: %1").arg(steamAppId));
+        emit installCompleted(false, tr("Yükleme paketi bulunamadı"));
         return;
     }
 
@@ -672,7 +672,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
     // Must already be installed to update
     auto oldState = m_catalog.getInstalledState(steamAppId.toStdString());
     if (!oldState) {
-        emit installCompleted(false, tr("Package not installed, cannot update: %1").arg(pkg.gameName));
+        emit installCompleted(false, tr("Yama kurulu değil, güncelleme yapılamaz"));
         return;
     }
 
@@ -721,7 +721,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
     }
 
     if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
-        emit installCompleted(false, tr("No translation data found for: %1").arg(pkg.gameName));
+        emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
         return;
     }
 
@@ -751,7 +751,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         }
 
         if (filesToCopy.isEmpty()) {
-            emit installCompleted(false, tr("No files to install"));
+            emit installCompleted(false, tr("Kurulacak dosya bulunamadı"));
             return;
         }
 
@@ -1294,11 +1294,11 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         }, Qt::QueuedConnection);
 
         emit installCompleted(true,
-            tr("%1 adim basariyla tamamlandi").arg(total));
+            tr("%1 adım başarıyla tamamlandı").arg(total));
     } else {
         if (m_journal) m_journal->abortOperation();
         emit installCompleted(false,
-            tr("%1/%2 adimda hata olustu").arg(errors).arg(total));
+            tr("%1/%2 adımda hata oluştu").arg(errors).arg(total));
     }
 }
 
@@ -1327,7 +1327,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     }
 
     if (totalSteps == 0) {
-        emit installCompleted(false, tr("No install steps for selected options"));
+        emit installCompleted(false, tr("Seçilen seçenekler için kurulum adımı bulunamadı"));
         return;
     }
 
