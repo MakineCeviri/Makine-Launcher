@@ -16,6 +16,7 @@
 #include <fstream>
 #include <chrono>
 #include <cstring>
+#include <unordered_map>
 
 namespace makineai {
 
@@ -409,6 +410,11 @@ PatchEngine::PatchEngine() {
 }
 
 PatchEngine::~PatchEngine() = default;
+
+void PatchEngine::setBackupDirectory(const fs::path& dir) {
+    backupDir_ = dir;
+    backupStorage_ = std::make_unique<FileBackupStorage>(backupDir_);
+}
 
 Result<PatchResult> PatchEngine::apply(
     const std::vector<PatchOperation>& operations,

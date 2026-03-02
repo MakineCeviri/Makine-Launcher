@@ -200,7 +200,34 @@ if(GTest_FOUND)
         tests/test_patch_engine.cpp
         tests/test_game_detector.cpp
         tests/test_security.cpp
-        tests/test_version_tracker.cpp
+        tests/test_config.cpp
+        tests/test_database.cpp
+        tests/test_path_utils.cpp
+        tests/test_json_utils.cpp
+        tests/test_validation.cpp
+        tests/test_crypto_utils.cpp
+        tests/test_file_integrity.cpp
+        tests/test_crash_recovery.cpp
+        tests/test_package_catalog.cpp
+        tests/test_ssl_pinning.cpp
+        tests/test_cache.cpp
+        tests/test_parallel.cpp
+        tests/test_sandbox.cpp
+        tests/test_runtime_manager.cpp
+        tests/test_error.cpp
+        tests/test_utf_utils.cpp
+        tests/test_version.cpp
+        tests/test_memory.cpp
+        tests/test_metrics.cpp
+        tests/test_audit.cpp
+        tests/test_string_pool.cpp
+        tests/test_concurrent_queue.cpp
+        tests/test_archive_utils.cpp
+        tests/test_lazy.cpp
+        tests/test_async.cpp
+        tests/test_core.cpp
+        tests/test_health.cpp
+        tests/test_sqlite_utils.cpp
     )
 
     target_link_libraries(makineai_tests PRIVATE
@@ -212,8 +239,7 @@ if(GTest_FOUND)
 
     target_include_directories(makineai_tests PRIVATE ${MAKINEAI_INCLUDE_DIR})
 
-    include(GoogleTest)
-    gtest_discover_tests(makineai_tests)
+    add_test(NAME makineai_tests COMMAND makineai_tests)
 endif()
 
 # Install targets

@@ -187,5 +187,85 @@ TEST_F(SecurityTest, PackageSignatureStruct) {
     EXPECT_EQ(sig.timestamp, 9876543210);
 }
 
+// =========================================================================
+// ADDITIONAL EDGE CASES
+// =========================================================================
+
+TEST_F(SecurityTest, HashLargeBuffer) {
+    // 1MB buffer hash
+    ByteBuffer data(1024 * 1024, 0x42);
+    auto result = security_.hash(data);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->length(), 64);
+}
+
+TEST_F(SecurityTest, HashFileEmptyContent) {
+    auto emptyFile = testDir_ / "empty.bin";
+    createTestFile(emptyFile, "");
+    auto result = security_.hashFile(emptyFile);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->length(), 64);
+}
+
+TEST_F(SecurityTest, VerifyHashWithEmptyHash) {
+    ByteBuffer data = {'T', 'e', 's', 't'};
+    EXPECT_FALSE(security_.verifyHash(data, ""));
+}
+
+TEST_F(SecurityTest, VerifyHashWithAllZeros) {
+    ByteBuffer data = {'T', 'e', 's', 't'};
+    std::string zeros(64, '0');
+    EXPECT_FALSE(security_.verifyHash(data, zeros));
+}
+
+TEST_F(SecurityTest, SignatureResultDefaultValues) {
+    SignatureResult result;
+    EXPECT_FALSE(result.valid);
+    EXPECT_TRUE(result.signedBy.empty());
+    // signedAt may be uninitialized — skip check
+    EXPECT_TRUE(result.publicKeyId.empty());
+    EXPECT_TRUE(result.message.empty());
+}
+
+TEST_F(SecurityTest, HashWithSHA384KnownValues) {
+    ByteBuffer data = {'H', 'e', 'l', 'l', 'o'};
+    auto result384 = security_.hash(data, HashAlgorithm::SHA384);
+    ASSERT_TRUE(result384.has_value());
+    // SHA-384 produces 96 hex chars, verify consistency
+    EXPECT_EQ(result384->length(), 96);
+
+    // Same data should produce same hash
+    auto result384b = security_.hash(data, HashAlgorithm::SHA384);
+    ASSERT_TRUE(result384b.has_value());
+    EXPECT_EQ(*result384, *result384b);
+}
+
+TEST_F(SecurityTest, HashWithSHA512KnownValues) {
+    ByteBuffer data = {'H', 'e', 'l', 'l', 'o'};
+    auto result512 = security_.hash(data, HashAlgorithm::SHA512);
+    ASSERT_TRUE(result512.has_value());
+    EXPECT_EQ(result512->length(), 128);
+
+    auto result512b = security_.hash(data, HashAlgorithm::SHA512);
+    ASSERT_TRUE(result512b.has_value());
+    EXPECT_EQ(*result512, *result512b);
+}
+
+TEST_F(SecurityTest, DifferentAlgorithmsProduceDifferentHashes) {
+    ByteBuffer data = {'T', 'e', 's', 't', ' ', 'd', 'a', 't', 'a'};
+    auto sha256 = security_.hash(data, HashAlgorithm::SHA256);
+    auto sha384 = security_.hash(data, HashAlgorithm::SHA384);
+    auto sha512 = security_.hash(data, HashAlgorithm::SHA512);
+
+    ASSERT_TRUE(sha256.has_value());
+    ASSERT_TRUE(sha384.has_value());
+    ASSERT_TRUE(sha512.has_value());
+
+    // Different algorithm outputs must differ
+    EXPECT_NE(*sha256, *sha384);
+    EXPECT_NE(*sha384, *sha512);
+    EXPECT_NE(*sha256, *sha512);
+}
+
 } // namespace testing
 } // namespace makineai

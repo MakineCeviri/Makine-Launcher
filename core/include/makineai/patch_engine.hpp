@@ -156,7 +156,7 @@ public:
     /**
      * @brief Set backup storage directory
      */
-    void setBackupDirectory(const fs::path& dir) { backupDir_ = dir; }
+    void setBackupDirectory(const fs::path& dir);
 
 private:
     fs::path backupDir_;

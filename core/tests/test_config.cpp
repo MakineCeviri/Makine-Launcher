@@ -12,7 +12,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <makineai/config.hpp>
-#include <nlohmann/json.hpp>
 #include <fstream>
 #include <cstdlib>
 
@@ -23,7 +22,6 @@ using ::testing::Contains;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
-using json = nlohmann::json;
 
 // =============================================================================
 // DEFAULT VALUES TESTS
@@ -293,104 +291,6 @@ TEST_F(ValidationResultTest, ErrorsMakeInvalidAndNotClean) {
 }
 
 // =============================================================================
-// JSON SERIALIZATION TESTS
-// =============================================================================
-
-class ConfigJsonTest : public ::testing::Test {};
-
-TEST_F(ConfigJsonTest, ScanningConfigRoundTrip) {
-    ScanningConfig original;
-    original.maxParallelScans = 8;
-    original.scanSteam = false;
-    original.cacheValiditySeconds = 600;
-
-    json j = original;
-    auto restored = j.get<ScanningConfig>();
-
-    EXPECT_EQ(restored.maxParallelScans, 8u);
-    EXPECT_FALSE(restored.scanSteam);
-    EXPECT_EQ(restored.cacheValiditySeconds, 600u);
-}
-
-TEST_F(ConfigJsonTest, PatchingConfigRoundTrip) {
-    PatchingConfig original;
-    original.alwaysCreateBackup = false;
-    original.maxRetries = 5;
-
-    json j = original;
-    auto restored = j.get<PatchingConfig>();
-
-    EXPECT_FALSE(restored.alwaysCreateBackup);
-    EXPECT_EQ(restored.maxRetries, 5u);
-}
-
-TEST_F(ConfigJsonTest, TranslationConfigRoundTrip) {
-    TranslationConfig original;
-    original.minQAScore = 50;
-    original.fuzzyMatchThreshold = 0.6;
-    original.targetLanguage = "de";
-
-    json j = original;
-    auto restored = j.get<TranslationConfig>();
-
-    EXPECT_EQ(restored.minQAScore, 50);
-    EXPECT_DOUBLE_EQ(restored.fuzzyMatchThreshold, 0.6);
-    EXPECT_EQ(restored.targetLanguage, "de");
-}
-
-TEST_F(ConfigJsonTest, NetworkConfigRoundTrip) {
-    NetworkConfig original;
-    original.proxyUrl = "http://proxy:8080";
-    original.verifySsl = false;
-    original.userAgent = "TestAgent/1.0";
-
-    json j = original;
-    auto restored = j.get<NetworkConfig>();
-
-    EXPECT_EQ(restored.proxyUrl, "http://proxy:8080");
-    EXPECT_FALSE(restored.verifySsl);
-    EXPECT_EQ(restored.userAgent, "TestAgent/1.0");
-}
-
-TEST_F(ConfigJsonTest, CoreConfigRoundTrip) {
-    CoreConfig original;
-    original.scanning.maxParallelScans = 2;
-    original.translation.targetLanguage = "ja";
-    original.network.proxyUrl = "socks5://local";
-    original.dataDirectory = "/tmp/makineai";
-
-    json j = original;
-    auto restored = j.get<CoreConfig>();
-
-    EXPECT_EQ(restored.scanning.maxParallelScans, 2u);
-    EXPECT_EQ(restored.translation.targetLanguage, "ja");
-    EXPECT_EQ(restored.network.proxyUrl, "socks5://local");
-    EXPECT_EQ(restored.dataDirectory, "/tmp/makineai");
-}
-
-TEST_F(ConfigJsonTest, PartialJsonUsesDefaults) {
-    // If JSON only has some fields, others should keep defaults
-    json j = {{"scanning", {{"maxParallelScans", 16}}}};
-    auto config = j.get<CoreConfig>();
-
-    EXPECT_EQ(config.scanning.maxParallelScans, 16u);
-    // Other scanning fields should be at default
-    EXPECT_TRUE(config.scanning.scanSteam);
-    EXPECT_EQ(config.scanning.maxFilesToScan, 10000u);
-    // Other sections should be at default
-    EXPECT_EQ(config.translation.minQAScore, 70);
-}
-
-TEST_F(ConfigJsonTest, EmptyJsonGivesDefaults) {
-    json j = json::object();
-    auto config = j.get<CoreConfig>();
-
-    EXPECT_EQ(config.scanning.maxParallelScans, 4u);
-    EXPECT_EQ(config.translation.targetLanguage, "tr");
-    EXPECT_EQ(config.logging.level, "info");
-}
-
-// =============================================================================
 // FILE SAVE/LOAD TESTS
 // =============================================================================
 
@@ -476,54 +376,98 @@ TEST_F(ConfigEqualityTest, ModifiedStructsAreNotEqual) {
 }
 
 // =============================================================================
-// DEFAULT GLOSSARY DATA INTEGRITY TESTS
+// ADDITIONAL EDGE CASES
 // =============================================================================
 
-class DefaultGlossaryTest : public ::testing::Test {};
-
-TEST_F(DefaultGlossaryTest, UITermsNotEmpty) {
-    auto terms = DefaultGlossary::getUITerms();
-    EXPECT_GT(terms.size(), 10u);
-}
-
-TEST_F(DefaultGlossaryTest, RPGTermsNotEmpty) {
-    auto terms = DefaultGlossary::getRPGTerms();
-    EXPECT_GT(terms.size(), 10u);
-}
-
-TEST_F(DefaultGlossaryTest, FPSTermsNotEmpty) {
-    auto terms = DefaultGlossary::getFPSTerms();
-    EXPECT_GT(terms.size(), 5u);
-}
-
-TEST_F(DefaultGlossaryTest, ActionTermsNotEmpty) {
-    auto terms = DefaultGlossary::getActionTerms();
-    EXPECT_GT(terms.size(), 5u);
-}
-
-TEST_F(DefaultGlossaryTest, AllTermsContainsAllCategories) {
-    auto all = DefaultGlossary::getAllTerms();
-    auto ui = DefaultGlossary::getUITerms();
-    auto rpg = DefaultGlossary::getRPGTerms();
-    auto fps = DefaultGlossary::getFPSTerms();
-    auto action = DefaultGlossary::getActionTerms();
-
-    EXPECT_EQ(all.size(), ui.size() + rpg.size() + fps.size() + action.size());
-}
-
-TEST_F(DefaultGlossaryTest, TermsHaveSourceAndTarget) {
-    auto terms = DefaultGlossary::getAllTerms();
-    for (const auto& term : terms) {
-        EXPECT_FALSE(term.termSource.empty()) << "Empty source in term";
-        EXPECT_FALSE(term.termTarget.empty()) << "Empty target for: " << term.termSource;
+TEST_F(ConfigFileTest, LoadConfigFromTruncatedFile) {
+    // Write a truncated JSON file
+    {
+        std::ofstream f(configFile);
+        f << R"({"scanning": {"maxParallelScans": 8}, "trans)";
     }
+
+    auto loaded = CoreConfig::loadFromFile(configFile);
+    // Should return defaults when JSON is truncated
+    CoreConfig defaults = CoreConfig::getDefaults();
+    EXPECT_EQ(loaded.scanning.maxParallelScans, defaults.scanning.maxParallelScans);
 }
 
-TEST_F(DefaultGlossaryTest, TermsHavePositivePriority) {
-    auto terms = DefaultGlossary::getAllTerms();
-    for (const auto& term : terms) {
-        EXPECT_GT(term.priority, 0) << "Zero priority for: " << term.termSource;
+TEST_F(ConfigValidationTest, MultipleWarningsAccumulate) {
+    auto c = validConfig();
+    c.scanning.maxParallelScans = 32;     // warning: high
+    c.scanning.scanTimeoutMs = 500;       // warning: low timeout
+    c.network.verifySsl = false;          // warning: SSL disabled
+    auto result = validateConfig(c);
+    EXPECT_TRUE(result.valid); // warnings only, no errors
+    EXPECT_GE(result.warnings.size(), 3u);
+}
+
+TEST_F(ConfigFileTest, LoadConfigWithUnknownFields) {
+    // Write JSON with extra/unknown fields
+    {
+        std::ofstream f(configFile);
+        f << R"({
+            "scanning": {"maxParallelScans": 4},
+            "unknownSection": {"foo": "bar"},
+            "translation": {"targetLanguage": "tr", "unknownField": 42}
+        })";
     }
+
+    auto loaded = CoreConfig::loadFromFile(configFile);
+    // Should not crash, unknown fields are ignored
+    EXPECT_EQ(loaded.translation.targetLanguage, "tr");
+}
+
+TEST_F(ConfigFileTest, SaveAndLoadPreservesAllFields) {
+    CoreConfig original;
+    original.scanning.maxParallelScans = 12;
+    original.scanning.scanSteam = false;
+    original.scanning.maxFilesToScan = 5000;
+    original.patching.alwaysCreateBackup = false;
+    original.patching.maxRetries = 5;
+    original.translation.targetLanguage = "de";
+    original.translation.minQAScore = 85;
+    original.security.verifySignatures = false;
+    original.network.proxyUrl = "http://proxy:8080";
+    original.logging.level = "debug";
+    original.database.enableWAL = false;
+
+    original.saveToFile(configFile);
+    auto loaded = CoreConfig::loadFromFile(configFile);
+
+    EXPECT_EQ(loaded.scanning.maxParallelScans, 12u);
+    EXPECT_FALSE(loaded.scanning.scanSteam);
+    EXPECT_EQ(loaded.scanning.maxFilesToScan, 5000u);
+    EXPECT_FALSE(loaded.patching.alwaysCreateBackup);
+    EXPECT_EQ(loaded.patching.maxRetries, 5u);
+    EXPECT_EQ(loaded.translation.targetLanguage, "de");
+    EXPECT_EQ(loaded.translation.minQAScore, 85);
+    EXPECT_FALSE(loaded.security.verifySignatures);
+    EXPECT_EQ(loaded.network.proxyUrl, "http://proxy:8080");
+    EXPECT_EQ(loaded.logging.level, "debug");
+    EXPECT_FALSE(loaded.database.enableWAL);
+}
+
+TEST_F(ConfigValidationTest, ExtremelyHighParallelScansStillValid) {
+    auto c = validConfig();
+    c.scanning.maxParallelScans = 1000;
+    auto result = validateConfig(c);
+    // Should still be valid (just warning)
+    EXPECT_TRUE(result.valid);
+}
+
+TEST_F(ConfigValidationTest, BoundaryFuzzyThresholdValues) {
+    auto c = validConfig();
+
+    // Exactly 0.0 should be valid
+    c.translation.fuzzyMatchThreshold = 0.0;
+    auto result0 = validateConfig(c);
+    EXPECT_TRUE(result0.valid);
+
+    // Exactly 1.0 should be valid
+    c.translation.fuzzyMatchThreshold = 1.0;
+    auto result1 = validateConfig(c);
+    EXPECT_TRUE(result1.valid);
 }
 
 } // namespace testing

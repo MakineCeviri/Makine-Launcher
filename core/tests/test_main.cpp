@@ -32,6 +32,16 @@ public:
         std::filesystem::create_directories(testConfig.cacheDirectory);
         std::filesystem::create_directories(testConfig.logsDirectory);
 
+        // Remove stale DPAPI-encrypted DB files (CryptUnprotectData hangs on MinGW)
+        {
+            std::error_code ec;
+            auto dataDir = std::filesystem::path(testConfig.dataDirectory);
+            std::filesystem::remove(dataDir / "makineai.db.enc", ec);
+            std::filesystem::remove(dataDir / "makineai.db", ec);
+            std::filesystem::remove(dataDir / "makineai.db-wal", ec);
+            std::filesystem::remove(dataDir / "makineai.db-shm", ec);
+        }
+
         // Initialize core
         auto& core = makineai::Core::instance();
         auto initResult = core.initialize(testConfig);
