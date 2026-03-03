@@ -11,7 +11,9 @@ SectionContainer {
     // Single ViewModel reference — all runtime state accessed via vm
     required property var vm
 
-    visible: rtRoot.vm.isUnityGame && rtRoot.vm.runtimeNeeded
+    // TODO: Re-enable when BepInEx standalone install is implemented
+    // Original: rtRoot.vm.isUnityGame && rtRoot.vm.runtimeNeeded
+    visible: false
 
     Text {
         textFormat: Text.PlainText

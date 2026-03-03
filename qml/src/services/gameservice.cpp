@@ -618,20 +618,12 @@ QVariantMap GameService::getGameDetails(const QString& gameId)
     }
     result["contributors"] = contributors;
 
-    // Runtime status
-    QVariantMap runtime = getRuntimeStatus(gameId);
-    if (runtime.value("isUnity").toBool()) {
-        result["isUnityGame"] = true;
-        result["runtimeNeeded"] = runtime.value("needsRuntime");
-        result["runtimeInstalled"] = runtime.value("installed");
-        result["runtimeUpToDate"] = runtime.value("upToDate");
-        result["bepinexVersion"] = runtime.value("bepinexVersion");
-        result["xunityVersion"] = runtime.value("xunityVersion");
-        result["unityBackend"] = runtime.value("backend", "unknown");
-        result["unityVersion"] = runtime.value("unityVersion");
-        result["hasAntiCheat"] = runtime.value("hasAntiCheat");
-        result["antiCheatName"] = runtime.value("antiCheatName");
-    }
+    // Runtime status — disabled until BepInEx standalone install is implemented
+    // TODO: Re-enable when RuntimeManager is wired to QML layer
+    // QVariantMap runtime = getRuntimeStatus(gameId);
+    // if (runtime.value("isUnity").toBool()) { ... }
+    result["isUnityGame"] = false;
+    result["runtimeNeeded"] = false;
 
     return result;
 }
