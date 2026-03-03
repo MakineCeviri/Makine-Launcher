@@ -244,9 +244,8 @@ ColumnLayout {
             Item {
                 id: btn
                 Layout.alignment: Qt.AlignVCenter
-                visible: !root.hasHeavyProcesses
-                Layout.preferredWidth: root.hasHeavyProcesses ? 0 : btnRow.implicitWidth + 32
-                Layout.preferredHeight: root.hasHeavyProcesses ? 0 : 38
+                Layout.preferredWidth: btnRow.implicitWidth + 32
+                Layout.preferredHeight: 38
 
                 scale: btnMa.containsMouse ? 1.04 : 1.0
                 Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -305,7 +304,6 @@ ColumnLayout {
                     Label {
                         textFormat: Text.PlainText
                         text: root.gameDetected ? qsTr("Kütüphaneye Git") : qsTr("Oyun Ekle")
-                        visible: !root.hasHeavyProcesses
                         font.pixelSize: Dimensions.fontSM; font.weight: Font.Bold
                         color: Theme.accentDark
                         anchors.verticalCenter: parent.verticalCenter
