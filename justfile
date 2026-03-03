@@ -109,7 +109,7 @@ release-static:
 
 # Run static release build
 run-static: release-static
-    ./qml/build/release-static/MakineAI.exe
+    ./build/release-static/MakineAI.exe
 
 # ============================================================================
 # TRANSLATION PACKAGE PUBLISHING

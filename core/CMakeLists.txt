@@ -38,6 +38,11 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/../common common_build)
 # Find required packages
 find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(OpenSSL REQUIRED)
+# Workaround: vcpkg curl static build references CURL::win32_winsock but doesn't define it
+if(NOT TARGET CURL::win32_winsock)
+    add_library(CURL::win32_winsock INTERFACE IMPORTED)
+    set_target_properties(CURL::win32_winsock PROPERTIES INTERFACE_LINK_LIBRARIES "ws2_32")
+endif()
 find_package(CURL REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(lz4 CONFIG REQUIRED)

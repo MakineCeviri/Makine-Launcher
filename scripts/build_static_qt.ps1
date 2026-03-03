@@ -1,6 +1,9 @@
 # build_static_qt.ps1
 # Build Qt 6.10.1 from source as fully static libraries (MinGW)
 #
+# Builds modules individually in dependency order:
+#   qtbase → qtshadertools → qtsvg → qtdeclarative → qttools → qttranslations
+#
 # Prerequisites:
 #   - Qt Online Installer: install "Qt 6.10.1 > Sources" component
 #   - MinGW 13.1.0 already at C:\Qt\Tools\mingw1310_64
@@ -9,6 +12,7 @@
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts\build_static_qt.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\build_static_qt.ps1 -NoCleanup
 #
 # Output: C:\Qt\6.10.1\mingw_64_static
 
@@ -18,18 +22,20 @@ param(
     [string]$BuildDir = "C:\Qt\6.10.1\_build_static",
     [string]$MinGW    = "C:\Qt\Tools\mingw1310_64",
     [string]$CMakeDir = "C:\Qt\Tools\CMake_64\bin",
-    [string]$NinjaDir = "C:\Qt\Tools\Ninja"
+    [string]$NinjaDir = "C:\Qt\Tools\Ninja",
+    [switch]$NoCleanup
 )
 
 $ErrorActionPreference = "Stop"
+$startTime = Get-Date
 
 # ------------------------------------------------------------------
 # Validation
 # ------------------------------------------------------------------
 
-if (-not (Test-Path "$QtSrcDir\configure.bat")) {
+if (-not (Test-Path "$QtSrcDir\qtbase\configure.bat")) {
     Write-Host ""
-    Write-Host "ERROR: Qt 6.10.1 source not found at $QtSrcDir" -ForegroundColor Red
+    Write-Host "ERROR: Qt 6.10.1 qtbase source not found at $QtSrcDir\qtbase" -ForegroundColor Red
     Write-Host ""
     Write-Host "To install Qt sources:" -ForegroundColor Yellow
     Write-Host "  1. Open Qt Maintenance Tool (C:\Qt\MaintenanceTool.exe)"
@@ -58,12 +64,7 @@ if (-not $env:VULKAN_SDK -or -not (Test-Path "$env:VULKAN_SDK\Include\vulkan\vul
 }
 
 if (Test-Path $Prefix) {
-    Write-Host "WARNING: $Prefix already exists." -ForegroundColor Yellow
-    $reply = Read-Host "Delete and rebuild? (y/N)"
-    if ($reply -ne "y") {
-        Write-Host "Aborted."
-        exit 0
-    }
+    Write-Host "Removing existing static Qt at $Prefix..." -ForegroundColor Yellow
     Remove-Item -Recurse -Force $Prefix
 }
 
@@ -76,6 +77,7 @@ $env:PATH = "$CMakeDir;$NinjaDir;$MinGW\bin;$env:PATH"
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  Qt 6.10.1 Static Build (MinGW x64)"       -ForegroundColor Cyan
+Write-Host "  Module-by-module build"                    -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  Source:  $QtSrcDir"
 Write-Host "  Prefix:  $Prefix"
@@ -89,15 +91,40 @@ Write-Host ""
 & g++ --version | Select-Object -First 1
 Write-Host ""
 
+$cores = [Environment]::ProcessorCount
+Write-Host "Using $cores parallel jobs" -ForegroundColor Cyan
+
+# Build order: dependencies must come first
+$modules = @(
+    "qtbase",
+    "qtshadertools",
+    "qtsvg",
+    "qtdeclarative",
+    "qttools",
+    "qttranslations"
+)
+
+# Check all module sources exist
+foreach ($mod in $modules) {
+    if (-not (Test-Path "$QtSrcDir\$mod")) {
+        Write-Host "ERROR: Module source not found: $QtSrcDir\$mod" -ForegroundColor Red
+        exit 1
+    }
+}
+
 # ------------------------------------------------------------------
-# Configure
+# Step 1: Build qtbase (has its own configure)
 # ------------------------------------------------------------------
 
-# Create build directory
-if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
-New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  [1/$($modules.Count)] Building qtbase"  -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  Start: $(Get-Date -Format 'HH:mm:ss')"
 
-Write-Host "Configuring Qt (this takes a few minutes)..." -ForegroundColor Green
+$qtbaseBuild = "$BuildDir\qtbase"
+if (Test-Path $qtbaseBuild) { Remove-Item -Recurse -Force $qtbaseBuild }
+New-Item -ItemType Directory -Force -Path $qtbaseBuild | Out-Null
 
 $configArgs = @(
     "-release"
@@ -121,45 +148,12 @@ $configArgs = @(
     "-qt-libjpeg"
     "-qt-pcre"
 
-    # Skip everything we don't need (saves 30-60 min build time)
-    "-skip", "qt3d"
-    "-skip", "qtcharts"
-    "-skip", "qtcoap"
-    "-skip", "qtconnectivity"
-    "-skip", "qtdatavis3d"
-    "-skip", "qtgraphs"
-    "-skip", "qtgrpc"
-    "-skip", "qthttpserver"
-    "-skip", "qtlocation"
-    "-skip", "qtlottie"
-    "-skip", "qtmqtt"
-    "-skip", "qtmultimedia"
-    "-skip", "qtopcua"
-    "-skip", "qtpositioning"
-    "-skip", "qtquick3d"
-    "-skip", "qtquick3dphysics"
-    "-skip", "qtquicktimeline"
-    "-skip", "qtremoteobjects"
-    "-skip", "qtscxml"
-    "-skip", "qtsensors"
-    "-skip", "qtserialbus"
-    "-skip", "qtserialport"
-    "-skip", "qtspeech"
-    "-skip", "qtvirtualkeyboard"
-    "-skip", "qtwayland"
-    "-skip", "qtwebchannel"
-    "-skip", "qtwebengine"
-    "-skip", "qtwebsockets"
-    "-skip", "qtwebview"
-
     # Don't build examples or tests
     "-nomake", "examples"
     "-nomake", "tests"
     "-nomake", "benchmarks"
 
-    # Disable features we don't use
-    "-no-feature-assistant"
-    "-no-feature-designer"
+    # Disable features we don't use (qtbase only)
     "-no-feature-sql"
     "-no-feature-testlib"
     "-no-feature-printsupport"
@@ -174,93 +168,161 @@ $configArgs = @(
     "-DVulkan_LIBRARY=$env:VULKAN_SDK/Lib/vulkan-1.lib"
 )
 
-Push-Location $BuildDir
+Write-Host "Configuring qtbase..." -ForegroundColor Green
+Push-Location $qtbaseBuild
 try {
-    & "$QtSrcDir\configure.bat" @configArgs
+    & "$QtSrcDir\qtbase\configure.bat" @configArgs
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Qt configure failed!" -ForegroundColor Red
+        Write-Host "ERROR: qtbase configure failed!" -ForegroundColor Red
         exit 1
     }
 } finally {
     Pop-Location
 }
 
-# ------------------------------------------------------------------
-# Build
-# ------------------------------------------------------------------
-
-Write-Host ""
-Write-Host "Building Qt (this takes 1-2 hours)..." -ForegroundColor Green
-Write-Host "Start time: $(Get-Date -Format 'HH:mm:ss')"
-Write-Host ""
-
-Push-Location $BuildDir
+Write-Host "Building qtbase..." -ForegroundColor Green
+Push-Location $qtbaseBuild
 try {
-    # Use all available cores
-    $cores = [Environment]::ProcessorCount
     & cmake --build . --parallel $cores
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Qt build failed!" -ForegroundColor Red
+        Write-Host "ERROR: qtbase build failed!" -ForegroundColor Red
         exit 1
     }
 } finally {
     Pop-Location
 }
 
-# ------------------------------------------------------------------
-# Install
-# ------------------------------------------------------------------
-
-Write-Host ""
-Write-Host "Installing to $Prefix..." -ForegroundColor Green
-
-Push-Location $BuildDir
+Write-Host "Installing qtbase..." -ForegroundColor Green
+Push-Location $qtbaseBuild
 try {
     & cmake --install .
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Qt install failed!" -ForegroundColor Red
+        Write-Host "ERROR: qtbase install failed!" -ForegroundColor Red
         exit 1
     }
 } finally {
     Pop-Location
+}
+
+Write-Host "  qtbase done at $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Green
+
+# ------------------------------------------------------------------
+# Steps 2-N: Build remaining modules with qt-configure-module
+# ------------------------------------------------------------------
+
+$qtConfigModule = "$Prefix\bin\qt-configure-module.bat"
+if (-not (Test-Path $qtConfigModule)) {
+    Write-Host "ERROR: qt-configure-module.bat not found at $qtConfigModule" -ForegroundColor Red
+    Write-Host "qtbase install may have failed." -ForegroundColor Red
+    exit 1
+}
+
+$remaining = $modules | Select-Object -Skip 1
+$step = 2
+
+foreach ($mod in $remaining) {
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host "  [$step/$($modules.Count)] Building $mod" -ForegroundColor Green
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host "  Start: $(Get-Date -Format 'HH:mm:ss')"
+
+    $modBuild = "$BuildDir\$mod"
+    if (Test-Path $modBuild) { Remove-Item -Recurse -Force $modBuild }
+    New-Item -ItemType Directory -Force -Path $modBuild | Out-Null
+
+    Write-Host "Configuring $mod..." -ForegroundColor Green
+    Push-Location $modBuild
+    try {
+        & $qtConfigModule "$QtSrcDir\$mod"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: $mod configure failed!" -ForegroundColor Red
+            exit 1
+        }
+    } finally {
+        Pop-Location
+    }
+
+    Write-Host "Building $mod..." -ForegroundColor Green
+    Push-Location $modBuild
+    try {
+        & cmake --build . --parallel $cores
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: $mod build failed!" -ForegroundColor Red
+            exit 1
+        }
+    } finally {
+        Pop-Location
+    }
+
+    Write-Host "Installing $mod..." -ForegroundColor Green
+    Push-Location $modBuild
+    try {
+        & cmake --install .
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: $mod install failed!" -ForegroundColor Red
+            exit 1
+        }
+    } finally {
+        Pop-Location
+    }
+
+    Write-Host "  $mod done at $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Green
+    $step++
 }
 
 # ------------------------------------------------------------------
 # Cleanup build directory (saves ~10-20 GB)
 # ------------------------------------------------------------------
 
-Write-Host ""
-$reply = Read-Host "Delete build directory to free disk space? ($BuildDir) (Y/n)"
-if ($reply -ne "n") {
-    Write-Host "Cleaning up build directory..."
+if (-not $NoCleanup) {
+    Write-Host ""
+    Write-Host "Cleaning up build directory ($BuildDir)..." -ForegroundColor Yellow
     Remove-Item -Recurse -Force $BuildDir
+    Write-Host "Build directory removed."
 }
 
 # ------------------------------------------------------------------
 # Verify
 # ------------------------------------------------------------------
 
+$elapsed = (Get-Date) - $startTime
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
 Write-Host "  Qt 6.10.1 Static Build Complete!"          -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host "  Installed to: $Prefix"
+Write-Host "  Total time:   $([math]::Round($elapsed.TotalMinutes, 1)) minutes"
 Write-Host ""
 
 # Quick sanity check
-if (Test-Path "$Prefix\lib\cmake\Qt6\Qt6Config.cmake") {
-    Write-Host "  Qt6Config.cmake found" -ForegroundColor Green
-} else {
-    Write-Host "  WARNING: Qt6Config.cmake not found!" -ForegroundColor Yellow
-}
+$checks = @(
+    @{ Path = "$Prefix\lib\cmake\Qt6\Qt6Config.cmake"; Name = "Qt6Config.cmake" },
+    @{ Path = "$Prefix\lib\libQt6Core.a";              Name = "libQt6Core.a" },
+    @{ Path = "$Prefix\lib\libQt6Quick.a";             Name = "libQt6Quick.a" },
+    @{ Path = "$Prefix\lib\libQt6Qml.a";               Name = "libQt6Qml.a" },
+    @{ Path = "$Prefix\bin\qt-configure-module.bat";    Name = "qt-configure-module" }
+)
 
-if (Test-Path "$Prefix\lib\libQt6Core.a") {
-    $size = (Get-Item "$Prefix\lib\libQt6Core.a").Length / 1MB
-    Write-Host "  libQt6Core.a = $([math]::Round($size, 1)) MB (static)" -ForegroundColor Green
-} else {
-    Write-Host "  WARNING: libQt6Core.a not found!" -ForegroundColor Yellow
+$allOk = $true
+foreach ($check in $checks) {
+    if (Test-Path $check.Path) {
+        if ($check.Path -match "\.a$") {
+            $size = (Get-Item $check.Path).Length / 1MB
+            Write-Host "  OK  $($check.Name) ($([math]::Round($size, 1)) MB)" -ForegroundColor Green
+        } else {
+            Write-Host "  OK  $($check.Name)" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "  MISSING  $($check.Name)" -ForegroundColor Red
+        $allOk = $false
+    }
 }
 
 Write-Host ""
-Write-Host "Next step: just release-static" -ForegroundColor Cyan
+if ($allOk) {
+    Write-Host "All checks passed! Next step: just release-static" -ForegroundColor Cyan
+} else {
+    Write-Host "Some checks failed. Review the output above." -ForegroundColor Yellow
+}
 Write-Host ""
