@@ -103,7 +103,7 @@ Item {
 
                 Label {
                     textFormat: Text.PlainText
-                    text: root.gameName + qsTr(" tespit edildi!")
+                    text: root.customTitle || (root.gameName + qsTr(" tespit edildi!"))
                     font.pixelSize: Dimensions.fontSM; font.weight: Font.Bold
                     color: Theme.textPrimary
                     elide: Text.ElideRight

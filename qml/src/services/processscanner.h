@@ -5,7 +5,7 @@
  *
  * Three-layer detection:
  * 1. Known exe match (disk scan + catalog fingerprints) - automatic
- * 2. Heavy process detection (>300MB RAM) - shows candidates to user
+ * 2. GPU process detection (DirectX/Vulkan DLL loading) - shows candidates to user
  * 3. User selects process - system resolves game and adds to library
  */
 
@@ -90,6 +90,9 @@ signals:
     // Emitted when user resolves a process to a game
     void processResolved(const QString& gameId, const QString& gameName, const QString& installPath);
 
+    // Emitted when user selects a process but it is not in the catalog
+    void processNotSupported(const QString& processName);
+
 private slots:
     void performScan();
 
@@ -109,7 +112,8 @@ private:
 
 #ifdef Q_OS_WIN
     QString getProcessFullPath(DWORD processId) const;
-    SIZE_T getProcessMemoryUsage(DWORD processId) const;
+    bool isProcessUsingGpu(DWORD processId) const;
+    bool hasVisibleWindow(DWORD processId) const;
 #endif
 
     QTimer m_scanTimer;
@@ -126,7 +130,7 @@ private:
     QHash<QString, QString> m_knownProcesses;  // exe name -> appId
     QHash<QString, QString> m_appIdToPath;     // appId -> install dir
 
-    QVariantList m_heavyProcesses;  // [{name, pid, memoryMB}] for QML
+    QVariantList m_heavyProcesses;  // [{name, pid}] GPU-using processes with visible windows
 
     GameService* m_gameService{nullptr};
     LocalPackageManager* m_packageManager{nullptr};

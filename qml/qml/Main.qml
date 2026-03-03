@@ -820,10 +820,16 @@ ApplicationWindow {
             gameToast.show(gameId, gameName)
         }
         function onProcessResolved(gameId, gameName, installPath) {
-            // User manually resolved a process to a catalog game
+            // Add detected game to library, then show notification
+            GameService.addManualGame(installPath)
             gameToast.show(gameId, gameName,
                 gameName + " k\u00fct\u00fcphaneye eklendi!",
                 "K\u00fct\u00fcphaneden T\u00fcrk\u00e7e yama y\u00fckleyebilirsiniz.")
+        }
+        function onProcessNotSupported(processName) {
+            gameToast.show("", processName,
+                processName + " desteklenmiyor",
+                "Bu oyun henüz Türkçe'ye çevrilmedi.")
         }
     }
 

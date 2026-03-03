@@ -218,31 +218,16 @@ ColumnLayout {
                             color: procMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
                             Behavior on color { ColorAnimation { duration: 120 } }
 
-                            Row {
+                            Label {
+                                textFormat: Text.PlainText
+                                text: procItem.modelData.name
+                                font.pixelSize: Dimensions.fontXS
+                                font.weight: Font.Medium
+                                color: Theme.textPrimary
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.left: parent.left; anchors.right: parent.right
                                 anchors.leftMargin: 6; anchors.rightMargin: 6
-                                spacing: 6
-
-                                Label {
-                                    textFormat: Text.PlainText
-                                    text: procItem.modelData.name
-                                    font.pixelSize: Dimensions.fontXS
-                                    font.weight: Font.Medium
-                                    color: Theme.textPrimary
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    elide: Text.ElideRight
-                                    width: parent.width - memLabel.width - 18
-                                }
-
-                                Label {
-                                    id: memLabel
-                                    textFormat: Text.PlainText
-                                    text: procItem.modelData.memoryMB + " MB"
-                                    font.pixelSize: Dimensions.fontMini
-                                    color: Theme.textMuted
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
+                                elide: Text.ElideRight
                             }
 
                             MouseArea {
