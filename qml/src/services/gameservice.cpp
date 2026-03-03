@@ -142,8 +142,15 @@ void GameService::initialize()
                         g.isVerified = obj["isVerified"].toBool();
                         g.isInstalled = obj["isInstalled"].toBool();
                         g.hasTranslation = obj["hasTranslation"].toBool();
-                        if (!g.id.isEmpty() && !g.name.isEmpty())
+                        if (!g.id.isEmpty() && !g.name.isEmpty()) {
+                            // Validate install path still exists on disk
+                            if (g.isInstalled && !g.installPath.isEmpty()
+                                && !QDir(g.installPath).exists()) {
+                                g.isInstalled = false;
+                                g.installPath.clear();
+                            }
                             games.append(g);
+                        }
                     }
                 }
             }
@@ -268,6 +275,7 @@ QVariantList GameService::games() const
     m_gamesCache.reserve(m_games.count());
 
     for (const auto& game : m_games) {
+        if (!game.isInstalled) continue;  // Only show installed games
         QVariantMap map = game.toVariantMap();
         map["hasUpdate"] = false;
         m_gamesCache.append(map);
@@ -398,8 +406,14 @@ void GameService::onScanCompleted(int count)
                 break;
             }
         }
-        if (!duplicate)
+        if (!duplicate) {
+            // Validate manual game's install path still exists
+            if (manual.isInstalled && !manual.installPath.isEmpty()
+                && !QDir(manual.installPath).exists()) {
+                continue;  // Game uninstalled from disk — drop it
+            }
             m_games.append(manual);
+        }
     }
 
     rebuildCache();
@@ -905,6 +919,12 @@ void GameService::loadCachedGames()
         game.hasTranslation = obj["hasTranslation"].toBool();
 
         if (!game.id.isEmpty() && !game.name.isEmpty()) {
+            // Validate install path still exists on disk
+            if (game.isInstalled && !game.installPath.isEmpty()
+                && !QDir(game.installPath).exists()) {
+                game.isInstalled = false;
+                game.installPath.clear();
+            }
             m_games.append(game);
         }
     }

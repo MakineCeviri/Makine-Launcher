@@ -23,7 +23,7 @@ Rectangle {
     Layout.fillWidth: true
     Layout.preferredHeight: 52
     radius: Dimensions.radiusLG
-    visible: actionBtn.vm.hasTranslation && actionBtn.vm.isGameInstalled && actionBtn.vm.fromLibrary
+    visible: actionBtn.vm.hasTranslation && actionBtn.vm.isGameInstalled
     border.width: _state === "installed" && _hovered ? 2 : 0
     border.color: Theme.error
 

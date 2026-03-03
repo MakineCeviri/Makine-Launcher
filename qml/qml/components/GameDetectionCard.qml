@@ -178,7 +178,7 @@ ColumnLayout {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
                     visible: !root.gameDetected && !root.hasHeavyProcesses
-                    text: qsTr("Kütüphaneye Git")
+                    text: qsTr("Desteklenen bir oyun çalıştırın veya bir oyun ekleyin.")
                     font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
                     wrapMode: Text.WordWrap; lineHeight: 1.4
                     maximumLineCount: 3; elide: Text.ElideRight
