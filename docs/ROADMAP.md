@@ -7,19 +7,19 @@
 ## Genel Durum
 
 ```
-██████████████████████████░░░░  85%  GENEL TAMAMLANMA
+██████████████████████████░░░░  84%  GENEL TAMAMLANMA
 ```
 
 | Bolum | Tamamlanma | Durum |
 |-------|-----------|-------|
-| Makine: Oyun Tespit & Tarama | %95 | Steam/Epic/GOG tarama + anti-cheat + motor tespiti |
-| Makine: Ceviri Paket Kurulumu | %90 | Yerel + R2 paketler kurulabiliyor, variant destegi, imzalama |
-| Makine: Dagitim Sistemi | %95 | 258/258 paket CDN'de, Ed25519 imza, ETag cache |
+| Makine: Oyun Tespit & Tarama | %82 | Steam iyi, Epic/GOG minimal, Xbox/GamePass yok |
+| Makine: Ceviri Paket Kurulumu | %85 | Yerel + R2 kurulum tamam, RuntimeManager install eksik |
+| Makine: Dagitim Sistemi | %93 | 258/258 CDN'de, Ed25519 imza, deploy'da hardcoded path |
 | MakineAI: Guncelleme Tespiti | %10 | UpdateDetection + FileIntegrity modulleri mevcut |
 | MakineAI: Adaptasyon Motoru | %5 | Memory Translation Extractor tasarlandi |
-| UI & Kullanici Deneyimi | %96 | 6 ekran, 32 component, 7 dialog tamamlandi |
-| CI/CD & DevOps | %90 | Deploy pipeline, imzalama, R2 upload tamamlandi |
-| Guvenlik | %85 | Ed25519, AES-256-GCM, SSL pinning, code signing altyapisi |
+| UI & Kullanici Deneyimi | %95 | 6 ekran, 32 component, 7 dialog; 5 feature devre disi |
+| CI/CD & DevOps | %85 | Deploy pipeline tamam, testler sadece core presette aktif |
+| Guvenlik | %80 | Ed25519, AES-256-GCM, SSL pinning tamam; pin rotation eksik |
 
 ---
 
