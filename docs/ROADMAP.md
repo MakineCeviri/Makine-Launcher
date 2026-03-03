@@ -1,24 +1,25 @@
 # MakineAI Yol Haritasi
 
-**Son Guncelleme:** 2026-02-25
+**Son Guncelleme:** 2026-03-03
 
 ---
 
 ## Genel Durum
 
 ```
-██████████████████████░░░░░░  75%  GENEL TAMAMLANMA
+██████████████████████████░░░░  85%  GENEL TAMAMLANMA
 ```
 
 | Bolum | Tamamlanma | Durum |
 |-------|-----------|-------|
 | Makine: Oyun Tespit & Tarama | %95 | Steam/Epic/GOG tarama + anti-cheat + motor tespiti |
-| Makine: Ceviri Paket Kurulumu | %85 | Yerel + R2 paketler kurulabiliyor, variant destegi |
-| Makine: Dagitim Sistemi | %60 | Hibrit katalog (index+detail), R2 indirme, ETag cache |
+| Makine: Ceviri Paket Kurulumu | %90 | Yerel + R2 paketler kurulabiliyor, variant destegi, imzalama |
+| Makine: Dagitim Sistemi | %95 | 258/258 paket CDN'de, Ed25519 imza, ETag cache |
 | MakineAI: Guncelleme Tespiti | %10 | UpdateDetection + FileIntegrity modulleri mevcut |
 | MakineAI: Adaptasyon Motoru | %5 | Memory Translation Extractor tasarlandi |
-| UI & Kullanici Deneyimi | %85 | Alpha kalitesinde, component konsolidasyonu tamamlandi |
-| CI/CD & DevOps | %75 | GitHub Actions pipeline calisiyor |
+| UI & Kullanici Deneyimi | %96 | 6 ekran, 32 component, 7 dialog tamamlandi |
+| CI/CD & DevOps | %90 | Deploy pipeline, imzalama, R2 upload tamamlandi |
+| Guvenlik | %85 | Ed25519, AES-256-GCM, SSL pinning, code signing altyapisi |
 
 ---
 
@@ -38,16 +39,17 @@
 - [x] PackageCatalog (saf C++ is mantigi)
 - [ ] Hata yonetimi iyilestirmeleri (devam ediyor)
 
-### Faz 2: Dagitim Sistemi (%60)
+### Faz 2: Dagitim Sistemi (%95)
 
 | Gorev | Durum | Oncelik |
 |-------|-------|---------|
 | Hibrit katalog (index.json + on-demand detail) | **Tamamlandi** | Kritik |
 | R2 paket indirme (zstd + AES-256-GCM) | **Tamamlandi** | Kritik |
-| ETag cache (index + per-game detail) | **Tamamlandi** | Yuksek |
-| MakineAI-Assets repo (index + packages + images) | **Tamamlandi** | Kritik |
+| ETag cache (index + per-game detail) | **Tamamlandi** | Kritik |
+| R2 CDN upload (258/258 .mkpkg) | **Tamamlandi** | Kritik |
+| Ed25519 paket imzalama/dogrulama | **Tamamlandi** | Yuksek |
 | Pre-fetch (GameDetailScreen acildiginda) | **Tamamlandi** | Orta |
-| Paket imzalama/dogrulama | Baslanmadi | Yuksek |
+| Deploy pipeline (tek komut dagitim) | **Tamamlandi** | Yuksek |
 | Delta guncelleme (sadece degisen dosyalar) | Baslanmadi | Orta |
 
 ### Faz 3: Topluluk (%0)
@@ -92,6 +94,19 @@
 
 ---
 
+## Alpha Release Engelleri (2 kaldi)
+
+| Engel | Durum | Aciklama |
+|-------|-------|----------|
+| ~~CDN paketleri~~ | ✅ Tamamlandi | 258/258 .mkpkg + .sig |
+| ~~Guvenlik anahtari~~ | ✅ Tamamlandi | Ed25519 public key embedded |
+| ~~Deploy pipeline~~ | ✅ Tamamlandi | deploy.py + sign_packages.py |
+| ~~SSL pinning~~ | ✅ Tamamlandi | 4 cert pin, placeholder yok |
+| **Static Qt build** | Bekliyor | Tek seferlik ~1-2 saat, sonraki build'ler 1-2 dk |
+| **MSIX paketleme** | Bekliyor | Microsoft Store submission icin |
+
+---
+
 ## Kapatilan / Ertelenmis Ozellikler
 
 | Ozellik | Durum | Neden |
@@ -109,15 +124,17 @@
 ## Oncelik Sirasi
 
 ```
-1. Alpha Release Hazirligi (UI kalite, component temizligi)
+1. Alpha Release Hazirligi (Static Qt build + MSIX)
    |
-2. MakineAI Faz A: Guncelleme tespiti (hash + versiyon)
+2. Microsoft Store Submission
    |
-3. MakineAI Faz B: Analiz (Memory Extractor + diff)
+3. MakineAI Faz A: Guncelleme tespiti (hash + versiyon)
    |
-4. MakineAI Faz C: Otomatik uyarlama
+4. MakineAI Faz B: Analiz (Memory Extractor + diff)
    |
-5. Makine Faz 3: Topluluk ozellikleri
+5. MakineAI Faz C: Otomatik uyarlama
+   |
+6. Makine Faz 3: Topluluk ozellikleri
 ```
 
 ---
@@ -133,20 +150,32 @@
 ### DevOps
 - GitHub Actions (CI/CD)
 - CodeQL (guvenlik analizi)
+- Cloudflare R2 (CDN)
+- Sentry (crash reporting)
 
 ---
 
 ## Son Degisiklikler
 
+### 2026-03-02: Guvenlik denetimi + imza duzeltmesi
+- Ed25519 imza uyumsuzlugu duzeltildi (sign_packages.py hash string fix)
+- 258 paket R2'de yeniden imzalandi (--force)
+- Sentry DSN env variable'a tasindi
+- PII stripping eklendi (Windows kullanici adi redaction)
+- CRYPTO_memcmp (constant-time hash karsilastirma)
+
+### 2026-03-01: R2 CDN custom domain + dagitim tamamlandi
+- cdn.makineceviri.net aktif (Worker route cakismasi cozuldu)
+- 258/258 .mkpkg paketi R2'ye yuklendi
+- Tum dataUrl'ler cdn.makineceviri.net'e guncellendi
+- Code signing altyapisi kuruldu (self-signed + signtool)
+
 ### 2026-02-25: Alpha hazirlik — buyuk temizlik
 - Hibrit katalog sistemi (index.json + on-demand detail) tamamlandi
-- fwd.hpp %51 kucultuldu (373 -> 176 satir, 48 kullanilmayan forward declaration silindi)
-- 4 bos stub header silindi (glossary_service, translation_memory, qa_service, translation_pipeline)
-- scanner_base.hpp silindi (kullanilmayan v2 scanner interface)
-- Settings component'leri konsolide edildi (6 dosyadan ~503 satir tekrar kaldirdildi)
-- 3 shared component guncellendi (SettingsCard, ToggleSetting, DisabledSetting)
-- Integration test'ler devre disi birakildi (handler impl bekleniyor)
-- MakineAI-Assets'ten eski manifest.json silindi (245 KB tasarruf)
+- fwd.hpp %51 kucultuldu (373 -> 176 satir)
+- 4 bos stub header silindi
+- Settings component'leri konsolide edildi
+- Integration test'ler devre disi birakildi
 
 ### 2026-02-18: Kod kalitesi & performans
 - Guvenlik denetimi (14 bulgu duzeltildi)
