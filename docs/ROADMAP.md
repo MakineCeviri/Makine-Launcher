@@ -7,13 +7,13 @@
 ## Genel Durum
 
 ```
-██████████████████████████░░░░  84%  GENEL TAMAMLANMA
+██████████████████████████░░░░  85%  GENEL TAMAMLANMA
 ```
 
 | Bolum | Tamamlanma | Durum |
 |-------|-----------|-------|
 | Makine: Oyun Tespit & Tarama | %82 | Steam iyi, Epic/GOG minimal, Xbox/GamePass yok |
-| Makine: Ceviri Paket Kurulumu | %85 | Yerel + R2 kurulum tamam, RuntimeManager install eksik |
+| Makine: Ceviri Paket Kurulumu | %88 | Yerel + R2 kurulum + BepInEx runtime install tamam |
 | Makine: Dagitim Sistemi | %93 | 258/258 CDN'de, Ed25519 imza, deploy'da hardcoded path |
 | MakineAI: Guncelleme Tespiti | %10 | UpdateDetection + FileIntegrity modulleri mevcut |
 | MakineAI: Adaptasyon Motoru | %5 | Memory Translation Extractor tasarlandi |
