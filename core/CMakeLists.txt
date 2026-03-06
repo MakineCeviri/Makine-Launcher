@@ -32,9 +32,8 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         CACHE STRING "Vcpkg toolchain file")
 endif()
 
-# ===== Shared library (makine-common) =====
-add_subdirectory(${PROJECT_SOURCE_DIR}/../common common_build)
 
+# ===== Dependencies (formerly in makine-common) =====
 # Find required packages
 find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(OpenSSL REQUIRED)
@@ -55,6 +54,14 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(bit7z CONFIG QUIET)           # 7-zip C++ wrapper
 find_package(LibArchive CONFIG QUIET)      # Multi-format archive (zip, tar, etc.)
 find_package(efsw CONFIG QUIET)            # Filesystem watcher
+# Common optional packages (formerly in makine-common)
+find_package(mio CONFIG QUIET)
+find_package(Taskflow CONFIG QUIET)
+find_package(unofficial-concurrentqueue CONFIG QUIET)
+find_package(simdutf CONFIG QUIET)
+find_package(simdjson CONFIG QUIET)
+find_package(SQLiteCpp CONFIG QUIET)
+find_package(unofficial-sodium CONFIG QUIET)
 
 # Build options
 option(BUILD_TESTING "Build unit tests" OFF)
@@ -101,6 +108,10 @@ set(MAKINEAI_SOURCES
     # Platform (Windows)
     src/platform/windows/registry.cpp
     src/platform/windows/filesystem.cpp
+    
+    # Common (formerly makine-common submodule)
+    src/config/config.cpp
+    src/database/database.cpp
 )
 
 # Header files (for IDE)
@@ -145,25 +156,29 @@ endif()
 
 # Include directories:
 # - core/include — launcher-specific headers
-# - common/include/makineai — allows bare #include "types.hpp" from core headers
-#   (core headers use quoted includes without makineai/ prefix since they were
-#    originally in the same directory)
-set(MAKINE_COMMON_MAKINEAI_DIR ${PROJECT_SOURCE_DIR}/../common/include/makineai)
 
 target_include_directories(makineai_core
     PUBLIC
         $<BUILD_INTERFACE:${MAKINEAI_INCLUDE_DIR}>
-        $<BUILD_INTERFACE:${MAKINE_COMMON_MAKINEAI_DIR}>
         $<INSTALL_INTERFACE:include>
 )
 
 target_link_libraries(makineai_core
     PUBLIC
-        # Shared library (types, config, database, utilities, formats)
-        makine_common
 
         # Launcher-specific dependencies
         CURL::libcurl
+        
+        # Core dependencies (formerly in makine-common)
+        Boost::filesystem
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        nlohmann_json::nlohmann_json
+        lz4::lz4
+        ZLIB::ZLIB
+        $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+        unofficial::sqlite3::sqlite3
+        spdlog::spdlog
 )
 
 # Launcher-specific optional libraries
@@ -183,6 +198,42 @@ if(TARGET efsw::efsw)
     target_link_libraries(makineai_core PUBLIC efsw::efsw)
     target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_EFSW)
     message(STATUS "efsw found - Filesystem watcher enabled")
+endif()
+
+# Common optional libraries (formerly in makine-common)
+if(TARGET mio::mio)
+    target_link_libraries(makineai_core PUBLIC mio::mio)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_MIO)
+endif()
+
+if(TARGET Taskflow::Taskflow)
+    target_link_libraries(makineai_core PUBLIC Taskflow::Taskflow)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_TASKFLOW)
+endif()
+
+if(TARGET unofficial::concurrentqueue::concurrentqueue)
+    target_link_libraries(makineai_core PUBLIC unofficial::concurrentqueue::concurrentqueue)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_CONCURRENTQUEUE)
+endif()
+
+if(TARGET simdutf::simdutf)
+    target_link_libraries(makineai_core PUBLIC simdutf::simdutf)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDUTF)
+endif()
+
+if(TARGET simdjson::simdjson)
+    target_link_libraries(makineai_core PUBLIC simdjson::simdjson)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDJSON)
+endif()
+
+if(TARGET SQLiteCpp)
+    target_link_libraries(makineai_core PUBLIC SQLiteCpp)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SQLITECPP)
+endif()
+
+if(TARGET unofficial-sodium::sodium)
+    target_link_libraries(makineai_core PUBLIC unofficial-sodium::sodium)
+    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SODIUM)
 endif()
 
 # Windows-specific libraries

@@ -127,39 +127,21 @@ struct ValidationError;
 class ValidationBuilder;
 
 // ============================================================================
-// FORWARD DECLARATIONS - MAJOR CLASSES
+// FORWARD DECLARATIONS - SHARED CLASSES
 // ============================================================================
 
 // --- Core Modules ---
-class Core;
 class Database;
 
-// --- Game Detection ---
-class GameDetector;
-class IGameScanner;
-class SteamScanner;
-class EpicScanner;
-class GOGScanner;
-
-// --- Patching ---
-class PatchEngine;
-class IBackupStorage;
-class FileBackupStorage;
-
-// --- Package Catalog (pure C++) ---
-namespace packages {
-class PackageCatalog;
-struct PackageCatalogEntry;
-struct InstallStep;
-struct ContributorInfo;
-struct InstalledPackageState;
-}  // namespace packages
-
-// --- Runtime Management ---
-class RuntimeManager;
-
 // --- Security ---
-class SecurityManager;
 template<typename T> class SecureBuffer;
+
+// --- Parser Formats (shared between MakineAI and Makine) ---
+namespace formats {
+class UnityBundleParser;
+class UnrealPakParser;
+class BethesdaBA2Parser;
+class GameMakerDataParser;
+}  // namespace formats
 
 }  // namespace makineai
