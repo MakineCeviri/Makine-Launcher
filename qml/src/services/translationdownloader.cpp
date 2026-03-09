@@ -149,7 +149,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     QNetworkRequest req{QUrl{state.dataUrl}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1"));
 
     if (state.resumeOffset > 0) {
         req.setRawHeader("Range",
@@ -450,7 +450,7 @@ void TranslationDownloader::verifyAndProcess(
     QNetworkRequest sigReq{QUrl{sigUrl}};
     sigReq.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                         QNetworkRequest::SameOriginRedirectPolicy);
-    sigReq.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("MakineAI/0.1"));
+    sigReq.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1"));
 
     QNetworkReply* sigReply = m_nam.get(sigReq);
 

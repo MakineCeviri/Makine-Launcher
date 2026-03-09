@@ -652,7 +652,7 @@ void GameService::fetchSteamDetails(const QString& steamAppId)
 
     QUrl url(QStringLiteral("https://store.steampowered.com/api/appdetails?appids=%1&l=turkish").arg(steamAppId));
     QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "MakineAI/0.1");
+    request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
 
     QNetworkReply* reply = m_networkManager.get(request);
 

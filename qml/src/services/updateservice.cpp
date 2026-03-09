@@ -21,6 +21,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QCryptographicHash>
+#include <memory>
 
 namespace makineai {
 
@@ -96,7 +97,7 @@ void UpdateService::check()
     qDebug() << "UpdateService: Checking for updates at" << urlStr;
 
     QNetworkRequest request{QUrl{urlStr}};
-    request.setRawHeader("User-Agent", "MakineAI-UpdateService");
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
     request.setTransferTimeout(15000);
 
     auto *reply = m_nam.get(request);
@@ -258,7 +259,7 @@ void UpdateService::download()
 
     QUrl dlUrl{m_downloadUrl};
     QNetworkRequest request{dlUrl};
-    request.setRawHeader("User-Agent", "MakineAI-UpdateService");
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::SameOriginRedirectPolicy);
 
