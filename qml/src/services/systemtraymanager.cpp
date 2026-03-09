@@ -46,9 +46,12 @@ void SystemTrayManager::handleTrayMessage(LPARAM lParam)
     switch (LOWORD(lParam)) {
     case WM_LBUTTONUP:
     case WM_LBUTTONDBLCLK:
+    case NIN_SELECT:      // NOTIFYICON_VERSION_4: single click / select
+    case NIN_KEYSELECT:   // NOTIFYICON_VERSION_4: keyboard select
         emit showWindowRequested();
         break;
-    case WM_RBUTTONUP:
+    case WM_RBUTTONUP:    // NOTIFYICON_VERSION_0 fallback
+    case WM_CONTEXTMENU:  // NOTIFYICON_VERSION_4: right-click (replaces WM_RBUTTONUP)
         showContextMenu();
         break;
     case NIN_BALLOONUSERCLICK:
@@ -62,16 +65,29 @@ void SystemTrayManager::showContextMenu()
     POINT pt;
     GetCursorPos(&pt);
 
-    // Required by Windows for tray popup focus — without this the popup won't activate
-    SetForegroundWindow(m_msgWindow);
+    // Native Win32 context menu — reliable in background (no QML focus tricks needed).
+    // TrackPopupMenu is system-managed; it doesn't require our process to be foreground
+    // to APPEAR. We still call SetForegroundWindow so the menu dismisses on click-outside.
+    HMENU hMenu = CreatePopupMenu();
+    AppendMenuW(hMenu, MF_STRING,    IdShow,         L"A\u00e7");
+    AppendMenuW(hMenu, MF_SEPARATOR, 0,              nullptr);
+    AppendMenuW(hMenu, MF_STRING,    IdSettings,     L"Ayarlar");
+    AppendMenuW(hMenu, MF_STRING,    IdCheckUpdates, L"G\u00fcncelleme Kontrol Et");
+    AppendMenuW(hMenu, MF_SEPARATOR, 0,              nullptr);
+    AppendMenuW(hMenu, MF_STRING,    IdQuit,         L"Tamamen Kapat");
 
-    // Physical → logical pixel conversion for QML Window positioning
-    qreal dpr = 1.0;
-    auto *screen = QGuiApplication::screenAt(QPoint(pt.x, pt.y));
-    if (!screen) screen = QGuiApplication::primaryScreen();
-    if (screen) dpr = screen->devicePixelRatio();
+    // Briefly show anchor window so SetForegroundWindow succeeds.
+    // 1x1 off-screen, WS_EX_TOOLWINDOW — invisible to user.
+    ShowWindow(m_anchorWindow, SW_SHOW);
+    SetForegroundWindow(m_anchorWindow);
 
-    emit contextMenuRequested(qRound(pt.x / dpr), qRound(pt.y / dpr));
+    // Position: above cursor (taskbar at bottom), right-aligned
+    UINT flags = TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_RIGHTALIGN;
+    TrackPopupMenu(hMenu, flags, pt.x, pt.y, 0, m_anchorWindow, nullptr);
+    PostMessage(m_anchorWindow, WM_NULL, 0, 0); // Ensure menu dismisses
+
+    DestroyMenu(hMenu);
+    ShowWindow(m_anchorWindow, SW_HIDE);
 }
 
 HICON SystemTrayManager::qIconToHicon(const QIcon &icon, int size)
@@ -143,6 +159,18 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
                                    0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
                                    GetModuleHandle(nullptr), nullptr);
 
+    // Anchor window: a real (non-HWND_MESSAGE) 1x1 off-screen window used to
+    // call SetForegroundWindow() before showing the QML tray popup.
+    // WS_EX_TOOLWINDOW hides it from taskbar and Alt+Tab.
+    // NOTE: NO WS_EX_NOACTIVATE — that flag prevents activation and breaks SetForegroundWindow.
+    m_anchorWindow = CreateWindowExW(
+        WS_EX_TOOLWINDOW,
+        TrayWindowClassName, L"MakineAI_TrayAnchor",
+        WS_POPUP,
+        -1, -1, 1, 1,
+        nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
+    // Not shown at startup — shown/hidden only in showContextMenu()
+
     // Prepare NOTIFYICONDATA
     m_nid = NOTIFYICONDATAW{};
     m_nid.cbSize           = sizeof(NOTIFYICONDATAW);
@@ -168,6 +196,9 @@ SystemTrayManager::~SystemTrayManager()
     }
     if (m_hIcon) {
         DestroyIcon(m_hIcon);
+    }
+    if (m_anchorWindow) {
+        DestroyWindow(m_anchorWindow);
     }
     if (m_msgWindow) {
         DestroyWindow(m_msgWindow);

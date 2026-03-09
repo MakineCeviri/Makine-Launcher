@@ -56,6 +56,7 @@ private:
     HICON qIconToHicon(const QIcon &icon, int size);
 
     HWND m_msgWindow{nullptr};
+    HWND m_anchorWindow{nullptr}; // Real HWND for SetForegroundWindow (HWND_MESSAGE cannot be foreground)
     NOTIFYICONDATAW m_nid{};
     HICON m_hIcon{nullptr};
     bool m_visible{false};

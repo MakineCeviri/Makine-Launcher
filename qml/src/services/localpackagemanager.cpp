@@ -33,7 +33,10 @@
 #include <QtConcurrent>
 
 #include <map>
+#include <optional>
 #include <set>
+#include <string>
+#include <vector>
 
 namespace makineai {
 
@@ -656,8 +659,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         QStringList replacedFiles;
 
         QString canonGamePath = QDir(gamePath).canonicalPath();
+        const QString cleanGamePath = QDir::cleanPath(gamePath);
         if (canonGamePath.isEmpty())
-            canonGamePath = QDir::cleanPath(gamePath);
+            canonGamePath = cleanGamePath;
 
         for (const auto& [srcPath, relPath] : filesToCopy) {
             // Cancellation check
@@ -670,7 +674,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
 
             // Prevent path traversal: ensure destination stays within game directory
-            if (!destPath.startsWith(canonGamePath)) {
+            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
                 qWarning() << "Path traversal blocked during install:" << relPath;
                 errors++;
                 continue;
@@ -906,8 +910,9 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         QStringList replacedFiles;
 
         QString canonGamePath = QDir(gamePath).canonicalPath();
+        const QString cleanGamePath = QDir::cleanPath(gamePath);
         if (canonGamePath.isEmpty())
-            canonGamePath = QDir::cleanPath(gamePath);
+            canonGamePath = cleanGamePath;
 
         for (const auto& [srcPath, relPath] : filesToCopy) {
             if (isCancelled()) {
@@ -918,7 +923,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
 
             QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
 
-            if (!destPath.startsWith(canonGamePath)) {
+            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
                 qWarning() << "Path traversal blocked during update:" << relPath;
                 errors++;
                 continue;
@@ -1030,8 +1035,9 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 
     // canonicalPath() returns empty for non-existent paths; fall back to cleanPath
     QString canonGamePath = QDir(gamePath).canonicalPath();
+    const QString cleanGamePath = QDir::cleanPath(gamePath);
     if (canonGamePath.isEmpty())
-        canonGamePath = QDir::cleanPath(gamePath);
+        canonGamePath = cleanGamePath;
 
     // Begin crash recovery journal
     if (m_journal) {
@@ -1061,7 +1067,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
             // Path traversal protection
-            if (!destPath.startsWith(canonGamePath)) {
+            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
                 qWarning() << "Path traversal blocked in recipe copy:" << step.dest;
                 errors++;
                 continue;
@@ -1184,7 +1190,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             // Delete a file in the game directory
             QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
-            if (!destPath.startsWith(canonGamePath)) {
+            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
                 qWarning() << "Path traversal blocked in recipe delete:" << step.dest;
                 errors++;
                 continue;
@@ -1583,8 +1589,9 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     }
 
     QString canonGamePath = QDir(gamePath).canonicalPath();
+    const QString cleanGamePath = QDir::cleanPath(gamePath);
     if (canonGamePath.isEmpty())
-        canonGamePath = QDir::cleanPath(gamePath);
+        canonGamePath = cleanGamePath;
 
     int current = 0;
     int errors = 0;
@@ -1621,7 +1628,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             if (step.action == "copy") {
                 QString srcPath = QDir::cleanPath(optionDir + "/" + step.src);
                 QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-                if (!destPath.startsWith(canonGamePath)) {
+                if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
                     qWarning() << "Path traversal blocked:" << step.dest;
                     errors++; continue;
                 }

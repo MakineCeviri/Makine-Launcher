@@ -49,6 +49,7 @@ Window {
         bg.opacity = 0
         bg.scale = 0.96
 
+        popup._hadFocus = false
         popup.visible = true
         popup.requestActivate()
         fadeIn.restart()
@@ -60,15 +61,24 @@ Window {
             popup.visible = false
     }
 
+    // Track whether the popup has received focus at least once after showing.
+    // Without this guard, the dismiss timer fires immediately on slow systems
+    // before AllowSetForegroundWindow + requestActivate() has taken effect.
+    property bool _hadFocus: false
+
     onActiveChanged: {
-        if (!active && visible)
+        if (active) {
+            _hadFocus = true
+            dismissTimer.stop()
+        } else if (visible && _hadFocus) {
             dismissTimer.restart()
+        }
     }
 
     // Small delay prevents premature dismiss on W10 activation quirks
     Timer {
         id: dismissTimer
-        interval: 80
+        interval: 250
         onTriggered: {
             if (!popup.active)
                 popup.dismiss()

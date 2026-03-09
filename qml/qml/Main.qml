@@ -94,8 +94,12 @@ ApplicationWindow {
         function onShowWindowRequested() {
             window.show(); window.raise(); window.requestActivate()
         }
-        function onContextMenuRequested(x, y) {
-            trayPopup.showAt(x, y)
+        function onQuitRequested() {
+            window.forceQuit = true
+            Qt.quit()
+        }
+        function onSettingsRequested() {
+            window.show(); window.raise(); window.requestActivate()
         }
         function onUpdateCheckRequested() {
             UpdateService.check()
