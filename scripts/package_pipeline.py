@@ -169,8 +169,8 @@ def decrypt_package(mkpkg_data: bytes, key: bytes) -> bytes:
 # =============================================================================
 
 def sha256_digest(data: bytes) -> str:
-    """Compute SHA-256 hex digest."""
-    return hashlib.sha256(data).hexdigest()
+    """Compute SHA-256 hex digest with sha256: prefix."""
+    return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
 def process_package(
