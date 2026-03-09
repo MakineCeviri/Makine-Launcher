@@ -50,7 +50,7 @@
 #include "metrics.hpp"
 #include "health.hpp"
 #include "audit.hpp"
-#include "debug.hpp"
+#include "detail/debug.hpp"
 #include "validation.hpp"
 #include "cache.hpp"
 #include "async.hpp"

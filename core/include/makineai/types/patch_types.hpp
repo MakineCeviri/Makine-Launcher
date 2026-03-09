@@ -129,4 +129,20 @@ struct BackupRecord {
     }
 };
 
+
+// ============================================================================
+// Entry Status
+// ============================================================================
+
+/**
+ * @brief Translation entry quality status
+ */
+enum class EntryStatus : int {
+    Untranslated,   ///< Not yet translated
+    Translated,     ///< Translated but unreviewed
+    Fuzzy,          ///< Auto-matched, needs review
+    Verified,       ///< Reviewed and approved
+    Rejected,       ///< Rejected, needs retranslation
+};
+
 } // namespace makineai
