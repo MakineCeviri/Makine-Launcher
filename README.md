@@ -27,8 +27,8 @@ Launcher UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüph
 ## Kurulum ve Build
 
 ```bash
-git clone https://github.com/MakineCeviri/MakineAI.git
-cd MakineAI
+git clone https://github.com/MakineCeviri/MakineAI-Launcher.git
+cd MakineAI-Launcher
 ```
 
 ### Hızlı Geliştirme (MinGW, Core+UI)

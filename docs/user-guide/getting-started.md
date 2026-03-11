@@ -93,7 +93,7 @@ MakineAI topluluk tarafından hazırlanan çeviri paketlerini oyunlara kurar:
 ## Sorun mu Yaşıyorsunuz?
 
 - [Discord Topluluğu](https://discord.com/invite/QDezpy4QtV)
-- [GitHub Issues](https://github.com/MakineCeviri/MakineAI/issues)
+- [GitHub Issues](https://github.com/MakineCeviri/MakineAI-Launcher/issues)
 
 ---
 

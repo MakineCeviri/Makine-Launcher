@@ -7,11 +7,9 @@ Clone'dan çalışan exe'ye adım adım rehber.
 ## 1. Clone
 
 ```bash
-git clone --recurse-submodules https://github.com/MakineCeviri/MakineAI.git
-cd MakineAI
+git clone https://github.com/MakineCeviri/MakineAI-Launcher.git
+cd MakineAI-Launcher
 ```
-
-> `--recurse-submodules` ile `common/` submodule otomatik çekilir. Unutursan: `git submodule update --init`
 
 ## 2. Ortam Değişkenleri (.env)
 

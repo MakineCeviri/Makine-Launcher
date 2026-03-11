@@ -166,6 +166,6 @@ Yeni sürümler için v0.1.0+ kullanın.
 
 ---
 
-[Unreleased]: https://github.com/MakineCeviri/MakineAI/compare/v0.1.0-alpha...HEAD
-[0.1.0-alpha]: https://github.com/MakineCeviri/MakineAI/releases/tag/v0.1.0-alpha
-[0.0.8]: https://github.com/MakineCeviri/MakineAI/releases/tag/v0.0.8
+[Unreleased]: https://github.com/MakineCeviri/MakineAI-Launcher/compare/v0.1.0-alpha...HEAD
+[0.1.0-alpha]: https://github.com/MakineCeviri/MakineAI-Launcher/releases/tag/v0.1.0-alpha
+[0.0.8]: https://github.com/MakineCeviri/MakineAI-Launcher/releases/tag/v0.0.8

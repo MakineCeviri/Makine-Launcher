@@ -40,7 +40,7 @@ Visual Studio Installer'dan kurun:
 
 ```bash
 git clone <repo-url>
-cd MakineAI
+cd MakineAI-Launcher
 ```
 
 ### 2. vcpkg Kurulumu
