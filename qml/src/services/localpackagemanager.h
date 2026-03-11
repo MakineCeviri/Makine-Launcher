@@ -20,6 +20,9 @@
 #include <QVariantMap>
 #include <optional>
 #include <atomic>
+#include <functional>
+#include <set>
+#include <string>
 
 #include <makineai/package_catalog.hpp>
 
@@ -166,6 +169,39 @@ private:
     enum class CopyError { None, DiskFull, PermissionDenied, FileLocked, Other };
     struct CopyResult { bool ok; CopyError error; };
     CopyResult tryCopyFile(const QString& src, const QString& dest);
+
+    // --- Shared helpers (used by both installPackage and updatePackage) ---
+
+    // Resolve the source path for a package+variant, falling back to legacy pak/ format.
+    // Returns empty string if nothing is found.
+    QString resolveSourcePath(const PackageInfo& pkg, const QString& variant) const;
+
+    // Result of copyOverlayFiles: per-category file lists and counters.
+    struct OverlayResult {
+        int copied{0};
+        int errors{0};
+        QStringList installedFiles;
+        QStringList addedFiles;
+        QStringList replacedFiles;
+    };
+
+    // Copy all files from filesToCopy into gamePath, with path-traversal protection,
+    // retry-on-lock, DiskFull/PermissionDenied fatal errors, and throttled progress signals.
+    // progressPrefix is shown in the progress status message (e.g. "Kopyalanıyor" / "Güncelleniyor").
+    // fileClassifier(relPath, destFileExists) returns true if the file should be classified
+    // as "replaced"; false means it is classified as "added".
+    OverlayResult copyOverlayFiles(
+        const QList<QPair<QString, QString>>& filesToCopy,
+        const QString& gamePath,
+        const QString& progressPrefix,
+        const std::function<bool(const QString&, bool)>& fileClassifier);
+
+    // Persist installed state to the catalog on the main thread (Qt::QueuedConnection).
+    void saveInstallState(const QString& steamAppId, const QString& gamePath,
+                          const PackageInfo& pkg,
+                          const QStringList& installedFiles,
+                          const QStringList& addedFiles,
+                          const QStringList& replacedFiles);
 
     packages::PackageCatalog m_catalog;
     static PackageInfo fromCatalogEntry(const packages::PackageCatalogEntry& entry);

@@ -32,6 +32,7 @@
 #include <QThread>
 #include <QtConcurrent>
 
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -394,6 +395,169 @@ LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
     return {false, CopyError::Other};
 }
 
+// -- Shared helpers -----------------------------------------------------------
+
+QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QString& variant) const
+{
+    QString sourcePath;
+
+    // Try new game-name directory format first
+    if (!pkg.dirName.isEmpty()) {
+        sourcePath = !variant.isEmpty()
+            ? m_dataPath + "/" + pkg.dirName + "/" + variant
+            : m_dataPath + "/" + pkg.dirName;
+    }
+
+    // Fall back to legacy pak/ format if game-name dir doesn't exist
+    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+        QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
+        QDir pkgDir(pkgDirPath);
+        if (pkgDir.exists()) {
+            const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+            for (const QString& sub : subDirs) {
+                if (sub.startsWith("extracted_")) {
+                    sourcePath = pkgDirPath + "/" + sub;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Return empty string if nothing found
+    if (sourcePath.isEmpty() || !QDir(sourcePath).exists())
+        return {};
+
+    return sourcePath;
+}
+
+LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
+    const QList<QPair<QString, QString>>& filesToCopy,
+    const QString& gamePath,
+    const QString& progressPrefix,
+    const std::function<bool(const QString&, bool)>& fileClassifier)
+{
+    OverlayResult result;
+    const int total = filesToCopy.size();
+    int lastReported = 0;
+
+    QString canonGamePath = QDir(gamePath).canonicalPath();
+    const QString cleanGamePath = QDir::cleanPath(gamePath);
+    if (canonGamePath.isEmpty())
+        canonGamePath = cleanGamePath;
+
+    for (const auto& [srcPath, relPath] : filesToCopy) {
+        // Cancellation check
+        if (isCancelled()) {
+            if (m_journal) m_journal->abortOperation();
+            emit installCompleted(false, tr("Kurulum iptal edildi"));
+            // Signal early exit via sentinel: errors = -1
+            result.errors = -1;
+            return result;
+        }
+
+        QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
+
+        // Prevent path traversal: ensure destination stays within game directory
+        if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
+            qWarning() << "Path traversal blocked:" << relPath;
+            result.errors++;
+            continue;
+        }
+
+        // Ensure destination directory exists
+        QFileInfo destInfo(destPath);
+        if (!QDir().mkpath(destInfo.absolutePath())) {
+            qWarning() << "Failed to create directory:" << destInfo.absolutePath();
+            result.errors++;
+            continue;
+        }
+
+        bool destExists = QFile::exists(destPath);
+
+        auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
+        if (copyOk) {
+            result.copied++;
+            result.installedFiles.append(relPath);
+            if (fileClassifier(relPath, destExists))
+                result.replacedFiles.append(relPath);
+            else
+                result.addedFiles.append(relPath);
+            if (m_journal) m_journal->recordFileModified(relPath);
+        } else if (copyErr == CopyError::DiskFull) {
+            if (m_journal) m_journal->commitOperation();
+            emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+            result.errors = -1;
+            return result;
+        } else if (copyErr == CopyError::PermissionDenied) {
+            if (m_journal) m_journal->commitOperation();
+            emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+            result.errors = -1;
+            return result;
+        } else if (copyErr == CopyError::FileLocked) {
+            QThread::msleep(150);
+            auto [ok2, err2] = tryCopyFile(srcPath, destPath);
+            if (ok2) {
+                result.copied++;
+                result.installedFiles.append(relPath);
+                if (fileClassifier(relPath, destExists))
+                    result.replacedFiles.append(relPath);
+                else
+                    result.addedFiles.append(relPath);
+                if (m_journal) m_journal->recordFileModified(relPath);
+            } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, err2 == CopyError::DiskFull
+                    ? tr("Disk alanı doldu, kurulum durduruluyor")
+                    : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                result.errors = -1;
+                return result;
+            } else {
+                qWarning() << "Failed to copy (locked):" << srcPath << "->" << destPath;
+                result.errors++;
+            }
+        } else {
+            qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
+            result.errors++;
+        }
+
+        // Throttle progress signals: every 10 files or at completion
+        int done = result.copied + result.errors;
+        if (done - lastReported >= 10 || done == total) {
+            lastReported = done;
+            double progress = static_cast<double>(done) / total;
+            emit installProgress(progress,
+                tr("%1 %2/%3: %4").arg(progressPrefix).arg(result.copied).arg(total)
+                    .arg(QFileInfo(relPath).fileName()));
+        }
+    }
+
+    return result;
+}
+
+void LocalPackageManager::saveInstallState(const QString& steamAppId, const QString& gamePath,
+                                            const PackageInfo& pkg,
+                                            const QStringList& installedFiles,
+                                            const QStringList& addedFiles,
+                                            const QStringList& replacedFiles)
+{
+    QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg,
+                                      installedFiles, addedFiles, replacedFiles]() {
+        packages::InstalledPackageState state;
+        state.version = pkg.version.toStdString();
+        state.gamePath = gamePath.toStdString();
+        for (const QString& f : installedFiles)
+            state.installedFiles.push_back(f.toStdString());
+        for (const QString& f : addedFiles)
+            state.addedFiles.push_back(f.toStdString());
+        for (const QString& f : replacedFiles)
+            state.replacedFiles.push_back(f.toStdString());
+        state.installedAt = QDateTime::currentSecsSinceEpoch();
+        m_catalog.markInstalled(steamAppId.toStdString(), state);
+        saveCatalogInstalledState(m_catalog, installedStatePath());
+        if (m_journal) m_journal->commitOperation();
+    }, Qt::QueuedConnection);
+}
+
 // -- Install package ----------------------------------------------------------
 
 void LocalPackageManager::cancelInstall()
@@ -489,33 +653,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         return;
     }
 
-    QString sourcePath;
+    const QString sourcePath = resolveSourcePath(pkg, variant);
 
-    // Try new game-name directory format first
-    if (!pkg.dirName.isEmpty()) {
-        if (!variant.isEmpty()) {
-            sourcePath = m_dataPath + "/" + pkg.dirName + "/" + variant;
-        } else {
-            sourcePath = m_dataPath + "/" + pkg.dirName;
-        }
-    }
-
-    // Fall back to legacy pak/ format if game-name dir doesn't exist
-    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
-        QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
-        QDir pkgDir(pkgDirPath);
-        if (pkgDir.exists()) {
-            const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-            for (const QString& sub : subDirs) {
-                if (sub.startsWith("extracted_")) {
-                    sourcePath = pkgDirPath + "/" + sub;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+    if (sourcePath.isEmpty()) {
         emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
         return;
     }
@@ -623,7 +763,6 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
     // Default overlay: copy all files preserving directory structure
     (void)QtConcurrent::run([this, steamAppId, gamePath, sourcePath, pkg]() {
-        const QString extractedPath = sourcePath;
         emit installProgress(0.0, tr("Dosyalar hazırlanıyor..."));
 
         // Begin crash recovery journal
@@ -637,10 +776,10 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
         // Collect all files to copy
         QList<QPair<QString, QString>> filesToCopy; // source, relative path
-        QDirIterator it(extractedPath, QDir::Files, QDirIterator::Subdirectories);
+        QDirIterator it(sourcePath, QDir::Files, QDirIterator::Subdirectories);
         while (it.hasNext()) {
             it.next();
-            QString relPath = it.filePath().mid(extractedPath.length() + 1);
+            QString relPath = it.filePath().mid(sourcePath.length() + 1);
             filesToCopy.append({it.filePath(), relPath});
         }
 
@@ -650,123 +789,25 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             return;
         }
 
-        int total = filesToCopy.size();
-        int copied = 0;
-        int errors = 0;
-        int lastReported = 0;
-        QStringList installedFiles;
-        QStringList addedFiles;
-        QStringList replacedFiles;
+        // Install: a file is "replaced" if it already existed at the destination
+        auto classifier = [](const QString& /*relPath*/, bool destExists) -> bool {
+            return destExists;
+        };
 
-        QString canonGamePath = QDir(gamePath).canonicalPath();
-        const QString cleanGamePath = QDir::cleanPath(gamePath);
-        if (canonGamePath.isEmpty())
-            canonGamePath = cleanGamePath;
+        OverlayResult result = copyOverlayFiles(filesToCopy, gamePath, tr("Kopyalanıyor"), classifier);
 
-        for (const auto& [srcPath, relPath] : filesToCopy) {
-            // Cancellation check
-            if (isCancelled()) {
-                if (m_journal) m_journal->abortOperation();
-                emit installCompleted(false, tr("Kurulum iptal edildi"));
-                return;
-            }
+        // errors == -1 means copyOverlayFiles already emitted installCompleted
+        if (result.errors < 0) return;
 
-            QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
-
-            // Prevent path traversal: ensure destination stays within game directory
-            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-                qWarning() << "Path traversal blocked during install:" << relPath;
-                errors++;
-                continue;
-            }
-
-            // Ensure destination directory exists
-            QFileInfo destInfo(destPath);
-            if (!QDir().mkpath(destInfo.absolutePath())) {
-                qWarning() << "Failed to create directory:" << destInfo.absolutePath();
-                errors++;
-                continue;
-            }
-
-            // Classify: added (new) vs replaced (overwritten)
-            bool existed = QFile::exists(destPath);
-
-            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
-            if (copyOk) {
-                copied++;
-                installedFiles.append(relPath);
-                if (existed)
-                    replacedFiles.append(relPath);
-                else
-                    addedFiles.append(relPath);
-                if (m_journal) m_journal->recordFileModified(relPath);
-            } else if (copyErr == CopyError::DiskFull) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                return;
-            } else if (copyErr == CopyError::PermissionDenied) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                return;
-            } else if (copyErr == CopyError::FileLocked) {
-                QThread::msleep(150);
-                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                if (ok2) {
-                    copied++;
-                    installedFiles.append(relPath);
-                    if (existed) replacedFiles.append(relPath);
-                    else addedFiles.append(relPath);
-                    if (m_journal) m_journal->recordFileModified(relPath);
-                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, err2 == CopyError::DiskFull
-                        ? tr("Disk alanı doldu, kurulum durduruluyor")
-                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else {
-                    qWarning() << "Failed to copy (locked):" << srcPath << "->" << destPath;
-                    errors++;
-                }
-            } else {
-                qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
-                errors++;
-            }
-
-            // Throttle progress signals: every 10 files or at completion
-            int done = copied + errors;
-            if (done - lastReported >= 10 || done == total) {
-                lastReported = done;
-                double progress = static_cast<double>(done) / total;
-                emit installProgress(progress,
-                    tr("Kopyalanıyor %1/%2: %3").arg(copied).arg(total).arg(QFileInfo(relPath).fileName()));
-            }
-        }
-
-        if (errors == 0) {
-            // Mark as installed with file tracking
-            QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg,
-                                              installedFiles, addedFiles, replacedFiles]() {
-                packages::InstalledPackageState state;
-                state.version = pkg.version.toStdString();
-                state.gamePath = gamePath.toStdString();
-                for (const QString& f : installedFiles)
-                    state.installedFiles.push_back(f.toStdString());
-                for (const QString& f : addedFiles)
-                    state.addedFiles.push_back(f.toStdString());
-                for (const QString& f : replacedFiles)
-                    state.replacedFiles.push_back(f.toStdString());
-                state.installedAt = QDateTime::currentSecsSinceEpoch();
-                m_catalog.markInstalled(steamAppId.toStdString(), state);
-                saveCatalogInstalledState(m_catalog, installedStatePath());
-                if (m_journal) m_journal->commitOperation();
-            }, Qt::QueuedConnection);
-
+        if (result.errors == 0) {
+            saveInstallState(steamAppId, gamePath, pkg,
+                             result.installedFiles, result.addedFiles, result.replacedFiles);
             emit installCompleted(true,
-                tr("%1 dosya başarıyla kuruldu").arg(copied));
+                tr("%1 dosya başarıyla kuruldu").arg(result.copied));
         } else {
             if (m_journal) m_journal->commitOperation();
             emit installCompleted(false,
-                tr("%1/%2 dosya kopyalanamadı").arg(errors).arg(total));
+                tr("%1/%2 dosya kopyalanamadı").arg(result.errors).arg(filesToCopy.size()));
         }
     });
 }
@@ -822,29 +863,9 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
 
     // --- Default overlay update ---
 
-    QString sourcePath;
-    if (!pkg.dirName.isEmpty()) {
-        sourcePath = !variant.isEmpty()
-            ? m_dataPath + "/" + pkg.dirName + "/" + variant
-            : m_dataPath + "/" + pkg.dirName;
-    }
+    const QString sourcePath = resolveSourcePath(pkg, variant);
 
-    // Fall back to legacy pak/ format
-    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
-        QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
-        QDir pkgDir(pkgDirPath);
-        if (pkgDir.exists()) {
-            const auto subDirs = pkgDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-            for (const QString& sub : subDirs) {
-                if (sub.startsWith("extracted_")) {
-                    sourcePath = pkgDirPath + "/" + sub;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+    if (sourcePath.isEmpty()) {
         emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
         return;
     }
@@ -900,123 +921,25 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         if (staleDeleted > 0)
             qDebug() << "updatePackage: removed" << staleDeleted << "stale added files";
 
-        // Copy all new files (same loop as installPackage)
-        int total = filesToCopy.size();
-        int copied = 0;
-        int errors = 0;
-        int lastReported = 0;
-        QStringList installedFiles;
-        QStringList addedFiles;
-        QStringList replacedFiles;
+        // Update: a file is "replaced" if it was already replaced in the original install
+        auto classifier = [&oldReplacedSet](const QString& relPath, bool /*destExists*/) -> bool {
+            return oldReplacedSet.count(relPath.toStdString()) > 0;
+        };
 
-        QString canonGamePath = QDir(gamePath).canonicalPath();
-        const QString cleanGamePath = QDir::cleanPath(gamePath);
-        if (canonGamePath.isEmpty())
-            canonGamePath = cleanGamePath;
+        OverlayResult result = copyOverlayFiles(filesToCopy, gamePath, tr("Güncelleniyor"), classifier);
 
-        for (const auto& [srcPath, relPath] : filesToCopy) {
-            if (isCancelled()) {
-                if (m_journal) m_journal->abortOperation();
-                emit installCompleted(false, tr("Kurulum iptal edildi"));
-                return;
-            }
+        // errors == -1 means copyOverlayFiles already emitted installCompleted
+        if (result.errors < 0) return;
 
-            QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
-
-            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-                qWarning() << "Path traversal blocked during update:" << relPath;
-                errors++;
-                continue;
-            }
-
-            QFileInfo destInfo(destPath);
-            if (!QDir().mkpath(destInfo.absolutePath())) {
-                qWarning() << "Failed to create directory:" << destInfo.absolutePath();
-                errors++;
-                continue;
-            }
-
-            // Classify: a file is "replaced" if it was replaced in the original install
-            // (meaning there's a backup of the original). New files are "added".
-            bool wasReplaced = oldReplacedSet.count(relPath.toStdString()) > 0;
-            bool existed = QFile::exists(destPath);
-
-            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
-            if (copyOk) {
-                copied++;
-                installedFiles.append(relPath);
-                if (wasReplaced)
-                    replacedFiles.append(relPath);
-                else if (!existed && oldAddedSet.count(relPath.toStdString()) == 0)
-                    addedFiles.append(relPath);
-                else
-                    addedFiles.append(relPath);
-                if (m_journal) m_journal->recordFileModified(relPath);
-            } else if (copyErr == CopyError::DiskFull) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                return;
-            } else if (copyErr == CopyError::PermissionDenied) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                return;
-            } else if (copyErr == CopyError::FileLocked) {
-                QThread::msleep(150);
-                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                if (ok2) {
-                    copied++;
-                    installedFiles.append(relPath);
-                    if (wasReplaced) replacedFiles.append(relPath);
-                    else addedFiles.append(relPath);
-                    if (m_journal) m_journal->recordFileModified(relPath);
-                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, err2 == CopyError::DiskFull
-                        ? tr("Disk alanı doldu, kurulum durduruluyor")
-                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else {
-                    qWarning() << "Failed to copy (locked):" << srcPath << "->" << destPath;
-                    errors++;
-                }
-            } else {
-                qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
-                errors++;
-            }
-
-            int done = copied + errors;
-            if (done - lastReported >= 10 || done == total) {
-                lastReported = done;
-                double progress = static_cast<double>(done) / total;
-                emit installProgress(progress,
-                    tr("Güncelleniyor %1/%2: %3").arg(copied).arg(total).arg(QFileInfo(relPath).fileName()));
-            }
-        }
-
-        if (errors == 0) {
-            QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg,
-                                              installedFiles, addedFiles, replacedFiles]() {
-                packages::InstalledPackageState state;
-                state.version = pkg.version.toStdString();
-                state.gamePath = gamePath.toStdString();
-                for (const QString& f : installedFiles)
-                    state.installedFiles.push_back(f.toStdString());
-                for (const QString& f : addedFiles)
-                    state.addedFiles.push_back(f.toStdString());
-                for (const QString& f : replacedFiles)
-                    state.replacedFiles.push_back(f.toStdString());
-                state.installedAt = QDateTime::currentSecsSinceEpoch();
-                m_catalog.markInstalled(steamAppId.toStdString(), state);
-                saveCatalogInstalledState(m_catalog, installedStatePath());
-                if (m_journal) m_journal->commitOperation();
-            }, Qt::QueuedConnection);
-
+        if (result.errors == 0) {
+            saveInstallState(steamAppId, gamePath, pkg,
+                             result.installedFiles, result.addedFiles, result.replacedFiles);
             emit installCompleted(true,
-                tr("%1 dosya başarıyla güncellendi").arg(copied));
+                tr("%1 dosya başarıyla güncellendi").arg(result.copied));
         } else {
             if (m_journal) m_journal->commitOperation();
             emit installCompleted(false,
-                tr("%1/%2 dosya güncellenemedi").arg(errors).arg(total));
+                tr("%1/%2 dosya güncellenemedi").arg(result.errors).arg(filesToCopy.size()));
         }
     });
 }
