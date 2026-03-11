@@ -16,8 +16,11 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <optional>
 #include <set>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace makineai {
 namespace packages {
@@ -99,6 +102,7 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
 {
     std::vector<InstallStep> steps;
     if (!stepsArr.is_array()) return steps;
+    steps.reserve(stepsArr.size());
     for (const auto& s : stepsArr) {
         if (!s.is_object()) continue;
         InstallStep step;
@@ -446,6 +450,7 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
     // This ensures backup covers the actual game files that will be overwritten.
     if (!pkg.installSteps.empty()) {
         std::vector<std::string> targetFiles;
+        targetFiles.reserve(pkg.installSteps.size());
         fs::path sourcePath = dataPath_ / pkg.dirName;
 
         for (const InstallStep& step : pkg.installSteps) {
@@ -718,6 +723,7 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
     const std::string folderLower = toLower(trim(folderName));
 
     std::vector<FingerprintMatch> results;
+    results.reserve(packages_.size());
 
     for (const auto& [appId, entry] : packages_) {
         if (!entry.fingerprint.has_value()) continue;

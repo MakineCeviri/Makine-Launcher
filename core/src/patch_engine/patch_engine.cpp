@@ -13,10 +13,14 @@
 #include "makineai/validation.hpp"
 
 #include <nlohmann/json.hpp>
-#include <fstream>
+
 #include <chrono>
 #include <cstring>
+#include <fstream>
+#include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace makineai {
 
@@ -206,6 +210,7 @@ VoidResult FileBackupStorage::restoreBackup(
     uint32_t restored = 0;
     uint32_t failed = 0;
     std::vector<std::string> failedFiles;
+    failedFiles.reserve(metadata.files.size());
 
     for (const auto& relPath : metadata.files) {
         fs::path srcPath = metadata.backupPath / relPath;
@@ -533,6 +538,7 @@ Result<PatchResult> PatchEngine::apply(
     // Verify all target files are writable (game not running)
     MAKINEAI_LOG_DEBUG(log::HANDLER, "Checking for locked files");
     std::vector<std::string> lockedFiles;
+    lockedFiles.reserve(operations.size());
     for (const auto& op : operations) {
         if (op.type == PatchOperation::Type::Replace ||
             op.type == PatchOperation::Type::Modify ||
