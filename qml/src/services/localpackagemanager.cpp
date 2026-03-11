@@ -395,6 +395,43 @@ LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
     return {false, CopyError::Other};
 }
 
+LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
+    const QString& exePath, const QStringList& args, const QString& workDir,
+    std::function<void(int elapsedMs)> progressCallback)
+{
+    QProcess proc;
+    proc.setWorkingDirectory(workDir);
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start(exePath, args);
+
+    ProcessResult result;
+    if (!proc.waitForStarted(10000)) {
+        qWarning() << "Process failed to start:" << exePath;
+        return result;
+    }
+    result.started = true;
+
+    constexpr int kPollMs = 3000;
+    constexpr int kMaxMs  = 1800000; // 30 minutes
+    int elapsed = 0;
+
+    while (!proc.waitForFinished(kPollMs)) {
+        elapsed += kPollMs;
+        if (elapsed >= kMaxMs) {
+            qWarning() << "Process timeout:" << exePath;
+            proc.kill();
+            proc.waitForFinished(2000);
+            result.timedOut = true;
+            return result;
+        }
+        if (progressCallback) progressCallback(elapsed);
+    }
+
+    result.exitCode = proc.exitCode();
+    result.output = proc.readAll();
+    return result;
+}
+
 // -- Shared helpers -----------------------------------------------------------
 
 QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QString& variant) const
@@ -1263,45 +1300,25 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             qInfo() << "Recipe run: executing" << exePath
                     << "args:" << resolvedArgs << "workDir:" << workDir;
 
-            QProcess proc;
-            proc.setWorkingDirectory(workDir);
-            proc.setProcessChannelMode(QProcess::MergedChannels);
-            proc.start(exePath, resolvedArgs);
+            QString exeFileName = QFileInfo(exePath).fileName();
+            auto result = runProcess(exePath, resolvedArgs, workDir,
+                [&](int elapsedMs) {
+                    int mins = elapsedMs / 60000;
+                    int secs = (elapsedMs % 60000) / 1000;
+                    emit installProgress(progress,
+                        tr("Adım %1/%2: %3 (%4:%5)")
+                            .arg(current).arg(total).arg(exeFileName)
+                            .arg(mins, 2, 10, QChar('0'))
+                            .arg(secs, 2, 10, QChar('0')));
+                });
 
-            if (!proc.waitForStarted(10000)) {
-                qWarning() << "Recipe run: failed to start:" << exePath;
+            if (!result.started || result.timedOut) {
                 errors++;
                 continue;
             }
-
-            // Poll with periodic feedback (up to 30 minutes total)
-            constexpr int kPollIntervalMs = 3000;
-            constexpr int kMaxWaitMs = 1800000;
-            int elapsed = 0;
-            while (!proc.waitForFinished(kPollIntervalMs)) {
-                elapsed += kPollIntervalMs;
-                if (elapsed >= kMaxWaitMs) {
-                    qWarning() << "Recipe run: timeout:" << exePath;
-                    proc.kill();
-                    proc.waitForFinished(2000);
-                    errors++;
-                    break;
-                }
-                int mins = elapsed / 60000;
-                int secs = (elapsed % 60000) / 1000;
-                emit installProgress(progress,
-                    tr("Adım %1/%2: %3 (%4:%5)")
-                        .arg(current).arg(total)
-                        .arg(QFileInfo(exePath).fileName())
-                        .arg(mins, 2, 10, QChar('0'))
-                        .arg(secs, 2, 10, QChar('0')));
-            }
-
-            if (elapsed >= kMaxWaitMs) continue; // already counted as error
-
-            if (proc.exitCode() != 0) {
-                qWarning() << "Recipe run: non-zero exit:" << proc.exitCode()
-                           << "output:" << proc.readAll().left(500);
+            if (result.exitCode != 0) {
+                qWarning() << "Recipe run: non-zero exit:" << result.exitCode
+                           << "output:" << result.output.left(500);
                 errors++;
             } else {
                 qDebug() << "Recipe run OK:" << exePath;
@@ -1687,20 +1704,12 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 QString workDir = (step.workDir == "package") ? optionDir : gamePath;
                 qInfo() << "Run: executing" << exePath
                         << "args:" << step.args << "workDir:" << workDir;
-                QProcess proc;
-                proc.setWorkingDirectory(workDir);
-                proc.setProcessChannelMode(QProcess::MergedChannels);
-                proc.start(exePath, step.args);
-                if (!proc.waitForStarted(10000)) { errors++; continue; }
-                constexpr int kPollMs = 3000;
-                constexpr int kMaxMs = 1800000;
-                int elapsed = 0;
-                while (!proc.waitForFinished(kPollMs)) {
-                    elapsed += kPollMs;
-                    if (elapsed >= kMaxMs) { proc.kill(); proc.waitForFinished(2000); errors++; break; }
+
+                auto result = runProcess(exePath, step.args, workDir);
+                if (!result.started || result.timedOut || result.exitCode != 0) {
+                    errors++;
+                    if (!result.started || result.timedOut) continue;
                 }
-                if (elapsed >= kMaxMs) continue;
-                if (proc.exitCode() != 0) errors++;
 
             } else if (step.action == "copyToDesktop") {
                 QString srcPath = QDir::cleanPath(optionDir + "/" + step.src);

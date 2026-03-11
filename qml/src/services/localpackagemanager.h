@@ -170,6 +170,18 @@ private:
     struct CopyResult { bool ok; CopyError error; };
     CopyResult tryCopyFile(const QString& src, const QString& dest);
 
+    // Run an external process with polling timeout.
+    // progressCallback receives elapsed ms for UI feedback (optional).
+    struct ProcessResult {
+        bool started = false;
+        bool timedOut = false;
+        int exitCode = -1;
+        QByteArray output;
+    };
+    ProcessResult runProcess(const QString& exePath, const QStringList& args,
+                             const QString& workDir,
+                             std::function<void(int elapsedMs)> progressCallback = nullptr);
+
     // --- Shared helpers (used by both installPackage and updatePackage) ---
 
     // Resolve the source path for a package+variant, falling back to legacy pak/ format.
