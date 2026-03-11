@@ -18,8 +18,10 @@
 #include "makineai/error.hpp"
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace makineai {
 namespace scanners {
@@ -258,20 +260,6 @@ private:
     void registerBuiltinScanners();
     GameEngine detectEngineFromFiles(const fs::path& gameDir) const;
 
-    // Confidence-based detection helpers
-    EngineDetectionResult detectUnity(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectUnreal(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectRenpy(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectRpgMakerMvMz(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectRpgMakerVxAce(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectGodot(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectGameMaker(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectBethesda(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectSource(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectCryEngine(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectFrostbite(const fs::path& path, const GameSignatures& sig) const;
-    EngineDetectionResult detectIdTech(const fs::path& path, const GameSignatures& sig) const;
-
     // Signature scanning helpers
     void checkSignatureFile(GameSignatures& sig, const std::string& fileName,
                            const std::string& relativePath) const;
@@ -279,9 +267,7 @@ private:
                              const std::string& relativePath) const;
     bool isRelevantExtension(const std::string& ext) const;
 
-    // Version detection
-    std::string readUnityVersion(const fs::path& dataFolder) const;
-    std::string readRenpyVersion(const fs::path& gameDir) const;
+
 };
 
 // ============================================================================

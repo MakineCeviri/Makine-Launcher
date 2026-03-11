@@ -88,6 +88,13 @@ set(MAKINEAI_SOURCES
     src/game_detector/epic_scanner.cpp
     src/game_detector/gog_scanner.cpp
 
+    # Engine Detectors (extracted free functions)
+    src/game_detector/engines/unity_detector.cpp
+    src/game_detector/engines/unreal_detector.cpp
+    src/game_detector/engines/renpy_detector.cpp
+    src/game_detector/engines/rpgmaker_detector.cpp
+    src/game_detector/engines/misc_detectors.cpp
+
     # Package Catalog (pure C++ catalog — network-based index + enrichment)
     src/package_catalog/package_catalog.cpp
 
