@@ -81,11 +81,7 @@ EngineDetectionResult detectRpgMakerMvMz(const fs::path& path, const GameSignatu
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::RPGMaker_MV;  // Both MV and MZ use same enum for now
@@ -134,11 +130,7 @@ EngineDetectionResult detectRpgMakerVxAce(const fs::path& /*path*/, const GameSi
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::RPGMaker_VX;

@@ -40,11 +40,7 @@ EngineDetectionResult detectBethesda(const fs::path& /*path*/, const GameSignatu
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::Bethesda;
@@ -91,11 +87,7 @@ EngineDetectionResult detectGodot(const fs::path& path, const GameSignatures& si
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::Godot;
@@ -150,11 +142,7 @@ EngineDetectionResult detectGameMaker(const fs::path& path, const GameSignatures
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::GameMaker;
@@ -192,11 +180,7 @@ EngineDetectionResult detectSource(const fs::path& /*path*/, const GameSignature
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::Source;
@@ -224,11 +208,7 @@ EngineDetectionResult detectCryEngine(const fs::path& /*path*/, const GameSignat
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::CryEngine;
@@ -299,11 +279,7 @@ EngineDetectionResult detectFrostbite(const fs::path& path, const GameSignatures
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::Frostbite;
@@ -376,11 +352,7 @@ EngineDetectionResult detectIdTech(const fs::path& path, const GameSignatures& s
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::IdTech;

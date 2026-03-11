@@ -12,7 +12,11 @@
 #include "makineai/validation.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <algorithm>
 #include <fstream>
+#include <string>
+#include <vector>
 
 namespace makineai {
 
@@ -797,25 +801,25 @@ RuntimeVersion RuntimeManager::bundledVersion() const {
                 if (manifest.contains("bepinex")) {
                     auto& bep = manifest["bepinex"];
                     version.bepinex = {
-                        bep.value("major", 5),
-                        bep.value("minor", 4),
-                        bep.value("patch", 23)
+                        bep.value("major", 5u),
+                        bep.value("minor", 4u),
+                        bep.value("patch", 23u)
                     };
                 }
                 if (manifest.contains("xunity")) {
                     auto& xu = manifest["xunity"];
                     version.xunity = {
-                        xu.value("major", 5),
-                        xu.value("minor", 3),
-                        xu.value("patch", 0)
+                        xu.value("major", 5u),
+                        xu.value("minor", 3u),
+                        xu.value("patch", 0u)
                     };
                 }
                 if (manifest.contains("makineai_plugin")) {
                     auto& mp = manifest["makineai_plugin"];
                     version.makineaiPlugin = {
-                        mp.value("major", 1),
-                        mp.value("minor", 0),
-                        mp.value("patch", 0)
+                        mp.value("major", 1u),
+                        mp.value("minor", 0u),
+                        mp.value("patch", 0u)
                     };
                 }
                 return version;

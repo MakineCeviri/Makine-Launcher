@@ -10,6 +10,14 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+#include <algorithm>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <vector>
+
 namespace makineai {
 
 // =============================================================================
@@ -41,7 +49,11 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     InitResult result;
 
     // Store config in ConfigManager
-    ConfigManager::instance().updateConfig(config);
+    auto configValidation = ConfigManager::instance().updateConfig(config);
+    if (!configValidation.valid) {
+        return std::unexpected(Error(ErrorCode::InvalidConfiguration,
+            "Configuration validation failed: " + configValidation.errors.front()));
+    }
 
     if (auto cryptoResult = initializeCrypto(); !cryptoResult) {
         return std::unexpected(cryptoResult.error());

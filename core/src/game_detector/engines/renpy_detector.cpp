@@ -99,11 +99,7 @@ EngineDetectionResult detectRenpy(const fs::path& path, const GameSignatures& si
         return EngineDetectionResult{};
     }
 
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = GameEngine::RenPy;

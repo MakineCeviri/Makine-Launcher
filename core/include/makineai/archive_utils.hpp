@@ -568,7 +568,7 @@ private:
 /**
  * @brief Create appropriate archive extractor
  */
-inline std::unique_ptr<IArchive> openArchive(const fs::path& archivePath) {
+[[nodiscard]] inline std::unique_ptr<IArchive> openArchive(const fs::path& archivePath) {
     Format fmt = detectFormat(archivePath);
 
 #ifdef MAKINEAI_HAS_BIT7Z
@@ -590,7 +590,7 @@ inline std::unique_ptr<IArchive> openArchive(const fs::path& archivePath) {
 /**
  * @brief Check available archive backends
  */
-inline std::vector<std::string> availableBackends() {
+[[nodiscard]] inline std::vector<std::string> availableBackends() {
     std::vector<std::string> backends;
 
 #ifdef MAKINEAI_HAS_BIT7Z
@@ -611,7 +611,7 @@ inline std::vector<std::string> availableBackends() {
 /**
  * @brief Check if format is supported
  */
-inline bool isFormatSupported(Format fmt) {
+[[nodiscard]] inline bool isFormatSupported(Format fmt) {
 #ifdef MAKINEAI_HAS_BIT7Z
     // bit7z supports almost everything
     return true;

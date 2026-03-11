@@ -271,7 +271,7 @@ struct CoreConfig {
      * @param path Path to configuration file
      * @return Loaded configuration or default if file doesn't exist
      */
-    static CoreConfig loadFromFile(const fs::path& path);
+    [[nodiscard]] static CoreConfig loadFromFile(const fs::path& path);
 
     /**
      * @brief Save configuration to a JSON file
@@ -282,7 +282,7 @@ struct CoreConfig {
     /**
      * @brief Get default configuration
      */
-    static CoreConfig getDefaults();
+    [[nodiscard]] static CoreConfig getDefaults();
 
     /**
      * @brief Apply environment variable overrides
@@ -328,7 +328,7 @@ struct ConfigValidationResult {
  * @param config Configuration to validate
  * @return Validation result with errors and warnings
  */
-ConfigValidationResult validateConfig(const CoreConfig& config);
+[[nodiscard]] ConfigValidationResult validateConfig(const CoreConfig& config);
 
 // =============================================================================
 // CONFIGURATION MANAGER
@@ -356,7 +356,7 @@ public:
      * @param configPath Path to configuration file
      * @return true if initialization successful
      */
-    bool initialize(const fs::path& configPath);
+    [[nodiscard]] bool initialize(const fs::path& configPath);
 
     /**
      * @brief Get current configuration (thread-safe)
@@ -368,26 +368,26 @@ public:
      * @param newConfig New configuration
      * @return Validation result
      */
-    ConfigValidationResult updateConfig(const CoreConfig& newConfig);
+    [[nodiscard]] ConfigValidationResult updateConfig(const CoreConfig& newConfig);
 
     /**
      * @brief Reload configuration from file
      * @return true if reload successful
      */
-    bool reloadFromFile();
+    [[nodiscard]] bool reloadFromFile();
 
     /**
      * @brief Save current configuration to file
      * @return true if save successful
      */
-    bool saveToFile();
+    [[nodiscard]] bool saveToFile();
 
     /**
      * @brief Register observer for configuration changes
      * @param callback Callback to invoke on changes
      * @return Observer ID for unregistration
      */
-    size_t addObserver(ConfigChangedCallback callback);
+    [[nodiscard]] size_t addObserver(ConfigChangedCallback callback);
 
     /**
      * @brief Unregister observer

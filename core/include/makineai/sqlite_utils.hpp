@@ -300,7 +300,7 @@ inline Result<void> exec(sqlite3* db, const std::string& sql) {
  * @brief Get last insert rowid
  */
 #ifndef MAKINEAI_HAS_SQLITECPP
-inline int64_t lastInsertRowId(sqlite3* db) {
+[[nodiscard]] inline int64_t lastInsertRowId(sqlite3* db) {
     return sqlite3_last_insert_rowid(db);
 }
 #endif
@@ -309,7 +309,7 @@ inline int64_t lastInsertRowId(sqlite3* db) {
  * @brief Get number of changes from last statement
  */
 #ifndef MAKINEAI_HAS_SQLITECPP
-inline int changes(sqlite3* db) {
+[[nodiscard]] inline int changes(sqlite3* db) {
     return sqlite3_changes(db);
 }
 #endif
@@ -318,7 +318,7 @@ inline int changes(sqlite3* db) {
  * @brief Execute a query and return all rows
  */
 #ifndef MAKINEAI_HAS_SQLITECPP
-inline Result<ResultSet> query(sqlite3* db, const std::string& sql) {
+[[nodiscard]] inline Result<ResultSet> query(sqlite3* db, const std::string& sql) {
     try {
         Statement stmt(db, sql);
         ResultSet result;

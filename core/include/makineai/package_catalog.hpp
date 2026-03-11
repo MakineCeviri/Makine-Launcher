@@ -194,7 +194,7 @@ public:
      * @param packageCacheRoot Path where downloaded packages are extracted
      * @return true if at least one package was loaded
      */
-    bool loadFromIndex(const fs::path& indexPath, const fs::path& packageCacheRoot);
+    [[nodiscard]] bool loadFromIndex(const fs::path& indexPath, const fs::path& packageCacheRoot);
 
     /**
      * @brief Merge per-game detail JSON into an existing catalog entry
@@ -206,7 +206,7 @@ public:
      * @param detailJson Raw JSON string of the per-game detail file
      * @return true if entry was found and enriched
      */
-    bool enrichPackage(const std::string& steamAppId, const std::string& detailJson);
+    [[nodiscard]] bool enrichPackage(const std::string& steamAppId, const std::string& detailJson);
 
     /**
      * @brief Check if per-game detail has been loaded for a given app

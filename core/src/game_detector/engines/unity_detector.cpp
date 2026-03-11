@@ -158,11 +158,7 @@ EngineDetectionResult detectUnity(const fs::path& path, const GameSignatures& si
     }
 
     // Build details string
-    std::string detailStr;
-    for (const auto& detail : details) {
-        if (!detailStr.empty()) detailStr += ", ";
-        detailStr += detail;
-    }
+    std::string detailStr = joinDetails(details);
 
     EngineDetectionResult result;
     result.engine = isIl2cpp ? GameEngine::Unity_IL2CPP : GameEngine::Unity_Mono;

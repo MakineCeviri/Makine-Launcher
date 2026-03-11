@@ -263,7 +263,7 @@ private:
 
     // Static helpers
     static int64_t now() noexcept;
-    static std::string generateId(const std::string& prefix);
+    [[nodiscard]] static std::string generateId(const std::string& prefix);
 
     // Private data - sqlite3 is forward-declared, not exposed
     sqlite3* db_ = nullptr;
