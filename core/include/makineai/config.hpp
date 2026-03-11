@@ -92,35 +92,12 @@ struct PatchingConfig {
 
 /**
  * @brief Configuration for translation operations
+ *
+ * Deferred fields removed: minQAScore, allowFuzzyMatches, fuzzyMatchThreshold,
+ * preferSafeMethods, allowHybridMethods, autoFallback, maxEntriesInMemory,
+ * sourceLanguage, targetLanguage. See git history if restoration is needed.
  */
 struct TranslationConfig {
-    /// Minimum QA score for translations to be applied (0-100)
-    int minQAScore = 70;
-
-    /// Allow fuzzy matches from translation memory
-    bool allowFuzzyMatches = true;
-
-    /// Minimum similarity for fuzzy matches (0.0-1.0)
-    double fuzzyMatchThreshold = 0.75;
-
-    /// Prefer safe (non-destructive) translation methods
-    bool preferSafeMethods = true;
-
-    /// Allow hybrid translation methods
-    bool allowHybridMethods = true;
-
-    /// Enable automatic fallback on failure
-    bool autoFallback = true;
-
-    /// Maximum entries to load in memory at once
-    uint32_t maxEntriesInMemory = kMaxDatabaseEntries;
-
-    /// Source language code
-    std::string sourceLanguage = "en";
-
-    /// Target language code
-    std::string targetLanguage = "tr";
-
     bool operator==(const TranslationConfig&) const = default;
 };
 

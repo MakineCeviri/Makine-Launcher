@@ -14,6 +14,8 @@
 #include "makineai/database.hpp"
 #include "makineai/types.hpp"
 
+#include <string>
+
 #include <unordered_map>
 #include <vector>
 #include <optional>
@@ -37,14 +39,6 @@ public:
     MOCK_METHOD(std::optional<GameInfo>, getGame, (const std::string& gameId), ());
     MOCK_METHOD(std::vector<GameInfo>, getAllGames, (), ());
     MOCK_METHOD(VoidResult, deleteGame, (const std::string& gameId), ());
-
-    // Translation memory operations
-    MOCK_METHOD(VoidResult, saveTranslationMemoryEntry,
-                (const TranslationMemoryEntry& entry), ());
-    MOCK_METHOD(std::optional<TranslationMemoryEntry>, getTranslationMemoryEntry,
-                (const std::string& key), ());
-    MOCK_METHOD(std::vector<TranslationMemoryEntry>, searchTranslationMemory,
-                (const std::string& query, int limit), ());
 
     // Backup operations
     MOCK_METHOD(VoidResult, saveBackupRecord, (const BackupRecord& record), ());
@@ -96,39 +90,6 @@ public:
     VoidResult deleteGame(const std::string& gameId) {
         games_.erase(gameId);
         return {};
-    }
-
-    // Translation memory operations
-    VoidResult saveTranslationMemoryEntry(const TranslationMemoryEntry& entry) {
-        tmEntries_[entry.sourceHash] = entry;
-        return {};
-    }
-
-    std::optional<TranslationMemoryEntry> getTranslationMemoryEntry(
-        const std::string& key
-    ) {
-        auto it = tmEntries_.find(key);
-        if (it != tmEntries_.end()) {
-            return it->second;
-        }
-        return std::nullopt;
-    }
-
-    std::vector<TranslationMemoryEntry> searchTranslationMemory(
-        const std::string& query,
-        int limit
-    ) {
-        std::vector<TranslationMemoryEntry> results;
-        for (const auto& [key, entry] : tmEntries_) {
-            if (entry.source.find(query) != std::string::npos ||
-                entry.target.find(query) != std::string::npos) {
-                results.push_back(entry);
-                if (static_cast<int>(results.size()) >= limit) {
-                    break;
-                }
-            }
-        }
-        return results;
     }
 
     // Backup operations
@@ -184,41 +145,18 @@ public:
     // Test helpers
     void clear() {
         games_.clear();
-        tmEntries_.clear();
         backupRecords_.clear();
         packages_.clear();
     }
 
     size_t gameCount() const { return games_.size(); }
-    size_t tmEntryCount() const { return tmEntries_.size(); }
     size_t packageCount() const { return packages_.size(); }
 
 private:
     std::unordered_map<std::string, GameInfo> games_;
-    std::unordered_map<std::string, TranslationMemoryEntry> tmEntries_;
     std::unordered_map<std::string, std::vector<BackupRecord>> backupRecords_;
     std::unordered_map<std::string, TranslationPackage> packages_;
 };
-
-/**
- * @brief Create a fake TranslationMemoryEntry for testing
- */
-inline TranslationMemoryEntry createFakeTMEntry(
-    const std::string& source,
-    const std::string& target,
-    const std::string& sourceLanguage = "en",
-    const std::string& targetLanguage = "tr",
-    float quality = 1.0f
-) {
-    TranslationMemoryEntry entry;
-    entry.source = source;
-    entry.target = target;
-    entry.sourceLanguage = sourceLanguage;
-    entry.targetLanguage = targetLanguage;
-    entry.qualityScore = quality;
-    entry.sourceHash = std::to_string(std::hash<std::string>{}(source));
-    return entry;
-}
 
 /**
  * @brief Create a fake BackupRecord for testing

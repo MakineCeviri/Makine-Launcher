@@ -8,9 +8,15 @@
 #include "makineai/logging.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
+#include <mutex>
+#include <optional>
+#include <string>
 #include <unordered_set>
+#include <vector>
 
 namespace makineai {
 
@@ -70,31 +76,13 @@ void from_json(const json& j, PatchingConfig& c) {
     if (j.contains("compressBackups")) j.at("compressBackups").get_to(c.compressBackups);
 }
 
-// TranslationConfig
-void to_json(json& j, const TranslationConfig& c) {
-    j = json{
-        {"minQAScore", c.minQAScore},
-        {"allowFuzzyMatches", c.allowFuzzyMatches},
-        {"fuzzyMatchThreshold", c.fuzzyMatchThreshold},
-        {"preferSafeMethods", c.preferSafeMethods},
-        {"allowHybridMethods", c.allowHybridMethods},
-        {"autoFallback", c.autoFallback},
-        {"maxEntriesInMemory", c.maxEntriesInMemory},
-        {"sourceLanguage", c.sourceLanguage},
-        {"targetLanguage", c.targetLanguage}
-    };
+// TranslationConfig (all deferred fields removed)
+void to_json(json& j, const TranslationConfig&) {
+    j = json::object();
 }
 
-void from_json(const json& j, TranslationConfig& c) {
-    if (j.contains("minQAScore")) j.at("minQAScore").get_to(c.minQAScore);
-    if (j.contains("allowFuzzyMatches")) j.at("allowFuzzyMatches").get_to(c.allowFuzzyMatches);
-    if (j.contains("fuzzyMatchThreshold")) j.at("fuzzyMatchThreshold").get_to(c.fuzzyMatchThreshold);
-    if (j.contains("preferSafeMethods")) j.at("preferSafeMethods").get_to(c.preferSafeMethods);
-    if (j.contains("allowHybridMethods")) j.at("allowHybridMethods").get_to(c.allowHybridMethods);
-    if (j.contains("autoFallback")) j.at("autoFallback").get_to(c.autoFallback);
-    if (j.contains("maxEntriesInMemory")) j.at("maxEntriesInMemory").get_to(c.maxEntriesInMemory);
-    if (j.contains("sourceLanguage")) j.at("sourceLanguage").get_to(c.sourceLanguage);
-    if (j.contains("targetLanguage")) j.at("targetLanguage").get_to(c.targetLanguage);
+void from_json(const json&, TranslationConfig&) {
+    // No fields to deserialize
 }
 
 // SecurityConfig
@@ -374,8 +362,6 @@ namespace {
     constexpr uint32_t kMinScanTimeoutMs     = 1000;
     constexpr uint32_t kMinDiskSpaceMB       = 100;
     constexpr uint32_t kMaxPatchRetries      = 10;
-    constexpr int      kMinQAScore           = 0;
-    constexpr int      kMaxQAScore           = 100;
     constexpr uint32_t kMinConnectionTimeout = 100;
 } // namespace
 
@@ -400,24 +386,6 @@ ConfigValidationResult validateConfig(const CoreConfig& config) {
     }
     if (config.patching.maxRetries > kMaxPatchRetries) {
         result.warnings.push_back("patching.maxRetries > 10 may cause long delays on failure");
-    }
-
-    // Translation validation
-    if (config.translation.minQAScore < kMinQAScore || config.translation.minQAScore > kMaxQAScore) {
-        result.errors.push_back("translation.minQAScore must be between 0 and 100");
-        result.valid = false;
-    }
-    if (config.translation.fuzzyMatchThreshold < 0.0 || config.translation.fuzzyMatchThreshold > 1.0) {
-        result.errors.push_back("translation.fuzzyMatchThreshold must be between 0.0 and 1.0");
-        result.valid = false;
-    }
-    if (config.translation.sourceLanguage.empty()) {
-        result.errors.push_back("translation.sourceLanguage cannot be empty");
-        result.valid = false;
-    }
-    if (config.translation.targetLanguage.empty()) {
-        result.errors.push_back("translation.targetLanguage cannot be empty");
-        result.valid = false;
     }
 
     // Network validation

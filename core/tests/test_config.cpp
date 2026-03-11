@@ -55,14 +55,8 @@ TEST_F(DefaultConfigTest, PatchingDefaults) {
 
 TEST_F(DefaultConfigTest, TranslationDefaults) {
     TranslationConfig c;
-    EXPECT_EQ(c.minQAScore, 70);
-    EXPECT_TRUE(c.allowFuzzyMatches);
-    EXPECT_DOUBLE_EQ(c.fuzzyMatchThreshold, 0.75);
-    EXPECT_TRUE(c.preferSafeMethods);
-    EXPECT_TRUE(c.allowHybridMethods);
-    EXPECT_TRUE(c.autoFallback);
-    EXPECT_EQ(c.sourceLanguage, "en");
-    EXPECT_EQ(c.targetLanguage, "tr");
+    // All deferred fields removed; struct is empty but still participates in CoreConfig
+    EXPECT_EQ(c, TranslationConfig{});
 }
 
 TEST_F(DefaultConfigTest, SecurityDefaults) {
@@ -121,10 +115,6 @@ protected:
     CoreConfig validConfig() {
         CoreConfig c;
         c.scanning.maxParallelScans = 4;
-        c.translation.minQAScore = 70;
-        c.translation.fuzzyMatchThreshold = 0.75;
-        c.translation.sourceLanguage = "en";
-        c.translation.targetLanguage = "tr";
         c.logging.level = "info";
         c.network.verifySsl = true;
         c.network.connectionTimeoutMs = 10000;
@@ -179,48 +169,6 @@ TEST_F(ConfigValidationTest, HighPatchRetriesWarns) {
     EXPECT_THAT(result.warnings, Not(IsEmpty()));
 }
 
-TEST_F(ConfigValidationTest, NegativeQAScoreIsError) {
-    auto c = validConfig();
-    c.translation.minQAScore = -1;
-    auto result = validateConfig(c);
-    EXPECT_FALSE(result.valid);
-}
-
-TEST_F(ConfigValidationTest, QAScoreAbove100IsError) {
-    auto c = validConfig();
-    c.translation.minQAScore = 101;
-    auto result = validateConfig(c);
-    EXPECT_FALSE(result.valid);
-}
-
-TEST_F(ConfigValidationTest, FuzzyThresholdBelowZeroIsError) {
-    auto c = validConfig();
-    c.translation.fuzzyMatchThreshold = -0.1;
-    auto result = validateConfig(c);
-    EXPECT_FALSE(result.valid);
-}
-
-TEST_F(ConfigValidationTest, FuzzyThresholdAboveOneIsError) {
-    auto c = validConfig();
-    c.translation.fuzzyMatchThreshold = 1.5;
-    auto result = validateConfig(c);
-    EXPECT_FALSE(result.valid);
-}
-
-TEST_F(ConfigValidationTest, EmptySourceLanguageIsError) {
-    auto c = validConfig();
-    c.translation.sourceLanguage = "";
-    auto result = validateConfig(c);
-    EXPECT_FALSE(result.valid);
-}
-
-TEST_F(ConfigValidationTest, EmptyTargetLanguageIsError) {
-    auto c = validConfig();
-    c.translation.targetLanguage = "";
-    auto result = validateConfig(c);
-    EXPECT_FALSE(result.valid);
-}
-
 TEST_F(ConfigValidationTest, InvalidLogLevelIsError) {
     auto c = validConfig();
     c.logging.level = "verbose";
@@ -256,11 +204,10 @@ TEST_F(ConfigValidationTest, LowConnectionTimeoutWarns) {
 TEST_F(ConfigValidationTest, MultipleErrorsAccumulate) {
     auto c = validConfig();
     c.scanning.maxParallelScans = 0;         // error
-    c.translation.minQAScore = 200;          // error
-    c.translation.sourceLanguage = "";       // error
+    c.logging.level = "invalid";             // error
     auto result = validateConfig(c);
     EXPECT_FALSE(result.valid);
-    EXPECT_GE(result.errors.size(), 3u);
+    EXPECT_GE(result.errors.size(), 2u);
 }
 
 // =============================================================================
@@ -314,7 +261,6 @@ protected:
 TEST_F(ConfigFileTest, SaveAndLoad) {
     CoreConfig original;
     original.scanning.maxParallelScans = 8;
-    original.translation.targetLanguage = "fr";
     original.network.proxyUrl = "http://test:1234";
 
     original.saveToFile(configFile);
@@ -322,7 +268,6 @@ TEST_F(ConfigFileTest, SaveAndLoad) {
 
     auto loaded = CoreConfig::loadFromFile(configFile);
     EXPECT_EQ(loaded.scanning.maxParallelScans, 8u);
-    EXPECT_EQ(loaded.translation.targetLanguage, "fr");
     EXPECT_EQ(loaded.network.proxyUrl, "http://test:1234");
 }
 
@@ -331,7 +276,6 @@ TEST_F(ConfigFileTest, LoadNonExistentReturnsDefaults) {
     CoreConfig defaults = CoreConfig::getDefaults();
 
     EXPECT_EQ(loaded.scanning.maxParallelScans, defaults.scanning.maxParallelScans);
-    EXPECT_EQ(loaded.translation.targetLanguage, defaults.translation.targetLanguage);
 }
 
 TEST_F(ConfigFileTest, SaveCreatesParentDirectories) {
@@ -409,13 +353,13 @@ TEST_F(ConfigFileTest, LoadConfigWithUnknownFields) {
         f << R"({
             "scanning": {"maxParallelScans": 4},
             "unknownSection": {"foo": "bar"},
-            "translation": {"targetLanguage": "tr", "unknownField": 42}
+            "network": {"proxyUrl": "http://test", "unknownField": 42}
         })";
     }
 
     auto loaded = CoreConfig::loadFromFile(configFile);
     // Should not crash, unknown fields are ignored
-    EXPECT_EQ(loaded.translation.targetLanguage, "tr");
+    EXPECT_EQ(loaded.network.proxyUrl, "http://test");
 }
 
 TEST_F(ConfigFileTest, SaveAndLoadPreservesAllFields) {
@@ -425,8 +369,6 @@ TEST_F(ConfigFileTest, SaveAndLoadPreservesAllFields) {
     original.scanning.maxFilesToScan = 5000;
     original.patching.alwaysCreateBackup = false;
     original.patching.maxRetries = 5;
-    original.translation.targetLanguage = "de";
-    original.translation.minQAScore = 85;
     original.security.verifySignatures = false;
     original.network.proxyUrl = "http://proxy:8080";
     original.logging.level = "debug";
@@ -440,8 +382,6 @@ TEST_F(ConfigFileTest, SaveAndLoadPreservesAllFields) {
     EXPECT_EQ(loaded.scanning.maxFilesToScan, 5000u);
     EXPECT_FALSE(loaded.patching.alwaysCreateBackup);
     EXPECT_EQ(loaded.patching.maxRetries, 5u);
-    EXPECT_EQ(loaded.translation.targetLanguage, "de");
-    EXPECT_EQ(loaded.translation.minQAScore, 85);
     EXPECT_FALSE(loaded.security.verifySignatures);
     EXPECT_EQ(loaded.network.proxyUrl, "http://proxy:8080");
     EXPECT_EQ(loaded.logging.level, "debug");
@@ -454,20 +394,6 @@ TEST_F(ConfigValidationTest, ExtremelyHighParallelScansStillValid) {
     auto result = validateConfig(c);
     // Should still be valid (just warning)
     EXPECT_TRUE(result.valid);
-}
-
-TEST_F(ConfigValidationTest, BoundaryFuzzyThresholdValues) {
-    auto c = validConfig();
-
-    // Exactly 0.0 should be valid
-    c.translation.fuzzyMatchThreshold = 0.0;
-    auto result0 = validateConfig(c);
-    EXPECT_TRUE(result0.valid);
-
-    // Exactly 1.0 should be valid
-    c.translation.fuzzyMatchThreshold = 1.0;
-    auto result1 = validateConfig(c);
-    EXPECT_TRUE(result1.valid);
 }
 
 } // namespace testing

@@ -236,77 +236,6 @@ static GameStore stringToStore(const std::string& str) {
     return GameStore::Unknown;
 }
 
-// Convert EntryStatus enum to string
-static std::string statusToDbString(EntryStatus status) {
-    switch (status) {
-        case EntryStatus::Untranslated: return "untranslated";
-        case EntryStatus::Translated: return "translated";
-        case EntryStatus::Fuzzy: return "fuzzy";
-        case EntryStatus::Verified: return "verified";
-        case EntryStatus::Rejected: return "rejected";
-        default: return "untranslated";
-    }
-}
-
-// Convert string to EntryStatus enum
-static EntryStatus stringToStatus(const std::string& str) {
-    if (str == "translated") return EntryStatus::Translated;
-    if (str == "fuzzy") return EntryStatus::Fuzzy;
-    if (str == "verified") return EntryStatus::Verified;
-    if (str == "rejected") return EntryStatus::Rejected;
-    return EntryStatus::Untranslated;
-}
-
-// Convert TermDomain enum to string
-static std::string domainToDbString(TermDomain domain) {
-    switch (domain) {
-        case TermDomain::General: return "general";
-        case TermDomain::RPG: return "rpg";
-        case TermDomain::FPS: return "fps";
-        case TermDomain::VisualNovel: return "visualNovel";
-        case TermDomain::Strategy: return "strategy";
-        case TermDomain::Simulation: return "simulation";
-        case TermDomain::Adventure: return "adventure";
-        case TermDomain::Puzzle: return "puzzle";
-        case TermDomain::Action: return "action";
-        case TermDomain::Horror: return "horror";
-        default: return "general";
-    }
-}
-
-// Convert string to TermDomain enum
-static TermDomain stringToDomain(const std::string& str) {
-    if (str == "rpg") return TermDomain::RPG;
-    if (str == "fps") return TermDomain::FPS;
-    if (str == "visualNovel") return TermDomain::VisualNovel;
-    if (str == "strategy") return TermDomain::Strategy;
-    if (str == "simulation") return TermDomain::Simulation;
-    if (str == "adventure") return TermDomain::Adventure;
-    if (str == "puzzle") return TermDomain::Puzzle;
-    if (str == "action") return TermDomain::Action;
-    if (str == "horror") return TermDomain::Horror;
-    return TermDomain::General;
-}
-
-// Convert ProjectStatus enum to string
-static std::string projectStatusToDbString(ProjectStatus status) {
-    switch (status) {
-        case ProjectStatus::Active: return "active";
-        case ProjectStatus::Completed: return "completed";
-        case ProjectStatus::Archived: return "archived";
-        case ProjectStatus::Paused: return "paused";
-        default: return "active";
-    }
-}
-
-// Convert string to ProjectStatus enum
-static ProjectStatus stringToProjectStatus(const std::string& str) {
-    if (str == "completed") return ProjectStatus::Completed;
-    if (str == "archived") return ProjectStatus::Archived;
-    if (str == "paused") return ProjectStatus::Paused;
-    return ProjectStatus::Active;
-}
-
 // Get text from SQLite column (handles NULL)
 static std::optional<std::string> getTextColumn(sqlite3_stmt* stmt, int col) {
     const unsigned char* text = sqlite3_column_text(stmt, col);
@@ -530,10 +459,6 @@ Result<void> Database::createTables() {
     )");
     if (!result) return result;
 
-    // Deferred tables removed: translation_cache, translation_memory, tm_ngrams,
-    // tm_variants, translation_projects, translation_entries, glossary,
-    // glossary_alternatives, glossary_forbidden. See git history if needed.
-
     // Backups table
     result = execute(R"(
         CREATE TABLE IF NOT EXISTS backups (
@@ -582,7 +507,7 @@ Result<void> Database::createTables() {
 Result<void> Database::migrateToV2() {
     MAKINEAI_LOG_INFO(log::DATABASE, "Migrating database to v2...");
 
-    // v2 originally added deferred translation tables (now removed) and backups
+    // v2 added backups table
 
     // These tables might not exist, create them
     auto result = createTables();
@@ -1004,8 +929,6 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
     return settings;
 }
 
-// Deferred feature methods removed: Glossary, Project, Entry operations.
-// See git history if restoration is needed.
 // ============== BACKUP OPERATIONS ==============
 
 Result<void> Database::addBackupRecord(const BackupRecord& backup) {

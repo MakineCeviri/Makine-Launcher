@@ -18,4 +18,3 @@
 #include "makineai/types/common.hpp"
 #include "makineai/types/game_types.hpp"
 #include "makineai/types/patch_types.hpp"
-#include "makineai/types/translation_types.hpp"

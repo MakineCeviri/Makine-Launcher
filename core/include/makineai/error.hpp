@@ -100,12 +100,8 @@ enum class ErrorCode {
     SecurityViolation = 904,
     StorageError = 905,
 
-    // Translation API errors (1000-1099)
-    TranslationFailed = 1000,
-    InvalidConfiguration = 1001,
-    APIKeyMissing = 1002,
-    RateLimitExceeded = 1003,
-    QuotaExceeded = 1004,
+    // Configuration errors (1000-1099)
+    InvalidConfiguration = 1000,
 };
 
 /**
@@ -177,12 +173,7 @@ constexpr std::string_view errorMessage(ErrorCode code) noexcept {
         case ErrorCode::SecurityViolation:  return "Security violation";
         case ErrorCode::StorageError:       return "Storage error";
 
-        // Translation API errors
-        case ErrorCode::TranslationFailed:  return "Translation failed";
         case ErrorCode::InvalidConfiguration: return "Invalid configuration";
-        case ErrorCode::APIKeyMissing:      return "API key missing";
-        case ErrorCode::RateLimitExceeded:  return "Rate limit exceeded";
-        case ErrorCode::QuotaExceeded:      return "Quota exceeded";
 
         default:                            return "Unknown error code";
     }

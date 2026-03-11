@@ -15,9 +15,6 @@
  * // Dump game info
  * DebugDumper::dumpGameInfo(gameInfo, "pre_patch");
  *
- * // Dump pipeline context
- * DebugDumper::dumpPipelineContext(ctx);
- *
  * // Generate crash report
  * auto report = DebugDumper::generateCrashReport("Unexpected error", error);
  *
@@ -35,6 +32,7 @@
 #include "makineai/logging.hpp"
 #include "makineai/version.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -334,64 +332,6 @@ public:
 
         std::string dumpLabel = label.empty() ? "game_" + game.id.toString() : label;
         return dumpState(dumpLabel, oss.str());
-    }
-
-    /**
-     * @brief Dump pipeline context
-     */
-    [[nodiscard]] Result<fs::path> dumpPipelineContext(const PipelineContext& ctx) {
-        std::ostringstream oss;
-
-        oss << "Pipeline Context Dump\n";
-        oss << "=====================\n\n";
-
-        oss << "Game: " << ctx.game.name << " (" << ctx.game.id.toString() << ")\n";
-        oss << "Current Phase: " << static_cast<int>(ctx.currentPhase) << "\n\n";
-
-        // Decision info
-        oss << "Primary Method: " << static_cast<int>(ctx.decision.primaryMethod) << "\n";
-        oss << "Confidence: " << static_cast<int>(ctx.decision.confidence) << "\n";
-        if (!ctx.decision.rationale.empty()) {
-            oss << "Rationale: " << ctx.decision.rationale << "\n";
-        }
-
-        // Progress
-        oss << "\nProgress:\n";
-        oss << "  Total Steps: " << ctx.totalSteps << "\n";
-        oss << "  Completed: " << ctx.completedSteps << "\n";
-        oss << "  Progress: " << ctx.progressPercent() << "%\n\n";
-
-        // Backup
-        oss << "Backup Created: " << (ctx.backupCreated ? "Yes" : "No") << "\n";
-        if (!ctx.backupId.empty()) {
-            oss << "Backup ID: " << ctx.backupId << "\n";
-        }
-
-        // Results
-        oss << "\nResults:\n";
-        oss << "  Success: " << (ctx.success ? "Yes" : "No") << "\n";
-        oss << "  Applied: " << ctx.appliedCount << "\n";
-        oss << "  Failed: " << ctx.failedCount << "\n";
-        oss << "  Errors: " << ctx.errors.size() << "\n\n";
-
-        // Errors
-        if (!ctx.errors.empty()) {
-            oss << "Errors:\n";
-            for (const auto& err : ctx.errors) {
-                oss << "  - " << err << "\n";
-            }
-            oss << "\n";
-        }
-
-        // Log entries
-        if (!ctx.log.empty()) {
-            oss << "Log:\n";
-            for (const auto& entry : ctx.log) {
-                oss << "  " << entry << "\n";
-            }
-        }
-
-        return dumpState("pipeline_" + ctx.game.id.toString(), oss.str());
     }
 
     /**

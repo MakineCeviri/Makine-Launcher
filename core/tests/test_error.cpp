@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <makineai/error.hpp>
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -45,7 +46,7 @@ TEST(ErrorCodeTest, AllCategoriesHaveMessages) {
     EXPECT_NE(errorMessage(ErrorCode::RuntimeInstallFailed), "Unknown error code");
     EXPECT_NE(errorMessage(ErrorCode::DatabaseError), "Unknown error code");
     EXPECT_NE(errorMessage(ErrorCode::InvalidOffset), "Unknown error code");
-    EXPECT_NE(errorMessage(ErrorCode::TranslationFailed), "Unknown error code");
+    EXPECT_NE(errorMessage(ErrorCode::InvalidConfiguration), "Unknown error code");
 }
 
 // ===========================================================================
@@ -498,7 +499,7 @@ TEST(ErrorSuggestionTest, GameNotFoundHasSuggestions) {
 }
 
 TEST(ErrorSuggestionTest, UnknownCodeHasDefaultSuggestion) {
-    auto suggestions = getSuggestions(ErrorCode::TranslationFailed);
+    auto suggestions = getSuggestions(ErrorCode::InvalidConfiguration);
     EXPECT_GE(suggestions.size(), 1u);
     // Default suggestion should have "retry" action
     bool hasRetry = false;

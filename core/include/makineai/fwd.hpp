@@ -45,8 +45,6 @@ enum class GameStore : int;
 enum class PatchStatus : int;
 enum class BackupStatus : int;
 enum class EntryStatus : int;
-enum class EntryCategory : int;
-enum class ProjectStatus : int;
 enum class ErrorCode : int;
 enum class LogLevel : int;
 enum class AuditSeverity : int;
@@ -67,17 +65,6 @@ struct PatchResult;
 struct BackupResult;
 struct RestoreResult;
 struct BackupRecord;
-
-// --- Translation Types ---
-struct TranslationEntry;
-struct GlossaryTerm;
-struct TranslationProject;
-struct QAIssue;
-
-// --- Translation Memory Types ---
-struct TranslationMemoryEntry;
-struct TMMatch;
-struct TMStats;
 
 // --- Error Handling ---
 class Error;

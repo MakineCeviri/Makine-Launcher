@@ -12,6 +12,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/fmt.h>
 #include <cstdlib>
+#include <string>
 #include <string_view>
 #include <chrono>
 #include <source_location>
@@ -36,9 +37,6 @@ constexpr const char* SCANNER = "Scanner";
 /// Engine handlers (Unity, Unreal, etc.)
 constexpr const char* HANDLER = "Handler";
 
-/// Translation pipeline
-constexpr const char* PIPELINE = "Pipeline";
-
 /// Security and cryptography
 constexpr const char* SECURITY = "Security";
 
@@ -51,9 +49,6 @@ constexpr const char* PACKAGE = "Package";
 /// Asset parsing
 constexpr const char* PARSER = "Parser";
 
-/// Translation memory
-constexpr const char* TM = "TransMem";
-
 /// Runtime management (BepInEx, etc.)
 constexpr const char* RUNTIME = "Runtime";
 
@@ -65,12 +60,6 @@ constexpr const char* FILE = "File";
 
 /// Network operations
 constexpr const char* NETWORK = "Network";
-
-/// Quality assurance
-constexpr const char* QA = "QA";
-
-/// Glossary service
-constexpr const char* GLOSSARY = "Glossary";
 
 /// Configuration
 constexpr const char* CONFIG = "Config";

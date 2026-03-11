@@ -117,9 +117,6 @@ public:
      */
     [[nodiscard]] Result<void> deleteGame(const std::string& gameId);
 
-    // Deferred feature methods removed: Translation Memory, N-gram, Glossary,
-    // Project, and Entry operations. See git history if restoration is needed.
-
     // ============== BACKUP OPERATIONS ==============
 
     /**
