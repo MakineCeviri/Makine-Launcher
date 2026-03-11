@@ -8,6 +8,7 @@
 #include "makineai/core.hpp"
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
+#include "makineai/detail/scoped_metrics.hpp"
 #include "makineai/audit.hpp"
 #include "makineai/health.hpp"
 #include "makineai/validation.hpp"
@@ -39,8 +40,7 @@ Result<BackupMetadata> FileBackupStorage::createBackup(
     const StringList& filesToBackup,
     const std::string& backupId
 ) {
-    // Start timing this operation
-    auto timer = Metrics::instance().timer("backup_create");
+    ScopedMetrics m("backup_create");
 
     MAKINEAI_LOG_INFO(log::FILE, "Creating backup {} for {} files from {}",
         backupId, filesToBackup.size(), gameDir.string());
@@ -184,8 +184,7 @@ VoidResult FileBackupStorage::restoreBackup(
     const fs::path& gameDir,
     const std::string& backupId
 ) {
-    // Start timing this operation
-    auto timer = Metrics::instance().timer("backup_restore");
+    ScopedMetrics m("backup_restore");
 
     MAKINEAI_LOG_INFO(log::FILE, "Restoring backup {} to {}", backupId, gameDir.string());
     AuditLogger::logPatchOperation(backupId, true, "restore_start",
@@ -428,8 +427,7 @@ Result<PatchResult> PatchEngine::apply(
     ProgressCallback progress,
     CancellationToken* cancel
 ) {
-    // Start timing the entire patch operation
-    auto timer = Metrics::instance().timer("patch_apply");
+    ScopedMetrics m("patch_apply");
 
     MAKINEAI_LOG_INFO(log::HANDLER, "Starting patch operation for game {} (version {})",
         game.name, patchVersion);
@@ -688,8 +686,7 @@ Result<PatchResult> PatchEngine::apply(
 }
 
 VoidResult PatchEngine::executeOperation(const PatchOperation& op) {
-    // Time each operation
-    auto opTimer = Metrics::instance().timer("patch_single_operation");
+    ScopedMetrics opMetrics("patch_single_operation");
 
     std::error_code ec;
 
@@ -998,7 +995,7 @@ VoidResult PatchEngine::rollbackOperations(
     const std::vector<PatchOperation>& ops,
     size_t completedCount
 ) {
-    auto rollbackTimer = Metrics::instance().timer("patch_rollback");
+    ScopedMetrics rollbackMetrics("patch_rollback");
 
     MAKINEAI_LOG_INFO(log::HANDLER, "Rolling back {} completed operations using backup {}",
         completedCount, backupId);
@@ -1145,7 +1142,7 @@ Result<bool> PatchEngine::verifyIntegrity(
     const fs::path& gameDir,
     const std::string& backupId
 ) const {
-    auto timer = Metrics::instance().timer("integrity_verify");
+    ScopedMetrics m("integrity_verify");
 
     MAKINEAI_LOG_INFO(log::HANDLER, "Verifying integrity for backup {} against {}",
         backupId, gameDir.string());
@@ -1392,7 +1389,7 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
     const std::unordered_map<std::string, std::string>& translations,
     const BinaryPatchOptions& options
 ) {
-    auto timer = Metrics::instance().timer("binary_patch_file");
+    ScopedMetrics m("binary_patch_file");
 
     MAKINEAI_LOG_INFO(log::HANDLER, "Binary patching file {} with {} translations",
         filePath.string(), translations.size());

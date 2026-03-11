@@ -134,6 +134,7 @@ set(MAKINEAI_HEADERS
     include/makineai/credential_store.hpp
     include/makineai/file_integrity.hpp
     include/makineai/crash_recovery.hpp
+    include/makineai/detail/scoped_metrics.hpp
 )
 
 # Static library

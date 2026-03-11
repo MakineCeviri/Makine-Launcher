@@ -11,6 +11,7 @@
 #include "makineai/database.hpp"
 #include "makineai/logging.hpp"
 #include "makineai/metrics.hpp"
+#include "makineai/detail/scoped_metrics.hpp"
 
 #include <sqlite3.h>
 
@@ -523,30 +524,24 @@ Result<void> Database::migrateToV2() {
 // ============== HELPER METHODS ==============
 
 Result<void> Database::execute(const std::string& sql) {
-    auto timer = Metrics::instance().timer("db_query");
-    auto startTime = std::chrono::steady_clock::now();
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     char* errMsg = nullptr;
     int rc = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &errMsg);
 
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - startTime);
-
-    // Track all queries
-    Metrics::instance().increment("db_queries_total");
-    Metrics::instance().recordHistogram("db_query_duration_ms", elapsed.count());
+    Metrics::instance().recordHistogram("db_query_duration_ms", m.elapsed().count());
 
     if (rc != SQLITE_OK) {
         std::string error = errMsg ? errMsg : "Unknown error";
         sqlite3_free(errMsg);
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "SQL error: {}", error);
         return std::unexpected(Error{ErrorCode::IOError, "SQL error: " + error});
     }
 
     // Warn about slow queries (>100ms)
-    if (elapsed.count() > 100) {
-        MAKINEAI_LOG_WARN(log::DATABASE, "Slow query detected ({}ms)", elapsed.count());
+    if (m.elapsed().count() > 100) {
+        MAKINEAI_LOG_WARN(log::DATABASE, "Slow query detected ({}ms)", m.elapsed().count());
     }
 
     return {};
@@ -558,7 +553,7 @@ Result<Database::Statement> Database::prepare(const std::string& sql) {
     if (rc != SQLITE_OK) {
         std::string error = sqlite3_errmsg(db_);
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to prepare statement: {}", error);
-        Metrics::instance().increment("db_query_errors");
+        Metrics::instance().increment("db_query_errors"); // no scoped timer needed here
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to prepare statement: " + error});
     }
@@ -595,7 +590,7 @@ Result<void> Database::vacuum() {
 
 Result<void> Database::saveGame(const GameInfo& game) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Saving game: {}", game.name);
 
@@ -651,10 +646,9 @@ Result<void> Database::saveGame(const GameInfo& game) {
     sqlite3_bind_int64(stmt.stmt, 16, timestamp);
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc != SQLITE_DONE) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to save game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to save game: " + std::string(sqlite3_errmsg(db_))});
@@ -666,7 +660,7 @@ Result<void> Database::saveGame(const GameInfo& game) {
 
 Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& steamAppId) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Looking up game by Steam ID");
 
@@ -684,7 +678,6 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     sqlite3_bind_text(stmt.stmt, 1, steamAppId.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc == SQLITE_DONE) {
         MAKINEAI_LOG_DEBUG(log::DATABASE, "Game not found by Steam ID");
@@ -692,7 +685,7 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     }
 
     if (rc != SQLITE_ROW) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to query game: " + std::string(sqlite3_errmsg(db_))});
@@ -718,7 +711,7 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
 
 Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Looking up game by ID");
 
@@ -736,7 +729,6 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     sqlite3_bind_text(stmt.stmt, 1, gameId.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc == SQLITE_DONE) {
         MAKINEAI_LOG_DEBUG(log::DATABASE, "Game not found by ID");
@@ -744,7 +736,7 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     }
 
     if (rc != SQLITE_ROW) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to query game: " + std::string(sqlite3_errmsg(db_))});
@@ -770,7 +762,7 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
 
 Result<std::vector<GameInfo>> Database::getAllGames() {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting all games");
 
@@ -805,14 +797,13 @@ Result<std::vector<GameInfo>> Database::getAllGames() {
         games.push_back(std::move(game));
     }
 
-    Metrics::instance().increment("db_queries_total");
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Retrieved {} games", games.size());
     return games;
 }
 
 Result<void> Database::deleteGame(const std::string& gameId) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Deleting game");
 
@@ -825,10 +816,9 @@ Result<void> Database::deleteGame(const std::string& gameId) {
     sqlite3_bind_text(stmt.stmt, 1, gameId.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc != SQLITE_DONE) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to delete game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to delete game: " + std::string(sqlite3_errmsg(db_))});
@@ -842,7 +832,7 @@ Result<void> Database::deleteGame(const std::string& gameId) {
 // ============== SETTINGS OPERATIONS ==============
 Result<void> Database::setSetting(const std::string& key, const std::string& value) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Setting config key");
 
@@ -860,10 +850,9 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
     sqlite3_bind_int64(stmt.stmt, 3, now());
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc != SQLITE_DONE) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to set setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to set setting: " + std::string(sqlite3_errmsg(db_))});
@@ -874,7 +863,7 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
 
 Result<std::optional<std::string>> Database::getSetting(const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting config key");
 
@@ -887,7 +876,6 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
     sqlite3_bind_text(stmt.stmt, 1, key.c_str(), -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc == SQLITE_DONE) {
         MAKINEAI_LOG_DEBUG(log::DATABASE, "Setting not found");
@@ -895,7 +883,7 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
     }
 
     if (rc != SQLITE_ROW) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to get setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to get setting: " + std::string(sqlite3_errmsg(db_))});
@@ -906,7 +894,7 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
 
 Result<std::map<std::string, std::string>> Database::getAllSettings() {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting all settings");
 
@@ -924,7 +912,6 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
         settings[key] = value;
     }
 
-    Metrics::instance().increment("db_queries_total");
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Retrieved {} settings", settings.size());
     return settings;
 }
@@ -933,7 +920,7 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
 
 Result<void> Database::addBackupRecord(const BackupRecord& backup) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_INFO(log::DATABASE, "Adding backup record for game");
 
@@ -960,10 +947,9 @@ Result<void> Database::addBackupRecord(const BackupRecord& backup) {
     sqlite3_bind_text(stmt.stmt, 6, "active", -1, SQLITE_TRANSIENT);
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc != SQLITE_DONE) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add backup record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to add backup record: " + std::string(sqlite3_errmsg(db_))});
@@ -1086,7 +1072,7 @@ Result<int64_t> Database::addPatchRecord(
     const std::optional<std::string>& errorMessage) {
 
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_INFO(log::DATABASE, "Adding patch record: type={}, status={}, strings={}",
                       patchType, status, stringsPatched);
@@ -1122,10 +1108,9 @@ Result<int64_t> Database::addPatchRecord(
     sqlite3_bind_int64(stmt.stmt, 7, now());
 
     int rc = sqlite3_step(stmt.stmt);
-    Metrics::instance().increment("db_queries_total");
 
     if (rc != SQLITE_DONE) {
-        Metrics::instance().increment("db_query_errors");
+        m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add patch record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             "Failed to add patch record: " + std::string(sqlite3_errmsg(db_))});
@@ -1139,7 +1124,7 @@ Result<std::vector<std::map<std::string, std::string>>> Database::getPatchHistor
     const std::string& gameId) {
 
     std::lock_guard<std::mutex> lock(mutex_);
-    auto timer = Metrics::instance().timer("db_query");
+    ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting patch history");
 
