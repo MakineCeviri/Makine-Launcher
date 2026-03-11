@@ -5,6 +5,7 @@
  */
 
 #include "gameservice.h"
+#include "steamdetailsservice.h"
 #include "backupmanager.h"
 #include "apppaths.h"
 #include "profiler.h"
@@ -17,91 +18,25 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QDebug>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QRegularExpression>
 #include <QtConcurrent>
-#include <QFutureWatcher>
 #include <QProcess>
 #include <optional>
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
-constexpr qint64 kMaxSteamResponseBytes = 5 * 1024 * 1024; // 5 MB
-
-// Pure JSON parsing — no side effects, safe for background thread
-std::optional<makineai::SteamDetails> parseSteamJson(const QString& steamAppId, const QByteArray& data)
-{
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-    if (parseError.error != QJsonParseError::NoError)
-        return std::nullopt;
-
-    const QJsonObject root = doc.object();
-    const QJsonObject appObj = root.value(steamAppId).toObject();
-    if (!appObj.value("success").toBool())
-        return std::nullopt;
-
-    const QJsonObject appData = appObj.value("data").toObject();
-    if (appData.isEmpty())
-        return std::nullopt;
-
-    makineai::SteamDetails details;
-    details.description = appData.value("short_description").toString();
-    details.releaseDate = appData.value("release_date").toObject().value("date").toString();
-
-    const auto devArr = appData.value("developers").toArray();
-    details.developers.reserve(devArr.size());
-    for (const auto& dev : devArr)
-        details.developers.append(dev.toString());
-
-    const auto pubArr = appData.value("publishers").toArray();
-    details.publishers.reserve(pubArr.size());
-    for (const auto& pub : pubArr)
-        details.publishers.append(pub.toString());
-
-    const auto genreArr = appData.value("genres").toArray();
-    details.genres.reserve(genreArr.size());
-    for (const auto& genre : genreArr)
-        details.genres.append(genre.toObject().value("description").toString());
-
-    details.metacriticScore = appData.value("metacritic").toObject().value("score").toInt(0);
-
-    const QJsonObject platforms = appData.value("platforms").toObject();
-    details.hasWindows = platforms.value("windows").toBool(true);
-    details.hasMac = platforms.value("mac").toBool(false);
-    details.hasLinux = platforms.value("linux").toBool(false);
-
-    if (appData.value("is_free").toBool()) {
-        details.price = QObject::tr("\u00DCcretsiz");
-    } else {
-        const QJsonObject priceObj = appData.value("price_overview").toObject();
-        details.price = priceObj.value("final_formatted").toString();
-        details.discountPercent = priceObj.value("discount_percent").toInt(0);
-    }
-
-    const auto ssArr = appData.value("screenshots").toArray();
-    details.screenshots.reserve(ssArr.size());
-    for (const auto& ss : ssArr) {
-        const QString thumbUrl = ss.toObject().value("path_thumbnail").toString();
-        if (!thumbUrl.isEmpty())
-            details.screenshots.append(thumbUrl);
-    }
-
-    details.backgroundUrl = appData.value("background").toString();
-    details.fetchedAt = QDateTime::currentDateTime();
-
-    return details;
-}
 } // namespace
 
 namespace makineai {
 
 GameService::GameService(QObject *parent)
     : QObject(parent)
+    , m_steamDetails(new SteamDetailsService(this))
     , m_supportedGamesModel(new SupportedGamesModel(this))
 {
+    connect(m_steamDetails, &SteamDetailsService::detailsFetched,
+            this, &GameService::steamDetailsFetched);
+    connect(m_steamDetails, &SteamDetailsService::detailsFetchError,
+            this, &GameService::steamDetailsFetchError);
 }
 
 void GameService::initialize()
@@ -111,9 +46,8 @@ void GameService::initialize()
 
     // Load caches in background thread to avoid blocking the UI
     const QString gamesCachePath = AppPaths::gamesCacheFile();
-    const QString steamCachePath = AppPaths::steamDetailsCacheFile();
 
-    (void)QtConcurrent::run([this, gamesCachePath, steamCachePath]() {
+    (void)QtConcurrent::run([this, gamesCachePath]() {
         MAKINE_THREAD_NAME("Worker-Init");
         MAKINE_ZONE_NAMED("GameService::initialize (async)");
 
@@ -156,40 +90,8 @@ void GameService::initialize()
             }
         }
 
-        // Parse Steam details cache
-        QHash<QString, SteamDetails> steamDetails;
-        {
-            QFile file(steamCachePath);
-            if (file.open(QIODevice::ReadOnly)) {
-                QJsonParseError err;
-                const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
-                file.close();
-
-                if (err.error == QJsonParseError::NoError && doc.isObject()) {
-                    const QJsonObject root = doc.object();
-                    for (auto it = root.begin(); it != root.end(); ++it) {
-                        const QJsonObject obj = it.value().toObject();
-                        SteamDetails d;
-                        d.description = obj["description"].toString();
-                        d.releaseDate = obj["releaseDate"].toString();
-                        d.metacriticScore = obj["metacriticScore"].toInt(0);
-                        d.hasWindows = obj["hasWindows"].toBool(true);
-                        d.hasMac = obj["hasMac"].toBool(false);
-                        d.hasLinux = obj["hasLinux"].toBool(false);
-                        d.price = obj["price"].toString();
-                        d.discountPercent = obj["discountPercent"].toInt(0);
-                        d.backgroundUrl = obj["backgroundUrl"].toString();
-                        d.fetchedAt = QDateTime::fromString(obj["fetchedAt"].toString(), Qt::ISODate);
-                        for (const auto& v : obj["developers"].toArray()) d.developers.append(v.toString());
-                        for (const auto& v : obj["publishers"].toArray()) d.publishers.append(v.toString());
-                        for (const auto& v : obj["genres"].toArray()) d.genres.append(v.toString());
-                        for (const auto& v : obj["screenshots"].toArray()) d.screenshots.append(v.toString());
-                        if (!d.isExpired())
-                            steamDetails[it.key()] = d;
-                    }
-                }
-            }
-        }
+        // Load Steam details cache via SteamDetailsService
+        m_steamDetails->loadCache();
 
         // Pre-warm package installed cache (avoids 260× main-thread calls later)
         QHash<QString, bool> pkgCache;
@@ -204,19 +106,16 @@ void GameService::initialize()
             }
         }
 
-        qDebug() << "Parsed" << games.count() << "games and"
-                 << steamDetails.size() << "Steam details,"
+        qDebug() << "Parsed" << games.count() << "games,"
                  << pkgCache.size() << "package statuses (background)";
 
         // Deliver results to main thread
         QMetaObject::invokeMethod(this, [this,
                                          g = std::move(games),
-                                         s = std::move(steamDetails),
                                          p = std::move(pkgCache)]() mutable {
             MAKINE_ZONE_NAMED("GameService::initialize (main thread)");
 
             m_games = std::move(g);
-            m_steamDetailsCache = std::move(s);
             m_packageInstalledCache = std::move(p);
             rebuildCache();
 
@@ -630,125 +529,12 @@ QVariantMap GameService::getGameDetails(const QString& gameId)
 
 void GameService::fetchSteamDetails(const QString& steamAppId)
 {
-    MAKINE_ZONE_NAMED("GameService::fetchSteamDetails");
-    if (steamAppId.isEmpty()) return;
-
-    // Validate: must be numeric, max 10 digits (prevents URL injection)
-    static const QRegularExpression numericOnly(QStringLiteral("^\\d{1,10}$"));
-    if (!numericOnly.match(steamAppId).hasMatch()) {
-        qWarning() << "Invalid steamAppId format:" << steamAppId;
-        return;
-    }
-
-    if (m_pendingFetches.contains(steamAppId)) return;
-
-    auto cacheIt = m_steamDetailsCache.constFind(steamAppId);
-    if (cacheIt != m_steamDetailsCache.constEnd() && !cacheIt->isExpired()) {
-        emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(*cacheIt));
-        return;
-    }
-
-    m_pendingFetches.insert(steamAppId);
-
-    QUrl url(QStringLiteral("https://store.steampowered.com/api/appdetails?appids=%1&l=turkish").arg(steamAppId));
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
-
-    QNetworkReply* reply = m_networkManager.get(request);
-
-    // Abort if response exceeds size limit (prevents memory exhaustion)
-    connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
-        if (received > kMaxSteamResponseBytes) {
-            qWarning() << "Steam API response too large, aborting";
-            reply->abort();
-        }
-    });
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply, steamAppId]() {
-        reply->deleteLater();
-        m_pendingFetches.remove(steamAppId);
-
-        if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "Steam API error for" << steamAppId << ":" << reply->errorString();
-            emit steamDetailsFetchError(steamAppId, reply->errorString());
-            return;
-        }
-
-        const QByteArray data = reply->readAll();
-
-        // Parse JSON on background thread (~100ms main thread → ~0ms)
-        auto *watcher = new QFutureWatcher<std::optional<SteamDetails>>(this);
-        connect(watcher, &QFutureWatcher<std::optional<SteamDetails>>::finished, this,
-                [this, watcher, steamAppId]() {
-            watcher->deleteLater();
-            auto result = watcher->result();
-            if (!result) {
-                emit steamDetailsFetchError(steamAppId,
-                    QStringLiteral("Failed to parse Steam API response"));
-                return;
-            }
-
-            // Cache eviction (main thread — accesses m_steamDetailsCache)
-            static constexpr int MAX_STEAM_CACHE = 80;
-            if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE) {
-                QStringList expired;
-                for (auto it = m_steamDetailsCache.constBegin();
-                     it != m_steamDetailsCache.constEnd(); ++it) {
-                    if (it->isExpired())
-                        expired.append(it.key());
-                }
-                for (const auto& key : expired)
-                    m_steamDetailsCache.remove(key);
-                if (m_steamDetailsCache.size() >= MAX_STEAM_CACHE)
-                    m_steamDetailsCache.clear();
-            }
-
-            m_steamDetailsCache[steamAppId] = *result;
-            saveSteamDetailsCache();
-            emit steamDetailsFetched(steamAppId, steamDetailsToVariantMap(*result));
-        });
-
-        watcher->setFuture(QtConcurrent::run([steamAppId, data]() {
-            return parseSteamJson(steamAppId, data);
-        }));
-    });
+    m_steamDetails->fetchDetails(steamAppId);
 }
-
 
 QVariantMap GameService::getSteamDetails(const QString& steamAppId)
 {
-    MAKINE_ZONE_NAMED("GameService::getSteamDetails");
-    if (steamAppId.isEmpty()) return {};
-
-    auto cacheIt = m_steamDetailsCache.constFind(steamAppId);
-    if (cacheIt != m_steamDetailsCache.constEnd() && !cacheIt->isExpired()) {
-        return steamDetailsToVariantMap(*cacheIt);
-    }
-    return {};
-}
-
-QVariantMap GameService::steamDetailsToVariantMap(const SteamDetails& details) const
-{
-    QVariantList screenshotList;
-    screenshotList.reserve(details.screenshots.size());
-    for (const auto& url : details.screenshots)
-        screenshotList.append(url);
-
-    return {
-        {"description", details.description},
-        {"developers", QVariant::fromValue(details.developers)},
-        {"publishers", QVariant::fromValue(details.publishers)},
-        {"releaseDate", details.releaseDate},
-        {"genres", QVariant::fromValue(details.genres)},
-        {"metacriticScore", details.metacriticScore},
-        {"hasWindows", details.hasWindows},
-        {"hasMac", details.hasMac},
-        {"hasLinux", details.hasLinux},
-        {"price", details.price},
-        {"discountPercent", details.discountPercent},
-        {"screenshots", screenshotList},
-        {"backgroundUrl", details.backgroundUrl}
-    };
+    return m_steamDetails->getDetails(steamAppId);
 }
 
 QVariantList GameService::supportedGames() const
@@ -1019,98 +805,6 @@ void GameService::ensureSupportedGamesCache()
 
     // Pre-warm by calling supportedGames() which populates m_supportedGamesCache
     supportedGames();
-}
-
-void GameService::loadSteamDetailsCache()
-{
-    const QString cachePath = AppPaths::steamDetailsCacheFile();
-    QFile file(cachePath);
-    if (!file.open(QIODevice::ReadOnly)) return;
-
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
-    file.close();
-
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) return;
-
-    const QJsonObject root = doc.object();
-    for (auto it = root.begin(); it != root.end(); ++it) {
-        const QJsonObject obj = it.value().toObject();
-        SteamDetails details;
-        details.description = obj["description"].toString();
-        details.releaseDate = obj["releaseDate"].toString();
-        details.metacriticScore = obj["metacriticScore"].toInt(0);
-        details.hasWindows = obj["hasWindows"].toBool(true);
-        details.hasMac = obj["hasMac"].toBool(false);
-        details.hasLinux = obj["hasLinux"].toBool(false);
-        details.price = obj["price"].toString();
-        details.discountPercent = obj["discountPercent"].toInt(0);
-        details.backgroundUrl = obj["backgroundUrl"].toString();
-        details.fetchedAt = QDateTime::fromString(obj["fetchedAt"].toString(), Qt::ISODate);
-
-        for (const auto& v : obj["developers"].toArray()) details.developers.append(v.toString());
-        for (const auto& v : obj["publishers"].toArray()) details.publishers.append(v.toString());
-        for (const auto& v : obj["genres"].toArray()) details.genres.append(v.toString());
-        for (const auto& v : obj["screenshots"].toArray()) details.screenshots.append(v.toString());
-
-        // Skip expired entries
-        if (!details.isExpired()) {
-            m_steamDetailsCache[it.key()] = details;
-        }
-    }
-
-    qDebug() << "Loaded" << m_steamDetailsCache.size() << "cached Steam details";
-}
-
-void GameService::saveSteamDetailsCache()
-{
-    // Snapshot the cache (COW — cheap copy) and serialize in background
-    QHash<QString, SteamDetails> cacheCopy = m_steamDetailsCache;
-    const QString cacheDir = AppPaths::cacheDir();
-    const QString cachePath = AppPaths::steamDetailsCacheFile();
-
-    (void)QtConcurrent::run([cacheCopy = std::move(cacheCopy), cacheDir, cachePath]() {
-        MAKINE_THREAD_NAME("Worker-SteamCache");
-        MAKINE_ZONE_NAMED("saveSteamDetailsCache (async)");
-
-        QDir().mkpath(cacheDir);
-
-        QJsonObject root;
-        for (auto it = cacheCopy.constBegin(); it != cacheCopy.constEnd(); ++it) {
-            const SteamDetails& details = it.value();
-            if (details.isExpired()) continue;
-
-            QJsonObject obj;
-            obj["description"] = details.description;
-            obj["releaseDate"] = details.releaseDate;
-            obj["metacriticScore"] = details.metacriticScore;
-            obj["hasWindows"] = details.hasWindows;
-            obj["hasMac"] = details.hasMac;
-            obj["hasLinux"] = details.hasLinux;
-            obj["price"] = details.price;
-            obj["discountPercent"] = details.discountPercent;
-            obj["backgroundUrl"] = details.backgroundUrl;
-            obj["fetchedAt"] = details.fetchedAt.toString(Qt::ISODate);
-
-            QJsonArray devArr, pubArr, genreArr, ssArr;
-            for (const auto& v : details.developers) devArr.append(v);
-            for (const auto& v : details.publishers) pubArr.append(v);
-            for (const auto& v : details.genres) genreArr.append(v);
-            for (const auto& v : details.screenshots) ssArr.append(v);
-
-            obj["developers"] = devArr;
-            obj["publishers"] = pubArr;
-            obj["genres"] = genreArr;
-            obj["screenshots"] = ssArr;
-
-            root[it.key()] = obj;
-        }
-
-        QFile file(cachePath);
-        if (file.open(QIODevice::WriteOnly)) {
-            file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
-        }
-    });
 }
 
 bool GameService::isValidGamePath(const QString& path) const

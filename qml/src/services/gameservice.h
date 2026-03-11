@@ -16,10 +16,9 @@
 #include <QQmlEngine>
 #include <QFileInfo>
 #include <QDateTime>
-#include <QNetworkAccessManager>
-
 #include "corebridge.h"
 #include "manifestsyncservice.h"
+#include "steamdetailsservice.h"
 #include "supportedgamesmodel.h"
 
 namespace makineai {
@@ -61,32 +60,6 @@ public:
     }
 };
 
-/**
- * @brief Steam store details for a game
- */
-struct SteamDetails {
-    QString description;
-    QStringList developers;
-    QStringList publishers;
-    QString releaseDate;
-    QStringList genres;
-    int metacriticScore{0};
-    bool hasWindows{true};
-    bool hasMac{false};
-    bool hasLinux{false};
-    QString price;
-    int discountPercent{0};
-    QStringList screenshots;
-    QString backgroundUrl;
-    QDateTime fetchedAt;
-
-    static constexpr int TTL_HOURS = 24;
-    static constexpr int kSecondsPerHour = 3600;
-
-    bool isExpired() const {
-        return fetchedAt.isNull() || fetchedAt.secsTo(QDateTime::currentDateTime()) > TTL_HOURS * kSecondsPerHour;
-    }
-};
 
 /**
  * @brief Game Service - Manages game data and detection
@@ -310,19 +283,13 @@ private:
     void ensureSupportedGamesCache();
     bool isValidGamePath(const QString& path) const;
 
-    QVariantMap steamDetailsToVariantMap(const SteamDetails& details) const;
-    void loadSteamDetailsCache();
-    void saveSteamDetailsCache();
-
     CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
     ManifestSyncService* m_manifestSync{nullptr};  // Non-owning. Set by setManifestSync().
-    QNetworkAccessManager m_networkManager;
+    SteamDetailsService* m_steamDetails{nullptr};
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;       // O(1) lookup by ID
     QHash<QString, int> m_steamAppIdToIndex;   // O(1) lookup by steamAppId
-    QHash<QString, SteamDetails> m_steamDetailsCache;
     mutable QHash<QString, bool> m_packageInstalledCache;  // Cached isPackageInstalled results
-    QSet<QString> m_pendingFetches;
     bool m_isScanning{false};
     QString m_scanStatus;
     qreal m_scanProgress{0};
