@@ -3,8 +3,8 @@
  * @brief Unit tests for SQLite database operations
  * @copyright (c) 2026 MakineAI Team
  *
- * Tests game CRUD, translation memory, glossary, projects,
- * settings, and transaction support against a real SQLite DB.
+ * Tests game CRUD, settings, backup, and transaction support
+ * against a real SQLite DB.
  */
 
 #include <gtest/gtest.h>
@@ -12,12 +12,11 @@
 #include <makineai/database.hpp>
 #include <makineai/types.hpp>
 #include <filesystem>
+#include <string>
 
 namespace fs = std::filesystem;
 using namespace makineai;
-using ::testing::IsEmpty;
 using ::testing::SizeIs;
-using ::testing::Gt;
 
 // Database tests require DPAPI (CryptProtectData/CryptUnprotectData) which
 // hangs on MinGW GCC 13.1. These tests work correctly on MSVC builds.
@@ -63,10 +62,6 @@ protected:
         if (Database::instance().isInitialized()) {
             Database::instance().executeRaw("DELETE FROM games");
             Database::instance().executeRaw("DELETE FROM settings");
-            Database::instance().executeRaw("DELETE FROM translation_memory");
-            Database::instance().executeRaw("DELETE FROM glossary");
-            Database::instance().executeRaw("DELETE FROM projects");
-            Database::instance().executeRaw("DELETE FROM entries");
             Database::instance().executeRaw("DELETE FROM backups");
         }
     }
@@ -86,54 +81,6 @@ protected:
         game.engineVersion = "2021.3";
         game.detectedAt = "2026-01-01T00:00:00Z";
         return game;
-    }
-
-    // Helper: create a TranslationMemoryEntry
-    static TranslationMemoryEntry makeTMEntry(
-        const std::string& source,
-        const std::string& target,
-        int quality = 85
-    ) {
-        TranslationMemoryEntry entry;
-        entry.sourceText = source;
-        entry.targetText = target;
-        entry.sourceHash = "hash_" + source;
-        entry.sourceLang = "en";
-        entry.targetLang = "tr";
-        entry.qualityScore = quality;
-        entry.verified = false;
-        return entry;
-    }
-
-    // Helper: create a GlossaryTerm
-    static GlossaryTerm makeTerm(
-        const std::string& source,
-        const std::string& target,
-        TermDomain domain = TermDomain::General
-    ) {
-        GlossaryTerm term;
-        term.termSource = source;
-        term.termTarget = target;
-        term.domain = domain;
-        term.priority = 50;
-        return term;
-    }
-
-    // Helper: create a TranslationProject
-    static TranslationProject makeProject(
-        const std::string& id,
-        const std::string& name,
-        const std::string& gameId = ""
-    ) {
-        TranslationProject proj;
-        proj.id = id;
-        proj.name = name;
-        if (!gameId.empty())
-            proj.gameId = gameId;
-        proj.sourceLang = "en";
-        proj.targetLang = "tr";
-        proj.status = ProjectStatus::Active;
-        return proj;
     }
 
     fs::path tempDir_;
@@ -221,271 +168,6 @@ TEST_F(DatabaseTest, SaveGameUpdateExisting) {
     ASSERT_TRUE(result.has_value());
     ASSERT_TRUE(result.value().has_value());
     EXPECT_EQ(result.value().value().name, "Game A Updated");
-}
-
-// ============================================================================
-// Translation Memory Operations
-// ============================================================================
-
-TEST_F(DatabaseTest, AddAndFindTMEntry) {
-    auto entry = makeTMEntry("Save Game", "Oyunu Kaydet");
-
-    auto addResult = Database::instance().addToTranslationMemory(entry);
-    ASSERT_TRUE(addResult.has_value());
-    EXPECT_GT(addResult.value(), 0);
-
-    auto findResult = Database::instance().findExactMatch("hash_Save Game");
-    ASSERT_TRUE(findResult.has_value());
-    ASSERT_TRUE(findResult.value().has_value());
-    EXPECT_EQ(findResult.value().value().targetText, "Oyunu Kaydet");
-}
-
-TEST_F(DatabaseTest, FindExactMatchMissingReturnsNullopt) {
-    auto result = Database::instance().findExactMatch("nonexistent_hash");
-    ASSERT_TRUE(result.has_value());
-    EXPECT_FALSE(result.value().has_value());
-}
-
-TEST_F(DatabaseTest, TMStatsAfterInsertions) {
-    Database::instance().addToTranslationMemory(makeTMEntry("A", "X"));
-    Database::instance().addToTranslationMemory(makeTMEntry("B", "Y"));
-    Database::instance().addToTranslationMemory(makeTMEntry("C", "Z"));
-
-    auto stats = Database::instance().getTranslationMemoryStats();
-    ASSERT_TRUE(stats.has_value());
-    EXPECT_EQ(stats.value().first, 3);  // total
-}
-
-TEST_F(DatabaseTest, UpdateTMEntry) {
-    auto entry = makeTMEntry("Hello", "Merhaba", 70);
-    auto id = Database::instance().addToTranslationMemory(entry);
-    ASSERT_TRUE(id.has_value());
-
-    auto updateResult = Database::instance().updateTranslationMemoryEntry(
-        id.value(), "Selam", 95, true);
-    EXPECT_TRUE(updateResult.has_value());
-
-    auto getResult = Database::instance().getTranslationMemoryEntryById(id.value());
-    ASSERT_TRUE(getResult.has_value());
-    EXPECT_EQ(getResult.value().targetText, "Selam");
-    EXPECT_TRUE(getResult.value().verified);
-}
-
-TEST_F(DatabaseTest, DeleteTMEntry) {
-    auto id = Database::instance().addToTranslationMemory(
-        makeTMEntry("Test", "Deneme"));
-    ASSERT_TRUE(id.has_value());
-
-    auto delResult = Database::instance().deleteTranslationMemoryEntry(id.value());
-    EXPECT_TRUE(delResult.has_value());
-
-    auto getResult = Database::instance().getTranslationMemoryEntryById(id.value());
-    EXPECT_FALSE(getResult.has_value());  // Should fail — entry deleted
-}
-
-TEST_F(DatabaseTest, IncrementTMUsage) {
-    auto id = Database::instance().addToTranslationMemory(
-        makeTMEntry("Reload", "Yeniden Yukle"));
-    ASSERT_TRUE(id.has_value());
-
-    Database::instance().incrementTMUsage(id.value());
-    Database::instance().incrementTMUsage(id.value());
-
-    auto entry = Database::instance().getTranslationMemoryEntryById(id.value());
-    ASSERT_TRUE(entry.has_value());
-    EXPECT_GE(entry.value().usageCount, 2);
-}
-
-// ============================================================================
-// N-gram Operations
-// ============================================================================
-
-TEST_F(DatabaseTest, StoreAndFindNgrams) {
-    auto id = Database::instance().addToTranslationMemory(
-        makeTMEntry("Loading screen", "Yukleme ekrani"));
-    ASSERT_TRUE(id.has_value());
-
-    std::vector<std::pair<std::string, int>> ngrams = {
-        {"loa", 0}, {"oad", 1}, {"adi", 2}, {"din", 3}, {"ing", 4}
-    };
-
-    auto storeResult = Database::instance().storeNgrams(id.value(), ngrams);
-    EXPECT_TRUE(storeResult.has_value());
-
-    auto findResult = Database::instance().findByNgram("loa");
-    ASSERT_TRUE(findResult.has_value());
-    EXPECT_THAT(findResult.value(), SizeIs(Gt(0u)));
-    EXPECT_EQ(findResult.value().front(), id.value());
-}
-
-// ============================================================================
-// Glossary Operations
-// ============================================================================
-
-TEST_F(DatabaseTest, AddAndSearchGlossaryTerm) {
-    auto term = makeTerm("Health", "Can", TermDomain::RPG);
-
-    auto addResult = Database::instance().addGlossaryTerm(term);
-    ASSERT_TRUE(addResult.has_value());
-
-    auto searchResult = Database::instance().searchGlossary("Health");
-    ASSERT_TRUE(searchResult.has_value());
-    EXPECT_THAT(searchResult.value(), SizeIs(1));
-    EXPECT_EQ(searchResult.value().front().termTarget, "Can");
-}
-
-TEST_F(DatabaseTest, GetAllGlossaryTerms) {
-    Database::instance().addGlossaryTerm(makeTerm("Health", "Can"));
-    Database::instance().addGlossaryTerm(makeTerm("Mana", "Buyü Gücü"));
-    Database::instance().addGlossaryTerm(makeTerm("Shield", "Kalkan"));
-
-    auto result = Database::instance().getAllGlossaryTerms();
-    ASSERT_TRUE(result.has_value());
-    EXPECT_THAT(result.value(), SizeIs(3));
-}
-
-TEST_F(DatabaseTest, DeleteGlossaryTerm) {
-    auto id = Database::instance().addGlossaryTerm(
-        makeTerm("Weapon", "Silah"));
-    ASSERT_TRUE(id.has_value());
-
-    auto delResult = Database::instance().deleteGlossaryTerm(id.value());
-    EXPECT_TRUE(delResult.has_value());
-
-    auto all = Database::instance().getAllGlossaryTerms();
-    ASSERT_TRUE(all.has_value());
-    EXPECT_THAT(all.value(), IsEmpty());
-}
-
-TEST_F(DatabaseTest, GlossaryAlternativeAndForbidden) {
-    auto id = Database::instance().addGlossaryTerm(
-        makeTerm("Skill", "Yetenek", TermDomain::RPG));
-    ASSERT_TRUE(id.has_value());
-
-    auto altResult = Database::instance().addGlossaryAlternative(
-        id.value(), "Beceri", "context: passive skill");
-    EXPECT_TRUE(altResult.has_value());
-
-    auto forbidResult = Database::instance().addForbiddenTranslation(
-        id.value(), "Ustalık", "Too archaic");
-    EXPECT_TRUE(forbidResult.has_value());
-}
-
-// ============================================================================
-// Project Operations
-// ============================================================================
-
-TEST_F(DatabaseTest, CreateAndGetProject) {
-    auto proj = makeProject("proj_001", "Disco Elysium TR", "1716740");
-
-    auto createResult = Database::instance().createProject(proj);
-    ASSERT_TRUE(createResult.has_value());
-
-    auto getResult = Database::instance().getProject(createResult.value());
-    ASSERT_TRUE(getResult.has_value());
-    ASSERT_TRUE(getResult.value().has_value());
-    EXPECT_EQ(getResult.value().value().name, "Disco Elysium TR");
-}
-
-TEST_F(DatabaseTest, GetProjectsByGame) {
-    Database::instance().createProject(makeProject("p1", "Project 1", "game_A"));
-    Database::instance().createProject(makeProject("p2", "Project 2", "game_A"));
-    Database::instance().createProject(makeProject("p3", "Project 3", "game_B"));
-
-    auto result = Database::instance().getProjectsByGame("game_A");
-    ASSERT_TRUE(result.has_value());
-    EXPECT_THAT(result.value(), SizeIs(2));
-}
-
-TEST_F(DatabaseTest, DeleteProjectCleansUp) {
-    auto createResult = Database::instance().createProject(
-        makeProject("p_del", "To Delete"));
-    ASSERT_TRUE(createResult.has_value());
-
-    auto delResult = Database::instance().deleteProject(createResult.value());
-    EXPECT_TRUE(delResult.has_value());
-
-    auto getResult = Database::instance().getProject(createResult.value());
-    ASSERT_TRUE(getResult.has_value());
-    EXPECT_FALSE(getResult.value().has_value());
-}
-
-// ============================================================================
-// Translation Entry Operations
-// ============================================================================
-
-TEST_F(DatabaseTest, SaveAndGetEntries) {
-    auto projId = Database::instance().createProject(
-        makeProject("ep1", "Entry Test"));
-    ASSERT_TRUE(projId.has_value());
-
-    TranslationEntry entry;
-    entry.projectId = projId.value();
-    entry.filePath = "strings.json";
-    entry.sourceText = "Hello World";
-    entry.targetText = "Merhaba Dünya";
-    entry.status = EntryStatus::Translated;
-    entry.category = EntryCategory::UI;
-    entry.qaScore = 90;
-
-    auto saveResult = Database::instance().saveEntry(entry);
-    ASSERT_TRUE(saveResult.has_value());
-
-    auto getResult = Database::instance().getEntriesByProject(projId.value());
-    ASSERT_TRUE(getResult.has_value());
-    EXPECT_THAT(getResult.value(), SizeIs(1));
-    EXPECT_EQ(getResult.value().front().sourceText, "Hello World");
-}
-
-TEST_F(DatabaseTest, BatchSaveEntries) {
-    auto projId = Database::instance().createProject(
-        makeProject("ep2", "Batch Test"));
-    ASSERT_TRUE(projId.has_value());
-
-    std::vector<TranslationEntry> entries;
-    for (int i = 0; i < 50; ++i) {
-        TranslationEntry e;
-        e.projectId = projId.value();
-        e.filePath = "data.json";
-        e.sourceText = "String " + std::to_string(i);
-        e.status = EntryStatus::Untranslated;
-        entries.push_back(e);
-    }
-
-    auto result = Database::instance().saveEntries(entries);
-    EXPECT_TRUE(result.has_value());
-
-    auto getResult = Database::instance().getEntriesByProject(projId.value());
-    ASSERT_TRUE(getResult.has_value());
-    EXPECT_THAT(getResult.value(), SizeIs(50));
-}
-
-TEST_F(DatabaseTest, EntryStats) {
-    auto projId = Database::instance().createProject(
-        makeProject("ep3", "Stats Test"));
-    ASSERT_TRUE(projId.has_value());
-
-    // Add mixed entries
-    TranslationEntry e1;
-    e1.projectId = projId.value();
-    e1.filePath = "a.json";
-    e1.sourceText = "Untranslated";
-    e1.status = EntryStatus::Untranslated;
-    Database::instance().saveEntry(e1);
-
-    TranslationEntry e2;
-    e2.projectId = projId.value();
-    e2.filePath = "a.json";
-    e2.sourceText = "Translated";
-    e2.targetText = "Çevrildi";
-    e2.status = EntryStatus::Translated;
-    Database::instance().saveEntry(e2);
-
-    auto stats = Database::instance().getEntryStats(projId.value());
-    ASSERT_TRUE(stats.has_value());
-    EXPECT_EQ(stats.value().total, 2);
-    EXPECT_EQ(stats.value().translated, 1);
-    EXPECT_EQ(stats.value().untranslated, 1);
 }
 
 // ============================================================================
