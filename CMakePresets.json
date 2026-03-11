@@ -217,6 +217,9 @@
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
+      },
+      "environment": {
+        "PATH": "$penv{VCPKG_ROOT}/installed/x64-mingw-dynamic/bin;$penv{PATH}"
       }
     }
   ]

@@ -80,6 +80,9 @@ endif()
 # Core C++ library
 if(NOT MAKINEAI_UI_ONLY)
     set(BUILD_TESTING ${MAKINEAI_BUILD_TESTS})
+    if(MAKINEAI_BUILD_TESTS)
+        enable_testing()
+    endif()
     add_subdirectory(core)
 endif()
 

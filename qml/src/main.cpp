@@ -711,6 +711,7 @@ int main(int argc, char *argv[])
     // Manual registration — works in both shared and static Qt builds.
     // (QML_ELEMENT/QML_SINGLETON relies on linker keeping registration code,
     //  which --gc-sections strips in static builds.)
+    // NOLINT: spdlog is not used in this file — no ADL collision risk.
     using namespace makineai;
 
     QElapsedTimer startupTimer;
