@@ -13,7 +13,7 @@
  *   assets/images/{id}.png      - Game cover images (260x370)
  *   assets/banners/*.png        - Announcement banners
  *   assets/update.json          - Self-update metadata
- *   data/{id}.mkpkg             - Encrypted translation packages
+ *   data/{id}.makine            - Encrypted translation packages
  */
 
 namespace makineai::cdn {
@@ -28,7 +28,7 @@ inline constexpr auto kImagesBase = "https://cdn.makineceviri.net/assets/images/
 inline constexpr auto kUpdateJson = "https://cdn.makineceviri.net/assets/update.json";
 inline constexpr auto kBannersBase= "https://cdn.makineceviri.net/assets/banners/";
 
-// Data endpoint (encrypted .mkpkg packages)
+// Data endpoint (encrypted .makine packages)
 inline constexpr auto kDataBase   = "https://cdn.makineceviri.net/data/";
 
 } // namespace makineai::cdn

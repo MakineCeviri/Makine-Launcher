@@ -2,7 +2,7 @@
 """
 package_pipeline.py -- Compress + Encrypt translation packages for distribution.
 
-Creates .mkpkg files (MKPK format v1):
+Creates .makine files (MKPK format v1):
     [Magic: 4B "MKPK"] [Version: 1B] [Nonce: 12B] [Ciphertext+AuthTag: NB]
 
 Inner payload: tar.zst (zstandard level 9 compressed tar archive)
@@ -12,10 +12,10 @@ Usage:
     python scripts/package_pipeline.py                     # Process all packages
     python scripts/package_pipeline.py --app-id 1716740    # Process single package
     python scripts/package_pipeline.py --dry-run            # Preview without writing
-    python scripts/package_pipeline.py --verify 1716740     # Verify a .mkpkg file
+    python scripts/package_pipeline.py --verify 1716740     # Verify a .makine file
 
 Output:
-    {output}/data/{appId}.mkpkg   -- Encrypted compressed package
+    {output}/data/{appId}.makine   -- Encrypted compressed package
     {output}/pipeline_report.json -- Processing report with sizes & checksums
 """
 
@@ -54,7 +54,7 @@ NONCE_SIZE = 12      # AES-GCM standard nonce size
 TAG_SIZE = 16        # AES-GCM auth tag (appended by AESGCM.encrypt)
 HEADER_SIZE = 4 + 1 + NONCE_SIZE  # 17 bytes total header
 
-ZSTD_LEVEL = 9       # Good balance: ~45-50% ratio, 1100 MB/s decompress
+ZSTD_LEVEL = 19      # High compression — slower but much smaller
 ZSTD_THREADS = 0     # Auto-detect CPU count
 
 # Deferred packages (removed from manifest, kept here for reference)
@@ -205,7 +205,7 @@ def process_package(
     checksum = sha256_digest(mkpkg)
 
     # Step 4: Write output
-    output_path = output_dir / f"{app_id}.mkpkg"
+    output_path = output_dir / f"{app_id}.makine"
     if not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(mkpkg)
@@ -227,8 +227,8 @@ def process_package(
 
 
 def verify_package(app_id: str, output_dir: Path, data_dir: Path, key: bytes) -> dict:
-    """Verify a .mkpkg file: decrypt, decompress, compare file list."""
-    mkpkg_path = output_dir / f"{app_id}.mkpkg"
+    """Verify a .makine file: decrypt, decompress, compare file list."""
+    mkpkg_path = output_dir / f"{app_id}.makine"
     if not mkpkg_path.exists():
         return {"appId": app_id, "valid": False, "error": f"File not found: {mkpkg_path}"}
 
@@ -299,7 +299,7 @@ def update_manifest(
     Adds to index.json:
       - size: encrypted download size (bytes)
       - dataUrl: R2 download URL
-      - checksum: SHA-256 of .mkpkg file
+      - checksum: SHA-256 of .makine file
 
     Adds to packages/{appId}.json:
       - compressedSize, compressedChecksum, dataUrl
@@ -321,7 +321,7 @@ def update_manifest(
         if app_id in index.get("packages", {}):
             entry = index["packages"][app_id]
             entry["size"] = r["encryptedSize"]
-            entry["dataUrl"] = f"{r2_base_url}/{app_id}.mkpkg"
+            entry["dataUrl"] = f"{r2_base_url}/{app_id}.makine"
             entry["checksum"] = r["checksum"]
             entry["v"] = today  # Bump version date for update detection
             updated_count += 1
@@ -343,7 +343,7 @@ def update_manifest(
             pkg = json.loads(pkg_path.read_text(encoding="utf-8"))
             pkg["compressedSize"] = r["encryptedSize"]
             pkg["compressedChecksum"] = r["checksum"]
-            pkg["dataUrl"] = f"{r2_base_url}/{app_id}.mkpkg"
+            pkg["dataUrl"] = f"{r2_base_url}/{app_id}.makine"
             pkg["lastUpdated"] = today  # Bump version date
             with open(pkg_path, "w", encoding="utf-8") as f:
                 json.dump(pkg, f, indent=2, ensure_ascii=False)
@@ -373,14 +373,14 @@ def main():
     parser.add_argument("--data", default="C:/cedra/translation_data",
                         help="Translation data root directory")
     parser.add_argument("--output", default="C:/cedra/MakineAI-Assets-Build/data",
-                        help="Output directory for .mkpkg files")
+                        help="Output directory for .makine files")
     parser.add_argument("--key", default="scripts/.encryption_key",
                         help="Path to encryption key file")
     parser.add_argument("--app-id", help="Process single package by app ID")
     parser.add_argument("--dry-run", action="store_true",
                         help="Preview without writing files")
     parser.add_argument("--verify", metavar="APP_ID",
-                        help="Verify a .mkpkg file (decrypt + decompress + check)")
+                        help="Verify a .makine file (decrypt + decompress + check)")
     parser.add_argument("--skip-deferred", action="store_true", default=True,
                         help="Skip deferred large packages (default: true)")
     parser.add_argument("--include-deferred", action="store_true",

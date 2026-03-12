@@ -36,7 +36,7 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir dir(tempDir);
     if (dir.exists()) {
-        const auto entries = dir.entryInfoList({QStringLiteral("*.mkpkg.part")}, QDir::Files);
+        const auto entries = dir.entryInfoList({QStringLiteral("*.makine.part")}, QDir::Files);
         const qint64 staleThreshold = QDateTime::currentSecsSinceEpoch() - 7 * 24 * 3600;
         for (const auto& fi : entries) {
             if (fi.lastModified().toSecsSinceEpoch() < staleThreshold) {
@@ -100,9 +100,9 @@ void TranslationDownloader::downloadPackage(
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir().mkpath(tempDir);
 
-    const QString tempPath = tempDir + QStringLiteral("/%1_%2.mkpkg")
+    const QString tempPath = tempDir + QStringLiteral("/%1_%2.makine")
         .arg(appId, QUuid::createUuid().toString(QUuid::Id128).left(8));
-    const QString partPath = tempDir + QStringLiteral("/%1.mkpkg.part").arg(appId);
+    const QString partPath = tempDir + QStringLiteral("/%1.makine.part").arg(appId);
 
     DownloadState state;
     state.tempPath = tempPath;

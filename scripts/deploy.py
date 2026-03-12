@@ -4,7 +4,7 @@ deploy.py -- Full deployment orchestrator for MakineAI translation packages.
 
 Single command to:
   1. Run compression + encryption pipeline (package_pipeline.py)
-  2. Upload .mkpkg files to Cloudflare R2 (r2_upload.py)
+  2. Upload .makine files to Cloudflare R2 (r2_upload.py)
   3. Upload updated manifests to R2 (wrangler)
   4. Create Sentry release + associate commits (sentry-cli)
   5. Upload debug symbols for stack trace symbolication (sentry-cli)
@@ -265,7 +265,7 @@ def main():
     parser.add_argument("--app-id", help="Deploy single package")
     parser.add_argument("--dry-run", action="store_true", help="Preview without changes")
     parser.add_argument("--skip-pipeline", action="store_true",
-                        help="Skip compression/encryption (use existing .mkpkg)")
+                        help="Skip compression/encryption (use existing .makine)")
     parser.add_argument("--skip-upload", action="store_true",
                         help="Skip R2 data upload")
     parser.add_argument("--skip-manifests", action="store_true",
@@ -320,7 +320,7 @@ def main():
             print("\nPipeline failed — aborting deployment.")
             sys.exit(1)
 
-    # ── Step 2: Upload .mkpkg to R2 ──
+    # ── Step 2: Upload .makine to R2 ──
     if not args.skip_upload:
         steps_total += 1
         upload_cmd = [
@@ -371,7 +371,7 @@ def main():
     if steps_ok == steps_total:
         print("  All steps passed!")
         if not args.dry_run:
-            print(f"  Packages: {r2_data_url}/<appId>.mkpkg")
+            print(f"  Packages: {r2_data_url}/<appId>.makine")
             print(f"  Catalog:  {r2_public_url}/assets/index.json")
     else:
         print(f"  WARNING: {steps_total - steps_ok} steps failed")
