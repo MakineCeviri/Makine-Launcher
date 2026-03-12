@@ -163,6 +163,21 @@ void SettingsManager::setAccentPreset(const QString& value)
     }
 }
 
+void SettingsManager::setUiScale(const QString& value)
+{
+    if (m_uiScale != value) {
+        m_uiScale = value;
+        m_settings.setValue("appearance/uiScale", value);
+        emit uiScaleChanged();
+        emit settingsChanged();
+    }
+}
+
+QString SettingsManager::appliedUiScale() const
+{
+    return m_settings.value("appearance/_appliedUiScale", "auto").toString();
+}
+
 QVariantList SettingsManager::accentPresets() const
 {
     struct Preset {
@@ -276,6 +291,7 @@ void SettingsManager::resetToDefaults()
     setTranslationLanguage("tr");
     setIsDarkMode(true);
     setAccentPreset("purple");
+    setUiScale("auto");
     emit settingsResetCompleted();
 }
 
@@ -326,6 +342,7 @@ void SettingsManager::loadSettings()
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
     m_accentPreset = m_settings.value("appearance/accentPreset", "purple").toString();
+    m_uiScale = m_settings.value("appearance/uiScale", "auto").toString();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
     m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();
     // translationDataPath: prefer DPAPI-encrypted, migrate from plaintext
@@ -367,6 +384,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("translation/language", m_translationLanguage);
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);
     m_settings.setValue("appearance/accentPreset", m_accentPreset);
+    m_settings.setValue("appearance/uiScale", m_uiScale);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
     m_settings.setValue("general/appLanguage", m_appLanguage);
 

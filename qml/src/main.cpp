@@ -666,6 +666,50 @@ static void configureQtEnvironment()
 
     // V4 JS engine: aggressive GC to free unused JS heap sooner
     qputenv("QV4_MM_AGGRESSIVE_GC", "1");
+
+    // UI Scale: compute effective scale factor before QGuiApplication.
+    //
+    // Reference logical size: 1280×800.  On screens too small to fit the
+    // reference at native DPI, "auto" mode shrinks to fit (floor 0.80).
+    // compact = 0.92×, large = 1.12×, auto = adaptive (≤ 1.0).
+    // The numeric factor is persisted so configureWindowOnReady() can
+    // size the window to the exact matching physical resolution.
+    {
+        QSettings settings("MakineAI", "MakineAI");
+        QString uiScale = settings.value("appearance/uiScale", "auto").toString();
+
+        double effectiveScale = 1.0;
+
+        if (uiScale == "compact") {
+            effectiveScale = 0.92;
+        } else if (uiScale == "large") {
+            effectiveScale = 1.12;
+        } else {
+#ifdef Q_OS_WIN
+            // auto: if screen is smaller than reference, shrink to fit
+            RECT wa{};
+            SystemParametersInfoW(SPI_GETWORKAREA, 0, &wa, 0);
+            HDC hdc = GetDC(nullptr);
+            double nativeDpr = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0;
+            ReleaseDC(nullptr, hdc);
+
+            double usableW = (wa.right - wa.left) * 0.92;
+            double usableH = (wa.bottom - wa.top) * 0.92;
+            double fitW = usableW / (1280.0 * nativeDpr);
+            double fitH = usableH / (800.0 * nativeDpr);
+            double fitScale = qMin(fitW, fitH);
+
+            if (fitScale < 1.0)
+                effectiveScale = qMax(fitScale, 0.80);  // never below 0.80
+#endif
+        }
+
+        if (!qEnvironmentVariableIsSet("QT_SCALE_FACTOR") && effectiveScale != 1.0)
+            qputenv("QT_SCALE_FACTOR", QByteArray::number(effectiveScale, 'f', 3));
+
+        settings.setValue("appearance/_appliedUiScale", uiScale);
+        settings.setValue("appearance/_appliedScaleFactor", effectiveScale);
+    }
 }
 
 static bool acquireSingleInstance(bool isPostUpdate)
@@ -989,24 +1033,47 @@ static void setupRootWindow(
     }
 
 #ifdef Q_OS_WIN
-    // Responsive sizing + centered positioning via Win32
+    // DPI-aware window sizing + centered positioning via Win32
+    //
+    // Physical window size = reference (1280×800) × native DPI × effective scale.
+    // The effective scale factor was computed in configureQtEnvironment() and
+    // persisted to QSettings — it already accounts for auto-fit on small screens,
+    // compact/large user preference, and the 0.80 floor.
     {
         RECT workArea{};
         SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
         int waW = workArea.right - workArea.left;
         int waH = workArea.bottom - workArea.top;
 
-        // Proportional: 1280x1080 on 3840x2160 = 1/3 width, 1/2 height
-        int w = waW / 3;
-        int h = waH / 2;
+        constexpr int refW = 1280;   // reference logical width
+        constexpr int refH = 800;    // reference logical height
 
-        // Screen center point
+        // Native system DPI (unaffected by QT_SCALE_FACTOR)
+        HDC hdc = GetDC(nullptr);
+        qreal nativeDpr = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0;
+        ReleaseDC(nullptr, hdc);
+
+        // Effective scale (computed once at startup, includes auto-fit)
+        QSettings settings("MakineAI", "MakineAI");
+        double scaleFactor = settings.value("appearance/_appliedScaleFactor", 1.0).toDouble();
+
+        // Physical window = reference × native DPI × effective scale
+        int w = static_cast<int>(refW * nativeDpr * scaleFactor);
+        int h = static_cast<int>(refH * nativeDpr * scaleFactor);
+
+        // Floor: at least 40 % of work area (prevents being tiny on 4K/100 %)
+        w = qMax(w, waW * 40 / 100);
+        h = qMax(h, waH * 40 / 100);
+
+        // Ceiling: at most 92 % of work area (prevents filling small screens)
+        w = qMin(w, waW * 92 / 100);
+        h = qMin(h, waH * 92 / 100);
+
+        // Screen center
         int cx = workArea.left + waW / 2;
-        int cy = workArea.top + waH / 2;
-
-        // Window top-left so that window center == screen center
-        int x = cx - w / 2;
-        int y = cy - h / 2;
+        int cy = workArea.top  + waH / 2;
+        int x  = cx - w / 2;
+        int y  = cy - h / 2;
 
         HWND hwnd = reinterpret_cast<HWND>(window->winId());
         MoveWindow(hwnd, x, y, w, h, TRUE);

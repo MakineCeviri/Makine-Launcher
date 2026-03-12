@@ -47,6 +47,9 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool isDarkMode READ isDarkMode WRITE setIsDarkMode NOTIFY isDarkModeChanged)
     Q_PROPERTY(QString accentPreset READ accentPreset WRITE setAccentPreset NOTIFY accentPresetChanged)
 
+    // UI Scale (requires restart)
+    Q_PROPERTY(QString uiScale READ uiScale WRITE setUiScale NOTIFY uiScaleChanged)
+
     // Onboarding
     Q_PROPERTY(bool onboardingCompleted READ onboardingCompleted WRITE setOnboardingCompleted NOTIFY onboardingCompletedChanged)
 
@@ -101,6 +104,11 @@ public:
     QString accentPreset() const { return m_accentPreset; }
     void setAccentPreset(const QString& value);
 
+    // UI Scale
+    QString uiScale() const { return m_uiScale; }
+    void setUiScale(const QString& value);
+    Q_INVOKABLE QString appliedUiScale() const;
+
     // Onboarding
     bool onboardingCompleted() const { return m_onboardingCompleted; }
     void setOnboardingCompleted(bool value);
@@ -132,6 +140,7 @@ signals:
     void translationLanguageChanged();
     void isDarkModeChanged();
     void accentPresetChanged();
+    void uiScaleChanged();
     void onboardingCompletedChanged();
     void appLanguageChanged();
     void translationDataPathChanged();
@@ -169,6 +178,7 @@ private:
     // Theme
     bool m_isDarkMode{true};
     QString m_accentPreset{"purple"};
+    QString m_uiScale{"auto"};
 
     // Onboarding
     bool m_onboardingCompleted{false};
