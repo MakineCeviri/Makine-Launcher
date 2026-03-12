@@ -108,6 +108,7 @@ Item {
                             scanStep.isScanning = true
                             scanStep.scanStage = 0
                             scanStageTimer.start()
+                            scanTimeoutTimer.start()
                             if (typeof GameService !== "undefined") {
                                 GameService.scanAllLibraries()
                             } else {
@@ -248,10 +249,26 @@ Item {
         }
     }
 
+    // Safety timeout — if scan hangs for 30s, let user proceed
+    Timer {
+        id: scanTimeoutTimer
+        interval: 30000
+        repeat: false
+        onTriggered: {
+            if (scanStep.isScanning) {
+                scanStageTimer.stop()
+                scanStep.isScanning = false
+                scanStep.scanDone = true
+                scanStep.foundGames = 0
+            }
+        }
+    }
+
     Connections {
         target: typeof GameService !== "undefined" ? GameService : null
         function onScanCompleted(count) {
             scanStageTimer.stop()
+            scanTimeoutTimer.stop()
             scanStep.isScanning = false
             scanStep.scanDone = true
             scanStep.foundGames = count

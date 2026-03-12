@@ -387,26 +387,31 @@ void BackupManager::loadBackups()
         return;
     }
 
-    const QByteArray data = file.readAll();
-    const QJsonDocument doc = QJsonDocument::fromJson(data);
+    try {
+        const QByteArray data = file.readAll();
+        const QJsonDocument doc = QJsonDocument::fromJson(data);
 
-    if (!doc.isArray()) return;
+        if (!doc.isArray()) return;
 
-    for (const auto& value : doc.array()) {
-        const QJsonObject obj = value.toObject();
-        BackupInfo backup;
-        backup.id = obj["id"].toString();
-        backup.gameId = obj["gameId"].toString();
-        backup.gameName = obj["gameName"].toString();
-        backup.backupPath = obj["backupPath"].toString();
-        backup.originalPath = obj["originalPath"].toString();
-        backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
-        backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
-        backup.fileCount = obj["fileCount"].toInt();
-        backup.gameStoreVersion = obj["gameStoreVersion"].toString();
-        backup.patchVersion = obj["patchVersion"].toString();
-        backup.isValid = QDir(backup.backupPath).exists();
-        m_backups.append(backup);
+        for (const auto& value : doc.array()) {
+            const QJsonObject obj = value.toObject();
+            BackupInfo backup;
+            backup.id = obj["id"].toString();
+            backup.gameId = obj["gameId"].toString();
+            backup.gameName = obj["gameName"].toString();
+            backup.backupPath = obj["backupPath"].toString();
+            backup.originalPath = obj["originalPath"].toString();
+            backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
+            backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
+            backup.fileCount = obj["fileCount"].toInt();
+            backup.gameStoreVersion = obj["gameStoreVersion"].toString();
+            backup.patchVersion = obj["patchVersion"].toString();
+            backup.isValid = QDir(backup.backupPath).exists();
+            m_backups.append(backup);
+        }
+    } catch (const std::exception& e) {
+        qCWarning(lcBackup) << "Failed to load backups metadata:" << e.what();
+        return;
     }
 
     rebuildBackupIndex();
@@ -418,26 +423,30 @@ void BackupManager::saveBackups()
     const QString backupsDir = getBackupsDirectory();
     QDir().mkpath(backupsDir);
 
-    QJsonArray array;
-    for (const auto& backup : m_backups) {
-        QJsonObject obj;
-        obj["id"] = backup.id;
-        obj["gameId"] = backup.gameId;
-        obj["gameName"] = backup.gameName;
-        obj["backupPath"] = backup.backupPath;
-        obj["originalPath"] = backup.originalPath;
-        obj["createdAt"] = backup.createdAt.toString(Qt::ISODate);
-        obj["sizeBytes"] = backup.sizeBytes;
-        obj["fileCount"] = backup.fileCount;
-        if (!backup.gameStoreVersion.isEmpty())
-            obj["gameStoreVersion"] = backup.gameStoreVersion;
-        if (!backup.patchVersion.isEmpty())
-            obj["patchVersion"] = backup.patchVersion;
-        array.append(obj);
-    }
+    try {
+        QJsonArray array;
+        for (const auto& backup : m_backups) {
+            QJsonObject obj;
+            obj["id"] = backup.id;
+            obj["gameId"] = backup.gameId;
+            obj["gameName"] = backup.gameName;
+            obj["backupPath"] = backup.backupPath;
+            obj["originalPath"] = backup.originalPath;
+            obj["createdAt"] = backup.createdAt.toString(Qt::ISODate);
+            obj["sizeBytes"] = backup.sizeBytes;
+            obj["fileCount"] = backup.fileCount;
+            if (!backup.gameStoreVersion.isEmpty())
+                obj["gameStoreVersion"] = backup.gameStoreVersion;
+            if (!backup.patchVersion.isEmpty())
+                obj["patchVersion"] = backup.patchVersion;
+            array.append(obj);
+        }
 
-    QByteArray data = QJsonDocument(array).toJson();
-    fileutils::atomicWriteJson(backupsDir + "/backups.json", data);
+        QByteArray data = QJsonDocument(array).toJson();
+        fileutils::atomicWriteJson(backupsDir + "/backups.json", data);
+    } catch (const std::exception& e) {
+        qCWarning(lcBackup) << "Failed to save backups metadata:" << e.what();
+    }
 }
 
 void BackupManager::cleanupOldBackups(const QString& gameId)

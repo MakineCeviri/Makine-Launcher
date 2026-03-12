@@ -514,6 +514,7 @@ find_package(Qt6 COMPONENTS LinguistTools QUIET)
 if(Qt6LinguistTools_FOUND)
     set(TS_FILES
         i18n/makineai_en.ts
+        i18n/makineai_tr.ts
     )
     qt_add_translations(MakineAI
         TS_FILES ${TS_FILES}
