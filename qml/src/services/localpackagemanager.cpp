@@ -24,6 +24,7 @@
 #include <QJsonArray>
 #include <QStandardPaths>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QDirIterator>
 #include <QRegularExpression>
 #include <QDateTime>
@@ -38,6 +39,8 @@
 #include <set>
 #include <string>
 #include <vector>
+
+Q_LOGGING_CATEGORY(lcPackageManager, "makineai.package")
 
 namespace makineai {
 
@@ -61,7 +64,7 @@ bool LocalPackageManager::loadFromIndex(const QString& indexPath, const QString&
     std::string statePath = installedStatePath().toStdString();
     m_catalog.loadInstalledState(statePath);
 
-    qDebug() << "LocalPackageManager: loaded" << m_catalog.packageCount()
+    qCDebug(lcPackageManager) << "LocalPackageManager: loaded" << m_catalog.packageCount()
              << "packages from index (network-only)";
     return ok;
 }
@@ -406,7 +409,7 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
 
     ProcessResult result;
     if (!proc.waitForStarted(10000)) {
-        qWarning() << "Process failed to start:" << exePath;
+        qCWarning(lcPackageManager) << "Process failed to start:" << exePath;
         return result;
     }
     result.started = true;
@@ -418,7 +421,7 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     while (!proc.waitForFinished(kPollMs)) {
         elapsed += kPollMs;
         if (elapsed >= kMaxMs) {
-            qWarning() << "Process timeout:" << exePath;
+            qCWarning(lcPackageManager) << "Process timeout:" << exePath;
             proc.kill();
             proc.waitForFinished(2000);
             result.timedOut = true;
@@ -496,7 +499,7 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
 
         // Prevent path traversal: ensure destination stays within game directory
         if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-            qWarning() << "Path traversal blocked:" << relPath;
+            qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
             result.errors++;
             continue;
         }
@@ -504,7 +507,7 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
         // Ensure destination directory exists
         QFileInfo destInfo(destPath);
         if (!QDir().mkpath(destInfo.absolutePath())) {
-            qWarning() << "Failed to create directory:" << destInfo.absolutePath();
+            qCWarning(lcPackageManager) << "Failed to create directory:" << destInfo.absolutePath();
             result.errors++;
             continue;
         }
@@ -549,11 +552,11 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 result.errors = -1;
                 return result;
             } else {
-                qWarning() << "Failed to copy (locked):" << srcPath << "->" << destPath;
+                qCWarning(lcPackageManager) << "Failed to copy (locked):" << srcPath << "->" << destPath;
                 result.errors++;
             }
         } else {
-            qWarning() << "Failed to copy:" << srcPath << "->" << destPath;
+            qCWarning(lcPackageManager) << "Failed to copy:" << srcPath << "->" << destPath;
             result.errors++;
         }
 
@@ -956,7 +959,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
             }
         }
         if (staleDeleted > 0)
-            qDebug() << "updatePackage: removed" << staleDeleted << "stale added files";
+            qCDebug(lcPackageManager) << "updatePackage: removed" << staleDeleted << "stale added files";
 
         // Update: a file is "replaced" if it was already replaced in the original install
         auto classifier = [&oldReplacedSet](const QString& relPath, bool /*destExists*/) -> bool {
@@ -1007,7 +1010,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                        const QString& logLabel) -> StepOutcome {
         QFileInfo dstInfo(dst);
         if (!QDir().mkpath(dstInfo.absolutePath())) {
-            qWarning() << "Failed to create directory:" << dstInfo.absolutePath();
+            qCWarning(lcPackageManager) << "Failed to create directory:" << dstInfo.absolutePath();
             return StepOutcome::SoftError;
         }
         auto [ok, err] = tryCopyFile(src, dst);
@@ -1024,10 +1027,10 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                 return fatal(tr("Disk alanı doldu, kurulum durduruluyor"));
             if (err2 == CopyError::PermissionDenied)
                 return fatal(tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-            qWarning() << logLabel << "failed (locked):" << src << "->" << dst;
+            qCWarning(lcPackageManager) << logLabel << "failed (locked):" << src << "->" << dst;
             return StepOutcome::SoftError;
         }
-        qWarning() << logLabel << "failed:" << src << "->" << dst;
+        qCWarning(lcPackageManager) << logLabel << "failed:" << src << "->" << dst;
         return StepOutcome::SoftError;
     };
 
@@ -1036,11 +1039,11 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destPath = QDir::cleanPath(gamePath   + "/" + step.dest);
 
         if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-            qWarning() << "Path traversal blocked in copy:" << step.dest;
+            qCWarning(lcPackageManager) << "Path traversal blocked in copy:" << step.dest;
             return StepOutcome::SoftError;
         }
         if (!QFile::exists(srcPath)) {
-            qWarning() << "Copy source not found:" << srcPath;
+            qCWarning(lcPackageManager) << "Copy source not found:" << srcPath;
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
@@ -1058,11 +1061,11 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destDir = QDir::cleanPath(gamePath   + "/" + step.dest);
 
         if (!destDir.startsWith(canonGamePath)) {
-            qWarning() << "Path traversal blocked in copyDir:" << step.dest;
+            qCWarning(lcPackageManager) << "Path traversal blocked in copyDir:" << step.dest;
             return StepOutcome::SoftError;
         }
         if (!QDir(srcDir).exists()) {
-            qWarning() << "copyDir source not found:" << srcDir;
+            qCWarning(lcPackageManager) << "copyDir source not found:" << srcDir;
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
@@ -1089,7 +1092,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
         if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-            qWarning() << "Path traversal blocked in delete:" << step.dest;
+            qCWarning(lcPackageManager) << "Path traversal blocked in delete:" << step.dest;
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
@@ -1097,7 +1100,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
 
         if (QFile::exists(destPath)) {
             if (!QFile::remove(destPath)) {
-                qWarning() << "Delete failed:" << destPath;
+                qCWarning(lcPackageManager) << "Delete failed:" << destPath;
                 return StepOutcome::SoftError;
             }
         }
@@ -1125,15 +1128,15 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                 QString fontEntry = "_font:" + fontName;
                 installedFiles.append(fontEntry);
                 if (m_journal) m_journal->recordFileModified(fontEntry);
-                qDebug() << "Font installed:" << fontName;
+                qCDebug(lcPackageManager) << "Font installed:" << fontName;
             } else if (outcome != StepOutcome::SoftError) {
                 return outcome;
             } else {
-                qWarning() << "Font install failed:" << fontName;
+                qCWarning(lcPackageManager) << "Font install failed:" << fontName;
             }
         }
 #else
-        qWarning() << "installFont action only supported on Windows";
+        qCWarning(lcPackageManager) << "installFont action only supported on Windows";
 #endif
         return StepOutcome::Ok;
 
@@ -1152,23 +1155,23 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             else if (QFile::exists(pkgFb))  exePath = pkgFb;
         }
         if (exePath.isEmpty()) {
-            qWarning() << "Run: executable not found:" << step.exe;
+            qCWarning(lcPackageManager) << "Run: executable not found:" << step.exe;
             return StepOutcome::SoftError;
         }
         if (exePath.contains("..")) {
-            qWarning() << "Run: path traversal rejected:" << exePath;
+            qCWarning(lcPackageManager) << "Run: path traversal rejected:" << exePath;
             return StepOutcome::SoftError;
         }
         QString canonExe  = QFileInfo(exePath).canonicalFilePath();
         QString canonGame = QDir(gamePath).canonicalPath();
         QString canonPkg  = QDir(packageDir).canonicalPath();
         if (!canonExe.startsWith(canonGame) && !canonExe.startsWith(canonPkg)) {
-            qWarning() << "Run: executable outside allowed directories:" << exePath;
+            qCWarning(lcPackageManager) << "Run: executable outside allowed directories:" << exePath;
             return StepOutcome::SoftError;
         }
         QString ext = QFileInfo(exePath).suffix().toLower();
         if (ext != "exe" && ext != "bat" && ext != "cmd") {
-            qWarning() << "Run: disallowed executable type:" << ext;
+            qCWarning(lcPackageManager) << "Run: disallowed executable type:" << ext;
             return StepOutcome::SoftError;
         }
 
@@ -1185,7 +1188,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             resolved.replace("${packageDir}", packageDir);
             resolvedArgs.append(resolved);
         }
-        qInfo() << "Run: executing" << exePath
+        qCInfo(lcPackageManager) << "Run: executing" << exePath
                 << "args:" << resolvedArgs << "workDir:" << workDir;
 
         QString exeFileName = QFileInfo(exePath).fileName();
@@ -1204,11 +1207,11 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             return StepOutcome::SoftError;
         }
         if (result.exitCode != 0) {
-            qWarning() << "Run: non-zero exit:" << result.exitCode
+            qCWarning(lcPackageManager) << "Run: non-zero exit:" << result.exitCode
                        << "output:" << result.output.left(500);
             return StepOutcome::SoftError;
         }
-        qDebug() << "Run OK:" << exePath;
+        qCDebug(lcPackageManager) << "Run OK:" << exePath;
         return StepOutcome::Ok;
 
     } else if (step.action == "copyToDesktop") {
@@ -1216,7 +1219,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         if (!QFile::exists(srcPath))
             srcPath = QDir::cleanPath(gamePath + "/" + step.src);
         if (!QFile::exists(srcPath)) {
-            qWarning() << "copyToDesktop source not found:" << step.src;
+            qCWarning(lcPackageManager) << "copyToDesktop source not found:" << step.src;
             return StepOutcome::SoftError;
         }
         QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
@@ -1229,7 +1232,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         if (outcome == StepOutcome::Ok) {
             installedFiles.append("_desktop:" + step.dest);
             if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
-            qDebug() << "Copied to desktop:" << step.dest;
+            qCDebug(lcPackageManager) << "Copied to desktop:" << step.dest;
         }
         return outcome;
 
@@ -1238,7 +1241,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
         if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
-            qWarning() << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
+            qCWarning(lcPackageManager) << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
@@ -1249,19 +1252,19 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             if (QFile::rename(srcPath, destPath)) {
                 installedFiles.append("_rename:" + step.src + ":" + step.dest);
                 if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
-                qDebug() << "Renamed:" << step.src << "->" << step.dest;
+                qCDebug(lcPackageManager) << "Renamed:" << step.src << "->" << step.dest;
             } else {
-                qWarning() << "Rename failed:" << srcPath << "->" << destPath;
+                qCWarning(lcPackageManager) << "Rename failed:" << srcPath << "->" << destPath;
                 return StepOutcome::SoftError;
             }
         } else {
-            qDebug() << "Rename source not found (skipping):" << srcPath;
+            qCDebug(lcPackageManager) << "Rename source not found (skipping):" << srcPath;
         }
         return StepOutcome::Ok;
 
     } else if (step.action == "setSteamLanguage") {
         if (step.language.isEmpty()) {
-            qWarning() << "setSteamLanguage: language not specified";
+            qCWarning(lcPackageManager) << "setSteamLanguage: language not specified";
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
@@ -1270,13 +1273,13 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         // Game path is typically: .../steamapps/common/GameName — go up two levels
         QDir dir(gamePath);
         if (!dir.cdUp() || !dir.cdUp()) {
-            qWarning() << "setSteamLanguage: cannot find steamapps dir from:" << gamePath;
+            qCWarning(lcPackageManager) << "setSteamLanguage: cannot find steamapps dir from:" << gamePath;
             return StepOutcome::SoftError;
         }
         QString acfPath = dir.absoluteFilePath("appmanifest_" + steamAppId + ".acf");
         QFile acfFile(acfPath);
         if (!acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            qWarning() << "setSteamLanguage: cannot open ACF:" << acfPath;
+            qCWarning(lcPackageManager) << "setSteamLanguage: cannot open ACF:" << acfPath;
             return StepOutcome::SoftError;
         }
         QString content = QString::fromUtf8(acfFile.readAll());
@@ -1286,14 +1289,14 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
         auto match = langRe.match(content);
         if (!match.hasMatch()) {
-            qWarning() << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
+            qCWarning(lcPackageManager) << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
             return StepOutcome::SoftError;
         }
         QString oldLang = match.captured(2);
         content.replace(match.capturedStart(2), match.capturedLength(2), step.language);
 
         if (!acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-            qWarning() << "setSteamLanguage: cannot write ACF:" << acfPath;
+            qCWarning(lcPackageManager) << "setSteamLanguage: cannot write ACF:" << acfPath;
             return StepOutcome::SoftError;
         }
         acfFile.write(content.toUtf8());
@@ -1301,12 +1304,12 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
 
         installedFiles.append("_steamlang:" + steamAppId + ":" + oldLang);
         if (m_journal) m_journal->recordFileModified("_steamlang:" + steamAppId);
-        qDebug() << "setSteamLanguage:" << oldLang << "->" << step.language
+        qCDebug(lcPackageManager) << "setSteamLanguage:" << oldLang << "->" << step.language
                  << "for appId" << steamAppId;
         return StepOutcome::Ok;
 
     } else {
-        qWarning() << "Unknown step action:" << step.action;
+        qCWarning(lcPackageManager) << "Unknown step action:" << step.action;
         return StepOutcome::SoftError;
     }
 }
@@ -1436,7 +1439,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 
         QString optionDir = QDir::cleanPath(basePackageDir + "/" + opt.subDir);
         if (!QDir(optionDir).exists()) {
-            qWarning() << "Option subDir not found:" << optionDir;
+            qCWarning(lcPackageManager) << "Option subDir not found:" << optionDir;
             errors++;
             continue;
         }
@@ -1549,9 +1552,9 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
             if (QFile::exists(desktopPath)) {
                 if (QFile::remove(desktopPath)) {
                     deleted++;
-                    qDebug() << "Desktop file removed:" << fileName;
+                    qCDebug(lcPackageManager) << "Desktop file removed:" << fileName;
                 } else {
-                    qWarning() << "Failed to remove desktop file:" << fileName;
+                    qCWarning(lcPackageManager) << "Failed to remove desktop file:" << fileName;
                     failed++;
                 }
             }
@@ -1570,9 +1573,9 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                     if (QFile::exists(origPath)) QFile::remove(origPath);
                     if (QFile::rename(renamedPath, origPath)) {
                         deleted++;
-                        qDebug() << "Rename reversed:" << renamedName << "->" << origName;
+                        qCDebug(lcPackageManager) << "Rename reversed:" << renamedName << "->" << origName;
                     } else {
-                        qWarning() << "Failed to reverse rename:" << renamedName;
+                        qCWarning(lcPackageManager) << "Failed to reverse rename:" << renamedName;
                         failed++;
                     }
                 }
@@ -1589,9 +1592,9 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
             if (QFile::exists(fontPath)) {
                 if (QFile::remove(fontPath)) {
                     deleted++;
-                    qDebug() << "Font removed:" << fontName;
+                    qCDebug(lcPackageManager) << "Font removed:" << fontName;
                 } else {
-                    qWarning() << "Failed to remove font:" << fontName;
+                    qCWarning(lcPackageManager) << "Failed to remove font:" << fontName;
                     failed++;
                 }
             }
@@ -1617,7 +1620,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                         if (acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
                             acfFile.write(content.toUtf8());
                             acfFile.close();
-                            qDebug() << "Steam language restored to:" << origLang << "for appId" << appId;
+                            qCDebug(lcPackageManager) << "Steam language restored to:" << origLang << "for appId" << appId;
                         }
                     }
                 }
@@ -1635,13 +1638,13 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                 if (QFile::exists(bundleFullPath)) QFile::remove(bundleFullPath);
                 if (QFile::rename(backupPath, bundleFullPath)) {
                     deleted++;
-                    qDebug() << "Unity bundle restored:" << bundleRelPath;
+                    qCDebug(lcPackageManager) << "Unity bundle restored:" << bundleRelPath;
                 } else {
-                    qWarning() << "Failed to restore Unity bundle:" << bundleRelPath;
+                    qCWarning(lcPackageManager) << "Failed to restore Unity bundle:" << bundleRelPath;
                     failed++;
                 }
             } else {
-                qWarning() << "Unity bundle backup not found:" << backupPath;
+                qCWarning(lcPackageManager) << "Unity bundle backup not found:" << backupPath;
             }
             continue;
         }
@@ -1649,7 +1652,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
         QString fullPath = QDir::cleanPath(basePath + "/" + relPath);
         // Prevent path traversal: ensure resolved path stays within game directory
         if (!fullPath.startsWith(canonBase)) {
-            qWarning() << "Path traversal blocked:" << relPath;
+            qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
             continue;
         }
         if (QFile::exists(fullPath)) {
@@ -1657,13 +1660,13 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                 deleted++;
                 if (m_journal) m_journal->recordFileModified(relPath);
             } else {
-                qWarning() << "Failed to remove:" << fullPath;
+                qCWarning(lcPackageManager) << "Failed to remove:" << fullPath;
                 failed++;
             }
         }
     }
 
-    qDebug() << "Uninstall" << steamAppId << ":" << deleted << "files deleted," << failed << "failed";
+    qCDebug(lcPackageManager) << "Uninstall" << steamAppId << ":" << deleted << "files deleted," << failed << "failed";
 
     m_catalog.markUninstalled(steamAppId.toStdString());
     saveCatalogInstalledState(m_catalog, installedStatePath());

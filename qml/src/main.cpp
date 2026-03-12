@@ -30,6 +30,9 @@
 #include <QSettings>
 #include "services/profiler.h"
 #include "services/crashreporter.h"
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(lcApp, "makineai.app")
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -821,7 +824,7 @@ static void createServices(
 #endif
     auto* journal = new OperationJournal(&app);
     if (journal->hasPendingOperation()) {
-        qDebug() << "OperationJournal: recovering from interrupted operation...";
+        qCDebug(lcApp) << "OperationJournal: recovering from interrupted operation...";
         journal->recover();
     }
     outJournal = journal;

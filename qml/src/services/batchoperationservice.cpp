@@ -7,6 +7,9 @@
 #include "batchoperationservice.h"
 #include "profiler.h"
 #include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(lcBatchOps, "makineai.batch")
 
 namespace makineai {
 
@@ -145,7 +148,7 @@ void BatchOperationService::startBatch(BatchOperationType type, const QVariantLi
     m_statusMessage = tr("%1 başlatılıyor (%2 oyun)...").arg(opName).arg(m_totalItems);
     emit statusMessageChanged();
 
-    qDebug() << "Batch operation started:" << opName << "for" << m_totalItems << "games";
+    qCDebug(lcBatchOps) << "Batch operation started:" << opName << "for" << m_totalItems << "games";
 
     // Start processing first item
     processNextItem();
@@ -268,7 +271,7 @@ void BatchOperationService::onItemCompleted(const QString& gameId, bool success,
     emit resultsChanged();
     emit gameCompleted(gameId, success, message);
 
-    qDebug() << "Batch item" << (success ? "completed" : "failed") << ":" << item.gameName;
+    qCDebug(lcBatchOps) << "Batch item" << (success ? "completed" : "failed") << ":" << item.gameName;
 
     // Process next
     QTimer::singleShot(50, this, &BatchOperationService::processNextItem);
@@ -302,7 +305,7 @@ void BatchOperationService::finishBatch()
     emit currentItemChanged();
     emit batchCompleted(succeeded, failed, skipped);
 
-    qDebug() << "Batch operation completed:" << succeeded << "succeeded,"
+    qCDebug(lcBatchOps) << "Batch operation completed:" << succeeded << "succeeded,"
              << failed << "failed," << skipped << "skipped";
 }
 
@@ -314,7 +317,7 @@ void BatchOperationService::cancel()
     m_statusMessage = tr("İptal ediliyor...");
     emit statusMessageChanged();
 
-    qDebug() << "Batch operation cancel requested";
+    qCDebug(lcBatchOps) << "Batch operation cancel requested";
 }
 
 void BatchOperationService::clearResults()

@@ -9,6 +9,7 @@
 #include "localpackagemanager.h"
 #include "profiler.h"
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QDir>
 #include <QSet>
 #include <QtConcurrent>
@@ -38,6 +39,8 @@ private:
     HANDLE h_;
 };
 #endif
+
+Q_LOGGING_CATEGORY(lcProcessScanner, "makineai.process")
 
 namespace makineai {
 
@@ -84,7 +87,7 @@ void ProcessScanner::stopWatching()
     m_isWatching = false;
     emit isWatchingChanged();
 
-    qDebug() << "Process scanner stopped";
+    qCDebug(lcProcessScanner) << "Process scanner stopped";
 }
 
 void ProcessScanner::rebuildProcessMap()
@@ -168,7 +171,7 @@ void ProcessScanner::rebuildProcessMap()
         }
     }
 
-    qDebug() << "ProcessScanner: rebuilt map with" << m_knownProcesses.size()
+    qCDebug(lcProcessScanner) << "ProcessScanner: rebuilt map with" << m_knownProcesses.size()
              << "exe entries and" << m_appIdToPath.size() << "install paths";
 
     // Trigger an immediate scan with new map
@@ -281,12 +284,12 @@ void ProcessScanner::detectRunningGames(const QList<ProcessInfo>& processes)
             if (!inLibrary) {
                 emit gameDetected(foundGameId, foundGameName);
             }
-            qDebug() << "Game detected:" << foundGameName << "(" << foundGameId << ")"
+            qCDebug(lcProcessScanner) << "Game detected:" << foundGameName << "(" << foundGameId << ")"
                      << (inLibrary ? "[in library]" : "[NEW]");
         } else if (!foundGame && wasRunning) {
             m_runningExeName.clear();
             emit gameClosed(previousGameId);
-            qDebug() << "Game closed:" << previousGameId;
+            qCDebug(lcProcessScanner) << "Game closed:" << previousGameId;
         }
     }
 #else
@@ -660,7 +663,7 @@ void ProcessScanner::updateHeavyProcessList(const QList<ProcessInfo>& processes)
     if (newList != m_heavyProcesses) {
         m_heavyProcesses = newList;
         emit heavyProcessesChanged();
-        qDebug() << "ProcessScanner: GPU process list updated,"
+        qCDebug(lcProcessScanner) << "ProcessScanner: GPU process list updated,"
                  << newList.size() << "game candidates";
     }
 #else
@@ -719,7 +722,7 @@ QString ProcessScanner::resolveSelectedProcess(qint64 pid)
                 m_knownProcesses.insert(lowerExe, appId);
                 m_appIdToPath.insert(appId, checkDir);
 
-                qDebug() << "ProcessScanner: user resolved process PID" << pid
+                qCDebug(lcProcessScanner) << "ProcessScanner: user resolved process PID" << pid
                          << "as" << appId << gameName
                          << "(confidence:" << confidence << ")";
 
@@ -740,7 +743,7 @@ QString ProcessScanner::resolveSelectedProcess(qint64 pid)
     exeName.remove(QLatin1String(".exe"), Qt::CaseInsensitive);
     emit processNotSupported(exeName);
 
-    qDebug() << "ProcessScanner: process PID" << pid << "not in catalog (" << exeName << ")";
+    qCDebug(lcProcessScanner) << "ProcessScanner: process PID" << pid << "not in catalog (" << exeName << ")";
 #else
     Q_UNUSED(pid)
 #endif

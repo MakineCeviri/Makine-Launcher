@@ -11,6 +11,7 @@
 #include "crashreporter.h"
 
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QDir>
 #include <QThread>
 #include <QStandardPaths>
@@ -34,6 +35,8 @@
 #include <makineai/core.hpp>
 #endif
 
+Q_LOGGING_CATEGORY(lcCoreBridge, "makineai.bridge")
+
 namespace makineai {
 
 CoreBridge* CoreBridge::s_instance = nullptr;
@@ -49,15 +52,15 @@ static bool ensureCoreInitialized() {
     try {
         auto& core = Core::instance();
         if (!core.isInitialized()) {
-            qDebug() << "Initializing MakineAI Core...";
+            qCDebug(lcCoreBridge) << "Initializing MakineAI Core...";
             auto result = core.initialize();
             if (result) {
-                qDebug() << "Core initialized successfully in" << result->initDuration.count() << "ms";
+                qCDebug(lcCoreBridge) << "Core initialized successfully in" << result->initDuration.count() << "ms";
                 CrashReporter::addBreadcrumb("core", "Core initialized successfully");
                 s_coreInitialized = true;
                 return true;
             } else {
-                qCritical() << "Core initialization FAILED:"
+                qCCritical(lcCoreBridge) << "Core initialization FAILED:"
                            << QString::fromStdString(result.error().message());
                 CrashReporter::captureMessage("Core initialization failed", "error");
                 return false;
@@ -67,10 +70,10 @@ static bool ensureCoreInitialized() {
             return true;
         }
     } catch (const std::exception& e) {
-        qCritical() << "Core initialization threw exception:" << e.what();
+        qCCritical(lcCoreBridge) << "Core initialization threw exception:" << e.what();
         return false;
     } catch (...) {
-        qCritical() << "Core initialization threw unknown exception";
+        qCCritical(lcCoreBridge) << "Core initialization threw unknown exception";
         return false;
     }
 }
@@ -125,23 +128,23 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
     }
 
     if (steamPath.isEmpty()) {
-        qDebug() << "Steam not found in registry";
+        qCDebug(lcCoreBridge) << "Steam not found in registry";
         return;
     }
 
     steamPath = QDir::cleanPath(steamPath);
-    qDebug() << "Steam path:" << steamPath;
+    qCDebug(lcCoreBridge) << "Steam path:" << steamPath;
 
     // Parse libraryfolders.vdf to find all library folders
     QString vdfPath = steamPath + "/steamapps/libraryfolders.vdf";
     QFile vdfFile(vdfPath);
     if (!vdfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "Cannot open libraryfolders.vdf:" << vdfPath;
+        qCWarning(lcCoreBridge) << "Cannot open libraryfolders.vdf:" << vdfPath;
         return;
     }
 
     if (vdfFile.size() > static_cast<qint64>(makineai::vdf::detail::kMaxVdfFileSize)) {
-        qWarning() << "VDF file too large, skipping:" << vdfPath;
+        qCWarning(lcCoreBridge) << "VDF file too large, skipping:" << vdfPath;
         return;
     }
     std::string vdfContent = vdfFile.readAll().toStdString();
@@ -149,7 +152,7 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
 
     auto vdfRoot = makineai::vdf::parse(vdfContent);
     if (!vdfRoot) {
-        qWarning() << "Failed to parse libraryfolders.vdf";
+        qCWarning(lcCoreBridge) << "Failed to parse libraryfolders.vdf";
         return;
     }
 
@@ -181,7 +184,7 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
 
     QStringList libraryPaths = libraryPathSet.values();
 
-    qDebug() << "Found" << libraryPaths.size() << "Steam library folders";
+    qCDebug(lcCoreBridge) << "Found" << libraryPaths.size() << "Steam library folders";
 
     // Known redistributable AppIDs to filter out
     static const QSet<QString> realRedistributables = {
@@ -267,7 +270,7 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
         }
     }
 
-    qDebug() << "Steam scan complete:" << outGames.count() << "games found";
+    qCDebug(lcCoreBridge) << "Steam scan complete:" << outGames.count() << "games found";
 }
 
 // ========== Epic Games Scanner ==========
@@ -283,7 +286,7 @@ void CoreBridge::doScanEpicReal(QList<DetectedGame>& outGames)
     QString manifestDir = systemDrive + "/ProgramData/Epic/EpicGamesLauncher/Data/Manifests";
     QDir dir(manifestDir);
     if (!dir.exists()) {
-        qDebug() << "Epic Games manifest directory not found at" << manifestDir;
+        qCDebug(lcCoreBridge) << "Epic Games manifest directory not found at" << manifestDir;
         return;
     }
 
@@ -318,7 +321,7 @@ void CoreBridge::doScanEpicReal(QList<DetectedGame>& outGames)
         emit gameDetected(game.id, game.name);
     }
 
-    qDebug() << "Epic scan: found" << itemFiles.size() << "manifests";
+    qCDebug(lcCoreBridge) << "Epic scan: found" << itemFiles.size() << "manifests";
 }
 
 // ========== GOG Scanner ==========
@@ -353,7 +356,7 @@ void CoreBridge::doScanGogReal(QList<DetectedGame>& outGames)
         emit gameDetected(game.id, game.name);
     }
 
-    qDebug() << "GOG scan: found" << gameKeys.size() << "entries";
+    qCDebug(lcCoreBridge) << "GOG scan: found" << gameKeys.size() << "entries";
 }
 
 // ========== Engine Detection ==========
@@ -506,7 +509,7 @@ void CoreBridge::scanAllLibraries()
         if (QFile::exists(indexPath)) {
             pkgMgr->loadFromIndex(indexPath, packageCache);
         } else {
-            qDebug() << "CoreBridge: No cached index yet, waiting for sync...";
+            qCDebug(lcCoreBridge) << "CoreBridge: No cached index yet, waiting for sync...";
         }
 
         // Collect games in a thread-local list to avoid data race on m_detectedGames
@@ -939,7 +942,7 @@ void CoreBridge::refreshPackageManifest()
     if (QFile::exists(indexPath)) {
         m_localPkgManager->loadFromIndex(indexPath, packageCache);
     } else {
-        qDebug() << "CoreBridge::refreshPackageManifest: No cached index available";
+        qCDebug(lcCoreBridge) << "CoreBridge::refreshPackageManifest: No cached index available";
     }
 
     int count = m_localPkgManager->packageCount();

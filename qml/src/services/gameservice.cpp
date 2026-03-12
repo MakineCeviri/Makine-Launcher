@@ -18,9 +18,12 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QtConcurrent>
 #include <QProcess>
 #include <optional>
+
+Q_LOGGING_CATEGORY(lcGameService, "makineai.game")
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
@@ -106,7 +109,7 @@ void GameService::initialize()
             }
         }
 
-        qDebug() << "Parsed" << games.count() << "games,"
+        qCDebug(lcGameService) << "Parsed" << games.count() << "games,"
                  << pkgCache.size() << "package statuses (background)";
 
         // Deliver results to main thread
@@ -120,7 +123,7 @@ void GameService::initialize()
             rebuildCache();
 
             if (m_games.isEmpty()) {
-                qDebug() << "No cached games, auto-scan scheduled";
+                qCDebug(lcGameService) << "No cached games, auto-scan scheduled";
                 QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
             }
 
@@ -145,7 +148,7 @@ void GameService::setManifestSync(ManifestSyncService* sync)
         connect(sync, &ManifestSyncService::catalogReady, this, [this]() {
             // Remote catalog updated — invalidate supported games cache
             invalidateSupportedCache();
-            qDebug() << "catalogReady received — rebuilding model";
+            qCDebug(lcGameService) << "catalogReady received — rebuilding model";
             // Defer to next event loop so refreshPackageManifest completes first
             QTimer::singleShot(0, this, [this]{
                 // Trigger cache rebuild + model population via supportedGames()
@@ -349,7 +352,7 @@ void GameService::onScanCompleted(int count)
 void GameService::onGameDetected(const QString& gameId, const QString& gameName)
 {
     emit gameDetected(gameId);
-    qDebug() << "Game detected:" << gameName << "(" << gameId << ")";
+    qCDebug(lcGameService) << "Game detected:" << gameName << "(" << gameId << ")";
 }
 
 void GameService::addManualGame(const QString& path)
@@ -357,13 +360,13 @@ void GameService::addManualGame(const QString& path)
     MAKINE_ZONE_NAMED("GameService::addManualGame");
     // Security: Validate path (sync — fast)
     if (!isValidGamePath(path)) {
-        qWarning() << "addManualGame: invalid path" << path;
+        qCWarning(lcGameService) << "addManualGame: invalid path" << path;
         return;
     }
 
     QDir dir(path);
     if (!dir.exists()) {
-        qWarning() << "addManualGame: path not found" << path;
+        qCWarning(lcGameService) << "addManualGame: path not found" << path;
         return;
     }
 
@@ -398,7 +401,7 @@ void GameService::addManualGame(const QString& path)
                 QVariantMap best = candidates.first().toMap();
                 if (best.value(QStringLiteral("confidence")).toInt() >= 70) {
                     matchedAppId = best.value(QStringLiteral("steamAppId")).toString();
-                    qDebug() << "Fingerprint match:" << matchedAppId
+                    qCDebug(lcGameService) << "Fingerprint match:" << matchedAppId
                              << "confidence:" << best.value(QStringLiteral("confidence")).toInt()
                              << "matchedBy:" << best.value(QStringLiteral("matchedBy")).toString();
                 }
@@ -459,7 +462,7 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
     emit gameDetected(game.id);
     emit manualGameAdded(game.id);
 
-    qDebug() << "Manual game added:" << game.name << "id:" << game.id
+    qCDebug(lcGameService) << "Manual game added:" << game.name << "id:" << game.id
              << "engine:" << game.engine << "hasTranslation:" << game.hasTranslation;
 
     // Persist to disk so manual games survive app restart
@@ -550,7 +553,7 @@ QVariantList GameService::supportedGames() const
     } else {
         return {};
     }
-    qDebug() << "supportedGames() catalog loaded:" << m_supportedGamesCache.size() << "items";
+    qCDebug(lcGameService) << "supportedGames() catalog loaded:" << m_supportedGamesCache.size() << "items";
 
     // Enrich each entry with local state using O(1) hash lookups
     for (int i = 0; i < m_supportedGamesCache.size(); ++i) {
@@ -655,7 +658,7 @@ void GameService::loadCachedGames()
     QFile file(cachePath);
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qDebug() << "No cached games found at:" << cachePath;
+        qCDebug(lcGameService) << "No cached games found at:" << cachePath;
         return;
     }
 
@@ -666,12 +669,12 @@ void GameService::loadCachedGames()
     const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
-        qWarning() << "Failed to parse games cache:" << parseError.errorString();
+        qCWarning(lcGameService) << "Failed to parse games cache:" << parseError.errorString();
         return;
     }
 
     if (!doc.isArray()) {
-        qWarning() << "Invalid games cache format - expected array";
+        qCWarning(lcGameService) << "Invalid games cache format - expected array";
         return;
     }
 
@@ -706,7 +709,7 @@ void GameService::loadCachedGames()
 
     rebuildCache();
 
-    qDebug() << "Loaded" << m_games.count() << "games from cache";
+    qCDebug(lcGameService) << "Loaded" << m_games.count() << "games from cache";
     emit gameListChanged();
     emit translationStatusChanged();
     emit supportedGamesChanged();
@@ -808,18 +811,18 @@ bool GameService::isValidGamePath(const QString& path) const
 {
     // Security: Check for path traversal attacks
     if (path.contains("..") || path.contains("//") || path.contains("\\\\")) {
-        qWarning() << "Path traversal attempt detected:" << path;
+        qCWarning(lcGameService) << "Path traversal attempt detected:" << path;
         return false;
     }
 
     QFileInfo info(path);
     if (!info.isAbsolute()) {
-        qWarning() << "Relative path not allowed:" << path;
+        qCWarning(lcGameService) << "Relative path not allowed:" << path;
         return false;
     }
 
     if (!info.isDir()) {
-        qWarning() << "Path is not a directory:" << path;
+        qCWarning(lcGameService) << "Path is not a directory:" << path;
         return false;
     }
 
@@ -837,7 +840,7 @@ bool GameService::isValidGamePath(const QString& path) const
 
     for (const auto& forbidden : forbiddenPaths) {
         if (normalizedPath.startsWith(forbidden)) {
-            qWarning() << "Forbidden system path:" << path;
+            qCWarning(lcGameService) << "Forbidden system path:" << path;
             return false;
         }
     }
@@ -942,7 +945,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
         if (mode == InstallMode::Install) {
-            qWarning() << "GameService::installPackageCommon: No package found for" << gameId
+            qCWarning(lcGameService) << "GameService::installPackageCommon: No package found for" << gameId
                        << "- hasTranslationPackage:" << m_coreBridge->hasTranslationPackage(gameId);
         }
         emit translationInstallCompleted(gameId, false,
@@ -951,7 +954,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     }
 
     if (mode == InstallMode::Install) {
-        qInfo() << "GameService::installPackageCommon(Install): Starting for" << gameId
+        qCInfo(lcGameService) << "GameService::installPackageCommon(Install): Starting for" << gameId
                 << "pkg:" << pkg->packageId << "v" << pkg->version;
     }
 
@@ -1001,7 +1004,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
 
             if (mode == InstallMode::Update) {
                 // No backup step for updates — go straight to update
-                qDebug() << "Updating translation for" << gameId
+                qCDebug(lcGameService) << "Updating translation for" << gameId
                          << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                          << "options:" << selectedOptions
                          << "path:" << installPath;
@@ -1019,7 +1022,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                 connect(bm, &BackupManager::selectiveBackupCompleted, this,
                     [this, gameId, installPath, variant, selectedOptions](const QString& backupGameId, bool /*success*/) {
                         if (backupGameId != gameId) return;
-                        qDebug() << "Installing translation for" << gameId
+                        qCDebug(lcGameService) << "Installing translation for" << gameId
                                  << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                                  << "options:" << selectedOptions
                                  << "path:" << installPath;
@@ -1031,7 +1034,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                 bm->createSelectiveBackupAsync(gameId, m_games[m_gameIdToIndex.value(gameId)].name,
                                                 installPath, filesToOverwrite, storeVer, patchVer);
             } else {
-                qDebug() << "Installing translation for" << gameId
+                qCDebug(lcGameService) << "Installing translation for" << gameId
                          << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                          << "options:" << selectedOptions
                          << "path:" << installPath;
@@ -1085,7 +1088,7 @@ void GameService::uninstallTranslation(const QString& gameId)
             bool started = bm->restoreBackup(latest["id"].toString(), game.installPath);
             if (!started) {
                 disconnect(restoreConn);
-                qWarning() << "Backup restoration failed for" << gameId
+                qCWarning(lcGameService) << "Backup restoration failed for" << gameId
                            << "- proceeding with uninstall anyway";
                 finalizeUninstall(gameId, game.installPath, *it);
             }
@@ -1274,13 +1277,13 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
             return m;
         }
     }
-    qDebug() << "GameService::getCatalogEntry: not found for" << steamAppId;
+    qCDebug(lcGameService) << "GameService::getCatalogEntry: not found for" << steamAppId;
     return {};
 }
 
 void GameService::checkForUpdates()
 {
-    qInfo() << "GameService: checking for updates...";
+    qCInfo(lcGameService) << "GameService: checking for updates...";
 
     // Re-sync manifest from CDN
     if (m_manifestSync)
