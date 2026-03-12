@@ -7,6 +7,22 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### İyileştirilen (2026-03-12)
+- **Kategorize logging** — 186 qDebug/qWarning/qCritical → qCDebug/qCWarning/qCCritical (15 dosya, 15 kategori)
+- **fmt::format migration** — Tüm std::to_string + string concat → fmt::format (sıfır kaldı)
+- **RAII wrappers** — OpenSSL (EVP_PKEY, BIO, EVP_MD_CTX) + SQLite errMsg için unique_ptr sarmalayıcılar
+- **ScopedMetrics pattern** — Database + PatchEngine'de metrics boilerplate eliminasyonu
+- **main.cpp decompose** — 1377 satırlık init kodu organize helper fonksiyonlara ayrıldı
+- **Code duplication** — LocalPackageManager (-299), GameService (-80), PackageCatalog (-53) satır azaltma
+- **ProcessScanner** — toLower→CaseInsensitive, sistem process filtresi konsolidasyonu
+- **TranslationDownloader** — fail() lambda ile 7 duplicated error-bailout bloğu birleştirildi
+
+### Kaldırılan (2026-03-12)
+- **BepInEx/XUnity** — Tüm runtime manager kodu (1132→18 satır), tüm referanslar, test suite
+- **Deferred features** — Translation Memory, Glossary, QA Service, Translation Pipeline stub'ları
+- **Dead code** — pak/ legacy, findExtractedSubdir, ManifestSyncService bağımlılığı (TranslationDownloader)
+- **11 stale worktree branch** temizlendi
+
 ### İyileştirilen (2026-02-18)
 - **Güvenlik denetimi** — 14 bulgu düzeltildi (path traversal, input validation, SSL pinning)
 - **Modülerlik** — GameService ↔ UpdateDetectionService decoupling (nullptr güvenliği)
