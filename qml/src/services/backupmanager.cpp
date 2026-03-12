@@ -21,8 +21,11 @@
 #include <QDirIterator>
 #include <QSet>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QtConcurrent>
 #include <algorithm>
+
+Q_LOGGING_CATEGORY(lcBackup, "makineai.backup")
 
 namespace makineai {
 
@@ -203,7 +206,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             }
 
             if (m_journal) m_journal->commitOperation();
-            qDebug() << "Selective backup done:" << gameId << copiedFiles << "files";
+            qCDebug(lcBackup) << "Selective backup done:" << gameId << copiedFiles << "files";
             emit selectiveBackupCompleted(gameId, true);
         }, Qt::QueuedConnection);
     });
@@ -276,7 +279,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
 
             // Prevent path traversal: ensure destination stays within restore directory
             if (!security::isPathContained(canonRestoreDir, destFile)) {
-                qWarning() << "Path traversal blocked during restore:" << relativePath;
+                qCWarning(lcBackup) << "Path traversal blocked during restore:" << relativePath;
                 continue;
             }
 
@@ -305,7 +308,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
                     }, Qt::QueuedConnection);
                 }
             } else {
-                qWarning() << "Failed to restore file:" << destFile;
+                qCWarning(lcBackup) << "Failed to restore file:" << destFile;
             }
         }
 
@@ -317,7 +320,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
             emit restoreStatusChanged();
             if (m_journal) m_journal->commitOperation();
             emit backupRestored(gameId);
-            qDebug() << "Backup restored:" << gameId << "-" << restoredCount << "files";
+            qCDebug(lcBackup) << "Backup restored:" << gameId << "-" << restoredCount << "files";
         }, Qt::QueuedConnection);
     });
 
@@ -444,7 +447,7 @@ void BackupManager::cleanupOldBackups(const QString& gameId)
         if (dir.exists())
             dir.removeRecursively();
 
-        qDebug() << "Auto-cleanup: removed old backup" << backup.id << "for" << gameId;
+        qCDebug(lcBackup) << "Auto-cleanup: removed old backup" << backup.id << "for" << gameId;
     }
 
     // Remove from list (reverse order to keep indices valid)
