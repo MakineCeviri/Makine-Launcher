@@ -19,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -33,7 +34,7 @@ using json = nlohmann::json;
 
 namespace {
 
-std::string toLower(const std::string& s) {
+std::string toLower(std::string_view s) {
     std::string result;
     result.reserve(s.size());
     for (char c : s) {
@@ -47,17 +48,6 @@ std::string trim(const std::string& s) {
     if (start == std::string::npos) return {};
     auto end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
-}
-
-fs::path findExtractedSubdir(const fs::path& dir) {
-    std::error_code ec;
-    for (const auto& entry : fs::directory_iterator(dir, ec)) {
-        if (!entry.is_directory(ec) || ec) continue;
-        if (entry.path().filename().string().starts_with("extracted_")) {
-            return entry.path();
-        }
-    }
-    return {};
 }
 
 } // anonymous namespace
@@ -93,7 +83,7 @@ bool PackageCatalog::loadFromIndex(const fs::path& indexPath, const fs::path& pa
 }
 
 // =============================================================================
-// SHARED PARSE HELPERS (free functions, used by loadManifest and enrichPackage)
+// SHARED PARSE HELPERS (free functions, used by parseIndex and enrichPackage)
 // =============================================================================
 
 namespace {
@@ -125,76 +115,68 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
     return steps;
 }
 
+std::vector<InstallOption> parseOptionsArray(const json& arr)
+{
+    std::vector<InstallOption> options;
+    if (!arr.is_array()) return options;
+    for (const auto& opt : arr) {
+        if (!opt.is_object()) continue;
+        InstallOption option;
+        option.id              = opt.value("id", "");
+        option.label           = opt.value("label", "");
+        option.description     = opt.value("description", "");
+        option.icon            = opt.value("icon", "");
+        option.defaultSelected = opt.value("default", false);
+        option.subDir          = opt.value("subDir", "");
+        if (opt.contains("steps")) {
+            option.steps = parseStepsArray(opt["steps"]);
+        }
+        options.push_back(std::move(option));
+    }
+    return options;
+}
+
+std::unordered_map<std::string, std::vector<InstallStep>> parseCombinedSteps(const json& obj)
+{
+    std::unordered_map<std::string, std::vector<InstallStep>> result;
+    if (!obj.is_object()) return result;
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+        result[it.key()] = parseStepsArray(it.value());
+    }
+    return result;
+}
+
 void parseInstallMethod(PackageCatalogEntry& entry, const json& obj)
 {
     if (!obj.contains("installMethod") || !obj["installMethod"].is_object()) return;
 
-    const auto& installMethod = obj["installMethod"];
-    entry.installMethodType   = installMethod.value("type", "");
-    entry.installMethodTarget = installMethod.value("target", "");
+    const auto& im = obj["installMethod"];
+    entry.installMethodType   = im.value("type", "");
+    entry.installMethodTarget = im.value("target", "");
 
-    if (installMethod.contains("steps")) {
-        entry.installSteps = parseStepsArray(installMethod["steps"]);
+    if (im.contains("steps")) {
+        entry.installSteps = parseStepsArray(im["steps"]);
     }
 
-    if (installMethod.contains("options") && installMethod["options"].is_array()) {
-        for (const auto& opt : installMethod["options"]) {
-            if (!opt.is_object()) continue;
-            InstallOption option;
-            option.id              = opt.value("id", "");
-            option.label           = opt.value("label", "");
-            option.description     = opt.value("description", "");
-            option.icon            = opt.value("icon", "");
-            option.defaultSelected = opt.value("default", false);
-            option.subDir          = opt.value("subDir", "");
-            if (opt.contains("steps")) {
-                option.steps = parseStepsArray(opt["steps"]);
-            }
-            entry.installOptions.push_back(std::move(option));
-        }
+    if (im.contains("options")) {
+        entry.installOptions = parseOptionsArray(im["options"]);
     }
 
-    if (installMethod.contains("combinedSteps") && installMethod["combinedSteps"].is_object()) {
-        for (auto cit = installMethod["combinedSteps"].begin();
-             cit != installMethod["combinedSteps"].end(); ++cit)
-        {
-            entry.combinedSteps[cit.key()] = parseStepsArray(cit.value());
-        }
+    if (im.contains("combinedSteps")) {
+        entry.combinedSteps = parseCombinedSteps(im["combinedSteps"]);
     }
 
-    if (installMethod.contains("variantInstallOptions") && installMethod["variantInstallOptions"].is_object()) {
-        for (auto vit = installMethod["variantInstallOptions"].begin();
-             vit != installMethod["variantInstallOptions"].end(); ++vit)
+    if (im.contains("variantInstallOptions") && im["variantInstallOptions"].is_object()) {
+        for (auto vit = im["variantInstallOptions"].begin();
+             vit != im["variantInstallOptions"].end(); ++vit)
         {
             if (!vit.value().is_object()) continue;
-            VariantConfig vc;
             const auto& vcObj = vit.value();
-
-            if (vcObj.contains("options") && vcObj["options"].is_array()) {
-                for (const auto& opt : vcObj["options"]) {
-                    if (!opt.is_object()) continue;
-                    InstallOption option;
-                    option.id              = opt.value("id", "");
-                    option.label           = opt.value("label", "");
-                    option.description     = opt.value("description", "");
-                    option.icon            = opt.value("icon", "");
-                    option.defaultSelected = opt.value("default", false);
-                    option.subDir          = opt.value("subDir", "");
-                    if (opt.contains("steps")) {
-                        option.steps = parseStepsArray(opt["steps"]);
-                    }
-                    vc.installOptions.push_back(std::move(option));
-                }
-            }
-
-            if (vcObj.contains("combinedSteps") && vcObj["combinedSteps"].is_object()) {
-                for (auto csit = vcObj["combinedSteps"].begin();
-                     csit != vcObj["combinedSteps"].end(); ++csit)
-                {
-                    vc.combinedSteps[csit.key()] = parseStepsArray(csit.value());
-                }
-            }
-
+            VariantConfig vc;
+            if (vcObj.contains("options"))
+                vc.installOptions = parseOptionsArray(vcObj["options"]);
+            if (vcObj.contains("combinedSteps"))
+                vc.combinedSteps = parseCombinedSteps(vcObj["combinedSteps"]);
             entry.variantInstallOptions[vit.key()] = std::move(vc);
         }
     }
@@ -487,17 +469,6 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
             : dataPath_ / pkg.dirName;
     }
 
-    if (sourcePath.empty() || !fs::is_directory(sourcePath, ec)) {
-        // Fall back to pak/ legacy format
-        fs::path pkgDirPath = dataPath_ / "pak" / pkg.packageId;
-        if (fs::is_directory(pkgDirPath, ec)) {
-            fs::path extracted = findExtractedSubdir(pkgDirPath);
-            if (!extracted.empty()) {
-                sourcePath = extracted;
-            }
-        }
-    }
-
     if (sourcePath.empty() || !fs::is_directory(sourcePath, ec)) return {};
 
     std::vector<std::string> files;
@@ -556,11 +527,7 @@ namespace {
 // Normalize engine string to a lowercase hint for comparison
 std::string normalizeEngine(const std::string& engine)
 {
-    std::string lower;
-    lower.reserve(engine.size());
-    for (char c : engine) {
-        lower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
+    std::string lower = toLower(engine);
 
     // Map common engine names to canonical hints
     if (lower.find("unreal") != std::string::npos) return "unreal";
@@ -579,40 +546,34 @@ std::string normalizeEngine(const std::string& engine)
     return "custom";
 }
 
+// Remove all characters in `chars` from `s`
+std::string removeChars(std::string_view s, std::string_view chars)
+{
+    std::string r;
+    r.reserve(s.size());
+    for (char c : s) {
+        if (chars.find(c) == std::string_view::npos) r += c;
+    }
+    return r;
+}
+
 // Derive possible exe names from a game name
 std::vector<std::string> deriveExeNames(const std::string& gameName)
 {
     std::vector<std::string> names;
     if (gameName.empty()) return names;
 
-    auto toLowerStr = [](const std::string& s) {
-        std::string r;
-        r.reserve(s.size());
-        for (char c : s) r += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return r;
-    };
-
-    auto removeChars = [](const std::string& s, const std::string& chars) {
-        std::string r;
-        r.reserve(s.size());
-        for (char c : s) {
-            if (chars.find(c) == std::string::npos) r += c;
-        }
-        return r;
-    };
-
     // "Hades" -> "hades.exe"
-    names.push_back(toLowerStr(gameName) + ".exe");
+    names.push_back(toLower(gameName) + ".exe");
 
     // "The Witcher" -> "thewitcher.exe" (no spaces)
-    std::string noSpace = removeChars(gameName, " ");
-    std::string noSpaceLower = toLowerStr(noSpace);
+    std::string noSpaceLower = toLower(removeChars(gameName, " "));
     if (noSpaceLower + ".exe" != names[0])
         names.push_back(noSpaceLower + ".exe");
 
     // "DOOM (2016)" -> "doom.exe" (remove parens, colons, etc.)
     std::string cleaned = removeChars(gameName, ":'-()!.,");
-    // Also collapse multiple spaces and trim
+    // Collapse multiple spaces and trim
     std::string collapsed;
     bool prevSpace = false;
     for (char c : cleaned) {
@@ -626,13 +587,12 @@ std::vector<std::string> deriveExeNames(const std::string& gameName)
     }
     while (!collapsed.empty() && collapsed.back() == ' ') collapsed.pop_back();
 
-    std::string cleanedLower = toLowerStr(collapsed);
+    std::string cleanedLower = toLower(collapsed);
     if (cleanedLower + ".exe" != names[0])
         names.push_back(cleanedLower + ".exe");
 
     // No-space version of cleaned
-    std::string cleanedNoSpace = removeChars(collapsed, " ");
-    std::string cleanedNoSpaceLower = toLowerStr(cleanedNoSpace);
+    std::string cleanedNoSpaceLower = toLower(removeChars(collapsed, " "));
     if (cleanedNoSpaceLower + ".exe" != names[0] && cleanedNoSpaceLower + ".exe" != noSpaceLower + ".exe")
         names.push_back(cleanedNoSpaceLower + ".exe");
 
@@ -704,21 +664,11 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
 
     // Build a lowercase set of top-level entries for fast lookup
     std::set<std::string> topSet;
-    for (const auto& e : topEntries) {
-        std::string lower;
-        lower.reserve(e.size());
-        for (char c : e) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        topSet.insert(std::move(lower));
-    }
+    for (const auto& e : topEntries) topSet.insert(toLower(e));
 
     // Build lowercase set of exe names
     std::set<std::string> exeSet;
-    for (const auto& e : exeNames) {
-        std::string lower;
-        lower.reserve(e.size());
-        for (char c : e) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        exeSet.insert(std::move(lower));
-    }
+    for (const auto& e : exeNames) exeSet.insert(toLower(e));
 
     const std::string folderLower = toLower(trim(folderName));
 
@@ -757,10 +707,7 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
         if (!fp.keyFiles.empty()) {
             int matched = 0;
             for (const auto& kf : fp.keyFiles) {
-                std::string kfLower;
-                kfLower.reserve(kf.size());
-                for (char c : kf) kfLower += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                if (topSet.count(kfLower)) matched++;
+                if (topSet.count(toLower(kf))) matched++;
             }
 
             const double ratio = static_cast<double>(matched) / static_cast<double>(fp.keyFiles.size());
