@@ -19,6 +19,9 @@
 #include <QNetworkReply>
 #include <QTimer>
 #include <QUrl>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(lcManifestSync, "makineai.manifest")
 
 namespace makineai {
 
@@ -76,7 +79,7 @@ void ManifestSyncService::syncCatalog()
     // Abort if response exceeds 1 MB (index.json is ~93 KB normally)
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > 1 * 1024 * 1024) {
-            qWarning() << "ManifestSync: index.json response too large, aborting";
+            qCWarning(lcManifestSync) << "ManifestSync: index.json response too large, aborting";
             reply->abort();
         }
     });
@@ -100,7 +103,7 @@ void ManifestSyncService::syncCatalog()
 
         if (status == 304) {
             // Not modified — cached version is current
-            qDebug() << "ManifestSync: 304 Not Modified — catalog is current";
+            qCDebug(lcManifestSync) << "ManifestSync: 304 Not Modified — catalog is current";
             setOffline(false);
             QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             return;
@@ -126,7 +129,7 @@ void ManifestSyncService::onIndexFetched(const QByteArray& data, const QString& 
     if (!m_catalog.isEmpty()) {
         saveCachedIndex(data, etag);
         m_etag = etag;
-        qDebug() << "ManifestSync: catalog synced —" << m_catalog.size() << "packages";
+        qCDebug(lcManifestSync) << "ManifestSync: catalog synced —" << m_catalog.size() << "packages";
         setOffline(false);
         // Defer signal to next event loop iteration — breaks synchronous chain
         // that otherwise blocks main thread ~4s (refreshPackageManifest + QML rebind)
@@ -144,7 +147,7 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
     const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
 
     if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-        qWarning() << "ManifestSync: index.json parse error:" << err.errorString();
+        qCWarning(lcManifestSync) << "ManifestSync: index.json parse error:" << err.errorString();
         return;
     }
 
@@ -177,7 +180,7 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
         if (old != m_catalog.constEnd() && old->version != it->version) {
             m_packageDetails.remove(it.key());
             QFile::remove(detailDir + QStringLiteral("/%1.json").arg(it.key()));
-            qDebug() << "ManifestSync: invalidated detail cache for" << it.key()
+            qCDebug(lcManifestSync) << "ManifestSync: invalidated detail cache for" << it.key()
                      << "(version" << old->version << "->" << it->version << ")";
         }
     }
@@ -277,7 +280,7 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
     // Abort if response exceeds 1 MB (package detail is ~700 B normally)
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > 1 * 1024 * 1024) {
-            qWarning() << "ManifestSync: package detail response too large, aborting";
+            qCWarning(lcManifestSync) << "ManifestSync: package detail response too large, aborting";
             reply->abort();
         }
     });
@@ -287,7 +290,7 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
         m_pendingDetails.remove(appId);
 
         if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "ManifestSync: package detail network error for" << appId
+            qCWarning(lcManifestSync) << "ManifestSync: package detail network error for" << appId
                        << reply->errorString();
             emit packageDetailReady(appId);  // Unblock waiting QML
             return;
@@ -297,7 +300,7 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
         if (status >= 200 && status < 300) {
             onDetailFetched(appId, reply->readAll());
         } else {
-            qWarning() << "ManifestSync: package detail HTTP" << status << "for" << appId;
+            qCWarning(lcManifestSync) << "ManifestSync: package detail HTTP" << status << "for" << appId;
             emit packageDetailReady(appId);  // Unblock waiting QML
         }
     });
@@ -309,7 +312,7 @@ void ManifestSyncService::onDetailFetched(const QString& appId, const QByteArray
     const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
 
     if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-        qWarning() << "ManifestSync: invalid JSON for package detail" << appId;
+        qCWarning(lcManifestSync) << "ManifestSync: invalid JSON for package detail" << appId;
         emit packageDetailReady(appId);  // Unblock waiting QML
         return;
     }
@@ -356,7 +359,7 @@ void ManifestSyncService::loadCachedIndex()
     parseIndex(file.readAll());
 
     if (!m_catalog.isEmpty()) {
-        qDebug() << "ManifestSync: loaded cached index —" << m_catalog.size() << "packages";
+        qCDebug(lcManifestSync) << "ManifestSync: loaded cached index —" << m_catalog.size() << "packages";
     }
 }
 
@@ -392,10 +395,10 @@ void ManifestSyncService::setOffline(bool offline)
     if (offline) {
         if (!m_retryTimer.isActive())
             m_retryTimer.start();
-        qDebug() << "ManifestSync: offline mode — retrying every 15s";
+        qCDebug(lcManifestSync) << "ManifestSync: offline mode — retrying every 15s";
     } else {
         m_retryTimer.stop();
-        qDebug() << "ManifestSync: back online";
+        qCDebug(lcManifestSync) << "ManifestSync: back online";
     }
 }
 

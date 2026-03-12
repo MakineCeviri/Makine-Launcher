@@ -10,6 +10,12 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QDebug>
+#include <QLoggingCategory>
+
+static inline const QLoggingCategory &lcPathSecurity() {
+    static const QLoggingCategory category("makineai.security");
+    return category;
+}
 
 namespace makineai::security {
 
@@ -41,7 +47,7 @@ inline QString safePathJoin(const QString& basePath, const QString& relativePath
 
     QString joined = QDir::cleanPath(basePath + '/' + relativePath);
     if (!isPathContained(basePath, joined)) {
-        qWarning() << "Path escape blocked:" << relativePath;
+        qCWarning(lcPathSecurity()) << "Path escape blocked:" << relativePath;
         return {};
     }
     return joined;

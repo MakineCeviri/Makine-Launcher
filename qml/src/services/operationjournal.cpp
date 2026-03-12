@@ -14,6 +14,8 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QDebug>
+#include <QLoggingCategory>
+#include <memory>
 
 #ifdef MAKINEAI_UI_ONLY
 #include "pathsecurity.h"
@@ -25,6 +27,8 @@
 #include <QDirIterator>
 #include <QDateTime>
 #endif
+
+Q_LOGGING_CATEGORY(lcJournal, "makineai.journal")
 
 namespace makineai {
 
@@ -161,7 +165,7 @@ bool OperationJournal::recover()
         msg += " (" + QString::fromStdString(result.message) + ")";
     }
 
-    qDebug() << "OperationJournal: recovery" << (result.success ? "succeeded" : "failed")
+    qCDebug(lcJournal) << "OperationJournal: recovery" << (result.success ? "succeeded" : "failed")
              << "-" << result.filesProcessed << "files processed";
     emit recoveryCompleted(result.success, msg);
     return result.success;
@@ -197,7 +201,7 @@ bool OperationJournal::beginOperation(const JournalEntry& entry)
     QMutexLocker lock(&m_mutex);
 
     if (m_active) {
-        qWarning() << "OperationJournal: operation already in progress";
+        qCWarning(lcJournal) << "OperationJournal: operation already in progress";
         return false;
     }
 
@@ -259,7 +263,7 @@ JournalEntry OperationJournal::readPendingOperation() const
     file.close();
 
     if (err.error != QJsonParseError::NoError) {
-        qWarning() << "OperationJournal: corrupted journal:" << err.errorString();
+        qCWarning(lcJournal) << "OperationJournal: corrupted journal:" << err.errorString();
         return entry;
     }
 
@@ -286,13 +290,13 @@ bool OperationJournal::recover()
     JournalEntry entry = readPendingOperation();
 
     if (entry.gameId.isEmpty() && entry.backupPath.isEmpty()) {
-        qWarning() << "OperationJournal: empty/corrupt journal, deleting";
+        qCWarning(lcJournal) << "OperationJournal: empty/corrupt journal, deleting";
         deleteJournal();
         emit recoveryCompleted(true, tr("Bozuk işlem günlüğü temizlendi"));
         return true;
     }
 
-    qDebug() << "OperationJournal: recovering" << opTypeToString(entry.type)
+    qCDebug(lcJournal) << "OperationJournal: recovering" << opTypeToString(entry.type)
              << "for game" << entry.gameId;
 
     bool ok = false;
@@ -309,7 +313,7 @@ bool OperationJournal::recover()
         ? tr("Yarım kalan işlem temizlendi (oyun: %1)").arg(entry.gameId)
         : tr("Kurtarma tamamlanamadı (oyun: %1)").arg(entry.gameId);
 
-    qDebug() << "OperationJournal: recovery" << (ok ? "succeeded" : "failed");
+    qCDebug(lcJournal) << "OperationJournal: recovery" << (ok ? "succeeded" : "failed");
     emit recoveryCompleted(ok, msg);
     return ok;
 }
@@ -318,7 +322,7 @@ bool OperationJournal::recoverInstall(const JournalEntry& entry)
 {
     MAKINE_ZONE_NAMED("Journal::recoverInstall");
     if (entry.gamePath.isEmpty() || !QDir(entry.gamePath).exists()) {
-        qWarning() << "recoverInstall: game path missing:" << entry.gamePath;
+        qCWarning(lcJournal) << "recoverInstall: game path missing:" << entry.gamePath;
         return false;
     }
 
@@ -344,7 +348,7 @@ bool OperationJournal::recoverInstall(const JournalEntry& entry)
         }
     }
 
-    qDebug() << "recoverInstall:" << deleted << "orphaned files removed";
+    qCDebug(lcJournal) << "recoverInstall:" << deleted << "orphaned files removed";
     return true;
 }
 
@@ -394,7 +398,7 @@ bool OperationJournal::recoverUninstall(const JournalEntry& entry)
     QByteArray data = QJsonDocument(root).toJson(QJsonDocument::Indented);
     fileutils::atomicWriteJson(statePath, data);
 
-    qDebug() << "recoverUninstall:" << deleted << "remaining files deleted, state updated";
+    qCDebug(lcJournal) << "recoverUninstall:" << deleted << "remaining files deleted, state updated";
     return true;
 }
 
@@ -405,7 +409,7 @@ bool OperationJournal::recoverBackupCreate(const JournalEntry& entry)
     QDir backupDir(entry.backupPath);
     if (backupDir.exists()) {
         backupDir.removeRecursively();
-        qDebug() << "recoverBackupCreate: orphan backup dir removed:" << entry.backupPath;
+        qCDebug(lcJournal) << "recoverBackupCreate: orphan backup dir removed:" << entry.backupPath;
     }
     return true;
 }
@@ -416,7 +420,7 @@ bool OperationJournal::recoverBackupRestore(const JournalEntry& entry)
 
     QDir backupDir(entry.backupPath);
     if (!backupDir.exists()) {
-        qWarning() << "recoverBackupRestore: backup dir missing:" << entry.backupPath;
+        qCWarning(lcJournal) << "recoverBackupRestore: backup dir missing:" << entry.backupPath;
         return false;
     }
 
@@ -436,7 +440,7 @@ bool OperationJournal::recoverBackupRestore(const JournalEntry& entry)
             restored++;
     }
 
-    qDebug() << "recoverBackupRestore:" << restored << "remaining files restored";
+    qCDebug(lcJournal) << "recoverBackupRestore:" << restored << "remaining files restored";
     return true;
 }
 

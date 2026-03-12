@@ -17,6 +17,7 @@
 #include <QUuid>
 #include <QDateTime>
 #include <QTimer>
+#include <QLoggingCategory>
 
 #ifndef MAKINEAI_UI_ONLY
 #include "mkpkformat.h"
@@ -29,6 +30,8 @@
 #include <openssl/bio.h>
 #include <string>
 #endif
+
+Q_LOGGING_CATEGORY(lcDownloader, "makineai.download")
 
 namespace makineai {
 
@@ -44,7 +47,7 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
         for (const auto& fi : entries) {
             if (fi.lastModified().toSecsSinceEpoch() < staleThreshold) {
                 QFile::remove(fi.absoluteFilePath());
-                qDebug() << "TranslationDownloader: removed stale part file" << fi.fileName();
+                qCDebug(lcDownloader) << "TranslationDownloader: removed stale part file" << fi.fileName();
             }
         }
     }
@@ -94,7 +97,7 @@ void TranslationDownloader::downloadPackage(
 
     // Already downloading?
     if (m_activeDownloads.contains(appId)) {
-        qDebug() << "TranslationDownloader: already downloading" << appId;
+        qCDebug(lcDownloader) << "TranslationDownloader: already downloading" << appId;
         return;
     }
 
@@ -140,7 +143,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     QFileInfo partInfo(state.partPath);
     if (partInfo.exists() && partInfo.size() > 0) {
         state.resumeOffset = partInfo.size();
-        qDebug() << "TranslationDownloader: resuming from offset" << state.resumeOffset
+        qCDebug(lcDownloader) << "TranslationDownloader: resuming from offset" << state.resumeOffset
                  << "for" << appId;
     } else {
         state.resumeOffset = 0;
@@ -160,7 +163,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     QNetworkReply* reply = m_nam.get(req);
     state.reply = reply;
 
-    qDebug() << "TranslationDownloader: starting HTTP request" << appId
+    qCDebug(lcDownloader) << "TranslationDownloader: starting HTTP request" << appId
              << "from" << state.dataUrl
              << "offset:" << state.resumeOffset
              << "attempt:" << (state.retryCount + 1);
@@ -235,7 +238,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
             // Handle 200 when we expected 206 (server doesn't support Range)
             if (httpStatus == 200 && state.resumeOffset > 0) {
-                qDebug() << "TranslationDownloader: server ignored Range header, restarting"
+                qCDebug(lcDownloader) << "TranslationDownloader: server ignored Range header, restarting"
                          << appId;
                 QFile::remove(state.partPath);
                 state.resumeOffset = 0;
@@ -259,7 +262,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
                     // Retry with backoff
                     const int delay = kRetryDelaysMs[state.retryCount];
                     state.retryCount++;
-                    qDebug() << "TranslationDownloader: retrying" << appId
+                    qCDebug(lcDownloader) << "TranslationDownloader: retrying" << appId
                              << "attempt" << state.retryCount
                              << "after" << delay << "ms";
                     emit downloadRetrying(appId, state.retryCount, kMaxRetries);
@@ -295,7 +298,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
                 return;
             }
 
-            qDebug() << "TranslationDownloader: download complete" << appId
+            qCDebug(lcDownloader) << "TranslationDownloader: download complete" << appId
                      << "- verifying signature...";
 
             // Rename .part to final temp path for verification
@@ -399,7 +402,7 @@ void TranslationDownloader::processDownloadedFile(
                 return;
             }
 
-            qDebug() << "TranslationDownloader: package ready" << appId
+            qCDebug(lcDownloader) << "TranslationDownloader: package ready" << appId
                      << "-" << fileCount << "files extracted to" << dirName;
 
             CrashReporter::addBreadcrumb("download",
@@ -437,7 +440,7 @@ void TranslationDownloader::verifyAndProcess(
         sigUrl.chop(6);
     sigUrl += QStringLiteral(".sig");
 
-    qDebug() << "TranslationDownloader: downloading signature" << appId
+    qCDebug(lcDownloader) << "TranslationDownloader: downloading signature" << appId
              << "from" << sigUrl;
 
     QNetworkRequest sigReq{QUrl{sigUrl}};
@@ -474,7 +477,7 @@ void TranslationDownloader::verifyAndProcess(
         // --- .sig download error handling ---
 
         if (sigReply->error() != QNetworkReply::NoError) {
-            qWarning() << "TranslationDownloader: SECURITY - signature download failed for"
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - signature download failed for"
                        << appId << ":" << sigReply->errorString();
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("sigDownloadFailed: %1").arg(appId).toUtf8().constData());
@@ -484,7 +487,7 @@ void TranslationDownloader::verifyAndProcess(
 
         const QByteArray sigData = sigReply->readAll();
         if (sigData.isEmpty()) {
-            qWarning() << "TranslationDownloader: SECURITY - empty signature file for" << appId;
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - empty signature file for" << appId;
             fail(tr("İmza dosyası boş, paket doğrulanamadı"));
             return;
         }
@@ -495,7 +498,7 @@ void TranslationDownloader::verifyAndProcess(
         QJsonDocument sigDoc = QJsonDocument::fromJson(sigData, &parseError);
 
         if (parseError.error != QJsonParseError::NoError || !sigDoc.isObject()) {
-            qWarning() << "TranslationDownloader: SECURITY - malformed signature JSON for"
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - malformed signature JSON for"
                        << appId << ":" << parseError.errorString();
             fail(tr("İmza dosyası bozuk, paket doğrulanamadı"));
             return;
@@ -509,7 +512,7 @@ void TranslationDownloader::verifyAndProcess(
 
         // Validate required fields
         if (sigHash.isEmpty() || sigSignature.isEmpty()) {
-            qWarning() << "TranslationDownloader: SECURITY - incomplete signature data for"
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - incomplete signature data for"
                        << appId;
             fail(tr("İmza bilgileri eksik, paket doğrulanamadı"));
             return;
@@ -518,7 +521,7 @@ void TranslationDownloader::verifyAndProcess(
         // Validate algorithm (must be ed25519)
         if (!sigAlgorithm.isEmpty() &&
             sigAlgorithm.compare(QStringLiteral("ed25519"), Qt::CaseInsensitive) != 0) {
-            qWarning() << "TranslationDownloader: SECURITY - unsupported signature algorithm"
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - unsupported signature algorithm"
                        << sigAlgorithm << "for" << appId;
             fail(tr("İmza algoritması desteklenmiyor: %1").arg(sigAlgorithm));
             return;
@@ -528,7 +531,7 @@ void TranslationDownloader::verifyAndProcess(
 
         QFile pkgFile(tempPath);
         if (!pkgFile.open(QIODevice::ReadOnly)) {
-            qWarning() << "TranslationDownloader: SECURITY - cannot open package for hashing"
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - cannot open package for hashing"
                        << appId;
             fail(tr("İndirilen paket okunamadı, doğrulama başarısız"));
             return;
@@ -552,7 +555,7 @@ void TranslationDownloader::verifyAndProcess(
 
         // The .sig hash field is "sha256:<hex>". Compare directly.
         if (computedHash != sigHash) {
-            qWarning() << "TranslationDownloader: SECURITY - hash mismatch for" << appId
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - hash mismatch for" << appId
                        << "expected:" << sigHash << "got:" << computedHash;
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("hashMismatch: %1").arg(appId).toUtf8().constData());
@@ -560,7 +563,7 @@ void TranslationDownloader::verifyAndProcess(
             return;
         }
 
-        qDebug() << "TranslationDownloader: hash verified for" << appId;
+        qCDebug(lcDownloader) << "TranslationDownloader: hash verified for" << appId;
 
         // --- Verify Ed25519 signature ---
 
@@ -569,7 +572,7 @@ void TranslationDownloader::verifyAndProcess(
         const QByteArray sigBytes = sigSignature.toUtf8();
 
         if (!verifyEd25519Signature(hashData, sigBytes)) {
-            qWarning() << "TranslationDownloader: SECURITY - Ed25519 signature INVALID for"
+            qCWarning(lcDownloader) << "TranslationDownloader: SECURITY - Ed25519 signature INVALID for"
                        << appId << "(keyId:" << sigKeyId << ")";
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("sigInvalid: %1 keyId=%2").arg(appId, sigKeyId).toUtf8().constData());
@@ -577,7 +580,7 @@ void TranslationDownloader::verifyAndProcess(
             return;
         }
 
-        qDebug() << "TranslationDownloader: signature verified for" << appId
+        qCDebug(lcDownloader) << "TranslationDownloader: signature verified for" << appId
                  << "(keyId:" << sigKeyId << ")";
         CrashReporter::addBreadcrumb("security",
             QStringLiteral("sigVerified: %1").arg(appId).toUtf8().constData());
@@ -595,13 +598,13 @@ bool TranslationDownloader::verifyEd25519Signature(
     // Decode the base64 signature
     QByteArray sigRaw = QByteArray::fromBase64(sigBase64);
     if (sigRaw.isEmpty()) {
-        qWarning() << "TranslationDownloader: failed to decode base64 signature";
+        qCWarning(lcDownloader) << "TranslationDownloader: failed to decode base64 signature";
         return false;
     }
 
     // Ed25519 signatures are exactly 64 bytes
     if (sigRaw.size() != 64) {
-        qWarning() << "TranslationDownloader: invalid Ed25519 signature size:"
+        qCWarning(lcDownloader) << "TranslationDownloader: invalid Ed25519 signature size:"
                    << sigRaw.size() << "(expected 64)";
         return false;
     }
@@ -610,7 +613,7 @@ bool TranslationDownloader::verifyEd25519Signature(
     BIO* bio = BIO_new_mem_buf(kSigningPublicKeyPEM,
                                static_cast<int>(strlen(kSigningPublicKeyPEM)));
     if (!bio) {
-        qWarning() << "TranslationDownloader: failed to create BIO for public key";
+        qCWarning(lcDownloader) << "TranslationDownloader: failed to create BIO for public key";
         return false;
     }
 
@@ -618,7 +621,7 @@ bool TranslationDownloader::verifyEd25519Signature(
     BIO_free(bio);
 
     if (!pubKey) {
-        qWarning() << "TranslationDownloader: failed to parse embedded Ed25519 public key";
+        qCWarning(lcDownloader) << "TranslationDownloader: failed to parse embedded Ed25519 public key";
         return false;
     }
 
@@ -628,7 +631,7 @@ bool TranslationDownloader::verifyEd25519Signature(
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx) {
         EVP_PKEY_free(pubKey);
-        qWarning() << "TranslationDownloader: failed to create EVP_MD_CTX";
+        qCWarning(lcDownloader) << "TranslationDownloader: failed to create EVP_MD_CTX";
         return false;
     }
 

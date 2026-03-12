@@ -13,6 +13,7 @@
 #include <QtConcurrent>
 #include <QFileInfo>
 #include <QDebug>
+#include <QLoggingCategory>
 
 #ifndef MAKINEAI_UI_ONLY
 #include <makineai/file_integrity.hpp>
@@ -21,6 +22,8 @@
 #include <QFile>
 #include <QRegularExpression>
 #endif
+
+Q_LOGGING_CATEGORY(lcIntegrity, "makineai.integrity")
 
 namespace makineai {
 
@@ -49,7 +52,7 @@ void IntegrityService::verify()
     // Skip integrity check unless explicitly enabled for release distribution
     m_verified = true;
     m_status = "skipped";
-    qDebug() << "Integrity check: skipped (not a verified release build)";
+    qCDebug(lcIntegrity) << "Integrity check: skipped (not a verified release build)";
     emit verificationComplete();
     return;
 #endif
@@ -81,7 +84,7 @@ void IntegrityService::performCheck()
                 m_verified = true;
                 m_checking = false;
                 m_status = "skipped";
-                qDebug() << "Integrity check: no .sha256 file found (dev build), skipping";
+                qCDebug(lcIntegrity) << "Integrity check: no .sha256 file found (dev build), skipping";
                 emit checkingChanged();
                 emit verificationComplete();
             }, Qt::QueuedConnection);
@@ -90,7 +93,7 @@ void IntegrityService::performCheck()
                 m_verified = false;
                 m_checking = false;
                 m_status = "error";
-                qWarning() << "Integrity check: verification error";
+                qCWarning(lcIntegrity) << "Integrity check: verification error";
                 emit checkingChanged();
                 emit verificationComplete();
             }, Qt::QueuedConnection);
@@ -103,7 +106,7 @@ void IntegrityService::performCheck()
         m_verified = match;
         m_checking = false;
         m_status = match ? "verified" : "failed";
-        qDebug() << "Integrity check:" << (match ? "PASSED" : "FAILED");
+        qCDebug(lcIntegrity) << "Integrity check:" << (match ? "PASSED" : "FAILED");
         emit checkingChanged();
         emit verificationComplete();
     }, Qt::QueuedConnection);
@@ -117,7 +120,7 @@ void IntegrityService::performCheck()
             m_verified = true;
             m_checking = false;
             m_status = "skipped";
-            qDebug() << "Integrity check: no .sha256 file found (dev build), skipping";
+            qCDebug(lcIntegrity) << "Integrity check: no .sha256 file found (dev build), skipping";
             emit checkingChanged();
             emit verificationComplete();
         }, Qt::QueuedConnection);
@@ -138,7 +141,7 @@ void IntegrityService::performCheck()
             m_verified = false;
             m_checking = false;
             m_status = "error";
-            qWarning() << "Integrity check: failed to read expected hash";
+            qCWarning(lcIntegrity) << "Integrity check: failed to read expected hash";
             emit checkingChanged();
             emit verificationComplete();
         }, Qt::QueuedConnection);
@@ -166,7 +169,7 @@ void IntegrityService::performCheck()
             m_verified = false;
             m_checking = false;
             m_status = "error";
-            qWarning() << "Integrity check: failed to compute binary hash";
+            qCWarning(lcIntegrity) << "Integrity check: failed to compute binary hash";
             emit checkingChanged();
             emit verificationComplete();
         }, Qt::QueuedConnection);
@@ -178,7 +181,7 @@ void IntegrityService::performCheck()
         m_verified = match;
         m_checking = false;
         m_status = match ? "verified" : "failed";
-        qDebug() << "Integrity check:" << (match ? "PASSED" : "FAILED");
+        qCDebug(lcIntegrity) << "Integrity check:" << (match ? "PASSED" : "FAILED");
         emit checkingChanged();
         emit verificationComplete();
     }, Qt::QueuedConnection);

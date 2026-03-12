@@ -18,6 +18,7 @@
 #include <QtConcurrent>
 #include <QFutureWatcher>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <optional>
 
 namespace {
@@ -93,6 +94,8 @@ std::optional<makineai::SteamDetails> parseSteamJson(const QString& steamAppId,
 
 } // namespace
 
+Q_LOGGING_CATEGORY(lcSteamDetails, "makineai.steam")
+
 namespace makineai {
 
 SteamDetailsService::SteamDetailsService(QObject* parent)
@@ -108,7 +111,7 @@ void SteamDetailsService::fetchDetails(const QString& steamAppId)
     // Validate: must be numeric, max 10 digits (prevents URL injection)
     static const QRegularExpression numericOnly(QStringLiteral("^\\d{1,10}$"));
     if (!numericOnly.match(steamAppId).hasMatch()) {
-        qWarning() << "Invalid steamAppId format:" << steamAppId;
+        qCWarning(lcSteamDetails) << "Invalid steamAppId format:" << steamAppId;
         return;
     }
 
@@ -134,7 +137,7 @@ void SteamDetailsService::fetchDetails(const QString& steamAppId)
     // Abort if response exceeds size limit (prevents memory exhaustion)
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > kMaxSteamResponseBytes) {
-            qWarning() << "Steam API response too large, aborting";
+            qCWarning(lcSteamDetails) << "Steam API response too large, aborting";
             reply->abort();
         }
     });
@@ -144,7 +147,7 @@ void SteamDetailsService::fetchDetails(const QString& steamAppId)
         m_pendingFetches.remove(steamAppId);
 
         if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "Steam API error for" << steamAppId << ":" << reply->errorString();
+            qCWarning(lcSteamDetails) << "Steam API error for" << steamAppId << ":" << reply->errorString();
             emit detailsFetchError(steamAppId, reply->errorString());
             return;
         }
@@ -262,7 +265,7 @@ void SteamDetailsService::loadCache()
             m_steamDetailsCache[it.key()] = details;
     }
 
-    qDebug() << "Loaded" << m_steamDetailsCache.size() << "cached Steam details";
+    qCDebug(lcSteamDetails) << "Loaded" << m_steamDetailsCache.size() << "cached Steam details";
 }
 
 void SteamDetailsService::saveCache()
