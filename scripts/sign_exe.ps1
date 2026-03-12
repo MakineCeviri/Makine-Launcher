@@ -24,6 +24,8 @@ param(
     [string[]]$Path,
 
     [string]$Thumbprint,
+    [string]$PfxFile,
+    [string]$PfxPassword,
     [string]$TimestampServer = "http://timestamp.digicert.com",
     [switch]$SkipTimestamp
 )
@@ -63,38 +65,57 @@ if (-not $signTool) {
 }
 Write-Host "[OK] signtool: $signTool" -ForegroundColor DarkGray
 
-# ── Resolve certificate thumbprint ───────────────────────────────────────────
-if (-not $Thumbprint) {
-    $thumbFile = Join-Path $PSScriptRoot "certs\thumbprint.txt"
-    if (Test-Path $thumbFile) {
-        $Thumbprint = (Get-Content $thumbFile -Raw).Trim()
-        Write-Host "[OK] Using thumbprint from certs/thumbprint.txt" -ForegroundColor DarkGray
-    } else {
-        # Try to find MakineAI cert via certutil
-        $certOutput = certutil -user -store My 2>&1 | Out-String
-        if ($certOutput -match "MakineAI" -and $certOutput -match "Cert Hash\(sha1\):\s*([0-9a-fA-F\s]+)") {
-            $Thumbprint = ($Matches[1]).Trim() -replace '\s',''
-            Write-Host "[OK] Auto-detected MakineAI cert: $Thumbprint" -ForegroundColor DarkGray
+# ── Resolve signing method ───────────────────────────────────────────────────
+# Two modes: PFX file (CI/CD) or certificate store (local dev)
+$usePfx = $false
+
+if ($PfxFile) {
+    # CI/CD mode: sign with PFX file directly (no cert store needed)
+    if (-not (Test-Path $PfxFile)) {
+        Write-Host "[ERROR] PFX file not found: $PfxFile" -ForegroundColor Red
+        exit 1
+    }
+    if (-not $PfxPassword) {
+        Write-Host "[ERROR] -PfxPassword required when using -PfxFile" -ForegroundColor Red
+        exit 1
+    }
+    $usePfx = $true
+    Write-Host "[OK] Signing with PFX: $PfxFile" -ForegroundColor Green
+} else {
+    # Local mode: resolve thumbprint from store
+    if (-not $Thumbprint) {
+        $thumbFile = Join-Path $PSScriptRoot "certs\thumbprint.txt"
+        if (Test-Path $thumbFile) {
+            $Thumbprint = (Get-Content $thumbFile -Raw).Trim()
+            Write-Host "[OK] Using thumbprint from certs/thumbprint.txt" -ForegroundColor DarkGray
         } else {
-            Write-Host "[ERROR] No certificate found. Run: just setup-cert" -ForegroundColor Red
-            exit 1
+            # Try to find MakineAI cert via certutil
+            $certOutput = certutil -user -store My 2>&1 | Out-String
+            if ($certOutput -match "MakineAI" -and $certOutput -match "Cert Hash\(sha1\):\s*([0-9a-fA-F\s]+)") {
+                $Thumbprint = ($Matches[1]).Trim() -replace '\s',''
+                Write-Host "[OK] Auto-detected MakineAI cert: $Thumbprint" -ForegroundColor DarkGray
+            } else {
+                Write-Host "[ERROR] No certificate found. Run: just setup-cert" -ForegroundColor Red
+                Write-Host "  Or use -PfxFile/-PfxPassword for CI/CD signing" -ForegroundColor Yellow
+                exit 1
+            }
         }
     }
-}
 
-# Verify cert exists in store via certutil
-$verifyOutput = certutil -user -store My $Thumbprint 2>&1 | Out-String
-if ($verifyOutput -notmatch "Cert Hash\(sha1\)") {
-    Write-Host "[ERROR] Certificate not found in store: $Thumbprint" -ForegroundColor Red
-    Write-Host "Run: just setup-cert" -ForegroundColor Yellow
-    exit 1
+    # Verify cert exists in store via certutil
+    $verifyOutput = certutil -user -store My $Thumbprint 2>&1 | Out-String
+    if ($verifyOutput -notmatch "Cert Hash\(sha1\)") {
+        Write-Host "[ERROR] Certificate not found in store: $Thumbprint" -ForegroundColor Red
+        Write-Host "Run: just setup-cert" -ForegroundColor Yellow
+        exit 1
+    }
+    # Extract subject and expiry from certutil output
+    $subjectMatch = [regex]::Match($verifyOutput, "Subject:\s*(.+)")
+    $notAfterMatch = [regex]::Match($verifyOutput, "NotAfter:\s*(.+)")
+    $certSubject = if ($subjectMatch.Success) { $subjectMatch.Groups[1].Value.Trim() } else { "Unknown" }
+    $certExpiry = if ($notAfterMatch.Success) { $notAfterMatch.Groups[1].Value.Trim() } else { "Unknown" }
+    Write-Host "[OK] Certificate: $certSubject (expires $certExpiry)" -ForegroundColor Green
 }
-# Extract subject and expiry from certutil output
-$subjectMatch = [regex]::Match($verifyOutput, "Subject:\s*(.+)")
-$notAfterMatch = [regex]::Match($verifyOutput, "NotAfter:\s*(.+)")
-$certSubject = if ($subjectMatch.Success) { $subjectMatch.Groups[1].Value.Trim() } else { "Unknown" }
-$certExpiry = if ($notAfterMatch.Success) { $notAfterMatch.Groups[1].Value.Trim() } else { "Unknown" }
-Write-Host "[OK] Certificate: $certSubject (expires $certExpiry)" -ForegroundColor Green
 
 # ── Resolve files to sign ────────────────────────────────────────────────────
 if (-not $Path) {
@@ -129,14 +150,18 @@ $failed = 0
 foreach ($file in $filesToSign) {
     Write-Host "Signing: $file" -ForegroundColor Cyan
 
-    $args = @(
-        "sign",
-        "/sha1", $Thumbprint,
-        "/fd", "SHA256",
-        "/td", "SHA256",
-        "/d", "MakineAI - Turkish Game Translation Platform",
-        "/du", "https://github.com/MakineCeviri/MakineAI"
-    )
+    $args = @("sign")
+
+    if ($usePfx) {
+        $args += "/f", $PfxFile, "/p", $PfxPassword
+    } else {
+        $args += "/sha1", $Thumbprint
+    }
+
+    $args += "/fd", "SHA256",
+             "/td", "SHA256",
+             "/d", "MakineAI - Turkish Game Translation Platform",
+             "/du", "https://github.com/MakineCeviri/MakineAI"
 
     if (-not $SkipTimestamp) {
         $args += "/tr", $TimestampServer
