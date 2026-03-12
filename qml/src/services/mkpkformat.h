@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 
+#include <spdlog/fmt/fmt.h>
+
 #include <openssl/evp.h>
 #include <zstd.h>
 
@@ -130,7 +132,7 @@ inline std::vector<uint8_t> decrypt_mkpk(
 
     // Validate version
     if (data[4] != crypto::MKPK_VERSION) {
-        if (err) *err = MkpkError("Unsupported MKPK version: " + std::to_string(data[4]));
+        if (err) *err = MkpkError(fmt::format("Unsupported MKPK version: {}", data[4]));
         return {};
     }
 

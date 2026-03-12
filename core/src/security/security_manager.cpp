@@ -382,13 +382,13 @@ Result<SignatureResult> SecurityManager::verifySignature(
     if (verified) {
         MAKINEAI_LOG_INFO(log::SECURITY, "Signature verification PASSED");
         AuditLogger::logSignatureVerification(impl_->publicKeyId, true,
-            "Data size: " + std::to_string(data.size()) + " bytes");
+            fmt::format("Data size: {} bytes", data.size()));
         metrics().increment("security.signature_verify_successes");
     } else {
         result.message = "Signature verification failed";
         MAKINEAI_LOG_WARN(log::SECURITY, "Signature verification FAILED");
         AuditLogger::logSignatureVerification(impl_->publicKeyId, false,
-            "Data size: " + std::to_string(data.size()) + " bytes, verification rejected");
+            fmt::format("Data size: {} bytes, verification rejected", data.size()));
         metrics().increment("security.signature_verify_failures");
     }
 
@@ -516,7 +516,7 @@ Result<SignatureResult> SecurityManager::verifyAuthenticode(const fs::path& exeP
                     exePath.string());
                 break;
             default:
-                result.message = "Verification failed: " + std::to_string(status);
+                result.message = fmt::format("Verification failed: {}", status);
                 MAKINEAI_LOG_WARN(log::SECURITY, "Authenticode verification failed with status {}: {}",
                     status, exePath.string());
         }
