@@ -1,0 +1,74 @@
+# MakineAI CI/CD Infrastructure — Docker Compose for Portainer
+#
+# Deploy this stack on your server via Portainer:
+#   Stacks > Add stack > Upload docker-compose.yml
+#
+# Prerequisites:
+#   1. Create a GitHub Personal Access Token (PAT) with 'repo' scope
+#   2. Go to: github.com/MakineCeviri/MakineAI-Launcher/settings/actions/runners/new
+#      to get the RUNNER_TOKEN (one-time registration token)
+#
+# Environment variables (set in Portainer stack config):
+#   GITHUB_PAT          — GitHub PAT for gh CLI (repo scope)
+#   RUNNER_TOKEN        — One-time runner registration token
+#   RUNNER_NAME         — Display name for the runner (default: makineai-server)
+
+services:
+  # ── Portainer Agent ───────────────────────────────────────────────────
+  # If Portainer is already running on this server, remove this service.
+  # If not, deploy Portainer separately first:
+  #   docker run -d -p 9443:9443 --name portainer \
+  #     -v /var/run/docker.sock:/var/run/docker.sock \
+  #     -v portainer_data:/data \
+  #     portainer/portainer-ce:lts
+  portainer-agent:
+    image: portainer/agent:lts
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+
+  # ── GitHub Actions Self-Hosted Runner ─────────────────────────────────
+  # Runs deployment jobs (Linux-based tasks: CDN sync, release publish)
+  # Build jobs run on GitHub-hosted Windows runners
+  runner:
+    image: ghcr.io/actions/actions-runner:latest
+    restart: unless-stopped
+    environment:
+      RUNNER_NAME: ${RUNNER_NAME:-makineai-server}
+      RUNNER_WORKDIR: /home/runner/_work
+      RUNNER_LABELS: deploy,linux,self-hosted
+      RUNNER_SCOPE: repo
+      REPO_URL: https://github.com/MakineCeviri/MakineAI-Launcher
+      ACCESS_TOKEN: ${RUNNER_TOKEN}
+    volumes:
+      - runner-work:/home/runner/_work
+      - runner-data:/home/runner
+    labels:
+      - "com.makineai.service=ci-runner"
+      - "com.makineai.description=GitHub Actions self-hosted runner for deployments"
+
+  # ── Release File Server ───────────────────────────────────────────────
+  # Serves release artifacts via HTTPS (optional — use if not using GitHub Releases)
+  # Access: https://your-server:8443/releases/
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "8443:443"
+      - "8080:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - releases:/srv/releases
+      - caddy-data:/data
+      - caddy-config:/config
+    labels:
+      - "com.makineai.service=release-server"
+      - "com.makineai.description=Release artifact file server"
+
+volumes:
+  runner-work:
+  runner-data:
+  releases:
+  caddy-data:
+  caddy-config:
