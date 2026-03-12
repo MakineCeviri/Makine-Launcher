@@ -795,7 +795,6 @@ static void createServices(
     // syncCatalog() called in Phase 7.5 — loads catalog index before QML creation
 
     auto* translationDownloader = new TranslationDownloader(&app);
-    translationDownloader->setManifestSync(manifestSync);
     translationDownloader->setDataPath(makineai::AppPaths::packagesDir());
     engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
 
