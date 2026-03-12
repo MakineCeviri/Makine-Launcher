@@ -10,6 +10,7 @@
 #include "profiler.h"
 #include <QDebug>
 #include <QDir>
+#include <QSet>
 #include <QtConcurrent>
 
 #ifdef Q_OS_WIN
@@ -208,7 +209,7 @@ void ProcessScanner::detectRunningGames(const QList<ProcessInfo>& processes)
     if (m_gameRunning && !m_runningExeName.isEmpty()) {
         bool stillRunning = false;
         for (const auto& proc : processes) {
-            if (proc.exeName.toLower() == m_runningExeName) {
+            if (proc.exeName.compare(m_runningExeName, Qt::CaseInsensitive) == 0) {
                 stillRunning = true;
                 break;
             }
@@ -273,17 +274,9 @@ void ProcessScanner::detectRunningGames(const QList<ProcessInfo>& processes)
         emit runningGameChanged();
 
         if (foundGame && !wasRunning) {
-            // Only emit gameDetected if the game is NOT already in the library
-            bool inLibrary = false;
-            if (m_gameService) {
-                QVariantList games = m_gameService->games();
-                for (const auto& g : games) {
-                    if (g.toMap().value("steamAppId").toString() == foundGameId) {
-                        inLibrary = true;
-                        break;
-                    }
-                }
-            }
+            // Games in m_appIdToPath were discovered via disk scan (Layer 1) — they ARE in library.
+            // Catalog-only entries (Layer 2) are not in library.
+            const bool inLibrary = m_appIdToPath.contains(foundGameId);
 
             if (!inLibrary) {
                 emit gameDetected(foundGameId, foundGameName);
@@ -341,8 +334,6 @@ QString ProcessScanner::getProcessFullPath(DWORD processId) const
     return {};
 }
 #endif
-
-
 
 #ifdef Q_OS_WIN
 bool ProcessScanner::isProcessUsingGpu(DWORD processId) const
@@ -425,154 +416,96 @@ void ProcessScanner::updateHeavyProcessList(const QList<ProcessInfo>& processes)
     //   4. Must load a 3D rendering DLL (DirectX/Vulkan — module enumeration)
     //   5. Must have a visible window >= 200x200
 
+    // Static set for O(1) exact-match lookup — built once, reused every Layer 3 scan.
+    static const QSet<QString> kSkipExact = {
+        // Windows system / shell
+        QStringLiteral("explorer.exe"),        QStringLiteral("svchost.exe"),
+        QStringLiteral("dwm.exe"),             QStringLiteral("csrss.exe"),
+        QStringLiteral("lsass.exe"),           QStringLiteral("winlogon.exe"),
+        QStringLiteral("wininit.exe"),         QStringLiteral("conhost.exe"),
+        QStringLiteral("dllhost.exe"),         QStringLiteral("searchhost.exe"),
+        QStringLiteral("runtimebroker.exe"),   QStringLiteral("sihost.exe"),
+        QStringLiteral("taskhostw.exe"),       QStringLiteral("taskmgr.exe"),
+        QStringLiteral("applicationframehost.exe"),
+        QStringLiteral("systemsettings.exe"),  QStringLiteral("shellexperiencehost.exe"),
+        QStringLiteral("startmenuexperiencehost.exe"),
+        QStringLiteral("textinputhost.exe"),   QStringLiteral("widgetservice.exe"),
+        QStringLiteral("widgets.exe"),         QStringLiteral("wmiprvse.exe"),
+        QStringLiteral("fontdrvhost.exe"),     QStringLiteral("audiodg.exe"),
+        QStringLiteral("ctfmon.exe"),          QStringLiteral("securityhealthservice.exe"),
+        QStringLiteral("smartscreen.exe"),     QStringLiteral("searchapp.exe"),
+        QStringLiteral("searchui.exe"),        QStringLiteral("lockapp.exe"),
+        QStringLiteral("yourphone.exe"),       QStringLiteral("phoneexperiencehost.exe"),
+        QStringLiteral("peopleexperiencehost.exe"),
+        QStringLiteral("mspaint.exe"),         QStringLiteral("mstsc.exe"),
+        QStringLiteral("snippingtool.exe"),    QStringLiteral("screenclippinghost.exe"),
+        QStringLiteral("calculator.exe"),      QStringLiteral("notepad.exe"),
+        QStringLiteral("cmd.exe"),             QStringLiteral("powershell.exe"),
+        QStringLiteral("pwsh.exe"),            QStringLiteral("windowsterminal.exe"),
+        QStringLiteral("winget.exe"),          QStringLiteral("wt.exe"),
+        // Browsers
+        QStringLiteral("msedge.exe"),          QStringLiteral("chrome.exe"),
+        QStringLiteral("firefox.exe"),         QStringLiteral("opera.exe"),
+        QStringLiteral("brave.exe"),           QStringLiteral("vivaldi.exe"),
+        QStringLiteral("arc.exe"),             QStringLiteral("tor.exe"),
+        // Communication / Media
+        QStringLiteral("discord.exe"),         QStringLiteral("slack.exe"),
+        QStringLiteral("teams.exe"),           QStringLiteral("ms-teams.exe"),
+        QStringLiteral("zoom.exe"),            QStringLiteral("telegram.exe"),
+        QStringLiteral("whatsapp.exe"),        QStringLiteral("signal.exe"),
+        QStringLiteral("spotify.exe"),         QStringLiteral("vlc.exe"),
+        QStringLiteral("mpv.exe"),             QStringLiteral("potplayer.exe"),
+        QStringLiteral("potplayer64.exe"),     QStringLiteral("potplayermini.exe"),
+        QStringLiteral("potplayermini64.exe"), QStringLiteral("wmplayer.exe"),
+        QStringLiteral("video.ui.exe"),        QStringLiteral("microsoft.photos.exe"),
+        QStringLiteral("microsoft.media.player.exe"),
+        // Game launchers / Stores
+        QStringLiteral("steam.exe"),           QStringLiteral("steamwebhelper.exe"),
+        QStringLiteral("epicgameslauncher.exe"),
+        QStringLiteral("gogalaxy.exe"),        QStringLiteral("gogalaxycommunication.exe"),
+        QStringLiteral("eadesktop.exe"),       QStringLiteral("ubisoftconnect.exe"),
+        QStringLiteral("upc.exe"),             QStringLiteral("origin.exe"),
+        QStringLiteral("originwebhelperservice.exe"),
+        QStringLiteral("battle.net.exe"),      QStringLiteral("xboxpcapp.exe"),
+        QStringLiteral("gamingservices.exe"),  QStringLiteral("gamingservicesnet.exe"),
+        QStringLiteral("gamebar.exe"),         QStringLiteral("gamebarftserver.exe"),
+        QStringLiteral("gamebarpresencewriter.exe"),
+        QStringLiteral("gamelauncher.exe"),    QStringLiteral("playnite.desktopapp.exe"),
+        QStringLiteral("launchpad.exe"),
+        // Dev / IDE
+        QStringLiteral("code.exe"),            QStringLiteral("devenv.exe"),
+        QStringLiteral("rider64.exe"),         QStringLiteral("clion64.exe"),
+        QStringLiteral("idea64.exe"),          QStringLiteral("androidstudio64.exe"),
+        QStringLiteral("sublime_text.exe"),
+        // Streaming / Recording / Overlay
+        QStringLiteral("obs64.exe"),           QStringLiteral("obs32.exe"),
+        QStringLiteral("streamlabs obs.exe"),  QStringLiteral("xsplit.core.exe"),
+        QStringLiteral("wallpaperengine.exe"), QStringLiteral("wallpaperengine32.exe"),
+        QStringLiteral("lghub.exe"),           QStringLiteral("icue.exe"),
+        QStringLiteral("synapse3.exe"),        QStringLiteral("steelseries gg.exe"),
+        // 3D / Design / Video editing (GPU-heavy non-games)
+        QStringLiteral("blender.exe"),         QStringLiteral("afterfx.exe"),
+        QStringLiteral("premiere pro.exe"),    QStringLiteral("adobe premiere pro.exe"),
+        QStringLiteral("resolve.exe"),         QStringLiteral("davinci resolve.exe"),
+        QStringLiteral("photoshop.exe"),       QStringLiteral("illustrator.exe"),
+        QStringLiteral("3dsmax.exe"),          QStringLiteral("maya.exe"),
+        QStringLiteral("cinema 4d.exe"),       QStringLiteral("sketchup.exe"),
+        QStringLiteral("zbrush.exe"),          QStringLiteral("substancepainter.exe"),
+        QStringLiteral("houdini.exe"),         QStringLiteral("fusion360.exe"),
+        QStringLiteral("solidworks.exe"),      QStringLiteral("autocad.exe"),
+        // GPU monitoring / benchmarking
+        QStringLiteral("gpu-z.exe"),           QStringLiteral("msiafterburner.exe"),
+        QStringLiteral("hwinfo64.exe"),        QStringLiteral("hwinfo32.exe"),
+        QStringLiteral("hwmonitor.exe"),       QStringLiteral("gpumon.exe"),
+        QStringLiteral("furmark.exe"),         QStringLiteral("kombustor.exe"),
+        // Self
+        QStringLiteral("makineai.exe"),
+    };
+
     auto isSkipExe = [](const QString& lower) {
-        // --- Exact matches: common GPU-using non-game processes ---
-        if (lower == QLatin1String("explorer.exe")
-            || lower == QLatin1String("svchost.exe")
-            || lower == QLatin1String("dwm.exe")
-            || lower == QLatin1String("csrss.exe")
-            || lower == QLatin1String("lsass.exe")
-            || lower == QLatin1String("winlogon.exe")
-            || lower == QLatin1String("wininit.exe")
-            || lower == QLatin1String("conhost.exe")
-            || lower == QLatin1String("dllhost.exe")
-            || lower == QLatin1String("searchhost.exe")
-            || lower == QLatin1String("runtimebroker.exe")
-            || lower == QLatin1String("sihost.exe")
-            || lower == QLatin1String("taskhostw.exe")
-            || lower == QLatin1String("taskmgr.exe")
-            || lower == QLatin1String("applicationframehost.exe")
-            || lower == QLatin1String("systemsettings.exe")
-            || lower == QLatin1String("shellexperiencehost.exe")
-            || lower == QLatin1String("startmenuexperiencehost.exe")
-            || lower == QLatin1String("textinputhost.exe")
-            || lower == QLatin1String("widgetservice.exe")
-            || lower == QLatin1String("widgets.exe")
-            || lower == QLatin1String("wmiprvse.exe")
-            || lower == QLatin1String("fontdrvhost.exe")
-            || lower == QLatin1String("audiodg.exe")
-            || lower == QLatin1String("ctfmon.exe")
-            || lower == QLatin1String("securityhealthservice.exe")
-            || lower == QLatin1String("smartscreen.exe")
-            || lower == QLatin1String("searchapp.exe")
-            || lower == QLatin1String("searchui.exe")
-            || lower == QLatin1String("lockapp.exe")
-            || lower == QLatin1String("yourphone.exe")
-            || lower == QLatin1String("phoneexperiencehost.exe")
-            || lower == QLatin1String("peopleexperiencehost.exe")
-            || lower == QLatin1String("mspaint.exe")
-            || lower == QLatin1String("mstsc.exe")
-            || lower == QLatin1String("snippingtool.exe")
-            || lower == QLatin1String("screenclippinghost.exe")
-            || lower == QLatin1String("calculator.exe")
-            || lower == QLatin1String("notepad.exe")
-            || lower == QLatin1String("cmd.exe")
-            || lower == QLatin1String("powershell.exe")
-            || lower == QLatin1String("pwsh.exe")
-            || lower == QLatin1String("windowsterminal.exe")
-            || lower == QLatin1String("winget.exe")
-            || lower == QLatin1String("wt.exe")
-            // Browsers
-            || lower == QLatin1String("msedge.exe")
-            || lower == QLatin1String("chrome.exe")
-            || lower == QLatin1String("firefox.exe")
-            || lower == QLatin1String("opera.exe")
-            || lower == QLatin1String("brave.exe")
-            || lower == QLatin1String("vivaldi.exe")
-            || lower == QLatin1String("arc.exe")
-            || lower == QLatin1String("tor.exe")
-            // Communication / Media
-            || lower == QLatin1String("discord.exe")
-            || lower == QLatin1String("slack.exe")
-            || lower == QLatin1String("teams.exe")
-            || lower == QLatin1String("ms-teams.exe")
-            || lower == QLatin1String("zoom.exe")
-            || lower == QLatin1String("telegram.exe")
-            || lower == QLatin1String("whatsapp.exe")
-            || lower == QLatin1String("signal.exe")
-            || lower == QLatin1String("spotify.exe")
-            || lower == QLatin1String("vlc.exe")
-            || lower == QLatin1String("mpv.exe")
-            || lower == QLatin1String("potplayer.exe")
-            || lower == QLatin1String("potplayer64.exe")
-            || lower == QLatin1String("potplayermini.exe")
-            || lower == QLatin1String("potplayermini64.exe")
-            || lower == QLatin1String("wmplayer.exe")
-            || lower == QLatin1String("video.ui.exe")
-            || lower == QLatin1String("microsoft.photos.exe")
-            || lower == QLatin1String("microsoft.media.player.exe")
-            // Game launchers / Stores
-            || lower == QLatin1String("steam.exe")
-            || lower == QLatin1String("steamwebhelper.exe")
-            || lower == QLatin1String("epicgameslauncher.exe")
-            || lower == QLatin1String("gogalaxy.exe")
-            || lower == QLatin1String("gogalaxycommunication.exe")
-            || lower == QLatin1String("eadesktop.exe")
-            || lower == QLatin1String("ubisoftconnect.exe")
-            || lower == QLatin1String("upc.exe")
-            || lower == QLatin1String("origin.exe")
-            || lower == QLatin1String("originwebhelperservice.exe")
-            || lower == QLatin1String("battle.net.exe")
-            || lower == QLatin1String("xboxpcapp.exe")
-            || lower == QLatin1String("gamingservices.exe")
-            || lower == QLatin1String("gamingservicesnet.exe")
-            || lower == QLatin1String("gamebar.exe")
-            || lower == QLatin1String("gamebarftserver.exe")
-            || lower == QLatin1String("gamebarpresencewriter.exe")
-            || lower == QLatin1String("gamelauncher.exe")
-            || lower == QLatin1String("playnite.desktopapp.exe")
-            || lower == QLatin1String("launchpad.exe")
-            // Dev / IDE
-            || lower == QLatin1String("code.exe")
-            || lower == QLatin1String("devenv.exe")
-            || lower == QLatin1String("rider64.exe")
-            || lower == QLatin1String("clion64.exe")
-            || lower == QLatin1String("idea64.exe")
-            || lower == QLatin1String("androidstudio64.exe")
-            || lower == QLatin1String("sublime_text.exe")
-            // Streaming / Recording / Overlay
-            || lower == QLatin1String("obs64.exe")
-            || lower == QLatin1String("obs32.exe")
-            || lower == QLatin1String("streamlabs obs.exe")
-            || lower == QLatin1String("xsplit.core.exe")
-            || lower == QLatin1String("wallpaperengine.exe")
-            || lower == QLatin1String("wallpaperengine32.exe")
-            || lower == QLatin1String("lghub.exe")
-            || lower == QLatin1String("icue.exe")
-            || lower == QLatin1String("synapse3.exe")
-            || lower == QLatin1String("steelseries gg.exe")
-            // 3D / Design / Video editing (GPU-heavy non-games)
-            || lower == QLatin1String("blender.exe")
-            || lower == QLatin1String("afterfx.exe")
-            || lower == QLatin1String("premiere pro.exe")
-            || lower == QLatin1String("adobe premiere pro.exe")
-            || lower == QLatin1String("resolve.exe")
-            || lower == QLatin1String("davinci resolve.exe")
-            || lower == QLatin1String("photoshop.exe")
-            || lower == QLatin1String("illustrator.exe")
-            || lower == QLatin1String("3dsmax.exe")
-            || lower == QLatin1String("maya.exe")
-            || lower == QLatin1String("cinema 4d.exe")
-            || lower == QLatin1String("sketchup.exe")
-            || lower == QLatin1String("zbrush.exe")
-            || lower == QLatin1String("substancepainter.exe")
-            || lower == QLatin1String("houdini.exe")
-            || lower == QLatin1String("fusion360.exe")
-            || lower == QLatin1String("solidworks.exe")
-            || lower == QLatin1String("autocad.exe")
-            // GPU monitoring / benchmarking
-            || lower == QLatin1String("gpu-z.exe")
-            || lower == QLatin1String("msiafterburner.exe")
-            || lower == QLatin1String("hwinfo64.exe")
-            || lower == QLatin1String("hwinfo32.exe")
-            || lower == QLatin1String("hwmonitor.exe")
-            || lower == QLatin1String("gpumon.exe")
-            || lower == QLatin1String("furmark.exe")
-            || lower == QLatin1String("kombustor.exe")
-            // Self
-            || lower == QLatin1String("makineai.exe")) {
+        // --- Exact matches: O(1) hash lookup ---
+        if (kSkipExact.contains(lower))
             return true;
-        }
 
         // --- Prefix patterns: entire families of non-game processes ---
 
@@ -734,6 +667,7 @@ void ProcessScanner::updateHeavyProcessList(const QList<ProcessInfo>& processes)
     Q_UNUSED(processes)
 #endif
 }
+
 QString ProcessScanner::resolveSelectedProcess(qint64 pid)
 {
 #ifdef Q_OS_WIN
@@ -756,13 +690,17 @@ QString ProcessScanner::resolveSelectedProcess(qint64 pid)
         QDir dir(checkDir);
         if (!dir.exists()) break;
 
-        QStringList topEntries;
+        // Single entryList call — split into exeNames and topEntries in one pass.
         const auto entries = dir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
-        for (const auto& e : entries) topEntries.append(e.toLower());
-
+        QStringList topEntries;
         QStringList exeNames;
-        const auto exes = dir.entryList({QStringLiteral("*.exe")}, QDir::Files);
-        for (const auto& e : exes) exeNames.append(e.toLower());
+        topEntries.reserve(entries.size());
+        for (const auto& e : entries) {
+            QString lower = e.toLower();
+            topEntries.append(lower);
+            if (lower.endsWith(QLatin1String(".exe")))
+                exeNames.append(lower);
+        }
 
         QString folderName = dir.dirName();
 
