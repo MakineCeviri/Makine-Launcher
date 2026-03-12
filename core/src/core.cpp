@@ -262,7 +262,7 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         // Game Detector
         gameDetector_ = std::make_unique<GameDetector>();
 
-        // Runtime Manager (stub — BepInEx removed)
+        // Runtime Manager
         runtimeManager_ = std::make_unique<RuntimeManager>();
 
         // Security Manager — load embedded key first, fall back to external

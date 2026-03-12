@@ -98,7 +98,7 @@ set(MAKINEAI_SOURCES
     # Package Catalog (pure C++ catalog — network-based index + enrichment)
     src/package_catalog/package_catalog.cpp
 
-    # Runtime Manager (BepInEx/XUnity — used by package_manager install flow)
+    # Runtime Manager
     src/runtime/runtime_manager.cpp
 
     # Security

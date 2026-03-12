@@ -2,8 +2,6 @@
  * @file runtime_manager.cpp
  * @brief Runtime translation system manager (stub)
  * @copyright (c) 2026 MakineAI Team
- *
- * BepInEx-specific logic has been removed. Only the minimal stub remains.
  */
 
 #include "makineai/runtime_manager.hpp"

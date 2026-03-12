@@ -208,9 +208,8 @@ public:
     /**
      * @brief Get runtime status for a game (Unity detection + anti-cheat)
      * @return Map with: isUnity, needsRuntime, installed, upToDate,
-     *         bepinexVersion, xunityVersion, backend, unityVersion,
-     *         hasAntiCheat, antiCheatName
-     * Note: installed/upToDate/version fields are always empty — runtime
+     *         backend, unityVersion, hasAntiCheat, antiCheatName
+     * Note: installed/upToDate fields are always empty — runtime
      *       installation is not yet implemented.
      */
     Q_INVOKABLE QVariantMap getRuntimeStatus(const QString& gameId);

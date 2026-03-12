@@ -184,7 +184,7 @@ struct TranslationPackage {
     std::string sha256;           ///< Package checksum
 
     GameEngine targetEngine = GameEngine::Unknown;
-    bool requiresRuntime = false; ///< Needs BepInEx/XUnity?
+    bool requiresRuntime = false; ///< Needs a runtime translation layer?
 };
 
 } // namespace makineai

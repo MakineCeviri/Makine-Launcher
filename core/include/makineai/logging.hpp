@@ -49,7 +49,7 @@ constexpr const char* PACKAGE = "Package";
 /// Asset parsing
 constexpr const char* PARSER = "Parser";
 
-/// Runtime management (BepInEx, etc.)
+/// Runtime management
 constexpr const char* RUNTIME = "Runtime";
 
 /// Font analysis and injection

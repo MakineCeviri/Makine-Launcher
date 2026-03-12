@@ -259,7 +259,7 @@ public:
     [[nodiscard]] GameDetector& gameDetector();
 
     /**
-     * @brief Get runtime manager (stub — BepInEx removed)
+     * @brief Get runtime manager
      */
     [[nodiscard]] RuntimeManager& runtimeManager();
 

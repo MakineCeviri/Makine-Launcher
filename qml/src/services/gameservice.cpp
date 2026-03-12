@@ -1167,9 +1167,7 @@ QVariantMap GameService::getRuntimeStatus(const QString& gameId)
         {"needsRuntime", false},
         {"installed", false},
         {"upToDate", false},
-        {"bepinexVersion", ""},
-        {"xunityVersion", ""},
-        {"backend", "unknown"},
+        {"backend", "none"},
         {"unityVersion", ""},
         {"hasAntiCheat", antiCheat.value("hasAntiCheat").toBool()},
         {"antiCheatName", antiCheat.value("systems").toList().isEmpty() ? ""

@@ -3,9 +3,8 @@
  * @brief Runtime translation system manager (stub)
  * @copyright (c) 2026 MakineAI Team
  *
- * BepInEx-specific logic has been removed. This header is retained as a
- * minimal stub so that Core and other modules that reference RuntimeManager
- * continue to compile. Future runtime backends can be added here.
+ * Minimal stub retained so that Core and other modules that reference
+ * RuntimeManager continue to compile. Future runtime backends can be added here.
  */
 
 #pragma once
@@ -20,8 +19,7 @@ namespace makineai {
 /**
  * @brief Stub runtime manager
  *
- * Previously managed BepInEx + XUnity.AutoTranslator installation.
- * Now an empty shell awaiting a new runtime strategy.
+ * Empty shell awaiting a new runtime strategy.
  */
 class RuntimeManager {
 public:
