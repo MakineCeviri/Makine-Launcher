@@ -1151,7 +1151,7 @@ Result<std::vector<std::map<std::string, std::string>>> Database::getPatchHistor
 
     while (sqlite3_step(stmt.stmt) == SQLITE_ROW) {
         std::map<std::string, std::string> record;
-        record["id"] = std::to_string(sqlite3_column_int64(stmt.stmt, 0));
+        record["id"] = fmt::to_string(sqlite3_column_int64(stmt.stmt, 0));
         record["game_id"] = getRequiredText(stmt.stmt, 1);
         record["patch_type"] = getRequiredText(stmt.stmt, 2);
         record["status"] = getRequiredText(stmt.stmt, 3);
@@ -1159,15 +1159,15 @@ Result<std::vector<std::map<std::string, std::string>>> Database::getPatchHistor
         auto backupPath = getTextColumn(stmt.stmt, 4);
         if (backupPath) record["backup_path"] = *backupPath;
 
-        record["strings_patched"] = std::to_string(sqlite3_column_int(stmt.stmt, 5));
+        record["strings_patched"] = fmt::to_string(sqlite3_column_int(stmt.stmt, 5));
 
         auto errorMsg = getTextColumn(stmt.stmt, 6);
         if (errorMsg) record["error_message"] = *errorMsg;
 
-        record["applied_at"] = std::to_string(sqlite3_column_int64(stmt.stmt, 7));
+        record["applied_at"] = fmt::to_string(sqlite3_column_int64(stmt.stmt, 7));
 
         if (sqlite3_column_type(stmt.stmt, 8) != SQLITE_NULL) {
-            record["reverted_at"] = std::to_string(sqlite3_column_int64(stmt.stmt, 8));
+            record["reverted_at"] = fmt::to_string(sqlite3_column_int64(stmt.stmt, 8));
         }
 
         history.push_back(std::move(record));

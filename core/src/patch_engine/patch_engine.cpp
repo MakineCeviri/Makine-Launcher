@@ -295,14 +295,14 @@ VoidResult FileBackupStorage::restoreBackup(
     // CRITICAL: ANY failure means game may be corrupted
     // We must report this so manual intervention can occur
     if (failed > 0) {
-        std::string errorMsg = "Restore incomplete: " + std::to_string(failed) +
-            " of " + std::to_string(metadata.files.size()) + " files failed. Failed files: ";
+        std::string errorMsg = fmt::format("Restore incomplete: {} of {} files failed. Failed files: ",
+            failed, metadata.files.size());
         for (size_t i = 0; i < failedFiles.size() && i < 5; ++i) {
             if (i > 0) errorMsg += ", ";
             errorMsg += failedFiles[i];
         }
         if (failedFiles.size() > 5) {
-            errorMsg += " (and " + std::to_string(failedFiles.size() - 5) + " more)";
+            errorMsg += fmt::format(" (and {} more)", failedFiles.size() - 5);
         }
 
         MAKINEAI_LOG_ERROR(log::FILE, "Restore failed: {}", errorMsg);
@@ -312,7 +312,7 @@ VoidResult FileBackupStorage::restoreBackup(
     }
 
     AuditLogger::logPatchOperation(backupId, true, "restore_end",
-        "Restored " + std::to_string(restored) + " files");
+        fmt::format("Restored {} files", restored));
     Metrics::instance().increment("restores_completed");
 
     return {};
@@ -400,7 +400,7 @@ Result<BackupMetadata> FileBackupStorage::getBackup(const std::string& backupId)
 
     } catch (const json::exception& e) {
         return std::unexpected(Error(ErrorCode::ParseError,
-            "Invalid backup metadata: " + std::string(e.what())));
+            fmt::format("Invalid backup metadata: {}", e.what())));
     }
 }
 
@@ -435,7 +435,7 @@ Result<PatchResult> PatchEngine::apply(
 
     // Audit log the start of patching
     AuditLogger::logPatchOperation(game.id.storeId, true, "apply_start",
-        "Starting patch with " + std::to_string(operations.size()) + " operations");
+        fmt::format("Starting patch with {} operations", operations.size()));
 
     PatchResult result;
     result.success = false;
@@ -504,9 +504,8 @@ Result<PatchResult> PatchEngine::apply(
     std::error_code spaceEc;
     auto spaceInfo = fs::space(game.installPath, spaceEc);
     if (!spaceEc && spaceInfo.available < requiredSpace) {
-        result.message = "Insufficient disk space. Required: " +
-            std::to_string(requiredSpace / (1024 * 1024)) + " MB, Available: " +
-            std::to_string(spaceInfo.available / (1024 * 1024)) + " MB";
+        result.message = fmt::format("Insufficient disk space. Required: {} MB, Available: {} MB",
+            requiredSpace / (1024 * 1024), spaceInfo.available / (1024 * 1024));
         MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
         AuditLogger::logPatchOperation(game.id.storeId, false, "apply", result.message);
         Metrics::instance().increment("patch_insufficient_space");
@@ -554,14 +553,14 @@ Result<PatchResult> PatchEngine::apply(
     }
 
     if (!lockedFiles.empty()) {
-        result.message = "Cannot patch: " + std::to_string(lockedFiles.size()) +
-            " file(s) are locked (game may be running). Locked files: ";
+        result.message = fmt::format("Cannot patch: {} file(s) are locked (game may be running). Locked files: ",
+            lockedFiles.size());
         for (size_t i = 0; i < lockedFiles.size() && i < 3; ++i) {
             if (i > 0) result.message += ", ";
             result.message += lockedFiles[i];
         }
         if (lockedFiles.size() > 3) {
-            result.message += " (and " + std::to_string(lockedFiles.size() - 3) + " more)";
+            result.message += fmt::format(" (and {} more)", lockedFiles.size() - 3);
         }
         MAKINEAI_LOG_ERROR(log::HANDLER, "{}", result.message);
         AuditLogger::logPatchOperation(game.id.storeId, false, "apply", "Files locked");
@@ -664,8 +663,8 @@ Result<PatchResult> PatchEngine::apply(
     }
 
     result.success = (result.filesFailed == 0);
-    result.message = "Patched " + std::to_string(result.filesPatched) +
-        " files, " + std::to_string(result.filesFailed) + " failed";
+    result.message = fmt::format("Patched {} files, {} failed",
+        result.filesPatched, result.filesFailed);
 
     MAKINEAI_LOG_INFO(log::HANDLER, "Patch operation completed: {}", result.message);
     AuditLogger::logPatchOperation(game.id.storeId, true, "apply_end", result.message);
@@ -1000,7 +999,7 @@ VoidResult PatchEngine::rollbackOperations(
     MAKINEAI_LOG_INFO(log::HANDLER, "Rolling back {} completed operations using backup {}",
         completedCount, backupId);
     AuditLogger::logPatchOperation(backupId, true, "rollback_start",
-        "Rolling back " + std::to_string(completedCount) + " operations");
+        fmt::format("Rolling back {} operations", completedCount));
 
     // First, try to restore from backup
     if (backupStorage_->hasBackup(backupId)) {
@@ -1064,7 +1063,7 @@ VoidResult PatchEngine::rollbackOperations(
     MAKINEAI_LOG_INFO(log::HANDLER, "Rollback completed: cleaned {} files, {} directories",
         cleanedFiles, cleanedDirs);
     AuditLogger::logPatchOperation(backupId, true, "rollback_end",
-        "Rollback completed: cleaned " + std::to_string(cleanedFiles) + " files");
+        fmt::format("Rollback completed: cleaned {} files", cleanedFiles));
     Metrics::instance().increment("patch_rollbacks_completed");
 
     return {};
@@ -1500,7 +1499,7 @@ BinaryPatchResult BinaryTextPatcher::patchFile(
             MAKINEAI_LOG_INFO(log::HANDLER, "Binary patched {} translations in {}",
                 result.appliedCount, filePath.string());
             AuditLogger::logFileAccess(filePath, "binary_patch", true,
-                std::to_string(result.appliedCount) + " translations applied");
+                fmt::format("{} translations applied", result.appliedCount));
         } else {
             MAKINEAI_LOG_DEBUG(log::HANDLER, "No translations applied to {}", filePath.string());
         }
