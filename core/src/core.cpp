@@ -262,9 +262,8 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         // Game Detector
         gameDetector_ = std::make_unique<GameDetector>();
 
-        // Runtime Manager (BepInEx/XUnity — used by package install flow)
+        // Runtime Manager (stub — BepInEx removed)
         runtimeManager_ = std::make_unique<RuntimeManager>();
-        runtimeManager_->setBundleDirectory(fs::path(config.dataDirectory) / "runtime");
 
         // Security Manager — load embedded key first, fall back to external
         securityManager_ = std::make_unique<SecurityManager>();

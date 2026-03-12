@@ -259,7 +259,7 @@ public:
     [[nodiscard]] GameDetector& gameDetector();
 
     /**
-     * @brief Get runtime manager (BepInEx/XUnity — used by package install flow)
+     * @brief Get runtime manager (stub — BepInEx removed)
      */
     [[nodiscard]] RuntimeManager& runtimeManager();
 
