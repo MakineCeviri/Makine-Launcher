@@ -164,7 +164,6 @@ endif()
 # Mark singleton files BEFORE qt_add_qml_module
 set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/theme/Dimensions.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
-set_source_files_properties(qml/theme/DebugHelper.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 # Showcase images (validated game headers, embedded in binary)
 file(GLOB SHOWCASE_IMAGES CONFIGURE_DEPENDS
@@ -203,7 +202,6 @@ qt_add_qml_module(MakineAI
         qml/screens/settings/BackupsSettings.qml
         qml/screens/settings/PerformanceSettings.qml
         qml/screens/settings/AboutSettings.qml
-        qml/screens/settings/DeveloperSettings.qml
 
         # Screens - Onboarding Steps
         qml/screens/onboarding/WelcomeStep.qml
@@ -213,7 +211,6 @@ qt_add_qml_module(MakineAI
         # Theme (singletons)
         qml/theme/Theme.qml
         qml/theme/Dimensions.qml
-        qml/theme/DebugHelper.qml
 
         # ── Reusable Components (public API — used across multiple screens) ──
         #
@@ -248,7 +245,7 @@ qt_add_qml_module(MakineAI
         qml/components/ToggleSetting.qml          # Toggle switch setting
         qml/components/ThemeSetting.qml           # Theme picker setting
         qml/components/InfoSettingWithBadge.qml   # Info display with badge
-        qml/components/DisabledSetting.qml        # Disabled/locked setting
+        qml/components/DisabledSetting.qml        # Disabled/coming-soon setting
         qml/components/ClickableRow.qml           # Clickable list row
         qml/components/CategoryItem.qml           # Category filter item
         qml/components/BatchOperationsPanel.qml   # Batch ops control
