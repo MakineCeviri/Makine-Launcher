@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Turkish game translation launcher",
   "homepage": "https://makineai.com",
-  "license": "MIT",
+  "license": "LicenseRef-Proprietary",
   "supports": "windows & x64",
   "dependencies": [
     "boost-filesystem",

@@ -58,11 +58,17 @@ bool LocalPackageManager::loadFromIndex(const QString& indexPath, const QString&
     MAKINE_ZONE_NAMED("LPM::loadFromIndex");
     m_dataPath = packageCacheRoot;
 
-    bool ok = m_catalog.loadFromIndex(indexPath.toStdString(),
-                                       packageCacheRoot.toStdString());
+    bool ok = false;
+    try {
+        ok = m_catalog.loadFromIndex(indexPath.toStdString(),
+                                     packageCacheRoot.toStdString());
 
-    std::string statePath = installedStatePath().toStdString();
-    m_catalog.loadInstalledState(statePath);
+        std::string statePath = installedStatePath().toStdString();
+        m_catalog.loadInstalledState(statePath);
+    } catch (const std::exception& e) {
+        qCWarning(lcPackageManager) << "Failed to load package index:" << e.what();
+        return false;
+    }
 
     qCDebug(lcPackageManager) << "LocalPackageManager: loaded" << m_catalog.packageCount()
              << "packages from index (network-only)";
@@ -232,7 +238,12 @@ void LocalPackageManager::updateInstalledStoreVersion(const QString& steamAppId,
     state->gameStoreVersion = storeVersion.toStdString();
     state->gameSource = source.toStdString();
     m_catalog.markInstalled(steamAppId.toStdString(), *state);
-    m_catalog.saveInstalledState(installedStatePath().toStdWString());
+
+    try {
+        m_catalog.saveInstalledState(installedStatePath().toStdWString());
+    } catch (const std::exception& e) {
+        qCWarning(lcPackageManager) << "Failed to save installed state:" << e.what();
+    }
 }
 
 QString LocalPackageManager::resolveGameId(const QString& gameId) const
@@ -341,7 +352,11 @@ QString LocalPackageManager::getGameName(const QString& steamAppId) const
 // Private helper: save installed state through core catalog
 static void saveCatalogInstalledState(packages::PackageCatalog& catalog, const QString& statePath)
 {
-    catalog.saveInstalledState(statePath.toStdString());
+    try {
+        catalog.saveInstalledState(statePath.toStdString());
+    } catch (const std::exception& e) {
+        qCWarning(lcPackageManager) << "Failed to persist installed state:" << e.what();
+    }
 }
 
 // =============================================================================

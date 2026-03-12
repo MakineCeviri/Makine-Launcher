@@ -757,49 +757,54 @@ void GameService::loadCachedGames()
         return;
     }
 
-    const QByteArray data = file.readAll();
-    file.close();
+    try {
+        const QByteArray data = file.readAll();
+        file.close();
 
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
-    if (parseError.error != QJsonParseError::NoError) {
-        qCWarning(lcGameService) << "Failed to parse games cache:" << parseError.errorString();
-        return;
-    }
-
-    if (!doc.isArray()) {
-        qCWarning(lcGameService) << "Invalid games cache format - expected array";
-        return;
-    }
-
-    m_games.clear();
-    m_games.reserve(doc.array().count());
-
-    for (const auto& value : doc.array()) {
-        if (!value.isObject()) continue;
-
-        const QJsonObject obj = value.toObject();
-        GameInfo game;
-        game.id = obj["id"].toString();
-        game.name = obj["name"].toString();
-        game.installPath = obj["installPath"].toString();
-        game.steamAppId = obj["steamAppId"].toString();
-        game.source = obj["source"].toString();
-        game.engine = obj["engine"].toString();
-        game.isVerified = obj["isVerified"].toBool();
-        game.isInstalled = obj["isInstalled"].toBool();
-        game.hasTranslation = obj["hasTranslation"].toBool();
-
-        if (!game.id.isEmpty() && !game.name.isEmpty()) {
-            // Validate install path still exists on disk
-            if (game.isInstalled && !game.installPath.isEmpty()
-                && !QDir(game.installPath).exists()) {
-                game.isInstalled = false;
-                // Keep installPath — needed for backup association and error messages
-            }
-            m_games.append(game);
+        if (parseError.error != QJsonParseError::NoError) {
+            qCWarning(lcGameService) << "Failed to parse games cache:" << parseError.errorString();
+            return;
         }
+
+        if (!doc.isArray()) {
+            qCWarning(lcGameService) << "Invalid games cache format - expected array";
+            return;
+        }
+
+        m_games.clear();
+        m_games.reserve(doc.array().count());
+
+        for (const auto& value : doc.array()) {
+            if (!value.isObject()) continue;
+
+            const QJsonObject obj = value.toObject();
+            GameInfo game;
+            game.id = obj["id"].toString();
+            game.name = obj["name"].toString();
+            game.installPath = obj["installPath"].toString();
+            game.steamAppId = obj["steamAppId"].toString();
+            game.source = obj["source"].toString();
+            game.engine = obj["engine"].toString();
+            game.isVerified = obj["isVerified"].toBool();
+            game.isInstalled = obj["isInstalled"].toBool();
+            game.hasTranslation = obj["hasTranslation"].toBool();
+
+            if (!game.id.isEmpty() && !game.name.isEmpty()) {
+                // Validate install path still exists on disk
+                if (game.isInstalled && !game.installPath.isEmpty()
+                    && !QDir(game.installPath).exists()) {
+                    game.isInstalled = false;
+                    // Keep installPath — needed for backup association and error messages
+                }
+                m_games.append(game);
+            }
+        }
+    } catch (const std::exception& e) {
+        qCWarning(lcGameService) << "Failed to load games cache:" << e.what();
+        return;
     }
 
     rebuildCache();
