@@ -505,26 +505,25 @@ QVariantMap GameService::getGameById(const QString& id) const
 QVariantMap GameService::getGameDetails(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("GameService::getGameDetails");
-    QVariantMap result;
 
     // Contributors + install notes from package manifest
     QVariantList contributors;
+    QString installNotes;
     if (m_coreBridge) {
         auto pkg = m_coreBridge->getPackageForGame(gameId);
         if (pkg)
             contributors = pkg->contributors;
-        result["installNotes"] = m_coreBridge->getInstallNotesForGame(gameId);
+        installNotes = m_coreBridge->getInstallNotesForGame(gameId);
     }
-    result["contributors"] = contributors;
 
     // Runtime status — disabled until BepInEx standalone install is implemented
     // TODO: Re-enable when RuntimeManager is wired to QML layer
-    // QVariantMap runtime = getRuntimeStatus(gameId);
-    // if (runtime.value("isUnity").toBool()) { ... }
-    result["isUnityGame"] = false;
-    result["runtimeNeeded"] = false;
-
-    return result;
+    return QVariantMap{
+        {"contributors",  contributors},
+        {"installNotes",  installNotes},
+        {"isUnityGame",   false},
+        {"runtimeNeeded", false}
+    };
 }
 
 void GameService::fetchSteamDetails(const QString& steamAppId)
@@ -910,6 +909,19 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
                                       const QStringList& selectedOptions)
 {
     MAKINE_ZONE_NAMED("GameService::installTranslation");
+    installPackageCommon(gameId, variant, selectedOptions, InstallMode::Install);
+}
+
+void GameService::updateTranslation(const QString& gameId, const QString& variant,
+                                     const QStringList& selectedOptions)
+{
+    MAKINE_ZONE_NAMED("GameService::updateTranslation");
+    installPackageCommon(gameId, variant, selectedOptions, InstallMode::Update);
+}
+
+void GameService::installPackageCommon(const QString& gameId, const QString& variant,
+                                        const QStringList& selectedOptions, InstallMode mode)
+{
     if (!m_coreBridge) {
         emit translationInstallCompleted(gameId, false, tr("Uygulama başlatılıyor, lütfen bekleyin"));
         return;
@@ -931,15 +943,19 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
 
     auto pkg = m_coreBridge->getPackageForGame(gameId);
     if (!pkg.has_value()) {
-        qWarning() << "GameService::installTranslation: No package found for" << gameId
-                   << "- hasTranslationPackage:" << m_coreBridge->hasTranslationPackage(gameId);
+        if (mode == InstallMode::Install) {
+            qWarning() << "GameService::installPackageCommon: No package found for" << gameId
+                       << "- hasTranslationPackage:" << m_coreBridge->hasTranslationPackage(gameId);
+        }
         emit translationInstallCompleted(gameId, false,
             tr("Bu oyun için çeviri paketi bulunamadı"));
         return;
     }
 
-    qInfo() << "GameService::installTranslation: Starting for" << gameId
-            << "pkg:" << pkg->packageId << "v" << pkg->version;
+    if (mode == InstallMode::Install) {
+        qInfo() << "GameService::installPackageCommon(Install): Starting for" << gameId
+                << "pkg:" << pkg->packageId << "v" << pkg->version;
+    }
 
     if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
         emit translationInstallCompleted(gameId, false,
@@ -947,34 +963,55 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
         return;
     }
 
-    // Anti-cheat: skip duplicate check here — InstallFlowController already
-    // handles the warning dialog and calls acknowledgeAntiCheat() before
-    // reaching installTranslation(). The old code emitted antiCheatWarningNeeded
-    // which re-triggered the dialog in a loop.
-    // Just consume the acknowledgement flag if present.
-    m_antiCheatAcknowledged.remove(gameId);
+    if (mode == InstallMode::Update) {
+        // Safety: backup must exist — if not, suggest repair instead
+        BackupManager* bm = BackupManager::instance();
+        if (bm && !bm->hasBackup(gameId)) {
+            emit translationInstallCompleted(gameId, false,
+                tr("Yedek bulunamadı. Güncelleme yerine Onarma yapın."));
+            return;
+        }
+    } else {
+        // Install mode: consume anti-cheat acknowledgement.
+        // InstallFlowController already handled the warning dialog and called
+        // acknowledgeAntiCheat() before reaching here, so we just clear the flag.
+        m_antiCheatAcknowledged.remove(gameId);
+    }
 
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
     emit translationInstallStarted(gameId);
     emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
 
-    // Async game running check (avoids blocking main thread with tasklist)
-    QString installPath = game.installPath;
+    // Async game-running check (avoids blocking the main thread with tasklist)
+    const QString installPath = game.installPath;
+    const QString runningMsg = (mode == InstallMode::Install)
+        ? tr("Bu oyun şu anda çalışıyor (%1). Çeviriyi kurmak için oyunu kapatın.")
+        : tr("Bu oyun şu anda çalışıyor (%1). Güncelleme için oyunu kapatın.");
+
     auto* watcher = new QFutureWatcher<QString>(this);
     connect(watcher, &QFutureWatcher<QString>::finished, this,
-        [this, watcher, gameId, installPath, variant, selectedOptions, pkg]() {
-            QString runningExe = watcher->result();
+        [this, watcher, gameId, installPath, variant, selectedOptions, pkg, mode, runningMsg]() {
+            const QString runningExe = watcher->result();
             watcher->deleteLater();
 
             if (!runningExe.isEmpty()) {
                 m_installingGameId.clear();
-                emit translationInstallCompleted(gameId, false,
-                    tr("Bu oyun şu anda çalışıyor (%1). Çeviriyi kurmak için oyunu kapatın.").arg(runningExe));
+                emit translationInstallCompleted(gameId, false, runningMsg.arg(runningExe));
                 return;
             }
 
-            // Game not running — proceed with backup + install
+            if (mode == InstallMode::Update) {
+                // No backup step for updates — go straight to update
+                qDebug() << "Updating translation for" << gameId
+                         << "variant:" << (variant.isEmpty() ? "(none)" : variant)
+                         << "options:" << selectedOptions
+                         << "path:" << installPath;
+                m_coreBridge->updatePackage(gameId, installPath, variant, selectedOptions);
+                return;
+            }
+
+            // Install mode: create selective backup first, then install
             BackupManager* bm = BackupManager::instance();
             QStringList filesToOverwrite = m_coreBridge->getPackageFileList(gameId, variant);
 
@@ -984,17 +1021,15 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
                 connect(bm, &BackupManager::selectiveBackupCompleted, this,
                     [this, gameId, installPath, variant, selectedOptions](const QString& backupGameId, bool /*success*/) {
                         if (backupGameId != gameId) return;
-
                         qDebug() << "Installing translation for" << gameId
                                  << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                                  << "options:" << selectedOptions
                                  << "path:" << installPath;
-
                         m_coreBridge->installPackage(gameId, installPath, variant, selectedOptions);
                     }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
+                const QString patchVer = pkg.has_value() ? pkg->version : QString();
                 QString storeVer;
-                QString patchVer = pkg.has_value() ? pkg->version : QString();
                 bm->createSelectiveBackupAsync(gameId, m_games[m_gameIdToIndex.value(gameId)].name,
                                                 installPath, filesToOverwrite, storeVer, patchVer);
             } else {
@@ -1002,107 +1037,18 @@ void GameService::installTranslation(const QString& gameId, const QString& varia
                          << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                          << "options:" << selectedOptions
                          << "path:" << installPath;
-
                 m_coreBridge->installPackage(gameId, installPath, variant, selectedOptions);
             }
         });
 
     watcher->setFuture(QtConcurrent::run([installPath]() -> QString {
-        QDir gameDir(installPath);
-        QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
+        const QDir gameDir(installPath);
+        const QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
         for (const QString& exe : exeFiles) {
             QProcess tasklist;
             tasklist.start("tasklist", {"/FI", "IMAGENAME eq " + exe, "/FO", "CSV", "/NH"});
             tasklist.waitForFinished(2000);
-            QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
-            if (output.contains(exe, Qt::CaseInsensitive) && !output.contains("INFO:")) {
-                return exe;
-            }
-        }
-        return {};
-    }));
-}
-
-void GameService::updateTranslation(const QString& gameId, const QString& variant,
-                                     const QStringList& selectedOptions)
-{
-    MAKINE_ZONE_NAMED("GameService::updateTranslation");
-    if (!m_coreBridge) {
-        emit translationInstallCompleted(gameId, false, tr("Uygulama başlatılıyor, lütfen bekleyin"));
-        return;
-    }
-
-    if (!m_installingGameId.isEmpty()) {
-        emit translationInstallCompleted(gameId, false,
-            tr("Zaten bir kurulum devam ediyor"));
-        return;
-    }
-
-    auto it = m_gameIdToIndex.constFind(gameId);
-    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
-        emit translationInstallCompleted(gameId, false, tr("Oyun bulunamadı"));
-        return;
-    }
-
-    const GameInfo& game = m_games[*it];
-
-    auto pkg = m_coreBridge->getPackageForGame(gameId);
-    if (!pkg.has_value()) {
-        emit translationInstallCompleted(gameId, false,
-            tr("Bu oyun için çeviri paketi bulunamadı"));
-        return;
-    }
-
-    if (game.installPath.isEmpty() || !QDir(game.installPath).exists()) {
-        emit translationInstallCompleted(gameId, false,
-            tr("Oyun klasörü bulunamadı: %1").arg(game.installPath));
-        return;
-    }
-
-    // Safety: backup must exist — if not, suggest repair instead
-    BackupManager* bm = BackupManager::instance();
-    if (bm && !bm->hasBackup(gameId)) {
-        emit translationInstallCompleted(gameId, false,
-            tr("Yedek bulunamadı. Güncelleme yerine Onarma yapın."));
-        return;
-    }
-
-    m_installingGameId = gameId;
-    emit translationInstallStarted(gameId);
-    emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
-
-    // Async game running check
-    QString installPath = game.installPath;
-    auto* watcher = new QFutureWatcher<QString>(this);
-    connect(watcher, &QFutureWatcher<QString>::finished, this,
-        [this, watcher, gameId, installPath, variant, selectedOptions]() {
-            QString runningExe = watcher->result();
-            watcher->deleteLater();
-
-            if (!runningExe.isEmpty()) {
-                m_installingGameId.clear();
-                emit translationInstallCompleted(gameId, false,
-                    tr("Bu oyun şu anda çalışıyor (%1). Güncelleme için oyunu kapatın.").arg(runningExe));
-                return;
-            }
-
-            // NO BACKUP STEP — go straight to update
-            qDebug() << "Updating translation for" << gameId
-                     << "variant:" << (variant.isEmpty() ? "(none)" : variant)
-                     << "options:" << selectedOptions
-                     << "path:" << installPath;
-
-            m_coreBridge->updatePackage(gameId, installPath, variant, selectedOptions);
-        });
-
-    watcher->setFuture(QtConcurrent::run([installPath]() -> QString {
-        QDir gameDir(installPath);
-        QStringList exeFiles = gameDir.entryList({"*.exe"}, QDir::Files);
-        for (const QString& exe : exeFiles) {
-            QProcess tasklist;
-            tasklist.start("tasklist", {"/FI", "IMAGENAME eq " + exe, "/FO", "CSV", "/NH"});
-            tasklist.waitForFinished(2000);
-            QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
+            const QString output = QString::fromLocal8Bit(tasklist.readAllStandardOutput());
             if (output.contains(exe, Qt::CaseInsensitive) && !output.contains("INFO:")) {
                 return exe;
             }

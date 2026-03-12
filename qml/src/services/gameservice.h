@@ -283,6 +283,18 @@ private:
     void ensureSupportedGamesCache();
     bool isValidGamePath(const QString& path) const;
 
+    enum class InstallMode { Install, Update };
+
+    /**
+     * @brief Common implementation for install and update flows.
+     *
+     * Performs: guard checks → async running-exe detection → backup (Install only)
+     * → coreBridge install/update call. The three public entry points are thin
+     * wrappers that set the mode and call this method.
+     */
+    void installPackageCommon(const QString& gameId, const QString& variant,
+                              const QStringList& selectedOptions, InstallMode mode);
+
     CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
     ManifestSyncService* m_manifestSync{nullptr};  // Non-owning. Set by setManifestSync().
     SteamDetailsService* m_steamDetails{nullptr};
