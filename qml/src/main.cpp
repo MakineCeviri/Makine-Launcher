@@ -25,6 +25,9 @@
 #include <QElapsedTimer>
 #include <QQmlComponent>
 #include <QJsonObject>
+#include <QJsonDocument>
+#include <QTimer>
+#include <QSettings>
 #include "services/profiler.h"
 #include "services/crashreporter.h"
 
@@ -103,7 +106,7 @@ void configureWindowStyle(HWND hwnd) {
 } // namespace
 
 // Native Win32 splash window — shown immediately while QML loads
-// 440×240, rounded corners, logo, gradient bars, loading dots
+// 440x240, rounded corners, logo, gradient bars, loading dots
 // Threaded splash: runs its own message loop on a dedicated thread so it stays
 // responsive while the main thread blocks in QML create() (~4 seconds).
 class SplashWindow {
@@ -276,7 +279,7 @@ private:
 
         // Breathing pulse — smooth sine wave
         float breath = 0.5f + 0.5f * sinf(elapsed * 1.8f); // ~0.55 Hz
-        float peakAlpha = 0.12f + breath * 0.13f; // range: 0.12 → 0.25
+        float peakAlpha = 0.12f + breath * 0.13f; // range: 0.12 -> 0.25
 
         float invR = 1.0f / (float)radius;
         BYTE gr = GetRValue(glowColor), gg = GetGValue(glowColor), gb = GetBValue(glowColor);
@@ -532,9 +535,6 @@ void logToFile(const QString& msg) {
     }
 }
 
-#include <QTimer>
-
-
 // Anti-RE protection (no-op in debug builds)
 #include "services/appprotection.h"
 
@@ -560,7 +560,81 @@ void logToFile(const QString& msg) {
 #include "services/memoryprofiler.h"
 #endif
 
-int main(int argc, char *argv[])
+// Bring service types into scope for helper function signatures.
+// NOLINT: spdlog is not used in this file — no ADL collision risk.
+using namespace makineai;
+
+// -----------------------------------------------------------------------------
+// Forward declarations of helper functions
+// -----------------------------------------------------------------------------
+
+// Set Qt environment variables before QGuiApplication is constructed.
+static void configureQtEnvironment();
+
+// Single-instance guard. Returns true if this process acquired the slot.
+// isPostUpdate: allows extra retries when the previous process is still exiting.
+static bool acquireSingleInstance(bool isPostUpdate);
+
+// Configure QGuiApplication properties, fonts, and pipeline-cache env vars.
+static void configureApplication(QGuiApplication& app);
+
+// Register QML types and set engine context properties needed before services.
+static void configureEngine(QQmlApplicationEngine& engine);
+
+// Phases 1-7: instantiate all backend services, register as context properties,
+// and return pointers needed by later phases via out-parameters.
+static void createServices(
+    QGuiApplication& app,
+    QQmlApplicationEngine& engine,
+    bool isPostUpdate,
+    const QElapsedTimer& startupTimer,
+#ifdef Q_OS_WIN
+    SplashWindow& splash,
+#endif
+    GameService*& outGameService,
+    ManifestSyncService*& outManifestSync,
+    ImageCacheManager*& outImageCache,
+    SystemTrayManager*& outTrayManager,
+    OperationJournal*& outJournal,
+    ProcessScanner*& outProcessScanner);
+
+// Wire inter-service signal/slot connections.
+static void wireSignals(
+    QGuiApplication& app,
+    GameService* gameService,
+    ManifestSyncService* manifestSync,
+    SystemTrayManager* trayManager,
+    ProcessScanner* processScanner);
+
+// Log startup environment diagnostics (graphics backend, Qt version, etc.)
+// and attach QML warning/error handlers to the engine.
+static void logStartupDiagnostics(QGuiApplication& app, QQmlApplicationEngine& engine);
+
+// Phase 10: configure the root QQuickWindow (sizing, style, pipeline cache,
+// first-frame splash teardown, dev-tool attachment).
+static void setupRootWindow(
+    QObject* rootObject,
+    QGuiApplication& app,
+    QQmlApplicationEngine& engine,
+    GameService* gameService,
+    ImageCacheManager* imageCache,
+    const QElapsedTimer& startupTimer
+#ifdef Q_OS_WIN
+    , SplashWindow& splash
+#endif
+);
+
+// Schedule post-startup heap compact + working-set release.
+static void scheduleMemoryTrim();
+
+// Wire performance reporting for MAKINEAI_PERF_ACTIVE builds.
+static void setupPerfReporting(QGuiApplication& app, int argc, char* argv[]);
+
+// -----------------------------------------------------------------------------
+// Helper function implementations
+// -----------------------------------------------------------------------------
+
+static void configureQtEnvironment()
 {
     // === RENDER LOOP ===
     // "threaded" = render on separate thread, overlaps CPU+GPU work.
@@ -583,16 +657,547 @@ int main(int argc, char *argv[])
     qputenv("QSG_RHI_DEBUG_LAYER", "0");
 
     // === MEMORY OPTIMIZATIONS ===
-    // Texture atlas: 512×512 = 1 MB/atlas (default 2048×2048 = 16 MB)
+    // Texture atlas: 512x512 = 1 MB/atlas (default 2048x2048 = 16 MB)
     qputenv("QSG_ATLAS_WIDTH", "512");
     qputenv("QSG_ATLAS_HEIGHT", "512");
 
     // V4 JS engine: aggressive GC to free unused JS heap sooner
     qputenv("QV4_MM_AGGRESSIVE_GC", "1");
+}
 
-    // Single instance check
+static bool acquireSingleInstance(bool isPostUpdate)
+{
     // When launched with --post-update, the old process may still be exiting.
     // Retry a few times to allow the kernel to release the shared memory handle.
+    const int maxRetries = isPostUpdate ? 10 : 1;
+
+    for (int attempt = 0; attempt < maxRetries; ++attempt) {
+        QSharedMemory cleanupMemory("MakineAI_SingleInstance_Guard");
+        if (cleanupMemory.attach())
+            cleanupMemory.detach();
+
+        QSharedMemory testGuard("MakineAI_SingleInstance_Guard");
+        if (testGuard.create(1))
+            return true;
+
+        if (attempt + 1 < maxRetries)
+#ifdef Q_OS_WIN
+            Sleep(500);  // Wait 500ms before retry
+#else
+            QThread::msleep(500);
+#endif
+    }
+
+    return false;
+}
+
+static void configureApplication(QGuiApplication& app)
+{
+    app.setQuitOnLastWindowClosed(false);
+    app.setApplicationName("MakineAI");
+    app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - MakineAI"));
+    app.setApplicationVersion(MAKINEAI_APP_VERSION);
+    app.setOrganizationName("MakineAI");
+    app.setOrganizationDomain("makineai.com");
+    app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
+    QQuickStyle::setStyle("Basic");
+
+    int interRegular = QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Medium.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-SemiBold.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Bold.ttf");
+
+    QString fontFamily = interRegular >= 0 ? "Inter" : "Segoe UI";
+    QFont defaultFont(fontFamily, 10);
+    defaultFont.setStyleStrategy(QFont::PreferAntialias);
+    defaultFont.setHintingPreference(QFont::PreferFullHinting);
+    app.setFont(defaultFont);
+
+    // Pipeline cache: save compiled shaders so subsequent launches skip compilation stutter
+    {
+        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        qputenv("QSG_RHI_PIPELINE_CACHE_SAVE", (cacheDir + "/pipeline_cache.bin").toUtf8());
+        qputenv("QSG_RHI_PIPELINE_CACHE_LOAD", (cacheDir + "/pipeline_cache.bin").toUtf8());
+    }
+
+    // Reduce thread pool: default = CPU count, each thread = 1 MB stack
+    QThreadPool::globalInstance()->setMaxThreadCount(2);
+}
+
+static void configureEngine(QQmlApplicationEngine& engine)
+{
+    // Dev tools availability (must be set BEFORE QML creation)
+#ifdef MAKINEAI_DEV_TOOLS
+    engine.rootContext()->setContextProperty("devToolsEnabled", true);
+#else
+    engine.rootContext()->setContextProperty("devToolsEnabled", false);
+#endif
+
+    // Register model types for QML.
+    // Manual registration — works in both shared and static Qt builds.
+    // (QML_ELEMENT/QML_SINGLETON relies on linker keeping registration code,
+    //  which --gc-sections strips in static builds.)
+    qmlRegisterUncreatableType<makineai::SupportedGamesModel>("MakineAI", 1, 0,
+        "SupportedGamesModel", "Use GameService.supportedGamesModel");
+    qmlRegisterType<makineai::CatalogProxyModel>("MakineAI", 1, 0, "CatalogProxyModel");
+}
+
+static void createServices(
+    QGuiApplication& app,
+    QQmlApplicationEngine& engine,
+    bool isPostUpdate,
+    const QElapsedTimer& startupTimer,
+#ifdef Q_OS_WIN
+    SplashWindow& splash,
+#endif
+    GameService*& outGameService,
+    ManifestSyncService*& outManifestSync,
+    ImageCacheManager*& outImageCache,
+    SystemTrayManager*& outTrayManager,
+    OperationJournal*& outJournal,
+    ProcessScanner*& outProcessScanner)
+{
+    // ===== Phase 1: Directory structure + configuration =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 1: Directory structure + configuration");
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
+#endif
+    AppPaths::ensureDirectories();
+    AppPaths::migrateFromFlatLayout();
+
+    // Post-update cleanup (delegate to UpdateService)
+    if (isPostUpdate) {
+        UpdateService::handlePostUpdate();
+        logToFile("Post-update cleanup completed");
+    }
+
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Yap\u0131land\u0131rma y\u00FCkleniyor...");
+#endif
+    auto* settingsManager = new SettingsManager(&app);
+    engine.rootContext()->setContextProperty("SettingsManager", settingsManager);
+
+    // ===== Phase 2: Image cache =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"G\u00F6rsel \u00F6nbelle\u011Fi ba\u015Flat\u0131l\u0131yor...");
+#endif
+    auto* imageCache = new ImageCacheManager(&app);
+    engine.rootContext()->setContextProperty("ImageCache", imageCache);
+    outImageCache = imageCache;
+
+    // ===== Phase 2.5: Manifest sync (loads cached index, starts background sync) =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Katalog haz\u0131rlan\u0131yor...");
+#endif
+    auto* manifestSync = new ManifestSyncService(&app);
+    engine.rootContext()->setContextProperty("ManifestSync", manifestSync);
+    outManifestSync = manifestSync;
+    // syncCatalog() called in Phase 7.5 — loads catalog index before QML creation
+
+    auto* translationDownloader = new TranslationDownloader(&app);
+    translationDownloader->setManifestSync(manifestSync);
+    translationDownloader->setDataPath(makineai::AppPaths::packagesDir());
+    engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
+
+    // UpdateService registered as singleton instance in Phase 7 (below)
+
+    // ===== Phase 3: Game library (construction only — data loads after QML) =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 3: Game library construction");
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi haz\u0131rlan\u0131yor...");
+#endif
+    auto* gameService = new GameService(&app);
+    gameService->setManifestSync(manifestSync);
+    engine.rootContext()->setContextProperty("GameService", gameService);
+    outGameService = gameService;
+    // initialize() deferred to after first frame render (see Phase 10)
+    logToFile(QString("Phase 3 (GameService created) at %1 ms").arg(startupTimer.elapsed()));
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
+
+    // ===== Phase 4: Operation journal + recovery =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"\u0130\u015Flem g\u00FCnl\u00FC\u011F\u00FC kontrol ediliyor...");
+#endif
+    auto* journal = new OperationJournal(&app);
+    if (journal->hasPendingOperation()) {
+        qDebug() << "OperationJournal: recovering from interrupted operation...";
+        journal->recover();
+    }
+    outJournal = journal;
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
+
+    // ===== Phase 5: Backup + process monitoring =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Yedekleme sistemi ba\u015Flat\u0131l\u0131yor...");
+#endif
+    auto* backupManager = new BackupManager(&app);
+    backupManager->setJournal(journal);
+    engine.rootContext()->setContextProperty("BackupManager", backupManager);
+
+#ifdef Q_OS_WIN
+    splash.setStatus(L"S\u00FCrec izleyici ba\u015Flat\u0131l\u0131yor...");
+#endif
+    auto* processScanner = new ProcessScanner(&app);
+    processScanner->setGameService(gameService);
+    engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
+    outProcessScanner = processScanner;
+
+    // ===== Phase 6: Security + integrity =====
+#ifdef Q_OS_WIN
+    splash.setStatus(L"B\u00FCt\u00FCnl\u00FCk do\u011Frulamas\u0131 yap\u0131l\u0131yor...");
+#endif
+    auto* integrityService = new IntegrityService(&app);
+    engine.rootContext()->setContextProperty("IntegrityService", integrityService);
+
+    auto* batchService = new BatchOperationService(&app);
+    engine.rootContext()->setContextProperty("BatchOperationService", batchService);
+
+    // ===== Phase 7: Update service + system tray =====
+    makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
+#ifdef Q_OS_WIN
+    splash.setStatus(L"G\u00FCncelleme servisi haz\u0131rlan\u0131yor...");
+#endif
+    auto* updateService = UpdateService::create(nullptr, nullptr);
+    updateService->setParent(&app);
+    // Singleton instance: exposes BOTH the instance AND Q_ENUM(State) values to QML.
+    // (setContextProperty only exposes the instance — enum constants resolve to undefined)
+    qmlRegisterSingletonInstance("MakineAI", 1, 0, "UpdateService", updateService);
+
+    // Startup update check — once, async, unless we just updated
+    if (!isPostUpdate)
+        updateService->check();
+
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Sistem tepsisi yap\u0131land\u0131r\u0131l\u0131yor...");
+#endif
+    auto* trayManager = new SystemTrayManager(&app);
+    trayManager->setIcon(app.windowIcon());
+    trayManager->show();
+    engine.rootContext()->setContextProperty("SystemTrayManager", trayManager);
+    outTrayManager = trayManager;
+
+    // Wire journal to CoreBridge
+    CoreBridge::instance()->setJournal(journal);
+    engine.rootContext()->setContextProperty("CoreBridge", CoreBridge::instance());
+
+    logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
+#ifdef Q_OS_WIN
+    splash.pumpMessages();
+#endif
+}
+
+static void wireSignals(
+    QGuiApplication& app,
+    GameService* gameService,
+    ManifestSyncService* manifestSync,
+    SystemTrayManager* trayManager,
+    ProcessScanner* processScanner)
+{
+    // Rebuild process map when game library scan completes.
+    // PackageManager is lazy-init (created during first scanAllLibraries),
+    // so we inject it + rebuild on every scanCompleted.
+    QObject::connect(gameService, &GameService::scanCompleted,
+                     processScanner, [processScanner]() {
+        processScanner->setPackageManager(makineai::CoreBridge::instance()->packageManager());
+        processScanner->rebuildProcessMap();
+    });
+
+    // Tray quit -> app quit directly (bypass QML round-trip)
+    QObject::connect(trayManager, &SystemTrayManager::quitRequested,
+                     &app, &QCoreApplication::quit);
+
+    // Connect ManifestSync signals BEFORE syncing,
+    // so catalogReady/packageDetailReady are never missed.
+    QObject::connect(manifestSync, &makineai::ManifestSyncService::catalogReady,
+        gameService, []() {
+            if (auto* bridge = makineai::CoreBridge::instance())
+                bridge->refreshPackageManifest();
+        });
+    QObject::connect(manifestSync, &makineai::ManifestSyncService::packageDetailReady,
+        gameService, [manifestSync](const QString& appId) {
+            if (auto* bridge = makineai::CoreBridge::instance()) {
+                QVariantMap detail = manifestSync->getPackageDetail(appId);
+                QJsonDocument doc(QJsonObject::fromVariantMap(detail));
+                bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
+            }
+        });
+}
+
+static void logStartupDiagnostics(QGuiApplication& app, QQmlApplicationEngine& engine)
+{
+    logToFile("=== MakineAI Starting ===");
+    logToFile(QString("App version: %1").arg(app.applicationVersion()));
+    logToFile(QString("Qt version: %1").arg(qVersion()));
+    logToFile(QString("Log file: %1").arg(getLogFilePath()));
+    logToFile(QString("QSG_RENDER_LOOP: %1").arg(qEnvironmentVariable("QSG_RENDER_LOOP")));
+    {
+        QSettings settings("MakineAI", "MakineAI");
+        auto api = QQuickWindow::graphicsApi();
+        QString apiName = api == QSGRendererInterface::Direct3D12 ? "D3D12" :
+                          api == QSGRendererInterface::Vulkan     ? "Vulkan" :
+                          api == QSGRendererInterface::Direct3D11 ? "D3D11" :
+                          api == QSGRendererInterface::OpenGL     ? "OpenGL" :
+                          "Auto (RHI default)";
+        logToFile(QString("Graphics backend: %1").arg(apiName));
+    }
+    logToFile(QString("Swap interval: %1").arg(QSurfaceFormat::defaultFormat().swapInterval()));
+
+    QObject::connect(&engine, &QQmlApplicationEngine::warnings,
+        [](const QList<QQmlError> &warnings) {
+            for (const auto &warning : warnings) {
+                logToFile(QString("QML Warning: %1").arg(warning.toString()));
+            }
+        }
+    );
+
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() {
+            logToFile("CRITICAL: QML Object creation failed!");
+            QCoreApplication::exit(-1);
+        },
+        Qt::QueuedConnection
+    );
+}
+
+static void setupRootWindow(
+    QObject* rootObject,
+    QGuiApplication& app,
+    QQmlApplicationEngine& engine,
+    GameService* gameService,
+    ImageCacheManager* imageCache,
+    const QElapsedTimer& startupTimer
+#ifdef Q_OS_WIN
+    , SplashWindow& splash
+#endif
+)
+{
+    auto* window = qobject_cast<QQuickWindow*>(rootObject);
+    if (!window) {
+        // Fallback: no window — close splash and initialize game library immediately
+#ifdef Q_OS_WIN
+        splash.close();
+#endif
+        gameService->initialize();
+        return;
+    }
+
+#ifdef Q_OS_WIN
+    // Responsive sizing + centered positioning via Win32
+    {
+        RECT workArea{};
+        SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
+        int waW = workArea.right - workArea.left;
+        int waH = workArea.bottom - workArea.top;
+
+        // Proportional: 1280x1080 on 3840x2160 = 1/3 width, 1/2 height
+        int w = waW / 3;
+        int h = waH / 2;
+
+        // Screen center point
+        int cx = workArea.left + waW / 2;
+        int cy = workArea.top + waH / 2;
+
+        // Window top-left so that window center == screen center
+        int x = cx - w / 2;
+        int y = cy - h / 2;
+
+        HWND hwnd = reinterpret_cast<HWND>(window->winId());
+        MoveWindow(hwnd, x, y, w, h, TRUE);
+
+        // Apply OS-appropriate window style (Mica on W11, dark frame on W10)
+        configureWindowStyle(hwnd);
+    }
+#endif
+
+    window->setPersistentGraphics(false);
+    window->setPersistentSceneGraph(false);
+
+    // Graphics configuration: pipeline cache via API
+    // (supplements env vars set earlier in configureApplication)
+    {
+        QQuickGraphicsConfiguration gfxConfig;
+        QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                            + "/pipeline_cache.bin";
+        gfxConfig.setPipelineCacheSaveFile(cachePath);
+        gfxConfig.setPipelineCacheLoadFile(cachePath);
+        window->setGraphicsConfiguration(gfxConfig);
+    }
+
+    // Preload Settings page behind splash (~1.2s, hidden from user)
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Sayfalar haz\u0131rlan\u0131yor...");
+    splash.pumpMessages();
+#endif
+    {
+        MAKINE_ZONE_NAMED("Preload::SettingsScreen");
+        rootObject->setProperty("_settingsPreload", true);
+    }
+    logToFile(QString("Settings preloaded at %1 ms").arg(startupTimer.elapsed()));
+
+#ifdef Q_OS_WIN
+    // Release GPU resources + trim working set when hidden/minimized
+    QObject::connect(window, &QWindow::visibilityChanged, [window](QWindow::Visibility v) {
+        if (v == QWindow::Hidden || v == QWindow::Minimized) {
+            window->releaseResources();
+            EmptyWorkingSet(GetCurrentProcess());
+        }
+    });
+
+    logToFile(QString("Phase 10 (first-frame setup) at %1 ms").arg(startupTimer.elapsed()));
+
+    // Close splash on FIRST rendered frame, then dispatch game library load.
+    //
+    // Why not processEvents here? Any processEvents() call triggers expired
+    // QML timers (from createRootObject), which cascade into 4+ seconds of
+    // synchronous model resets. Instead, we let QML start with empty data
+    // (loading state), close splash on the first rendered frame, then
+    // populate data progressively via the event loop.
+    QMetaObject::Connection firstFrameConn;
+    firstFrameConn = QObject::connect(window, &QQuickWindow::frameSwapped, &app,
+        [firstFrameConn, &splash, &startupTimer, gameService]() mutable {
+            // Guard: render thread may queue multiple frameSwapped before
+            // the first callback runs (threaded loop pipelining).
+            static bool done = false;
+            if (done) return;
+            done = true;
+
+            MAKINE_ZONE_NAMED("Startup::firstFrame");
+            QObject::disconnect(firstFrameConn);
+            splash.waitMinimumDisplay(200);
+            logToFile(QString("First frame rendered, closing splash at %1 ms")
+                          .arg(startupTimer.elapsed()));
+            splash.close();
+            // Dispatch game library loading — results arrive on subsequent
+            // event loop iterations, populating QML progressively.
+            gameService->initialize();
+        }, Qt::QueuedConnection);
+
+    window->requestUpdate();
+    logToFile(QString("Phase 10 (callback registered) at %1 ms").arg(startupTimer.elapsed()));
+#endif
+
+    // Tracy: frame boundary marker (one FrameMark per rendered frame)
+    QObject::connect(window, &QQuickWindow::afterRendering, window, []() {
+        MAKINE_FRAME;
+    }, Qt::DirectConnection);
+
+#ifdef MAKINEAI_DEV_TOOLS
+    // Dev-only frame timer: high-precision render pipeline metrics
+    auto* frameTimer = new FrameTimer(&app);
+    engine.rootContext()->setContextProperty("FrameTimer", frameTimer);
+    frameTimer->attachToWindow(window);
+
+    // Dump frame stats on exit (integrates with PerfReporter)
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, frameTimer, &FrameTimer::dumpStats);
+
+    // Reset frame timer after startup settles — clears the initial jank spike
+    // so ongoing metrics reflect actual runtime performance, not first-frame shaders
+    QTimer::singleShot(kStartupSettleMs, frameTimer, &FrameTimer::reset);
+
+    // Scene profiler: transition, interaction, dialog, animation tracking
+    auto* sceneProfiler = new SceneProfiler(&app);
+    engine.rootContext()->setContextProperty("SceneProfiler", sceneProfiler);
+
+    // Memory profiler: working set, image cache monitoring
+    auto* memoryProfiler = new MemoryProfiler(&app);
+    memoryProfiler->setImageCacheManager(imageCache);
+    engine.rootContext()->setContextProperty("MemoryProfiler", memoryProfiler);
+
+    // Dump profiler reports on exit
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [sceneProfiler, memoryProfiler, imageCache]() {
+#ifdef MAKINEAI_PERF_ACTIVE
+        auto& reporter = makineai::PerfReporter::instance();
+        reporter.addCustomSection(QStringLiteral("scene"), sceneProfiler->sceneReport());
+        reporter.addCustomSection(QStringLiteral("memory"), memoryProfiler->memoryReport());
+
+        // Image cache stats
+        QJsonObject imgObj;
+        imgObj[QStringLiteral("cache_count")] = imageCache->cachedImageCount();
+        imgObj[QStringLiteral("cache_bytes")] = imageCache->cachedImageBytes();
+        QVariantMap stats = imageCache->imageStats();
+        imgObj[QStringLiteral("total_downloads")] = stats.value(QStringLiteral("downloads")).toInt();
+        imgObj[QStringLiteral("cache_hits")] = stats.value(QStringLiteral("cacheHits")).toInt();
+        imgObj[QStringLiteral("hit_rate")] = stats.value(QStringLiteral("hitRate")).toDouble();
+        imgObj[QStringLiteral("queue_peak")] = stats.value(QStringLiteral("queuePeak")).toInt();
+        reporter.addCustomSection(QStringLiteral("images"), imgObj);
+#endif
+    });
+#else
+    Q_UNUSED(imageCache)
+    Q_UNUSED(engine)
+#endif
+}
+
+static void scheduleMemoryTrim()
+{
+    // Trim working set after startup settles (DLL init, type registration, QML
+    // compilation pages are no longer needed). Hot pages fault back in microseconds.
+#ifdef Q_OS_WIN
+    QTimer::singleShot(kStartupSettleMs, []() {
+        // Compact heaps: merge free blocks, release unused pages to OS
+        HANDLE heaps[32];
+        DWORD count = GetProcessHeaps(32, heaps);
+        for (DWORD i = 0; i < count; ++i) {
+            HeapCompact(heaps[i], 0);
+        }
+
+        // Release working set: cold pages (DLL init, QML compile) go to standby list
+        EmptyWorkingSet(GetCurrentProcess());
+        logToFile("Heap compacted + working set trimmed");
+    });
+#endif
+}
+
+static void setupPerfReporting(QGuiApplication& app, int argc, char* argv[])
+{
+#ifdef MAKINEAI_PERF_ACTIVE
+    makineai::PerfReporter::instance().setMainThread();
+
+    // --profile-duration=N: auto-quit after N seconds (automated profiling)
+    for (int i = 1; i < argc; ++i) {
+        QString arg(argv[i]);
+        if (arg.startsWith("--profile-duration=")) {
+            int secs = arg.mid(19).toInt();
+            if (secs > 0) {
+                logToFile(QString("Profile mode: auto-quit in %1 seconds").arg(secs));
+                QTimer::singleShot(secs * 1000, &app, [&app]() {
+                    logToFile("Profile duration reached, exiting...");
+                    // Close all windows first (bypasses setQuitOnLastWindowClosed)
+                    for (auto* w : QGuiApplication::topLevelWindows())
+                        w->close();
+                    app.exit(0);
+                });
+            }
+        }
+    }
+
+    // Dump performance report on exit
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, []() {
+        QString reportPath = makineai::AppPaths::perfReportFile();
+        makineai::PerfReporter::instance().dumpReport(reportPath);
+        logToFile(QString("Performance report saved to: %1").arg(reportPath));
+    });
+#else
+    Q_UNUSED(app)
+    Q_UNUSED(argc)
+    Q_UNUSED(argv)
+#endif
+}
+
+// -----------------------------------------------------------------------------
+// main() — high-level orchestrator
+// -----------------------------------------------------------------------------
+
+int main(int argc, char *argv[])
+{
+    configureQtEnvironment();
+
+    // Parse --post-update before QGuiApplication (needed for single-instance retry)
     bool isPostUpdate = false;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--post-update") == 0) {
@@ -601,39 +1206,21 @@ int main(int argc, char *argv[])
         }
     }
 
-    const int maxRetries = isPostUpdate ? 10 : 1;
-    bool instanceAcquired = false;
-
-    for (int attempt = 0; attempt < maxRetries; ++attempt) {
-        QSharedMemory cleanupMemory("MakineAI_SingleInstance_Guard");
-        if (cleanupMemory.attach())
-            cleanupMemory.detach();
-
-        QSharedMemory testGuard("MakineAI_SingleInstance_Guard");
-        if (testGuard.create(1)) {
-            instanceAcquired = true;
-            break;
-        }
-
-        if (attempt + 1 < maxRetries)
-            Sleep(500);  // Wait 500ms before retry
-    }
-
-    // Persistent guard — lives for the lifetime of the process
-    QSharedMemory singleInstanceGuard("MakineAI_SingleInstance_Guard");
-    if (!instanceAcquired) {
-        // Last attempt failed — show error
-        singleInstanceGuard.attach(); // ensure cleanup on exit
+    // Single-instance guard (must run before QGuiApplication on Windows)
+    if (!acquireSingleInstance(isPostUpdate)) {
 #ifdef Q_OS_WIN
         MessageBoxW(nullptr,
-            L"MakineAI zaten çalışıyor.\n\n"
-            L"Lütfen sistem tepsisindeki simgeyi kontrol edin "
-            L"veya görev yöneticisinden kapatın.",
+            L"MakineAI zaten \u00e7al\u0131\u015f\u0131yor.\n\n"
+            L"L\u00fctfen sistem tepsisindeki simgeyi kontrol edin "
+            L"veya g\u00f6rev y\u00f6neticisinden kapat\u0131n.",
             L"MakineAI",
             MB_OK | MB_ICONWARNING);
 #endif
         return 0;
     }
+
+    // Persistent guard — lives for the lifetime of the process
+    QSharedMemory singleInstanceGuard("MakineAI_SingleInstance_Guard");
     singleInstanceGuard.create(1);
 
     QGuiApplication app(argc, argv);
@@ -668,253 +1255,36 @@ int main(int argc, char *argv[])
     splash.show();
 #endif
 
-    app.setQuitOnLastWindowClosed(false);
-    app.setApplicationName("MakineAI");
-    app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - MakineAI"));
-    app.setApplicationVersion(MAKINEAI_APP_VERSION);
-    app.setOrganizationName("MakineAI");
-    app.setOrganizationDomain("makineai.com");
-    app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
-    QQuickStyle::setStyle("Basic");
-
-    int interRegular = QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Regular.ttf");
-    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Medium.ttf");
-    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-SemiBold.ttf");
-    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Bold.ttf");
-
-    QString fontFamily = interRegular >= 0 ? "Inter" : "Segoe UI";
-    QFont defaultFont(fontFamily, 10);
-    defaultFont.setStyleStrategy(QFont::PreferAntialias);
-    defaultFont.setHintingPreference(QFont::PreferFullHinting);
-    app.setFont(defaultFont);
-
-    // Pipeline cache: save compiled shaders so subsequent launches skip compilation stutter
-    {
-        QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-        qputenv("QSG_RHI_PIPELINE_CACHE_SAVE", (cacheDir + "/pipeline_cache.bin").toUtf8());
-        qputenv("QSG_RHI_PIPELINE_CACHE_LOAD", (cacheDir + "/pipeline_cache.bin").toUtf8());
-    }
-
-    // Reduce thread pool: default = CPU count, each thread = 1 MB stack
-    QThreadPool::globalInstance()->setMaxThreadCount(2);
+    configureApplication(app);
 
     QQmlApplicationEngine engine;
-
-    // Dev tools availability (must be set BEFORE QML creation)
-#ifdef MAKINEAI_DEV_TOOLS
-    engine.rootContext()->setContextProperty("devToolsEnabled", true);
-#else
-    engine.rootContext()->setContextProperty("devToolsEnabled", false);
-#endif
-
-    // ===== Register backend singletons for QML access =====
-    // Manual registration — works in both shared and static Qt builds.
-    // (QML_ELEMENT/QML_SINGLETON relies on linker keeping registration code,
-    //  which --gc-sections strips in static builds.)
-    // NOLINT: spdlog is not used in this file — no ADL collision risk.
-    using namespace makineai;
+    configureEngine(engine);
 
     QElapsedTimer startupTimer;
     startupTimer.start();
 
-    // ===== Phase 1: Directory structure + configuration =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 1: Directory structure + configuration");
+    // Phases 1-7: create all backend services
+    GameService* gameService = nullptr;
+    ManifestSyncService* manifestSync = nullptr;
+    ImageCacheManager* imageCache = nullptr;
+    SystemTrayManager* trayManager = nullptr;
+    OperationJournal* journal = nullptr;
+    ProcessScanner* processScanner = nullptr;
+
+    createServices(app, engine, isPostUpdate, startupTimer,
 #ifdef Q_OS_WIN
-    splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
+        splash,
 #endif
-    AppPaths::ensureDirectories();
-    AppPaths::migrateFromFlatLayout();
+        gameService, manifestSync, imageCache, trayManager, journal, processScanner);
 
-    // Post-update cleanup (delegate to UpdateService)
-    if (isPostUpdate) {
-        UpdateService::handlePostUpdate();
-        logToFile("Post-update cleanup completed");
-    }
+    // Wire inter-service signal/slot connections
+    wireSignals(app, gameService, manifestSync, trayManager, processScanner);
 
-#ifdef Q_OS_WIN
-    splash.setStatus(L"Yap\u0131land\u0131rma y\u00FCkleniyor...");
-#endif
-    auto* settingsManager = new SettingsManager(&app);
-    engine.rootContext()->setContextProperty("SettingsManager", settingsManager);
+    // Attach QML warning handlers and log environment info
+    logStartupDiagnostics(app, engine);
 
-    // ===== Phase 2: Image cache =====
-#ifdef Q_OS_WIN
-    splash.setStatus(L"G\u00F6rsel \u00F6nbelle\u011Fi ba\u015Flat\u0131l\u0131yor...");
-#endif
-    auto* imageCache = new ImageCacheManager(&app);
-    engine.rootContext()->setContextProperty("ImageCache", imageCache);
-
-    // ===== Phase 2.5: Manifest sync (loads cached index, starts background sync) =====
-#ifdef Q_OS_WIN
-    splash.setStatus(L"Katalog haz\u0131rlan\u0131yor...");
-#endif
-    auto* manifestSync = new ManifestSyncService(&app);
-    engine.rootContext()->setContextProperty("ManifestSync", manifestSync);
-    // syncCatalog() called in Phase 7.5 — loads catalog index before QML creation
-
-    auto* translationDownloader = new TranslationDownloader(&app);
-    translationDownloader->setManifestSync(manifestSync);
-    translationDownloader->setDataPath(makineai::AppPaths::packagesDir());
-    engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
-
-    // Register model types for QML
-    qmlRegisterUncreatableType<makineai::SupportedGamesModel>("MakineAI", 1, 0,
-        "SupportedGamesModel", "Use GameService.supportedGamesModel");
-    qmlRegisterType<makineai::CatalogProxyModel>("MakineAI", 1, 0, "CatalogProxyModel");
-
-    // UpdateService registered as singleton instance in Phase 7 (below)
-
-    // ===== Phase 3: Game library (construction only — data loads after QML) =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 3: Game library construction");
-#ifdef Q_OS_WIN
-    splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi haz\u0131rlan\u0131yor...");
-#endif
-    auto* gameService = new GameService(&app);
-    gameService->setManifestSync(manifestSync);
-    engine.rootContext()->setContextProperty("GameService", gameService);
-    // initialize() deferred to after first frame render (see Phase 10)
-    logToFile(QString("Phase 3 (GameService created) at %1 ms").arg(startupTimer.elapsed()));
-#ifdef Q_OS_WIN
-    splash.pumpMessages();
-#endif
-
-    // ===== Phase 4: Operation journal + recovery =====
-#ifdef Q_OS_WIN
-    splash.setStatus(L"\u0130\u015Flem g\u00FCnl\u00FC\u011F\u00FC kontrol ediliyor...");
-#endif
-    auto* journal = new OperationJournal(&app);
-    if (journal->hasPendingOperation()) {
-        qDebug() << "OperationJournal: recovering from interrupted operation...";
-        journal->recover();
-    }
-#ifdef Q_OS_WIN
-    splash.pumpMessages();
-#endif
-
-    // ===== Phase 5: Backup + process monitoring =====
-#ifdef Q_OS_WIN
-    splash.setStatus(L"Yedekleme sistemi ba\u015Flat\u0131l\u0131yor...");
-#endif
-    auto* backupManager = new BackupManager(&app);
-    backupManager->setJournal(journal);
-    engine.rootContext()->setContextProperty("BackupManager", backupManager);
-
-#ifdef Q_OS_WIN
-    splash.setStatus(L"S\u00FCrec izleyici ba\u015Flat\u0131l\u0131yor...");
-#endif
-    auto* processScanner = new ProcessScanner(&app);
-    processScanner->setGameService(gameService);
-    engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
-
-    // Rebuild process map when game library scan completes
-    // PackageManager is lazy-init (created during first scanAllLibraries),
-    // so we inject it + rebuild on every scanCompleted
-    QObject::connect(gameService, &GameService::scanCompleted,
-                     processScanner, [processScanner]() {
-        processScanner->setPackageManager(CoreBridge::instance()->packageManager());
-        processScanner->rebuildProcessMap();
-    });
-
-    // ===== Phase 6: Security + integrity =====
-#ifdef Q_OS_WIN
-    splash.setStatus(L"B\u00FCt\u00FCnl\u00FCk do\u011Frulamas\u0131 yap\u0131l\u0131yor...");
-#endif
-    auto* integrityService = new IntegrityService(&app);
-    engine.rootContext()->setContextProperty("IntegrityService", integrityService);
-
-    auto* batchService = new BatchOperationService(&app);
-    engine.rootContext()->setContextProperty("BatchOperationService", batchService);
-
-    // ===== Phase 7: Update service + system tray =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
-#ifdef Q_OS_WIN
-    splash.setStatus(L"G\u00FCncelleme servisi haz\u0131rlan\u0131yor...");
-#endif
-    auto* updateService = UpdateService::create(nullptr, nullptr);
-    updateService->setParent(&app);
-    // Singleton instance: exposes BOTH the instance AND Q_ENUM(State) values to QML.
-    // (setContextProperty only exposes the instance — enum constants resolve to undefined)
-    qmlRegisterSingletonInstance("MakineAI", 1, 0, "UpdateService", updateService);
-
-    // Startup update check — once, async, unless we just updated
-    if (!isPostUpdate)
-        updateService->check();
-
-#ifdef Q_OS_WIN
-    splash.setStatus(L"Sistem tepsisi yap\u0131land\u0131r\u0131l\u0131yor...");
-#endif
-    SystemTrayManager trayManager;
-    trayManager.setIcon(app.windowIcon());
-    trayManager.show();
-    engine.rootContext()->setContextProperty("SystemTrayManager", &trayManager);
-
-    // Tray quit → app quit directly (bypass QML round-trip)
-    QObject::connect(&trayManager, &SystemTrayManager::quitRequested,
-                     &app, &QCoreApplication::quit);
-
-    // Wire journal to CoreBridge
-    CoreBridge::instance()->setJournal(journal);
-    engine.rootContext()->setContextProperty("CoreBridge", CoreBridge::instance());
-
-    logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
-#ifdef Q_OS_WIN
-    splash.pumpMessages();
-#endif
-
-    logToFile("=== MakineAI Starting ===");
-    logToFile(QString("App version: %1").arg(app.applicationVersion()));
-    logToFile(QString("Qt version: %1").arg(qVersion()));
-    logToFile(QString("Log file: %1").arg(getLogFilePath()));
-    logToFile(QString("QSG_RENDER_LOOP: %1").arg(qEnvironmentVariable("QSG_RENDER_LOOP")));
-    {
-        QSettings settings("MakineAI", "MakineAI");
-        auto api = QQuickWindow::graphicsApi();
-        QString apiName = api == QSGRendererInterface::Direct3D12 ? "D3D12" :
-                          api == QSGRendererInterface::Vulkan     ? "Vulkan" :
-                          api == QSGRendererInterface::Direct3D11 ? "D3D11" :
-                          api == QSGRendererInterface::OpenGL     ? "OpenGL" :
-                          "Auto (RHI default)";
-        logToFile(QString("Graphics backend: %1").arg(apiName));
-    }
-    logToFile(QString("Swap interval: %1").arg(QSurfaceFormat::defaultFormat().swapInterval()));
-
-    QObject::connect(&engine, &QQmlApplicationEngine::warnings,
-        [](const QList<QQmlError> &warnings) {
-            for (const auto &warning : warnings) {
-                logToFile(QString("QML Warning: %1").arg(warning.toString()));
-            }
-        }
-    );
-
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
-        &app,
-        []() {
-            logToFile("CRITICAL: QML Object creation failed!");
-            QCoreApplication::exit(-1);
-        },
-        Qt::QueuedConnection
-    );
-
-    // ===== Phase 7.5: Wire signals + sync catalog index =====
-    // Connect ManifestSync signals BEFORE syncing,
-    // so catalogReady/packageDetailReady are never missed.
-    QObject::connect(manifestSync, &makineai::ManifestSyncService::catalogReady,
-        gameService, [gameService]() {
-            if (auto* bridge = makineai::CoreBridge::instance())
-                bridge->refreshPackageManifest();
-        });
-    QObject::connect(manifestSync, &makineai::ManifestSyncService::packageDetailReady,
-        gameService, [manifestSync](const QString& appId) {
-            if (auto* bridge = makineai::CoreBridge::instance()) {
-                QVariantMap detail = manifestSync->getPackageDetail(appId);
-                QJsonDocument doc(QJsonObject::fromVariantMap(detail));
-                bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
-            }
-        });
-
-    // Sync catalog index (fast, ~10ms) — provides metadata for QML creation.
-    // GameService::initialize() deferred to after first frame render to avoid
-    // expired QML timer cascades during processEvents.
+    // ===== Phase 7.5: Sync catalog index =====
+    // Signals wired above — safe to sync now so catalogReady is never missed.
     manifestSync->syncCatalog();
     logToFile(QString("ManifestSync::syncCatalog() completed at %1 ms").arg(startupTimer.elapsed()));
 
@@ -926,7 +1296,6 @@ int main(int argc, char *argv[])
 
     // Use QQmlComponent for incremental loading — keeps splash alive
     QQmlComponent mainComponent(&engine);
-
     {
         MAKINE_ZONE_NAMED("QML::loadFromModule");
         mainComponent.loadFromModule("MakineAI", "Main");
@@ -985,208 +1354,17 @@ int main(int argc, char *argv[])
     splash.pumpMessages();
 #endif
 
-    // Release GPU resources when window is hidden/minimized (reclaimed on show)
-    auto *window = qobject_cast<QQuickWindow*>(rootObject);
+    setupRootWindow(rootObject, app, engine, gameService, imageCache, startupTimer
 #ifdef Q_OS_WIN
-    QMetaObject::Connection firstFrameConn;
+        , splash
 #endif
-    if (window) {
-        // Responsive sizing + centered positioning via Win32
-        {
-            RECT workArea{};
-            SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
-            int waW = workArea.right - workArea.left;
-            int waH = workArea.bottom - workArea.top;
+    );
 
-            // Proportional: 1280×1080 on 3840×2160 = 1/3 width, 1/2 height
-            int w = waW / 3;
-            int h = waH / 2;
-
-            // Screen center point
-            int cx = workArea.left + waW / 2;
-            int cy = workArea.top + waH / 2;
-
-            // Window top-left so that window center == screen center
-            int x = cx - w / 2;
-            int y = cy - h / 2;
-
-            HWND hwnd = reinterpret_cast<HWND>(window->winId());
-            MoveWindow(hwnd, x, y, w, h, TRUE);
-
-            // Apply OS-appropriate window style (Mica on W11, dark frame on W10)
-            configureWindowStyle(hwnd);
-        }
-
-        window->setPersistentGraphics(false);
-        window->setPersistentSceneGraph(false);
-
-        // Graphics configuration: pipeline cache
-        {
-            QQuickGraphicsConfiguration gfxConfig;
-
-            // Pipeline cache via API (supplements env vars set earlier)
-            QString cachePath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
-                                + "/pipeline_cache.bin";
-            gfxConfig.setPipelineCacheSaveFile(cachePath);
-            gfxConfig.setPipelineCacheLoadFile(cachePath);
-
-            window->setGraphicsConfiguration(gfxConfig);
-        }
-
-        // Preload Settings page behind splash (~1.2s, hidden from user)
-        splash.setStatus(L"Sayfalar haz\u0131rlan\u0131yor...");
-        splash.pumpMessages();
-        {
-            MAKINE_ZONE_NAMED("Preload::SettingsScreen");
-            rootObject->setProperty("_settingsPreload", true);
-        }
-        logToFile(QString("Settings preloaded at %1 ms").arg(startupTimer.elapsed()));
-
-#ifdef Q_OS_WIN
-        // Release GPU resources + trim working set when hidden/minimized
-        QObject::connect(window, &QWindow::visibilityChanged, [window](QWindow::Visibility v) {
-            if (v == QWindow::Hidden || v == QWindow::Minimized) {
-                window->releaseResources();
-                EmptyWorkingSet(GetCurrentProcess());
-            }
-        });
-
-        logToFile(QString("Phase 10 (first-frame setup) at %1 ms").arg(startupTimer.elapsed()));
-
-        // Close splash on FIRST rendered frame, then dispatch game library load.
-        //
-        // Why not processEvents here? Any processEvents() call triggers expired
-        // QML timers (from createRootObject), which cascade into 4+ seconds of
-        // synchronous model resets. Instead, we let QML start with empty data
-        // (loading state), close splash on the first rendered frame, then
-        // populate data progressively via the event loop.
-        firstFrameConn = QObject::connect(window, &QQuickWindow::frameSwapped, &app,
-            [&firstFrameConn, &splash, &startupTimer, gameService]() {
-                // Guard: render thread may queue multiple frameSwapped before
-                // the first callback runs (threaded loop pipelining).
-                static bool done = false;
-                if (done) return;
-                done = true;
-
-                MAKINE_ZONE_NAMED("Startup::firstFrame");
-                QObject::disconnect(firstFrameConn);
-                splash.waitMinimumDisplay(200);
-                logToFile(QString("First frame rendered, closing splash at %1 ms")
-                              .arg(startupTimer.elapsed()));
-                splash.close();
-                // Dispatch game library loading — results arrive on subsequent
-                // event loop iterations, populating QML progressively.
-                gameService->initialize();
-            }, Qt::QueuedConnection);
-
-        window->requestUpdate();
-        logToFile(QString("Phase 10 (callback registered) at %1 ms").arg(startupTimer.elapsed()));
-#endif
-
-        // Tracy: frame boundary marker (one FrameMark per rendered frame)
-        QObject::connect(window, &QQuickWindow::afterRendering, window, []() {
-            MAKINE_FRAME;
-        }, Qt::DirectConnection);
-
-#ifdef MAKINEAI_DEV_TOOLS
-        // Dev-only frame timer: high-precision render pipeline metrics
-        auto* frameTimer = new FrameTimer(&app);
-        engine.rootContext()->setContextProperty("FrameTimer", frameTimer);
-        frameTimer->attachToWindow(window);
-
-        // Dump frame stats on exit (integrates with PerfReporter)
-        QObject::connect(&app, &QCoreApplication::aboutToQuit, frameTimer, &FrameTimer::dumpStats);
-
-        // Reset frame timer after startup settles — clears the initial jank spike
-        // so ongoing metrics reflect actual runtime performance, not first-frame shaders
-        QTimer::singleShot(kStartupSettleMs, frameTimer, &FrameTimer::reset);
-
-        // Scene profiler: transition, interaction, dialog, animation tracking
-        auto* sceneProfiler = new SceneProfiler(&app);
-        engine.rootContext()->setContextProperty("SceneProfiler", sceneProfiler);
-
-        // Memory profiler: working set, image cache monitoring
-        auto* memoryProfiler = new MemoryProfiler(&app);
-        memoryProfiler->setImageCacheManager(imageCache);
-        engine.rootContext()->setContextProperty("MemoryProfiler", memoryProfiler);
-
-        // Dump profiler reports on exit
-        QObject::connect(&app, &QCoreApplication::aboutToQuit, [sceneProfiler, memoryProfiler, imageCache]() {
-#ifdef MAKINEAI_PERF_ACTIVE
-            auto& reporter = PerfReporter::instance();
-            reporter.addCustomSection(QStringLiteral("scene"), sceneProfiler->sceneReport());
-            reporter.addCustomSection(QStringLiteral("memory"), memoryProfiler->memoryReport());
-
-            // Image cache stats
-            QJsonObject imgObj;
-            imgObj[QStringLiteral("cache_count")] = imageCache->cachedImageCount();
-            imgObj[QStringLiteral("cache_bytes")] = imageCache->cachedImageBytes();
-            QVariantMap stats = imageCache->imageStats();
-            imgObj[QStringLiteral("total_downloads")] = stats.value(QStringLiteral("downloads")).toInt();
-            imgObj[QStringLiteral("cache_hits")] = stats.value(QStringLiteral("cacheHits")).toInt();
-            imgObj[QStringLiteral("hit_rate")] = stats.value(QStringLiteral("hitRate")).toDouble();
-            imgObj[QStringLiteral("queue_peak")] = stats.value(QStringLiteral("queuePeak")).toInt();
-            reporter.addCustomSection(QStringLiteral("images"), imgObj);
-#endif
-        });
-#endif
-    }
-
-    // Fallback: close splash if window creation failed (normal path uses frameSwapped)
-#ifdef Q_OS_WIN
-    if (!window) {
-        splash.close();
-        gameService->initialize();
-    }
-#endif
-
-    // Trim working set after startup settles (DLL init, type registration, QML
-    // compilation pages are no longer needed). Hot pages fault back in microseconds.
-#ifdef Q_OS_WIN
-    QTimer::singleShot(kStartupSettleMs, [&]() {
-        // Compact heaps: merge free blocks, release unused pages to OS
-        HANDLE heaps[32];
-        DWORD count = GetProcessHeaps(32, heaps);
-        for (DWORD i = 0; i < count; ++i) {
-            HeapCompact(heaps[i], 0);
-        }
-
-        // Release working set: cold pages (DLL init, QML compile) go to standby list
-        EmptyWorkingSet(GetCurrentProcess());
-        logToFile("Heap compacted + working set trimmed");
-    });
-#endif
+    scheduleMemoryTrim();
 
     MAKINE_THREAD_NAME("Main/UI");
 
-#ifdef MAKINEAI_PERF_ACTIVE
-    makineai::PerfReporter::instance().setMainThread();
-
-    // --profile-duration=N: auto-quit after N seconds (automated profiling)
-    for (int i = 1; i < argc; ++i) {
-        QString arg(argv[i]);
-        if (arg.startsWith("--profile-duration=")) {
-            int secs = arg.mid(19).toInt();
-            if (secs > 0) {
-                logToFile(QString("Profile mode: auto-quit in %1 seconds").arg(secs));
-                QTimer::singleShot(secs * 1000, &app, [&app]() {
-                    logToFile("Profile duration reached, exiting...");
-                    // Close all windows first (bypasses setQuitOnLastWindowClosed)
-                    for (auto* w : QGuiApplication::topLevelWindows())
-                        w->close();
-                    app.exit(0);
-                });
-            }
-        }
-    }
-
-    // Dump performance report on exit
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, []() {
-        QString reportPath = makineai::AppPaths::perfReportFile();
-        makineai::PerfReporter::instance().dumpReport(reportPath);
-        logToFile(QString("Performance report saved to: %1").arg(reportPath));
-    });
-#endif
+    setupPerfReporting(app, argc, argv);
 
     logToFile(QString("Total startup: %1 ms").arg(startupTimer.elapsed()));
     logToFile("Entering event loop...");

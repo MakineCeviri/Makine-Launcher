@@ -84,21 +84,6 @@ public:
     void scanAllLibraries();
 
     /**
-     * @brief Scan Steam library only
-     */
-    void scanSteamLibrary();
-
-    /**
-     * @brief Scan Epic Games library only
-     */
-    void scanEpicLibrary();
-
-    /**
-     * @brief Scan GOG Galaxy library only
-     */
-    void scanGogLibrary();
-
-    /**
      * @brief Detect engine for a specific game directory
      */
     QString detectEngine(const QString& gamePath);
@@ -112,11 +97,6 @@ public:
      * @brief Get all supported games from package catalog, enriched with install status
      */
     QVariantList allSupportedGames() const;
-
-    /**
-     * @brief Get count of all supported games in catalog
-     */
-    int supportedGameCount() const;
 
     // ========== Package Manager ==========
 

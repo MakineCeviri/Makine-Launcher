@@ -27,6 +27,9 @@
 #include <QJsonObject>
 #include <QFile>
 
+#include <optional>
+#include <string>
+
 #ifndef MAKINEAI_UI_ONLY
 #include <makineai/core.hpp>
 #endif
@@ -546,67 +549,6 @@ void CoreBridge::scanAllLibraries()
     });
 }
 
-void CoreBridge::scanSteamLibrary()
-{
-    emit scanStarted();
-    m_detectedGames.clear();
-    (void)QtConcurrent::run([this]() {
-        QList<DetectedGame> games;
-        emit scanProgress(0.0, tr("Steam kütüphanesi taranıyor..."));
-        doScanSteamReal(games);
-        for (auto& game : games) {
-            game.engine = detectEngineReal(game.installPath);
-        }
-        const int count = games.count();
-        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
-            m_detectedGames = std::move(games);
-            buildDetectedGameIndex();
-        }, Qt::QueuedConnection);
-        emit scanProgress(1.0, tr("%1 Steam oyunu bulundu").arg(count));
-        emit scanCompleted(count);
-    });
-}
-
-void CoreBridge::scanEpicLibrary()
-{
-    emit scanStarted();
-    m_detectedGames.clear();
-    (void)QtConcurrent::run([this]() {
-        QList<DetectedGame> games;
-        doScanEpicReal(games);
-        for (auto& game : games) {
-            game.engine = detectEngineReal(game.installPath);
-        }
-        const int count = games.count();
-        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
-            m_detectedGames = std::move(games);
-            buildDetectedGameIndex();
-        }, Qt::QueuedConnection);
-        emit scanProgress(1.0, tr("%1 Epic oyunu bulundu").arg(count));
-        emit scanCompleted(count);
-    });
-}
-
-void CoreBridge::scanGogLibrary()
-{
-    emit scanStarted();
-    m_detectedGames.clear();
-    (void)QtConcurrent::run([this]() {
-        QList<DetectedGame> games;
-        doScanGogReal(games);
-        for (auto& game : games) {
-            game.engine = detectEngineReal(game.installPath);
-        }
-        const int count = games.count();
-        QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
-            m_detectedGames = std::move(games);
-            buildDetectedGameIndex();
-        }, Qt::QueuedConnection);
-        emit scanProgress(1.0, tr("%1 GOG oyunu bulundu").arg(count));
-        emit scanCompleted(count);
-    });
-}
-
 QString CoreBridge::detectEngine(const QString& gamePath)
 {
     return detectEngineReal(gamePath);
@@ -680,12 +622,6 @@ QVariantList CoreBridge::allSupportedGames() const
     }
 
     return catalog;
-}
-
-int CoreBridge::supportedGameCount() const
-{
-    if (!m_localPkgManager) return 0;
-    return m_localPkgManager->packageCount();
 }
 
 // ========== Package Management (via LocalPackageManager) ==========
