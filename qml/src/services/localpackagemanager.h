@@ -170,6 +170,28 @@ private:
     struct CopyResult { bool ok; CopyError error; };
     CopyResult tryCopyFile(const QString& src, const QString& dest);
 
+    // Outcome of a single step execution.
+    enum class StepOutcome { Ok, SoftError, FatalError, Cancelled };
+
+    // Execute one InstallStep. Handles copy/copyDir/run/delete/installFont/
+    // setSteamLanguage/copyToDesktop/rename actions.
+    // packageDir   — source directory for src-relative paths (package or option subdir)
+    // progressPrefix — prepended to status messages (empty for recipe steps,
+    //                  "optLabel — " for option steps)
+    // installedFiles — appended on success; caller owns the list
+    // Returns SoftError to increment errors and continue, FatalError to abort
+    // (caller should emit installCompleted and return), Cancelled to abort cleanly.
+    StepOutcome executeStep(const InstallStep& step,
+                            const QString& gamePath,
+                            const QString& packageDir,
+                            const QString& canonGamePath,
+                            const QString& cleanGamePath,
+                            double progress,
+                            int current, int total,
+                            const QString& progressPrefix,
+                            const QString& steamAppId,
+                            QStringList& installedFiles);
+
     // Run an external process with polling timeout.
     // progressCallback receives elapsed ms for UI feedback (optional).
     struct ProcessResult {

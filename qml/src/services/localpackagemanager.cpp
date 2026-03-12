@@ -981,6 +981,336 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
     });
 }
 
+// -- Single-step executor (shared by recipe-based and options-based installs) --
+
+LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
+    const InstallStep& step,
+    const QString& gamePath,
+    const QString& packageDir,
+    const QString& canonGamePath,
+    const QString& cleanGamePath,
+    double progress,
+    int current, int total,
+    const QString& progressPrefix,
+    const QString& steamAppId,
+    QStringList& installedFiles)
+{
+    // Helper: emit fatal error, commit journal, return FatalError
+    auto fatal = [&](const QString& msg) -> StepOutcome {
+        if (m_journal) m_journal->commitOperation();
+        emit installCompleted(false, msg);
+        return StepOutcome::FatalError;
+    };
+
+    // Helper: copy one file with retry-on-lock and fatal-error promotion
+    auto copyOne = [&](const QString& src, const QString& dst,
+                       const QString& logLabel) -> StepOutcome {
+        QFileInfo dstInfo(dst);
+        if (!QDir().mkpath(dstInfo.absolutePath())) {
+            qWarning() << "Failed to create directory:" << dstInfo.absolutePath();
+            return StepOutcome::SoftError;
+        }
+        auto [ok, err] = tryCopyFile(src, dst);
+        if (ok) return StepOutcome::Ok;
+        if (err == CopyError::DiskFull)
+            return fatal(tr("Disk alanı doldu, kurulum durduruluyor"));
+        if (err == CopyError::PermissionDenied)
+            return fatal(tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+        if (err == CopyError::FileLocked) {
+            QThread::msleep(150);
+            auto [ok2, err2] = tryCopyFile(src, dst);
+            if (ok2) return StepOutcome::Ok;
+            if (err2 == CopyError::DiskFull)
+                return fatal(tr("Disk alanı doldu, kurulum durduruluyor"));
+            if (err2 == CopyError::PermissionDenied)
+                return fatal(tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+            qWarning() << logLabel << "failed (locked):" << src << "->" << dst;
+            return StepOutcome::SoftError;
+        }
+        qWarning() << logLabel << "failed:" << src << "->" << dst;
+        return StepOutcome::SoftError;
+    };
+
+    if (step.action == "copy") {
+        QString srcPath  = QDir::cleanPath(packageDir + "/" + step.src);
+        QString destPath = QDir::cleanPath(gamePath   + "/" + step.dest);
+
+        if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
+            qWarning() << "Path traversal blocked in copy:" << step.dest;
+            return StepOutcome::SoftError;
+        }
+        if (!QFile::exists(srcPath)) {
+            qWarning() << "Copy source not found:" << srcPath;
+            return StepOutcome::SoftError;
+        }
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
+
+        StepOutcome outcome = copyOne(srcPath, destPath, "copy");
+        if (outcome == StepOutcome::Ok) {
+            installedFiles.append(step.dest);
+            if (m_journal) m_journal->recordFileModified(step.dest);
+        }
+        return outcome;
+
+    } else if (step.action == "copyDir") {
+        QString srcDir  = QDir::cleanPath(packageDir + "/" + step.src);
+        QString destDir = QDir::cleanPath(gamePath   + "/" + step.dest);
+
+        if (!destDir.startsWith(canonGamePath)) {
+            qWarning() << "Path traversal blocked in copyDir:" << step.dest;
+            return StepOutcome::SoftError;
+        }
+        if (!QDir(srcDir).exists()) {
+            qWarning() << "copyDir source not found:" << srcDir;
+            return StepOutcome::SoftError;
+        }
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: %4/").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
+
+        QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
+        while (dirIt.hasNext()) {
+            dirIt.next();
+            QString relPath  = dirIt.filePath().mid(srcDir.length() + 1);
+            QString destPath = QDir::cleanPath(destDir + "/" + relPath);
+            StepOutcome outcome = copyOne(dirIt.filePath(), destPath, "copyDir");
+            if (outcome == StepOutcome::Ok) {
+                QString fullRelPath = step.dest + "/" + relPath;
+                installedFiles.append(fullRelPath);
+                if (m_journal) m_journal->recordFileModified(fullRelPath);
+            } else if (outcome != StepOutcome::SoftError) {
+                return outcome; // Fatal or Cancelled — propagate immediately
+            }
+            // SoftError inside copyDir: continue to next file (errors counted by caller)
+        }
+        return StepOutcome::Ok;
+
+    } else if (step.action == "delete") {
+        QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
+
+        if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
+            qWarning() << "Path traversal blocked in delete:" << step.dest;
+            return StepOutcome::SoftError;
+        }
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Siliniyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
+
+        if (QFile::exists(destPath)) {
+            if (!QFile::remove(destPath)) {
+                qWarning() << "Delete failed:" << destPath;
+                return StepOutcome::SoftError;
+            }
+        }
+        return StepOutcome::Ok;
+
+    } else if (step.action == "installFont") {
+        QString fontSrcDir = QDir::cleanPath(packageDir + "/" + step.src);
+
+#ifdef Q_OS_WIN
+        // Per-user font directory (no admin required, Windows 10 1809+)
+        QString userFontsDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+                               + "/AppData/Local/Microsoft/Windows/Fonts";
+        QDir().mkpath(userFontsDir);
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Fontlar yükleniyor").arg(progressPrefix).arg(current).arg(total));
+
+        QDirIterator fontIt(fontSrcDir, {"*.ttf", "*.otf"}, QDir::Files);
+        while (fontIt.hasNext()) {
+            fontIt.next();
+            QString fontName = fontIt.fileName();
+            QString destFont = userFontsDir + "/" + fontName;
+            StepOutcome outcome = copyOne(fontIt.filePath(), destFont, "installFont");
+            if (outcome == StepOutcome::Ok) {
+                QString fontEntry = "_font:" + fontName;
+                installedFiles.append(fontEntry);
+                if (m_journal) m_journal->recordFileModified(fontEntry);
+                qDebug() << "Font installed:" << fontName;
+            } else if (outcome != StepOutcome::SoftError) {
+                return outcome;
+            } else {
+                qWarning() << "Font install failed:" << fontName;
+            }
+        }
+#else
+        qWarning() << "installFont action only supported on Windows";
+#endif
+        return StepOutcome::Ok;
+
+    } else if (step.action == "run") {
+        // Resolve executable: game dir first, then package dir, then fallback
+        QString exePath;
+        QString gameExe = QDir::cleanPath(gamePath    + "/" + step.exe);
+        QString pkgExe  = QDir::cleanPath(packageDir  + "/" + step.exe);
+
+        if      (QFile::exists(gameExe)) exePath = gameExe;
+        else if (QFile::exists(pkgExe))  exePath = pkgExe;
+        else if (!step.fallback.isEmpty()) {
+            QString gameFb = QDir::cleanPath(gamePath   + "/" + step.fallback);
+            QString pkgFb  = QDir::cleanPath(packageDir + "/" + step.fallback);
+            if      (QFile::exists(gameFb)) exePath = gameFb;
+            else if (QFile::exists(pkgFb))  exePath = pkgFb;
+        }
+        if (exePath.isEmpty()) {
+            qWarning() << "Run: executable not found:" << step.exe;
+            return StepOutcome::SoftError;
+        }
+        if (exePath.contains("..")) {
+            qWarning() << "Run: path traversal rejected:" << exePath;
+            return StepOutcome::SoftError;
+        }
+        QString canonExe  = QFileInfo(exePath).canonicalFilePath();
+        QString canonGame = QDir(gamePath).canonicalPath();
+        QString canonPkg  = QDir(packageDir).canonicalPath();
+        if (!canonExe.startsWith(canonGame) && !canonExe.startsWith(canonPkg)) {
+            qWarning() << "Run: executable outside allowed directories:" << exePath;
+            return StepOutcome::SoftError;
+        }
+        QString ext = QFileInfo(exePath).suffix().toLower();
+        if (ext != "exe" && ext != "bat" && ext != "cmd") {
+            qWarning() << "Run: disallowed executable type:" << ext;
+            return StepOutcome::SoftError;
+        }
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: %4").arg(progressPrefix).arg(current).arg(total).arg(QFileInfo(exePath).fileName()));
+
+        QString workDir = (step.workDir == "package") ? packageDir : gamePath;
+
+        // Resolve argument placeholders
+        QStringList resolvedArgs;
+        for (const QString& arg : step.args) {
+            QString resolved = arg;
+            resolved.replace("${gamePath}", gamePath);
+            resolved.replace("${packageDir}", packageDir);
+            resolvedArgs.append(resolved);
+        }
+        qInfo() << "Run: executing" << exePath
+                << "args:" << resolvedArgs << "workDir:" << workDir;
+
+        QString exeFileName = QFileInfo(exePath).fileName();
+        auto result = runProcess(exePath, resolvedArgs, workDir,
+            [&](int elapsedMs) {
+                int mins = elapsedMs / 60000;
+                int secs = (elapsedMs % 60000) / 1000;
+                emit installProgress(progress,
+                    tr("%1Adım %2/%3: %4 (%5:%6)")
+                        .arg(progressPrefix).arg(current).arg(total).arg(exeFileName)
+                        .arg(mins, 2, 10, QChar('0'))
+                        .arg(secs, 2, 10, QChar('0')));
+            });
+
+        if (!result.started || result.timedOut) {
+            return StepOutcome::SoftError;
+        }
+        if (result.exitCode != 0) {
+            qWarning() << "Run: non-zero exit:" << result.exitCode
+                       << "output:" << result.output.left(500);
+            return StepOutcome::SoftError;
+        }
+        qDebug() << "Run OK:" << exePath;
+        return StepOutcome::Ok;
+
+    } else if (step.action == "copyToDesktop") {
+        QString srcPath = QDir::cleanPath(packageDir + "/" + step.src);
+        if (!QFile::exists(srcPath))
+            srcPath = QDir::cleanPath(gamePath + "/" + step.src);
+        if (!QFile::exists(srcPath)) {
+            qWarning() << "copyToDesktop source not found:" << step.src;
+            return StepOutcome::SoftError;
+        }
+        QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+        QString destPath    = QDir::cleanPath(desktopPath + "/" + step.dest);
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Masaüstüne kopyalanıyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
+
+        StepOutcome outcome = copyOne(srcPath, destPath, "copyToDesktop");
+        if (outcome == StepOutcome::Ok) {
+            installedFiles.append("_desktop:" + step.dest);
+            if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
+            qDebug() << "Copied to desktop:" << step.dest;
+        }
+        return outcome;
+
+    } else if (step.action == "rename") {
+        QString srcPath  = QDir::cleanPath(gamePath + "/" + step.src);
+        QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
+
+        if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
+            qWarning() << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
+            return StepOutcome::SoftError;
+        }
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Yeniden adlandırılıyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
+
+        if (QFile::exists(srcPath)) {
+            if (QFile::exists(destPath)) QFile::remove(destPath);
+            if (QFile::rename(srcPath, destPath)) {
+                installedFiles.append("_rename:" + step.src + ":" + step.dest);
+                if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
+                qDebug() << "Renamed:" << step.src << "->" << step.dest;
+            } else {
+                qWarning() << "Rename failed:" << srcPath << "->" << destPath;
+                return StepOutcome::SoftError;
+            }
+        } else {
+            qDebug() << "Rename source not found (skipping):" << srcPath;
+        }
+        return StepOutcome::Ok;
+
+    } else if (step.action == "setSteamLanguage") {
+        if (step.language.isEmpty()) {
+            qWarning() << "setSteamLanguage: language not specified";
+            return StepOutcome::SoftError;
+        }
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Steam dili ayarlanıyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.language));
+
+        // Game path is typically: .../steamapps/common/GameName — go up two levels
+        QDir dir(gamePath);
+        if (!dir.cdUp() || !dir.cdUp()) {
+            qWarning() << "setSteamLanguage: cannot find steamapps dir from:" << gamePath;
+            return StepOutcome::SoftError;
+        }
+        QString acfPath = dir.absoluteFilePath("appmanifest_" + steamAppId + ".acf");
+        QFile acfFile(acfPath);
+        if (!acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning() << "setSteamLanguage: cannot open ACF:" << acfPath;
+            return StepOutcome::SoftError;
+        }
+        QString content = QString::fromUtf8(acfFile.readAll());
+        acfFile.close();
+
+        // Replace "language" value in ACF key-value format:  \t"language"\t\t"english"\n
+        QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
+        auto match = langRe.match(content);
+        if (!match.hasMatch()) {
+            qWarning() << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
+            return StepOutcome::SoftError;
+        }
+        QString oldLang = match.captured(2);
+        content.replace(match.capturedStart(2), match.capturedLength(2), step.language);
+
+        if (!acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+            qWarning() << "setSteamLanguage: cannot write ACF:" << acfPath;
+            return StepOutcome::SoftError;
+        }
+        acfFile.write(content.toUtf8());
+        acfFile.close();
+
+        installedFiles.append("_steamlang:" + steamAppId + ":" + oldLang);
+        if (m_journal) m_journal->recordFileModified("_steamlang:" + steamAppId);
+        qDebug() << "setSteamLanguage:" << oldLang << "->" << step.language
+                 << "for appId" << steamAppId;
+        return StepOutcome::Ok;
+
+    } else {
+        qWarning() << "Unknown step action:" << step.action;
+        return StepOutcome::SoftError;
+    }
+}
+
 // -- Execute install steps (recipe-based) -------------------------------------
 
 void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QString& gamePath,
@@ -1011,7 +1341,6 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     emit installProgress(0.0, tr("Kurulum adımları hazırlanıyor..."));
 
     for (const InstallStep& step : pkg.installSteps) {
-        // Cancellation check
         if (isCancelled()) {
             if (m_journal) m_journal->abortOperation();
             emit installCompleted(false, tr("Kurulum iptal edildi"));
@@ -1021,451 +1350,15 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         current++;
         double progress = static_cast<double>(current) / (total + 1);
 
-        if (step.action == "copy") {
-            // Copy a file from package dir to game dir
-            QString srcPath = QDir::cleanPath(packageDir + "/" + step.src);
-            QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-
-            // Path traversal protection
-            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-                qWarning() << "Path traversal blocked in recipe copy:" << step.dest;
-                errors++;
-                continue;
-            }
-
-            if (!QFile::exists(srcPath)) {
-                qWarning() << "Recipe copy source not found:" << srcPath;
-                errors++;
-                continue;
-            }
-
-            emit installProgress(progress, tr("Adım %1/%2: %3").arg(current).arg(total).arg(step.dest));
-
-            QFileInfo destInfo(destPath);
-            if (!QDir().mkpath(destInfo.absolutePath())) {
-                qWarning() << "Failed to create directory:" << destInfo.absolutePath();
-                errors++;
-                continue;
-            }
-
-            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
-            if (copyOk) {
-                installedFiles.append(step.dest);
-                if (m_journal) m_journal->recordFileModified(step.dest);
-            } else if (copyErr == CopyError::DiskFull) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                return;
-            } else if (copyErr == CopyError::PermissionDenied) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                return;
-            } else if (copyErr == CopyError::FileLocked) {
-                QThread::msleep(150);
-                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                if (ok2) {
-                    installedFiles.append(step.dest);
-                    if (m_journal) m_journal->recordFileModified(step.dest);
-                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, err2 == CopyError::DiskFull
-                        ? tr("Disk alanı doldu, kurulum durduruluyor")
-                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else {
-                    qWarning() << "Recipe copy failed (locked):" << srcPath << "->" << destPath;
-                    errors++;
-                }
-            } else {
-                qWarning() << "Recipe copy failed:" << srcPath << "->" << destPath;
-                errors++;
-            }
-
-        } else if (step.action == "copyDir") {
-            // Recursively copy a directory from package dir to game dir
-            QString srcDir = QDir::cleanPath(packageDir + "/" + step.src);
-            QString destDir = QDir::cleanPath(gamePath + "/" + step.dest);
-
-            if (!destDir.startsWith(canonGamePath)) {
-                qWarning() << "Path traversal blocked in recipe copyDir:" << step.dest;
-                errors++;
-                continue;
-            }
-
-            if (!QDir(srcDir).exists()) {
-                qWarning() << "copyDir source not found:" << srcDir;
-                errors++;
-                continue;
-            }
-
-            emit installProgress(progress, tr("Adım %1/%2: %3/").arg(current).arg(total).arg(step.dest));
-
-            QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
-            while (dirIt.hasNext()) {
-                dirIt.next();
-                QString relPath = dirIt.filePath().mid(srcDir.length() + 1);
-                QString destPath = QDir::cleanPath(destDir + "/" + relPath);
-
-                QFileInfo destInfo(destPath);
-                if (!QDir().mkpath(destInfo.absolutePath())) {
-                    errors++; continue;
-                }
-                auto [copyOk, copyErr] = tryCopyFile(dirIt.filePath(), destPath);
-                if (copyOk) {
-                    QString fullRelPath = step.dest + "/" + relPath;
-                    installedFiles.append(fullRelPath);
-                    if (m_journal) m_journal->recordFileModified(fullRelPath);
-                } else if (copyErr == CopyError::DiskFull) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                    return;
-                } else if (copyErr == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else if (copyErr == CopyError::FileLocked) {
-                    QThread::msleep(150);
-                    auto [ok2, err2] = tryCopyFile(dirIt.filePath(), destPath);
-                    if (ok2) {
-                        QString fullRelPath = step.dest + "/" + relPath;
-                        installedFiles.append(fullRelPath);
-                        if (m_journal) m_journal->recordFileModified(fullRelPath);
-                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                        if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, err2 == CopyError::DiskFull
-                            ? tr("Disk alanı doldu, kurulum durduruluyor")
-                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                        return;
-                    } else {
-                        qWarning() << "copyDir failed (locked):" << dirIt.filePath() << "->" << destPath;
-                        errors++;
-                    }
-                } else {
-                    qWarning() << "copyDir failed:" << dirIt.filePath() << "->" << destPath;
-                    errors++;
-                }
-            }
-
-        } else if (step.action == "delete") {
-            // Delete a file in the game directory
-            QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-
-            if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-                qWarning() << "Path traversal blocked in recipe delete:" << step.dest;
-                errors++;
-                continue;
-            }
-
-            emit installProgress(progress, tr("Adım %1/%2: Siliniyor %3").arg(current).arg(total).arg(step.dest));
-
-            if (QFile::exists(destPath)) {
-                if (!QFile::remove(destPath)) {
-                    qWarning() << "Recipe delete failed:" << destPath;
-                    errors++;
-                }
-            }
-
-        } else if (step.action == "installFont") {
-            // Install TTF fonts from a package subdirectory (Windows per-user fonts)
-            QString fontSrcDir = QDir::cleanPath(packageDir + "/" + step.src);
-
-#ifdef Q_OS_WIN
-            // Per-user font directory (no admin required, Windows 10 1809+)
-            QString userFontsDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-                                   + "/AppData/Local/Microsoft/Windows/Fonts";
-            QDir().mkpath(userFontsDir);
-
-            emit installProgress(progress, tr("Adım %1/%2: Fontlar yükleniyor").arg(current).arg(total));
-
-            QDirIterator fontIt(fontSrcDir, {"*.ttf", "*.otf"}, QDir::Files);
-            while (fontIt.hasNext()) {
-                fontIt.next();
-                QString fontName = fontIt.fileName();
-                QString destFont = userFontsDir + "/" + fontName;
-
-                auto [copyOk, copyErr] = tryCopyFile(fontIt.filePath(), destFont);
-                if (copyOk) {
-                    QString fontEntry = "_font:" + fontName;
-                    installedFiles.append(fontEntry);
-                    if (m_journal) m_journal->recordFileModified(fontEntry);
-                    qDebug() << "Font installed:" << fontName;
-                } else if (copyErr == CopyError::DiskFull) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                    return;
-                } else if (copyErr == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else if (copyErr == CopyError::FileLocked) {
-                    QThread::msleep(150);
-                    auto [ok2, err2] = tryCopyFile(fontIt.filePath(), destFont);
-                    if (ok2) {
-                        QString fontEntry = "_font:" + fontName;
-                        installedFiles.append(fontEntry);
-                        if (m_journal) m_journal->recordFileModified(fontEntry);
-                        qDebug() << "Font installed (retry):" << fontName;
-                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                        if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, err2 == CopyError::DiskFull
-                            ? tr("Disk alanı doldu, kurulum durduruluyor")
-                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                        return;
-                    } else {
-                        qWarning() << "Font install failed (locked):" << fontName;
-                        errors++;
-                    }
-                } else {
-                    qWarning() << "Font install failed:" << fontName;
-                    errors++;
-                }
-            }
-#else
-            qWarning() << "installFont action only supported on Windows";
-#endif
-
-        } else if (step.action == "run") {
-            // Resolve executable: check game dir first (may have been copied),
-            // then package dir, then fallback
-            QString exePath;
-            QString gameExe = QDir::cleanPath(gamePath + "/" + step.exe);
-            QString pkgExe = QDir::cleanPath(packageDir + "/" + step.exe);
-
-            if (QFile::exists(gameExe)) {
-                exePath = gameExe;
-            } else if (QFile::exists(pkgExe)) {
-                exePath = pkgExe;
-            } else if (!step.fallback.isEmpty()) {
-                QString gameFb = QDir::cleanPath(gamePath + "/" + step.fallback);
-                QString pkgFb = QDir::cleanPath(packageDir + "/" + step.fallback);
-                if (QFile::exists(gameFb)) exePath = gameFb;
-                else if (QFile::exists(pkgFb)) exePath = pkgFb;
-            }
-
-            if (exePath.isEmpty()) {
-                qWarning() << "Recipe run: executable not found:" << step.exe;
-                errors++;
-                continue;
-            }
-
-            // H-3: Reject path traversal sequences before any canonicalization
-            if (exePath.contains("..")) {
-                qWarning() << "Recipe run: path traversal rejected:" << exePath;
-                errors++;
-                continue;
-            }
-
-            // H-3: Validate executable is within game or package directory (no arbitrary execution)
-            QString canonExe = QFileInfo(exePath).canonicalFilePath();
-            QString canonGame = QDir(gamePath).canonicalPath();
-            QString canonPkg = QDir(packageDir).canonicalPath();
-            if (!canonExe.startsWith(canonGame) && !canonExe.startsWith(canonPkg)) {
-                qWarning() << "Recipe run: executable outside allowed directories:" << exePath;
-                errors++;
-                continue;
-            }
-
-            // H-3: Only allow known safe executable extensions
-            static const QStringList allowedExtensions = {
-                QStringLiteral(".exe"), QStringLiteral(".bat"), QStringLiteral(".cmd")
-            };
-            QString ext = QFileInfo(exePath).suffix().toLower();
-            bool extAllowed = false;
-            for (const auto& allowed : allowedExtensions) {
-                if (allowed.endsWith(ext)) { extAllowed = true; break; }
-            }
-            if (!extAllowed) {
-                qWarning() << "Recipe run: disallowed executable type:" << ext;
-                errors++;
-                continue;
-            }
-
-            emit installProgress(progress, tr("Adım %1/%2: %3").arg(current).arg(total).arg(QFileInfo(exePath).fileName()));
-
-            // Determine working directory
-            QString workDir = gamePath;
-            if (step.workDir == "package") {
-                workDir = packageDir;
-            }
-
-            // Resolve argument placeholders
-            QStringList resolvedArgs;
-            for (const QString& arg : step.args) {
-                QString resolved = arg;
-                resolved.replace("${gamePath}", gamePath);
-                resolved.replace("${packageDir}", packageDir);
-                resolvedArgs.append(resolved);
-            }
-
-            qInfo() << "Recipe run: executing" << exePath
-                    << "args:" << resolvedArgs << "workDir:" << workDir;
-
-            QString exeFileName = QFileInfo(exePath).fileName();
-            auto result = runProcess(exePath, resolvedArgs, workDir,
-                [&](int elapsedMs) {
-                    int mins = elapsedMs / 60000;
-                    int secs = (elapsedMs % 60000) / 1000;
-                    emit installProgress(progress,
-                        tr("Adım %1/%2: %3 (%4:%5)")
-                            .arg(current).arg(total).arg(exeFileName)
-                            .arg(mins, 2, 10, QChar('0'))
-                            .arg(secs, 2, 10, QChar('0')));
-                });
-
-            if (!result.started || result.timedOut) {
-                errors++;
-                continue;
-            }
-            if (result.exitCode != 0) {
-                qWarning() << "Recipe run: non-zero exit:" << result.exitCode
-                           << "output:" << result.output.left(500);
-                errors++;
-            } else {
-                qDebug() << "Recipe run OK:" << exePath;
-            }
-        } else if (step.action == "copyToDesktop") {
-            // Copy a file to user's Desktop
-            QString srcPath = QDir::cleanPath(packageDir + "/" + step.src);
-            if (!QFile::exists(srcPath)) {
-                // Also try game dir
-                srcPath = QDir::cleanPath(gamePath + "/" + step.src);
-            }
-
-            if (!QFile::exists(srcPath)) {
-                qWarning() << "copyToDesktop source not found:" << step.src;
-                errors++;
-                continue;
-            }
-
-            QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-            QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
-
-            emit installProgress(progress, tr("Adım %1/%2: Masaüstüne kopyalanıyor %3").arg(current).arg(total).arg(step.dest));
-
-            auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
-            if (copyOk) {
-                installedFiles.append("_desktop:" + step.dest);
-                if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
-                qDebug() << "Copied to desktop:" << step.dest;
-            } else if (copyErr == CopyError::DiskFull) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                return;
-            } else if (copyErr == CopyError::PermissionDenied) {
-                if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                return;
-            } else if (copyErr == CopyError::FileLocked) {
-                QThread::msleep(150);
-                auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                if (ok2) {
-                    installedFiles.append("_desktop:" + step.dest);
-                    if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
-                } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, err2 == CopyError::DiskFull
-                        ? tr("Disk alanı doldu, kurulum durduruluyor")
-                        : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else {
-                    qWarning() << "copyToDesktop failed (locked):" << srcPath << "->" << destPath;
-                    errors++;
-                }
-            } else {
-                qWarning() << "copyToDesktop failed:" << srcPath << "->" << destPath;
-                errors++;
-            }
-
-        } else if (step.action == "rename") {
-            // Rename a file within the game directory
-            QString srcPath = QDir::cleanPath(gamePath + "/" + step.src);
-            QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-
-            // Path traversal protection
-            if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
-                qWarning() << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
-                errors++;
-                continue;
-            }
-
-            emit installProgress(progress, tr("Adım %1/%2: Yeniden adlandırılıyor %3").arg(current).arg(total).arg(step.dest));
-
-            if (QFile::exists(srcPath)) {
-                if (QFile::exists(destPath)) QFile::remove(destPath);
-                if (QFile::rename(srcPath, destPath)) {
-                    installedFiles.append("_rename:" + step.src + ":" + step.dest);
-                    if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
-                    qDebug() << "Renamed:" << step.src << "->" << step.dest;
-                } else {
-                    qWarning() << "Rename failed:" << srcPath << "->" << destPath;
-                    errors++;
-                }
-            } else {
-                qDebug() << "Rename source not found (skipping):" << srcPath;
-            }
-
-        } else if (step.action == "setSteamLanguage") {
-            // Change Steam's language setting for this game via appmanifest ACF
-            if (step.language.isEmpty()) {
-                qWarning() << "setSteamLanguage: language not specified";
-                errors++;
-                continue;
-            }
-
-            emit installProgress(progress, tr("Adım %1/%2: Steam dili ayarlanıyor %3").arg(current).arg(total).arg(step.language));
-
-            // Game path is typically: .../steamapps/common/GameName
-            // Go up two levels to reach steamapps/
-            QDir dir(gamePath);
-            if (!dir.cdUp() || !dir.cdUp()) {
-                qWarning() << "setSteamLanguage: cannot find steamapps dir from:" << gamePath;
-                errors++;
-                continue;
-            }
-
-            QString acfPath = dir.absoluteFilePath("appmanifest_" + pkg.steamAppId + ".acf");
-            QFile acfFile(acfPath);
-            if (!acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                qWarning() << "setSteamLanguage: cannot open ACF:" << acfPath;
-                errors++;
-                continue;
-            }
-
-            QString content = QString::fromUtf8(acfFile.readAll());
-            acfFile.close();
-
-            // Replace "language" value in the ACF key-value format
-            // ACF format: \t"language"\t\t"english"\n
-            QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
-            auto match = langRe.match(content);
-            if (!match.hasMatch()) {
-                qWarning() << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
-                errors++;
-                continue;
-            }
-
-            QString oldLang = match.captured(2);
-            content.replace(match.capturedStart(2), match.capturedLength(2), step.language);
-
-            if (!acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-                qWarning() << "setSteamLanguage: cannot write ACF:" << acfPath;
-                errors++;
-                continue;
-            }
-
-            acfFile.write(content.toUtf8());
-            acfFile.close();
-
-            // Record for uninstall: store original language to restore later
-            installedFiles.append("_steamlang:" + pkg.steamAppId + ":" + oldLang);
-            if (m_journal) m_journal->recordFileModified("_steamlang:" + pkg.steamAppId);
-
-            qDebug() << "setSteamLanguage:" << oldLang << "->" << step.language
-                     << "for appId" << pkg.steamAppId;
-
-        } else {
-            qWarning() << "Recipe: unknown action:" << step.action;
-        }
+        StepOutcome outcome = executeStep(step, gamePath, packageDir,
+                                          canonGamePath, cleanGamePath,
+                                          progress, current, total,
+                                          QString{}, pkg.steamAppId,
+                                          installedFiles);
+        if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
+            return;
+        if (outcome == StepOutcome::SoftError)
+            errors++;
     }
 
     if (errors == 0) {
@@ -1501,18 +1394,16 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     int totalSteps = 0;
     // Count total steps across all selected options
     for (const InstallOptionQt& opt : pkg.installOptions) {
-        if (selectedOptions.contains(opt.id)) {
+        if (selectedOptions.contains(opt.id))
             totalSteps += opt.steps.size();
-        }
     }
 
     // Check for combined steps
     QStringList sortedIds = selectedOptions;
     sortedIds.sort();
     QString combinedKey = sortedIds.join("+");
-    if (pkg.combinedSteps.contains(combinedKey)) {
+    if (pkg.combinedSteps.contains(combinedKey))
         totalSteps += pkg.combinedSteps[combinedKey].size();
-    }
 
     if (totalSteps == 0) {
         emit installCompleted(false, tr("Seçilen seçenekler için kurulum adımı bulunamadı"));
@@ -1553,9 +1444,9 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         emit installProgress(static_cast<double>(current) / totalSteps,
             tr("%1 — Hazırlanıyor...").arg(opt.label));
 
-        // Execute each step for this option
+        QString prefix = opt.label + " — ";
+
         for (const InstallStep& step : opt.steps) {
-            // Cancellation check
             if (isCancelled()) {
                 if (m_journal) m_journal->abortOperation();
                 emit installCompleted(false, tr("Kurulum iptal edildi"));
@@ -1565,243 +1456,33 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             current++;
             double progress = static_cast<double>(current) / (totalSteps + 1);
 
-            if (step.action == "copy") {
-                QString srcPath = QDir::cleanPath(optionDir + "/" + step.src);
-                QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-                if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-                    qWarning() << "Path traversal blocked:" << step.dest;
-                    errors++; continue;
-                }
-                if (!QFile::exists(srcPath)) {
-                    qWarning() << "Copy source not found:" << srcPath;
-                    errors++; continue;
-                }
-                emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
-                QFileInfo destInfo(destPath);
-                if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
-                auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
-                if (copyOk) {
-                    installedFiles.append(step.dest);
-                    if (m_journal) m_journal->recordFileModified(step.dest);
-                } else if (copyErr == CopyError::DiskFull) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                    return;
-                } else if (copyErr == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else if (copyErr == CopyError::FileLocked) {
-                    QThread::msleep(150);
-                    auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                    if (ok2) {
-                        installedFiles.append(step.dest);
-                        if (m_journal) m_journal->recordFileModified(step.dest);
-                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                        if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, err2 == CopyError::DiskFull
-                            ? tr("Disk alanı doldu, kurulum durduruluyor")
-                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                        return;
-                    } else {
-                        qWarning() << "Copy failed (locked):" << srcPath << "->" << destPath;
-                        errors++;
-                    }
-                } else {
-                    qWarning() << "Copy failed:" << srcPath << "->" << destPath;
-                    errors++;
-                }
-
-            } else if (step.action == "copyDir") {
-                QString srcDir = QDir::cleanPath(optionDir + "/" + step.src);
-                QString destDir = QDir::cleanPath(gamePath + "/" + step.dest);
-                if (!destDir.startsWith(canonGamePath)) {
-                    qWarning() << "Path traversal blocked:" << step.dest;
-                    errors++; continue;
-                }
-                if (!QDir(srcDir).exists()) {
-                    qWarning() << "copyDir source not found:" << srcDir;
-                    errors++; continue;
-                }
-                emit installProgress(progress, tr("%1 — Adım %2/%3: %4/").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
-                QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
-                while (dirIt.hasNext()) {
-                    dirIt.next();
-                    QString relPath = dirIt.filePath().mid(srcDir.length() + 1);
-                    QString destPath = QDir::cleanPath(destDir + "/" + relPath);
-                    QFileInfo destInfo(destPath);
-                    if (!QDir().mkpath(destInfo.absolutePath())) { errors++; continue; }
-                    auto [copyOk, copyErr] = tryCopyFile(dirIt.filePath(), destPath);
-                    if (copyOk) {
-                        QString fullRelPath = step.dest + "/" + relPath;
-                        installedFiles.append(fullRelPath);
-                        if (m_journal) m_journal->recordFileModified(fullRelPath);
-                    } else if (copyErr == CopyError::DiskFull) {
-                        if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                        return;
-                    } else if (copyErr == CopyError::PermissionDenied) {
-                        if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                        return;
-                    } else if (copyErr == CopyError::FileLocked) {
-                        QThread::msleep(150);
-                        auto [ok2, err2] = tryCopyFile(dirIt.filePath(), destPath);
-                        if (ok2) {
-                            QString fullRelPath = step.dest + "/" + relPath;
-                            installedFiles.append(fullRelPath);
-                            if (m_journal) m_journal->recordFileModified(fullRelPath);
-                        } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                            if (m_journal) m_journal->commitOperation();
-                            emit installCompleted(false, err2 == CopyError::DiskFull
-                                ? tr("Disk alanı doldu, kurulum durduruluyor")
-                                : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                            return;
-                        } else {
-                            errors++;
-                        }
-                    } else {
-                        errors++;
-                    }
-                }
-
-            } else if (step.action == "run") {
-                // Resolve executable from option dir, game dir, or fallback
-                QString exePath;
-                QString gameExe = QDir::cleanPath(gamePath + "/" + step.exe);
-                QString pkgExe = QDir::cleanPath(optionDir + "/" + step.exe);
-                if (QFile::exists(gameExe)) exePath = gameExe;
-                else if (QFile::exists(pkgExe)) exePath = pkgExe;
-                else if (!step.fallback.isEmpty()) {
-                    QString gameFb = QDir::cleanPath(gamePath + "/" + step.fallback);
-                    QString pkgFb = QDir::cleanPath(optionDir + "/" + step.fallback);
-                    if (QFile::exists(gameFb)) exePath = gameFb;
-                    else if (QFile::exists(pkgFb)) exePath = pkgFb;
-                }
-                if (exePath.isEmpty()) {
-                    qWarning() << "Run: executable not found:" << step.exe;
-                    errors++; continue;
-                }
-                // Reject path traversal sequences before canonicalization
-                if (exePath.contains("..")) {
-                    qWarning() << "Run: path traversal rejected:" << exePath;
-                    errors++; continue;
-                }
-                // Validate exe location
-                QString canonExe = QFileInfo(exePath).canonicalFilePath();
-                QString canonPkg = QDir(optionDir).canonicalPath();
-                if (!canonExe.startsWith(canonGamePath) && !canonExe.startsWith(canonPkg)) {
-                    qWarning() << "Run: executable outside allowed directories:" << exePath;
-                    errors++; continue;
-                }
-                // Extension check
-                QString ext = QFileInfo(exePath).suffix().toLower();
-                if (ext != "exe" && ext != "bat" && ext != "cmd") {
-                    qWarning() << "Run: disallowed executable type:" << ext;
-                    errors++; continue;
-                }
-                emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(QFileInfo(exePath).fileName()));
-                QString workDir = (step.workDir == "package") ? optionDir : gamePath;
-                qInfo() << "Run: executing" << exePath
-                        << "args:" << step.args << "workDir:" << workDir;
-
-                auto result = runProcess(exePath, step.args, workDir);
-                if (!result.started || result.timedOut || result.exitCode != 0) {
-                    errors++;
-                    if (!result.started || result.timedOut) continue;
-                }
-
-            } else if (step.action == "copyToDesktop") {
-                QString srcPath = QDir::cleanPath(optionDir + "/" + step.src);
-                if (!QFile::exists(srcPath))
-                    srcPath = QDir::cleanPath(gamePath + "/" + step.src);
-                if (!QFile::exists(srcPath)) {
-                    qWarning() << "copyToDesktop source not found:" << step.src;
-                    errors++; continue;
-                }
-                QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-                QString destPath = QDir::cleanPath(desktopPath + "/" + step.dest);
-                emit installProgress(progress, tr("%1 — Adım %2/%3: Masaüstüne %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
-                auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
-                if (copyOk) {
-                    installedFiles.append("_desktop:" + step.dest);
-                    if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
-                } else if (copyErr == CopyError::DiskFull) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
-                    return;
-                } else if (copyErr == CopyError::PermissionDenied) {
-                    if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                    return;
-                } else if (copyErr == CopyError::FileLocked) {
-                    QThread::msleep(150);
-                    auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                    if (ok2) {
-                        installedFiles.append("_desktop:" + step.dest);
-                        if (m_journal) m_journal->recordFileModified("_desktop:" + step.dest);
-                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
-                        if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, err2 == CopyError::DiskFull
-                            ? tr("Disk alanı doldu, kurulum durduruluyor")
-                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
-                        return;
-                    } else {
-                        errors++;
-                    }
-                } else {
-                    errors++;
-                }
-
-            } else if (step.action == "rename") {
-                QString srcPath = QDir::cleanPath(gamePath + "/" + step.src);
-                QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-                if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
-                    qWarning() << "Path traversal blocked in rename:" << step.src;
-                    errors++; continue;
-                }
-                emit installProgress(progress, tr("%1 — Adım %2/%3: %4").arg(opt.label).arg(current).arg(totalSteps).arg(step.dest));
-                if (QFile::exists(srcPath)) {
-                    if (QFile::exists(destPath)) QFile::remove(destPath);
-                    if (QFile::rename(srcPath, destPath)) {
-                        installedFiles.append("_rename:" + step.src + ":" + step.dest);
-                        if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
-                    } else {
-                        errors++;
-                    }
-                }
-
-            } else {
-                qWarning() << "installWithOptions: unknown action:" << step.action;
-            }
+            StepOutcome outcome = executeStep(step, gamePath, optionDir,
+                                              canonGamePath, cleanGamePath,
+                                              progress, current, totalSteps,
+                                              prefix, pkg.steamAppId,
+                                              installedFiles);
+            if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
+                return;
+            if (outcome == StepOutcome::SoftError)
+                errors++;
         }
     }
 
     // Execute combined steps if multiple options selected
     if (pkg.combinedSteps.contains(combinedKey)) {
-        const auto& cSteps = pkg.combinedSteps[combinedKey];
-        for (const InstallStep& step : cSteps) {
+        for (const InstallStep& step : pkg.combinedSteps[combinedKey]) {
             current++;
             double progress = static_cast<double>(current) / (totalSteps + 1);
 
-            if (step.action == "rename") {
-                QString srcPath = QDir::cleanPath(gamePath + "/" + step.src);
-                QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
-                if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
-                    errors++; continue;
-                }
-                emit installProgress(progress, tr("Adım %1/%2: %3").arg(current).arg(totalSteps).arg(step.dest));
-                if (QFile::exists(srcPath)) {
-                    if (QFile::exists(destPath)) QFile::remove(destPath);
-                    if (QFile::rename(srcPath, destPath)) {
-                        installedFiles.append("_rename:" + step.src + ":" + step.dest);
-                        if (m_journal) m_journal->recordFileModified("_rename:" + step.src + ":" + step.dest);
-                    } else {
-                        errors++;
-                    }
-                }
-            }
-            // Other combined actions can be added here
+            StepOutcome outcome = executeStep(step, gamePath, basePackageDir,
+                                              canonGamePath, cleanGamePath,
+                                              progress, current, totalSteps,
+                                              QString{}, pkg.steamAppId,
+                                              installedFiles);
+            if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
+                return;
+            if (outcome == StepOutcome::SoftError)
+                errors++;
         }
     }
 
@@ -1818,12 +1499,10 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             if (m_journal) m_journal->commitOperation();
         }, Qt::QueuedConnection);
 
-        emit installCompleted(true,
-            tr("Kurulum başarıyla tamamlandı"));
+        emit installCompleted(true, tr("Kurulum başarıyla tamamlandı"));
     } else {
         if (m_journal) m_journal->commitOperation();
-        emit installCompleted(false,
-            tr("%1 adımda hata oluştu").arg(errors));
+        emit installCompleted(false, tr("%1 adımda hata oluştu").arg(errors));
     }
 }
 
