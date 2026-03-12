@@ -12,36 +12,51 @@ Item {
     property string description: ""
     Layout.fillWidth: true
     Layout.preferredHeight: 72
+    opacity: 0.5
+
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: Dimensions.marginML
         anchors.rightMargin: Dimensions.marginML
         spacing: Dimensions.spacingXL
+
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Dimensions.spacingXS
+
             Label {
                 textFormat: Text.PlainText
-                text: title; font.pixelSize: Dimensions.fontMD
-                font.weight: Font.Medium; color: Theme.textMuted
-                Layout.fillWidth: true; elide: Text.ElideRight
+                Layout.fillWidth: true
+                text: title
+                font.pixelSize: Dimensions.fontMD
+                font.weight: Font.Medium
+                color: Theme.textPrimary
+                elide: Text.ElideRight
             }
+
             Label {
                 textFormat: Text.PlainText
-                text: description; font.pixelSize: Dimensions.fontBody
-                color: Theme.textMuted70
-                Layout.fillWidth: true; elide: Text.ElideRight
+                Layout.fillWidth: true
+                text: description
+                font.pixelSize: Dimensions.fontBody
+                color: Theme.textMuted
+                elide: Text.ElideRight
             }
         }
+
         Rectangle {
-            Layout.preferredWidth: _yLbl.width + 24
-            Layout.preferredHeight: 28; radius: 14
+            Layout.preferredWidth: _dsLbl.width + 16
+            Layout.preferredHeight: 22
+            radius: 11
             color: Theme.primary10
+
             Label {
                 textFormat: Text.PlainText
-                id: _yLbl; anchors.centerIn: parent
+                id: _dsLbl
+                anchors.centerIn: parent
                 text: qsTr("Yakında")
-                font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold
+                font.pixelSize: Dimensions.fontCaption
+                font.weight: Font.DemiBold
                 color: Theme.textMuted
             }
         }
