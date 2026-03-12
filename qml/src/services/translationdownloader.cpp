@@ -27,6 +27,7 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
+#include <string>
 #endif
 
 namespace makineai {
@@ -298,15 +299,10 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
                      << "- verifying signature...";
 
             // Rename .part to final temp path for verification
-            const QString tempPath = state.tempPath;
-            const QString partPath = state.partPath;
-            const QString dirName = state.dirName;
-            const QString dataUrl = state.dataUrl;
-
-            if (!QFile::rename(partPath, tempPath)) {
+            if (!QFile::rename(state.partPath, state.tempPath)) {
                 // Fallback: copy + delete
-                if (QFile::copy(partPath, tempPath)) {
-                    QFile::remove(partPath);
+                if (QFile::copy(state.partPath, state.tempPath)) {
+                    QFile::remove(state.partPath);
                 } else {
                     m_activeDownloads.remove(appId);
                     emit activeDownloadsChanged();
@@ -317,7 +313,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
             }
 
             // Verify signature before processing
-            verifyAndProcess(appId, dataUrl, tempPath, dirName);
+            verifyAndProcess(appId, state.dataUrl, state.tempPath, state.dirName);
         });
 #endif // !MAKINEAI_UI_ONLY
 }
@@ -435,14 +431,11 @@ void TranslationDownloader::verifyAndProcess(
 {
     MAKINE_ZONE_NAMED("TranslationDownloader::verifyAndProcess");
 
-    // Build .sig URL: replace .mkpkg extension with .sig
+    // Build .sig URL: replace .mkpkg extension (if present) with .sig
     QString sigUrl = dataUrl;
-    if (sigUrl.endsWith(QStringLiteral(".mkpkg"))) {
-        sigUrl.chop(6);  // Remove ".mkpkg"
-        sigUrl += QStringLiteral(".sig");
-    } else {
-        sigUrl += QStringLiteral(".sig");
-    }
+    if (sigUrl.endsWith(QStringLiteral(".mkpkg")))
+        sigUrl.chop(6);
+    sigUrl += QStringLiteral(".sig");
 
     qDebug() << "TranslationDownloader: downloading signature" << appId
              << "from" << sigUrl;
@@ -459,6 +452,15 @@ void TranslationDownloader::verifyAndProcess(
     {
         sigReply->deleteLater();
 
+        // Helper: abort verification, clean up, emit error, and remove download state.
+        // Returns true so callers can: if (fail(...)) return;
+        auto fail = [this, &appId, &tempPath](const QString& msg) {
+            QFile::remove(tempPath);
+            m_activeDownloads.remove(appId);
+            emit activeDownloadsChanged();
+            emit downloadError(appId, msg);
+        };
+
         // Check if download was cancelled while fetching .sig
         auto it = m_activeDownloads.find(appId);
         if (it != m_activeDownloads.end() && it->cancelled) {
@@ -474,24 +476,16 @@ void TranslationDownloader::verifyAndProcess(
         if (sigReply->error() != QNetworkReply::NoError) {
             qWarning() << "TranslationDownloader: SECURITY - signature download failed for"
                        << appId << ":" << sigReply->errorString();
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("sigDownloadFailed: %1").arg(appId).toUtf8().constData());
-            emit downloadError(appId,
-                tr("İmza dosyası indirilemedi, paket doğrulanamadı"));
+            fail(tr("İmza dosyası indirilemedi, paket doğrulanamadı"));
             return;
         }
 
         const QByteArray sigData = sigReply->readAll();
         if (sigData.isEmpty()) {
             qWarning() << "TranslationDownloader: SECURITY - empty signature file for" << appId;
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
-            emit downloadError(appId,
-                tr("İmza dosyası boş, paket doğrulanamadı"));
+            fail(tr("İmza dosyası boş, paket doğrulanamadı"));
             return;
         }
 
@@ -503,11 +497,7 @@ void TranslationDownloader::verifyAndProcess(
         if (parseError.error != QJsonParseError::NoError || !sigDoc.isObject()) {
             qWarning() << "TranslationDownloader: SECURITY - malformed signature JSON for"
                        << appId << ":" << parseError.errorString();
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
-            emit downloadError(appId,
-                tr("İmza dosyası bozuk, paket doğrulanamadı"));
+            fail(tr("İmza dosyası bozuk, paket doğrulanamadı"));
             return;
         }
 
@@ -521,11 +511,7 @@ void TranslationDownloader::verifyAndProcess(
         if (sigHash.isEmpty() || sigSignature.isEmpty()) {
             qWarning() << "TranslationDownloader: SECURITY - incomplete signature data for"
                        << appId;
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
-            emit downloadError(appId,
-                tr("İmza bilgileri eksik, paket doğrulanamadı"));
+            fail(tr("İmza bilgileri eksik, paket doğrulanamadı"));
             return;
         }
 
@@ -534,11 +520,7 @@ void TranslationDownloader::verifyAndProcess(
             sigAlgorithm.compare(QStringLiteral("ed25519"), Qt::CaseInsensitive) != 0) {
             qWarning() << "TranslationDownloader: SECURITY - unsupported signature algorithm"
                        << sigAlgorithm << "for" << appId;
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
-            emit downloadError(appId,
-                tr("İmza algoritması desteklenmiyor: %1").arg(sigAlgorithm));
+            fail(tr("İmza algoritması desteklenmiyor: %1").arg(sigAlgorithm));
             return;
         }
 
@@ -548,11 +530,7 @@ void TranslationDownloader::verifyAndProcess(
         if (!pkgFile.open(QIODevice::ReadOnly)) {
             qWarning() << "TranslationDownloader: SECURITY - cannot open package for hashing"
                        << appId;
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
-            emit downloadError(appId,
-                tr("İndirilen paket okunamadı, doğrulama başarısız"));
+            fail(tr("İndirilen paket okunamadı, doğrulama başarısız"));
             return;
         }
 
@@ -576,13 +554,9 @@ void TranslationDownloader::verifyAndProcess(
         if (computedHash != sigHash) {
             qWarning() << "TranslationDownloader: SECURITY - hash mismatch for" << appId
                        << "expected:" << sigHash << "got:" << computedHash;
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("hashMismatch: %1").arg(appId).toUtf8().constData());
-            emit downloadError(appId,
-                tr("Paket bütünlüğü doğrulanamadı, dosya bozulmuş olabilir"));
+            fail(tr("Paket bütünlüğü doğrulanamadı, dosya bozulmuş olabilir"));
             return;
         }
 
@@ -597,13 +571,9 @@ void TranslationDownloader::verifyAndProcess(
         if (!verifyEd25519Signature(hashData, sigBytes)) {
             qWarning() << "TranslationDownloader: SECURITY - Ed25519 signature INVALID for"
                        << appId << "(keyId:" << sigKeyId << ")";
-            QFile::remove(tempPath);
-            m_activeDownloads.remove(appId);
-            emit activeDownloadsChanged();
             CrashReporter::addBreadcrumb("security",
                 QStringLiteral("sigInvalid: %1 keyId=%2").arg(appId, sigKeyId).toUtf8().constData());
-            emit downloadError(appId,
-                tr("Paket imzası geçersiz, dosya bozulmuş olabilir"));
+            fail(tr("Paket imzası geçersiz, dosya bozulmuş olabilir"));
             return;
         }
 

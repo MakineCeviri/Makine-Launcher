@@ -24,8 +24,6 @@
 
 namespace makineai {
 
-class ManifestSyncService;
-
 class TranslationDownloader : public QObject
 {
     Q_OBJECT
@@ -36,7 +34,6 @@ public:
     explicit TranslationDownloader(QObject* parent = nullptr);
 
     void setDataPath(const QString& path) { m_dataPath = path; }
-    void setManifestSync(ManifestSyncService* sync) { m_manifestSync = sync; }
 
     /**
      * @brief Start downloading a translation package from R2.
@@ -134,7 +131,6 @@ private:
     QNetworkAccessManager m_nam;
     QHash<QString, DownloadState> m_activeDownloads;
     QString m_dataPath;
-    ManifestSyncService* m_manifestSync{nullptr};
 };
 
 } // namespace makineai
