@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-r2_upload.py -- Upload .mkpkg files to Cloudflare R2.
+r2_upload.py -- Upload .makine files to Cloudflare R2.
 
 Supports two backends:
   1. boto3 (S3-compatible) — requires access_key_id/secret_access_key in r2_config.json
@@ -211,9 +211,9 @@ def list_objects(s3_client, bucket: str, prefix: str = R2_PREFIX):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Upload .mkpkg files to Cloudflare R2")
+    parser = argparse.ArgumentParser(description="Upload .makine files to Cloudflare R2")
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR),
-                        help="Local directory containing .mkpkg files")
+                        help="Local directory containing .makine files")
     parser.add_argument("--app-id", help="Upload single package by app ID")
     parser.add_argument("--dry-run", action="store_true",
                         help="Preview without uploading")
@@ -243,16 +243,16 @@ def main():
             print(f"  {obj['key']:40s}  {obj['size']:>12,} bytes  {obj['lastModified']}")
         return
 
-    # Find .mkpkg files
+    # Find .makine files
     if args.app_id:
-        files = [data_dir / f"{args.app_id}.mkpkg"]
+        files = [data_dir / f"{args.app_id}.makine"]
         if not files[0].exists():
             print(f"ERROR: File not found: {files[0]}", file=sys.stderr)
             sys.exit(1)
     else:
-        files = sorted(data_dir.glob("*.mkpkg"))
+        files = sorted(data_dir.glob("*.makine"))
         if not files:
-            print(f"ERROR: No .mkpkg files found in {data_dir}", file=sys.stderr)
+            print(f"ERROR: No .makine files found in {data_dir}", file=sys.stderr)
             print("Run the pipeline first: python scripts/package_pipeline.py", file=sys.stderr)
             sys.exit(1)
 
@@ -336,7 +336,7 @@ def main():
     print(f"  Total:    {total}")
 
     if public_url and not args.dry_run:
-        print(f"\n  Example URL: {public_url}/{R2_PREFIX}<appId>.mkpkg")
+        print(f"\n  Example URL: {public_url}/{R2_PREFIX}<appId>.makine")
 
     # Save upload report
     if not args.dry_run:

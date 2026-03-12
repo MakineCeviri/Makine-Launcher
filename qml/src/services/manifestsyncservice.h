@@ -117,9 +117,9 @@ private:
         QString name;
         QString version;        // "2026-02-21"
         qint64 sizeBytes{0};    // raw directory size
-        qint64 downloadSize{0}; // encrypted .mkpkg size (what user downloads)
+        qint64 downloadSize{0}; // encrypted .makine size (what user downloads)
         QString dataUrl;        // R2 download URL
-        QString checksum;       // SHA-256 of .mkpkg file
+        QString checksum;       // SHA-256 of .makine file
         QString dirName;        // filesystem directory name in translation_data
     };
 

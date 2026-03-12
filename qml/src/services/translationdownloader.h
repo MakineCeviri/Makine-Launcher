@@ -113,7 +113,7 @@ private:
     struct DownloadState {
         QNetworkReply* reply{nullptr};
         QString tempPath;       // UUID final temp (for verify)
-        QString partPath;       // {appId}.mkpkg.part — persistent partial file
+        QString partPath;       // {appId}.makine.part — persistent partial file
         QString dirName;
         QString dataUrl;        // Stored for resume/retry
         QString expectedChecksum; // SHA-256 from manifest (optional)

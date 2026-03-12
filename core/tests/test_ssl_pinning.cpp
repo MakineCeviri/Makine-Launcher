@@ -82,7 +82,7 @@ TEST_F(SslPinningTest, IsPinnedDomain_KnownDomain) {
 }
 
 TEST_F(SslPinningTest, IsPinnedDomain_CdnDomain) {
-    EXPECT_TRUE(isPinnedDomain("https://cdn.makineceviri.net/data/pkg.mkpkg"));
+    EXPECT_TRUE(isPinnedDomain("https://cdn.makineceviri.net/data/pkg.makine"));
 }
 
 TEST_F(SslPinningTest, IsPinnedDomain_UnknownDomain) {

@@ -370,8 +370,8 @@ inline int extract(
 // Full Pipeline: MKPK file → extracted directory
 // ============================================================================
 
-/// Process a complete .mkpkg file: decrypt → decompress → extract.
-/// @param mkpk_data  Raw .mkpkg file contents
+/// Process a complete .makine file: decrypt → decompress → extract.
+/// @param mkpk_data  Raw .makine file contents
 /// @param mkpk_size  Size in bytes
 /// @param dest_dir   Destination directory for extracted files
 /// @param err        Error output

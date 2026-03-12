@@ -313,7 +313,7 @@ TEST_F(ValidationTest, ValidateUrl_ValidHttp) {
 }
 
 TEST_F(ValidationTest, ValidateUrl_ValidHttps) {
-    auto result = validateUrl("https://cdn.makineceviri.net/data/pkg.mkpkg");
+    auto result = validateUrl("https://cdn.makineceviri.net/data/pkg.makine");
     ASSERT_TRUE(result.has_value());
 }
 
