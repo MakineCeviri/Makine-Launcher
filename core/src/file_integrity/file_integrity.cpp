@@ -56,7 +56,7 @@ Result<std::string> computeFileHash(const fs::path& filePath, size_t chunkSize) 
     std::ifstream file(filePath, std::ios::binary);
     if (!file) {
         return std::unexpected(Error(ErrorCode::FileNotFound,
-            "Cannot open file for hashing: " + filePath.string()));
+            fmt::format("Cannot open file for hashing: {}", filePath.string())));
     }
 
     EvpCtxPtr ctx(EVP_MD_CTX_new());
@@ -80,7 +80,7 @@ Result<std::string> computeFileHash(const fs::path& filePath, size_t chunkSize) 
 
     if (file.bad()) {
         return std::unexpected(Error(ErrorCode::FileCorrupted,
-            "I/O error reading file: " + filePath.string()));
+            fmt::format("I/O error reading file: {}", filePath.string())));
     }
 
     std::array<unsigned char, EVP_MAX_MD_SIZE> hash{};
@@ -96,13 +96,13 @@ Result<std::string> readHashFile(const fs::path& hashFilePath) {
     std::ifstream file(hashFilePath);
     if (!file) {
         return std::unexpected(Error(ErrorCode::FileNotFound,
-            "Hash file not found: " + hashFilePath.string()));
+            fmt::format("Hash file not found: {}", hashFilePath.string())));
     }
 
     std::string line;
     if (!std::getline(file, line) || line.empty()) {
         return std::unexpected(Error(ErrorCode::FileCorrupted,
-            "Empty hash file: " + hashFilePath.string()));
+            fmt::format("Empty hash file: {}", hashFilePath.string())));
     }
 
     auto trimmed = trim(line);
@@ -120,7 +120,7 @@ Result<std::string> readHashFile(const fs::path& hashFilePath) {
 
     if (!isValidSha256Hex(hash)) {
         return std::unexpected(Error(ErrorCode::FileCorrupted,
-            "Invalid SHA-256 hash format in: " + hashFilePath.string()));
+            fmt::format("Invalid SHA-256 hash format in: {}", hashFilePath.string())));
     }
 
     return hash;

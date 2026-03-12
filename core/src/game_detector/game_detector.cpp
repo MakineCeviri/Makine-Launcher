@@ -140,7 +140,7 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
     // Final progress callback
     if (progress) {
         progress(totalScanners, totalScanners,
-                 "Found " + std::to_string(allGames.size()) + " games");
+                 fmt::format("Found {} games", allGames.size()));
     }
 
     // Sort by name for consistent ordering
@@ -163,7 +163,7 @@ Result<std::vector<GameInfo>> GameDetector::scanStore(GameStore store) const {
         if (scanner->storeType() == store) {
             if (!scanner->isAvailable()) {
                 return std::unexpected(Error(ErrorCode::GameNotFound,
-                    std::string(scanner->name()) + " not available"));
+                    fmt::format("{} not available", scanner->name())));
             }
             return scanner->scan();
         }
@@ -176,7 +176,7 @@ Result<std::vector<GameInfo>> GameDetector::scanStore(GameStore store) const {
 Result<GameInfo> GameDetector::detectGame(const fs::path& gamePath) const {
     if (!fs::exists(gamePath)) {
         return std::unexpected(Error(ErrorCode::DirectoryNotFound,
-            "Path not found: " + gamePath.string()));
+            fmt::format("Path not found: {}", gamePath.string())));
     }
 
     GameInfo game;
@@ -227,7 +227,7 @@ Result<GameInfo> GameDetector::detectGame(const fs::path& gamePath) const {
 
     if (exePath.empty()) {
         return std::unexpected(Error(ErrorCode::GameNotFound,
-            "No executable found in: " + gamePath.string()));
+            fmt::format("No executable found in: {}", gamePath.string())));
     }
 
     game.executablePath = exePath;

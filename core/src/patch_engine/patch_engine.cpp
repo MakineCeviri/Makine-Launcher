@@ -336,7 +336,7 @@ VoidResult FileBackupStorage::deleteBackup(const std::string& backupId) {
         MAKINEAI_LOG_ERROR(log::FILE, "Cannot delete backup {}: {}", backupId, ec.message());
         AuditLogger::logFileAccess(backupPath, "delete", false, ec.message());
         return std::unexpected(Error(ErrorCode::FileAccessDenied,
-            "Cannot delete backup: " + ec.message()));
+            fmt::format("Cannot delete backup: {}", ec.message())));
     }
 
     MAKINEAI_LOG_INFO(log::FILE, "Deleted backup: {}", backupId);

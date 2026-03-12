@@ -59,14 +59,13 @@ namespace makineai {
 // Private implementation class
 class SecurityManager::Impl {
 public:
-    EVP_PKEY* publicKey = nullptr;
+    struct EvpPkeyDeleter {
+        void operator()(EVP_PKEY* k) const noexcept { if (k) EVP_PKEY_free(k); }
+    };
+    std::unique_ptr<EVP_PKEY, EvpPkeyDeleter> publicKey;
     std::string publicKeyId;
 
-    ~Impl() {
-        if (publicKey) {
-            EVP_PKEY_free(publicKey);
-        }
-    }
+    ~Impl() = default;
 
     const EVP_MD* getDigest(HashAlgorithm algo) const {
         switch (algo) {
@@ -291,20 +290,16 @@ VoidResult SecurityManager::loadPublicKey(const fs::path& keyPath) {
 VoidResult SecurityManager::loadPublicKeyPEM(const std::string& pem) {
     MAKINEAI_LOG_DEBUG(log::SECURITY, "Attempting to load public key PEM ({} bytes)", pem.size());
 
-    BIO* bio = BIO_new_mem_buf(pem.data(), static_cast<int>(pem.size()));
+    auto bioDeleter = [](BIO* b) { if (b) BIO_free(b); };
+    std::unique_ptr<BIO, decltype(bioDeleter)> bio(
+        BIO_new_mem_buf(pem.data(), static_cast<int>(pem.size())), bioDeleter);
     if (!bio) {
         MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to create BIO for public key");
         AuditLogger::logSystemEvent("public_key_load_failed", "BIO creation failed", AuditSeverity::Warning);
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to create BIO"));
     }
 
-    if (impl_->publicKey) {
-        EVP_PKEY_free(impl_->publicKey);
-        impl_->publicKey = nullptr;
-    }
-
-    impl_->publicKey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
-    BIO_free(bio);
+    impl_->publicKey.reset(PEM_read_bio_PUBKEY(bio.get(), nullptr, nullptr, nullptr));
 
     if (!impl_->publicKey) {
         MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to parse public key PEM");
@@ -372,7 +367,7 @@ Result<SignatureResult> SecurityManager::verifySignature(
     bool verified = false;
     // Ed25519: pass nullptr for digest type — Ed25519 uses its own SHA-512 internally.
     // Use one-shot EVP_DigestVerify instead of Update+Final pattern (SEC-1 fix).
-    if (EVP_DigestVerifyInit(ctx.get(), nullptr, nullptr, nullptr, impl_->publicKey) == 1) {
+    if (EVP_DigestVerifyInit(ctx.get(), nullptr, nullptr, nullptr, impl_->publicKey.get()) == 1) {
         int verifyResult = EVP_DigestVerify(
             ctx.get(),
             signature.data(), signature.size(),
