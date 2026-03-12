@@ -105,6 +105,12 @@ public:
     Q_INVOKABLE bool deleteBackup(const QString& backupId);
     Q_INVOKABLE bool hasBackup(const QString& gameId);
 
+    /**
+     * @brief Update originalPath for all backups of a game (e.g. after game moved)
+     * Prevents backup restore from targeting a stale path.
+     */
+    void updateOriginalPaths(const QString& gameId, const QString& newPath);
+
     void setJournal(OperationJournal* journal) { m_journal = journal; }
 
     /**

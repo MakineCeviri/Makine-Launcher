@@ -84,7 +84,7 @@ void GameService::initialize()
                             if (g.isInstalled && !g.installPath.isEmpty()
                                 && !QDir(g.installPath).exists()) {
                                 g.isInstalled = false;
-                                g.installPath.clear();
+                                // Keep installPath — needed for backup association and error messages
                             }
                             games.append(g);
                         }
@@ -177,7 +177,8 @@ QVariantList GameService::games() const
     m_gamesCache.reserve(m_games.count());
 
     for (const auto& game : m_games) {
-        if (!game.isInstalled) continue;  // Only show installed games
+        if (!game.isInstalled) continue;      // Only show installed games
+        if (!game.hasTranslation) continue;   // Only show supported games
         QVariantMap map = game.toVariantMap();
         map["hasUpdate"] = false;
         m_gamesCache.append(map);
@@ -319,6 +320,15 @@ void GameService::onScanCompleted(int count)
     }
 
     rebuildCache();
+
+    // Update backup originalPaths for games that moved to a new location
+    BackupManager* bm = BackupManager::instance();
+    if (bm) {
+        for (const auto& game : m_games) {
+            if (bm->hasBackup(game.id))
+                bm->updateOriginalPaths(game.id, game.installPath);
+        }
+    }
 
     // Clear stale package-installed cache — it may have been populated
     // before m_localPkgManager was initialized (returns false for all).
@@ -467,6 +477,91 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
 
     // Persist to disk so manual games survive app restart
     saveCachedGames();
+}
+
+void GameService::forgetGame(const QString& gameId)
+{
+    MAKINE_ZONE_NAMED("GameService::forgetGame");
+
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd()) {
+        qCWarning(lcGameService) << "forgetGame: unknown game" << gameId;
+        return;
+    }
+
+    int idx = it.value();
+    if (idx < 0 || idx >= m_games.count())
+        return;
+
+    const auto& game = m_games[idx];
+
+    // Block removal if translation is still installed
+    if (m_coreBridge && m_coreBridge->isPackageInstalled(game.steamAppId.isEmpty() ? game.id : game.steamAppId)) {
+        qCWarning(lcGameService) << "forgetGame: translation still installed for" << gameId;
+        emit translationInstallCompleted(gameId, false,
+            tr("Önce çeviri yamasını kaldırın"));
+        return;
+    }
+
+    qCInfo(lcGameService) << "Removing game from library:" << game.name << "id:" << gameId;
+
+    // Clean up index maps
+    m_gameIdToIndex.remove(gameId);
+    if (!game.steamAppId.isEmpty())
+        m_steamAppIdToIndex.remove(game.steamAppId);
+    m_packageInstalledCache.remove(game.steamAppId.isEmpty() ? game.id : game.steamAppId);
+
+    // Remove from list and rebuild index maps
+    m_games.removeAt(idx);
+    m_gameIdToIndex.clear();
+    m_steamAppIdToIndex.clear();
+    for (int i = 0; i < m_games.count(); ++i) {
+        m_gameIdToIndex[m_games[i].id] = i;
+        if (!m_games[i].steamAppId.isEmpty())
+            m_steamAppIdToIndex[m_games[i].steamAppId] = i;
+    }
+
+    invalidateAllCaches();
+    saveCachedGames();
+
+    emit gameListChanged();
+    emit supportedGamesChanged();
+    emit gameRemoved(gameId);
+}
+
+bool GameService::changeGamePath(const QString& gameId, const QString& newPath)
+{
+    MAKINE_ZONE_NAMED("GameService::changeGamePath");
+
+    if (newPath.isEmpty() || !QDir(newPath).exists()) {
+        qCWarning(lcGameService) << "changeGamePath: invalid path" << newPath;
+        return false;
+    }
+
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd()) {
+        qCWarning(lcGameService) << "changeGamePath: unknown game" << gameId;
+        return false;
+    }
+
+    int idx = it.value();
+    if (idx < 0 || idx >= m_games.count())
+        return false;
+
+    m_games[idx].installPath = newPath;
+    m_games[idx].isInstalled = true;
+
+    // Update backup originalPaths to match the new game location
+    BackupManager* bm = BackupManager::instance();
+    if (bm) bm->updateOriginalPaths(gameId, newPath);
+
+    invalidateGameListCache();
+    saveCachedGames();
+
+    emit gameListChanged();
+
+    qCInfo(lcGameService) << "Game path updated:" << gameId << "→" << newPath;
+    return true;
 }
 
 QVariantMap GameService::getGameById(const QString& id) const
@@ -701,7 +796,7 @@ void GameService::loadCachedGames()
             if (game.isInstalled && !game.installPath.isEmpty()
                 && !QDir(game.installPath).exists()) {
                 game.isInstalled = false;
-                game.installPath.clear();
+                // Keep installPath — needed for backup association and error messages
             }
             m_games.append(game);
         }
@@ -1013,10 +1108,18 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
 
             // Install mode: create selective backup first, then install
+            // Guard: if package is already installed, files are patched — skip backup
+            // to protect the original backups from being overwritten with patched files
+            const bool alreadyInstalled = m_coreBridge->isPackageInstalled(gameId);
+            if (alreadyInstalled) {
+                qCWarning(lcGameService) << "Package already installed for" << gameId
+                                         << "- skipping backup to protect originals";
+            }
+
             BackupManager* bm = BackupManager::instance();
             QStringList filesToOverwrite = m_coreBridge->getPackageFileList(gameId, variant);
 
-            if (bm && !filesToOverwrite.isEmpty()) {
+            if (bm && !filesToOverwrite.isEmpty() && !alreadyInstalled) {
                 emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
 
                 connect(bm, &BackupManager::selectiveBackupCompleted, this,

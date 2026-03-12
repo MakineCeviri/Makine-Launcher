@@ -97,7 +97,7 @@ public:
 
     // Properties
     QVariantList games() const;
-    int gameCount() const { return m_games.count(); }
+    int gameCount() const { return games().count(); }
     bool isScanning() const { return m_isScanning; }
     QVariantList supportedGames() const;
     QVariantList installedTranslations() const;
@@ -113,6 +113,21 @@ public:
      * Emits manualGameAdded(gameId) on completion.
      */
     Q_INVOKABLE void addManualGame(const QString& path);
+
+    /**
+     * @brief Remove a game from the library (does NOT delete game files)
+     * If a translation is installed, it must be uninstalled first.
+     * Emits gameListChanged() and gameRemoved(gameId) on success.
+     */
+    Q_INVOKABLE void forgetGame(const QString& gameId);
+
+    /**
+     * @brief Change the install path for an existing game
+     * Used when the original path is wrong or the game was moved.
+     * Validates the new path before applying.
+     */
+    Q_INVOKABLE bool changeGamePath(const QString& gameId, const QString& newPath);
+
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
@@ -258,6 +273,7 @@ signals:
     void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
     void manualGameAdded(const QString& gameId);
+    void gameRemoved(const QString& gameId);
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
     void translationInstallStarted(const QString& gameId);
     void translationInstallProgress(const QString& gameId, double progress, const QString& status);

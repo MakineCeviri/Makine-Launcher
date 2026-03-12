@@ -359,6 +359,24 @@ bool BackupManager::hasBackup(const QString& gameId)
         [&gameId](const BackupInfo& b) { return b.gameId == gameId && b.isValid; });
 }
 
+void BackupManager::updateOriginalPaths(const QString& gameId, const QString& newPath)
+{
+    if (newPath.isEmpty()) return;
+
+    bool changed = false;
+    for (auto& backup : m_backups) {
+        if (backup.gameId == gameId && backup.originalPath != newPath) {
+            qCDebug(lcBackup) << "Updating backup originalPath for" << gameId
+                              << ":" << backup.originalPath << "→" << newPath;
+            backup.originalPath = newPath;
+            changed = true;
+        }
+    }
+
+    if (changed)
+        saveBackups();
+}
+
 void BackupManager::loadBackups()
 {
     MAKINE_ZONE_NAMED("BackupManager::loadBackups");
