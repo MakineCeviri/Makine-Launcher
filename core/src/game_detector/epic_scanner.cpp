@@ -115,7 +115,7 @@ Result<GameInfo> EpicScanner::getGame(const std::string& catalogId) const {
     }
 
     return std::unexpected(Error(ErrorCode::GameNotFound,
-        "Epic game not found: " + catalogId));
+        fmt::format("Epic game not found: {}", catalogId)));
 }
 
 Result<fs::path> EpicScanner::findManifestDirectory() const {
