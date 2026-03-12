@@ -827,26 +827,30 @@ void GameService::saveCachedGames()
         MAKINE_THREAD_NAME("Worker-GamesCache");
         MAKINE_ZONE_NAMED("saveCachedGames (async)");
 
-        QDir().mkpath(cacheDir);
+        try {
+            QDir().mkpath(cacheDir);
 
-        QJsonArray array;
-        for (const auto& game : gamesCopy) {
-            QJsonObject obj;
-            obj["id"] = game.id;
-            obj["name"] = game.name;
-            obj["installPath"] = game.installPath;
-            obj["steamAppId"] = game.steamAppId;
-            obj["source"] = game.source;
-            obj["engine"] = game.engine;
-            obj["isVerified"] = game.isVerified;
-            obj["isInstalled"] = game.isInstalled;
-            obj["hasTranslation"] = game.hasTranslation;
-            array.append(obj);
-        }
+            QJsonArray array;
+            for (const auto& game : gamesCopy) {
+                QJsonObject obj;
+                obj["id"] = game.id;
+                obj["name"] = game.name;
+                obj["installPath"] = game.installPath;
+                obj["steamAppId"] = game.steamAppId;
+                obj["source"] = game.source;
+                obj["engine"] = game.engine;
+                obj["isVerified"] = game.isVerified;
+                obj["isInstalled"] = game.isInstalled;
+                obj["hasTranslation"] = game.hasTranslation;
+                array.append(obj);
+            }
 
-        QFile file(cachePath);
-        if (file.open(QIODevice::WriteOnly)) {
-            file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
+            QFile file(cachePath);
+            if (file.open(QIODevice::WriteOnly)) {
+                file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
+            }
+        } catch (const std::exception& e) {
+            qCWarning(lcGameService) << "Failed to save games cache:" << e.what();
         }
     });
 }
