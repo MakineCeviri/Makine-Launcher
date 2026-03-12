@@ -224,7 +224,7 @@ QtObject {
             selectedOptions: selectedOptions
         }
 
-        TranslationDownloader.downloadPackage(gameId, dataUrl, dirName)
+        TranslationDownloader.downloadPackage(gameId, dataUrl, dirName, catalog.checksum || "")
     }
 
     // ===== DOWNLOAD GATE: check local package, download from R2 if needed =====
@@ -261,7 +261,7 @@ QtObject {
             selectedOptions: selectedOptions
         }
 
-        TranslationDownloader.downloadPackage(gameId, dataUrl, dirName)
+        TranslationDownloader.downloadPackage(gameId, dataUrl, dirName, catalog.checksum || "")
     }
 
     // ===== DOWNLOAD CALLBACKS (connected from Main.qml) =====

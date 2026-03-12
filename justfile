@@ -188,6 +188,33 @@ release-signed: release-static
     @echo "Done: signed single EXE ready for distribution"
 
 # ============================================================================
+# RELEASE PUBLISHING (GitHub Actions CI/CD)
+# ============================================================================
+
+# Publish a release — triggers GitHub Actions pipeline (build + sign + deploy)
+# Usage: just publish 0.1.0-alpha
+publish version:
+    @echo "Triggering release pipeline for v{{version}}..."
+    gh workflow run release.yml -f version={{version}} -f draft=true
+    @echo ""
+    @echo "Release pipeline started!"
+    @echo "  Dashboard: https://github.com/MakineCeviri/MakineAI-Launcher/actions"
+    @echo "  Version:   v{{version}} (draft)"
+
+# Publish a final (non-draft) release
+publish-final version:
+    @echo "Triggering FINAL release pipeline for v{{version}}..."
+    gh workflow run release.yml -f version={{version}} -f draft=false
+    @echo ""
+    @echo "Release pipeline started!"
+    @echo "  Dashboard: https://github.com/MakineCeviri/MakineAI-Launcher/actions"
+    @echo "  Version:   v{{version}} (public)"
+
+# Check release pipeline status
+publish-status:
+    gh run list --workflow=release.yml --limit 5
+
+# ============================================================================
 # PROFILING (Tracy)
 # ============================================================================
 
