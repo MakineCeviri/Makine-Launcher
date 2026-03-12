@@ -18,10 +18,13 @@
 #include <QSettings>
 #include <QDateTime>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QDir>
 #include <QFileInfo>
 #include <QCryptographicHash>
 #include <memory>
+
+Q_LOGGING_CATEGORY(lcUpdateService, "makineai.update")
 
 namespace makineai {
 
@@ -89,12 +92,12 @@ void UpdateService::check()
     if (urlStr.isEmpty())
         urlStr = QString::fromLatin1(kUpdateJsonUrl);
     else
-        qDebug() << "UpdateService: Using override URL:" << urlStr;
+        qCDebug(lcUpdateService) << "UpdateService: Using override URL:" << urlStr;
 #else
     QString urlStr = QString::fromLatin1(kUpdateJsonUrl);
 #endif
 
-    qDebug() << "UpdateService: Checking for updates at" << urlStr;
+    qCDebug(lcUpdateService) << "UpdateService: Checking for updates at" << urlStr;
 
     QNetworkRequest request{QUrl{urlStr}};
     request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
@@ -105,7 +108,7 @@ void UpdateService::check()
     // Abort if response exceeds 1 MB (update.json is a few hundred bytes normally)
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > 1 * 1024 * 1024) {
-            qWarning() << "UpdateService: update.json response too large, aborting";
+            qCWarning(lcUpdateService) << "UpdateService: update.json response too large, aborting";
             reply->abort();
         }
     });
@@ -120,14 +123,14 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
-        qDebug() << "UpdateService: Check failed:" << reply->errorString();
+        qCDebug(lcUpdateService) << "UpdateService: Check failed:" << reply->errorString();
         setError(reply->errorString());
         setState(Idle);
         return;
     }
 
     const QByteArray data = reply->readAll();
-    qDebug() << "UpdateService: Received" << data.size() << "bytes";
+    qCDebug(lcUpdateService) << "UpdateService: Received" << data.size() << "bytes";
     QJsonParseError parseError;
     const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
@@ -187,7 +190,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     settings.setValue(QStringLiteral("update/cachedVersion"), version);
     settings.setValue(QStringLiteral("update/cachedUrl"), url);
 
-    qDebug() << "UpdateService: Remote" << remoteRaw << "vs Current" << currentRaw
+    qCDebug(lcUpdateService) << "UpdateService: Remote" << remoteRaw << "vs Current" << currentRaw
              << "-> hasUpdate:" << hasUpdate;
 
     if (hasUpdate) {
@@ -346,7 +349,7 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
         return;
     }
 #else
-    qDebug() << "UpdateService: Skipping Authenticode check (dev build)";
+    qCDebug(lcUpdateService) << "UpdateService: Skipping Authenticode check (dev build)";
 #endif
 #endif
 

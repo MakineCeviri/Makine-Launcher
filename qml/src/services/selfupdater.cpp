@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QSharedMemory>
 #include <QDebug>
+#include <QLoggingCategory>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -18,6 +19,8 @@
 #include <wintrust.h>
 #pragma comment(lib, "wintrust")
 #endif
+
+Q_LOGGING_CATEGORY(lcSelfUpdater, "makineai.updater")
 
 namespace makineai {
 
@@ -37,14 +40,14 @@ bool SelfUpdater::swapExecutable(const QString& newExePath)
     // Rename current EXE to .old (NTFS allows renaming a running EXE)
     if (!MoveFileW(wAppPath.c_str(), wOldPath.c_str())) {
         DWORD err = GetLastError();
-        qWarning() << "SelfUpdater: Failed to rename current EXE, error:" << err;
+        qCWarning(lcSelfUpdater) << "SelfUpdater: Failed to rename current EXE, error:" << err;
         return false;
     }
 
     // Move new EXE into place
     if (!MoveFileW(wNewPath.c_str(), wAppPath.c_str())) {
         DWORD err = GetLastError();
-        qWarning() << "SelfUpdater: Failed to move new EXE, error:" << err;
+        qCWarning(lcSelfUpdater) << "SelfUpdater: Failed to move new EXE, error:" << err;
         // Rollback: restore the original
         MoveFileW(wOldPath.c_str(), wAppPath.c_str());
         return false;
@@ -55,7 +58,7 @@ bool SelfUpdater::swapExecutable(const QString& newExePath)
     return true;
 #else
     Q_UNUSED(newExePath)
-    qWarning() << "SelfUpdater: swapExecutable not implemented on this platform";
+    qCWarning(lcSelfUpdater) << "SelfUpdater: swapExecutable not implemented on this platform";
     return false;
 #endif
 }
@@ -133,7 +136,7 @@ void SelfUpdater::swapAndRestart(const QString& newExePath)
     releaseInstanceGuard();
 
     if (!swapExecutable(newExePath)) {
-        qWarning() << "SelfUpdater: swap failed, aborting restart";
+        qCWarning(lcSelfUpdater) << "SelfUpdater: swap failed, aborting restart";
         // Cannot return from [[noreturn]] — force exit
         ::_exit(1);
     }
@@ -141,7 +144,7 @@ void SelfUpdater::swapAndRestart(const QString& newExePath)
     QString appPath = QCoreApplication::applicationFilePath();
     launchDetached(appPath, {QStringLiteral("--post-update")});
 
-    qDebug() << "SelfUpdater: Self-swap complete, new version launching";
+    qCDebug(lcSelfUpdater) << "SelfUpdater: Self-swap complete, new version launching";
 
 #ifdef Q_OS_WIN
     // Brief sleep to let the OS finish spawning the child process
