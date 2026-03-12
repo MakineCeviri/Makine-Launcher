@@ -516,8 +516,6 @@ QVariantMap GameService::getGameDetails(const QString& gameId)
         installNotes = m_coreBridge->getInstallNotesForGame(gameId);
     }
 
-    // Runtime status — disabled until BepInEx standalone install is implemented
-    // TODO: Re-enable when RuntimeManager is wired to QML layer
     return QVariantMap{
         {"contributors",  contributors},
         {"installNotes",  installNotes},
@@ -1161,57 +1159,17 @@ QVariantMap GameService::getRuntimeStatus(const QString& gameId)
     if (!isUnity)
         return {{"isUnity", false}, {"needsRuntime", false}};
 
-    const QString& gamePath = game.installPath;
-    if (gamePath.isEmpty())
-        return {{"isUnity", true}, {"needsRuntime", true}, {"installed", false},
-                {"upToDate", false}, {"bepinexVersion", ""}, {"xunityVersion", ""},
-                {"backend", "unknown"}, {"unityVersion", ""},
-                {"hasAntiCheat", false}, {"antiCheatName", ""}};
-
-    // Detect Unity backend (Mono vs IL2CPP)
-    QString backend = "unknown";
-    if (QFile::exists(gamePath + "/GameAssembly.dll"))
-        backend = "il2cpp";
-    else if (QDir(gamePath).entryList({"*_Data"}, QDir::Dirs).size() > 0)
-        backend = "mono";
-
-    // Check if BepInEx is installed (look for BepInEx/core/BepInEx.dll)
-    bool bepinexInstalled = QFile::exists(gamePath + "/BepInEx/core/BepInEx.dll")
-                         || QFile::exists(gamePath + "/BepInEx/core/BepInEx.Preloader.dll");
-
-    // Check XUnity.AutoTranslator
-    bool xunityInstalled = false;
-    QString xunityVersion;
-    if (bepinexInstalled) {
-        QDir pluginsDir(gamePath + "/BepInEx/plugins");
-        if (pluginsDir.exists()) {
-            auto xunityFiles = pluginsDir.entryList({"XUnity.AutoTranslator*.dll"}, QDir::Files);
-            xunityInstalled = !xunityFiles.isEmpty();
-            if (!xunityFiles.isEmpty())
-                xunityVersion = xunityFiles.first().section('.', 0, -2); // strip .dll
-        }
-    }
-
-    // Read BepInEx version from changelog or dll name
-    QString bepinexVersion;
-    if (bepinexInstalled) {
-        QDir coreDir(gamePath + "/BepInEx/core");
-        auto bepFiles = coreDir.entryList({"BepInEx.dll", "BepInEx.Core.dll"}, QDir::Files);
-        if (!bepFiles.isEmpty())
-            bepinexVersion = "installed";
-    }
-
-    // Anti-cheat from dedicated method
+    // Anti-cheat detection is still relevant for Unity games
     auto antiCheat = checkAntiCheat(gameId);
 
     return {
         {"isUnity", true},
-        {"needsRuntime", true},
-        {"installed", bepinexInstalled},
-        {"upToDate", bepinexInstalled && xunityInstalled},
-        {"bepinexVersion", bepinexVersion},
-        {"xunityVersion", xunityVersion},
-        {"backend", backend},
+        {"needsRuntime", false},
+        {"installed", false},
+        {"upToDate", false},
+        {"bepinexVersion", ""},
+        {"xunityVersion", ""},
+        {"backend", "unknown"},
         {"unityVersion", ""},
         {"hasAntiCheat", antiCheat.value("hasAntiCheat").toBool()},
         {"antiCheatName", antiCheat.value("systems").toList().isEmpty() ? ""
@@ -1221,52 +1179,14 @@ QVariantMap GameService::getRuntimeStatus(const QString& gameId)
 
 void GameService::installRuntime(const QString& gameId)
 {
-    auto it = m_gameIdToIndex.constFind(gameId);
-    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size()) {
-        emit runtimeInstallFinished(gameId, false, tr("Oyun bulunamadı"));
-        return;
-    }
-
-    const GameInfo& game = m_games[*it];
-    if (!game.engine.toLower().contains("unity")) {
-        emit runtimeInstallFinished(gameId, false, tr("Bu oyun Unity tabanlı değil"));
-        return;
-    }
-
-    // Check if already installed
-    if (QFile::exists(game.installPath + "/BepInEx/core/BepInEx.dll")) {
-        emit runtimeInstallFinished(gameId, true, tr("BepInEx zaten kurulu"));
-        return;
-    }
-
-    emit runtimeInstallFinished(gameId, false,
-        tr("BepInEx paketi henüz mevcut değil. Manuel kurulum için: https://github.com/BepInEx/BepInEx/releases"));
+    // Runtime installation is not yet implemented.
+    emit runtimeInstallFinished(gameId, false, tr("Çalışma ortamı kurulumu henüz desteklenmiyor"));
 }
 
 void GameService::uninstallRuntime(const QString& gameId)
 {
-    auto it = m_gameIdToIndex.constFind(gameId);
-    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.size()) {
-        emit runtimeInstallFinished(gameId, false, tr("Oyun bulunamadı"));
-        return;
-    }
-
-    const GameInfo& game = m_games[*it];
-    const QString bepinexDir = game.installPath + "/BepInEx";
-
-    if (!QDir(bepinexDir).exists()) {
-        emit runtimeInstallFinished(gameId, false, tr("BepInEx kurulu değil"));
-        return;
-    }
-
-    // Remove BepInEx directory and related files
-    bool removed = QDir(bepinexDir).removeRecursively();
-    // Also remove doorstop files
-    QFile::remove(game.installPath + "/winhttp.dll");
-    QFile::remove(game.installPath + "/doorstop_config.ini");
-
-    emit runtimeInstallFinished(gameId, removed,
-        removed ? tr("BepInEx kaldırıldı") : tr("BepInEx kaldırılırken hata oluştu"));
+    // Runtime uninstallation is not yet implemented.
+    emit runtimeInstallFinished(gameId, false, tr("Çalışma ortamı kaldırma henüz desteklenmiyor"));
 }
 
 void GameService::acknowledgeAntiCheat(const QString& gameId)

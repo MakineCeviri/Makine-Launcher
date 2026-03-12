@@ -206,22 +206,24 @@ public:
     Q_INVOKABLE QVariantMap checkAntiCheat(const QString& gameId);
 
     /**
-     * @brief Get BepInEx/XUnity runtime status for a Unity game
+     * @brief Get runtime status for a game (Unity detection + anti-cheat)
      * @return Map with: isUnity, needsRuntime, installed, upToDate,
-     *         bepinexVersion, xunityVersion, backend (mono/il2cpp),
-     *         unityVersion, hasAntiCheat, antiCheatName
+     *         bepinexVersion, xunityVersion, backend, unityVersion,
+     *         hasAntiCheat, antiCheatName
+     * Note: installed/upToDate/version fields are always empty — runtime
+     *       installation is not yet implemented.
      */
     Q_INVOKABLE QVariantMap getRuntimeStatus(const QString& gameId);
 
     /**
-     * @brief Install BepInEx + XUnity.AutoTranslator for a Unity game
-     * Emits runtimeInstallFinished when complete
+     * @brief Install translation runtime for a game (not yet implemented)
+     * Emits runtimeInstallFinished with success=false
      */
     Q_INVOKABLE void installRuntime(const QString& gameId);
 
     /**
-     * @brief Uninstall BepInEx runtime from a Unity game
-     * Emits runtimeInstallFinished when complete
+     * @brief Uninstall translation runtime from a game (not yet implemented)
+     * Emits runtimeInstallFinished with success=false
      */
     Q_INVOKABLE void uninstallRuntime(const QString& gameId);
 
