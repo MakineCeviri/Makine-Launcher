@@ -1,16 +1,20 @@
 /**
  * @file translationdownloader.h
- * @brief Download, verify, decrypt, and extract translation packages from R2
+ * @brief Download, decrypt, and extract translation packages from R2
  * @copyright (c) 2026 MakineAI Team
  *
  * Handles the complete flow:
- *   1. HTTP GET from Cloudflare R2 (with progress)
- *   2. Download .sig file and verify Ed25519 signature
- *   3. AES-256-GCM decryption (MKPK format)
+ *   1. HTTP GET from Cloudflare R2 (with progress + resume)
+ *   2. Optional SHA-256 checksum verification (from manifest)
+ *   3. AES-256-GCM decryption (MKPK format — includes auth tag tamper detection)
  *   4. Zstandard decompression
  *   5. Tar extraction to local data directory
  *
- * After extraction, the normal LocalPackageManager install flow takes over.
+ * Security model:
+ *   - AES-256-GCM authentication tag is the primary integrity gate
+ *     (tampered data fails decryption automatically)
+ *   - SHA-256 checksum from manifest catches download corruption early
+ *     (warns but does not block — let AES auth tag be the final arbiter)
  */
 
 #pragma once
@@ -40,12 +44,14 @@ public:
      * @param appId     Steam App ID
      * @param dataUrl   R2 download URL (from manifest)
      * @param dirName   Target directory name under data path
+     * @param expectedChecksum  SHA-256 checksum from manifest (optional, "sha256:hex")
      *
-     * Flow: download → sig verify → decrypt+decompress+extract → data/{dirName}/
+     * Flow: download → checksum verify → decrypt+decompress+extract → data/{dirName}/
      */
     Q_INVOKABLE void downloadPackage(const QString& appId,
                                      const QString& dataUrl,
-                                     const QString& dirName);
+                                     const QString& dirName,
+                                     const QString& expectedChecksum = {});
 
     /**
      * @brief Cancel an active download.
@@ -89,26 +95,14 @@ private:
                                const QString& dirName);
 
     /**
-     * @brief Download .sig file and verify package signature.
+     * @brief Verify SHA-256 checksum of downloaded file against manifest value.
+     * @return true if checksum matches or if no checksum was provided
      *
-     * Chains async download of {dataUrl}.sig, then verifies:
-     *   1. SHA-256 hash of the .mkpkg matches the hash in .sig
-     *   2. Ed25519 signature over the hash is valid
-     *
-     * On success, continues to processDownloadedFile.
-     * On failure, deletes the .mkpkg and emits downloadError.
+     * On mismatch: logs a warning but returns true (non-blocking).
+     * AES-256-GCM auth tag is the real tamper gate.
      */
-    void verifyAndProcess(const QString& appId, const QString& dataUrl,
-                          const QString& tempPath, const QString& dirName);
-
-    /**
-     * @brief Verify Ed25519 signature using embedded public key.
-     * @param data      Raw data that was signed (the hash hex string)
-     * @param sigBase64 Base64-encoded Ed25519 signature
-     * @return true if signature is valid
-     */
-    static bool verifyEd25519Signature(const QByteArray& data,
-                                       const QByteArray& sigBase64);
+    bool verifyChecksum(const QString& appId, const QString& filePath,
+                        const QString& expectedChecksum);
 
     static constexpr int kMaxRetries = 2;  // total 3 attempts
     static constexpr int kRetryDelaysMs[kMaxRetries] = {2000, 5000};
@@ -122,6 +116,7 @@ private:
         QString partPath;       // {appId}.mkpkg.part — persistent partial file
         QString dirName;
         QString dataUrl;        // Stored for resume/retry
+        QString expectedChecksum; // SHA-256 from manifest (optional)
         bool cancelled{false};
         bool stallAborted{false};
         int retryCount{0};
