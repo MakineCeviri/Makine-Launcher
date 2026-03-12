@@ -24,9 +24,13 @@
 #include <openssl/rand.h>
 #include <openssl/crypto.h>  // CRYPTO_memcmp (SEC-2)
 #include <fstream>
-#include <sstream>
 #include <iomanip>
+#include <memory>
+#include <optional>
 #include <set>
+#include <sstream>
+#include <string>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 // Optional: libsodium for modern cryptography
@@ -128,7 +132,8 @@ Result<std::string> SecurityManager::hash(ByteSpan data, HashAlgorithm algo) con
     // Fall through to OpenSSL for SHA384/SHA512/MD5
 #endif
 
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    auto ctx = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(
+        EVP_MD_CTX_new(), EVP_MD_CTX_free);
     if (!ctx) {
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to create hash context"));
     }
@@ -137,14 +142,12 @@ Result<std::string> SecurityManager::hash(ByteSpan data, HashAlgorithm algo) con
     unsigned char digest[EVP_MAX_MD_SIZE];
     unsigned int digestLen = 0;
 
-    if (EVP_DigestInit_ex(ctx, md, nullptr) != 1 ||
-        EVP_DigestUpdate(ctx, data.data(), data.size()) != 1 ||
-        EVP_DigestFinal_ex(ctx, digest, &digestLen) != 1) {
-        EVP_MD_CTX_free(ctx);
+    if (EVP_DigestInit_ex(ctx.get(), md, nullptr) != 1 ||
+        EVP_DigestUpdate(ctx.get(), data.data(), data.size()) != 1 ||
+        EVP_DigestFinal_ex(ctx.get(), digest, &digestLen) != 1) {
         return std::unexpected(Error(ErrorCode::Unknown, "Hash calculation failed"));
     }
 
-    EVP_MD_CTX_free(ctx);
     return impl_->bytesToHex(digest, digestLen);
 }
 
@@ -205,33 +208,30 @@ Result<std::string> SecurityManager::hashFile(const fs::path& file, HashAlgorith
 #endif
 
     // OpenSSL streaming hash
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    auto ctx = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(
+        EVP_MD_CTX_new(), EVP_MD_CTX_free);
     if (!ctx) {
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to create hash context"));
     }
 
     const EVP_MD* md = impl_->getDigest(algo);
-    if (EVP_DigestInit_ex(ctx, md, nullptr) != 1) {
-        EVP_MD_CTX_free(ctx);
+    if (EVP_DigestInit_ex(ctx.get(), md, nullptr) != 1) {
         return std::unexpected(Error(ErrorCode::Unknown, "Failed to init digest"));
     }
 
     char buffer[8192];
     while (ifs.read(buffer, sizeof(buffer)) || ifs.gcount() > 0) {
-        if (EVP_DigestUpdate(ctx, buffer, static_cast<size_t>(ifs.gcount())) != 1) {
-            EVP_MD_CTX_free(ctx);
+        if (EVP_DigestUpdate(ctx.get(), buffer, static_cast<size_t>(ifs.gcount())) != 1) {
             return std::unexpected(Error(ErrorCode::Unknown, "Hash update failed"));
         }
     }
 
     unsigned char digest[EVP_MAX_MD_SIZE];
     unsigned int digestLen = 0;
-    if (EVP_DigestFinal_ex(ctx, digest, &digestLen) != 1) {
-        EVP_MD_CTX_free(ctx);
+    if (EVP_DigestFinal_ex(ctx.get(), digest, &digestLen) != 1) {
         return std::unexpected(Error(ErrorCode::Unknown, "Hash finalization failed"));
     }
 
-    EVP_MD_CTX_free(ctx);
     return impl_->bytesToHex(digest, digestLen);
 }
 
@@ -359,7 +359,8 @@ Result<SignatureResult> SecurityManager::verifySignature(
     signature.resize(static_cast<size_t>(sigLen));
 
     // Verify signature
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    auto ctx = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(
+        EVP_MD_CTX_new(), EVP_MD_CTX_free);
     if (!ctx) {
         result.message = "Failed to create verification context";
         MAKINEAI_LOG_ERROR(log::SECURITY, "Failed to create EVP_MD_CTX for verification");
@@ -371,15 +372,13 @@ Result<SignatureResult> SecurityManager::verifySignature(
     bool verified = false;
     // Ed25519: pass nullptr for digest type — Ed25519 uses its own SHA-512 internally.
     // Use one-shot EVP_DigestVerify instead of Update+Final pattern (SEC-1 fix).
-    if (EVP_DigestVerifyInit(ctx, nullptr, nullptr, nullptr, impl_->publicKey) == 1) {
+    if (EVP_DigestVerifyInit(ctx.get(), nullptr, nullptr, nullptr, impl_->publicKey) == 1) {
         int verifyResult = EVP_DigestVerify(
-            ctx,
+            ctx.get(),
             signature.data(), signature.size(),
             data.data(), data.size());
         verified = (verifyResult == 1);
     }
-
-    EVP_MD_CTX_free(ctx);
 
     result.valid = verified;
     result.publicKeyId = impl_->publicKeyId;

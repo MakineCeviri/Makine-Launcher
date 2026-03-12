@@ -17,6 +17,7 @@
 
 #include <chrono>
 #include <fstream>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <random>
@@ -316,19 +317,24 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
     Metrics::instance().gauge("db_connections_active", 1.0);
 
     // Enable foreign keys
-    char* errMsg = nullptr;
-    rc = sqlite3_exec(db_, "PRAGMA foreign_keys = ON;", nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg ? errMsg : "Unknown error";
-        sqlite3_free(errMsg);
-        MAKINEAI_LOG_WARN(log::DATABASE, "Failed to enable foreign keys: {}", error);
+    {
+        char* rawErr = nullptr;
+        rc = sqlite3_exec(db_, "PRAGMA foreign_keys = ON;", nullptr, nullptr, &rawErr);
+        auto errMsg = std::unique_ptr<char, decltype(&sqlite3_free)>(rawErr, sqlite3_free);
+        if (rc != SQLITE_OK) {
+            std::string error = rawErr ? rawErr : "Unknown error";
+            MAKINEAI_LOG_WARN(log::DATABASE, "Failed to enable foreign keys: {}", error);
+        }
     }
 
     // Set WAL mode for better concurrency
-    rc = sqlite3_exec(db_, "PRAGMA journal_mode = WAL;", nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        sqlite3_free(errMsg);
-        // Non-fatal, continue
+    {
+        char* rawErr = nullptr;
+        rc = sqlite3_exec(db_, "PRAGMA journal_mode = WAL;", nullptr, nullptr, &rawErr);
+        auto errMsg = std::unique_ptr<char, decltype(&sqlite3_free)>(rawErr, sqlite3_free);
+        if (rc != SQLITE_OK) {
+            // Non-fatal, continue
+        }
     }
 
     // Check database version
@@ -526,14 +532,14 @@ Result<void> Database::migrateToV2() {
 Result<void> Database::execute(const std::string& sql) {
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    char* errMsg = nullptr;
-    int rc = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &errMsg);
+    char* rawErr = nullptr;
+    int rc = sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &rawErr);
+    auto errMsg = std::unique_ptr<char, decltype(&sqlite3_free)>(rawErr, sqlite3_free);
 
     Metrics::instance().recordHistogram("db_query_duration_ms", m.elapsed().count());
 
     if (rc != SQLITE_OK) {
-        std::string error = errMsg ? errMsg : "Unknown error";
-        sqlite3_free(errMsg);
+        std::string error = rawErr ? rawErr : "Unknown error";
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "SQL error: {}", error);
         return std::unexpected(Error{ErrorCode::IOError, fmt::format("SQL error: {}", error)});
