@@ -7,6 +7,18 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### Eklenen (2026-03-12)
+- **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)
+- **Discord butonu** — Duyuru kartında hover animasyonlu Discord bağlantısı
+- **Release pipeline** — GitHub Actions 2 aşamalı CI/CD (build+sign → deploy), PFX sertifika desteği
+- **justfile release recipe'leri** — `just publish <version>`, `just publish-final`, `just publish-status`
+
+### Düzeltilen (2026-03-12)
+- **Oyun taşıma yedek koruması** — 4 katmanlı koruma: backup skip guard, installPath koruma, path migration, scan güncelleme
+- **Restore hedef doğrulama** — Yedek geri yükleme öncesi hedef dizin kontrolü
+- **saveCachedGames exception safety** — Background thread try/catch sarmalama
+- **Release readiness** — Exception safety iyileştirmeleri, hızlı düzeltmeler
+
 ### İyileştirilen (2026-03-12)
 - **Kategorize logging** — 186 qDebug/qWarning/qCritical → qCDebug/qCWarning/qCCritical (15 dosya, 15 kategori)
 - **fmt::format migration** — Tüm std::to_string + string concat → fmt::format (sıfır kaldı)
@@ -18,6 +30,9 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - **TranslationDownloader** — fail() lambda ile 7 duplicated error-bailout bloğu birleştirildi
 
 ### Kaldırılan (2026-03-12)
+- **Ed25519 imza doğrulama** — Paket indirmede .sig dosya sistemi tamamen kaldırıldı, AES-256-GCM auth tag yeterli
+- **sign_packages.py** — Ed25519 imzalama scripti silindi (543 satır)
+- **R2 .sig dosyaları** — CDN'den 260 .sig dosyası temizlendi
 - **BepInEx/XUnity** — Tüm runtime manager kodu (1132→18 satır), tüm referanslar, test suite
 - **Deferred features** — Translation Memory, Glossary, QA Service, Translation Pipeline stub'ları
 - **Dead code** — pak/ legacy, findExtractedSubdir, ManifestSyncService bağımlılığı (TranslationDownloader)
