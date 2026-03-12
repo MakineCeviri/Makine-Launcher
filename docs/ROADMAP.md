@@ -1,6 +1,6 @@
 # MakineAI Yol Haritasi
 
-**Son Guncelleme:** 2026-03-03
+**Son Guncelleme:** 2026-03-12
 
 ---
 
@@ -13,13 +13,13 @@
 | Bolum | Tamamlanma | Durum |
 |-------|-----------|-------|
 | Makine: Oyun Tespit & Tarama | %82 | Steam iyi, Epic/GOG minimal, Xbox/GamePass yok |
-| Makine: Ceviri Paket Kurulumu | %88 | Yerel + R2 kurulum + BepInEx runtime install tamam |
-| Makine: Dagitim Sistemi | %93 | 258/258 CDN'de, Ed25519 imza, deploy'da hardcoded path |
+| Makine: Ceviri Paket Kurulumu | %90 | Yerel + R2 kurulum, yedek koruma, DPI scaling |
+| Makine: Dagitim Sistemi | %93 | 258/258 CDN'de, AES-256-GCM dogrulama, deploy pipeline |
 | MakineAI: Guncelleme Tespiti | %10 | UpdateDetection + FileIntegrity modulleri mevcut |
 | MakineAI: Adaptasyon Motoru | %5 | Memory Translation Extractor tasarlandi |
 | UI & Kullanici Deneyimi | %95 | 6 ekran, 32 component, 7 dialog; 5 feature devre disi |
-| CI/CD & DevOps | %85 | Deploy pipeline tamam, testler sadece core presette aktif |
-| Guvenlik | %80 | Ed25519, AES-256-GCM, SSL pinning tamam; pin rotation eksik |
+| CI/CD & DevOps | %75 | GitHub Actions release pipeline, lokal build+sign, sunucu CI kaldirildi |
+| Guvenlik | %80 | AES-256-GCM (paket butunlugu), SSL pinning tamam; pin rotation eksik |
 
 ---
 
@@ -47,7 +47,7 @@
 | R2 paket indirme (zstd + AES-256-GCM) | **Tamamlandi** | Kritik |
 | ETag cache (index + per-game detail) | **Tamamlandi** | Kritik |
 | R2 CDN upload (258/258 .mkpkg) | **Tamamlandi** | Kritik |
-| Ed25519 paket imzalama/dogrulama | **Tamamlandi** | Yuksek |
+| ~~Ed25519 paket imzalama~~ | **Kaldirildi** | — | AES-256-GCM auth tag yeterli |
 | Pre-fetch (GameDetailScreen acildiginda) | **Tamamlandi** | Orta |
 | Deploy pipeline (tek komut dagitim) | **Tamamlandi** | Yuksek |
 | Delta guncelleme (sadece degisen dosyalar) | Baslanmadi | Orta |
@@ -98,10 +98,11 @@
 
 | Engel | Durum | Aciklama |
 |-------|-------|----------|
-| ~~CDN paketleri~~ | ✅ Tamamlandi | 258/258 .mkpkg + .sig |
-| ~~Guvenlik anahtari~~ | ✅ Tamamlandi | Ed25519 public key embedded |
-| ~~Deploy pipeline~~ | ✅ Tamamlandi | deploy.py + sign_packages.py |
+| ~~CDN paketleri~~ | ✅ Tamamlandi | 258/258 .mkpkg CDN'de |
+| ~~Paket guvenlik~~ | ✅ Tamamlandi | AES-256-GCM auth tag + SHA-256 checksum |
+| ~~Deploy pipeline~~ | ✅ Tamamlandi | deploy.py + R2 upload |
 | ~~SSL pinning~~ | ✅ Tamamlandi | 4 cert pin, placeholder yok |
+| ~~Code signing~~ | ✅ Kismen | Self-signed cert + just sign (OV/EV cert satinalma karari kaldi) |
 | **Static Qt build** | Bekliyor | Tek seferlik ~1-2 saat, sonraki build'ler 1-2 dk |
 | **MSIX paketleme** | Bekliyor | Microsoft Store submission icin |
 
@@ -157,39 +158,26 @@
 
 ## Son Degisiklikler
 
-### 2026-03-02: Guvenlik denetimi + imza duzeltmesi
-- Ed25519 imza uyumsuzlugu duzeltildi (sign_packages.py hash string fix)
-- 258 paket R2'de yeniden imzalandi (--force)
+### 2026-03-12: Buyuk refactoring + guvenlik sadeletirme
+- Ed25519 imza sistemi tamamen kaldirildi — AES-256-GCM auth tag yeterli
+- sign_packages.py silindi (543 satir), R2'den 260 .sig dosyasi temizlendi
+- Oyun tasima yedek korumasi (4 katmanli: backup skip, path koruma, path migration, scan guncelleme)
+- DPI-aware UI scaling (Kompakt/Otomatik/Buyuk secenekleri)
+- Kategorize logging (186 qDebug → qCDebug, 15 kategori)
+- fmt::format migration tamamlandi
+- BepInEx/XUnity tamamen kaldirildi (1132→18 satir)
+- Release pipeline + code signing altyapisi (GitHub Actions)
+- CI/CD sunucu altyapisi kaldirildi (gereksiz bulundu — solo developer)
+- Exception safety iyilestirmeleri (saveCachedGames, restore target validation)
+
+### 2026-03-02: Guvenlik denetimi
 - Sentry DSN env variable'a tasindi
 - PII stripping eklendi (Windows kullanici adi redaction)
-- CRYPTO_memcmp (constant-time hash karsilastirma)
 
 ### 2026-03-01: R2 CDN custom domain + dagitim tamamlandi
-- cdn.makineceviri.net aktif (Worker route cakismasi cozuldu)
+- cdn.makineceviri.net aktif
 - 258/258 .mkpkg paketi R2'ye yuklendi
-- Tum dataUrl'ler cdn.makineceviri.net'e guncellendi
 - Code signing altyapisi kuruldu (self-signed + signtool)
-
-### 2026-02-25: Alpha hazirlik — buyuk temizlik
-- Hibrit katalog sistemi (index.json + on-demand detail) tamamlandi
-- fwd.hpp %51 kucultuldu (373 -> 176 satir)
-- 4 bos stub header silindi
-- Settings component'leri konsolide edildi
-- Integration test'ler devre disi birakildi
-
-### 2026-02-18: Kod kalitesi & performans
-- Guvenlik denetimi (14 bulgu duzeltildi)
-- Modurerlik iyilestirmeleri (GameService decoupling)
-- Qt Quick performans optimizasyonlari
-
-### 2026-02-14: Dead code temizligi
-- Dead Q_INVOKABLE/Q_PROPERTY/signal'lar kaldirildi
-- Dimensions.qml 76 dead property kaldirildi
-
-### 2026-02-12: Buyuk temizlik
-- ~32K satir dead code kaldirildi
-- 13 olu QML bileseni silindi
-- ADR-0006 olusturuldu (adaptasyon motoru yon degisikligi)
 
 ---
 
