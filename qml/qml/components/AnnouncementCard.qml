@@ -81,4 +81,38 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
     }
+
+    // Discord pill button — slides up from bottom-right on hover
+    Item {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: 54
+        height: 54
+        clip: true
+        z: 10
+
+        Rectangle {
+            id: discordBtn
+            width: 40
+            height: 40
+            radius: Dimensions.radiusMD
+            color: Theme.discordColor
+            x: 0
+            y: bannerMa.containsMouse ? 0 : parent.height
+
+            Behavior on y {
+                NumberAnimation {
+                    duration: Dimensions.animNormal
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Image {
+                anchors.centerIn: parent
+                source: "qrc:/qt/qml/MakineAI/resources/icons/discord-white.svg"
+                width: 22; height: 22
+                sourceSize: Qt.size(22, 22)
+            }
+        }
+    }
 }
