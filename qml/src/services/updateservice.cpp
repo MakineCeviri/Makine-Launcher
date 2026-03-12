@@ -13,6 +13,7 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QCoreApplication>
 #include <QRegularExpression>
 #include <QSettings>
@@ -88,6 +89,14 @@ void UpdateService::check()
     setError({});
 
 #ifdef MAKINEAI_DEV_TOOLS
+    // Dev builds: prefer GitHub Releases API (private repo, token from gh CLI)
+    m_githubToken = readGitHubToken();
+    if (!m_githubToken.isEmpty()) {
+        checkGitHub();
+        return;
+    }
+    qCDebug(lcUpdateService) << "UpdateService: No GitHub token, falling back to CDN";
+
     QString urlStr = qEnvironmentVariable("MAKINEAI_UPDATE_URL");
     if (urlStr.isEmpty())
         urlStr = QString::fromLatin1(kUpdateJsonUrl);
@@ -146,11 +155,21 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     const QString checksum = obj.value(QStringLiteral("checksum")).toString();
     const qint64 size = obj.value(QStringLiteral("size")).toInteger();
     const QString notes = obj.value(QStringLiteral("notes")).toString();
+    const QString channel = obj.value(QStringLiteral("channel")).toString();
 
     if (version.isEmpty() || url.isEmpty()) {
         setError(QStringLiteral("Invalid update.json: missing version or url"));
         setState(Idle);
         return;
+    }
+
+    // Channel filtering: dev updates only visible to dev builds
+    if (channel == QStringLiteral("dev")) {
+#ifndef MAKINEAI_DEV_TOOLS
+        qCDebug(lcUpdateService) << "UpdateService: Ignoring dev channel update (production build)";
+        setState(Idle);
+        return;
+#endif
     }
 
     // Store metadata
@@ -212,6 +231,14 @@ void UpdateService::download()
     CrashReporter::addBreadcrumb("update", "UpdateService::download");
     if (m_state != Available || m_downloadUrl.isEmpty())
         return;
+
+    // GitHub asset download (private repo): use API with auth + redirect
+#ifdef MAKINEAI_DEV_TOOLS
+    if (m_githubAssetId > 0 && !m_githubToken.isEmpty()) {
+        downloadGitHubAsset();
+        return;
+    }
+#endif
 
     // Validate download URL domain against allowlist
     static const QStringList allowedHosts = {
@@ -515,6 +542,267 @@ void UpdateService::setError(const QString& msg)
         emit errorChanged();
         emit displayChanged();
     }
+}
+
+// ---------------------------------------------------------------------------
+// GitHub dev channel (private repo support)
+// ---------------------------------------------------------------------------
+
+QString UpdateService::readGitHubToken()
+{
+    // 1. Environment variable
+    QString token = qEnvironmentVariable("GITHUB_TOKEN");
+    if (!token.isEmpty())
+        return token;
+
+    // 2. gh CLI config (Windows: %APPDATA%/GitHub CLI/hosts.yml)
+#ifdef Q_OS_WIN
+    QString configPath = qEnvironmentVariable("APPDATA")
+        + QStringLiteral("/GitHub CLI/hosts.yml");
+#else
+    QString configPath = QDir::homePath()
+        + QStringLiteral("/.config/gh/hosts.yml");
+#endif
+
+    QFile file(configPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+
+    // Simple line-by-line parsing for oauth_token value
+    bool inGitHub = false;
+    while (!file.atEnd()) {
+        QString line = QString::fromUtf8(file.readLine());
+        if (line.contains(QStringLiteral("github.com")))
+            inGitHub = true;
+        if (inGitHub && line.contains(QStringLiteral("oauth_token:"))) {
+            token = line.mid(line.indexOf(QLatin1Char(':')) + 1).trimmed();
+            break;
+        }
+    }
+    return token;
+}
+
+void UpdateService::checkGitHub()
+{
+    static const QString kGitHubApiUrl =
+        QStringLiteral("https://api.github.com/repos/MakineCeviri/MakineAI-Launcher/releases/latest");
+
+    qCDebug(lcUpdateService) << "UpdateService: Checking GitHub Releases API";
+
+    QNetworkRequest request{QUrl{kGitHubApiUrl}};
+    request.setRawHeader("Authorization", ("Bearer " + m_githubToken).toUtf8());
+    request.setRawHeader("Accept", "application/vnd.github+json");
+    request.setRawHeader("User-Agent", "MakineAI-Launcher");
+    request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+    request.setTransferTimeout(15000);
+
+    auto *reply = m_nam.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onGitHubCheckFinished(reply);
+    });
+}
+
+void UpdateService::onGitHubCheckFinished(QNetworkReply* reply)
+{
+    reply->deleteLater();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        qCDebug(lcUpdateService) << "UpdateService: GitHub API failed:" << reply->errorString();
+        setError(reply->errorString());
+        setState(Idle);
+        return;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    const QJsonObject obj = doc.object();
+
+    // Parse GitHub release fields
+    QString tagName = obj.value(QStringLiteral("tag_name")).toString();
+    QString body = obj.value(QStringLiteral("body")).toString();
+    QJsonArray assets = obj.value(QStringLiteral("assets")).toArray();
+
+    if (tagName.isEmpty() || assets.isEmpty()) {
+        qCDebug(lcUpdateService) << "UpdateService: No GitHub release or assets found";
+        setState(Idle);
+        return;
+    }
+
+    // Find the .exe asset
+    int assetId = 0;
+    qint64 assetSize = 0;
+    for (const auto& a : assets) {
+        QJsonObject asset = a.toObject();
+        QString name = asset.value(QStringLiteral("name")).toString();
+        if (name.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive)) {
+            assetId = asset.value(QStringLiteral("id")).toInt();
+            assetSize = asset.value(QStringLiteral("size")).toInteger();
+            break;
+        }
+    }
+
+    if (assetId == 0) {
+        qCDebug(lcUpdateService) << "UpdateService: No .exe asset in GitHub release";
+        setState(Idle);
+        return;
+    }
+
+    // Extract SHA256 from release body (format: "SHA256:hexhash")
+    QString checksum;
+    for (const auto& line : body.split(QLatin1Char('\n'))) {
+        QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("SHA256:"), Qt::CaseInsensitive)) {
+            checksum = trimmed.mid(7).trimmed().toLower();
+            break;
+        }
+    }
+
+    // Parse version from tag: "v0.1.0-pre-alpha-dev" -> "0.1.0-pre-alpha-dev"
+    QString version = tagName;
+    if (version.startsWith(QLatin1Char('v')))
+        version = version.mid(1);
+
+    // Store metadata
+    m_githubAssetId = assetId;
+    m_totalBytes = assetSize;
+    m_expectedChecksum = checksum;
+    m_releaseNotes = body;
+
+    // Compare versions
+    QString currentRaw = QCoreApplication::applicationVersion();
+
+    auto splitPreRelease = [](const QString& raw) -> std::pair<QString, QString> {
+        int dashIdx = raw.indexOf(QLatin1Char('-'));
+        if (dashIdx > 0)
+            return {raw.left(dashIdx), raw.mid(dashIdx + 1)};
+        return {raw, {}};
+    };
+
+    auto [remoteVer, remotePre] = splitPreRelease(version);
+    auto [currentVer, currentPre] = splitPreRelease(currentRaw);
+
+    int cmp = compareVersions(remoteVer, currentVer);
+    // For dev channel: any different pre-release suffix = update available
+    bool hasUpdate = (cmp > 0)
+        || (cmp == 0 && remotePre != currentPre && !remotePre.isEmpty());
+
+    qCDebug(lcUpdateService) << "UpdateService: GitHub" << version << "vs" << currentRaw
+             << "-> hasUpdate:" << hasUpdate;
+
+    if (hasUpdate) {
+        m_version = tagName;
+        emit versionChanged();
+        setState(Available);
+    } else {
+        setState(Idle);
+    }
+}
+
+void UpdateService::downloadGitHubAsset()
+{
+    MAKINE_ZONE_NAMED("UpdateService::downloadGitHubAsset");
+
+    // Step 1: Request asset via API with auth — GitHub returns 302 to presigned S3 URL
+    QString apiUrl = QStringLiteral(
+        "https://api.github.com/repos/MakineCeviri/MakineAI-Launcher/releases/assets/%1")
+        .arg(m_githubAssetId);
+
+    QNetworkRequest request{QUrl{apiUrl}};
+    request.setRawHeader("Authorization", ("Bearer " + m_githubToken).toUtf8());
+    request.setRawHeader("Accept", "application/octet-stream");
+    request.setRawHeader("User-Agent", "MakineAI-Launcher");
+    // Manual redirect: we need to follow without forwarding auth header
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
+
+    setError({});
+    m_progress = 0.0;
+    emit progressChanged();
+    setState(Downloading);
+
+    auto *reply = m_nam.get(request);
+    connect(reply, &QNetworkReply::redirected, this, [this, reply](const QUrl &url) {
+        reply->deleteLater();
+
+        // Step 2: Follow redirect to presigned S3 URL (no auth needed)
+        m_downloadUrl = url.toString();
+        qCDebug(lcUpdateService) << "UpdateService: GitHub redirect ->" << url.host();
+
+        // Prepare temp file
+        QString tempDir = AppPaths::updateTempDir();
+        QDir().mkpath(tempDir);
+        m_installerPath = tempDir + QStringLiteral("/MakineAI.exe");
+        QFile::remove(m_installerPath);
+
+        m_downloadFile = std::make_unique<QFile>(m_installerPath);
+        if (!m_downloadFile->open(QIODevice::WriteOnly)) {
+            setError(QStringLiteral("Cannot create file: %1").arg(m_downloadFile->errorString()));
+            m_downloadFile.reset();
+            setState(Available);
+            return;
+        }
+
+        // Download from presigned URL (unauthenticated)
+        QNetworkRequest dlReq{url};
+        dlReq.setRawHeader("User-Agent", "MakineAI-Launcher");
+        dlReq.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                           QNetworkRequest::NoLessSafeRedirectPolicy);
+
+        m_downloadReply = m_nam.get(dlReq);
+
+        connect(m_downloadReply, &QNetworkReply::readyRead, this, [this]() {
+            if (m_downloadFile && m_downloadReply)
+                m_downloadFile->write(m_downloadReply->readAll());
+        });
+
+        connect(m_downloadReply, &QNetworkReply::downloadProgress, this,
+                [this](qint64 received, qint64 total) {
+            if (total > 0) {
+                m_progress = static_cast<qreal>(received) / static_cast<qreal>(total);
+                emit progressChanged();
+                emit displayChanged();
+            }
+        });
+
+        connect(m_downloadReply, &QNetworkReply::finished, this, [this]() {
+            auto *r = m_downloadReply;
+            m_downloadReply = nullptr;
+
+            if (m_downloadFile) {
+                m_downloadFile->close();
+                m_downloadFile.reset();
+            }
+            if (!r) return;
+            r->deleteLater();
+
+            if (r->error() != QNetworkReply::NoError) {
+                setError(r->errorString());
+                QFile::remove(m_installerPath);
+                setState(Available);
+                return;
+            }
+
+            if (!m_expectedChecksum.isEmpty()) {
+                verifyAndFinalize(m_installerPath);
+            } else {
+                // Dev builds: allow without checksum
+                qCDebug(lcUpdateService) << "UpdateService: No checksum in release, skipping verify";
+                m_progress = 1.0;
+                emit progressChanged();
+                setState(Ready);
+            }
+        });
+    });
+
+    // Handle case where GitHub doesn't redirect (error)
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 302) {
+            if (m_state == Downloading) {
+                setError(QStringLiteral("GitHub asset download failed: %1").arg(reply->errorString()));
+                setState(Available);
+            }
+            reply->deleteLater();
+        }
+    });
 }
 
 } // namespace makineai

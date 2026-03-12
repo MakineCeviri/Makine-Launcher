@@ -98,6 +98,12 @@ private:
     void onCheckFinished(QNetworkReply* reply);
     void verifyAndFinalize(const QString& filePath);
 
+    // GitHub dev channel (private repo, token from gh CLI)
+    void checkGitHub();
+    void onGitHubCheckFinished(QNetworkReply* reply);
+    void downloadGitHubAsset();
+    static QString readGitHubToken();
+
     QNetworkAccessManager m_nam;
     State m_state{Idle};
     qreal m_progress{0.0};
@@ -112,6 +118,10 @@ private:
     QString m_installerPath;
     QNetworkReply* m_downloadReply{nullptr};
     std::unique_ptr<QFile> m_downloadFile;
+
+    // GitHub dev channel state
+    QString m_githubToken;
+    int m_githubAssetId{0};
 };
 
 } // namespace makineai
