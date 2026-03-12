@@ -192,8 +192,8 @@ release-signed: release-static
 # ============================================================================
 
 # Publish a release — triggers GitHub Actions pipeline (build + sign + deploy)
-# Usage: just publish 0.1.0-alpha
-publish version:
+# Usage: just release-publish 0.1.0-alpha
+release-publish version:
     @echo "Triggering release pipeline for v{{version}}..."
     gh workflow run release.yml -f version={{version}} -f draft=true
     @echo ""
@@ -202,7 +202,7 @@ publish version:
     @echo "  Version:   v{{version}} (draft)"
 
 # Publish a final (non-draft) release
-publish-final version:
+release-publish-final version:
     @echo "Triggering FINAL release pipeline for v{{version}}..."
     gh workflow run release.yml -f version={{version}} -f draft=false
     @echo ""
@@ -253,6 +253,22 @@ profile-tracy duration="12":
 # Show latest performance report (markdown formatted)
 perf-report:
     python scripts/perf_report.py
+
+# ============================================================================
+# DEV RELEASES (auto-update distribution)
+# ============================================================================
+
+# Publish dev build to GitHub for auto-update (build + tag + release + upload EXE)
+dev-release: dev
+    python scripts/dev_release.py
+
+# Publish dev build with release notes
+dev-release-notes notes: dev
+    python scripts/dev_release.py --notes "{{notes}}"
+
+# Preview dev release (no changes)
+dev-release-dry:
+    python scripts/dev_release.py --dry-run
 
 # ============================================================================
 # DEVELOPMENT
