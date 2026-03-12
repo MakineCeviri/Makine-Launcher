@@ -278,6 +278,7 @@ qt_add_qml_module(MakineAI
         # SVG icons
         resources/icons/arrow_right.svg
         resources/icons/discord.svg
+        resources/icons/discord-white.svg
         resources/icons/lock.svg
         resources/icons/shield-check.svg
         resources/icons/steam.svg
