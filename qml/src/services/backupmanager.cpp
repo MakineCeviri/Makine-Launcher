@@ -238,6 +238,14 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
         return false;
     }
 
+    // Validate restore target exists (game may have been uninstalled)
+    if (!QDir(restoreDir).exists()) {
+        emit backupError(tr("Hedef klasör bulunamadı: %1\n"
+                            "Oyun kaldırılmış veya taşınmış olabilir.")
+                         .arg(restoreDir));
+        return false;
+    }
+
     // Set restoring state
     m_isRestoring = true;
     m_restoreStatus = tr("Yedek geri yükleniyor...");
