@@ -27,7 +27,7 @@ ColumnLayout {
     onDisableAnimationsChanged: SettingsManager.enableAnimations = !disableAnimations
     onGameUpdateMonitoringChanged: SettingsManager.gameUpdateMonitoring = gameUpdateMonitoring
 
-    component ThemeSetting: Item {
+    component InlineThemeSetting: Item {
         property bool isDarkTheme: SettingsManager.isDarkMode
         Layout.fillWidth: true
         Layout.preferredHeight: 72
@@ -125,7 +125,7 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
 
-            ThemeSetting {}
+            InlineThemeSetting {}
 
             SettingsDivider {}
 
@@ -222,6 +222,105 @@ ColumnLayout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: SettingsManager.accentPreset = modelData.id
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            SettingsDivider {}
+
+            // UI Scale selector
+            Item {
+                id: scaleSetting
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
+
+                readonly property bool needsRestart: SettingsManager.uiScale !== SettingsManager.appliedUiScale()
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Dimensions.marginML
+                    anchors.rightMargin: Dimensions.marginML
+                    spacing: Dimensions.spacingXL
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Dimensions.spacingXS
+
+                        Label {
+                            textFormat: Text.PlainText
+                            text: qsTr("Aray\u00fcz \u00d6l\u00e7e\u011fi")
+                            font.pixelSize: Dimensions.fontMD
+                            font.weight: Font.Medium
+                            color: Theme.textPrimary
+                        }
+
+                        Label {
+                            textFormat: Text.PlainText
+                            text: scaleSetting.needsRestart
+                                ? qsTr("Yeniden ba\u015flatma gerekli!")
+                                : qsTr("Ekran boyutuna g\u00f6re UI \u00f6l\u00e7ekleme")
+                            font.pixelSize: Dimensions.fontBody
+                            color: scaleSetting.needsRestart ? Theme.warning : Theme.textMuted
+                            font.weight: scaleSetting.needsRestart ? Font.DemiBold : Font.Normal
+                        }
+                    }
+
+                    // Scale selector buttons
+                    Rectangle {
+                        Layout.preferredWidth: _scaleRow.width + 8
+                        Layout.preferredHeight: 36
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        radius: Dimensions.radiusMD
+                        color: Theme.primary06
+
+                        Row {
+                            id: _scaleRow
+                            anchors.centerIn: parent
+                            spacing: Dimensions.spacingXS
+
+                            property string current: SettingsManager.uiScale
+
+                            Repeater {
+                                model: [
+                                    { id: "compact", label: qsTr("Kompakt") },
+                                    { id: "auto", label: qsTr("Otomatik") },
+                                    { id: "large", label: qsTr("B\u00fcy\u00fck") }
+                                ]
+
+                                Rectangle {
+                                    required property var modelData
+                                    width: _scaleLbl.width + 20; height: 28
+                                    radius: Dimensions.radiusMD
+                                    color: _scaleRow.current === modelData.id
+                                        ? Theme.primary20
+                                        : _scaleBtnMouse.containsMouse
+                                            ? Theme.primary08
+                                            : "transparent"
+                                    border.color: _scaleRow.current === modelData.id
+                                        ? Theme.primary40
+                                        : "transparent"
+                                    border.width: 1
+
+                                    Label {
+                                        textFormat: Text.PlainText
+                                        id: _scaleLbl
+                                        anchors.centerIn: parent
+                                        text: modelData.label
+                                        font.pixelSize: Dimensions.fontBody
+                                        font.weight: _scaleRow.current === modelData.id ? Font.DemiBold : Font.Medium
+                                        color: _scaleRow.current === modelData.id ? Theme.primary : Theme.textSecondary
+                                    }
+
+                                    MouseArea {
+                                        id: _scaleBtnMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: SettingsManager.uiScale = modelData.id
+                                    }
                                 }
                             }
                         }
