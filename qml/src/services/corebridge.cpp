@@ -533,8 +533,23 @@ void CoreBridge::scanAllLibraries()
             // Check translation availability via ID resolution
             if (pkgMgr) {
                 QString resolved = resolveToSteamAppId(game.id);
-                if (!resolved.isEmpty() && pkgMgr->hasPackage(resolved)) {
-                    game.hasTranslation = true;
+
+                // For non-Steam games (Epic/GOG), storeId reverse index may
+                // not be populated yet. Fall back to name-based matching.
+                if (resolved.isEmpty() && game.source != QLatin1String("steam")) {
+                    QDir gameDir(game.installPath);
+                    resolved = pkgMgr->findMatchingAppId(gameDir.dirName());
+                }
+
+                if (!resolved.isEmpty()) {
+                    game.steamAppId = resolved;
+                    // Normalize ID to steamAppId so install/update flows
+                    // can resolve without storeId reverse index
+                    if (game.source != QLatin1String("steam"))
+                        game.id = resolved;
+                    if (pkgMgr->hasPackage(resolved)) {
+                        game.hasTranslation = true;
+                    }
                 }
             }
         }
