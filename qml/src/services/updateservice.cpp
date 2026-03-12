@@ -685,6 +685,22 @@ void UpdateService::onGitHubCheckFinished(QNetworkReply* reply)
     bool hasUpdate = (cmp > 0)
         || (cmp == 0 && remotePre != currentPre && !remotePre.isEmpty());
 
+    // Dev builds: same version but different binary → compare SHA-256
+    if (!hasUpdate && !checksum.isEmpty()) {
+        const QString exePath = QCoreApplication::applicationFilePath();
+        QFile exeFile(exePath);
+        if (exeFile.open(QIODevice::ReadOnly)) {
+            QCryptographicHash hash(QCryptographicHash::Sha256);
+            hash.addData(&exeFile);
+            QString localHash = QString::fromLatin1(hash.result().toHex()).toLower();
+            if (localHash != checksum) {
+                hasUpdate = true;
+                qCDebug(lcUpdateService) << "UpdateService: Same version but different binary"
+                         << "(local:" << localHash.left(16) << "remote:" << checksum.left(16) << ")";
+            }
+        }
+    }
+
     qCDebug(lcUpdateService) << "UpdateService: GitHub" << version << "vs" << currentRaw
              << "-> hasUpdate:" << hasUpdate;
 
