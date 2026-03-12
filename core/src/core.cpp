@@ -52,7 +52,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     auto configValidation = ConfigManager::instance().updateConfig(config);
     if (!configValidation.valid) {
         return std::unexpected(Error(ErrorCode::InvalidConfiguration,
-            "Configuration validation failed: " + configValidation.errors.front()));
+            fmt::format("Configuration validation failed: {}", configValidation.errors.front())));
     }
 
     if (auto cryptoResult = initializeCrypto(); !cryptoResult) {
@@ -88,7 +88,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
             constexpr uint64_t kMinAvailableMemory = 100ULL * 1024 * 1024;  // 100 MB
             if (result.healthStatus.availableMemoryBytes < kMinAvailableMemory) {
                 return std::unexpected(Error(ErrorCode::Unknown,
-                    "Insufficient memory: " + result.healthStatus.toText()));
+                    fmt::format("Insufficient memory: {}", result.healthStatus.toText())));
             }
         }
     }
@@ -144,8 +144,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     initialized_.store(true, std::memory_order_release);
 
     AuditLogger::instance().logSystemEvent("core_initialized",
-        "Version: " + std::string(version()) +
-        ", Duration: " + std::to_string(result.initDuration.count()) + "ms");
+        fmt::format("Version: {}, Duration: {}ms", version(), result.initDuration.count()));
 
     MAKINEAI_LOG_INFO(log::CORE, "MakineAI Core initialized in {}ms",
         result.initDuration.count());
@@ -232,7 +231,7 @@ Result<void> Core::initializeLogging(const CoreConfig& config, bool verbose) {
         return {};
     } catch (const spdlog::spdlog_ex& ex) {
         return std::unexpected(Error(ErrorCode::Unknown,
-            std::string("Logger initialization failed: ") + ex.what()));
+            fmt::format("Logger initialization failed: {}", ex.what())));
     }
 }
 
@@ -298,7 +297,7 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
 
     } catch (const std::exception& ex) {
         return std::unexpected(Error(ErrorCode::Unknown,
-            std::string("Module initialization failed: ") + ex.what()));
+            fmt::format("Module initialization failed: {}", ex.what())));
     }
 }
 

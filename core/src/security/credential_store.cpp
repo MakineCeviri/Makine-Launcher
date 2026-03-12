@@ -8,6 +8,9 @@
 #include "makineai/logging.hpp"
 #include "makineai/audit.hpp"
 
+#include <optional>
+#include <string>
+
 #ifdef _WIN32
 #include <Windows.h>
 #include <wincred.h>
@@ -48,12 +51,12 @@ VoidResult CredentialStore::save(const std::string& key, const std::string& valu
             "Failed to save credential '{}': Windows error {}",
             key, error);
         return std::unexpected(Error(ErrorCode::IOError,
-            "Failed to save credential: Windows error " + std::to_string(error)));
+            fmt::format("Failed to save credential: Windows error {}", error)));
     }
 
     MAKINEAI_LOG_INFO(log::SECURITY, "Credential saved: {}", key);
     AuditLogger::logSystemEvent("credential_saved",
-        "Key: " + key, AuditSeverity::Info);
+        fmt::format("Key: {}", key), AuditSeverity::Info);
     return {};
 #else
     return std::unexpected(Error(ErrorCode::Unknown,
@@ -108,12 +111,12 @@ VoidResult CredentialStore::remove(const std::string& key) {
             "Failed to delete credential '{}': Windows error {}",
             key, error);
         return std::unexpected(Error(ErrorCode::IOError,
-            "Failed to delete credential: Windows error " + std::to_string(error)));
+            fmt::format("Failed to delete credential: Windows error {}", error)));
     }
 
     MAKINEAI_LOG_INFO(log::SECURITY, "Credential deleted: {}", key);
     AuditLogger::logSystemEvent("credential_deleted",
-        "Key: " + key, AuditSeverity::Info);
+        fmt::format("Key: {}", key), AuditSeverity::Info);
     return {};
 #else
     return std::unexpected(Error(ErrorCode::Unknown,

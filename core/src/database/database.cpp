@@ -282,7 +282,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         fs::create_directories(dbDir, ec);
         if (ec) {
             return std::unexpected(Error{ErrorCode::IOError,
-                "Failed to create database directory: " + ec.message()});
+                fmt::format("Failed to create database directory: {}", ec.message())});
         }
     }
 
@@ -309,7 +309,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         sqlite3_close(db_);
         db_ = nullptr;
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to open database: {}", error);
-        return std::unexpected(Error{ErrorCode::IOError, "Failed to open database: " + error});
+        return std::unexpected(Error{ErrorCode::IOError, fmt::format("Failed to open database: {}", error)});
     }
 
     // Track active connections
@@ -361,7 +361,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
     }
 
     // Update version
-    std::string setVersion = "PRAGMA user_version = " + std::to_string(DATABASE_VERSION) + ";";
+    auto setVersion = fmt::format("PRAGMA user_version = {};", DATABASE_VERSION);
     sqlite3_exec(db_, setVersion.c_str(), nullptr, nullptr, nullptr);
 
     initialized_ = true;
@@ -536,7 +536,7 @@ Result<void> Database::execute(const std::string& sql) {
         sqlite3_free(errMsg);
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "SQL error: {}", error);
-        return std::unexpected(Error{ErrorCode::IOError, "SQL error: " + error});
+        return std::unexpected(Error{ErrorCode::IOError, fmt::format("SQL error: {}", error)});
     }
 
     // Warn about slow queries (>100ms)
@@ -555,7 +555,7 @@ Result<Database::Statement> Database::prepare(const std::string& sql) {
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to prepare statement: {}", error);
         Metrics::instance().increment("db_query_errors"); // no scoped timer needed here
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to prepare statement: " + error});
+            fmt::format("Failed to prepare statement: {}", error)});
     }
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Prepared statement");
     return stmt;
@@ -651,7 +651,7 @@ Result<void> Database::saveGame(const GameInfo& game) {
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to save game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to save game: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to save game: {}", sqlite3_errmsg(db_))});
     }
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Game saved successfully: {}", game.name);
@@ -688,7 +688,7 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to query game: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to query game: {}", sqlite3_errmsg(db_))});
     }
 
     GameInfo game;
@@ -739,7 +739,7 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to query game: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to query game: {}", sqlite3_errmsg(db_))});
     }
 
     GameInfo game;
@@ -821,7 +821,7 @@ Result<void> Database::deleteGame(const std::string& gameId) {
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to delete game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to delete game: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to delete game: {}", sqlite3_errmsg(db_))});
     }
 
     MAKINEAI_LOG_DEBUG(log::DATABASE, "Game deleted successfully");
@@ -855,7 +855,7 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to set setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to set setting: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to set setting: {}", sqlite3_errmsg(db_))});
     }
 
     return {};
@@ -886,7 +886,7 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to get setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to get setting: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to get setting: {}", sqlite3_errmsg(db_))});
     }
 
     return getRequiredText(stmt.stmt, 0);
@@ -952,7 +952,7 @@ Result<void> Database::addBackupRecord(const BackupRecord& backup) {
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add backup record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to add backup record: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to add backup record: {}", sqlite3_errmsg(db_))});
     }
 
     MAKINEAI_LOG_INFO(log::DATABASE, "Backup record added successfully");
@@ -1016,7 +1016,7 @@ Result<std::optional<BackupRecord>> Database::getBackup(const std::string& backu
 
     if (rc != SQLITE_ROW) {
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to get backup: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to get backup: {}", sqlite3_errmsg(db_))});
     }
 
     BackupRecord backup;
@@ -1055,7 +1055,7 @@ Result<void> Database::deleteBackupRecord(const std::string& backupId) {
     int rc = sqlite3_step(stmt.stmt);
     if (rc != SQLITE_DONE) {
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to delete backup record: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to delete backup record: {}", sqlite3_errmsg(db_))});
     }
 
     return {};
@@ -1113,7 +1113,7 @@ Result<int64_t> Database::addPatchRecord(
         m.markError();
         MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add patch record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to add patch record: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to add patch record: {}", sqlite3_errmsg(db_))});
     }
 
     MAKINEAI_LOG_INFO(log::DATABASE, "Patch record added successfully");
@@ -1188,7 +1188,7 @@ Result<void> Database::markPatchReverted(int64_t patchId) {
     int rc = sqlite3_step(stmt.stmt);
     if (rc != SQLITE_DONE) {
         return std::unexpected(Error{ErrorCode::IOError,
-            "Failed to mark patch reverted: " + std::string(sqlite3_errmsg(db_))});
+            fmt::format("Failed to mark patch reverted: {}", sqlite3_errmsg(db_))});
     }
 
     return {};

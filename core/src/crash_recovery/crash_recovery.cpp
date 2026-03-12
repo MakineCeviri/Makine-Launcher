@@ -11,7 +11,9 @@
 
 #include <chrono>
 #include <fstream>
+#include <mutex>
 #include <set>
+#include <string>
 
 namespace makineai::recovery {
 
@@ -211,7 +213,7 @@ RecoveryResult CrashRecoveryJournal::recover(const fs::path& installedStatePath)
 
 RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry) {
     if (entry.gamePath.empty() || !fs::exists(entry.gamePath)) {
-        return {false, 0, "Game path missing: " + entry.gamePath};
+        return {false, 0, fmt::format("Game path missing: {}", entry.gamePath)};
     }
 
     int deleted = 0;
@@ -239,7 +241,7 @@ RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry) {
     }
 
     return {true, deleted,
-        "Removed " + std::to_string(deleted) + " orphaned files from install"};
+        fmt::format("Removed {} orphaned files from install", deleted)};
 }
 
 RecoveryResult CrashRecoveryJournal::recoverUninstall(
@@ -306,7 +308,7 @@ RecoveryResult CrashRecoveryJournal::recoverUninstall(
     atomicWriteJson(installedStatePath, data);
 
     return {true, deleted,
-        "Completed uninstall recovery: " + std::to_string(deleted) + " files"};
+        fmt::format("Completed uninstall recovery: {} files", deleted)};
 }
 
 RecoveryResult CrashRecoveryJournal::recoverBackupCreate(const JournalEntry& entry) {
@@ -318,7 +320,7 @@ RecoveryResult CrashRecoveryJournal::recoverBackupCreate(const JournalEntry& ent
     if (fs::exists(entry.backupPath, ec)) {
         auto count = fs::remove_all(entry.backupPath, ec);
         return {!ec, static_cast<int>(count),
-            "Removed orphan backup dir: " + entry.backupPath};
+            fmt::format("Removed orphan backup dir: {}", entry.backupPath)};
     }
     return {true, 0, "Backup dir already gone"};
 }
@@ -329,7 +331,7 @@ RecoveryResult CrashRecoveryJournal::recoverBackupRestore(const JournalEntry& en
     }
 
     if (!fs::exists(entry.backupPath)) {
-        return {false, 0, "Backup dir missing: " + entry.backupPath};
+        return {false, 0, fmt::format("Backup dir missing: {}", entry.backupPath)};
     }
 
     std::set<std::string> alreadyRestored(
@@ -356,7 +358,7 @@ RecoveryResult CrashRecoveryJournal::recoverBackupRestore(const JournalEntry& en
     }
 
     return {true, restored,
-        "Completed backup restore: " + std::to_string(restored) + " files"};
+        fmt::format("Completed backup restore: {} files", restored)};
 }
 
 // --- Internal helpers ---
