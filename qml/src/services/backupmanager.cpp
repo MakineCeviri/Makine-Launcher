@@ -20,7 +20,6 @@
 #include <QUuid>
 #include <QDirIterator>
 #include <QSet>
-#include <QDebug>
 #include <QLoggingCategory>
 #include <QtConcurrent>
 #include <algorithm>

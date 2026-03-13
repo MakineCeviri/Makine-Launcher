@@ -12,7 +12,6 @@
 #include <QCoreApplication>
 #include <QtConcurrent>
 #include <QFileInfo>
-#include <QDebug>
 #include <QLoggingCategory>
 
 #ifndef MAKINEAI_UI_ONLY

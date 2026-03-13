@@ -61,79 +61,89 @@ ColumnLayout {
                 }
 
                 // Rotating gradient comet arc + star
-                Canvas {
-                    id: arcCanvas
-                    anchors.fill: parent
+                // Wrapper rotates the pre-rendered texture via GPU transform (no per-frame rasterization)
+                Item {
+                    id: arcWrapper
+                    anchors.centerIn: parent
+                    width: parent.width
+                    height: parent.height
+
                     NumberAnimation on rotation {
                         from: 0; to: 360; duration: 3000
                         loops: Animation.Infinite; running: root.visible && root.animationsEnabled
                         easing.type: Easing.Linear
                     }
 
-                    Component.onCompleted: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        var cx = width / 2, cy = height / 2, rad = (width - 4) / 2
-                        var segs = 36, sweep = Math.PI * 0.9
+                    Canvas {
+                        id: arcCanvas
+                        anchors.fill: parent
+                        renderStrategy: Canvas.Cooperative
 
-                        var colors = [
-                            [252, 205, 102], [247, 174, 118], [238, 150, 143],
-                            [204, 159, 216], [144, 194, 230], [119, 219, 200]
-                        ]
+                        Component.onCompleted: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            var cx = width / 2, cy = height / 2, rad = (width - 4) / 2
+                            var segs = 36, sweep = Math.PI * 0.9
 
-                        ctx.lineCap = "round"
+                            var colors = [
+                                [252, 205, 102], [247, 174, 118], [238, 150, 143],
+                                [204, 159, 216], [144, 194, 230], [119, 219, 200]
+                            ]
 
-                        // Glow layer
-                        ctx.lineWidth = 4
-                        for (var g = 0; g < segs; g++) {
-                            var gt = g / segs
-                            var gs = -Math.PI / 2 + gt * sweep
-                            var ge = -Math.PI / 2 + (gt + 1.5 / segs) * sweep
-                            var ga = (0.08 * gt * gt).toFixed(3)
-                            var gi = Math.floor(gt * (colors.length - 1))
-                            var gc = colors[Math.min(gi, colors.length - 1)]
-                            ctx.beginPath(); ctx.arc(cx, cy, rad, gs, ge)
-                            ctx.strokeStyle = "rgba(" + gc[0] + "," + gc[1] + "," + gc[2] + "," + ga + ")"
-                            ctx.stroke()
+                            ctx.lineCap = "round"
+
+                            // Glow layer
+                            ctx.lineWidth = 4
+                            for (var g = 0; g < segs; g++) {
+                                var gt = g / segs
+                                var gs = -Math.PI / 2 + gt * sweep
+                                var ge = -Math.PI / 2 + (gt + 1.5 / segs) * sweep
+                                var ga = (0.08 * gt * gt).toFixed(3)
+                                var gi = Math.floor(gt * (colors.length - 1))
+                                var gc = colors[Math.min(gi, colors.length - 1)]
+                                ctx.beginPath(); ctx.arc(cx, cy, rad, gs, ge)
+                                ctx.strokeStyle = "rgba(" + gc[0] + "," + gc[1] + "," + gc[2] + "," + ga + ")"
+                                ctx.stroke()
+                            }
+
+                            // Main arc
+                            ctx.lineWidth = 2
+                            for (var i = 0; i < segs; i++) {
+                                var t = i / segs
+                                var s = -Math.PI / 2 + t * sweep
+                                var e = -Math.PI / 2 + (t + 1.5 / segs) * sweep
+                                var alpha = (0.03 + 0.6 * t * t).toFixed(3)
+
+                                var ci = t * (colors.length - 1)
+                                var idx = Math.min(Math.floor(ci), colors.length - 2)
+                                var frac = ci - idx
+                                var c1 = colors[idx], c2 = colors[idx + 1]
+                                var cr = Math.round(c1[0] + (c2[0] - c1[0]) * frac)
+                                var cg = Math.round(c1[1] + (c2[1] - c1[1]) * frac)
+                                var cb = Math.round(c1[2] + (c2[2] - c1[2]) * frac)
+
+                                ctx.beginPath(); ctx.arc(cx, cy, rad, s, e)
+                                ctx.strokeStyle = "rgba(" + cr + "," + cg + "," + cb + "," + alpha + ")"
+                                ctx.stroke()
+                            }
+
+                            // Leading star
+                            var headAngle = -Math.PI / 2 + sweep
+                            var sx = cx + rad * Math.cos(headAngle)
+                            var sy = cy + rad * Math.sin(headAngle)
+                            var starPts = 5, outerR = 3.5, innerR = outerR * 0.382
+                            ctx.beginPath()
+                            for (var p = 0; p < starPts * 2; p++) {
+                                var a = p * Math.PI / starPts - Math.PI / 2
+                                var pr = (p % 2 === 0) ? outerR : innerR
+                                if (p === 0) ctx.moveTo(sx + pr * Math.cos(a), sy + pr * Math.sin(a))
+                                else ctx.lineTo(sx + pr * Math.cos(a), sy + pr * Math.sin(a))
+                            }
+                            ctx.closePath()
+                            ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+                            ctx.fill()
                         }
-
-                        // Main arc
-                        ctx.lineWidth = 2
-                        for (var i = 0; i < segs; i++) {
-                            var t = i / segs
-                            var s = -Math.PI / 2 + t * sweep
-                            var e = -Math.PI / 2 + (t + 1.5 / segs) * sweep
-                            var alpha = (0.03 + 0.6 * t * t).toFixed(3)
-
-                            var ci = t * (colors.length - 1)
-                            var idx = Math.min(Math.floor(ci), colors.length - 2)
-                            var frac = ci - idx
-                            var c1 = colors[idx], c2 = colors[idx + 1]
-                            var cr = Math.round(c1[0] + (c2[0] - c1[0]) * frac)
-                            var cg = Math.round(c1[1] + (c2[1] - c1[1]) * frac)
-                            var cb = Math.round(c1[2] + (c2[2] - c1[2]) * frac)
-
-                            ctx.beginPath(); ctx.arc(cx, cy, rad, s, e)
-                            ctx.strokeStyle = "rgba(" + cr + "," + cg + "," + cb + "," + alpha + ")"
-                            ctx.stroke()
-                        }
-
-                        // Leading star
-                        var headAngle = -Math.PI / 2 + sweep
-                        var sx = cx + rad * Math.cos(headAngle)
-                        var sy = cy + rad * Math.sin(headAngle)
-                        var starPts = 5, outerR = 3.5, innerR = outerR * 0.382
-                        ctx.beginPath()
-                        for (var p = 0; p < starPts * 2; p++) {
-                            var a = p * Math.PI / starPts - Math.PI / 2
-                            var pr = (p % 2 === 0) ? outerR : innerR
-                            if (p === 0) ctx.moveTo(sx + pr * Math.cos(a), sy + pr * Math.sin(a))
-                            else ctx.lineTo(sx + pr * Math.cos(a), sy + pr * Math.sin(a))
-                        }
-                        ctx.closePath()
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
-                        ctx.fill()
                     }
                 }
 

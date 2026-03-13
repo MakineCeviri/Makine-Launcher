@@ -25,6 +25,9 @@ Canvas {
     // Gradient spread multiplier
     property real spread: 0.55
 
+    renderTarget: Canvas.FramebufferObject
+    renderStrategy: Canvas.Cooperative
+
     // Repaint only when geometry or visual parameters actually change.
     // Hover state changes are handled via effectiveIntensity below.
     onGlowColorChanged: requestPaint()

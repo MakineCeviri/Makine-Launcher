@@ -17,7 +17,6 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 #include <QTimer>
-#include <QDebug>
 #include <QLoggingCategory>
 #include <QtConcurrent>
 #include <QProcess>
@@ -1095,14 +1094,16 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     }
 
     if (mode == InstallMode::Update) {
-        // Safety: backup must exist — if not, suggest repair instead
+        // Safety: backup must exist — if not, fall back to Install mode
         BackupManager* bm = BackupManager::instance();
         if (bm && !bm->hasBackup(gameId)) {
-            emit translationInstallCompleted(gameId, false,
-                tr("Yedek bulunamadı. Güncelleme yerine Onarma yapın."));
-            return;
+            qCWarning(lcGameService) << "No backup found for" << gameId
+                << "— falling back to Install mode (will create new backup)";
+            mode = InstallMode::Install;
         }
-    } else {
+    }
+
+    if (mode == InstallMode::Install) {
         // Install mode: consume anti-cheat acknowledgement.
         // InstallFlowController already handled the warning dialog and called
         // acknowledgeAntiCheat() before reaching here, so we just clear the flag.

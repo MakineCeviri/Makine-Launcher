@@ -17,7 +17,6 @@
 #include <QRegularExpression>
 #include <QtConcurrent>
 #include <QFutureWatcher>
-#include <QDebug>
 #include <QLoggingCategory>
 #include <optional>
 

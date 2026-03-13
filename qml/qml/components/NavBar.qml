@@ -211,6 +211,7 @@ Item {
                     id: progressRing
                     anchors.verticalCenter: parent.verticalCenter
                     width: 16; height: 16
+                    renderStrategy: Canvas.Cooperative
                     visible: UpdateService.state === UpdateService.Downloading
                              || UpdateService.state === UpdateService.Verifying
                     onPaint: {

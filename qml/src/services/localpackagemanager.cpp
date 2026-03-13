@@ -23,7 +23,6 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QStandardPaths>
-#include <QDebug>
 #include <QLoggingCategory>
 #include <QDirIterator>
 #include <QRegularExpression>

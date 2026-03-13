@@ -121,7 +121,11 @@ Item {
         }
         function onTranslationUninstalled(gId, success, message) {
             if (gId !== root.viewModel.gameId) return
-            if (!success) {
+            if (success) {
+                root.viewModel.packageInstalled = false
+                root.viewModel.hasTranslationUpdate = false
+                root.viewModel.installErrorMessage = ""
+            } else {
                 root.viewModel.installErrorMessage = message || qsTr("Yama kaldırılamadı")
                 installErrorTimer.restart()
             }
