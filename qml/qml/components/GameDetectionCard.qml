@@ -13,10 +13,11 @@ ColumnLayout {
     property real layoutTopRowHeight: 200
 
     // Dynamic game detection state
-    property bool gameDetected: ProcessScanner.gameRunning
+    property bool detectionEnabled: SettingsManager.autoDetectGames
+    property bool gameDetected: detectionEnabled && ProcessScanner.gameRunning
     property string detectedGameName: ProcessScanner.runningGameName
     property var heavyProcs: ProcessScanner.heavyProcesses
-    property bool hasHeavyProcesses: heavyProcs.length > 0 && !gameDetected
+    property bool hasHeavyProcesses: detectionEnabled && heavyProcs.length > 0 && !gameDetected
 
     signal manualFolderRequested()
 
@@ -168,7 +169,8 @@ ColumnLayout {
 
                 Label {
                     textFormat: Text.PlainText
-                    text: root.gameDetected ? root.detectedGameName + qsTr(" çalışıyor")
+                    text: !root.detectionEnabled ? qsTr("Oyun Tespiti Devre D\u0131\u015F\u0131")
+                          : root.gameDetected ? root.detectedGameName + qsTr(" \u00e7al\u0131\u015f\u0131yor")
                           : root.hasHeavyProcesses ? qsTr("Oyun tespit ediliyor...")
                           : qsTr("Oyun Tespit Edilemedi")
                     font.pixelSize: Dimensions.fontLG; font.weight: Font.Bold
@@ -178,7 +180,9 @@ ColumnLayout {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
                     visible: !root.gameDetected && !root.hasHeavyProcesses
-                    text: qsTr("Desteklenen bir oyun çalıştırın veya bir oyun ekleyin.")
+                    text: !root.detectionEnabled
+                          ? qsTr("Ayarlardan otomatik oyun tespitini a\u00e7abilirsiniz.")
+                          : qsTr("Desteklenen bir oyun \u00e7al\u0131\u015ft\u0131r\u0131n veya bir oyun ekleyin.")
                     font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
                     wrapMode: Text.WordWrap; lineHeight: 1.4
                     maximumLineCount: 3; elide: Text.ElideRight
