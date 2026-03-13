@@ -539,6 +539,10 @@ void CoreBridge::scanAllLibraries()
                 if (resolved.isEmpty() && game.source != QLatin1String("steam")) {
                     QDir gameDir(game.installPath);
                     resolved = pkgMgr->findMatchingAppId(gameDir.dirName());
+                    // Also try the display name (e.g. "Dave the Diver" vs folder "DaveTheDiver")
+                    if (resolved.isEmpty() && !game.name.isEmpty()) {
+                        resolved = pkgMgr->findMatchingAppId(game.name);
+                    }
                 }
 
                 if (!resolved.isEmpty()) {
@@ -946,9 +950,16 @@ bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath
 void CoreBridge::refreshPackageManifest()
 {
     MAKINE_ZONE_NAMED("CoreBridge::refreshPackageManifest");
+    // Lazy-init LocalPackageManager so catalog is available even
+    // before the first scanAllLibraries() call
     if (!m_localPkgManager) {
-        emit packageManifestRefreshed(0);
-        return;
+        m_localPkgManager = new LocalPackageManager(this);
+        if (m_journal) m_localPkgManager->setJournal(m_journal);
+        connect(m_localPkgManager, &LocalPackageManager::installProgress,
+                this, &CoreBridge::packageInstallProgress);
+        connect(m_localPkgManager, &LocalPackageManager::installCompleted,
+                this, &CoreBridge::packageInstallCompleted);
+        qCDebug(lcCoreBridge) << "LocalPackageManager created early (via refreshPackageManifest)";
     }
 
     // Reload from cached index.json (lightweight catalog)
@@ -958,6 +969,30 @@ void CoreBridge::refreshPackageManifest()
         m_localPkgManager->loadFromIndex(indexPath, packageCache);
     } else {
         qCDebug(lcCoreBridge) << "CoreBridge::refreshPackageManifest: No cached index available";
+    }
+
+    // Batch-load all cached per-game details so storeIds + fingerprints
+    // are available for Epic/GOG game resolution without network requests
+    const QString detailDir = AppPaths::packageDetailDir();
+    QDir dir(detailDir);
+    if (dir.exists()) {
+        const auto detailFiles = dir.entryList({"*.json"}, QDir::Files);
+        int enriched = 0;
+        for (const QString& fileName : detailFiles) {
+            QString appId = fileName.chopped(5);  // remove ".json"
+            if (m_localPkgManager->isDetailLoaded(appId))
+                continue;
+
+            QFile file(dir.absoluteFilePath(fileName));
+            if (file.open(QIODevice::ReadOnly)) {
+                m_localPkgManager->enrichPackageDetail(appId, file.readAll());
+                ++enriched;
+            }
+        }
+        if (enriched > 0) {
+            qCDebug(lcCoreBridge) << "Batch-loaded" << enriched << "cached game details"
+                       << "(storeIds + fingerprints now available)";
+        }
     }
 
     int count = m_localPkgManager->packageCount();
