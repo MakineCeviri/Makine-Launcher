@@ -117,9 +117,10 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+        readonly property int _minCardH: 100
         height: strip.largeCards
                     ? Math.min(parent.height, Math.round(Dimensions.cardHeight * 1.3))
-                    : Math.min(Dimensions.cardHeight, parent.height)
+                    : Math.max(_minCardH, Math.min(Dimensions.cardHeight, parent.height))
         orientation: ListView.Horizontal
         spacing: Dimensions.cardGap
         model: strip._isProxyModel ? strip.model : strip._viewModel
