@@ -18,7 +18,7 @@ Rectangle {
     signal closeClicked()
     signal trayClicked()
 
-    color: Theme.surface70
+    color: Theme.bgPrimary
 
     Rectangle {
         anchors.bottom: parent.bottom

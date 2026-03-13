@@ -75,14 +75,17 @@ QtObject {
 
     function _resolveAccentColors(presetId) {
         var presets = {
-            "purple": ["#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"],
-            "blue":   ["#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8"],
-            "teal":   ["#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"],
-            "green":  ["#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"],
-            "rose":   ["#FDA4AF", "#FB7185", "#F43F5E", "#E11D48", "#BE123C"],
-            "amber":  ["#FCD34D", "#FBBF24", "#F59E0B", "#D97706", "#B45309"],
-            "red":    ["#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"],
-            "sky":    ["#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"]
+            "purple":   ["#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"],
+            "blue":     ["#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8"],
+            "teal":     ["#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"],
+            "green":    ["#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"],
+            "rose":     ["#F9A8D4", "#F472B6", "#EC4899", "#DB2777", "#BE185D"],
+            "amber":    ["#FCD34D", "#FBBF24", "#F59E0B", "#D97706", "#B45309"],
+            "red":      ["#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"],
+            "sky":      ["#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"],
+            "indigo":   ["#C7D2FE", "#A5B4FC", "#818CF8", "#6366F1", "#4F46E5"],
+            "black":    ["#D4D4D8", "#A1A1AA", "#71717A", "#52525B", "#3F3F46"],
+            "gradient": ["#FF6B9D", "#FF8C42", "#E84393", "#00CEC9", "#6C5CE7"]
         }
         return presets[presetId] || presets["purple"]
     }

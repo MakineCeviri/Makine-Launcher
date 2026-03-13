@@ -124,7 +124,7 @@ Item {
         spacing: Dimensions.cardGap
         model: strip._isProxyModel ? strip.model : strip._viewModel
         interactive: false
-        clip: true
+        clip: false
         cacheBuffer: strip.wrapAround ? 0 : 100
         displayMarginBeginning: 0
         displayMarginEnd: 0
@@ -303,4 +303,5 @@ Item {
             view.contentX = newX
         }
     }
+
 }

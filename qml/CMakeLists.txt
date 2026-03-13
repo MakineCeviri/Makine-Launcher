@@ -234,6 +234,7 @@ qt_add_qml_module(MakineAI
         #
         # Visual: Decorative and feedback
         qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip
+        qml/components/AppBackground.qml          # Premium accent-aware ambient background
         qml/components/SkeletonLoader.qml         # Generic loading skeleton
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         #
