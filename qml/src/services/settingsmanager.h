@@ -160,11 +160,11 @@ private:
     QSettings m_settings;
 
     // General
-    bool m_autoDetectGames{true};
+    bool m_autoDetectGames{false};
     bool m_startWithWindows{false};
-    bool m_minimizeToTray{true};
-    bool m_showNotifications{true};
-    bool m_gameUpdateMonitoring{true};
+    bool m_minimizeToTray{false};
+    bool m_showNotifications{false};
+    bool m_gameUpdateMonitoring{false};
 
     // Performance
     bool m_hardwareAcceleration{true};
