@@ -21,6 +21,36 @@ Rectangle {
     readonly property int totalSteps: 3
     readonly property bool isLastStep: currentStep === totalSteps - 1
 
+    // ===== WINDOW DRAG (replaces TitleBar while onboarding is active) =====
+    MouseArea {
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: closeBtn.left
+        height: 40
+        onPressed: root.Window.window?.startSystemMove()
+    }
+
+    // Close button (top-right)
+    Rectangle {
+        id: closeBtn
+        anchors.top: parent.top; anchors.right: parent.right
+        anchors.topMargin: 6; anchors.rightMargin: 6
+        width: 28; height: 28; radius: 6
+        color: closeMa.containsMouse ? Theme.danger20 : "transparent"
+
+        Text {
+            anchors.centerIn: parent
+            text: "\u2715"
+            font.pixelSize: 12; color: closeMa.containsMouse ? Theme.danger : Theme.textMuted
+        }
+
+        MouseArea {
+            id: closeMa; anchors.fill: parent; hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Qt.quit()
+        }
+    }
+
     // ===== BACKGROUND =====
 
     // Subtle top gradient
