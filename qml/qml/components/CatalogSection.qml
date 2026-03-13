@@ -146,7 +146,7 @@ Rectangle {
                     TextInput {
                         id: searchInput
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width - 38
+                        width: parent.width - 38 - (clearBtn.visible ? clearBtn.width + 4 : 0)
                         font.pixelSize: Dimensions.fontXS
                         color: Theme.textPrimary
                         clip: true; selectByMouse: true
@@ -161,6 +161,28 @@ Rectangle {
                             font.pixelSize: Dimensions.fontXS
                             color: Theme.textMuted
                             visible: !searchInput.text && !searchInput.activeFocus
+                        }
+                    }
+
+                    // Clear button
+                    Rectangle {
+                        id: clearBtn
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: searchInput.text.length > 0
+                        width: 18; height: 18; radius: 9
+                        color: clearMa.containsMouse ? Theme.textPrimary15 : Theme.textPrimary08
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u2715"
+                            font.pixelSize: 9; font.weight: Font.Bold
+                            color: clearMa.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        }
+
+                        MouseArea {
+                            id: clearMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { searchInput.text = ""; searchInput.focus = true }
                         }
                     }
                 }
