@@ -130,8 +130,9 @@ Rectangle {
                 border.width: 1
 
                 Row {
-                    anchors.fill: parent
-                    anchors.leftMargin: 10; anchors.rightMargin: 6
+                    anchors.left: parent.left; anchors.right: clearBtn.left
+                    anchors.top: parent.top; anchors.bottom: parent.bottom
+                    anchors.leftMargin: 10; anchors.rightMargin: 4
                     spacing: 8
 
                     Text {
@@ -146,7 +147,7 @@ Rectangle {
                     TextInput {
                         id: searchInput
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width - 38 - (clearBtn.visible ? clearBtn.width + 4 : 0)
+                        width: parent.width - 28
                         font.pixelSize: Dimensions.fontXS
                         color: Theme.textPrimary
                         clip: true; selectByMouse: true
@@ -163,27 +164,33 @@ Rectangle {
                             visible: !searchInput.text && !searchInput.activeFocus
                         }
                     }
+                }
 
-                    // Clear button
-                    Rectangle {
-                        id: clearBtn
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: searchInput.text.length > 0
-                        width: 18; height: 18; radius: 9
-                        color: clearMa.containsMouse ? Theme.textPrimary15 : Theme.textPrimary08
+                // Clear button — slides in from right
+                Rectangle {
+                    id: clearBtn
+                    anchors.right: parent.right; anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: searchInput.text.length > 0 ? 22 : 0
+                    height: 22; radius: 4; clip: true
+                    color: clearMa.containsMouse ? Theme.textPrimary15 : "transparent"
+                    opacity: searchInput.text.length > 0 ? 1 : 0
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\u2715"
-                            font.pixelSize: 9; font.weight: Font.Bold
-                            color: clearMa.containsMouse ? Theme.textPrimary : Theme.textMuted
-                        }
+                    Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
 
-                        MouseArea {
-                            id: clearMa; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: { searchInput.text = ""; searchInput.focus = true }
-                        }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\uE711"
+                        font.family: "Segoe MDL2 Assets"
+                        font.pixelSize: 10
+                        color: clearMa.containsMouse ? Theme.textPrimary : Theme.textMuted
+                    }
+
+                    MouseArea {
+                        id: clearMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { searchInput.text = ""; searchInput.focus = true }
                     }
                 }
             }
