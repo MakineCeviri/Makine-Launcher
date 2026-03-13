@@ -149,6 +149,31 @@ void GameService::setManifestSync(ManifestSyncService* sync)
             // Remote catalog updated — invalidate supported games cache
             invalidateSupportedCache();
             qCDebug(lcGameService) << "catalogReady received — rebuilding model";
+
+            // Re-resolve unmatched non-Steam games against the now-available catalog
+            bool changed = false;
+            if (m_coreBridge) {
+                for (auto& game : m_games) {
+                    if (!game.steamAppId.isEmpty()) continue;
+                    if (game.source == QLatin1String("steam")) continue;
+
+                    QDir gameDir(game.installPath);
+                    QString resolved = m_coreBridge->findMatchingAppId(gameDir.dirName());
+                    if (!resolved.isEmpty()) {
+                        game.steamAppId = resolved;
+                        game.id = resolved;
+                        game.hasTranslation = m_coreBridge->isPackageInstalled(resolved);
+                        changed = true;
+                        qCDebug(lcGameService) << "Late-resolved" << game.name
+                                 << "-> steamAppId:" << resolved;
+                    }
+                }
+                if (changed) {
+                    rebuildCache();
+                    saveCachedGames();
+                }
+            }
+
             // Defer to next event loop so refreshPackageManifest completes first
             QTimer::singleShot(0, this, [this]{
                 // Trigger cache rebuild + model population via supportedGames()
