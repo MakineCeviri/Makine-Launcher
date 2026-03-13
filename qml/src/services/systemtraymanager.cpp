@@ -236,6 +236,17 @@ void SystemTrayManager::show()
 #endif
 }
 
+void SystemTrayManager::hide()
+{
+#ifdef Q_OS_WIN
+    if (m_visible) {
+        Shell_NotifyIconW(NIM_DELETE, &m_nid);
+        m_visible = false;
+    }
+#endif
+    m_updateCheckTimer.stop();
+}
+
 void SystemTrayManager::setPendingUpdates(int count)
 {
     if (m_pendingUpdates == count) return;

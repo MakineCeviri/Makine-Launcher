@@ -30,6 +30,7 @@ public:
 
     void setIcon(const QIcon &icon);
     void show();
+    void hide();
 
     int pendingUpdates() const { return m_pendingUpdates; }
     void setPendingUpdates(int count);
