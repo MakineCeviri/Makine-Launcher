@@ -29,7 +29,7 @@ Rectangle {
     readonly property int _radius: Dimensions.radiusSection
 
     radius: _radius
-    color: Qt.rgba(0.05, 0.05, 0.065, 0.78)
+    color: Qt.rgba(0.027, 0.027, 0.04, 0.85)
 
     GradientBorder { cornerRadius: container._radius }
 

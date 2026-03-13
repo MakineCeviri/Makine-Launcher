@@ -19,36 +19,36 @@ QtObject {
     // BACKGROUND COLORS
     // =========================================================================
 
-    /// Ana arka plan - macOS midnight blue-black
-    readonly property color bgPrimary: darkMode ? "#0C0C11" : lightBackground
+    /// Ana arka plan — matches makineceviri.net
+    readonly property color bgPrimary: darkMode ? "#07070a" : lightBackground
 
-    /// İkincil arka plan - hafif mavi ton
-    readonly property color bgSecondary: darkMode ? "#12121A" : lightSurface
+    /// İkincil arka plan
+    readonly property color bgSecondary: darkMode ? "#0d0d11" : lightSurface
 
     /// Gradient başlangıç
-    readonly property color bgGradientStart: darkMode ? "#0C0C11" : "#F8F8FA"
+    readonly property color bgGradientStart: darkMode ? "#07070a" : "#F8F8FA"
 
     /// Gradient bitiş
-    readonly property color bgGradientEnd: darkMode ? "#0F0F19" : "#F0F0F5"
+    readonly property color bgGradientEnd: darkMode ? "#0d0d14" : "#F0F0F5"
 
     // =========================================================================
     // SURFACE COLORS (Cards, Panels)
     // =========================================================================
 
-    /// Normal surface — blue-tinted dark
-    readonly property color surface: darkMode ? "#17171F" : lightSurface
+    /// Normal surface — matches makineceviri.net
+    readonly property color surface: darkMode ? "#121216" : lightSurface
 
     /// Light surface
-    readonly property color surfaceLight: darkMode ? "#26262E" : lightSurfaceLight
+    readonly property color surfaceLight: darkMode ? "#1b1b21" : lightSurfaceLight
 
     /// Hover state
-    readonly property color surfaceHover: darkMode ? "#1E1E27" : "#E8E8EC"
+    readonly property color surfaceHover: darkMode ? "#18181b" : "#E8E8EC"
 
     /// Active/selected state
-    readonly property color surfaceActive: darkMode ? "#26262E" : "#E0E0E8"
+    readonly property color surfaceActive: darkMode ? "#1b1b21" : "#E0E0E8"
 
     /// Yükseltilmiş yüzey (modal, dropdown)
-    readonly property color surfaceElevated: darkMode ? "#292930" : "#FFFFFF"
+    readonly property color surfaceElevated: darkMode ? "#222228" : "#FFFFFF"
 
     // =========================================================================
     // ANA RENKLER
@@ -139,8 +139,8 @@ QtObject {
     // METİN RENKLERİ
     // =========================================================================
 
-    /// Birincil metin - en parlak
-    readonly property color textPrimary: darkMode ? "#FAFAFA" : lightTextPrimary
+    /// Birincil metin — warm cream (matches makineceviri.net)
+    readonly property color textPrimary: darkMode ? "#dedad4" : lightTextPrimary
 
     /// Renkli/koyu arka plan üzerindeki beyaz metin
     readonly property color textOnColor: "#FFFFFF"
@@ -148,8 +148,8 @@ QtObject {
     /// İkincil metin
     readonly property color textSecondary: darkMode ? "#A1A1AA" : lightTextSecondary
 
-    /// Soluk metin
-    readonly property color textMuted: darkMode ? "#71717A" : lightTextMuted
+    /// Soluk metin — warm gray (matches makineceviri.net)
+    readonly property color textMuted: darkMode ? "#7d7a73" : lightTextMuted
 
     /// Devre dışı metin
     readonly property color textDisabled: darkMode ? "#52525B" : "#A1A1AA"
@@ -158,11 +158,11 @@ QtObject {
     // BORDER / SEPARATOR COLORS
     // =========================================================================
 
-    /// Normal kenar
-    readonly property color border: darkMode ? "#27272A" : lightBorder
+    /// Normal kenar — matches makineceviri.net
+    readonly property color border: darkMode ? "#1b1b21" : lightBorder
 
     /// Vurgulu kenar
-    readonly property color borderHover: darkMode ? "#3F3F46" : "#D4D4D8"
+    readonly property color borderHover: darkMode ? "#262632" : "#D4D4D8"
 
     /// Odak kenarlığı (accent preset'e bağlı)
     readonly property color borderFocus: accentBase
