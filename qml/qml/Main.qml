@@ -155,7 +155,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequences: [StandardKey.Back]
-        enabled: contentStackContainer.currentIndex !== 0
+        enabled: !window._onboardingActive && contentStackContainer.currentIndex !== 0
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
@@ -163,7 +163,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Escape"
-        enabled: contentStackContainer.currentIndex !== 0
+        enabled: !window._onboardingActive && contentStackContainer.currentIndex !== 0
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
@@ -171,6 +171,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+,"
+        enabled: !window._onboardingActive
         onActivated: {
             window.currentNavIndex = 2
             contentStackContainer.navigateTo(1)
@@ -178,6 +179,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+H"
+        enabled: !window._onboardingActive
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
@@ -186,6 +188,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+1"
+        enabled: !window._onboardingActive
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
@@ -194,6 +197,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+2"
+        enabled: !window._onboardingActive
         onActivated: {
             window.currentNavIndex = 1
             contentStackContainer.navigateTo(0)
@@ -202,6 +206,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+R"
+        enabled: !window._onboardingActive
         onActivated: GameService.checkForUpdates()
     }
 
@@ -219,6 +224,7 @@ ApplicationWindow {
                                          window.visibility !== Window.Hidden
 
     onWindowActiveChanged: {
+        if (window._onboardingActive) return
         if (!SettingsManager.autoDetectGames) return
         if (windowActive) {
             ProcessScanner.startWatching(10000)
@@ -231,6 +237,7 @@ ApplicationWindow {
         id: mainContent
         anchors.fill: parent
         spacing: 0
+        visible: !window._onboardingActive
 
         // ===== TITLE BAR (32px) =====
         TitleBar {
