@@ -50,6 +50,57 @@ std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
+// Strip everything except letters and digits, then lowercase.
+// "Dave the Diver" → "davethediver"
+// "DAVE THE DIVER" → "davethediver"
+// "Dave.The.Diver"  → "davethediver"
+std::string alphaOnly(const std::string& s) {
+    std::string r;
+    r.reserve(s.size());
+    for (unsigned char c : s) {
+        if (std::isalnum(c))
+            r += static_cast<char>(std::tolower(c));
+    }
+    return r;
+}
+
+// Split into lowercase word tokens (split on non-alnum boundaries).
+// Filters out short noise words: "the", "a", "of", "and", "to".
+std::vector<std::string> tokenize(const std::string& s) {
+    static const std::set<std::string> noise = {"the", "a", "of", "and", "to", "in", "on", "for"};
+    std::vector<std::string> tokens;
+    std::string current;
+    for (unsigned char c : s) {
+        if (std::isalnum(c)) {
+            current += static_cast<char>(std::tolower(c));
+        } else if (!current.empty()) {
+            if (current.size() > 1 || std::isdigit(static_cast<unsigned char>(current[0]))) {
+                if (noise.find(current) == noise.end())
+                    tokens.push_back(current);
+            }
+            current.clear();
+        }
+    }
+    if (!current.empty() && (current.size() > 1 || std::isdigit(static_cast<unsigned char>(current[0])))) {
+        if (noise.find(current) == noise.end())
+            tokens.push_back(current);
+    }
+    return tokens;
+}
+
+// Compute Jaccard similarity between two token sets (0.0 - 1.0)
+double tokenSimilarity(const std::vector<std::string>& a, const std::vector<std::string>& b) {
+    if (a.empty() || b.empty()) return 0.0;
+    std::set<std::string> sa(a.begin(), a.end());
+    std::set<std::string> sb(b.begin(), b.end());
+    int intersection = 0;
+    for (const auto& t : sa) {
+        if (sb.count(t)) ++intersection;
+    }
+    int unionSize = static_cast<int>(sa.size() + sb.size()) - intersection;
+    return unionSize > 0 ? static_cast<double>(intersection) / unionSize : 0.0;
+}
+
 } // anonymous namespace
 
 // =============================================================================
@@ -493,15 +544,29 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
 std::string PackageCatalog::findMatchingAppId(const std::string& folderName) const
 {
     const std::string normalized = toLower(trim(folderName));
+    if (normalized.empty()) return {};
 
-    // Exact match against dirName or gameName (case-insensitive)
+    // Tier 1: Exact case-insensitive match against dirName or gameName
     for (const auto& [appId, pkg] : packages_) {
         if (toLower(pkg.dirName) == normalized || toLower(pkg.gameName) == normalized) {
             return appId;
         }
     }
 
-    // Substring match: folder contains gameName or vice versa
+    // Tier 2: Alphanumeric-normalized match (handles punctuation/spacing diffs)
+    //   "Dave the Diver" ↔ "DaveTheDiver" ↔ "DAVE THE DIVER"
+    //   "Elden Ring" ↔ "EldenRing" ↔ "ELDEN_RING"
+    const std::string alphaInput = alphaOnly(normalized);
+    if (alphaInput.size() >= 3) {
+        for (const auto& [appId, pkg] : packages_) {
+            if (alphaOnly(pkg.dirName) == alphaInput ||
+                alphaOnly(pkg.gameName) == alphaInput) {
+                return appId;
+            }
+        }
+    }
+
+    // Tier 3: Substring match (either direction)
     for (const auto& [appId, pkg] : packages_) {
         const std::string dirLower  = toLower(pkg.dirName);
         const std::string nameLower = toLower(pkg.gameName);
@@ -512,6 +577,35 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
             dirLower.find(normalized) != std::string::npos)
         {
             return appId;
+        }
+    }
+
+    // Tier 4: Token-based similarity (handles word reordering, noise words)
+    //   "Grand Theft Auto V" ↔ "GrandTheftAutoV"
+    //   Requires >= 80% Jaccard similarity AND >= 2 matching tokens
+    const auto inputTokens = tokenize(normalized);
+    if (inputTokens.size() >= 2) {
+        std::string bestAppId;
+        double bestScore = 0.0;
+
+        for (const auto& [appId, pkg] : packages_) {
+            auto nameTokens = tokenize(pkg.gameName);
+            double score = tokenSimilarity(inputTokens, nameTokens);
+            if (score > bestScore) {
+                bestScore = score;
+                bestAppId = appId;
+            }
+
+            auto dirTokens = tokenize(pkg.dirName);
+            score = tokenSimilarity(inputTokens, dirTokens);
+            if (score > bestScore) {
+                bestScore = score;
+                bestAppId = appId;
+            }
+        }
+
+        if (bestScore >= 0.8 && !bestAppId.empty()) {
+            return bestAppId;
         }
     }
 

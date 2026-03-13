@@ -122,15 +122,19 @@ void GameService::initialize()
             m_packageInstalledCache = std::move(p);
             rebuildCache();
 
-            if (m_games.isEmpty()) {
-                qCDebug(lcGameService) << "No cached games, auto-scan scheduled";
-                QTimer::singleShot(kAutoScanDelayMs, this, &GameService::scanAllLibraries);
-            }
-
             emit gameListChanged();
             emit translationStatusChanged();
             emit supportedGamesChanged();
             ensureSupportedGamesCache();
+
+            // Always schedule a background library scan to detect
+            // newly installed/uninstalled games. Use a short delay
+            // if cache is empty (first run), longer if we have cached
+            // data (cache serves as instant preview).
+            const int delayMs = m_games.isEmpty() ? kAutoScanDelayMs : 2000;
+            qCDebug(lcGameService) << "Background library scan scheduled in" << delayMs << "ms"
+                     << "(cached:" << m_games.count() << "games)";
+            QTimer::singleShot(delayMs, this, &GameService::scanAllLibraries);
         }, Qt::QueuedConnection);
     });
 }
@@ -148,37 +152,56 @@ void GameService::setManifestSync(ManifestSyncService* sync)
         connect(sync, &ManifestSyncService::catalogReady, this, [this]() {
             // Remote catalog updated — invalidate supported games cache
             invalidateSupportedCache();
-            qCDebug(lcGameService) << "catalogReady received — rebuilding model";
+            qCDebug(lcGameService) << "catalogReady received — deferring game refresh";
 
-            // Re-resolve unmatched non-Steam games against the now-available catalog
-            bool changed = false;
-            if (m_coreBridge) {
-                for (auto& game : m_games) {
-                    if (!game.steamAppId.isEmpty()) continue;
-                    if (game.source == QLatin1String("steam")) continue;
+            // Defer ALL work to next event loop iteration.
+            // This ensures refreshPackageManifest() (connected in wireSignals,
+            // which runs AFTER this handler) has already reloaded the catalog
+            // into LocalPackageManager before we query hasTranslationPackage().
+            QTimer::singleShot(0, this, [this]{
+                // Refresh ALL games against the now-available catalog:
+                // 1. Re-resolve non-Steam games without steamAppId
+                // 2. Update hasTranslation for ALL games (fixes race where
+                //    scan completed before catalog was loaded)
+                bool changed = false;
+                if (m_coreBridge) {
+                    for (auto& game : m_games) {
+                        // Step 1: Resolve non-Steam games without steamAppId
+                        if (game.steamAppId.isEmpty()
+                            && game.source != QLatin1String("steam")) {
+                            QDir gameDir(game.installPath);
+                            QString resolved = m_coreBridge->findMatchingAppId(gameDir.dirName());
+                            if (!resolved.isEmpty()) {
+                                game.steamAppId = resolved;
+                                game.id = resolved;
+                                changed = true;
+                                qCDebug(lcGameService) << "Late-resolved" << game.name
+                                         << "-> steamAppId:" << resolved;
+                            }
+                        }
 
-                    QDir gameDir(game.installPath);
-                    QString resolved = m_coreBridge->findMatchingAppId(gameDir.dirName());
-                    if (!resolved.isEmpty()) {
-                        game.steamAppId = resolved;
-                        game.id = resolved;
-                        game.hasTranslation = m_coreBridge->isPackageInstalled(resolved);
-                        changed = true;
-                        qCDebug(lcGameService) << "Late-resolved" << game.name
-                                 << "-> steamAppId:" << resolved;
+                        // Step 2: Refresh hasTranslation for ALL games
+                        if (!game.steamAppId.isEmpty()) {
+                            bool hasTrans = m_coreBridge->hasTranslationPackage(game.steamAppId);
+                            if (game.hasTranslation != hasTrans) {
+                                game.hasTranslation = hasTrans;
+                                changed = true;
+                                qCDebug(lcGameService) << "Updated hasTranslation for" << game.name
+                                         << "(" << game.steamAppId << ") ->" << hasTrans;
+                            }
+                        }
+                    }
+                    if (changed) {
+                        rebuildCache();
+                        saveCachedGames();
                     }
                 }
-                if (changed) {
-                    rebuildCache();
-                    saveCachedGames();
-                }
-            }
 
-            // Defer to next event loop so refreshPackageManifest completes first
-            QTimer::singleShot(0, this, [this]{
-                // Trigger cache rebuild + model population via supportedGames()
+                // Rebuild model with enriched data
+                invalidateSupportedCache();
                 supportedGames();
                 emit supportedGamesChanged();
+                emit gameListChanged();
             });
         });
     }
@@ -301,6 +324,19 @@ void GameService::onScanCompleted(int count)
 {
     MAKINE_ZONE_NAMED("GameService::onScanCompleted");
 
+    const auto& detected = m_coreBridge->detectedGames();
+
+    // Guard: if scan found 0 games but we had cached data, keep the cache.
+    // This protects against registry access failures, VDF parse errors, etc.
+    if (detected.isEmpty() && !m_games.isEmpty()) {
+        qCWarning(lcGameService) << "Scan returned 0 games but cache has"
+                   << m_games.count() << "— keeping cached data";
+        m_isScanning = false;
+        emit isScanningChanged();
+        emit scanCompleted(0);
+        return;
+    }
+
     // Preserve manually added games across re-scan
     QList<GameInfo> manualGames;
     for (const auto& g : m_games) {
@@ -310,20 +346,23 @@ void GameService::onScanCompleted(int count)
 
     // Convert detected games to GameInfo
     m_games.clear();
-    for (const auto& detected : m_coreBridge->detectedGames()) {
+    for (const auto& det : detected) {
         GameInfo game;
-        game.id = detected.id;
-        game.name = detected.name;
-        game.installPath = detected.installPath;
-        game.source = detected.source;
-        game.engine = detected.engine;
-        game.steamAppId = detected.steamAppId;
+        game.id = det.id;
+        game.name = det.name;
+        game.installPath = det.installPath;
+        game.source = det.source;
+        game.engine = det.engine;
+        game.steamAppId = det.steamAppId;
         game.isInstalled = true;
-        game.hasTranslation = detected.hasTranslation;  // Already set by worker thread
-        game.isVerified = game.hasTranslation;  // Verified if translation is installed
+        game.hasTranslation = det.hasTranslation;  // Already set by worker thread
+        game.isVerified = game.hasTranslation;
 
         m_games.append(game);
     }
+
+    qCDebug(lcGameService) << "Scan result:" << m_games.count() << "games from stores"
+             << "(manual:" << manualGames.count() << ")";
 
     // Re-add manual games that weren't found by scan (avoid duplicates by ID)
     for (const auto& manual : manualGames) {
@@ -454,23 +493,54 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
 {
     MAKINE_ZONE_NAMED("GameService::finalizeManualGame");
 
+    // Retry matching on main thread — catalog may have loaded
+    // since the background thread attempted matching
+    QString resolvedAppId = matchedAppId;
+    if (resolvedAppId.isEmpty() && m_coreBridge) {
+        resolvedAppId = m_coreBridge->findMatchingAppId(folderName);
+        if (!resolvedAppId.isEmpty()) {
+            qCDebug(lcGameService) << "Manual game matched on retry:" << folderName
+                     << "-> steamAppId:" << resolvedAppId;
+        }
+    }
+
+    // If still no match, try matching via ManifestSync catalog by name
+    if (resolvedAppId.isEmpty() && m_manifestSync) {
+        const QVariantList catalog = m_manifestSync->catalog();
+        const QString lowerFolder = folderName.toLower();
+        for (const auto& item : catalog) {
+            const QVariantMap entry = item.toMap();
+            const QString gameName = entry.value(QStringLiteral("gameName")).toString();
+            const QString dirName = entry.value(QStringLiteral("dirName")).toString();
+            if (gameName.toLower().contains(lowerFolder) ||
+                lowerFolder.contains(gameName.toLower()) ||
+                dirName.toLower() == lowerFolder) {
+                resolvedAppId = entry.value(QStringLiteral("steamAppId")).toString();
+                qCDebug(lcGameService) << "Manual game matched via ManifestSync:"
+                         << folderName << "-> steamAppId:" << resolvedAppId;
+                break;
+            }
+        }
+    }
+
     GameInfo game;
     game.installPath = path;
     game.source = "manual";
     game.isInstalled = true;
     game.engine = engine.isEmpty() ? "Unknown" : engine;
 
-    if (!matchedAppId.isEmpty()) {
-        game.id = matchedAppId;
-        game.steamAppId = matchedAppId;
+    if (!resolvedAppId.isEmpty()) {
+        game.id = resolvedAppId;
+        game.steamAppId = resolvedAppId;
         game.hasTranslation = true;
 
-        auto pkg = m_coreBridge ? m_coreBridge->getPackageForGame(matchedAppId) : std::nullopt;
+        auto pkg = m_coreBridge ? m_coreBridge->getPackageForGame(resolvedAppId) : std::nullopt;
         game.name = (pkg.has_value()) ? pkg->gameName : folderName;
     } else {
         game.id = QStringLiteral("manual_%1").arg(m_games.count() + 1);
         game.name = folderName;
         game.hasTranslation = false;
+        qCWarning(lcGameService) << "Manual game not matched to catalog:" << folderName;
     }
 
     // Avoid duplicate ID collision (e.g. steam scan already found this game)
