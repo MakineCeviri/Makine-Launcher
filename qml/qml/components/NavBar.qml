@@ -18,7 +18,7 @@ Item {
     signal libraryClicked()
     signal settingsClicked()
 
-    readonly property color _bgColor: Theme.surface70
+    readonly property color _bgColor: Theme.bgPrimary
 
     // Main background
     Rectangle {

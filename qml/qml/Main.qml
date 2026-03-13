@@ -233,6 +233,12 @@ ApplicationWindow {
         }
     }
 
+    // Premium accent-aware ambient background
+    AppBackground {
+        anchors.fill: parent
+        z: -1
+    }
+
     ColumnLayout {
         id: mainContent
         anchors.fill: parent

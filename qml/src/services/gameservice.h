@@ -282,7 +282,6 @@ signals:
     void antiCheatWarningNeeded(const QString& gameId, const QVariantMap& antiCheatData);
 
 private:
-    void loadCachedGames();
     void saveCachedGames();
     void setupCoreBridge();
     void onScanProgress(qreal progress, const QString& status);

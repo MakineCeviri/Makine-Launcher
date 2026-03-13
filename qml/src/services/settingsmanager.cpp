@@ -187,14 +187,17 @@ QVariantList SettingsManager::accentPresets() const
     };
 
     static const Preset presets[] = {
-        {"purple", "Mor",        {"#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"}},
-        {"blue",   "Mavi",       {"#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8"}},
-        {"teal",   "Turkuaz",    {"#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"}},
-        {"green",  "Ye\xc5\x9fil",      {"#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"}},
-        {"rose",   "Pembe",      {"#FDA4AF", "#FB7185", "#F43F5E", "#E11D48", "#BE123C"}},
-        {"amber",  "Amber",      {"#FCD34D", "#FBBF24", "#F59E0B", "#D97706", "#B45309"}},
-        {"red",    "K\xc4\xb1rm\xc4\xb1z\xc4\xb1",  {"#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"}},
-        {"sky",    "G\xc3\xb6k Mavisi",{"#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"}},
+        {"purple",   "Mor",             {"#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"}},
+        {"blue",     "Mavi",            {"#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8"}},
+        {"teal",     "Turkuaz",         {"#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"}},
+        {"green",    "Ye\xc5\x9fil",    {"#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"}},
+        {"rose",     "Pembe",           {"#F9A8D4", "#F472B6", "#EC4899", "#DB2777", "#BE185D"}},
+        {"amber",    "Amber",           {"#FCD34D", "#FBBF24", "#F59E0B", "#D97706", "#B45309"}},
+        {"red",      "K\xc4\xb1rm\xc4\xb1z\xc4\xb1",  {"#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"}},
+        {"sky",      "G\xc3\xb6k Mavisi",{"#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"}},
+        {"indigo",   "\xc4\xb0ndigo",   {"#C7D2FE", "#A5B4FC", "#818CF8", "#6366F1", "#4F46E5"}},
+        {"black",    "Siyah",           {"#D4D4D8", "#A1A1AA", "#71717A", "#52525B", "#3F3F46"}},
+        {"gradient", "Gradyan",         {"#FF6B9D", "#FF8C42", "#E84393", "#00CEC9", "#6C5CE7"}},
     };
 
     QVariantList result;

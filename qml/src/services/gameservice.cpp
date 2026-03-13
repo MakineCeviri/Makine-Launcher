@@ -364,16 +364,19 @@ void GameService::onScanCompleted(int count)
     qCDebug(lcGameService) << "Scan result:" << m_games.count() << "games from stores"
              << "(manual:" << manualGames.count() << ")";
 
-    // Re-add manual games that weren't found by scan (avoid duplicates by ID)
+    // Re-add manual games that weren't found by scan (avoid duplicates by ID/path)
+    QSet<QString> scannedIds;
+    QSet<QString> scannedPaths;
+    scannedIds.reserve(m_games.count());
+    scannedPaths.reserve(m_games.count());
+    for (const auto& g : m_games) {
+        scannedIds.insert(g.id);
+        scannedPaths.insert(g.installPath);
+    }
     for (const auto& manual : manualGames) {
-        bool duplicate = false;
-        for (const auto& g : m_games) {
-            if (g.id == manual.id || g.installPath == manual.installPath) {
-                duplicate = true;
-                break;
-            }
-        }
-        if (!duplicate) {
+        if (scannedIds.contains(manual.id) || scannedPaths.contains(manual.installPath))
+            continue;
+        {
             // Validate manual game's install path still exists
             if (manual.isInstalled && !manual.installPath.isEmpty()
                 && !QDir(manual.installPath).exists()) {
@@ -510,11 +513,11 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
         const QString lowerFolder = folderName.toLower();
         for (const auto& item : catalog) {
             const QVariantMap entry = item.toMap();
-            const QString gameName = entry.value(QStringLiteral("gameName")).toString();
-            const QString dirName = entry.value(QStringLiteral("dirName")).toString();
-            if (gameName.toLower().contains(lowerFolder) ||
-                lowerFolder.contains(gameName.toLower()) ||
-                dirName.toLower() == lowerFolder) {
+            const QString nameLower = entry.value(QStringLiteral("gameName")).toString().toLower();
+            const QString dirLower = entry.value(QStringLiteral("dirName")).toString().toLower();
+            if (nameLower.contains(lowerFolder) ||
+                lowerFolder.contains(nameLower) ||
+                dirLower == lowerFolder) {
                 resolvedAppId = entry.value(QStringLiteral("steamAppId")).toString();
                 qCDebug(lcGameService) << "Manual game matched via ManifestSync:"
                          << folderName << "-> steamAppId:" << resolvedAppId;
@@ -841,76 +844,6 @@ QVariantList GameService::installedTranslations() const
     return m_installedTranslationsCache;
 }
 
-void GameService::loadCachedGames()
-{
-    MAKINE_ZONE_NAMED("GameService::loadCachedGames");
-    const QString cachePath = AppPaths::gamesCacheFile();
-    QFile file(cachePath);
-
-    if (!file.open(QIODevice::ReadOnly)) {
-        qCDebug(lcGameService) << "No cached games found at:" << cachePath;
-        return;
-    }
-
-    try {
-        const QByteArray data = file.readAll();
-        file.close();
-
-        QJsonParseError parseError;
-        const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-
-        if (parseError.error != QJsonParseError::NoError) {
-            qCWarning(lcGameService) << "Failed to parse games cache:" << parseError.errorString();
-            return;
-        }
-
-        if (!doc.isArray()) {
-            qCWarning(lcGameService) << "Invalid games cache format - expected array";
-            return;
-        }
-
-        m_games.clear();
-        m_games.reserve(doc.array().count());
-
-        for (const auto& value : doc.array()) {
-            if (!value.isObject()) continue;
-
-            const QJsonObject obj = value.toObject();
-            GameInfo game;
-            game.id = obj["id"].toString();
-            game.name = obj["name"].toString();
-            game.installPath = obj["installPath"].toString();
-            game.steamAppId = obj["steamAppId"].toString();
-            game.source = obj["source"].toString();
-            game.engine = obj["engine"].toString();
-            game.isVerified = obj["isVerified"].toBool();
-            game.isInstalled = obj["isInstalled"].toBool();
-            game.hasTranslation = obj["hasTranslation"].toBool();
-
-            if (!game.id.isEmpty() && !game.name.isEmpty()) {
-                // Validate install path still exists on disk
-                if (game.isInstalled && !game.installPath.isEmpty()
-                    && !QDir(game.installPath).exists()) {
-                    game.isInstalled = false;
-                    // Keep installPath — needed for backup association and error messages
-                }
-                m_games.append(game);
-            }
-        }
-    } catch (const std::exception& e) {
-        qCWarning(lcGameService) << "Failed to load games cache:" << e.what();
-        return;
-    }
-
-    rebuildCache();
-
-    qCDebug(lcGameService) << "Loaded" << m_games.count() << "games from cache";
-    emit gameListChanged();
-    emit translationStatusChanged();
-    emit supportedGamesChanged();
-    ensureSupportedGamesCache();
-}
-
 void GameService::saveCachedGames()
 {
     // Snapshot the game list (COW — cheap copy) and serialize in background
@@ -1026,8 +959,8 @@ bool GameService::isValidGamePath(const QString& path) const
     }
 
     // Check for suspicious paths (system directories)
-    QString normalizedPath = info.absoluteFilePath().toLower();
-    QStringList forbiddenPaths = {
+    const QString normalizedPath = info.absoluteFilePath().toLower();
+    static const QStringList forbiddenPaths = {
         "c:/windows",
         "c:/program files/common files",
         "c:/programdata",
@@ -1046,8 +979,6 @@ bool GameService::isValidGamePath(const QString& path) const
 
     return true;
 }
-
-
 
 QVariantList GameService::getVariants(const QString& gameId)
 {
