@@ -231,13 +231,7 @@ ApplicationWindow {
             libraryMode: window.currentNavIndex === 1
 
             onMinimizeClicked: window.showMinimized()
-            onCloseClicked: {
-                if (SettingsManager.minimizeToTray) {
-                    window.minimizeToTray()
-                } else {
-                    Qt.quit()
-                }
-            }
+            onCloseClicked: window.close()
             onTrayClicked: window.minimizeToTray()
         }
 
