@@ -132,6 +132,7 @@ Rectangle {
             width: 18; height: 18
             visible: actionBtn._state !== "installing"
             Layout.alignment: Qt.AlignVCenter
+            renderStrategy: Canvas.Cooperative
 
             property color iconColor: {
                 if (actionBtn._state === "installed")

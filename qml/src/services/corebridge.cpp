@@ -10,7 +10,6 @@
 #include "apppaths.h"
 #include "crashreporter.h"
 
-#include <QDebug>
 #include <QLoggingCategory>
 #include <QDir>
 #include <QThread>

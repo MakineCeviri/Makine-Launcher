@@ -8,7 +8,6 @@
 #include "gameservice.h"
 #include "localpackagemanager.h"
 #include "profiler.h"
-#include <QDebug>
 #include <QLoggingCategory>
 #include <QDir>
 #include <QSet>

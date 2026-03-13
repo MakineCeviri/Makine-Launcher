@@ -18,7 +18,6 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QDateTime>
-#include <QDebug>
 #include <QLoggingCategory>
 #include <QDir>
 #include <QFileInfo>

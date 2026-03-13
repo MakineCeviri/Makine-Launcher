@@ -10,7 +10,6 @@
 #include <QDir>
 #include <QFile>
 #include <QSharedMemory>
-#include <QDebug>
 #include <QLoggingCategory>
 
 #ifdef Q_OS_WIN

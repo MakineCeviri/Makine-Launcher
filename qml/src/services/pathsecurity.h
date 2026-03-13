@@ -9,7 +9,6 @@
 #include <QString>
 #include <QDir>
 #include <QFileInfo>
-#include <QDebug>
 #include <QLoggingCategory>
 
 static inline const QLoggingCategory &lcPathSecurity() {

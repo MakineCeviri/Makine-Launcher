@@ -21,6 +21,8 @@ Canvas {
 
     anchors.fill: parent
     z: 100
+    renderTarget: Canvas.FramebufferObject
+    renderStrategy: Canvas.Cooperative
 
     onPaint: {
         var ctx = getContext("2d")

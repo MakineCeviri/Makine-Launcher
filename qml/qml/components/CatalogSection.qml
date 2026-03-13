@@ -274,8 +274,8 @@ Rectangle {
         }
     }
 
-    // Edge fades
-    component EdgeFade: Rectangle {
+    // Edge fades — inline component named CatalogEdgeFade to avoid shadowing SectionContainer's EdgeFade
+    component CatalogEdgeFade: Rectangle {
         property bool mirror: false
         anchors { top: parent.top; bottom: parent.bottom; topMargin: 40 }
         width: 28; z: 10; rotation: mirror ? 180 : 0
@@ -286,6 +286,6 @@ Rectangle {
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
-    EdgeFade { anchors.left: parent.left }
-    EdgeFade { anchors.right: parent.right; mirror: true }
+    CatalogEdgeFade { anchors.left: parent.left }
+    CatalogEdgeFade { anchors.right: parent.right; mirror: true }
 }

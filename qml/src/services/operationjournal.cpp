@@ -13,7 +13,6 @@
 
 #include <QStandardPaths>
 #include <QDir>
-#include <QDebug>
 #include <QLoggingCategory>
 #include <memory>
 

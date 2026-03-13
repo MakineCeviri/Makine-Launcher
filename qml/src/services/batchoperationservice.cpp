@@ -6,7 +6,6 @@
 
 #include "batchoperationservice.h"
 #include "profiler.h"
-#include <QDebug>
 #include <QLoggingCategory>
 
 Q_LOGGING_CATEGORY(lcBatchOps, "makineai.batch")
