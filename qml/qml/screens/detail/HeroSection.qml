@@ -21,11 +21,11 @@ Item {
     // =========================================================================
 
     property real _heroOp: 0
-    property real _titleOp: 0;  property real _titleTY: 12
-    property real _actionOp: 0; property real _actionTY: 12
-    property real _tilesOp: 0;  property real _tilesTY: 12
-    property real _aboutOp: 0;  property real _aboutTY: 12
-    property real _contribOp: 0; property real _contribTY: 12
+    property real _titleOp: 0;  property real _titleTY: 18
+    property real _actionOp: 0; property real _actionTY: 18
+    property real _tilesOp: 0;  property real _tilesTY: 18
+    property real _aboutOp: 0;  property real _aboutTY: 18
+    property real _contribOp: 0; property real _contribTY: 18
 
     function replayEntryAnim() {
         _entrySeq.stop()
@@ -35,72 +35,72 @@ Item {
             _aboutOp = 1; _aboutTY = 0; _contribOp = 1; _contribTY = 0
             return
         }
-        _heroOp = 0; _titleOp = 0; _titleTY = 12
-        _actionOp = 0; _actionTY = 12; _tilesOp = 0; _tilesTY = 12
-        _aboutOp = 0; _aboutTY = 12; _contribOp = 0; _contribTY = 12
+        _heroOp = 0; _titleOp = 0; _titleTY = 18
+        _actionOp = 0; _actionTY = 18; _tilesOp = 0; _tilesTY = 18
+        _aboutOp = 0; _aboutTY = 18; _contribOp = 0; _contribTY = 18
         _entrySeq.start()
     }
 
     ParallelAnimation {
         id: _entrySeq
 
-        // Hero banner: 0ms delay, 250ms fade
-        NumberAnimation { target: heroRoot; property: "_heroOp"; to: 1; duration: 250; easing.type: Easing.OutCubic }
+        // Hero banner: 0ms delay, 300ms fade
+        NumberAnimation { target: heroRoot; property: "_heroOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
 
-        // Cover + Title: 100ms delay
+        // Title zone: 120ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 100 }
+            PauseAnimation { duration: 120 }
             ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_titleOp"; to: 1; duration: 250; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_titleTY"; to: 0; duration: 250; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_titleOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_titleTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
             }
         }
 
-        // Action button: 200ms delay
+        // Action button: 240ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 200 }
+            PauseAnimation { duration: 240 }
             ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_actionOp"; to: 1; duration: 250; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_actionTY"; to: 0; duration: 250; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_actionOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_actionTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
             }
         }
 
-        // Info tiles: 300ms delay
+        // Info tiles: 360ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 300 }
+            PauseAnimation { duration: 360 }
             ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_tilesOp"; to: 1; duration: 250; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_tilesTY"; to: 0; duration: 250; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_tilesOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_tilesTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
             }
         }
 
-        // About: 400ms delay
+        // About: 480ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 400 }
+            PauseAnimation { duration: 480 }
             ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_aboutOp"; to: 1; duration: 250; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_aboutTY"; to: 0; duration: 250; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_aboutOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_aboutTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
             }
         }
 
-        // Contributors: 500ms delay
+        // Contributors: 600ms delay
         SequentialAnimation {
-            PauseAnimation { duration: 500 }
+            PauseAnimation { duration: 600 }
             ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_contribOp"; to: 1; duration: 250; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_contribTY"; to: 0; duration: 250; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_contribOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { target: heroRoot; property: "_contribTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
             }
         }
     }
 
     // =========================================================================
-    // HERO BANNER (full width, 240px, gradient fade)
+    // HERO BANNER (full width, 280px, multi-stop gradient fade)
     // =========================================================================
 
     Rectangle {
         id: heroBanner
         width: parent.width
-        height: 240
+        height: 280
         color: "transparent"
         opacity: heroRoot._heroOp
 
@@ -115,117 +115,135 @@ Item {
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
         }
 
-        // Bottom gradient fade into background
+        // Top vignette — subtle darkening for contrast
+        Rectangle {
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.top: parent.top
+            height: 80
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.3) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+
+        // Bottom gradient fade — multi-stop for smooth transition
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: 200
+            height: 220
             gradient: Gradient {
                 GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.6) }
                 GradientStop { position: 1.0; color: Theme.bgPrimary }
             }
         }
     }
 
     // =========================================================================
-    // MAIN CONTENT COLUMN (overlaps hero by 60px)
+    // MAIN CONTENT COLUMN (overlaps hero by 80px)
     // =========================================================================
 
     ColumnLayout {
         id: mainColumn
         anchors.top: heroBanner.bottom
-        anchors.topMargin: -60
+        anchors.topMargin: -80
         anchors.left: parent.left
-        anchors.leftMargin: Dimensions.marginLG
+        anchors.leftMargin: Dimensions.marginXL
         anchors.right: parent.right
-        anchors.rightMargin: Dimensions.marginLG
-        spacing: Dimensions.spacingXL
+        anchors.rightMargin: Dimensions.marginXL
+        spacing: Dimensions.spacingSection
 
         // =================================================================
-        // COVER + TITLE ZONE
-        // =================================================================
-
-        // =================================================================
-        // TITLE ZONE (logo/name + developer + editor badge)
+        // TITLE ZONE — centered, Apple TV+ style
         // =================================================================
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: Dimensions.spacingSM
+            spacing: Dimensions.spacingMD
             opacity: heroRoot._titleOp
             transform: Translate { y: heroRoot._titleTY }
 
-            // Editor's pick badge (pill)
-            Rectangle {
-                visible: heroRoot.vm.isEditorsPick
-                Layout.preferredWidth: editorsPickContent.width + 16
-                Layout.preferredHeight: 22
-                radius: Dimensions.radiusFull
-                color: Theme.warning12
-                border.color: Theme.warning25; border.width: 1
-
-                Row {
-                    id: editorsPickContent
-                    anchors.centerIn: parent; spacing: Dimensions.spacingXS
-                    Text {
-                        textFormat: Text.PlainText; text: "\u2B50"
-                        font.pixelSize: Dimensions.fontCaption
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Editörün Seçimi")
-                        font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
-                        color: Theme.warning
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
-
-            // Game logo (Steam) with text fallback
+            // Game logo (Steam) — centered
             Image {
                 id: gameLogo
                 Layout.fillWidth: true
                 property real _aspect: 0
                 onStatusChanged: if (status === Image.Ready && implicitWidth > 0)
                     _aspect = implicitHeight / implicitWidth
-                Layout.preferredHeight: _aspect > 0 ? Math.min(width * _aspect, 60) : 0
-                Layout.maximumHeight: 60
+                Layout.preferredHeight: _aspect > 0 ? Math.min(width * _aspect, 80) : 0
+                Layout.maximumHeight: 80
                 visible: _aspect > 0
                 source: heroRoot.vm.logoUrl
                 fillMode: Image.PreserveAspectFit
-                horizontalAlignment: Image.AlignLeft
-                sourceSize.width: 400
+                horizontalAlignment: Image.AlignHCenter
+                sourceSize.width: 500
                 asynchronous: true
             }
 
-            // Game title — always visible, bold
+            // Game title — always visible, bold, centered
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: heroRoot.vm.gameName
-                font.pixelSize: Dimensions.fontHero
+                font.pixelSize: Dimensions.fontBanner
                 font.weight: Font.Bold
-                font.letterSpacing: Dimensions.letterSpacingHeadline
+                font.letterSpacing: -0.8
                 color: Theme.textPrimary
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
             }
 
-            // Developer name
+            // Developer name — centered
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 visible: heroRoot.vm.developersText !== ""
                 text: heroRoot.vm.developersText
-                font.pixelSize: Dimensions.fontBody
+                font.pixelSize: Dimensions.fontMD
+                font.weight: Font.Medium
                 color: Theme.textMuted
                 elide: Text.ElideRight
                 maximumLineCount: 1
+                horizontalAlignment: Text.AlignHCenter
             }
 
-            // Editor's note
+            // Editor's pick badge — centered
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: editorsPill.height
+                visible: heroRoot.vm.isEditorsPick
+
+                Rectangle {
+                    id: editorsPill
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: editorsPickContent.width + 20
+                    height: 24
+                    radius: Dimensions.radiusFull
+                    color: Theme.warning12
+                    border.color: Theme.warning25; border.width: 1
+
+                    Row {
+                        id: editorsPickContent
+                        anchors.centerIn: parent; spacing: Dimensions.spacingXS
+                        Text {
+                            textFormat: Text.PlainText; text: "\u2B50"
+                            font.pixelSize: Dimensions.fontCaption
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            textFormat: Text.PlainText
+                            text: qsTr("Editörün Seçimi")
+                            font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
+                            color: Theme.warning
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+            }
+
+            // Editor's note — centered
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
@@ -237,21 +255,22 @@ Item {
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
                 opacity: 0.8
             }
         }
 
         // =================================================================
-        // BADGE ROW (broken / lost warnings)
+        // BADGE ROW (broken / lost warnings) — centered
         // =================================================================
 
         Row {
+            Layout.alignment: Qt.AlignHCenter
             spacing: Dimensions.spacingMD
             opacity: heroRoot._titleOp
             visible: (heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken") ||
                      (heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "lost")
 
-            // Update impact: broken
             Rectangle {
                 visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken"
                 width: brokenRow.width + 20; height: 26
@@ -277,7 +296,6 @@ Item {
                 }
             }
 
-            // Update impact: lost
             Rectangle {
                 visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "lost"
                 width: lostRow.width + 20; height: 26
@@ -417,30 +435,19 @@ Item {
         }
 
         // =================================================================
-        // COMMUNITY DISCLAIMER
+        // COMMUNITY DISCLAIMER — subtle, centered
         // =================================================================
 
-        Rectangle {
+        Text {
             Layout.fillWidth: true
-            implicitHeight: disclaimerText.implicitHeight + 2 * Dimensions.paddingMD
-            radius: Dimensions.radiusMD
-            color: Theme.textPrimary03
-            border.color: Theme.textPrimary06
-            border.width: 1
-            opacity: heroRoot._contribOp
-
-            Text {
-                id: disclaimerText
-                textFormat: Text.PlainText
-                anchors.fill: parent
-                anchors.margins: Dimensions.paddingMD
-                text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
-                font.pixelSize: Dimensions.fontCaption
-                font.italic: true
-                color: Theme.textMuted
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-            }
+            textFormat: Text.PlainText
+            text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
+            font.pixelSize: Dimensions.fontCaption
+            font.italic: true
+            color: Theme.textMuted
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            opacity: heroRoot._contribOp * 0.5
         }
     }
 }
