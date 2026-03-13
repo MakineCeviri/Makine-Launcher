@@ -137,6 +137,17 @@ ApplicationWindow {
         }
     }
 
+    // ===== AUTO DETECT SETTING: stop/start process scanner =====
+    Connections {
+        target: SettingsManager
+        function onAutoDetectGamesChanged() {
+            if (!SettingsManager.autoDetectGames)
+                ProcessScanner.stopWatching()
+            else
+                ProcessScanner.startWatching(windowActive ? 10000 : 60000)
+        }
+    }
+
     // ===== KEYBOARD SHORTCUTS =====
     Shortcut {
         sequence: "Ctrl+Q"
@@ -208,6 +219,7 @@ ApplicationWindow {
                                          window.visibility !== Window.Hidden
 
     onWindowActiveChanged: {
+        if (!SettingsManager.autoDetectGames) return
         if (windowActive) {
             ProcessScanner.startWatching(10000)
         } else {

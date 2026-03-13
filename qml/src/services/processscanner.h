@@ -58,7 +58,7 @@ public:
 
     static constexpr int kDefaultScanIntervalMs = 10000;
     Q_INVOKABLE void startWatching(int intervalMs = kDefaultScanIntervalMs);
-    void stopWatching();
+    Q_INVOKABLE void stopWatching();
 
     /**
      * @brief User selected a heavy process as their game
