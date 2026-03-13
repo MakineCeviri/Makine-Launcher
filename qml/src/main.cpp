@@ -740,7 +740,7 @@ static bool acquireSingleInstance(bool isPostUpdate)
 
 static void configureApplication(QGuiApplication& app)
 {
-    app.setQuitOnLastWindowClosed(false);
+    // Set dynamically after SettingsManager init (based on minimizeToTray)
     app.setApplicationName("MakineAI");
     app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - MakineAI"));
     app.setApplicationVersion(MAKINEAI_APP_VERSION);
@@ -823,6 +823,13 @@ static void createServices(
 #endif
     auto* settingsManager = new SettingsManager(&app);
     engine.rootContext()->setContextProperty("SettingsManager", settingsManager);
+
+    // When minimizeToTray is off, closing the last window should quit the app
+    app.setQuitOnLastWindowClosed(!settingsManager->minimizeToTray());
+    QObject::connect(settingsManager, &SettingsManager::minimizeToTrayChanged, &app,
+                     [&app, settingsManager]() {
+        app.setQuitOnLastWindowClosed(!settingsManager->minimizeToTray());
+    });
 
     // ===== Phase 2: Image cache =====
 #ifdef Q_OS_WIN
@@ -955,6 +962,13 @@ static void wireSignals(
     // Tray quit -> app quit directly (bypass QML round-trip)
     QObject::connect(trayManager, &SystemTrayManager::quitRequested,
                      &app, &QCoreApplication::quit);
+
+    // Clean shutdown: remove tray icon and drain thread pool before exit
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [trayManager]() {
+        trayManager->hide();
+        QThreadPool::globalInstance()->clear();
+        QThreadPool::globalInstance()->waitForDone(3000);
+    });
 
     // Connect ManifestSync signals BEFORE syncing,
     // so catalogReady/packageDetailReady are never missed.

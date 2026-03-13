@@ -44,14 +44,12 @@ ApplicationWindow {
     Component.onDestruction: pageChangeTimer.stop()
 
     onClosing: function(close) {
-        // Window always repositions on launch — no need to save geometry
-
         if (SettingsManager.minimizeToTray && !window.forceQuit) {
             close.accepted = false
             window.minimizeToTray()
-        } else {
-            Qt.quit()
         }
+        // When minimizeToTray is off, close.accepted stays true (default).
+        // setQuitOnLastWindowClosed(true) handles the rest — no Qt.quit() needed.
     }
 
     function minimizeToTray() {
