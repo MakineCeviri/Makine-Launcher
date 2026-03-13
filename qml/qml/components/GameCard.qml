@@ -13,8 +13,9 @@ Item {
     signal clicked()
 
     readonly property real _aspectRatio: 130.0 / 185.0
+    readonly property int _minHeight: 100
     width: Math.round(height * _aspectRatio)
-    height: Dimensions.cardHeight
+    height: Math.max(_minHeight, Dimensions.cardHeight)
 
     // Resolved file:// URL from ImageCacheManager
     property string _src: ""
