@@ -164,24 +164,8 @@ Rectangle {
 
                 switch (actionBtn._state) {
                 case "download":
-                    // Down arrow + line
-                    ctx.beginPath()
-                    ctx.moveTo(cx, 3)
-                    ctx.lineTo(cx, 11.5)
-                    ctx.stroke()
-                    ctx.beginPath()
-                    ctx.moveTo(cx - 4, 8)
-                    ctx.lineTo(cx, 12)
-                    ctx.lineTo(cx + 4, 8)
-                    ctx.stroke()
-                    ctx.beginPath()
-                    ctx.moveTo(4, 15)
-                    ctx.lineTo(14, 15)
-                    ctx.stroke()
-                    break
-
                 case "update":
-                    // Download arrow (update = download new version)
+                    // Down arrow + line (same icon for both states)
                     ctx.beginPath()
                     ctx.moveTo(cx, 3)
                     ctx.lineTo(cx, 11.5)

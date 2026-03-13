@@ -195,6 +195,7 @@ qt_add_qml_module(MakineAI
         qml/screens/detail/ContributorsSection.qml
         qml/screens/detail/RuntimeSection.qml
         qml/screens/detail/BackupSection.qml
+        qml/screens/detail/InfoTilesBar.qml
 
         # Screens - Settings Panels
         qml/screens/settings/GeneralSettings.qml
