@@ -18,8 +18,8 @@ Rectangle {
     width: Dimensions.sidebarWidth
     color: Theme.surface50
 
-    // Local CategoryItem component (matches SettingsScreen inline version)
-    component CategoryItem: Rectangle {
+    // Local SidebarCategoryItem component (matches SettingsScreen inline version)
+    component SidebarCategoryItem: Rectangle {
         id: catItem
         property int categoryIndex: 0
         property string name: ""
@@ -82,15 +82,6 @@ Rectangle {
         }
     }
 
-    // Right border
-    Rectangle {
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        width: 1
-        color: Theme.textPrimary06
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -112,16 +103,13 @@ Rectangle {
             }
         }
 
-        // Divider
-        SettingsDivider { variant: "section" }
-
         Item { Layout.preferredHeight: 4 }
 
         // Category list
         Repeater {
             model: root.categories
 
-            CategoryItem {
+            SidebarCategoryItem {
                 required property int index
                 required property var modelData
                 Layout.fillWidth: true

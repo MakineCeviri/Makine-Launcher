@@ -19,14 +19,14 @@ QtObject {
     // BACKGROUND COLORS
     // =========================================================================
 
-    /// Ana arka plan - en koyu
-    readonly property color bgPrimary: darkMode ? "#0A0A0B" : lightBackground
+    /// Ana arka plan - macOS midnight blue-black
+    readonly property color bgPrimary: darkMode ? "#0C0C11" : lightBackground
 
     /// İkincil arka plan - hafif mavi ton
     readonly property color bgSecondary: darkMode ? "#12121A" : lightSurface
 
     /// Gradient başlangıç
-    readonly property color bgGradientStart: darkMode ? "#0A0A0B" : "#F8F8FA"
+    readonly property color bgGradientStart: darkMode ? "#0C0C11" : "#F8F8FA"
 
     /// Gradient bitiş
     readonly property color bgGradientEnd: darkMode ? "#0F0F19" : "#F0F0F5"
@@ -35,20 +35,20 @@ QtObject {
     // SURFACE COLORS (Cards, Panels)
     // =========================================================================
 
-    /// Normal surface
-    readonly property color surface: darkMode ? "#18181B" : lightSurface
+    /// Normal surface — blue-tinted dark
+    readonly property color surface: darkMode ? "#17171F" : lightSurface
 
     /// Light surface
-    readonly property color surfaceLight: darkMode ? "#27272A" : lightSurfaceLight
+    readonly property color surfaceLight: darkMode ? "#26262E" : lightSurfaceLight
 
     /// Hover state
-    readonly property color surfaceHover: darkMode ? "#1F1F23" : "#E8E8EC"
+    readonly property color surfaceHover: darkMode ? "#1E1E27" : "#E8E8EC"
 
     /// Active/selected state
-    readonly property color surfaceActive: darkMode ? "#27272A" : "#E0E0E8"
+    readonly property color surfaceActive: darkMode ? "#26262E" : "#E0E0E8"
 
     /// Yükseltilmiş yüzey (modal, dropdown)
-    readonly property color surfaceElevated: darkMode ? "#2A2A2E" : "#FFFFFF"
+    readonly property color surfaceElevated: darkMode ? "#292930" : "#FFFFFF"
 
     // =========================================================================
     // ANA RENKLER
