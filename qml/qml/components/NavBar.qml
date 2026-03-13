@@ -30,6 +30,7 @@ Item {
     Canvas {
         x: 0; y: parent.height
         width: Dimensions.radiusSection; height: Dimensions.radiusSection
+        Connections { target: navBarRoot; function on_BgColorChanged() { requestPaint() } }
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
@@ -47,6 +48,7 @@ Item {
     Canvas {
         x: parent.width - Dimensions.radiusSection; y: parent.height
         width: Dimensions.radiusSection; height: Dimensions.radiusSection
+        Connections { target: navBarRoot; function on_BgColorChanged() { requestPaint() } }
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)

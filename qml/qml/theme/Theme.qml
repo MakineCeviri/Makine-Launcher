@@ -132,8 +132,8 @@ QtObject {
     /// Hata arka plan
     readonly property color errorBg: Qt.rgba(0.937, 0.267, 0.267, darkMode ? 0.08 : 0.12)
 
-    /// Bilgi cyan
-    readonly property color info: "#06B6D4"
+    /// Bilgi cyan (tracks accent)
+    readonly property color info: accent
 
     // =========================================================================
     // METİN RENKLERİ

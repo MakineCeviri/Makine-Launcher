@@ -11,8 +11,8 @@ pragma ComponentBehavior: Bound
  * Zero-rebinding architecture: all state lives in viewModel (GameDetailViewModel).
  * Screen and children bind to viewModel ONCE — bindings never break on game switch.
  *
- * Layout: Hero banner + two-column (cover + info/action) → section cards below
- * Sections: Hero (banner + cover + action + about + contributors),
+ * Layout: Single-column Apple-style flow with staggered entry animations
+ * Sections: Hero (banner + cover + title + action + tiles + about + contributors),
  *           Runtime (Unity)
  */
 Item {
@@ -29,33 +29,26 @@ Item {
     // ===== ENTRY ANIMATION =====
 
     function _replayEntryAnim() {
-        _entryAnim.stop()
+        _runtimeAnim.stop()
 
         if (!root._animEnabled) {
-            heroSection.opacity = 1
             runtimeLoader.opacity = 1; runtimeTranslate.y = 0
+            heroSection.replayEntryAnim()
             return
         }
 
-        heroSection.opacity = 0
         runtimeLoader.opacity = 0; runtimeTranslate.y = 18
 
-        _entryAnim.start()
+        heroSection.replayEntryAnim()
+        _runtimeAnim.start()
     }
 
-    ParallelAnimation {
-        id: _entryAnim
-
-        // Hero (includes about + contributors) — 0ms, fade only
-        NumberAnimation { target: heroSection; property: "opacity"; from: 0; to: 1; duration: 500; easing.type: Easing.OutCubic }
-
-        // Runtime — 150ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 150 }
+    // Runtime section animates independently (550ms delay from hero cascade)
+    SequentialAnimation {
+        id: _runtimeAnim
+        PauseAnimation { duration: 550 }
+        ParallelAnimation {
             NumberAnimation { target: runtimeLoader; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-        SequentialAnimation {
-            PauseAnimation { duration: 150 }
             NumberAnimation { target: runtimeTranslate; property: "y"; from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
     }
@@ -310,7 +303,6 @@ Item {
 
             HeroSection {
                 id: heroSection
-                opacity: 0
 
                 vm: root.viewModel
 

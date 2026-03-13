@@ -150,11 +150,12 @@ ColumnLayout {
                 // Turkish flag icon
                 Rectangle {
                     anchors.centerIn: parent; width: 24; height: 24
-                    radius: 12; color: "#E30A17"
+                    radius: 12; color: Theme.turkishRed
                     Rectangle { x: 4; y: 7; width: 10; height: 10; radius: 5; color: "#FFFFFF" }
-                    Rectangle { x: 6.5; y: 8; width: 8; height: 8; radius: 4; color: "#E30A17" }
+                    Rectangle { x: 6.5; y: 8; width: 8; height: 8; radius: 4; color: Theme.turkishRed }
                     Canvas {
                         x: 13; y: 9; width: 6; height: 6
+                        renderStrategy: Canvas.Cooperative
                         onPaint: {
                             var ctx = getContext("2d")
                             var cx = 3, cy = 3, R = 2.8, r = R * 0.382
