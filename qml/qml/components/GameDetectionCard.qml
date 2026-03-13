@@ -337,15 +337,6 @@ ColumnLayout {
             Behavior on topColor { ColorAnimation { duration: Dimensions.animNormal } }
         }
 
-        // Ambient glow
-        AmbientGlow {
-            anchors.fill: parent
-            cornerRadius: 14
-            originX: parent.width - 20; originY: -10
-            intensity: 0.10; hoveredIntensity: 0.25; spread: 0.6
-            hovered: secMa.containsMouse
-        }
-
         Row {
             anchors.centerIn: parent; spacing: 4
             opacity: secMa.containsMouse ? 0.95 : 0.55
