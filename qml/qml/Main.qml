@@ -421,6 +421,14 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
+            // Apple-style subtle edge border around content area
+            GradientBorder {
+                cornerRadius: Dimensions.radiusLG
+                topColor: Qt.rgba(1, 1, 1, 0.08)
+                midColor: Qt.rgba(1, 1, 1, 0.04)
+                bottomColor: Qt.rgba(1, 1, 1, 0.015)
+            }
+
             property int currentIndex: 0
             property int previousIndex: 0
             property bool transitioning: false

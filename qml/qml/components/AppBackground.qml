@@ -39,34 +39,36 @@ Canvas {
         // Blend tones for seamless transitions
         var mr = Math.round((r1 + r4) / 2), mg = Math.round((g1 + g4) / 2), mb = Math.round((b1 + b4) / 2)
 
-        // ── Orb 1: Upper-right — primary accent, wide and ethereal ──
-        var orb1 = ctx.createRadialGradient(w * 0.72, h * 0.18, 0, w * 0.72, h * 0.18, dim * 0.85)
-        orb1.addColorStop(0.00, _rgba(r2, g2, b2, 0.14))
-        orb1.addColorStop(0.10, _rgba(r1, g1, b1, 0.10))
-        orb1.addColorStop(0.25, _rgba(mr, mg, mb, 0.06))
-        orb1.addColorStop(0.45, _rgba(r4, g4, b4, 0.025))
-        orb1.addColorStop(0.70, _rgba(r4, g4, b4, 0.008))
+        // ── Orb 1: Upper-right — primary accent, wide and atmospheric ──
+        var orb1 = ctx.createRadialGradient(w * 0.72, h * 0.18, 0, w * 0.72, h * 0.18, dim * 0.90)
+        orb1.addColorStop(0.00, _rgba(r2, g2, b2, 0.20))
+        orb1.addColorStop(0.08, _rgba(r2, g2, b2, 0.16))
+        orb1.addColorStop(0.18, _rgba(r1, g1, b1, 0.10))
+        orb1.addColorStop(0.32, _rgba(mr, mg, mb, 0.05))
+        orb1.addColorStop(0.50, _rgba(r4, g4, b4, 0.02))
+        orb1.addColorStop(0.72, _rgba(r4, g4, b4, 0.006))
         orb1.addColorStop(1.00, "transparent")
         ctx.fillStyle = orb1
         ctx.fillRect(0, 0, w, h)
 
-        // ── Orb 2: Lower-left — deeper accent, complementary position ──
-        var orb2 = ctx.createRadialGradient(w * 0.22, h * 0.78, 0, w * 0.22, h * 0.78, dim * 0.75)
-        orb2.addColorStop(0.00, _rgba(r4, g4, b4, 0.12))
-        orb2.addColorStop(0.12, _rgba(mr, mg, mb, 0.08))
-        orb2.addColorStop(0.28, _rgba(r4, g4, b4, 0.04))
-        orb2.addColorStop(0.50, _rgba(r4, g4, b4, 0.015))
-        orb2.addColorStop(0.75, _rgba(r4, g4, b4, 0.005))
+        // ── Orb 2: Lower-left — deeper accent, complementary ──
+        var orb2 = ctx.createRadialGradient(w * 0.22, h * 0.78, 0, w * 0.22, h * 0.78, dim * 0.80)
+        orb2.addColorStop(0.00, _rgba(r4, g4, b4, 0.16))
+        orb2.addColorStop(0.10, _rgba(mr, mg, mb, 0.10))
+        orb2.addColorStop(0.25, _rgba(r4, g4, b4, 0.05))
+        orb2.addColorStop(0.45, _rgba(r4, g4, b4, 0.02))
+        orb2.addColorStop(0.68, _rgba(r4, g4, b4, 0.006))
         orb2.addColorStop(1.00, "transparent")
         ctx.fillStyle = orb2
         ctx.fillRect(0, 0, w, h)
 
-        // ── Subtle vignette — barely there, just enough depth ──
-        var vig = ctx.createRadialGradient(w * 0.50, h * 0.46, dim * 0.30, w * 0.50, h * 0.46, dim * 1.0)
+        // ── Vignette — macOS wallpaper depth ──
+        var vig = ctx.createRadialGradient(w * 0.50, h * 0.46, dim * 0.28, w * 0.50, h * 0.46, dim * 1.0)
         vig.addColorStop(0.00, "transparent")
-        vig.addColorStop(0.60, "transparent")
-        vig.addColorStop(0.80, _rgba(0, 0, 0, 0.06))
-        vig.addColorStop(1.00, _rgba(0, 0, 0, 0.14))
+        vig.addColorStop(0.55, "transparent")
+        vig.addColorStop(0.75, _rgba(0, 0, 0, 0.05))
+        vig.addColorStop(0.88, _rgba(0, 0, 0, 0.10))
+        vig.addColorStop(1.00, _rgba(0, 0, 0, 0.18))
         ctx.fillStyle = vig
         ctx.fillRect(0, 0, w, h)
     }

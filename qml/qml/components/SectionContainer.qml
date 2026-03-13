@@ -29,7 +29,7 @@ Rectangle {
     readonly property int _radius: Dimensions.radiusSection
 
     radius: _radius
-    color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
+    color: Qt.rgba(0.05, 0.05, 0.065, 0.78)
 
     GradientBorder { cornerRadius: container._radius }
 
@@ -53,8 +53,8 @@ Rectangle {
         width: 28; z: 10; rotation: mirror ? 180 : 0
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: Qt.rgba(0.055, 0.055, 0.055, 0.90) }
-            GradientStop { position: 0.4; color: Qt.rgba(0.055, 0.055, 0.055, 0.25) }
+            GradientStop { position: 0.0; color: Qt.rgba(0.05, 0.05, 0.065, 0.85) }
+            GradientStop { position: 0.4; color: Qt.rgba(0.05, 0.05, 0.065, 0.22) }
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
