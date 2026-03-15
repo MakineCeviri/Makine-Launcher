@@ -353,13 +353,102 @@ ColumnLayout {
 
             SettingsDivider {}
 
-            // Empty state — coming soon
+            // Community / third-party discovered plugins
+            Repeater {
+                model: {
+                    if (!PluginManager) return []
+                    var officialIds = []
+                    for (var i = 0; i < pluginsRoot.officialCatalog.length; i++)
+                        officialIds.push(pluginsRoot.officialCatalog[i].id)
+                    var community = []
+                    var all = pluginsRoot.discoveredPlugins
+                    for (var j = 0; j < all.length; j++)
+                        if (officialIds.indexOf(all[j].id) === -1)
+                            community.push(all[j])
+                    return community
+                }
+
+                Rectangle {
+                    required property var modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 64
+                    Layout.leftMargin: Dimensions.marginML
+                    Layout.rightMargin: Dimensions.marginML
+                    Layout.topMargin: index === 0 ? Dimensions.spacingMD : Dimensions.spacingSM
+                    radius: Dimensions.radiusMD
+                    color: _communityMouse.containsMouse ? Theme.primary06 : Theme.primary04
+                    border.color: Theme.primary08; border.width: 1
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: Dimensions.marginMS
+                        spacing: Dimensions.spacingLG
+
+                        Rectangle {
+                            Layout.preferredWidth: 40; Layout.preferredHeight: 40
+                            radius: Dimensions.radiusMD; color: Theme.primary12
+                            Text {
+                                textFormat: Text.PlainText; anchors.centerIn: parent
+                                text: "\uD83D\uDD0C"; font.pixelSize: Dimensions.fontLG
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true; spacing: Dimensions.spacingXXS
+                            Text {
+                                textFormat: Text.PlainText
+                                text: modelData.name || modelData.id
+                                font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
+                                color: Theme.textPrimary
+                            }
+                            Text {
+                                textFormat: Text.PlainText
+                                text: modelData.description || "v" + (modelData.version || "?")
+                                font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
+                                Layout.fillWidth: true; elide: Text.ElideRight
+                            }
+                        }
+
+                        // Status badge
+                        Rectangle {
+                            implicitWidth: _statusLbl.implicitWidth + 16; implicitHeight: 26
+                            radius: Dimensions.radiusFull
+                            color: modelData.loaded ? "#22c55e22" : modelData.enabled ? Theme.primary10 : Theme.textPrimary06
+                            Text {
+                                id: _statusLbl; textFormat: Text.PlainText; anchors.centerIn: parent
+                                text: modelData.loaded ? qsTr("Yüklü") : modelData.enabled ? qsTr("Etkin") : qsTr("Devre Dışı")
+                                font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
+                                color: modelData.loaded ? "#4ade80" : Theme.textSecondary
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: _communityMouse; anchors.fill: parent
+                        hoverEnabled: true; acceptedButtons: Qt.NoButton
+                    }
+                }
+            }
+
+            // Empty state — no community plugins
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
                 Layout.margins: Dimensions.marginML
                 radius: Dimensions.radiusMD
                 color: Theme.primary04
+                visible: {
+                    if (!PluginManager) return true
+                    var officialIds = []
+                    for (var i = 0; i < pluginsRoot.officialCatalog.length; i++)
+                        officialIds.push(pluginsRoot.officialCatalog[i].id)
+                    var all = pluginsRoot.discoveredPlugins
+                    for (var j = 0; j < all.length; j++)
+                        if (officialIds.indexOf(all[j].id) === -1) return false
+                    return true
+                }
 
                 opacity: 0
                 scale: 0.95
