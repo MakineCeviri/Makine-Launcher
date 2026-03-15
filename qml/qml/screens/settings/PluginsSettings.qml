@@ -8,14 +8,17 @@ pragma ComponentBehavior: Bound
  * PluginsSettings.qml - Plugin management panel
  *
  * Shows official and community plugins with install/enable/disable controls.
- * Backend: PluginManager (not yet implemented — UI-ready placeholder).
+ * Backend: PluginManager C++ service.
  */
 ColumnLayout {
     id: pluginsRoot
     spacing: Dimensions.spacingXL
 
-    // Placeholder data until PluginManager backend is ready
-    property var officialPlugins: [
+    // Discovered plugins from PluginManager
+    property var discoveredPlugins: PluginManager ? PluginManager.plugins : []
+
+    // Official plugin catalog — always shown, enriched with install/enable state
+    property var officialCatalog: [
         {
             id: "com.makineceviri.live",
             name: "MakineAI Live",
@@ -24,8 +27,6 @@ ColumnLayout {
             size: "2.4 MB",
             icon: "\uD83D\uDD0D",
             accent: "#0ea5e9",
-            installed: false,
-            enabled: false,
             features: [
                 qsTr("Ekran yakalama (DXGI/GDI)"),
                 qsTr("OCR metin tanıma (RapidOCR)"),
@@ -41,8 +42,6 @@ ColumnLayout {
             size: "1.8 MB",
             icon: "\uD83E\uDE9D",
             accent: "#f59e0b",
-            installed: false,
-            enabled: false,
             features: [
                 qsTr("MinHook inline hooking"),
                 qsTr("Engine handlers (Unity, Unreal, RPGMaker)"),
@@ -51,6 +50,31 @@ ColumnLayout {
             ]
         }
     ]
+
+    function _isDiscovered(pluginId) {
+        if (!PluginManager) return false
+        for (var i = 0; i < discoveredPlugins.length; i++)
+            if (discoveredPlugins[i].id === pluginId) return true
+        return false
+    }
+
+    // Merge catalog with live state from PluginManager
+    property var officialPlugins: {
+        var result = []
+        for (var i = 0; i < officialCatalog.length; i++) {
+            var cat = officialCatalog[i]
+            var installed = _isDiscovered(cat.id)
+            var enabled = PluginManager ? PluginManager.isPluginEnabled(cat.id) : false
+            var loaded = PluginManager ? PluginManager.isPluginLoaded(cat.id) : false
+            result.push({
+                id: cat.id, name: cat.name, description: cat.description,
+                version: cat.version, size: cat.size, icon: cat.icon,
+                accent: cat.accent, features: cat.features,
+                installed: installed, enabled: enabled, loaded: loaded
+            })
+        }
+        return result
+    }
 
     // ── Official Plugins Section ──
     SettingsCard {
@@ -248,8 +272,14 @@ ColumnLayout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        // TODO: Wire to PluginManager
-                                        console.log("Plugin action:", modelData.id)
+                                        if (!modelData.installed) {
+                                            // TODO: Download from CDN
+                                            return
+                                        }
+                                        if (modelData.enabled)
+                                            PluginManager.disablePlugin(modelData.id)
+                                        else
+                                            PluginManager.enablePlugin(modelData.id)
                                     }
                                 }
                             }
