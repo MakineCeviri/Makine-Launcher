@@ -93,15 +93,22 @@ Item {
                 width: 72; height: 72
                 opacity: logoMouse.containsMouse ? 0.9 : 0.5
                 Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                renderStrategy: Canvas.Cooperative
+                property color _base: Theme.accentBase
+                property color _dark: Theme.accentDark
+                on_BaseChanged: requestPaint()
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
                     var cx = width / 2, cy = height / 2
+                    var b = _base, d = _dark
+                    var br = Math.round(b.r * 255), bg = Math.round(b.g * 255), bb = Math.round(b.b * 255)
+                    var dr = Math.round(d.r * 255), dg = Math.round(d.g * 255), db = Math.round(d.b * 255)
                     var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, width / 2)
-                    grad.addColorStop(0.0, "rgba(139, 92, 246, 0.35)")
-                    grad.addColorStop(0.4, "rgba(139, 92, 246, 0.15)")
-                    grad.addColorStop(0.7, "rgba(99, 102, 241, 0.06)")
-                    grad.addColorStop(1.0, "rgba(99, 102, 241, 0.0)")
+                    grad.addColorStop(0.0, "rgba(" + br + "," + bg + "," + bb + ",0.35)")
+                    grad.addColorStop(0.4, "rgba(" + br + "," + bg + "," + bb + ",0.15)")
+                    grad.addColorStop(0.7, "rgba(" + dr + "," + dg + "," + db + ",0.06)")
+                    grad.addColorStop(1.0, "rgba(" + dr + "," + dg + "," + db + ",0.0)")
                     ctx.fillStyle = grad
                     ctx.beginPath()
                     ctx.arc(cx, cy, width / 2, 0, Math.PI * 2)

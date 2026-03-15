@@ -23,7 +23,6 @@ Rectangle {
 
         // Content (title and subtitle)
         ColumnLayout {
-            Layout.fillWidth: true
             spacing: Dimensions.spacingXS
 
             Label {
@@ -42,16 +41,18 @@ Rectangle {
             }
         }
 
-        // Badge
+        Item { Layout.fillWidth: true }
+
+        // Badge — right-aligned
         Rectangle {
-            implicitWidth: badgeText.implicitWidth + 28
+            implicitWidth: _badgeLbl.implicitWidth + 28
             implicitHeight: 32
             radius: Dimensions.radiusFull
             color: Theme.primary15
 
             Text {
                 textFormat: Text.PlainText
-                id: badgeText
+                id: _badgeLbl
                 anchors.centerIn: parent
                 text: root.badgeText
                 font.pixelSize: Dimensions.fontBody

@@ -123,11 +123,13 @@ Rectangle {
                 Layout.preferredWidth: searchInput.activeFocus || searchInput.text ? 240 : 200
                 Behavior on Layout.preferredWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                 radius: Dimensions.radiusMD
-                color: Theme.textPrimary06
+                color: searchInput.activeFocus ? Theme.primary05 : Theme.textPrimary06
                 border.color: searchInput.activeFocus
                     ? Theme.accentBase40
                     : Theme.textPrimary08
                 border.width: 1
+                Behavior on color { ColorAnimation { duration: 200 } }
+                Behavior on border.color { ColorAnimation { duration: 200 } }
 
                 Row {
                     anchors.left: parent.left; anchors.right: clearBtn.left
