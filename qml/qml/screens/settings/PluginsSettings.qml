@@ -324,6 +324,174 @@ ColumnLayout {
         }
     }
 
+    // ── Plugin Settings (for installed plugins with settings) ──
+    Repeater {
+        model: {
+            if (!PluginManager) return []
+            var result = []
+            var all = PluginManager.plugins
+            for (var i = 0; i < all.length; i++) {
+                if (all[i].hasSettings && all[i].loaded)
+                    result.push(all[i])
+            }
+            return result
+        }
+
+        SettingsCard {
+            required property var modelData
+            Layout.fillWidth: true
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                // Settings header with plugin name
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 56
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Dimensions.marginML
+                        anchors.rightMargin: Dimensions.marginML
+
+                        Text {
+                            textFormat: Text.PlainText
+                            text: modelData.name + " " + qsTr("Ayarları")
+                            font.pixelSize: Dimensions.fontLG
+                            font.weight: Font.DemiBold
+                            color: Theme.textPrimary
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Rectangle {
+                            implicitWidth: _loadedLbl.implicitWidth + 16
+                            implicitHeight: 24; radius: Dimensions.radiusFull
+                            color: "#22c55e22"
+                            Text {
+                                id: _loadedLbl; textFormat: Text.PlainText
+                                anchors.centerIn: parent
+                                text: qsTr("Aktif"); font.pixelSize: Dimensions.fontMini
+                                font.weight: Font.DemiBold; color: "#4ade80"
+                            }
+                        }
+                    }
+                }
+
+                SettingsDivider {}
+
+                // Dynamic settings form from manifest
+                Repeater {
+                    model: modelData.settings || []
+
+                    Item {
+                        required property var modelData
+                        property string pluginId: parent.parent.parent.parent.modelData.id
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 64
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Dimensions.marginML
+                            anchors.rightMargin: Dimensions.marginML
+                            spacing: Dimensions.spacingXL
+
+                            // Label
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Text {
+                                    textFormat: Text.PlainText
+                                    text: modelData.label || modelData.key
+                                    font.pixelSize: Dimensions.fontMD
+                                    font.weight: Font.Medium
+                                    color: Theme.textPrimary
+                                }
+                                Text {
+                                    textFormat: Text.PlainText
+                                    text: modelData.key
+                                    font.pixelSize: Dimensions.fontMini
+                                    color: Theme.textMuted
+                                }
+                            }
+
+                            // Control — select dropdown or text input
+                            Loader {
+                                Layout.preferredWidth: 200
+                                Layout.preferredHeight: 36
+
+                                sourceComponent: {
+                                    if (modelData.type === "select") return selectComp
+                                    if (modelData.type === "password") return passwordComp
+                                    return textComp
+                                }
+
+                                // Select (ComboBox)
+                                Component {
+                                    id: selectComp
+                                    ComboBox {
+                                        model: modelData.options || []
+                                        currentIndex: {
+                                            var val = PluginManager.getPluginSetting(pluginId, modelData.key)
+                                            if (!val) val = modelData["default"] || ""
+                                            var opts = modelData.options || []
+                                            for (var i = 0; i < opts.length; i++)
+                                                if (opts[i] === val) return i
+                                            return 0
+                                        }
+                                        onCurrentIndexChanged: {
+                                            var opts = modelData.options || []
+                                            if (currentIndex >= 0 && currentIndex < opts.length)
+                                                PluginManager.setPluginSetting(pluginId, modelData.key, opts[currentIndex])
+                                        }
+                                    }
+                                }
+
+                                // Password input
+                                Component {
+                                    id: passwordComp
+                                    TextField {
+                                        echoMode: TextInput.Password
+                                        placeholderText: "API Key..."
+                                        text: PluginManager.getPluginSetting(pluginId, modelData.key) || ""
+                                        font.pixelSize: Dimensions.fontSM
+                                        onEditingFinished: PluginManager.setPluginSetting(pluginId, modelData.key, text)
+                                        background: Rectangle {
+                                            radius: Dimensions.radiusMD
+                                            color: Theme.primary06
+                                            border.color: parent.activeFocus ? Theme.primary : Theme.primary12
+                                            border.width: 1
+                                        }
+                                    }
+                                }
+
+                                // Text input
+                                Component {
+                                    id: textComp
+                                    TextField {
+                                        text: PluginManager.getPluginSetting(pluginId, modelData.key) || modelData["default"] || ""
+                                        font.pixelSize: Dimensions.fontSM
+                                        onEditingFinished: PluginManager.setPluginSetting(pluginId, modelData.key, text)
+                                        background: Rectangle {
+                                            radius: Dimensions.radiusMD
+                                            color: Theme.primary06
+                                            border.color: parent.activeFocus ? Theme.primary : Theme.primary12
+                                            border.width: 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.preferredHeight: Dimensions.spacingMD }
+            }
+        }
+    }
+
     // ── Community Plugins Section (GitHub Topic Search) ──
     SettingsCard {
         Layout.fillWidth: true
