@@ -292,11 +292,13 @@ ColumnLayout {
                     Canvas {
                         width: 16; height: 12
                         anchors.verticalCenter: parent.verticalCenter
+                        renderStrategy: Canvas.Cooperative
+                        property color _accent: Theme.accentDark
+                        on_AccentChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.clearRect(0, 0, width, height)
-                            var c = Theme.accentDark
-                            ctx.strokeStyle = c; ctx.fillStyle = c
+                            ctx.strokeStyle = _accent; ctx.fillStyle = _accent
                             ctx.lineWidth = 1.2; ctx.lineCap = "round"; ctx.lineJoin = "round"
                             ctx.beginPath()
                             ctx.moveTo(4, 1); ctx.lineTo(12, 1)
@@ -352,11 +354,27 @@ ColumnLayout {
             anchors.centerIn: parent; spacing: 4
             opacity: secMa.containsMouse ? 0.95 : 0.55
 
-            Image {
+            Canvas {
                 width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
-                source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
-                sourceSize: Qt.size(12, 12)
-                asynchronous: true
+                renderStrategy: Canvas.Cooperative
+                property color _c: Theme.accentLight
+                on_CChanged: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.clearRect(0, 0, width, height)
+                    var r = Math.round(_c.r * 255), g = Math.round(_c.g * 255), b = Math.round(_c.b * 255)
+                    ctx.strokeStyle = "rgb(" + r + "," + g + "," + b + ")"
+                    ctx.lineWidth = 1.2; ctx.lineCap = "round"; ctx.lineJoin = "round"
+                    ctx.beginPath()
+                    ctx.moveTo(6, 1)
+                    ctx.lineTo(10.5, 3); ctx.lineTo(10.5, 6.5)
+                    ctx.quadraticCurveTo(10.5, 10.5, 6, 11.5)
+                    ctx.quadraticCurveTo(1.5, 10.5, 1.5, 6.5)
+                    ctx.lineTo(1.5, 3); ctx.closePath(); ctx.stroke()
+                    ctx.beginPath()
+                    ctx.moveTo(3.8, 6.2); ctx.lineTo(5.3, 7.8); ctx.lineTo(8.2, 4.8)
+                    ctx.stroke()
+                }
             }
             Label {
                 textFormat: Text.PlainText
@@ -367,8 +385,8 @@ ColumnLayout {
             Label {
                 textFormat: Text.PlainText
                 text: "makineceviri.net"
-                font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
-                color: Theme.textSecondary
+                font.pixelSize: Dimensions.fontMini; font.weight: Font.DemiBold
+                color: Theme.accentLight
                 anchors.verticalCenter: parent.verticalCenter
             }
             Label {

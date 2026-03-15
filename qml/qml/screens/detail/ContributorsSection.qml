@@ -42,11 +42,6 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: Dimensions.spacingLG
 
-                // Turkish flag icon
-                TurkishFlagBadge {
-                    flagWidth: 26; flagHeight: 17
-                }
-
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Dimensions.spacingXXS
@@ -63,23 +58,29 @@ Rectangle {
                         color: Theme.textMuted
                     }
                 }
+
+                TurkishFlagBadge {
+                    Layout.alignment: Qt.AlignVCenter
+                    flagWidth: 26; flagHeight: 17
+                }
             }
         }
 
         // Placeholder when no contributors
-        Row {
+        RowLayout {
+            Layout.fillWidth: true
             visible: contribRoot.contributors.length === 0
             spacing: Dimensions.spacingLG
-            TurkishFlagBadge {
-                flagWidth: 26; flagHeight: 17
-                anchors.verticalCenter: parent.verticalCenter
-            }
             Text {
                 textFormat: Text.PlainText
+                Layout.fillWidth: true
                 text: qsTr("Türkiye Oyuncu Topluluğu")
                 font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
-                anchors.verticalCenter: parent.verticalCenter
+            }
+            TurkishFlagBadge {
+                Layout.alignment: Qt.AlignVCenter
+                flagWidth: 26; flagHeight: 17
             }
         }
     }
