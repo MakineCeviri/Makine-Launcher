@@ -1,20 +1,25 @@
 # MakineAI-Launcher — Plugin System, OCR & Accessibility Design
 
 > **Date:** 2026-03-15
-> **Status:** Draft
+> **Status:** Reviewed & Revised (v2)
 > **Scope:** Plugin architecture, Live translation, TextHook, Accessibility
+> **Review:** All 4 CRITICAL, 9 IMPORTANT issues addressed. See review doc for originals.
 
 ---
 
 ## 1. Overview
 
-MakineAI-Launcher evolves from a package-based translation installer into a **modular game translation platform**. A lightweight plugin system enables three official plugins and community extensions.
+MakineAI-Launcher evolves from a package-based translation installer into a **modular game translation platform**. A lightweight plugin system enables official plugins and community extensions.
 
 **Design goals:**
 - Simple plugin loading (DLL + manifest.json)
 - Single EXE launcher remains the core
+- **C ABI boundary** for cross-compiler plugin compatibility
 - Plugins are open source, distributed via CDN
+- **Core accessibility built-in** — not gated behind a plugin
 - No over-engineering — minimum viable plugin API
+
+**Architecture change from v1:** Accessibility features (screen reader, reduced motion, font scaling, high contrast) are now **built into the launcher core**, not a plugin. Only optional extras (TTS voice packs, advanced color vision simulation overlays) remain as plugin territory.
 
 ---
 
@@ -28,29 +33,23 @@ AppData/Local/MakineAI/
 │   ├── live/                    ← MakineAI Live (OCR + Translate + Overlay)
 │   │   ├── manifest.json
 │   │   ├── makineai-live.dll
-│   │   └── models/              ← OCR model files (ONNX)
-│   │       ├── det.onnx         ← Text detection (~3MB)
-│   │       ├── rec.onnx         ← Text recognition (~5MB)
-│   │       ├── cls.onnx         ← Direction classifier (~1MB)
-│   │       └── keys.txt         ← Character dictionary
-│   ├── accessibility/           ← MakineAI Accessibility
+│   │   └── models/              ← OCR models (lazy-downloaded from CDN)
+│   ├── texthook/                ← MakineAI TextHook
 │   │   ├── manifest.json
-│   │   └── makineai-a11y.dll
-│   └── texthook/                ← MakineAI TextHook
+│   │   ├── makineai-texthook.dll
+│   │   └── engines/             ← Engine-specific handlers
+│   │       ├── unity.dll
+│   │       ├── unreal.dll
+│   │       └── rpgmaker.dll
+│   └── {community-plugin}/      ← 3rd party plugins
 │       ├── manifest.json
-│       ├── makineai-texthook.dll
-│       └── engines/             ← Engine-specific handlers
-│           ├── unity.dll
-│           ├── unreal.dll
-│           └── rpgmaker.dll
-├── plugin-data/                 ← Plugin runtime data
+│       └── plugin.dll
+├── plugin-data/                 ← Plugin runtime data (persists across updates)
 │   ├── live/
 │   │   ├── cache/               ← Translation cache
 │   │   └── regions/             ← Saved capture regions per game
-│   ├── accessibility/
-│   │   └── preferences.json     ← User a11y preferences
 │   └── texthook/
-│       └── hooks.json           ← Saved hook configurations per game
+│       └── hooks.json           ← Saved hook configs per game
 └── ... (existing: logs, cache, data, backups, packages)
 ```
 
@@ -69,14 +68,16 @@ AppData/Local/MakineAI/
   "homepage": "https://makineceviri.net/plugins/live",
   "entry": "makineai-live.dll",
   "dependencies": [],
+  "capabilities": ["network", "screen_capture", "overlay"],
   "platforms": ["win64"],
   "minLauncherVersion": "0.2.0",
+  "maxLauncherVersion": null,
   "settings": [
     {
       "key": "ocrEngine",
       "type": "select",
       "label": "OCR Engine",
-      "options": ["rapidocr", "tesseract", "windows"],
+      "options": ["rapidocr", "tesseract"],
       "default": "rapidocr"
     },
     {
@@ -98,248 +99,241 @@ AppData/Local/MakineAI/
 }
 ```
 
-### 2.3 Plugin API (C++ Interfaces)
+**Manifest fields:**
+- `capabilities` — Declared capabilities for audit/review (NOT runtime-enforced — DLLs run in-process). Marketplace reviewers verify plugins only use declared capabilities.
+- `maxLauncherVersion` — null means no upper limit. Set when API v2 drops v1 support.
+- `dependencies` — Plugin IDs. Manager loads dependencies first. Missing dependency = plugin disabled with user notification.
+
+### 2.3 Plugin API (C ABI)
+
+All plugin interfaces use **flat C functions with POD structs** for cross-compiler ABI safety. A C++ convenience wrapper header is provided on top.
 
 ```
 core/include/makineai/plugin/
-├── iplugin.hpp          ← Base interface (all plugins)
-├── iplugin_live.hpp     ← Live translation extensions
-├── iplugin_a11y.hpp     ← Accessibility extensions
-├── iplugin_hook.hpp     ← Text hooking extensions
-├── plugin_manager.hpp   ← Plugin lifecycle management
-└── plugin_api.hpp       ← Convenience header
+├── plugin_api.h         ← C ABI: exported functions, POD structs, error codes
+├── plugin_api.hpp       ← C++ wrapper (header-only, optional convenience)
+├── plugin_manager.hpp   ← Plugin lifecycle management (internal)
+└── plugin_types.h       ← Shared type definitions
 ```
 
-#### IPlugin — Base Interface
+#### C ABI Interface (plugin_api.h)
 
-```cpp
+```c
 #pragma once
-#include <string>
-#include <cstdint>
+#include <stdint.h>
+#include <stdbool.h>
 
-namespace makineai::plugin {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-constexpr uint32_t API_VERSION = 1;
+/* ── Error Handling ── */
 
-struct PluginInfo {
+typedef enum {
+    MAKINEAI_OK = 0,
+    MAKINEAI_ERR_INIT_FAILED,
+    MAKINEAI_ERR_NOT_READY,
+    MAKINEAI_ERR_INVALID_PARAM,
+    MAKINEAI_ERR_NOT_FOUND,
+    MAKINEAI_ERR_ACCESS_DENIED,
+    MAKINEAI_ERR_UNSUPPORTED,
+    MAKINEAI_ERR_TIMEOUT,
+    MAKINEAI_ERR_ENGINE_ERROR,
+    MAKINEAI_ERR_CAPTURE_FAILED,
+    MAKINEAI_ERR_OCR_FAILED,
+    MAKINEAI_ERR_TRANSLATE_FAILED,
+    MAKINEAI_ERR_HOOK_FAILED,
+    MAKINEAI_ERR_ANTICHEAT_DETECTED,
+} MakineAiError;
+
+/* ── Plugin Info ── */
+
+typedef struct {
     const char* id;
     const char* name;
     const char* version;
     uint32_t apiVersion;
-};
+} MakineAiPluginInfo;
 
-class IPlugin {
-public:
-    virtual ~IPlugin() = default;
-    virtual PluginInfo info() const = 0;
-    virtual bool initialize(const char* dataPath) = 0;
-    virtual void shutdown() = 0;
-    virtual bool isReady() const = 0;
-};
+/* ── Base Plugin Functions (every plugin exports these) ── */
 
-// DLL export macros
-using CreatePluginFn = IPlugin* (*)();
-using DestroyPluginFn = void (*)(IPlugin*);
+typedef MakineAiPluginInfo (*MakineAiFn_GetInfo)(void);
+typedef MakineAiError      (*MakineAiFn_Initialize)(const char* dataPath);
+typedef void               (*MakineAiFn_Shutdown)(void);
+typedef bool               (*MakineAiFn_IsReady)(void);
+typedef const char*        (*MakineAiFn_GetLastError)(void);
 
-} // namespace makineai::plugin
+/* ── OCR Result ── */
 
-// Each plugin DLL exports:
-// extern "C" __declspec(dllexport) makineai::plugin::IPlugin* makineai_create_plugin();
-// extern "C" __declspec(dllexport) void makineai_destroy_plugin(makineai::plugin::IPlugin*);
-```
-
-#### IPluginLive — Live Translation Interface
-
-```cpp
-#pragma once
-#include "iplugin.hpp"
-#include <functional>
-#include <vector>
-#include <cstdint>
-
-namespace makineai::plugin {
-
-struct OcrResult {
-    std::string text;
+typedef struct {
+    const char* text;
     float confidence;
-    int32_t x, y, width, height;  // Bounding box
-};
-
-struct TranslationResult {
-    std::string source;
-    std::string translated;
-    std::string engine;
-};
-
-struct CaptureRegion {
     int32_t x, y, width, height;
-};
+} MakineAiOcrResult;
 
-class IPluginLive : public IPlugin {
-public:
-    // Screen capture
-    virtual bool startCapture(void* windowHandle, CaptureRegion region) = 0;
-    virtual void stopCapture() = 0;
+typedef struct {
+    MakineAiOcrResult* items;
+    uint32_t count;
+} MakineAiOcrResultList;
 
-    // OCR
-    virtual std::vector<OcrResult> recognizeScreen() = 0;
-    virtual std::vector<OcrResult> recognizeImage(const uint8_t* data, int w, int h) = 0;
+/* ── Translation Result ── */
 
-    // Translation
-    virtual TranslationResult translate(const std::string& text,
-                                         const std::string& from,
-                                         const std::string& to) = 0;
+typedef struct {
+    const char* source;
+    const char* translated;
+    const char* engine;
+} MakineAiTranslation;
 
-    // Overlay
-    virtual void showOverlay(const TranslationResult& result, CaptureRegion pos) = 0;
-    virtual void hideOverlay() = 0;
+/* ── Capture Region ── */
 
-    // Pipeline control
-    virtual void startPipeline() = 0;  // Capture → OCR → Translate → Display loop
-    virtual void stopPipeline() = 0;
-    virtual bool isPipelineRunning() const = 0;
+typedef struct {
+    int32_t x, y, width, height;
+} MakineAiRegion;
 
-    // Callbacks
-    using TextCallback = std::function<void(const std::string& text)>;
-    virtual void onTextDetected(TextCallback cb) = 0;
-    virtual void onTranslated(std::function<void(const TranslationResult&)> cb) = 0;
-};
+/* ── Callbacks (C function pointers + user data) ── */
 
-} // namespace makineai::plugin
-```
+typedef void (*MakineAiFn_OnText)(const char* text, void* userData);
+typedef void (*MakineAiFn_OnTranslation)(const MakineAiTranslation* result, void* userData);
 
-#### IPluginAccessibility — Accessibility Interface
+/* ── Live Plugin Functions ── */
 
-```cpp
-#pragma once
-#include "iplugin.hpp"
+typedef MakineAiError      (*MakineAiFn_StartCapture)(void* windowHandle, MakineAiRegion region);
+typedef void               (*MakineAiFn_StopCapture)(void);
+typedef MakineAiOcrResultList (*MakineAiFn_RecognizeScreen)(void);
+typedef MakineAiTranslation (*MakineAiFn_Translate)(const char* text, const char* from, const char* to);
+typedef void               (*MakineAiFn_ShowOverlay)(const MakineAiTranslation* result, MakineAiRegion pos);
+typedef void               (*MakineAiFn_HideOverlay)(void);
+typedef MakineAiError      (*MakineAiFn_StartPipeline)(void);
+typedef void               (*MakineAiFn_StopPipeline)(void);
+typedef bool               (*MakineAiFn_IsPipelineRunning)(void);
+typedef void               (*MakineAiFn_SetOnText)(MakineAiFn_OnText cb, void* userData);
+typedef void               (*MakineAiFn_SetOnTranslation)(MakineAiFn_OnTranslation cb, void* userData);
+typedef void               (*MakineAiFn_FreeOcrResults)(MakineAiOcrResultList* results);
 
-namespace makineai::plugin {
+/* ── Hook Plugin Functions ── */
 
-enum class ColorVisionMode {
-    Normal,
-    Protanopia,
-    Deuteranopia,
-    Tritanopia,
-    HighContrast
-};
-
-class IPluginAccessibility : public IPlugin {
-public:
-    // Color vision
-    virtual void setColorVisionMode(ColorVisionMode mode) = 0;
-    virtual ColorVisionMode colorVisionMode() const = 0;
-
-    // Screen reader
-    virtual void announce(const char* text) = 0;  // Push text to screen reader
-    virtual bool isScreenReaderActive() const = 0;
-
-    // TTS
-    virtual void speak(const char* text, const char* locale = "tr-TR") = 0;
-    virtual void stopSpeaking() = 0;
-
-    // Reduced motion
-    virtual bool isReducedMotionEnabled() const = 0;
-
-    // Font scaling
-    virtual float fontScale() const = 0;
-    virtual void setFontScale(float scale) = 0;
-};
-
-} // namespace makineai::plugin
-```
-
-#### IPluginHook — Text Hooking Interface
-
-```cpp
-#pragma once
-#include "iplugin.hpp"
-#include <functional>
-#include <vector>
-#include <cstdint>
-
-namespace makineai::plugin {
-
-struct HookTarget {
+typedef struct {
     uint64_t address;
     const char* moduleName;
     const char* functionName;
-    const char* engineName;  // "Unity", "Unreal", "RPGMaker", etc.
-};
+    const char* engineName;
+} MakineAiHookTarget;
 
-struct HookedText {
-    std::string text;
-    std::string context;    // Function/module where text was captured
+typedef struct {
+    const char* text;
+    const char* context;
     uint64_t address;
     uint64_t timestamp;
-};
+} MakineAiHookedText;
 
-class IPluginHook : public IPlugin {
-public:
-    // Process management
-    virtual bool attach(uint32_t processId) = 0;
-    virtual void detach() = 0;
-    virtual bool isAttached() const = 0;
+typedef void (*MakineAiFn_OnHookedText)(const MakineAiHookedText* text, void* userData);
 
-    // Hook discovery
-    virtual std::vector<HookTarget> detectHooks() = 0;
-    virtual bool activateHook(const HookTarget& target) = 0;
-    virtual void deactivateHook(const HookTarget& target) = 0;
+typedef MakineAiError      (*MakineAiFn_Attach)(uint32_t processId);
+typedef void               (*MakineAiFn_Detach)(void);
+typedef bool               (*MakineAiFn_IsAttached)(void);
+typedef MakineAiHookTarget* (*MakineAiFn_DetectHooks)(uint32_t* outCount);
+typedef MakineAiError      (*MakineAiFn_ActivateHook)(const MakineAiHookTarget* target);
+typedef void               (*MakineAiFn_DeactivateHook)(const MakineAiHookTarget* target);
+typedef void               (*MakineAiFn_SetOnHookedText)(MakineAiFn_OnHookedText cb, void* userData);
+typedef bool               (*MakineAiFn_CanEmbed)(void);
+typedef MakineAiError      (*MakineAiFn_EmbedTranslation)(const char* original, const char* translated);
+typedef void               (*MakineAiFn_FreeHookTargets)(MakineAiHookTarget* targets);
 
-    // Text callback
-    using TextCallback = std::function<void(const HookedText&)>;
-    virtual void onTextReceived(TextCallback cb) = 0;
+#ifdef __cplusplus
+}
+#endif
 
-    // Embedded translation
-    virtual bool canEmbed() const = 0;
-    virtual bool embedTranslation(const std::string& original,
-                                   const std::string& translated) = 0;
-};
-
-} // namespace makineai::plugin
+/*
+ * Each plugin DLL exports these symbols:
+ *
+ * Required (all plugins):
+ *   makineai_get_info        → MakineAiFn_GetInfo
+ *   makineai_initialize      → MakineAiFn_Initialize
+ *   makineai_shutdown        → MakineAiFn_Shutdown
+ *   makineai_is_ready        → MakineAiFn_IsReady
+ *   makineai_get_last_error  → MakineAiFn_GetLastError
+ *
+ * Live plugin additionally:
+ *   makineai_start_capture, makineai_stop_capture,
+ *   makineai_recognize_screen, makineai_free_ocr_results,
+ *   makineai_translate, makineai_show_overlay, makineai_hide_overlay,
+ *   makineai_start_pipeline, makineai_stop_pipeline,
+ *   makineai_is_pipeline_running,
+ *   makineai_set_on_text, makineai_set_on_translation
+ *
+ * Hook plugin additionally:
+ *   makineai_attach, makineai_detach, makineai_is_attached,
+ *   makineai_detect_hooks, makineai_free_hook_targets,
+ *   makineai_activate_hook, makineai_deactivate_hook,
+ *   makineai_set_on_hooked_text,
+ *   makineai_can_embed, makineai_embed_translation
+ */
 ```
 
-### 2.4 Plugin Manager
+**Key design decisions:**
+- All strings are `const char*` (UTF-8) — no std::string across DLL boundaries
+- All callbacks are C function pointers with `void* userData` — no std::function
+- Plugin owns memory it returns; host calls `makineai_free_*()` to release
+- Every fallible function returns `MakineAiError`; details via `makineai_get_last_error()`
+
+### 2.4 API Versioning Policy
+
+- **apiVersion 1** — Initial stable API. Frozen once released.
+- **New versions are additive** — v2 adds new exported functions, never removes v1 functions.
+- **Manager loads plugins if `plugin.apiVersion <= launcher.apiVersion`**
+- **Deprecation:** Functions marked deprecated in v(N), removed earliest in v(N+2). Minimum 2 version deprecation window.
+- **maxLauncherVersion:** If a launcher release drops an old API version, plugins declaring that version must set `maxLauncherVersion` to the last compatible launcher.
+
+### 2.5 Plugin Manager
 
 ```cpp
-// Simplified lifecycle:
-// 1. Scan plugins/ directory
-// 2. Read each manifest.json, validate apiVersion
-// 3. If plugin enabled in settings → LoadLibrary(entry)
-// 4. Call makineai_create_plugin() → IPlugin*
-// 5. Call plugin->initialize(dataPath)
-// 6. On shutdown → plugin->shutdown() → makineai_destroy_plugin() → FreeLibrary
+// Lifecycle:
+// 1. Scan plugins/ directory for manifest.json files
+// 2. Validate apiVersion, minLauncherVersion, maxLauncherVersion
+// 3. Resolve dependencies (topological sort), disable if missing
+// 4. If enabled in settings → LoadLibrary(entry DLL)
+// 5. Resolve required symbols via GetProcAddress
+// 6. Call makineai_initialize(dataPath)
+// 7. On shutdown → makineai_shutdown() → FreeLibrary()
+// Note: Enable/disable requires launcher restart (DLL unloading is unsafe with running threads)
 ```
 
 Key responsibilities:
-- **Discovery:** Scan `plugins/` subdirectories for `manifest.json`
-- **Validation:** Check `apiVersion` compatibility, verify DLL signature
-- **Lifecycle:** Load → Initialize → Ready → Shutdown → Unload
-- **Settings bridge:** Expose plugin settings to QML Settings UI
-- **Install/Update:** Download from CDN, verify checksum, extract to plugins/
-- **Enable/Disable:** Per-plugin toggle in settings (persisted via QSettings)
+- **Discovery:** Scan `plugins/` for `manifest.json`
+- **Validation:** API version, launcher version range, DLL code signature
+- **Dependency resolution:** Topological load order, graceful disable on missing deps
+- **Lifecycle:** Load → Init → Ready → Shutdown → Unload (restart required for changes)
+- **Settings bridge:** Expose plugin settings to QML via PluginManager Q_PROPERTYs
+- **Install/Update:** Download from CDN, verify SHA-256 checksum, extract to plugins/
+- **Uninstall:** Remove plugin dir. Prompt user: "Also remove plugin data?" for plugin-data/ cleanup.
+- **Error reporting:** Aggregate plugin errors, expose to QML for user notification
 
-### 2.5 QML Integration
+### 2.6 Threading Contract
 
-Plugin Manager exposes to QML via Q_PROPERTY:
+- **All callbacks are invoked on the Qt main thread** via `QMetaObject::invokeMethod(Qt::QueuedConnection)`
+- Plugin internal threads are the plugin's responsibility
+- Plugin must not call Qt/QML APIs directly — only communicate via registered callbacks
+- Host serializes all calls to a single plugin (no concurrent calls to the same plugin)
+
+### 2.7 QML Integration
 
 ```cpp
 class PluginManager : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
     Q_PROPERTY(bool liveAvailable READ liveAvailable NOTIFY pluginsChanged)
-    Q_PROPERTY(bool a11yAvailable READ a11yAvailable NOTIFY pluginsChanged)
     Q_PROPERTY(bool hookAvailable READ hookAvailable NOTIFY pluginsChanged)
 
 public:
     Q_INVOKABLE bool installPlugin(const QString& pluginId);
-    Q_INVOKABLE bool uninstallPlugin(const QString& pluginId);
-    Q_INVOKABLE bool enablePlugin(const QString& pluginId);
-    Q_INVOKABLE bool disablePlugin(const QString& pluginId);
+    Q_INVOKABLE bool uninstallPlugin(const QString& pluginId, bool removeData = false);
+    Q_INVOKABLE bool enablePlugin(const QString& pluginId);   // takes effect after restart
+    Q_INVOKABLE bool disablePlugin(const QString& pluginId);  // takes effect after restart
     Q_INVOKABLE QVariantMap pluginSettings(const QString& pluginId);
     Q_INVOKABLE void setPluginSetting(const QString& pluginId,
                                        const QString& key,
                                        const QVariant& value);
+    Q_INVOKABLE QString pluginError(const QString& pluginId);
 };
 ```
 
@@ -353,139 +347,214 @@ Real-time screen OCR + translation + overlay. All-in-one pipeline.
 
 | Priority | Engine | Use Case | MinGW | Model Size |
 |----------|--------|----------|-------|------------|
-| Primary | **RapidOcrOnnx** | Game text (scene text) | YES | ~15MB |
+| Primary | **RapidOcrOnnx** | Game text (scene text) | YES* | ~15MB |
 | Fallback | **Tesseract 5.x** | Clean dialog text | YES | ~20MB |
-| Optional | **Windows OCR** | If MSVC build available | NO | 0 (built-in) |
 
-**RapidOcrOnnx integration:**
-- PaddleOCR PP-OCRv3/v4 models converted to ONNX
-- ONNX Runtime with DirectML backend (GPU) or CPU fallback
-- 3-stage pipeline: Detection → Classification → Recognition
-- Turkish character support via custom dictionary (keys.txt)
+*RapidOcrOnnx uses ONNX Runtime via **C API** (`onnxruntime_c_api.h`). Prebuilt MSVC binaries of ONNX Runtime are shipped as DLLs alongside the plugin — the C API works across compiler boundaries (no C++ ABI dependency). DirectML GPU acceleration available through the prebuilt DLL.
+
+**OCR model lazy download:**
+- Models are NOT bundled in the plugin ZIP (keeps install small)
+- On first use, models downloaded from `cdn.makineceviri.net/assets/models/rapidocr/`
+- Progress shown in launcher UI
+- Models cached in `plugins/live/models/`
+- Model updates independent of plugin updates
 
 ### 3.2 Screen Capture
 
 | Method | Speed | Compatibility | Priority |
 |--------|-------|--------------|----------|
 | **DXGI Desktop Duplication** | <5ms | Win8+, same GPU | Primary |
-| **Windows.Graphics.Capture** | ~10ms | Win10 1903+ | Secondary |
 | **GDI BitBlt** | ~20ms | Universal | Fallback |
 
-Auto-detection: Try DXGI first → WGC → GDI fallback.
+Auto-detection: DXGI first → GDI fallback. Windows.Graphics.Capture dropped (requires WinRT/MSVC).
 
 ### 3.3 Translation Engines (plugin-internal adapters)
 
-Initial set:
-- **Google Translate** (free tier, web scraping)
-- **DeepL** (API key)
-- **ChatGPT/Claude** (API key, context-aware translation)
-- **MakineAI** (future: own Turkish-optimized model)
-- **Offline** (Argos Translate or CTranslate2)
+| Engine | Type | Notes |
+|--------|------|-------|
+| **DeepL** | API (key required) | Best quality for European languages |
+| **Google Cloud Translation** | API (key required) | Official API, not web scraping |
+| **ChatGPT / Claude** | API (key required) | Context-aware, best for narrative text |
+| **LibreTranslate** | Self-hosted / free | Offline-capable, open source |
+| **MakineAI** | Future | Own Turkish-optimized model |
+
+Note: No web scraping of free translation services — all engines use official APIs to avoid ToS violations and reliability issues.
 
 ### 3.4 Overlay
 
 - Transparent Qt Quick window (`Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint`)
-- `WDA_EXCLUDEFROMCAPTURE` to prevent OCR feedback loop
-- Configurable: position, opacity, font size, background blur
-- Subtitle bar mode (bottom of screen) or floating box mode
+- `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)` to prevent OCR feedback loop (Win10 2004+)
+- Configurable: position, opacity, font size, background style
+- Two modes: subtitle bar (bottom) or floating box (near text region)
 
 ### 3.5 Pipeline Flow
 
 ```
 Game Window
     ↓ [Screen Capture: DXGI/GDI]
-Captured Frame (GPU texture or bitmap)
-    ↓ [Region Crop]
+Captured Frame
+    ↓ [Region Crop — user-defined area]
 Text Region
-    ↓ [Change Detection: pixel hash comparison]
+    ↓ [Change Detection — pixel hash comparison]
 Changed? ──No──→ Skip (reuse cached translation)
     │Yes
-    ↓ [OCR: RapidOcrOnnx]
+    ↓ [OCR: RapidOcrOnnx → Tesseract fallback]
 OcrResult { text, confidence, bbox }
     ↓ [Text Dedup & Clean]
 Clean Text
+    ↓ [Cache Lookup — skip translation if cached]
     ↓ [Translation: selected engine]
 TranslationResult { source, translated }
     ↓ [Overlay Render]
-Transparent Window with translated text
+Transparent Window
 ```
 
 **Threading model:**
-- Capture thread: 30 FPS max, checks for changes
-- OCR thread: processes when new frame detected
-- Translation thread: async API calls with caching
-- Main thread: overlay rendering only
+- Capture thread: polls at configurable rate (default 2 FPS, max 30 FPS)
+- OCR thread: processes when change detected
+- Translation thread: async API calls
+- Main thread: overlay rendering + all plugin callbacks
+- Total pipeline latency: ~300-800ms (acceptable for dialog text)
+
+### 3.6 TextHook Integration
+
+When both Live and TextHook plugins are active:
+- TextHook provides extracted text → Live translates and displays overlay
+- If TextHook has text, OCR is bypassed (hook text is more accurate)
+- If hook fails for a game → Live falls back to OCR automatically
+- Communication via Plugin Manager event bridge: TextHook calls its text callback → Manager routes to Live's translate function
 
 ---
 
-## 4. Official Plugin: MakineAI Accessibility
+## 4. Core Accessibility (Built-in, NOT a Plugin)
 
-### 4.1 Color Vision Modes
+These features are built into the launcher core because they are fundamental to usability and must work without any plugin installation.
 
-| Mode | Algorithm | Implementation |
-|------|-----------|----------------|
-| Normal | None | Default theme |
-| Protanopia | Viénot 1999 | Adjusted palette |
-| Deuteranopia | Viénot 1999 | Adjusted palette |
-| Tritanopia | Brettel 1997 | Adjusted palette |
-| High Contrast | System detect | Qt 6.10 `contrastPreference` |
+### 4.1 Screen Reader Support
 
-**Approach:** Separate Theme palettes per mode + shape-based differentiation.
+Retrofit `Accessible.*` properties on all interactive QML elements.
 
-The plugin sets `Theme.colorVisionMode` property → Theme.qml switches color values.
+**Existing coverage:** 22 QML files already have `Accessible.*` annotations (71 occurrences). Focus on gaps:
 
-**Accessible palette (all CVD-safe):**
+**Priority gaps to fill:**
+1. GameCard.qml — catalog card (most used interactive element)
+2. TranslationActionButton.qml — primary CTA
+3. All dialogs — install confirmation, error, progress
+4. GameDetailScreen.qml sections — hero, info tiles, contributors
+5. CatalogSection.qml — search, category filters
+
+**Implementation pattern:**
+```qml
+// Every interactive element gets at minimum:
+Accessible.role: Accessible.Button
+Accessible.name: qsTr("Install Turkish Translation")
+Accessible.focusable: true
+activeFocusOnTab: true
+Keys.onReturnPressed: clicked()
+Keys.onSpacePressed: clicked()
 ```
-Primary:   #648FFF (Blue)
-Secondary: #785EF0 (Purple)
-Error:     #DC267F (Magenta)
-Warning:   #FE6100 (Orange)
-Success:   #FFB000 (Amber)
+
+**Qt 6.10 features to leverage:**
+- `Accessible.labelFor` / `Accessible.labelledBy` for form relationships
+- `QAccessibilityHints::contrastPreference` for high contrast detection
+
+### 4.2 Color Vision Modes
+
+Integrated into Theme.qml via a new `colorVisionMode` property:
+
+```qml
+// Theme.qml additions
+property string colorVisionMode: SettingsManager.colorVisionMode  // "normal", "protanopia", "deuteranopia", "tritanopia"
+
+// Colors switch based on mode — accessible palette for CVD modes
+property color statusSuccess: colorVisionMode === "normal" ? "#22c55e" : "#FFB000"
+property color statusError:   colorVisionMode === "normal" ? "#ef4444" : "#DC267F"
+property color statusWarning: colorVisionMode === "normal" ? "#f59e0b" : "#FE6100"
 ```
 
-### 4.2 Screen Reader Support
+**CVD-safe universal palette (IBM Design):**
+- Primary: `#648FFF` (Blue)
+- Secondary: `#785EF0` (Purple)
+- Error: `#DC267F` (Magenta)
+- Warning: `#FE6100` (Orange)
+- Success: `#FFB000` (Amber)
 
-- Add `Accessible.name`, `Accessible.role`, `Accessible.description` to ALL interactive QML elements
-- Leverage Qt 6.10 `labelFor`/`labelledBy` for form elements
-- Custom `announce()` function for dynamic content changes
-- Live region equivalent: focus management on new content
+**Beyond color:** All status indicators use shape + icon + text in addition to color. Never rely on color alone.
 
-**Priority QML files for a11y retrofit:**
-1. NavBar.qml, NavItem.qml (navigation)
-2. GameCard.qml (catalog browsing)
-3. TranslationActionButton.qml (primary action)
-4. SettingsScreen.qml (all settings)
-5. GameDetailScreen.qml (game info)
-6. All dialogs
+### 4.3 Reduced Motion
 
-### 4.3 TTS (Text-to-Speech)
+New C++ helper using Win32 API:
 
-- Engine: SAPI (MinGW compatible)
-- Turkish voice: "Microsoft Tolga" (Win11 built-in)
-- Usage: Read game descriptions, installation status, error messages
-- QML: `TextToSpeech { engine: "sapi" }` with `locale: Qt.locale("tr-TR")`
+```cpp
+// SettingsManager additions
+Q_PROPERTY(bool reduceMotion READ reduceMotion WRITE setReduceMotion NOTIFY reduceMotionChanged)
 
-### 4.4 Reduced Motion
+bool reduceMotion() const {
+    if (m_reduceMotionOverride.has_value()) return *m_reduceMotionOverride;
+    // Auto-detect from Windows settings
+    BOOL enabled = TRUE;
+    SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, &enabled, 0);
+    return !enabled;
+}
+```
 
-- Detect via Win32 `SystemParametersInfo(SPI_GETCLIENTAREAANIMATION)`
-- User override in plugin settings (force on/off/auto)
-- QML: Global `reduceMotion` property → all `Behavior on` blocks check this
-- When active: instant property changes, no easing, no parallax
+**QML usage:**
+```qml
+Behavior on opacity {
+    enabled: !SettingsManager.reduceMotion
+    NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+}
+```
+
+User override in Settings: Auto (follow OS) / Always On / Always Off.
+
+### 4.4 Font Scaling
+
+New computed properties in Dimensions.qml:
+
+```qml
+// Dimensions.qml additions
+property real fontScale: SettingsManager.fontScale  // 0.8 — 2.0, default 1.0
+
+// Scaled variants (use these instead of raw constants)
+readonly property int fontBodyScaled: Math.round(fontBody * fontScale)
+readonly property int fontSmallScaled: Math.round(fontSmall * fontScale)
+readonly property int fontH1Scaled: Math.round(fontH1 * fontScale)
+// ... etc for all font sizes
+```
+
+Backward compatible: existing `fontBody` stays as raw constant, new `fontBodyScaled` added alongside. Migration is incremental — update QML files to use scaled variants over time.
+
+**Minimum touch target:** 24x24px at any scale (WCAG 2.2 Level AA).
 
 ### 4.5 Keyboard Navigation
 
 - All interactive elements: `activeFocusOnTab: true`
-- Focus ring: 2px accent outline, 3:1 contrast (FocusRing.qml already exists)
-- Arrow keys for grid navigation (GameCard grid)
-- Escape to go back, Enter to activate
-- Skip-to-content shortcut (Ctrl+M for main content)
+- FocusRing.qml (already exists) — 2px accent outline, 3:1+ contrast
+- Arrow keys for grid navigation (GameCard grid in catalog)
+- Escape = go back, Enter = activate, Space = toggle
+- Tab order follows visual layout (managed via QML item order in layouts)
 
-### 4.6 Font Scaling
+### 4.6 High Contrast Mode
 
-- User-configurable font scale: 0.8x — 2.0x
-- Applied via `Dimensions.fontScale` multiplier
-- All `font.pixelSize` values use `Dimensions.fontBody * fontScale`
-- Min touch target: 24x24px at any scale
+Leverage Qt 6.10 built-in detection:
+```qml
+property bool highContrast: Application.styleHints.contrastPreference !== 0
+
+Rectangle {
+    border.width: highContrast ? 2 : 1
+    border.color: highContrast ? Theme.textPrimary : Theme.border
+}
+```
+
+### 4.7 Settings UI for Accessibility
+
+New section in Settings (always available, no plugin required):
+- Color vision mode dropdown (Normal / Protanopia / Deuteranopia / Tritanopia)
+- Font scale slider (0.8x — 2.0x)
+- Reduced motion toggle (Auto / On / Off)
+- High contrast (Auto-detect / Force)
+- Screen reader hints toggle
 
 ---
 
@@ -506,7 +575,6 @@ Separate DLLs per engine family, loaded on demand:
 - `unreal.dll` — Unreal Engine FText/FString
 - `rpgmaker.dll` — RPG Maker MV/MZ (JavaScript bridge)
 - `renpy.dll` — Ren'Py (Python string intercept)
-- `kirikiri.dll` — KiriKiri/KAG engine
 - `generic.dll` — Common Win32 text APIs (TextOutW, DrawTextW)
 
 ### 5.3 Embedded Translation
@@ -516,16 +584,31 @@ For supported engines:
 - Font API hooking for encoding compatibility (Turkish characters)
 - Synchronize via named events + shared memory
 
-### 5.4 Integration with Live Plugin
+### 5.4 Security & Anti-Cheat Considerations
 
-TextHook and Live can work together:
-- TextHook provides text → Live translates and displays overlay
-- If TextHook can embed → direct in-game translation (no overlay needed)
-- Fallback: if hook fails → Live switches to OCR mode automatically
+**Antivirus:**
+- Plugin DLLs are code-signed to reduce false positives
+- User documentation: how to add Windows Defender exclusion
+- Known false positive patterns documented in FAQ
+
+**Anti-cheat compatibility:**
+- TextHook will NOT work with games using: EAC (Easy Anti-Cheat), BattlEye, Vanguard, nProtect GameGuard
+- Launcher shows clear warning before attaching to any game
+- Known safe/unsafe game list maintained in plugin data
+- User explicitly confirms "I understand this may trigger anti-cheat" before first attach
+
+**UAC / Elevation:**
+- Cross-process hooking requires Administrator privileges
+- Launcher prompts for elevation only when TextHook attach is requested
+- No admin required for normal launcher operation or Live plugin (OCR is screen-level, not process-level)
+
+### 5.5 RuntimeManager Deprecation
+
+`core/include/makineai/runtime_manager.hpp` (current stub) will be removed. The TextHook plugin replaces the planned runtime system entirely. RuntimeManager stub deleted when TextHook reaches feature parity.
 
 ---
 
-## 6. Settings UI
+## 6. Settings UI Changes
 
 ### 6.1 New Settings Sections
 
@@ -534,104 +617,105 @@ Settings
 ├── General (existing)
 ├── Performance (existing)
 ├── Translation (existing)
+├── Accessibility              ← NEW (always available, core feature)
+│   ├── Color vision mode
+│   ├── Font scale slider
+│   ├── Reduced motion toggle
+│   ├── High contrast (auto/force)
+│   └── Screen reader hints toggle
 ├── Plugins                    ← NEW
 │   ├── Installed plugins list
-│   ├── Enable/Disable toggles
-│   ├── Per-plugin settings (from manifest.json "settings")
+│   ├── Enable/Disable toggles (restart required)
+│   ├── Per-plugin settings (from manifest "settings")
 │   ├── Install from CDN button
-│   └── Plugin updates
+│   ├── Plugin updates
+│   └── Uninstall (with "remove data" option)
 ├── Live Translation           ← NEW (visible when Live plugin active)
 │   ├── OCR Engine selection
 │   ├── Capture method
 │   ├── Translation engine + API keys
-│   ├── Overlay appearance
+│   ├── Overlay appearance (opacity, position, font)
 │   └── Saved regions per game
-├── Accessibility              ← NEW (visible when A11y plugin active)
-│   ├── Color vision mode
-│   ├── Font scale slider
-│   ├── Reduced motion toggle
-│   ├── TTS on/off + voice selection
-│   ├── Screen reader hints toggle
-│   └── Keyboard shortcuts
 └── About (existing)
 ```
 
 ### 6.2 Plugin Store (in-app)
 
-Simple list view showing available plugins from CDN:
-- Plugin name, description, version, size
-- Install/Update/Uninstall buttons
+Simple list showing available plugins from CDN:
+- Plugin name, description, version, download size
+- Install / Update / Uninstall buttons
 - "Official" badge for MakineAI plugins
-- Future: community plugins with star ratings
+- Community plugins: open source link, review status
 
 ---
 
 ## 7. Website Integration (makineceviri.net)
 
-### 7.1 Plugin Marketplace Page
+### 7.1 Plugin Pages
 
-New page on makineceviri.net:
 - `/plugins` — Plugin listing (official + community)
-- `/plugins/{id}` — Plugin detail page
-- `/docs/plugin-api` — Developer documentation
-- `/docs/plugin-tutorial` — How to build a plugin
+- `/plugins/{id}` — Plugin detail page (description, screenshots, changelog)
+- `/docs/plugin-api` — C ABI reference documentation
+- `/docs/plugin-tutorial` — How to build a community plugin
 
 ### 7.2 CDN Distribution
 
 ```
 cdn.makineceviri.net/
-├── assets/                   (existing)
+├── assets/
 │   ├── plugins/
-│   │   ├── index.json        ← Plugin catalog (id, version, size, checksum)
+│   │   ├── index.json            ← Plugin catalog (id, version, size, sha256)
 │   │   ├── live/
-│   │   │   ├── manifest.json
 │   │   │   └── makineai-live-1.0.0-win64.zip
-│   │   ├── accessibility/
-│   │   │   └── makineai-a11y-1.0.0-win64.zip
 │   │   └── texthook/
 │   │       └── makineai-texthook-1.0.0-win64.zip
-│   └── models/               ← Shared OCR models
+│   └── models/                   ← Shared OCR models (lazy download)
 │       ├── rapidocr/
 │       │   ├── det.onnx
 │       │   ├── rec.onnx
 │       │   └── cls.onnx
 │       └── tesseract/
 │           └── tur.traineddata
-└── data/                     (existing)
+└── data/                         (existing: .makine packages)
 ```
 
 ---
 
-## 8. Security
+## 8. Security Model
 
-- All plugin DLLs must be signed (code signing certificate)
-- CDN downloads verified via SHA-256 checksum in index.json
-- Plugin API is sandboxed: plugins cannot access launcher internals beyond API
-- Official plugins are open source (GPL-3.0) — auditable
-- Community plugins require review before listing on marketplace
-- Plugin permissions declared in manifest (e.g., "network", "process", "filesystem")
+**Honest security posture:** Plugins are DLLs loaded in-process. They have full access to the launcher's memory and OS APIs. There is NO runtime sandboxing.
+
+**Mitigation layers:**
+1. **Code signing** — All official plugin DLLs are signed. Community plugins recommended to sign.
+2. **CDN integrity** — SHA-256 checksums in `index.json`, verified on download.
+3. **Open source** — Official plugins are GPL-3.0, source auditable on GitHub.
+4. **Marketplace review** — Community plugins require manual review before listing.
+5. **Declared capabilities** — Manifest `capabilities` field is an audit tool for reviewers, not runtime enforcement.
+6. **User consent** — Each plugin install shows what capabilities the plugin declares.
 
 ---
 
-## 9. Dependencies (New)
+## 9. New Dependencies
 
-| Library | Purpose | vcpkg | MinGW |
-|---------|---------|-------|-------|
-| ONNX Runtime | OCR inference (RapidOcrOnnx) | onnxruntime | YES |
-| OpenCV (minimal) | Image preprocessing | opencv4 | YES |
-| Tesseract 5.x | Fallback OCR | tesseract | YES |
-| MinHook | Inline function hooking | — (vendored) | YES |
-| DXGI (system) | Screen capture | — (Win SDK) | YES (headers) |
+| Library | Purpose | Integration | MinGW |
+|---------|---------|-------------|-------|
+| ONNX Runtime | OCR inference | Prebuilt MSVC DLL, C API | YES (C API) |
+| OpenCV (minimal) | Image preprocessing | vcpkg | YES |
+| Tesseract 5.x | Fallback OCR | vcpkg | YES |
+| MinHook | Inline function hooking | Vendored source | YES |
+| DXGI headers | Screen capture | Windows SDK | YES |
 
 ---
 
 ## 10. Phasing
 
-| Phase | Deliverable | Dependencies |
-|-------|------------|-------------|
-| **Phase 1** | Plugin system core (Manager, API, manifest, settings UI) | None |
-| **Phase 2** | MakineAI Live (capture + OCR + overlay, single translate engine) | Phase 1 |
-| **Phase 3** | MakineAI Accessibility (color vision, screen reader, TTS, reduced motion) | Phase 1 |
-| **Phase 4** | MakineAI TextHook (MinHook, generic handler, Unity handler) | Phase 1 |
-| **Phase 5** | Multiple translation engines, plugin store, website marketplace | Phase 2 |
-| **Phase 6** | Embedded translation, emulator support, community plugins | Phase 4 |
+| Phase | Deliverable | Scope |
+|-------|------------|-------|
+| **Phase 1** | Plugin System Core | PluginManager, C ABI, manifest loading, settings UI, CDN install |
+| **Phase 2** | Core Accessibility | Screen reader attrs, reduced motion, font scaling, color vision, keyboard nav |
+| **Phase 3** | MakineAI Live v1 | Screen capture + RapidOcrOnnx + single translator + overlay |
+| **Phase 4** | MakineAI TextHook v1 | MinHook, generic handler, Unity handler, Live integration |
+| **Phase 5** | Polish & Expand | Multiple translators, plugin store UI, website marketplace |
+| **Phase 6** | Advanced | Embedded translation, emulator hooks, community plugin ecosystem |
+
+Note: Phase 2 (Accessibility) moved up — it's core functionality, not plugin-dependent.
