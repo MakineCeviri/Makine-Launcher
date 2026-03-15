@@ -99,11 +99,12 @@ private:
         QVariantMap toVariantMap() const;
     };
 
-    // CDN index entry
-    struct CdnPluginEntry {
+    // Remote plugin entry (from plugin index)
+    struct RemotePluginEntry {
         QString id;
         QString version;
-        QString downloadUrl;
+        QString githubRepo;     // e.g. "MakineCeviri/makineai-plugin-live"
+        QString downloadUrl;    // GitHub release asset URL
         QString sha256;
         qint64 size = 0;
     };
@@ -114,18 +115,28 @@ private:
     void saveEnabledList();
     QStringList loadEnabledList() const;
 
-    // CDN operations
-    void parseCdnIndex(const QByteArray& data);
-    void downloadPlugin(const CdnPluginEntry& cdn);
+    // Remote operations
+    void parsePluginIndex(const QByteArray& data);
+    void fetchGitHubRelease(const QString& repo, const QString& pluginId);
     bool extractPlugin(const QString& zipPath, const QString& pluginId);
-    bool verifyChecksum(const QString& filePath, const QString& expected);
     int compareVersions(const QString& a, const QString& b) const;
 
+    // Security
+    bool verifyChecksum(const QString& filePath, const QString& expected);
+    bool verifyDllSignature(const QString& dllPath);
+    bool validateZipContents(const QString& zipPath, const QString& pluginId);
+    bool isPathSafe(const QString& path, const QString& allowedRoot);
+
     std::vector<PluginEntry> m_plugins;
-    std::vector<CdnPluginEntry> m_cdnIndex;
+    std::vector<RemotePluginEntry> m_remoteIndex;
     QNetworkAccessManager* m_net = nullptr;
     bool m_checking = false;
     bool m_installing = false;
     double m_installProgress = 0.0;
     bool m_restartRequired = false;
+
+    // Allowed GitHub orgs for trusted plugins
+    static constexpr const char* kTrustedGitHubOrg = "MakineCeviri";
+    static constexpr const char* kPluginIndexUrl =
+        "https://cdn.makineceviri.net/assets/plugins/index.json";
 };

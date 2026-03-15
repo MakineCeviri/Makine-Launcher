@@ -353,6 +353,7 @@ target_link_libraries(MakineAI PRIVATE
     Qt6::Network
     Qt6::Svg
     Qt6::Concurrent
+    wintrust   # DLL signature verification
 )
 
 # Static Qt: import QML plugins at link time (no-op for shared builds)

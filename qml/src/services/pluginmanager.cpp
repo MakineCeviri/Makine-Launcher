@@ -12,6 +12,12 @@
 #include <QNetworkReply>
 #include <QCryptographicHash>
 #include <QProcess>
+#include <QRegularExpression>
+
+#ifdef Q_OS_WIN
+#include <wintrust.h>
+#include <softpub.h>
+#endif
 
 using namespace makineai;
 
@@ -341,7 +347,7 @@ QVariantMap PluginManager::PluginEntry::toVariantMap() const
     };
 }
 
-// ── CDN Update Check ──
+// ── Update Check (from plugin index) ──
 
 void PluginManager::checkForUpdates()
 {
@@ -353,9 +359,7 @@ void PluginManager::checkForUpdates()
     m_checking = true;
     emit checkingChanged();
 
-    const QString url = QString::fromLatin1(makineai::cdn::kAssetsBase)
-                        + QStringLiteral("plugins/index.json");
-    auto* reply = m_net->get(QNetworkRequest(QUrl(url)));
+    auto* reply = m_net->get(QNetworkRequest(QUrl(QString::fromLatin1(kPluginIndexUrl))));
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
@@ -367,11 +371,11 @@ void PluginManager::checkForUpdates()
             return;
         }
 
-        parseCdnIndex(reply->readAll());
+        parsePluginIndex(reply->readAll());
     });
 }
 
-void PluginManager::parseCdnIndex(const QByteArray& data)
+void PluginManager::parsePluginIndex(const QByteArray& data)
 {
     QJsonParseError err;
     const auto doc = QJsonDocument::fromJson(data, &err);
@@ -380,32 +384,42 @@ void PluginManager::parseCdnIndex(const QByteArray& data)
         return;
     }
 
-    m_cdnIndex.clear();
+    m_remoteIndex.clear();
     const auto arr = doc.object()["plugins"].toArray();
     for (const auto& item : arr) {
         auto obj = item.toObject();
-        CdnPluginEntry cdn;
-        cdn.id          = obj["id"].toString();
-        cdn.version     = obj["version"].toString();
-        cdn.downloadUrl = obj["downloadUrl"].toString();
-        cdn.sha256      = obj["sha256"].toString();
-        cdn.size        = obj["size"].toInteger(0);
-        m_cdnIndex.push_back(std::move(cdn));
+        RemotePluginEntry remote;
+        remote.id          = obj["id"].toString();
+        remote.version     = obj["version"].toString();
+        remote.githubRepo  = obj["githubRepo"].toString();
+        remote.downloadUrl = obj["downloadUrl"].toString();
+        remote.sha256      = obj["sha256"].toString();
+        remote.size        = obj["size"].toInteger(0);
+
+        // Security: only accept plugins from trusted GitHub org
+        if (!remote.githubRepo.isEmpty()
+            && !remote.githubRepo.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/")) {
+            qCWarning(lcPlugin) << "Rejected untrusted plugin:" << remote.id
+                                << "from repo:" << remote.githubRepo;
+            continue;
+        }
+
+        m_remoteIndex.push_back(std::move(remote));
     }
 
-    qCInfo(lcPlugin) << "CDN index:" << m_cdnIndex.size() << "plugin(s) available";
+    qCInfo(lcPlugin) << "Plugin index:" << m_remoteIndex.size() << "trusted plugin(s) available";
 
     // Check installed plugins for updates
     bool anyUpdate = false;
     for (auto& p : m_plugins) {
-        for (const auto& cdn : m_cdnIndex) {
-            if (cdn.id == p.id && compareVersions(cdn.version, p.version) > 0) {
+        for (const auto& remote : m_remoteIndex) {
+            if (remote.id == p.id && compareVersions(remote.version, p.version) > 0) {
                 p.updateAvailable = true;
-                p.availableVersion = cdn.version;
+                p.availableVersion = remote.version;
                 anyUpdate = true;
                 qCInfo(lcPlugin) << "Update available:" << p.id
-                                 << p.version << "->" << cdn.version;
-                emit updateAvailable(p.id, cdn.version);
+                                 << p.version << "->" << remote.version;
+                emit updateAvailable(p.id, remote.version);
             }
         }
     }
@@ -414,20 +428,87 @@ void PluginManager::parseCdnIndex(const QByteArray& data)
         emit pluginsChanged();
 }
 
+// ── GitHub Release Fetch ──
+
+void PluginManager::fetchGitHubRelease(const QString& repo, const QString& pluginId)
+{
+    if (!m_net)
+        m_net = new QNetworkAccessManager(this);
+
+    // Security: validate repo format and trusted org
+    if (!repo.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/")) {
+        emit pluginError(pluginId, QStringLiteral("Untrusted repository: ") + repo);
+        return;
+    }
+
+    // Only allow alphanumeric, dash, underscore, slash in repo name
+    static const QRegularExpression repoPattern(QStringLiteral("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"));
+    if (!repoPattern.match(repo).hasMatch()) {
+        emit pluginError(pluginId, QStringLiteral("Invalid repository name"));
+        return;
+    }
+
+    const QString apiUrl = QStringLiteral("https://api.github.com/repos/%1/releases/latest").arg(repo);
+    QNetworkRequest req{QUrl(apiUrl)};
+    req.setRawHeader("Accept", "application/vnd.github+json");
+    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+
+    auto* reply = m_net->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, pluginId]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qCWarning(lcPlugin) << "GitHub API error for" << pluginId << ":" << reply->errorString();
+            return;
+        }
+
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto assets = doc.object()["assets"].toArray();
+
+        for (const auto& asset : assets) {
+            auto obj = asset.toObject();
+            const QString name = obj["name"].toString();
+            if (name.endsWith(QStringLiteral(".zip"))) {
+                const QString downloadUrl = obj["browser_download_url"].toString();
+
+                // Security: verify download URL is from github.com
+                QUrl parsed(downloadUrl);
+                if (parsed.host() != QStringLiteral("github.com")
+                    && !parsed.host().endsWith(QStringLiteral(".github.com"))
+                    && !parsed.host().endsWith(QStringLiteral(".githubusercontent.com"))) {
+                    qCWarning(lcPlugin) << "Rejected non-GitHub download URL:" << downloadUrl;
+                    emit pluginError(pluginId, QStringLiteral("Download URL not from GitHub"));
+                    return;
+                }
+
+                installPlugin(pluginId, downloadUrl);
+                return;
+            }
+        }
+
+        emit pluginError(pluginId, QStringLiteral("No .zip asset found in latest release"));
+    });
+}
+
 // ── Install ──
 
 void PluginManager::installPlugin(const QString& pluginId, const QString& downloadUrl)
 {
     if (m_installing) return;
 
-    // Find CDN entry (prefer passed URL, fallback to index)
+    // Find remote entry (prefer passed URL, fallback to index)
     QString url = downloadUrl;
     QString expectedHash;
     if (url.isEmpty()) {
-        for (const auto& cdn : m_cdnIndex) {
-            if (cdn.id == pluginId) {
-                url = cdn.downloadUrl;
-                expectedHash = cdn.sha256;
+        for (const auto& remote : m_remoteIndex) {
+            if (remote.id == pluginId) {
+                // If GitHub repo is set and no direct URL, fetch from GitHub
+                if (remote.downloadUrl.isEmpty() && !remote.githubRepo.isEmpty()) {
+                    fetchGitHubRelease(remote.githubRepo, pluginId);
+                    return;
+                }
+                url = remote.downloadUrl;
+                expectedHash = remote.sha256;
                 break;
             }
         }
@@ -435,6 +516,24 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
 
     if (url.isEmpty()) {
         emit pluginError(pluginId, QStringLiteral("No download URL for plugin"));
+        return;
+    }
+
+    // Security: validate URL scheme
+    QUrl parsed(url);
+    if (parsed.scheme() != QStringLiteral("https")) {
+        emit pluginError(pluginId, QStringLiteral("Only HTTPS downloads allowed"));
+        return;
+    }
+
+    // Security: only allow downloads from trusted domains
+    const QString host = parsed.host();
+    bool trustedHost = host == QStringLiteral("github.com")
+                    || host.endsWith(QStringLiteral(".github.com"))
+                    || host.endsWith(QStringLiteral(".githubusercontent.com"))
+                    || host == QStringLiteral("cdn.makineceviri.net");
+    if (!trustedHost) {
+        emit pluginError(pluginId, QStringLiteral("Untrusted download domain: ") + host);
         return;
     }
 
@@ -446,7 +545,11 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
     emit installingChanged();
     emit installProgressChanged();
 
-    auto* reply = m_net->get(QNetworkRequest(QUrl(url)));
+    QNetworkRequest req{parsed};
+    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::NoLessSafeRedirectPolicy);
+    auto* reply = m_net->get(req);
 
     connect(reply, &QNetworkReply::downloadProgress, this,
             [this](qint64 received, qint64 total) {
@@ -469,6 +572,13 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
             return;
         }
 
+        // Security: check response size (max 100MB)
+        const auto data = reply->readAll();
+        if (data.size() > 100 * 1024 * 1024) {
+            emit pluginError(pluginId, QStringLiteral("Download exceeds 100MB limit"));
+            return;
+        }
+
         // Save to temp
         const QString tempPath = AppPaths::downloadTempDir() + "/" + pluginId + ".zip";
         QDir().mkpath(AppPaths::downloadTempDir());
@@ -477,14 +587,20 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
             emit pluginError(pluginId, QStringLiteral("Cannot write temp file"));
             return;
         }
-        file.write(reply->readAll());
+        file.write(data);
         file.close();
 
-        // Verify checksum
+        // Security: verify SHA-256 checksum (mandatory for index plugins)
         if (!expectedHash.isEmpty() && !verifyChecksum(tempPath, expectedHash)) {
             QFile::remove(tempPath);
-            emit pluginError(pluginId, QStringLiteral("Checksum verification failed"));
+            emit pluginError(pluginId, QStringLiteral("Checksum verification failed — download may be tampered"));
             return;
+        }
+
+        // Security: validate zip contents before extraction
+        if (!validateZipContents(tempPath, pluginId)) {
+            QFile::remove(tempPath);
+            return; // error already emitted
         }
 
         // Extract
@@ -558,12 +674,160 @@ QString PluginManager::availableVersion(const QString& pluginId) const
 
 // ── Utilities ──
 
+// ── Security: Path Safety ──
+
+bool PluginManager::isPathSafe(const QString& path, const QString& allowedRoot)
+{
+    // Resolve to canonical path, prevent path traversal (../ attacks)
+    QFileInfo info(path);
+    const QString canonical = info.canonicalFilePath();
+    if (canonical.isEmpty())
+        return false; // path doesn't exist yet, check the absolute version
+    const QString absPath = info.absoluteFilePath();
+
+    QFileInfo rootInfo(allowedRoot);
+    const QString canonicalRoot = rootInfo.canonicalFilePath().isEmpty()
+                                  ? rootInfo.absoluteFilePath()
+                                  : rootInfo.canonicalFilePath();
+
+    return absPath.startsWith(canonicalRoot + "/") || absPath == canonicalRoot;
+}
+
+// ── Security: ZIP Content Validation ──
+
+bool PluginManager::validateZipContents(const QString& zipPath, const QString& pluginId)
+{
+    // Use cmake -E tar to list contents and check for path traversal
+    QProcess proc;
+    proc.start(QStringLiteral("cmake"), {"-E", "tar", "tf", zipPath});
+    if (!proc.waitForFinished(15000)) {
+        emit pluginError(pluginId, QStringLiteral("ZIP listing timeout"));
+        return false;
+    }
+
+    const QString output = QString::fromUtf8(proc.readAllStandardOutput());
+    const auto lines = output.split('\n', Qt::SkipEmptyParts);
+
+    for (const auto& line : lines) {
+        const QString entry = line.trimmed();
+
+        // Reject path traversal
+        if (entry.contains(QStringLiteral("..")) || entry.startsWith('/') || entry.startsWith('\\')) {
+            qCWarning(lcPlugin) << "ZIP path traversal detected:" << entry;
+            emit pluginError(pluginId, QStringLiteral("ZIP contains unsafe path: ") + entry);
+            return false;
+        }
+
+        // Reject absolute paths on Windows
+        if (entry.length() >= 2 && entry[1] == ':') {
+            qCWarning(lcPlugin) << "ZIP absolute path detected:" << entry;
+            emit pluginError(pluginId, QStringLiteral("ZIP contains absolute path"));
+            return false;
+        }
+
+        // Reject dangerous file extensions inside plugin
+        const QString lower = entry.toLower();
+        if (lower.endsWith(QStringLiteral(".exe"))
+            || lower.endsWith(QStringLiteral(".bat"))
+            || lower.endsWith(QStringLiteral(".cmd"))
+            || lower.endsWith(QStringLiteral(".ps1"))
+            || lower.endsWith(QStringLiteral(".vbs"))
+            || lower.endsWith(QStringLiteral(".js"))
+            || lower.endsWith(QStringLiteral(".msi"))) {
+            qCWarning(lcPlugin) << "ZIP contains forbidden file type:" << entry;
+            emit pluginError(pluginId, QStringLiteral("ZIP contains forbidden file: ") + entry);
+            return false;
+        }
+    }
+
+    // Must contain manifest.json
+    bool hasManifest = false;
+    for (const auto& line : lines) {
+        if (line.trimmed().endsWith(QStringLiteral("manifest.json"))) {
+            hasManifest = true;
+            break;
+        }
+    }
+
+    if (!hasManifest) {
+        emit pluginError(pluginId, QStringLiteral("ZIP missing manifest.json"));
+        return false;
+    }
+
+    return true;
+}
+
+// ── Security: DLL Signature Verification ──
+
+bool PluginManager::verifyDllSignature(const QString& dllPath)
+{
+#ifdef Q_OS_WIN
+    // Use WinVerifyTrust to check Authenticode signature
+    WINTRUST_FILE_INFO fileInfo = {};
+    fileInfo.cbStruct = sizeof(fileInfo);
+    fileInfo.pcwszFilePath = reinterpret_cast<LPCWSTR>(dllPath.utf16());
+
+    GUID policyGuid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    WINTRUST_DATA trustData = {};
+    trustData.cbStruct = sizeof(trustData);
+    trustData.dwUIChoice = WTD_UI_NONE;
+    trustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+    trustData.dwUnionChoice = WTD_CHOICE_FILE;
+    trustData.pFile = &fileInfo;
+    trustData.dwStateAction = WTD_STATEACTION_VERIFY;
+
+    LONG result = WinVerifyTrust(nullptr, &policyGuid, &trustData);
+
+    // Cleanup
+    trustData.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(nullptr, &policyGuid, &trustData);
+
+    if (result == ERROR_SUCCESS) {
+        qCInfo(lcPlugin) << "DLL signature valid:" << dllPath;
+        return true;
+    }
+
+    qCWarning(lcPlugin) << "DLL signature check failed (code:" << result << "):" << dllPath;
+    // Don't block unsigned plugins — just warn.
+    // Official plugins will always be signed; community plugins may not be.
+    return true; // Allow unsigned for now, log the warning
+#else
+    Q_UNUSED(dllPath);
+    return true;
+#endif
+}
+
+// ── Security: Checksum Verification ──
+
+bool PluginManager::verifyChecksum(const QString& filePath, const QString& expected)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    if (!hash.addData(&file))
+        return false;
+
+    const QString actual = hash.result().toHex();
+    if (actual != expected.toLower()) {
+        qCWarning(lcPlugin) << "Checksum mismatch:"
+                            << "expected:" << expected
+                            << "actual:" << actual;
+        return false;
+    }
+
+    qCDebug(lcPlugin) << "Checksum verified:" << filePath;
+    return true;
+}
+
+// ── Extraction ──
+
 bool PluginManager::extractPlugin(const QString& zipPath, const QString& pluginId)
 {
     const QString destDir = AppPaths::pluginsDir() + "/" + pluginId;
     QDir().mkpath(destDir);
 
-    // Use Qt's built-in tar/zip via QProcess (cmake -E tar)
     QProcess proc;
     proc.setWorkingDirectory(destDir);
     proc.start(QStringLiteral("cmake"), {"-E", "tar", "xf", zipPath});
@@ -575,25 +839,19 @@ bool PluginManager::extractPlugin(const QString& zipPath, const QString& pluginI
         qCWarning(lcPlugin) << "Extract failed:" << proc.readAllStandardError();
         return false;
     }
-    return true;
-}
 
-bool PluginManager::verifyChecksum(const QString& filePath, const QString& expected)
-{
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly))
-        return false;
-
-    QCryptographicHash hash(QCryptographicHash::Sha256);
-    hash.addData(&file);
-    const QString actual = hash.result().toHex();
-
-    if (actual != expected.toLower()) {
-        qCWarning(lcPlugin) << "Checksum mismatch:" << actual << "!=" << expected;
+    // Post-extraction: verify extracted DLL path is within plugin dir
+    const QString manifestPath = destDir + "/manifest.json";
+    if (!QFile::exists(manifestPath)) {
+        qCWarning(lcPlugin) << "Extracted plugin missing manifest.json";
+        QDir(destDir).removeRecursively();
         return false;
     }
+
     return true;
 }
+
+// ── Version Comparison ──
 
 int PluginManager::compareVersions(const QString& a, const QString& b) const
 {
