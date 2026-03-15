@@ -54,6 +54,8 @@ public:
     static QString manifestEtagFile()     { return cacheDir() + QStringLiteral("/manifest_etag.txt"); }
     static QString packageDetailDir()     { return cacheDir() + QStringLiteral("/packages"); }
     static QString packagesDir()         { return root() + QStringLiteral("/packages"); }
+    static QString pluginsDir()          { return root() + QStringLiteral("/plugins"); }
+    static QString pluginDataDir()       { return root() + QStringLiteral("/plugin-data"); }
     static QString installedPackagesFile(){ return dataDir()  + QStringLiteral("/installed_packages.json"); }
     static QString pendingOperationFile() { return dataDir()  + QStringLiteral("/pending_operation.json"); }
     static QString perfReportFile()      { return logsDir()  + QStringLiteral("/perf_report.json"); }
