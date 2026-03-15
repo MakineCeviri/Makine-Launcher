@@ -324,7 +324,7 @@ ColumnLayout {
         }
     }
 
-    // ── Community Plugins Section ──
+    // ── Community Plugins Section (GitHub Topic Search) ──
     SettingsCard {
         Layout.fillWidth: true
 
@@ -348,36 +348,60 @@ ColumnLayout {
                         font.weight: Font.DemiBold
                         color: Theme.textPrimary
                     }
+
+                    Item { Layout.fillWidth: true }
+
+                    // GitHub topic badge
+                    Rectangle {
+                        implicitWidth: _ghLabel.implicitWidth + 20
+                        implicitHeight: 26
+                        radius: Dimensions.radiusFull
+                        color: Theme.textPrimary06
+
+                        Text {
+                            id: _ghLabel
+                            textFormat: Text.PlainText
+                            anchors.centerIn: parent
+                            text: "GitHub"
+                            font.pixelSize: Dimensions.fontSM
+                            font.weight: Font.Medium
+                            color: Theme.textSecondary
+                        }
+                    }
                 }
             }
 
             SettingsDivider {}
 
-            // Community / third-party discovered plugins
-            Repeater {
-                model: {
-                    if (!PluginManager) return []
-                    var officialIds = []
-                    for (var i = 0; i < pluginsRoot.officialCatalog.length; i++)
-                        officialIds.push(pluginsRoot.officialCatalog[i].id)
-                    var community = []
-                    var all = pluginsRoot.discoveredPlugins
-                    for (var j = 0; j < all.length; j++)
-                        if (officialIds.indexOf(all[j].id) === -1)
-                            community.push(all[j])
-                    return community
+            // Loading indicator
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                visible: PluginManager && PluginManager.loadingCommunity
+
+                BusyIndicator {
+                    anchors.centerIn: parent
+                    width: 24; height: 24
+                    running: parent.visible
                 }
+            }
+
+            // GitHub community plugin cards (top starred)
+            Repeater {
+                model: PluginManager ? PluginManager.communityPlugins : []
 
                 Rectangle {
                     required property var modelData
                     required property int index
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 64
+                    Layout.preferredHeight: 72
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
                     Layout.topMargin: index === 0 ? Dimensions.spacingMD : Dimensions.spacingSM
+                    Layout.bottomMargin: index === (PluginManager ? PluginManager.communityPlugins.length - 1 : 0)
+                                         ? Dimensions.spacingMD : 0
                     radius: Dimensions.radiusMD
-                    color: _communityMouse.containsMouse ? Theme.primary06 : Theme.primary04
+                    color: _cMouse.containsMouse ? Theme.primary06 : Theme.primary04
                     border.color: Theme.primary08; border.width: 1
                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
@@ -386,82 +410,106 @@ ColumnLayout {
                         anchors.margins: Dimensions.marginMS
                         spacing: Dimensions.spacingLG
 
+                        // Owner avatar
                         Rectangle {
                             Layout.preferredWidth: 40; Layout.preferredHeight: 40
-                            radius: Dimensions.radiusMD; color: Theme.primary12
-                            Text {
-                                textFormat: Text.PlainText; anchors.centerIn: parent
-                                text: "\uD83D\uDD0C"; font.pixelSize: Dimensions.fontLG
+                            radius: Dimensions.radiusMD; color: Theme.primary12; clip: true
+
+                            Image {
+                                anchors.fill: parent
+                                source: modelData.ownerAvatar || ""
+                                sourceSize: Qt.size(40, 40)
+                                asynchronous: true; fillMode: Image.PreserveAspectCrop
                             }
                         }
 
+                        // Plugin info
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: Dimensions.spacingXXS
-                            Text {
-                                textFormat: Text.PlainText
-                                text: modelData.name || modelData.id
-                                font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
-                                color: Theme.textPrimary
+
+                            RowLayout {
+                                spacing: Dimensions.spacingSM
+
+                                Text {
+                                    textFormat: Text.PlainText
+                                    text: modelData.name || ""
+                                    font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
+                                    color: Theme.textPrimary
+                                }
+
+                                // Approved badge
+                                Rectangle {
+                                    visible: modelData.approved || false
+                                    implicitWidth: _approvedLbl.implicitWidth + 12
+                                    implicitHeight: 18; radius: Dimensions.radiusFull
+                                    color: "#22c55e22"
+
+                                    Text {
+                                        id: _approvedLbl; textFormat: Text.PlainText
+                                        anchors.centerIn: parent
+                                        text: "\u2714 " + qsTr("Onaylı")
+                                        font.pixelSize: Dimensions.fontMini; font.weight: Font.DemiBold
+                                        color: "#4ade80"
+                                    }
+                                }
                             }
+
                             Text {
                                 textFormat: Text.PlainText
-                                text: modelData.description || "v" + (modelData.version || "?")
+                                text: modelData.description || ""
                                 font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
                                 Layout.fillWidth: true; elide: Text.ElideRight
                             }
                         }
 
-                        // Status badge
-                        Rectangle {
-                            implicitWidth: _statusLbl.implicitWidth + 16; implicitHeight: 26
-                            radius: Dimensions.radiusFull
-                            color: modelData.loaded ? "#22c55e22" : modelData.enabled ? Theme.primary10 : Theme.textPrimary06
+                        // Stars count
+                        ColumnLayout {
+                            spacing: 2
+
                             Text {
-                                id: _statusLbl; textFormat: Text.PlainText; anchors.centerIn: parent
-                                text: modelData.loaded ? qsTr("Yüklü") : modelData.enabled ? qsTr("Etkin") : qsTr("Devre Dışı")
-                                font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
-                                color: modelData.loaded ? "#4ade80" : Theme.textSecondary
+                                textFormat: Text.PlainText
+                                text: "\u2B50 " + (modelData.stars || 0)
+                                font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold
+                                color: "#fbbf24"
+                                Layout.alignment: Qt.AlignRight
+                            }
+
+                            Text {
+                                textFormat: Text.PlainText
+                                text: modelData.owner || ""
+                                font.pixelSize: Dimensions.fontMini
+                                color: Theme.textMuted
+                                Layout.alignment: Qt.AlignRight
                             }
                         }
                     }
 
                     MouseArea {
-                        id: _communityMouse; anchors.fill: parent
-                        hoverEnabled: true; acceptedButtons: Qt.NoButton
+                        id: _cMouse; anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally(modelData.url || "")
                     }
                 }
             }
 
-            // Empty state — no community plugins
+            // "Show more" button + empty state
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 100
+                Layout.preferredHeight: PluginManager && PluginManager.communityPlugins.length > 0 ? 56 : 100
                 Layout.margins: Dimensions.marginML
                 radius: Dimensions.radiusMD
-                color: Theme.primary04
-                visible: {
-                    if (!PluginManager) return true
-                    var officialIds = []
-                    for (var i = 0; i < pluginsRoot.officialCatalog.length; i++)
-                        officialIds.push(pluginsRoot.officialCatalog[i].id)
-                    var all = pluginsRoot.discoveredPlugins
-                    for (var j = 0; j < all.length; j++)
-                        if (officialIds.indexOf(all[j].id) === -1) return false
-                    return true
-                }
+                color: _moreMouse.containsMouse ? Theme.primary08 : Theme.primary04
+                visible: !PluginManager || !PluginManager.loadingCommunity
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                opacity: 0
-                scale: 0.95
-                Component.onCompleted: _communityAnim.start()
-                ParallelAnimation {
-                    id: _communityAnim
-                    NumberAnimation { target: parent; property: "opacity"; from: 0; to: 1; duration: 400; easing.type: Easing.OutCubic }
-                    NumberAnimation { target: parent; property: "scale"; from: 0.95; to: 1; duration: 400; easing.type: Easing.OutCubic }
-                }
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Show more community plugins on GitHub")
+                activeFocusOnTab: true
 
                 ColumnLayout {
                     anchors.centerIn: parent
                     spacing: Dimensions.spacingSM
+                    visible: !PluginManager || PluginManager.communityPlugins.length === 0
 
                     Text {
                         textFormat: Text.PlainText
@@ -472,7 +520,7 @@ ColumnLayout {
 
                     Text {
                         textFormat: Text.PlainText
-                        text: qsTr("Topluluk eklentileri yakında!")
+                        text: qsTr("Topluluk eklentilerini keşfet")
                         font.pixelSize: Dimensions.fontMD
                         color: Theme.textMuted
                         Layout.alignment: Qt.AlignHCenter
@@ -480,10 +528,35 @@ ColumnLayout {
 
                     Text {
                         textFormat: Text.PlainText
-                        text: qsTr("makineceviri.net/plugins adresinden takip edin")
+                        text: qsTr("GitHub'da \"makineai-plugin\" topic'i ile paylaşın")
                         font.pixelSize: Dimensions.fontSM
                         color: Theme.textSecondary
                         Layout.alignment: Qt.AlignHCenter
+                    }
+                }
+
+                // "Show more" text when plugins exist
+                Text {
+                    textFormat: Text.PlainText
+                    anchors.centerIn: parent
+                    visible: PluginManager && PluginManager.communityPlugins.length > 0
+                    text: qsTr("GitHub'da daha fazla eklenti gör \u2192")
+                    font.pixelSize: Dimensions.fontMD
+                    font.weight: Font.Medium
+                    color: _moreMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                }
+
+                FocusRing { offset: -1 }
+
+                MouseArea {
+                    id: _moreMouse; anchors.fill: parent
+                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (PluginManager)
+                            PluginManager.openCommunityPage()
+                        else
+                            Qt.openUrlExternally("https://github.com/topics/makineai-plugin")
                     }
                 }
             }
