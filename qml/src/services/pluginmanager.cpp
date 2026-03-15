@@ -126,6 +126,21 @@ bool PluginManager::loadManifest(const QString& dirPath, PluginEntry& entry)
     for (const auto& c : obj["capabilities"].toArray())
         entry.capabilities.append(c.toString());
 
+    // Parse settings definitions from manifest
+    for (const auto& s : obj["settings"].toArray()) {
+        auto sObj = s.toObject();
+        QVariantMap setting;
+        setting["key"]     = sObj["key"].toString();
+        setting["type"]    = sObj["type"].toString();
+        setting["label"]   = sObj["label"].toString();
+        setting["default"] = sObj["default"].toVariant();
+        QVariantList opts;
+        for (const auto& o : sObj["options"].toArray())
+            opts.append(o.toString());
+        setting["options"] = opts;
+        entry.settingsDefs.append(setting);
+    }
+
     // Validate required fields
     if (entry.id.isEmpty() || entry.name.isEmpty() || entry.entryDll.isEmpty()) {
         qCWarning(lcPlugin) << "Manifest missing required fields:" << manifestPath;
@@ -177,6 +192,12 @@ bool PluginManager::loadPlugin(PluginEntry& entry)
                               GetProcAddress(entry.hModule, "makineai_is_ready"));
     entry.fnGetLastError = reinterpret_cast<MakineAiFn_GetLastError>(
                               GetProcAddress(entry.hModule, "makineai_get_last_error"));
+
+    // Optional: settings exports
+    entry.fnGetSetting = reinterpret_cast<PluginEntry::GetSettingFn>(
+                              GetProcAddress(entry.hModule, "makineai_get_setting"));
+    entry.fnSetSetting = reinterpret_cast<PluginEntry::SetSettingFn>(
+                              GetProcAddress(entry.hModule, "makineai_set_setting"));
 
     if (!entry.fnGetInfo || !entry.fnInitialize || !entry.fnShutdown
         || !entry.fnIsReady || !entry.fnGetLastError) {
@@ -349,6 +370,8 @@ QVariantMap PluginManager::PluginEntry::toVariantMap() const
         {"lastError",        lastError},
         {"features",         QVariant(features)},
         {"capabilities",     QVariant(capabilities)},
+        {"settings",         settingsDefs},
+        {"hasSettings",      !settingsDefs.isEmpty()},
     };
 }
 
@@ -863,6 +886,38 @@ bool PluginManager::extractPlugin(const QString& packagePath, const QString& plu
 }
 
 // ── Version Comparison ──
+
+// ── Plugin Settings ──
+
+QVariantList PluginManager::pluginSettings(const QString& pluginId) const
+{
+    for (const auto& p : m_plugins)
+        if (p.id == pluginId)
+            return p.settingsDefs;
+    return {};
+}
+
+QString PluginManager::getPluginSetting(const QString& pluginId, const QString& key) const
+{
+    for (const auto& p : m_plugins) {
+        if (p.id == pluginId && p.fnGetSetting) {
+            const char* val = p.fnGetSetting(key.toUtf8().constData());
+            return val ? QString::fromUtf8(val) : QString();
+        }
+    }
+    return {};
+}
+
+void PluginManager::setPluginSetting(const QString& pluginId, const QString& key, const QString& value)
+{
+    for (const auto& p : m_plugins) {
+        if (p.id == pluginId && p.fnSetSetting) {
+            p.fnSetSetting(key.toUtf8().constData(), value.toUtf8().constData());
+            emit pluginsChanged(); // trigger UI refresh
+            return;
+        }
+    }
+}
 
 int PluginManager::compareVersions(const QString& a, const QString& b) const
 {

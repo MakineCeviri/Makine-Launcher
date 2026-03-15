@@ -56,6 +56,11 @@ public:
     Q_INVOKABLE bool hasUpdate(const QString& pluginId) const;
     Q_INVOKABLE QString availableVersion(const QString& pluginId) const;
 
+    // Plugin settings (reads manifest settings definitions + calls DLL get/set)
+    Q_INVOKABLE QVariantList pluginSettings(const QString& pluginId) const;
+    Q_INVOKABLE QString getPluginSetting(const QString& pluginId, const QString& key) const;
+    Q_INVOKABLE void setPluginSetting(const QString& pluginId, const QString& key, const QString& value);
+
     // Community discovery (GitHub topic search)
     Q_INVOKABLE void fetchCommunityPlugins();
     Q_INVOKABLE void openCommunityPage();
@@ -96,6 +101,13 @@ private:
         bool updateAvailable = false;
         QString availableVersion;
         QString lastError;
+        QVariantList settingsDefs; // from manifest.json "settings" array
+
+        // Optional DLL exports for settings
+        using GetSettingFn = const char* (*)(const char*);
+        using SetSettingFn = void (*)(const char*, const char*);
+        GetSettingFn fnGetSetting = nullptr;
+        SetSettingFn fnSetSetting = nullptr;
 
 #ifdef Q_OS_WIN
         HMODULE hModule = nullptr;
