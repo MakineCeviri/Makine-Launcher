@@ -201,6 +201,7 @@ qt_add_qml_module(MakineAI
         qml/screens/settings/GeneralSettings.qml
         qml/screens/settings/TranslationSettings.qml
         qml/screens/settings/BackupsSettings.qml
+        qml/screens/settings/PluginsSettings.qml
         qml/screens/settings/PerformanceSettings.qml
         qml/screens/settings/AboutSettings.qml
 

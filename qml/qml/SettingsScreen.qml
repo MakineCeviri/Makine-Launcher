@@ -36,7 +36,7 @@ Item {
     property var categories: [
         { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın") },
         { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin") },
-        { name: qsTr("Yedekler"), description: qsTr("Tamamlanan çeviriler ve yedekler") },
+        { name: qsTr("Eklentiler"), description: qsTr("Eklenti yönetimi ve mağaza") },
         { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları") },
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler") }
     ]
@@ -44,7 +44,7 @@ Item {
     readonly property var panelSources: [
         "screens/settings/GeneralSettings.qml",
         "screens/settings/TranslationSettings.qml",
-        "screens/settings/BackupsSettings.qml",
+        "screens/settings/PluginsSettings.qml",
         "screens/settings/PerformanceSettings.qml",
         "screens/settings/AboutSettings.qml"
     ]
