@@ -547,6 +547,7 @@ void logToFile(const QString& msg) {
 #include "services/catalogproxymodel.h"
 #include "services/settingsmanager.h"
 #include "services/backupmanager.h"
+#include "services/pluginmanager.h"
 #include "services/processscanner.h"
 #include "services/systemtraymanager.h"
 #include "services/integrityservice.h"
@@ -908,6 +909,13 @@ static void createServices(
 
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
+
+    // ===== Phase 6b: Plugin system =====
+    auto* pluginManager = new PluginManager(&app);
+    pluginManager->discoverPlugins();
+    pluginManager->loadEnabledPlugins();
+    engine.rootContext()->setContextProperty("PluginManager", pluginManager);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
 
     // ===== Phase 7: Update service + system tray =====
     makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
