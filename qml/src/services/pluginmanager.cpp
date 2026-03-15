@@ -14,6 +14,10 @@
 #include <QProcess>
 #include <QRegularExpression>
 
+#ifndef MAKINEAI_UI_ONLY
+#include "mkpkformat.h"
+#endif
+
 #ifdef Q_OS_WIN
 #include <wintrust.h>
 #include <softpub.h>
@@ -468,7 +472,7 @@ void PluginManager::fetchGitHubRelease(const QString& repo, const QString& plugi
         for (const auto& asset : assets) {
             auto obj = asset.toObject();
             const QString name = obj["name"].toString();
-            if (name.endsWith(QStringLiteral(".zip"))) {
+            if (name.endsWith(QStringLiteral(".makine"))) {
                 const QString downloadUrl = obj["browser_download_url"].toString();
 
                 // Security: verify download URL is from github.com
@@ -486,7 +490,7 @@ void PluginManager::fetchGitHubRelease(const QString& repo, const QString& plugi
             }
         }
 
-        emit pluginError(pluginId, QStringLiteral("No .zip asset found in latest release"));
+        emit pluginError(pluginId, QStringLiteral("No .makine asset found in latest release"));
     });
 }
 
@@ -580,7 +584,7 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
         }
 
         // Save to temp
-        const QString tempPath = AppPaths::downloadTempDir() + "/" + pluginId + ".zip";
+        const QString tempPath = AppPaths::downloadTempDir() + "/" + pluginId + ".makine";
         QDir().mkpath(AppPaths::downloadTempDir());
         QFile file(tempPath);
         if (!file.open(QIODevice::WriteOnly)) {
@@ -693,64 +697,41 @@ bool PluginManager::isPathSafe(const QString& path, const QString& allowedRoot)
     return absPath.startsWith(canonicalRoot + "/") || absPath == canonicalRoot;
 }
 
-// ── Security: ZIP Content Validation ──
+// ── Security: Package Content Validation ──
 
-bool PluginManager::validateZipContents(const QString& zipPath, const QString& pluginId)
+bool PluginManager::validateZipContents(const QString& packagePath, const QString& pluginId)
 {
-    // Use cmake -E tar to list contents and check for path traversal
-    QProcess proc;
-    proc.start(QStringLiteral("cmake"), {"-E", "tar", "tf", zipPath});
-    if (!proc.waitForFinished(15000)) {
-        emit pluginError(pluginId, QStringLiteral("ZIP listing timeout"));
+    // Read and validate the .makine header
+    QFile file(packagePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        emit pluginError(pluginId, QStringLiteral("Cannot open package file"));
         return false;
     }
 
-    const QString output = QString::fromUtf8(proc.readAllStandardOutput());
-    const auto lines = output.split('\n', Qt::SkipEmptyParts);
+    const QByteArray header = file.read(5);
+    file.close();
 
-    for (const auto& line : lines) {
-        const QString entry = line.trimmed();
-
-        // Reject path traversal
-        if (entry.contains(QStringLiteral("..")) || entry.startsWith('/') || entry.startsWith('\\')) {
-            qCWarning(lcPlugin) << "ZIP path traversal detected:" << entry;
-            emit pluginError(pluginId, QStringLiteral("ZIP contains unsafe path: ") + entry);
-            return false;
-        }
-
-        // Reject absolute paths on Windows
-        if (entry.length() >= 2 && entry[1] == ':') {
-            qCWarning(lcPlugin) << "ZIP absolute path detected:" << entry;
-            emit pluginError(pluginId, QStringLiteral("ZIP contains absolute path"));
-            return false;
-        }
-
-        // Reject dangerous file extensions inside plugin
-        const QString lower = entry.toLower();
-        if (lower.endsWith(QStringLiteral(".exe"))
-            || lower.endsWith(QStringLiteral(".bat"))
-            || lower.endsWith(QStringLiteral(".cmd"))
-            || lower.endsWith(QStringLiteral(".ps1"))
-            || lower.endsWith(QStringLiteral(".vbs"))
-            || lower.endsWith(QStringLiteral(".js"))
-            || lower.endsWith(QStringLiteral(".msi"))) {
-            qCWarning(lcPlugin) << "ZIP contains forbidden file type:" << entry;
-            emit pluginError(pluginId, QStringLiteral("ZIP contains forbidden file: ") + entry);
-            return false;
-        }
+    if (header.size() < 5) {
+        emit pluginError(pluginId, QStringLiteral("Package too small"));
+        return false;
     }
 
-    // Must contain manifest.json
-    bool hasManifest = false;
-    for (const auto& line : lines) {
-        if (line.trimmed().endsWith(QStringLiteral("manifest.json"))) {
-            hasManifest = true;
-            break;
-        }
+    // Validate MKPK magic bytes
+    if (header[0] != 'M' || header[1] != 'K' || header[2] != 'P' || header[3] != 'K') {
+        emit pluginError(pluginId, QStringLiteral("Invalid .makine package (bad magic bytes)"));
+        return false;
     }
 
-    if (!hasManifest) {
-        emit pluginError(pluginId, QStringLiteral("ZIP missing manifest.json"));
+    // Plugins must be v2 (unencrypted)
+    if (static_cast<uint8_t>(header[4]) != 2) {
+        emit pluginError(pluginId, QStringLiteral("Plugin packages must be MKPK v2 (unencrypted)"));
+        return false;
+    }
+
+    // File size sanity check (max 100MB)
+    QFileInfo fi(packagePath);
+    if (fi.size() > 100 * 1024 * 1024) {
+        emit pluginError(pluginId, QStringLiteral("Package exceeds 100MB limit"));
         return false;
     }
 
@@ -823,26 +804,50 @@ bool PluginManager::verifyChecksum(const QString& filePath, const QString& expec
 
 // ── Extraction ──
 
-bool PluginManager::extractPlugin(const QString& zipPath, const QString& pluginId)
+bool PluginManager::extractPlugin(const QString& packagePath, const QString& pluginId)
 {
     const QString destDir = AppPaths::pluginsDir() + "/" + pluginId;
     QDir().mkpath(destDir);
 
-    QProcess proc;
-    proc.setWorkingDirectory(destDir);
-    proc.start(QStringLiteral("cmake"), {"-E", "tar", "xf", zipPath});
-    if (!proc.waitForFinished(30000)) {
-        qCWarning(lcPlugin) << "Extract timeout for" << pluginId;
-        return false;
-    }
-    if (proc.exitCode() != 0) {
-        qCWarning(lcPlugin) << "Extract failed:" << proc.readAllStandardError();
+#ifndef MAKINEAI_UI_ONLY
+    // Use .makine format (MKPK v2: zstd + tar, no encryption)
+    QFile file(packagePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qCWarning(lcPlugin) << "Cannot open package:" << packagePath;
         return false;
     }
 
-    // Post-extraction: verify extracted DLL path is within plugin dir
-    const QString manifestPath = destDir + "/manifest.json";
-    if (!QFile::exists(manifestPath)) {
+    const QByteArray data = file.readAll();
+    file.close();
+
+    makineai::mkpk::MkpkError mkpkErr{""};
+    int count = makineai::mkpk::process_mkpkg(
+        reinterpret_cast<const uint8_t*>(data.constData()),
+        static_cast<size_t>(data.size()),
+        destDir.toStdWString(),
+        &mkpkErr);
+
+    if (count < 0) {
+        qCWarning(lcPlugin) << "Plugin extraction failed:" << QString::fromStdString(mkpkErr.message);
+        QDir(destDir).removeRecursively();
+        return false;
+    }
+
+    qCInfo(lcPlugin) << "Extracted" << count << "files for plugin" << pluginId;
+#else
+    // UI-only build: fallback to cmake tar extraction
+    QProcess proc;
+    proc.setWorkingDirectory(destDir);
+    proc.start(QStringLiteral("cmake"), {"-E", "tar", "xf", packagePath});
+    if (!proc.waitForFinished(30000) || proc.exitCode() != 0) {
+        qCWarning(lcPlugin) << "Extract failed for" << pluginId;
+        QDir(destDir).removeRecursively();
+        return false;
+    }
+#endif
+
+    // Post-extraction: verify manifest.json exists
+    if (!QFile::exists(destDir + "/manifest.json")) {
         qCWarning(lcPlugin) << "Extracted plugin missing manifest.json";
         QDir(destDir).removeRecursively();
         return false;

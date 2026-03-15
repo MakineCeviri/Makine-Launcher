@@ -3,11 +3,15 @@
  * @brief MKPK binary format: decrypt (AES-256-GCM) + decompress (zstd) + tar extract
  * @copyright (c) 2026 MakineAI Team
  *
- * MKPK format v1:
- *   [Magic: 4B "MKPK"] [Version: 1B] [Nonce: 12B] [Ciphertext+AuthTag: NB]
+ * MKPK format v1 (encrypted — translation packages):
+ *   [Magic: 4B "MKPK"] [Version: 1B = 0x01] [Nonce: 12B] [Ciphertext+AuthTag: NB]
+ *
+ * MKPK format v2 (unencrypted — plugins, open-source content):
+ *   [Magic: 4B "MKPK"] [Version: 1B = 0x02] [zstd compressed tar data]
  *
  * Inner payload: tar.zst (zstandard compressed tar archive)
- * Encryption: AES-256-GCM with MAGIC as Associated Data
+ * v1 encryption: AES-256-GCM with MAGIC as Associated Data
+ * v2: no encryption, direct zstd + tar
  *
  * This header is self-contained: no Qt dependency for core logic.
  * Only the extract_tar() helper uses filesystem operations.
@@ -371,6 +375,7 @@ inline int extract(
 // ============================================================================
 
 /// Process a complete .makine file: decrypt → decompress → extract.
+/// Supports v1 (encrypted) and v2 (unencrypted) formats.
 /// @param mkpk_data  Raw .makine file contents
 /// @param mkpk_size  Size in bytes
 /// @param dest_dir   Destination directory for extracted files
@@ -383,10 +388,36 @@ inline int process_mkpkg(
     MkpkError* err = nullptr,
     std::function<void(const std::string&, size_t)> on_file = nullptr)
 {
-    // Step 1: Decrypt
-    auto compressed = decrypt_mkpk(mkpk_data, mkpk_size, err);
-    if (compressed.empty())
+    // Validate minimum size (magic + version)
+    if (mkpk_size < 5) {
+        if (err) *err = MkpkError("File too small for MKPK format");
         return -1;
+    }
+
+    // Validate magic
+    if (std::memcmp(mkpk_data, crypto::MKPK_MAGIC, 4) != 0) {
+        if (err) *err = MkpkError("Invalid MKPK magic bytes");
+        return -1;
+    }
+
+    const uint8_t version = mkpk_data[4];
+
+    std::vector<uint8_t> compressed;
+
+    if (version == 1) {
+        // v1: encrypted — decrypt first
+        compressed = decrypt_mkpk(mkpk_data, mkpk_size, err);
+        if (compressed.empty())
+            return -1;
+    } else if (version == 2) {
+        // v2: unencrypted — payload starts right after header (5 bytes)
+        const uint8_t* payload = mkpk_data + 5;
+        const size_t payload_size = mkpk_size - 5;
+        compressed.assign(payload, payload + payload_size);
+    } else {
+        if (err) *err = MkpkError(fmt::format("Unsupported MKPK version: {}", version));
+        return -1;
+    }
 
     // Step 2: Decompress
     auto tar_data = zstd_decompress(compressed.data(), compressed.size(), err);
@@ -399,6 +430,17 @@ inline int process_mkpkg(
 
     // Step 3: Extract
     return tar::extract(tar_data.data(), tar_data.size(), dest_dir, err, std::move(on_file));
+}
+
+/// Process a v2 (unencrypted) .makine file. Convenience wrapper for plugins.
+/// @return Number of files extracted, or -1 on error
+inline int process_plugin_package(
+    const uint8_t* data, size_t size,
+    const std::filesystem::path& dest_dir,
+    MkpkError* err = nullptr,
+    std::function<void(const std::string&, size_t)> on_file = nullptr)
+{
+    return process_mkpkg(data, size, dest_dir, err, std::move(on_file));
 }
 
 } // namespace makineai::mkpk
