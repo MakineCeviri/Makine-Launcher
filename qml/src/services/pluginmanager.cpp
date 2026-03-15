@@ -924,15 +924,6 @@ void PluginManager::fetchCommunityPlugins()
             if (fullName.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/"))
                 continue;
 
-            // Check if this plugin is already approved (in registry index)
-            bool approved = false;
-            for (const auto& remote : m_remoteIndex) {
-                if (remote.githubRepo == fullName) {
-                    approved = true;
-                    break;
-                }
-            }
-
             m_communityPlugins.append(QVariantMap{
                 {"name",          repo["name"].toString()},
                 {"fullName",      fullName},
@@ -943,7 +934,6 @@ void PluginManager::fetchCommunityPlugins()
                 {"ownerAvatar",   repo["owner"].toObject()["avatar_url"].toString()},
                 {"language",      repo["language"].toString()},
                 {"updatedAt",     repo["updated_at"].toString()},
-                {"approved",      approved},
             });
         }
 

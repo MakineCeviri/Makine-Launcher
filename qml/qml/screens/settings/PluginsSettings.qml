@@ -437,19 +437,18 @@ ColumnLayout {
                                     color: Theme.textPrimary
                                 }
 
-                                // Approved badge
+                                // Open source indicator
                                 Rectangle {
-                                    visible: modelData.approved || false
-                                    implicitWidth: _approvedLbl.implicitWidth + 12
+                                    implicitWidth: _osLbl.implicitWidth + 12
                                     implicitHeight: 18; radius: Dimensions.radiusFull
-                                    color: "#22c55e22"
+                                    color: Theme.textPrimary06
 
                                     Text {
-                                        id: _approvedLbl; textFormat: Text.PlainText
+                                        id: _osLbl; textFormat: Text.PlainText
                                         anchors.centerIn: parent
-                                        text: "\u2714 " + qsTr("Onaylı")
-                                        font.pixelSize: Dimensions.fontMini; font.weight: Font.DemiBold
-                                        color: "#4ade80"
+                                        text: modelData.language || "C++"
+                                        font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
+                                        color: Theme.textSecondary
                                     }
                                 }
                             }
