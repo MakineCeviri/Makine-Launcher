@@ -113,6 +113,7 @@ set(BACKEND_SOURCES
     src/services/supportedgamesmodel.cpp
     src/services/catalogproxymodel.cpp
     src/services/crashreporter.cpp
+    src/services/pluginmanager.cpp
 )
 
 set(BACKEND_HEADERS
@@ -143,6 +144,7 @@ set(BACKEND_HEADERS
     src/services/mkpkformat.h
     src/services/apppaths.h
     src/services/profiler.h
+    src/services/pluginmanager.h
 )
 
 
