@@ -13,6 +13,7 @@
 #include <QCryptographicHash>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QDesktopServices>
 
 #ifndef MAKINEAI_UI_ONLY
 #include "mkpkformat.h"
@@ -351,7 +352,7 @@ QVariantMap PluginManager::PluginEntry::toVariantMap() const
     };
 }
 
-// ── Update Check (from plugin index) ──
+// ── Update Check (from registry repo on GitHub) ──
 
 void PluginManager::checkForUpdates()
 {
@@ -363,7 +364,12 @@ void PluginManager::checkForUpdates()
     m_checking = true;
     emit checkingChanged();
 
-    auto* reply = m_net->get(QNetworkRequest(QUrl(QString::fromLatin1(kPluginIndexUrl))));
+    // Fetch index.json from registry repo (raw content via GitHub)
+    const QString url = QStringLiteral("https://raw.githubusercontent.com/%1/main/index.json")
+                            .arg(QString::fromLatin1(kRegistryRepo));
+    QNetworkRequest req{QUrl(url)};
+    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+    auto* reply = m_net->get(req);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
@@ -870,4 +876,85 @@ int PluginManager::compareVersions(const QString& a, const QString& b) const
         if (va != vb) return va - vb;
     }
     return 0;
+}
+
+// ── Community Plugin Discovery (GitHub Topic Search) ──
+
+void PluginManager::fetchCommunityPlugins()
+{
+    if (m_loadingCommunity) return;
+
+    if (!m_net)
+        m_net = new QNetworkAccessManager(this);
+
+    m_loadingCommunity = true;
+    emit loadingCommunityChanged();
+
+    // Search GitHub for repos with "makineai-plugin" topic, sorted by stars
+    const QString url = QStringLiteral(
+        "https://api.github.com/search/repositories?"
+        "q=topic:%1+fork:false&sort=stars&order=desc&per_page=%2")
+        .arg(QString::fromLatin1(kGitHubTopic))
+        .arg(kCommunityMaxDisplay);
+
+    QNetworkRequest req{QUrl(url)};
+    req.setRawHeader("Accept", "application/vnd.github+json");
+    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+
+    auto* reply = m_net->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        m_loadingCommunity = false;
+        emit loadingCommunityChanged();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qCWarning(lcPlugin) << "GitHub topic search failed:" << reply->errorString();
+            return;
+        }
+
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto items = doc.object()["items"].toArray();
+
+        m_communityPlugins.clear();
+        for (const auto& item : items) {
+            auto repo = item.toObject();
+            const QString fullName = repo["full_name"].toString();
+
+            // Skip official MakineCeviri repos — they show in the official section
+            if (fullName.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/"))
+                continue;
+
+            // Check if this plugin is already approved (in registry index)
+            bool approved = false;
+            for (const auto& remote : m_remoteIndex) {
+                if (remote.githubRepo == fullName) {
+                    approved = true;
+                    break;
+                }
+            }
+
+            m_communityPlugins.append(QVariantMap{
+                {"name",          repo["name"].toString()},
+                {"fullName",      fullName},
+                {"description",   repo["description"].toString()},
+                {"stars",         repo["stargazers_count"].toInt()},
+                {"url",           repo["html_url"].toString()},
+                {"owner",         repo["owner"].toObject()["login"].toString()},
+                {"ownerAvatar",   repo["owner"].toObject()["avatar_url"].toString()},
+                {"language",      repo["language"].toString()},
+                {"updatedAt",     repo["updated_at"].toString()},
+                {"approved",      approved},
+            });
+        }
+
+        qCInfo(lcPlugin) << "Found" << m_communityPlugins.size() << "community plugin(s) on GitHub";
+        emit communityPluginsChanged();
+    });
+}
+
+void PluginManager::openCommunityPage()
+{
+    const QString url = QStringLiteral("https://github.com/topics/%1")
+                            .arg(QString::fromLatin1(kGitHubTopic));
+    QDesktopServices::openUrl(QUrl(url));
 }

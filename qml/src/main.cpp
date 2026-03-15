@@ -915,6 +915,7 @@ static void createServices(
     pluginManager->discoverPlugins();
     pluginManager->loadEnabledPlugins();
     pluginManager->checkForUpdates();
+    pluginManager->fetchCommunityPlugins();
     engine.rootContext()->setContextProperty("PluginManager", pluginManager);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
 

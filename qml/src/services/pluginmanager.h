@@ -26,6 +26,8 @@ class PluginManager : public QObject {
     Q_PROPERTY(bool installing READ isInstalling NOTIFY installingChanged)
     Q_PROPERTY(double installProgress READ installProgress NOTIFY installProgressChanged)
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
+    Q_PROPERTY(QVariantList communityPlugins READ communityPlugins NOTIFY communityPluginsChanged)
+    Q_PROPERTY(bool loadingCommunity READ isLoadingCommunity NOTIFY loadingCommunityChanged)
 
 public:
     explicit PluginManager(QObject* parent = nullptr);
@@ -37,6 +39,8 @@ public:
     bool isInstalling() const { return m_installing; }
     double installProgress() const { return m_installProgress; }
     bool restartRequired() const { return m_restartRequired; }
+    QVariantList communityPlugins() const { return m_communityPlugins; }
+    bool isLoadingCommunity() const { return m_loadingCommunity; }
 
     Q_INVOKABLE void discoverPlugins();
     Q_INVOKABLE bool enablePlugin(const QString& pluginId);
@@ -46,11 +50,15 @@ public:
     Q_INVOKABLE bool isPluginLoaded(const QString& pluginId) const;
 
     // Install / Update / Uninstall
-    Q_INVOKABLE void installPlugin(const QString& pluginId, const QString& downloadUrl);
+    Q_INVOKABLE void installPlugin(const QString& pluginId, const QString& downloadUrl = {});
     Q_INVOKABLE void uninstallPlugin(const QString& pluginId, bool removeData = false);
     Q_INVOKABLE void checkForUpdates();
     Q_INVOKABLE bool hasUpdate(const QString& pluginId) const;
     Q_INVOKABLE QString availableVersion(const QString& pluginId) const;
+
+    // Community discovery (GitHub topic search)
+    Q_INVOKABLE void fetchCommunityPlugins();
+    Q_INVOKABLE void openCommunityPage();
 
     void loadEnabledPlugins();
     void shutdownAll();
@@ -65,6 +73,8 @@ signals:
     void pluginInstalled(const QString& pluginId);
     void pluginUninstalled(const QString& pluginId);
     void updateAvailable(const QString& pluginId, const QString& newVersion);
+    void communityPluginsChanged();
+    void loadingCommunityChanged();
 
 private:
     struct PluginEntry {
@@ -129,14 +139,17 @@ private:
 
     std::vector<PluginEntry> m_plugins;
     std::vector<RemotePluginEntry> m_remoteIndex;
+    QVariantList m_communityPlugins;
     QNetworkAccessManager* m_net = nullptr;
     bool m_checking = false;
     bool m_installing = false;
     double m_installProgress = 0.0;
     bool m_restartRequired = false;
+    bool m_loadingCommunity = false;
 
-    // Allowed GitHub orgs for trusted plugins
+    // GitHub configuration
     static constexpr const char* kTrustedGitHubOrg = "MakineCeviri";
-    static constexpr const char* kPluginIndexUrl =
-        "https://cdn.makineceviri.net/assets/plugins/index.json";
+    static constexpr const char* kGitHubTopic = "makineai-plugin";
+    static constexpr const char* kRegistryRepo = "MakineCeviri/makineai-plugins";
+    static constexpr int kCommunityMaxDisplay = 3;
 };
