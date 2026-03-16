@@ -234,6 +234,7 @@ qt_add_qml_module(MakineAI
         qml/components/TitleBar.qml               # Custom frameless title bar
         qml/components/NavBar.qml                 # Bottom navigation bar
         qml/components/NavItem.qml                # Navigation tab item
+        qml/components/StyledToolTip.qml          # Modern minimal tooltip
         #
         # Layout: Section containers
         qml/components/SectionContainer.qml       # Glassmorphic section wrapper

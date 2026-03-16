@@ -248,7 +248,7 @@ Item {
                 }
             }
 
-            ToolTip {
+            StyledToolTip {
                 visible: _statusMouse.containsMouse && UpdateService.indicatorVisible
                 delay: 400
                 text: UpdateService.statusText

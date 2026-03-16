@@ -202,7 +202,7 @@ Rectangle {
             onClicked: parent.clicked()
         }
 
-        ToolTip {
+        StyledToolTip {
             visible: btnMouse.containsMouse && tooltip !== ""
             text: tooltip
             delay: 500
