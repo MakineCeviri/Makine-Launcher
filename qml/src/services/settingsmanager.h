@@ -57,6 +57,9 @@ class SettingsManager : public QObject
     // Paths
     Q_PROPERTY(QString translationDataPath READ translationDataPath WRITE setTranslationDataPath NOTIFY translationDataPathChanged)
 
+    // Accessibility
+    Q_PROPERTY(QString colorBlindMode READ colorBlindMode WRITE setColorBlindMode NOTIFY colorBlindModeChanged)
+
 public:
     explicit SettingsManager(QObject *parent = nullptr);
     ~SettingsManager() override;
@@ -117,8 +120,13 @@ public:
     QString translationDataPath() const { return m_translationDataPath; }
     void setTranslationDataPath(const QString& value);
 
+    // Accessibility
+    QString colorBlindMode() const { return m_colorBlindMode; }
+    void setColorBlindMode(const QString& mode);
+
     // Q_INVOKABLE methods
     Q_INVOKABLE QVariantList accentPresets() const;
+    Q_INVOKABLE QVariantList colorBlindModes() const;
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
     Q_INVOKABLE QString qtVersion() const;
@@ -140,6 +148,7 @@ signals:
     void onboardingCompletedChanged();
     void appLanguageChanged();
     void translationDataPathChanged();
+    void colorBlindModeChanged();
     void settingsChanged();
     void cacheClearCompleted(bool success, const QString& message);
     void settingsResetCompleted();
@@ -182,6 +191,9 @@ private:
 
     // Paths
     QString m_translationDataPath{"C:/cedra/translation_data"};
+
+    // Accessibility
+    QString m_colorBlindMode{"none"};
 };
 
 } // namespace makineai
