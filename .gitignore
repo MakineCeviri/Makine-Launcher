@@ -187,3 +187,4 @@ list_backup_*/
 verify_backup/
 backup_restore/
 external/
+.superpowers/
