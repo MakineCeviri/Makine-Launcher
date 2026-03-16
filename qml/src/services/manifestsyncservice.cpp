@@ -35,8 +35,13 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
     loadCachedIndex();
 
     // Retry timer: periodically re-attempt catalog sync when offline
-    m_retryTimer.setInterval(15000);  // 15 seconds
-    connect(&m_retryTimer, &QTimer::timeout, this, &ManifestSyncService::syncCatalog);
+    m_retryTimer.setInterval(15000);  // starts at 15s, exponential backoff
+    connect(&m_retryTimer, &QTimer::timeout, this, [this]() {
+        // Exponential backoff: 15s → 30s → 60s → 120s → max 300s
+        const int next = qMin(m_retryTimer.interval() * 2, 300000);
+        m_retryTimer.setInterval(next);
+        syncCatalog();
+    });
 }
 
 // ========== URL Helpers ==========
@@ -398,6 +403,7 @@ void ManifestSyncService::setOffline(bool offline)
         qCDebug(lcManifestSync) << "ManifestSync: offline mode — retrying every 15s";
     } else {
         m_retryTimer.stop();
+        m_retryTimer.setInterval(15000);  // reset backoff on success
         qCDebug(lcManifestSync) << "ManifestSync: back online";
     }
 }

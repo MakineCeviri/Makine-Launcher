@@ -74,6 +74,7 @@ Item {
             Layout.preferredHeight: 48
 
             contentItem: Text {
+                textFormat: Text.PlainText
                 text: qsTr("Ba\u015flayal\u0131m")
                 font.pixelSize: 16
                 font.weight: Font.DemiBold

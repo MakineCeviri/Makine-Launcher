@@ -110,7 +110,9 @@ Item {
             source: heroRoot.vm.heroUrl
             fillMode: Image.PreserveAspectCrop
             verticalAlignment: Image.AlignTop
+            sourceSize: Qt.size(width, height)
             asynchronous: true
+            mipmap: true
             opacity: status === Image.Ready ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
         }
@@ -174,10 +176,11 @@ Item {
                 Layout.maximumHeight: 80
                 visible: _aspect > 0
                 source: heroRoot.vm.logoUrl
+                asynchronous: true
+                mipmap: true
                 fillMode: Image.PreserveAspectFit
                 horizontalAlignment: Image.AlignHCenter
                 sourceSize.width: 500
-                asynchronous: true
             }
 
             // Game title — always visible, bold, centered

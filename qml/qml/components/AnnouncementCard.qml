@@ -35,7 +35,9 @@ Rectangle {
         anchors.fill: parent
         source: root._bannerUrl
         fillMode: Image.PreserveAspectCrop
+        sourceSize: Qt.size(width, height)
         asynchronous: true
+        mipmap: true
         visible: false
     }
 
@@ -112,6 +114,7 @@ Rectangle {
                 source: "qrc:/qt/qml/MakineAI/resources/icons/discord-white.svg"
                 width: 22; height: 22
                 sourceSize: Qt.size(22, 22)
+                mipmap: true
             }
         }
     }

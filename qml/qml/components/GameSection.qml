@@ -66,6 +66,7 @@ SectionContainer {
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "↻"
                 font.pixelSize: 16

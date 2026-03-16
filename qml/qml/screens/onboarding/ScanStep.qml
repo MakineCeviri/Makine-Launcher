@@ -91,6 +91,7 @@ Item {
                         Layout.preferredHeight: 40
 
                         contentItem: Text {
+                            textFormat: Text.PlainText
                             text: qsTr("Taramay\u0131 Ba\u015flat")
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
@@ -200,6 +201,7 @@ Item {
                 flat: true
 
                 contentItem: Text {
+                    textFormat: Text.PlainText
                     text: qsTr("Geri")
                     font.pixelSize: 14
                     color: parent.hovered ? Theme.textPrimary : Theme.textSecondary
@@ -220,6 +222,7 @@ Item {
                 Layout.preferredHeight: 40
 
                 contentItem: Text {
+                    textFormat: Text.PlainText
                     text: qsTr("Devam Et")
                     font.pixelSize: 14
                     font.weight: Font.DemiBold

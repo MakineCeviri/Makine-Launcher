@@ -127,6 +127,7 @@ Item {
                 Behavior on color { ColorAnimation { duration: 150 } }
 
                 Label {
+                    textFormat: Text.PlainText
                     anchors.centerIn: parent
                     text: "✕"
                     color: Theme.textMuted

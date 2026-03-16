@@ -23,7 +23,6 @@ Rectangle {
 
     color: Qt.rgba(0.055, 0.055, 0.055, 0.85)
     radius: Dimensions.radiusSection
-    clip: true
 
     GradientBorder { cornerRadius: parent.radius }
 
@@ -182,6 +181,7 @@ Rectangle {
                     Behavior on opacity { NumberAnimation { duration: 150 } }
 
                     Text {
+                        textFormat: Text.PlainText
                         anchors.centerIn: parent
                         text: "\uE711"
                         font.family: "Segoe MDL2 Assets"

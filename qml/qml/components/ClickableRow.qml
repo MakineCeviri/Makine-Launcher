@@ -80,6 +80,7 @@ Item {
                     sourceSize: Qt.size(20, 20)
                     visible: root.iconSource !== ""
                     asynchronous: true
+                    mipmap: true
                     opacity: root.isDestructive ? 1.0 : 0.6
                 }
             }
