@@ -883,6 +883,9 @@ ApplicationWindow {
         function onTranslationReady(text) {
             translationOverlay.translatedText = text
         }
+        function onOcrTextReady(text) {
+            translationOverlay.ocrText = text
+        }
         function onRegionSelectingChanged() {
             if (OcrController.regionSelecting)
                 regionSelector.show()

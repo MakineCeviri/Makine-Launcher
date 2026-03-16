@@ -289,8 +289,13 @@ bool PluginManager::enablePlugin(const QString& pluginId)
         if (p.id == pluginId) {
             p.enabled = true;
             saveEnabledList();
+            // Load DLL immediately — no restart needed
+            if (!p.loaded) {
+                if (!loadPlugin(p))
+                    emit pluginError(p.id, p.lastError);
+            }
             emit pluginsChanged();
-            qCInfo(lcPlugin) << "Enabled plugin:" << pluginId << "(restart required)";
+            qCInfo(lcPlugin) << "Enabled plugin:" << pluginId;
             return true;
         }
     }
@@ -303,8 +308,11 @@ bool PluginManager::disablePlugin(const QString& pluginId)
         if (p.id == pluginId) {
             p.enabled = false;
             saveEnabledList();
+            // Unload DLL immediately — no restart needed
+            if (p.loaded)
+                unloadPlugin(p);
             emit pluginsChanged();
-            qCInfo(lcPlugin) << "Disabled plugin:" << pluginId << "(restart required)";
+            qCInfo(lcPlugin) << "Disabled plugin:" << pluginId;
             return true;
         }
     }
