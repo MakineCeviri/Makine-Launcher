@@ -44,9 +44,9 @@ Item {
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
-    // Discover loaded plugins with settings → appear at bottom of sidebar
+    // Discover loaded plugins with settings → appear at bottom of sidebar (dev only)
     readonly property var _pluginCategories: {
-        if (!PluginManager) return []
+        if (!devToolsEnabled || !PluginManager) return []
         var result = []
         var all = PluginManager.plugins
         for (var i = 0; i < all.length; i++) {
@@ -61,8 +61,11 @@ Item {
         return result
     }
 
-    // Plugin pages go AFTER Hakkında (at the very bottom)
-    property var categories: _staticCategories.concat(_staticCategoriesEnd).concat(_pluginCategories)
+    // Plugin pages go AFTER Hakkında (at the very bottom) — Eklentiler hidden in release
+    property var categories: {
+        var base = devToolsEnabled ? _staticCategories : _staticCategories.filter(function(c) { return c.name !== qsTr("Eklentiler") })
+        return base.concat(_staticCategoriesEnd).concat(_pluginCategories)
+    }
 
     readonly property var _staticSources: [
         "screens/settings/GeneralSettings.qml",
@@ -75,7 +78,8 @@ Item {
     ]
 
     readonly property var panelSources: {
-        var sources = _staticSources.concat(_staticSourcesEnd)
+        var base = devToolsEnabled ? _staticSources : _staticSources.filter(function(s) { return s.indexOf("Plugins") === -1 })
+        var sources = base.concat(_staticSourcesEnd)
         for (var i = 0; i < _pluginCategories.length; i++)
             sources.push("screens/settings/PluginSettingsPage.qml")
         return sources
