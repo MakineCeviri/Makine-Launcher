@@ -108,7 +108,7 @@ ColumnLayout {
                     Rectangle {
                         Layout.fillWidth: true; Layout.preferredHeight: 40
                         radius: Dimensions.radiusMD
-                        color: OcrController.ocrActive ? Theme.error + "18" : (_sM.containsMouse ? Theme.success + "18" : Theme.primary08)
+                        color: OcrController.ocrActive ? Theme.error10 : (_sM.containsMouse ? Theme.success10 : Theme.primary08)
                         border.color: OcrController.ocrActive ? Theme.error : Theme.success; border.width: 1
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                         Row {
