@@ -771,8 +771,8 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: visible ? 44 : 0
         radius: Dimensions.radiusMD
-        color: "#ef444418"
-        border.color: "#ef444444"
+        color: Theme.error + "18"
+        border.color: Theme.error + "44"
         border.width: 1
         visible: false
         clip: true
@@ -789,7 +789,7 @@ ColumnLayout {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 font.pixelSize: Dimensions.fontSM
-                color: "#ef4444"
+                color: Theme.error
                 elide: Text.ElideRight
             }
 
@@ -797,7 +797,7 @@ ColumnLayout {
                 textFormat: Text.PlainText
                 text: "\u2715"
                 font.pixelSize: Dimensions.fontMD
-                color: "#ef4444"
+                color: Theme.error
                 MouseArea {
                     anchors.fill: parent
                     anchors.margins: -8
