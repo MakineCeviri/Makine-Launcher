@@ -114,6 +114,7 @@ set(BACKEND_SOURCES
     src/services/catalogproxymodel.cpp
     src/services/crashreporter.cpp
     src/services/pluginmanager.cpp
+    src/services/ocrcontroller.cpp
 )
 
 set(BACKEND_HEADERS
@@ -145,6 +146,7 @@ set(BACKEND_HEADERS
     src/services/apppaths.h
     src/services/profiler.h
     src/services/pluginmanager.h
+    src/services/ocrcontroller.h
 )
 
 
@@ -241,6 +243,8 @@ qt_add_qml_module(MakineAI
         qml/components/AppBackground.qml          # Premium accent-aware ambient background
         qml/components/SkeletonLoader.qml         # Generic loading skeleton
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
+        qml/components/RegionSelector.qml         # Full-screen rubber-band OCR region selector
+        qml/components/TranslationOverlay.qml     # Frameless overlay window for OCR results
         #
         # ── Internal Components (settings/detail screens only) ──
         #

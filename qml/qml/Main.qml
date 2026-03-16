@@ -862,4 +862,33 @@ ApplicationWindow {
         }
     }
 
+    // ===== OCR REGION SELECTOR =====
+    RegionSelector {
+        id: regionSelector
+        onRegionSelected: function(rx, ry, rw, rh) {
+            OcrController.setRegion(rx, ry, rw, rh)
+        }
+    }
+
+    // ===== OCR TRANSLATION OVERLAY (separate window) =====
+    TranslationOverlay {
+        id: translationOverlay
+        visible: OcrController.overlayVisible
+        sourceRegion: OcrController.captureRegion
+    }
+
+    // ===== OCR SIGNAL WIRING =====
+    Connections {
+        target: OcrController
+        function onTranslationReady(text) {
+            translationOverlay.translatedText = text
+        }
+        function onRegionSelectingChanged() {
+            if (OcrController.regionSelecting)
+                regionSelector.show()
+            else
+                regionSelector.hide()
+        }
+    }
+
 }

@@ -548,6 +548,7 @@ void logToFile(const QString& msg) {
 #include "services/settingsmanager.h"
 #include "services/backupmanager.h"
 #include "services/pluginmanager.h"
+#include "services/ocrcontroller.h"
 #include "services/processscanner.h"
 #include "services/systemtraymanager.h"
 #include "services/integrityservice.h"
@@ -918,6 +919,10 @@ static void createServices(
     pluginManager->fetchCommunityPlugins();
     engine.rootContext()->setContextProperty("PluginManager", pluginManager);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
+
+    // OCR Controller
+    auto* ocrController = new OcrController(pluginManager, &app);
+    engine.rootContext()->setContextProperty("OcrController", ocrController);
 
     // ===== Phase 7: Update service + system tray =====
     makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");

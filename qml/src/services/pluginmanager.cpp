@@ -199,6 +199,12 @@ bool PluginManager::loadPlugin(PluginEntry& entry)
     entry.fnSetSetting = reinterpret_cast<PluginEntry::SetSettingFn>(
                               GetProcAddress(entry.hModule, "makineai_set_setting"));
 
+    // Optional: OCR+translate exports
+    entry.fnCaptureOcrTranslate = reinterpret_cast<PluginEntry::CaptureOcrTranslateFn>(
+                              GetProcAddress(entry.hModule, "makineai_capture_ocr_translate"));
+    entry.fnGetLastOcrText = reinterpret_cast<PluginEntry::GetLastOcrTextFn>(
+                              GetProcAddress(entry.hModule, "makineai_get_last_ocr_text"));
+
     if (!entry.fnGetInfo || !entry.fnInitialize || !entry.fnShutdown
         || !entry.fnIsReady || !entry.fnGetLastError) {
         entry.lastError = "Missing required exports in " + entry.entryDll;
@@ -329,6 +335,28 @@ bool PluginManager::isPluginLoaded(const QString& pluginId) const
         if (p.id == pluginId)
             return p.loaded;
     return false;
+}
+
+QString PluginManager::callPluginOcr(const QString& pluginId, int x, int y, int w, int h)
+{
+    for (const auto& p : m_plugins) {
+        if (p.id == pluginId && p.loaded && p.fnCaptureOcrTranslate) {
+            const char* result = p.fnCaptureOcrTranslate(nullptr, x, y, w, h);
+            return result ? QString::fromUtf8(result) : QString();
+        }
+    }
+    return {};
+}
+
+QString PluginManager::getPluginLastOcrText(const QString& pluginId) const
+{
+    for (const auto& p : m_plugins) {
+        if (p.id == pluginId && p.loaded && p.fnGetLastOcrText) {
+            const char* result = p.fnGetLastOcrText();
+            return result ? QString::fromUtf8(result) : QString();
+        }
+    }
+    return {};
 }
 
 // ── Persistence ──

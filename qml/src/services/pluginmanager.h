@@ -65,6 +65,10 @@ public:
     Q_INVOKABLE void fetchCommunityPlugins();
     Q_INVOKABLE void openCommunityPage();
 
+    // OCR plugin calls
+    Q_INVOKABLE QString callPluginOcr(const QString& pluginId, int x, int y, int w, int h);
+    Q_INVOKABLE QString getPluginLastOcrText(const QString& pluginId) const;
+
     void loadEnabledPlugins();
     void shutdownAll();
 
@@ -108,6 +112,12 @@ private:
         using SetSettingFn = void (*)(const char*, const char*);
         GetSettingFn fnGetSetting = nullptr;
         SetSettingFn fnSetSetting = nullptr;
+
+        // Optional DLL exports for OCR+translate
+        using CaptureOcrTranslateFn = const char* (*)(void*, int, int, int, int);
+        using GetLastOcrTextFn = const char* (*)(void);
+        CaptureOcrTranslateFn fnCaptureOcrTranslate = nullptr;
+        GetLastOcrTextFn fnGetLastOcrText = nullptr;
 
 #ifdef Q_OS_WIN
         HMODULE hModule = nullptr;
