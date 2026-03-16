@@ -24,6 +24,7 @@ class PluginManager : public QObject {
     Q_PROPERTY(int pluginCount READ pluginCount NOTIFY pluginsChanged)
     Q_PROPERTY(bool checking READ isChecking NOTIFY checkingChanged)
     Q_PROPERTY(bool installing READ isInstalling NOTIFY installingChanged)
+    Q_PROPERTY(QString installingPluginId READ installingPluginId NOTIFY installingChanged)
     Q_PROPERTY(double installProgress READ installProgress NOTIFY installProgressChanged)
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
     Q_PROPERTY(QVariantList communityPlugins READ communityPlugins NOTIFY communityPluginsChanged)
@@ -37,6 +38,7 @@ public:
     int pluginCount() const;
     bool isChecking() const { return m_checking; }
     bool isInstalling() const { return m_installing; }
+    QString installingPluginId() const { return m_installingPluginId; }
     double installProgress() const { return m_installProgress; }
     bool restartRequired() const { return m_restartRequired; }
     QVariantList communityPlugins() const { return m_communityPlugins; }
@@ -167,6 +169,7 @@ private:
     QNetworkAccessManager* m_net = nullptr;
     bool m_checking = false;
     bool m_installing = false;
+    QString m_installingPluginId;
     double m_installProgress = 0.0;
     bool m_restartRequired = false;
     bool m_loadingCommunity = false;

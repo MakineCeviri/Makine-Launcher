@@ -610,6 +610,7 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
         m_net = new QNetworkAccessManager(this);
 
     m_installing = true;
+    m_installingPluginId = pluginId;
     m_installProgress = 0.0;
     emit installingChanged();
     emit installProgressChanged();
@@ -632,6 +633,7 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
             [this, reply, pluginId, expectedHash]() {
         reply->deleteLater();
         m_installing = false;
+        m_installingPluginId.clear();
         m_installProgress = 1.0;
         emit installingChanged();
         emit installProgressChanged();

@@ -241,7 +241,7 @@ ColumnLayout {
                                     Layout.preferredHeight: 36
                                     radius: Dimensions.radiusMD
                                     color: {
-                                        if (PluginManager && PluginManager.installing) return Theme.primary08
+                                        if (PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id) return Theme.primary08
                                         if (!modelData.installed) return Theme.primary
                                         if (modelData.enabled) return Theme.primary12
                                         return Theme.primary
@@ -260,7 +260,7 @@ ColumnLayout {
                                         width: parent.width * (PluginManager ? PluginManager.installProgress : 0)
                                         radius: Dimensions.radiusMD
                                         color: Theme.primary + "44"
-                                        visible: PluginManager && PluginManager.installing
+                                        visible: PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id
                                     }
 
                                     Row {
@@ -271,7 +271,7 @@ ColumnLayout {
                                         Text {
                                             textFormat: Text.PlainText
                                             text: {
-                                                if (PluginManager && PluginManager.installing) return "\u21BB"
+                                                if (PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id) return "\u21BB"
                                                 if (!modelData.installed) return "\u2913"
                                                 return modelData.enabled ? "\u2714" : "\u25B6"
                                             }
@@ -284,7 +284,7 @@ ColumnLayout {
                                         Text {
                                             textFormat: Text.PlainText
                                             text: {
-                                                if (PluginManager && PluginManager.installing)
+                                                if (PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id)
                                                     return qsTr("Kuruluyor... %1%").arg(
                                                         Math.round((PluginManager.installProgress || 0) * 100))
                                                 if (!modelData.installed) return qsTr("Kur") + "  " + modelData.size
@@ -305,7 +305,7 @@ ColumnLayout {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        enabled: !(PluginManager && PluginManager.installing)
+                                        enabled: !(PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id)
                                         onClicked: {
                                             if (!modelData.installed) {
                                                 PluginManager.installPlugin(modelData.id)
@@ -424,351 +424,7 @@ ColumnLayout {
         }
     }
 
-    // ── Plugin Settings (for installed plugins with settings) ──
-    Repeater {
-        model: {
-            if (!PluginManager) return []
-            var result = []
-            var all = PluginManager.plugins
-            for (var i = 0; i < all.length; i++) {
-                if (all[i].hasSettings && all[i].loaded)
-                    result.push(all[i])
-            }
-            return result
-        }
-
-        SettingsCard {
-            required property var modelData
-            Layout.fillWidth: true
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
-                // Settings header with plugin name
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 56
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Dimensions.marginML
-                        anchors.rightMargin: Dimensions.marginML
-
-                        Text {
-                            textFormat: Text.PlainText
-                            text: modelData.name + " " + qsTr("Ayarları")
-                            font.pixelSize: Dimensions.fontLG
-                            font.weight: Font.DemiBold
-                            color: Theme.textPrimary
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        Rectangle {
-                            implicitWidth: _loadedLbl.implicitWidth + 16
-                            implicitHeight: 24; radius: Dimensions.radiusFull
-                            color: "#22c55e22"
-                            Text {
-                                id: _loadedLbl; textFormat: Text.PlainText
-                                anchors.centerIn: parent
-                                text: qsTr("Aktif"); font.pixelSize: Dimensions.fontMini
-                                font.weight: Font.DemiBold; color: "#4ade80"
-                            }
-                        }
-                    }
-                }
-
-                SettingsDivider {}
-
-                // Dynamic settings form from manifest
-                Repeater {
-                    model: modelData.settings || []
-
-                    Item {
-                        required property var modelData
-                        property string pluginId: parent.parent.parent.parent.modelData.id
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 64
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: Dimensions.marginML
-                            anchors.rightMargin: Dimensions.marginML
-                            spacing: Dimensions.spacingXL
-
-                            // Label
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: modelData.label || modelData.key
-                                    font.pixelSize: Dimensions.fontMD
-                                    font.weight: Font.Medium
-                                    color: Theme.textPrimary
-                                }
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: modelData.key
-                                    font.pixelSize: Dimensions.fontMini
-                                    color: Theme.textMuted
-                                }
-                            }
-
-                            // Control — select dropdown or text input
-                            Loader {
-                                Layout.preferredWidth: 200
-                                Layout.preferredHeight: 36
-
-                                sourceComponent: {
-                                    if (modelData.type === "toggle") return toggleComp
-                                    if (modelData.type === "select") return selectComp
-                                    if (modelData.type === "password") return passwordComp
-                                    return textComp
-                                }
-
-                                // Toggle (Switch)
-                                Component {
-                                    id: toggleComp
-                                    Switch {
-                                        checked: {
-                                            var val = PluginManager.getPluginSetting(pluginId, modelData.key)
-                                            return val === "true" || val === "1"
-                                        }
-                                        onToggled: {
-                                            PluginManager.setPluginSetting(pluginId, modelData.key, checked ? "true" : "false")
-                                        }
-
-                                        indicator: Rectangle {
-                                            implicitWidth: 48
-                                            implicitHeight: 26
-                                            x: parent.leftPadding
-                                            y: parent.height / 2 - height / 2
-                                            radius: 13
-                                            color: parent.checked ? Theme.primary : Theme.primary12
-                                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                            Rectangle {
-                                                x: parent.parent.checked ? parent.width - width - 3 : 3
-                                                y: 3
-                                                width: 20; height: 20
-                                                radius: 10
-                                                color: Theme.textOnColor
-                                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Select (ComboBox)
-                                Component {
-                                    id: selectComp
-                                    ComboBox {
-                                        model: modelData.options || []
-                                        currentIndex: {
-                                            var val = PluginManager.getPluginSetting(pluginId, modelData.key)
-                                            if (!val) val = modelData["default"] || ""
-                                            var opts = modelData.options || []
-                                            for (var i = 0; i < opts.length; i++)
-                                                if (opts[i] === val) return i
-                                            return 0
-                                        }
-                                        onCurrentIndexChanged: {
-                                            var opts = modelData.options || []
-                                            if (currentIndex >= 0 && currentIndex < opts.length)
-                                                PluginManager.setPluginSetting(pluginId, modelData.key, opts[currentIndex])
-                                        }
-                                    }
-                                }
-
-                                // Password input
-                                Component {
-                                    id: passwordComp
-                                    TextField {
-                                        echoMode: TextInput.Password
-                                        placeholderText: "API Key..."
-                                        text: PluginManager.getPluginSetting(pluginId, modelData.key) || ""
-                                        font.pixelSize: Dimensions.fontSM
-                                        onEditingFinished: PluginManager.setPluginSetting(pluginId, modelData.key, text)
-                                        background: Rectangle {
-                                            radius: Dimensions.radiusMD
-                                            color: Theme.primary06
-                                            border.color: parent.activeFocus ? Theme.primary : Theme.primary12
-                                            border.width: 1
-                                        }
-                                    }
-                                }
-
-                                // Text input
-                                Component {
-                                    id: textComp
-                                    TextField {
-                                        text: PluginManager.getPluginSetting(pluginId, modelData.key) || modelData["default"] || ""
-                                        font.pixelSize: Dimensions.fontSM
-                                        onEditingFinished: PluginManager.setPluginSetting(pluginId, modelData.key, text)
-                                        background: Rectangle {
-                                            radius: Dimensions.radiusMD
-                                            color: Theme.primary06
-                                            border.color: parent.activeFocus ? Theme.primary : Theme.primary12
-                                            border.width: 1
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ── OCR Control Buttons (shown when live plugin is loaded) ──
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: _ocrControls.implicitHeight + Dimensions.marginML * 2
-                    Layout.leftMargin: Dimensions.marginML
-                    Layout.rightMargin: Dimensions.marginML
-                    visible: modelData.id === "com.makineceviri.live" && modelData.loaded
-
-                    ColumnLayout {
-                        id: _ocrControls
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.topMargin: Dimensions.spacingSM
-                        spacing: Dimensions.spacingSM
-
-                        SettingsDivider {}
-
-                        // OCR action buttons row
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: Dimensions.spacingMD
-
-                            // Select Region button
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 40
-                                radius: Dimensions.radiusMD
-                                color: _regionMouse.containsMouse ? Theme.primary12 : Theme.primary08
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: OcrController.captureRegion.width > 0
-                                        ? qsTr("\u2316 Bölge Seçili (%1×%2)").arg(
-                                            OcrController.captureRegion.width).arg(
-                                            OcrController.captureRegion.height)
-                                        : qsTr("\u2316 Bölge Seç")
-                                    font.pixelSize: Dimensions.fontSM
-                                    font.weight: Font.Medium
-                                    color: Theme.textPrimary
-                                    textFormat: Text.PlainText
-                                }
-
-                                MouseArea {
-                                    id: _regionMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: OcrController.setRegionSelecting(true)
-                                }
-                            }
-
-                            // Start/Stop OCR button
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 40
-                                radius: Dimensions.radiusMD
-                                color: OcrController.ocrActive
-                                    ? "#ef444422" : (_startMouse.containsMouse ? "#22c55e22" : Theme.primary08)
-                                border.color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
-                                border.width: 1
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                Row {
-                                    anchors.centerIn: parent
-                                    spacing: Dimensions.spacingSM
-
-                                    Rectangle {
-                                        width: 8; height: 8; radius: 4
-                                        color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
-                                        anchors.verticalCenter: parent.verticalCenter
-
-                                        SequentialAnimation on opacity {
-                                            running: OcrController.processing
-                                            loops: Animation.Infinite
-                                            NumberAnimation { to: 0.3; duration: 400 }
-                                            NumberAnimation { to: 1.0; duration: 400 }
-                                        }
-                                    }
-
-                                    Text {
-                                        text: OcrController.ocrActive ? qsTr("OCR Durdur") : qsTr("OCR Başlat")
-                                        font.pixelSize: Dimensions.fontSM
-                                        font.weight: Font.Medium
-                                        color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
-                                        textFormat: Text.PlainText
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: _startMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        OcrController.toggleOcr()
-                                        if (OcrController.ocrActive)
-                                            OcrController.setOverlayVisible(true)
-                                    }
-                                }
-                            }
-
-                            // Toggle Overlay button
-                            Rectangle {
-                                Layout.preferredWidth: 40
-                                Layout.preferredHeight: 40
-                                radius: Dimensions.radiusMD
-                                color: OcrController.overlayVisible
-                                    ? Theme.primary12 : (_overlayMouse.containsMouse ? Theme.primary08 : Theme.primary04)
-                                border.color: OcrController.overlayVisible ? Theme.primary : "transparent"
-                                border.width: 1
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "\uD83D\uDCDD"
-                                    font.pixelSize: 16
-                                }
-
-                                MouseArea {
-                                    id: _overlayMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: OcrController.setOverlayVisible(!OcrController.overlayVisible)
-                                }
-                            }
-                        }
-
-                        // Status text
-                        Text {
-                            Layout.fillWidth: true
-                            visible: OcrController.ocrActive
-                            text: OcrController.processing
-                                ? qsTr("OCR çalışıyor...")
-                                : qsTr("Bekleniyor — son çeviri hazır")
-                            font.pixelSize: Dimensions.fontMini
-                            color: Theme.textMuted
-                            textFormat: Text.PlainText
-                        }
-                    }
-                }
-
-                Item { Layout.preferredHeight: Dimensions.spacingMD }
-            }
-        }
-    }
+    // Plugin settings moved to dedicated PluginSettingsPage (sidebar)
 
     // ── Community Plugins Section (GitHub Topic Search) ──
     SettingsCard {
