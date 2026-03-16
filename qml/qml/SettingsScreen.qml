@@ -33,21 +33,52 @@ Item {
         settingsEntryAnim.start()
     }
 
-    property var categories: [
-        { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın") },
-        { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin") },
-        { name: qsTr("Eklentiler"), description: qsTr("Eklenti yönetimi ve mağaza") },
-        { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları") },
-        { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler") }
+    // Static categories + dynamic plugin categories
+    readonly property var _staticCategories: [
+        { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın"), isPlugin: false },
+        { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin"), isPlugin: false },
+        { name: qsTr("Eklentiler"), description: qsTr("Eklenti yönetimi ve mağaza"), isPlugin: false }
+    ]
+    readonly property var _staticCategoriesEnd: [
+        { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları"), isPlugin: false },
+        { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
-    readonly property var panelSources: [
+    // Discover loaded plugins with settings → insert as categories
+    readonly property var _pluginCategories: {
+        if (!PluginManager) return []
+        var result = []
+        var all = PluginManager.plugins
+        for (var i = 0; i < all.length; i++) {
+            if (all[i].loaded && all[i].hasSettings)
+                result.push({
+                    name: all[i].name,
+                    description: all[i].description || qsTr("Eklenti ayarları"),
+                    isPlugin: true,
+                    pluginId: all[i].id
+                })
+        }
+        return result
+    }
+
+    property var categories: _staticCategories.concat(_pluginCategories).concat(_staticCategoriesEnd)
+
+    readonly property var _staticSources: [
         "screens/settings/GeneralSettings.qml",
         "screens/settings/TranslationSettings.qml",
-        "screens/settings/PluginsSettings.qml",
+        "screens/settings/PluginsSettings.qml"
+    ]
+    readonly property var _staticSourcesEnd: [
         "screens/settings/PerformanceSettings.qml",
         "screens/settings/AboutSettings.qml"
     ]
+
+    readonly property var panelSources: {
+        var sources = _staticSources.slice()
+        for (var i = 0; i < _pluginCategories.length; i++)
+            sources.push("screens/settings/PluginSettingsPage.qml")
+        return sources.concat(_staticSourcesEnd)
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -166,8 +197,12 @@ Item {
                                 }
                             }
 
-                            // Track visited categories
-                            property var _visited: [true, false, false, false, false]
+                            // Track visited categories (dynamic length)
+                            property var _visited: {
+                                var v = [true] // first page always visited
+                                for (var i = 1; i < root.panelSources.length; i++) v.push(false)
+                                return v
+                            }
 
                             // Pages load on first visit — no eager preload needed
 
@@ -216,6 +251,11 @@ Item {
                                     source: modelData
 
                                     onLoaded: {
+                                        // Set pluginId for plugin settings pages
+                                        var cat = root.categories[index]
+                                        if (cat && cat.isPlugin && item && "pluginId" in item)
+                                            item.pluginId = cat.pluginId
+
                                         if (root.selectedCategory === index) {
                                             pageContainer.updateHeight()
                                             contentEntryAnim.restart()

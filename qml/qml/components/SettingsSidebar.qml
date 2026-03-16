@@ -109,15 +109,31 @@ Rectangle {
         Repeater {
             model: root.categories
 
-            SidebarCategoryItem {
+            // Item wrapper to include optional separator before plugin categories
+            ColumnLayout {
                 required property int index
                 required property var modelData
                 Layout.fillWidth: true
-                categoryIndex: index
-                name: modelData.name
-                isSelected: root.selectedCategory === index
-                onClicked: {
-                    root.categorySelected(index)
+                spacing: 0
+
+                // Separator before first plugin category
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    Layout.topMargin: Dimensions.spacingSM
+                    Layout.bottomMargin: Dimensions.spacingSM
+                    Layout.leftMargin: Dimensions.marginML
+                    Layout.rightMargin: Dimensions.marginML
+                    color: Theme.primary08
+                    visible: modelData.isPlugin && (index === 0 || !root.categories[index - 1].isPlugin)
+                }
+
+                SidebarCategoryItem {
+                    Layout.fillWidth: true
+                    categoryIndex: parent.index
+                    name: parent.modelData.name
+                    isSelected: root.selectedCategory === parent.index
+                    onClicked: root.categorySelected(parent.index)
                 }
             }
         }
