@@ -83,15 +83,6 @@ void SettingsManager::setShowNotifications(bool value)
     }
 }
 
-void SettingsManager::setGameUpdateMonitoring(bool value)
-{
-    if (m_gameUpdateMonitoring != value) {
-        m_gameUpdateMonitoring = value;
-        m_settings.setValue("general/gameUpdateMonitoring", value);
-        emit gameUpdateMonitoringChanged();
-        emit settingsChanged();
-    }
-}
 
 void SettingsManager::setHardwareAcceleration(bool value)
 {
@@ -286,7 +277,6 @@ void SettingsManager::resetToDefaults()
     setStartWithWindows(false);
     setMinimizeToTray(false);
     setShowNotifications(false);
-    setGameUpdateMonitoring(false);
     setHardwareAcceleration(true);
     setUseGlobalCache(true);
     setEnableAnimations(true);
@@ -332,7 +322,6 @@ void SettingsManager::loadSettings()
     m_startWithWindows = m_settings.value("general/startWithWindows", false).toBool();
     m_minimizeToTray = m_settings.value("general/minimizeToTray", false).toBool();
     m_showNotifications = m_settings.value("general/showNotifications", false).toBool();
-    m_gameUpdateMonitoring = m_settings.value("general/gameUpdateMonitoring", false).toBool();
     m_hardwareAcceleration = m_settings.value("performance/hardwareAcceleration", true).toBool();
     m_useGlobalCache = m_settings.value("performance/useGlobalCache", true).toBool();
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
@@ -379,7 +368,6 @@ void SettingsManager::saveSettings()
     m_settings.setValue("general/startWithWindows", m_startWithWindows);
     m_settings.setValue("general/minimizeToTray", m_minimizeToTray);
     m_settings.setValue("general/showNotifications", m_showNotifications);
-    m_settings.setValue("general/gameUpdateMonitoring", m_gameUpdateMonitoring);
     m_settings.setValue("performance/hardwareAcceleration", m_hardwareAcceleration);
     m_settings.setValue("performance/useGlobalCache", m_useGlobalCache);
     m_settings.setValue("performance/enableAnimations", m_enableAnimations);
