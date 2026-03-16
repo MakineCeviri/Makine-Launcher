@@ -25,7 +25,7 @@ ToolTip {
         radius: Dimensions.radiusSM
     }
 
-    padding: 6
-    leftPadding: 10
-    rightPadding: 10
+    padding: Dimensions.paddingXS
+    leftPadding: Dimensions.paddingSM
+    rightPadding: Dimensions.paddingSM
 }

@@ -113,6 +113,22 @@ Rectangle {
             }
         }
 
+        Label {
+            textFormat: Text.PlainText
+            text: "MakineAI"
+            font.pixelSize: Dimensions.fontCaption
+            font.weight: Font.Medium
+            color: Theme.textMuted
+        }
+
+        Label {
+            textFormat: Text.PlainText
+            text: Dimensions.appVersionFull
+            font.pixelSize: Dimensions.fontMicro
+            color: Theme.textMuted
+            opacity: 0.5
+        }
+
         Item { Layout.fillWidth: true }
 
         Row {
