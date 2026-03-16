@@ -672,7 +672,17 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
             return; // error already emitted
         }
 
-        // Extract
+        // Unload DLL before overwriting (Windows locks loaded DLLs)
+        bool wasEnabled = false;
+        for (auto& p : m_plugins) {
+            if (p.id == pluginId) {
+                wasEnabled = p.enabled;
+                if (p.loaded) unloadPlugin(p);
+                break;
+            }
+        }
+
+        // Extract (overwrites existing files)
         if (!extractPlugin(tempPath, pluginId)) {
             QFile::remove(tempPath);
             emit pluginError(pluginId, QStringLiteral("Extraction failed"));
@@ -681,8 +691,9 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
 
         QFile::remove(tempPath);
 
-        // Re-discover to pick up the new plugin
+        // Re-discover and re-enable if it was enabled before (seamless update)
         discoverPlugins();
+        if (wasEnabled) enablePlugin(pluginId);
         emit pluginInstalled(pluginId);
         qCInfo(lcPlugin) << "Installed plugin:" << pluginId;
     });
@@ -698,20 +709,29 @@ void PluginManager::installFromFile(const QString& filePath)
         return;
     }
 
-    // Derive plugin ID from the manifest inside the package (after extraction)
-    // For now, use the filename without extension as a temp ID
     QString tempId = fi.completeBaseName();
 
     if (!validateZipContents(filePath, tempId))
         return;
+
+    // Unload if already installed (DLL lock prevention)
+    bool wasEnabled = false;
+    for (auto& p : m_plugins) {
+        if (p.id == tempId || p.dirPath.endsWith("/" + tempId)) {
+            wasEnabled = p.enabled;
+            if (p.loaded) unloadPlugin(p);
+            break;
+        }
+    }
 
     if (!extractPlugin(filePath, tempId)) {
         emit pluginError(tempId, QStringLiteral("Extraction failed"));
         return;
     }
 
-    // Re-discover to pick up the new plugin (manifest provides real ID)
+    // Re-discover, re-enable if it was active before
     discoverPlugins();
+    if (wasEnabled) enablePlugin(tempId);
     emit pluginInstalled(tempId);
     qCInfo(lcPlugin) << "Installed plugin from file:" << filePath;
 }
