@@ -15,6 +15,9 @@ QtObject {
     /// Dark mode active (default true when SettingsManager unavailable)
     property bool darkMode: typeof SettingsManager !== "undefined" ? SettingsManager.isDarkMode : true
 
+    /// Color blind mode — drives semantic color substitutions
+    property string colorBlindMode: typeof SettingsManager !== "undefined" ? SettingsManager.colorBlindMode : "none"
+
     // =========================================================================
     // BACKGROUND COLORS
     // =========================================================================
@@ -84,8 +87,7 @@ QtObject {
             "red":      ["#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"],
             "sky":      ["#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"],
             "indigo":   ["#C7D2FE", "#A5B4FC", "#818CF8", "#6366F1", "#4F46E5"],
-            "black":    ["#D4D4D8", "#A1A1AA", "#71717A", "#52525B", "#3F3F46"],
-            "gradient": ["#FF6B9D", "#FF8C42", "#E84393", "#00CEC9", "#6C5CE7"]
+            "black":    ["#D4D4D8", "#A1A1AA", "#71717A", "#52525B", "#3F3F46"]
         }
         return presets[presetId] || presets["purple"]
     }
@@ -112,25 +114,41 @@ QtObject {
 
     // =========================================================================
     // DURUM RENKLERİ
+    // Color blind mode substitutions:
+    //   protanopia  — red→#2563EB, green→#EAB308
+    //   deuteranopia — red→#7C3AED, green→#F59E0B
+    //   tritanopia  — blue accent unaffected; green→#EC4899, red stays
+    //   highContrast — intensified: success=#00FF87, warning=#FFD600, error=#FF1744
     // =========================================================================
 
-    /// Başarı yeşil
-    readonly property color success: "#10B981"
+    /// Başarı yeşil (adjusted for color blind modes)
+    property color success: {
+        if (colorBlindMode === "protanopia")   return "#EAB308"
+        if (colorBlindMode === "deuteranopia") return "#F59E0B"
+        if (colorBlindMode === "tritanopia")   return "#EC4899"
+        if (colorBlindMode === "highContrast") return "#00FF87"
+        return "#10B981"
+    }
 
     /// Başarı arka plan (15% alpha)
-    readonly property color successBg: Qt.rgba(0.063, 0.725, 0.506, darkMode ? 0.08 : 0.12)
+    property color successBg: Qt.rgba(success.r, success.g, success.b, darkMode ? 0.08 : 0.12)
 
     /// Uyarı turuncu
-    readonly property color warning: "#F59E0B"
+    property color warning: colorBlindMode === "highContrast" ? "#FFD600" : "#F59E0B"
 
     /// Uyarı arka plan
-    readonly property color warningBg: Qt.rgba(0.961, 0.620, 0.043, darkMode ? 0.08 : 0.12)
+    property color warningBg: Qt.rgba(warning.r, warning.g, warning.b, darkMode ? 0.08 : 0.12)
 
-    /// Hata kırmızı
-    readonly property color error: "#EF4444"
+    /// Hata kırmızı (adjusted for color blind modes)
+    property color error: {
+        if (colorBlindMode === "protanopia")   return "#2563EB"
+        if (colorBlindMode === "deuteranopia") return "#7C3AED"
+        if (colorBlindMode === "highContrast") return "#FF1744"
+        return "#EF4444"
+    }
 
     /// Hata arka plan
-    readonly property color errorBg: Qt.rgba(0.937, 0.267, 0.267, darkMode ? 0.08 : 0.12)
+    property color errorBg: Qt.rgba(error.r, error.g, error.b, darkMode ? 0.08 : 0.12)
 
     /// Bilgi cyan (tracks accent)
     readonly property color info: accent

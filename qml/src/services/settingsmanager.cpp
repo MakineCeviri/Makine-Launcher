@@ -188,7 +188,6 @@ QVariantList SettingsManager::accentPresets() const
         {"sky",      "G\xc3\xb6k Mavisi",{"#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"}},
         {"indigo",   "\xc4\xb0ndigo",   {"#C7D2FE", "#A5B4FC", "#818CF8", "#6366F1", "#4F46E5"}},
         {"black",    "Siyah",           {"#D4D4D8", "#A1A1AA", "#71717A", "#52525B", "#3F3F46"}},
-        {"gradient", "Gradyan",         {"#FF6B9D", "#FF8C42", "#E84393", "#00CEC9", "#6C5CE7"}},
     };
 
     QVariantList result;
@@ -261,6 +260,27 @@ void SettingsManager::setTranslationDataPath(const QString& value)
     }
 }
 
+void SettingsManager::setColorBlindMode(const QString& mode)
+{
+    if (m_colorBlindMode != mode) {
+        m_colorBlindMode = mode;
+        m_settings.setValue("accessibility/colorBlindMode", mode);
+        emit colorBlindModeChanged();
+        emit settingsChanged();
+    }
+}
+
+QVariantList SettingsManager::colorBlindModes() const
+{
+    return {
+        QVariantMap{{"id", "none"}, {"label", "Normal"}, {"description", "Standart renk görüşü"}},
+        QVariantMap{{"id", "protanopia"}, {"label", "Protanopi"}, {"description", "Kırmızı renk körlüğü"}},
+        QVariantMap{{"id", "deuteranopia"}, {"label", "Deuteranopi"}, {"description", "Yeşil renk körlüğü"}},
+        QVariantMap{{"id", "tritanopia"}, {"label", "Tritanopi"}, {"description", "Mavi renk körlüğü"}},
+        QVariantMap{{"id", "highContrast"}, {"label", "Yüksek Kontrast"}, {"description", "Artırılmış kontrast oranı"}}
+    };
+}
+
 void SettingsManager::setOnboardingCompleted(bool value)
 {
     if (m_onboardingCompleted != value) {
@@ -285,6 +305,7 @@ void SettingsManager::resetToDefaults()
     setIsDarkMode(true);
     setAccentPreset("purple");
     setUiScale("auto");
+    setColorBlindMode("none");
     emit settingsResetCompleted();
 }
 
@@ -337,6 +358,7 @@ void SettingsManager::loadSettings()
     m_uiScale = m_settings.value("appearance/uiScale", "auto").toString();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
     m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();
+    m_colorBlindMode = m_settings.value("accessibility/colorBlindMode", "none").toString();
     // translationDataPath: prefer DPAPI-encrypted, migrate from plaintext
     if (m_settings.contains("paths/translationData_enc")) {
         QByteArray encrypted = QByteArray::fromBase64(
@@ -378,6 +400,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("appearance/uiScale", m_uiScale);
     m_settings.setValue("general/onboardingCompleted", m_onboardingCompleted);
     m_settings.setValue("general/appLanguage", m_appLanguage);
+    m_settings.setValue("accessibility/colorBlindMode", m_colorBlindMode);
 
     // Save translationDataPath with DPAPI encryption
     QByteArray encrypted = protectData(m_translationDataPath.toUtf8());
