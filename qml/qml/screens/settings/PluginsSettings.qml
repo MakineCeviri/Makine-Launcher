@@ -22,7 +22,7 @@ ColumnLayout {
     property var officialCatalog: [
         {
             id: "com.makineceviri.live",
-            name: "MakineAI OCR",
+            name: "MakineAI Live",
             description: qsTr("Gerçek zamanlı ekran OCR ve çeviri overlay sistemi"),
             version: "0.1.0",
             size: "20 MB",
