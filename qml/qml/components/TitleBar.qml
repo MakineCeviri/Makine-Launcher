@@ -13,7 +13,6 @@ Rectangle {
 
     required property Window windowRef
     property bool libraryMode: false
-
     signal minimizeClicked()
     signal closeClicked()
     signal trayClicked()
@@ -29,11 +28,9 @@ Rectangle {
 
     MouseArea {
         anchors.fill: parent
-        anchors.rightMargin: 160  // Leave space for buttons
+        anchors.rightMargin: 200
 
-        onPressed: {
-            titleBarRoot.windowRef.startSystemMove()
-        }
+        onPressed: titleBarRoot.windowRef.startSystemMove()
     }
 
     RowLayout {
@@ -146,7 +143,7 @@ Rectangle {
 
             WindowButton {
                 icon: "\uE921"
-                tooltip: qsTr("Küçült")
+                tooltip: qsTr("K\u00fc\u00e7\u00fclt")
                 onClicked: titleBarRoot.minimizeClicked()
             }
 
