@@ -693,9 +693,9 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
 
         QFile::remove(tempPath);
 
-        // Re-discover and re-enable if it was enabled before (seamless update)
+        // Re-discover and auto-enable (fresh install or update)
         discoverPlugins();
-        if (wasEnabled) enablePlugin(pluginId);
+        enablePlugin(pluginId);
         emit pluginInstalled(pluginId);
         qCInfo(lcPlugin) << "Installed plugin:" << pluginId;
     });
@@ -731,9 +731,9 @@ void PluginManager::installFromFile(const QString& filePath)
         return;
     }
 
-    // Re-discover, re-enable if it was active before
+    // Re-discover and auto-enable
     discoverPlugins();
-    if (wasEnabled) enablePlugin(tempId);
+    enablePlugin(tempId);
     emit pluginInstalled(tempId);
     qCInfo(lcPlugin) << "Installed plugin from file:" << filePath;
 }

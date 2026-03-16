@@ -112,23 +112,7 @@ ColumnLayout {
 
                     Item { Layout.fillWidth: true }
 
-                    // "Official" badge
-                    Rectangle {
-                        implicitWidth: _officialLabel.implicitWidth + 20
-                        implicitHeight: 26
-                        radius: Dimensions.radiusFull
-                        color: Theme.primary10
-
-                        Text {
-                            id: _officialLabel
-                            textFormat: Text.PlainText
-                            anchors.centerIn: parent
-                            text: qsTr("MakineAI")
-                            font.pixelSize: Dimensions.fontSM
-                            font.weight: Font.DemiBold
-                            color: Theme.primary
-                        }
-                    }
+                    // Badge removed per user request
                 }
             }
 
@@ -288,7 +272,7 @@ ColumnLayout {
                                                     return qsTr("Kuruluyor... %1%").arg(
                                                         Math.round((PluginManager.installProgress || 0) * 100))
                                                 if (!modelData.installed) return qsTr("Kur") + "  " + modelData.size
-                                                return modelData.enabled ? qsTr("Etkin") : qsTr("Etkinleştir")
+                                                return modelData.enabled ? qsTr("Ayarlar") : qsTr("Etkinle\u015Ftir")
                                             }
                                             font.pixelSize: Dimensions.fontSM
                                             font.weight: Font.Medium
@@ -311,10 +295,23 @@ ColumnLayout {
                                                 PluginManager.installPlugin(modelData.id)
                                                 return
                                             }
-                                            if (modelData.enabled)
-                                                PluginManager.disablePlugin(modelData.id)
-                                            else
+                                            if (modelData.enabled) {
+                                                // Navigate to plugin's settings page
+                                                var cats = pluginsRoot.parent ? root.categories : []
+                                                // Find plugin settings page index in parent SettingsScreen
+                                                var settingsScreen = pluginsRoot.parent
+                                                while (settingsScreen && !settingsScreen.categories) settingsScreen = settingsScreen.parent
+                                                if (settingsScreen) {
+                                                    for (var i = 0; i < settingsScreen.categories.length; i++) {
+                                                        if (settingsScreen.categories[i].pluginId === modelData.id) {
+                                                            settingsScreen.selectedCategory = i
+                                                            return
+                                                        }
+                                                    }
+                                                }
+                                            } else {
                                                 PluginManager.enablePlugin(modelData.id)
+                                            }
                                         }
                                     }
                                 }
@@ -686,7 +683,7 @@ ColumnLayout {
 
                     Text {
                         textFormat: Text.PlainText
-                        text: qsTr("Eklenti dosyasından kur")
+                        text: qsTr("Eklenti Dosyas\u0131ndan Kur")
                         font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
                         color: Theme.textPrimary
@@ -837,7 +834,7 @@ ColumnLayout {
 
                     Text {
                         textFormat: Text.PlainText
-                        text: qsTr("Kendi eklentinizi geliştirin")
+                        text: qsTr("Kendi Eklentinizi Geli\u015Ftirin")
                         font.pixelSize: Dimensions.fontMD
                         font.weight: Font.Medium
                         color: Theme.textPrimary
@@ -869,7 +866,7 @@ ColumnLayout {
                         id: _sdkLabel
                         textFormat: Text.PlainText
                         anchors.centerIn: parent
-                        text: qsTr("Dökümantasyon \u2192")
+                        text: qsTr("D\u00F6k\u00FCmantasyon \u2192")
                         font.pixelSize: Dimensions.fontSM
                         font.weight: Font.Medium
                         color: Theme.textPrimary
