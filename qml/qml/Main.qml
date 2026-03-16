@@ -323,7 +323,7 @@ ApplicationWindow {
                         onClicked: integrityBanner.visible = false
                     }
 
-                    ToolTip {
+                    StyledToolTip {
                         visible: dismissMouse.containsMouse
                         text: qsTr("Kapat")
                         delay: 500

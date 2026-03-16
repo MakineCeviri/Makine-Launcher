@@ -233,7 +233,7 @@ ColumnLayout {
                                 }
                             }
 
-                            ToolTip {
+                            StyledToolTip {
                                 visible: deleteBtnMouse.containsMouse
                                 text: qsTr("Yedeği sil")
                                 delay: 500
