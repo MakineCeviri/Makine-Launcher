@@ -24,30 +24,32 @@ ColumnLayout {
             id: "com.makineceviri.live",
             name: "MakineAI OCR",
             description: qsTr("Gerçek zamanlı ekran OCR ve çeviri overlay sistemi"),
-            version: "1.0.0",
-            size: "2.4 MB",
-            icon: "\uD83D\uDD0D",
+            version: "0.1.0",
+            size: "20 MB",
+            icon: "\uE890",
+            iconFont: "Segoe MDL2 Assets",
             accent: "#0ea5e9",
             features: [
-                qsTr("Ekran yakalama (DXGI/GDI)"),
-                qsTr("OCR metin tanıma (RapidOCR)"),
-                qsTr("Çeviri motorları (DeepL, ChatGPT)"),
-                qsTr("Şeffaf overlay penceresi")
+                qsTr("DXGI/GDI Ekran Yakalama"),
+                qsTr("RapidOCR Metin Tanıma"),
+                qsTr("GPT · DeepL · Google Çeviri"),
+                qsTr("Şeffaf Overlay Penceresi")
             ]
         },
         {
             id: "com.makineceviri.texthook",
             name: "MakineAI TextHook",
-            description: qsTr("Oyun belleğinden doğrudan metin çıkarma ve gömülü çeviri"),
-            version: "1.0.0",
-            size: "1.8 MB",
-            icon: "\uD83E\uDE9D",
-            accent: "#f59e0b",
+            description: qsTr("Oyun belleğinden doğrudan metin çıkarma ve çeviri"),
+            version: "0.1.0",
+            size: "80 KB",
+            icon: "\uE943",
+            iconFont: "Segoe MDL2 Assets",
+            accent: "#a855f7",
             features: [
-                qsTr("MinHook inline hooking"),
-                qsTr("Engine handlers (Unity, Unreal, RPGMaker)"),
-                qsTr("Gömülü çeviri (embedded translation)"),
-                qsTr("Live plugin entegrasyonu")
+                qsTr("x64 Inline Hooking"),
+                qsTr("GDI Text Hook (10 fonksiyon)"),
+                qsTr("Named Pipe IPC"),
+                qsTr("Tekrar Filtresi")
             ]
         }
     ]
@@ -168,18 +170,20 @@ ColumnLayout {
 
                             // Plugin icon
                             Rectangle {
-                                Layout.preferredWidth: 48
-                                Layout.preferredHeight: 48
-                                radius: Dimensions.radiusMD
-                                color: modelData.accent + "22"
-                                border.color: modelData.accent + "44"
+                                Layout.preferredWidth: 44
+                                Layout.preferredHeight: 44
+                                radius: 12
+                                color: modelData.accent + "18"
+                                border.color: modelData.accent + "30"
                                 border.width: 1
 
                                 Text {
                                     textFormat: Text.PlainText
                                     anchors.centerIn: parent
                                     text: modelData.icon
-                                    font.pixelSize: Dimensions.fontXL
+                                    font.family: modelData.iconFont || ""
+                                    font.pixelSize: 18
+                                    color: modelData.accent
                                 }
                             }
 

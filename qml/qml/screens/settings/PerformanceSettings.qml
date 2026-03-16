@@ -45,8 +45,12 @@ ColumnLayout {
                 Layout.preferredHeight: 72
 
                 readonly property string activeApi: SettingsManager.activeGraphicsApi()
+                // Only show restart if user actually changed the setting this session
+                property bool userChanged: false
                 readonly property bool needsRestart: {
+                    if (!userChanged) return false
                     var cfg = SettingsManager.graphicsBackend
+                    if (cfg === "" || cfg === "auto") return false
                     if (cfg === "vulkan" && activeApi !== "Vulkan") return true
                     if (cfg === "d3d11" && activeApi !== "Direct3D 11") return true
                     if (cfg === "opengl" && activeApi !== "OpenGL") return true
@@ -133,7 +137,10 @@ ColumnLayout {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: SettingsManager.graphicsBackend = modelData.id
+                                        onClicked: {
+                                            SettingsManager.graphicsBackend = modelData.id
+                                            backendSetting.userChanged = true
+                                        }
                                     }
                                 }
                             }
