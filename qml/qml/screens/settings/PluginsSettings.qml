@@ -273,7 +273,7 @@ ColumnLayout {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         if (!modelData.installed) {
-                                            // TODO: Download from CDN
+                                            PluginManager.installPlugin(modelData.id)
                                             return
                                         }
                                         if (modelData.enabled)
@@ -517,6 +517,150 @@ ColumnLayout {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // ── OCR Control Buttons (shown when live plugin is loaded) ──
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: _ocrControls.implicitHeight + Dimensions.marginML * 2
+                    Layout.leftMargin: Dimensions.marginML
+                    Layout.rightMargin: Dimensions.marginML
+                    visible: modelData.id === "com.makineceviri.live" && modelData.loaded
+
+                    ColumnLayout {
+                        id: _ocrControls
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.topMargin: Dimensions.spacingSM
+                        spacing: Dimensions.spacingSM
+
+                        SettingsDivider {}
+
+                        // OCR action buttons row
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Dimensions.spacingMD
+
+                            // Select Region button
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 40
+                                radius: Dimensions.radiusMD
+                                color: _regionMouse.containsMouse ? Theme.primary12 : Theme.primary08
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: OcrController.captureRegion.width > 0
+                                        ? qsTr("\u2316 Bölge Seçili (%1×%2)").arg(
+                                            OcrController.captureRegion.width).arg(
+                                            OcrController.captureRegion.height)
+                                        : qsTr("\u2316 Bölge Seç")
+                                    font.pixelSize: Dimensions.fontSM
+                                    font.weight: Font.Medium
+                                    color: Theme.textPrimary
+                                    textFormat: Text.PlainText
+                                }
+
+                                MouseArea {
+                                    id: _regionMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: OcrController.setRegionSelecting(true)
+                                }
+                            }
+
+                            // Start/Stop OCR button
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 40
+                                radius: Dimensions.radiusMD
+                                color: OcrController.ocrActive
+                                    ? "#ef444422" : (_startMouse.containsMouse ? "#22c55e22" : Theme.primary08)
+                                border.color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
+                                border.width: 1
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: Dimensions.spacingSM
+
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4
+                                        color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
+                                        anchors.verticalCenter: parent.verticalCenter
+
+                                        SequentialAnimation on opacity {
+                                            running: OcrController.processing
+                                            loops: Animation.Infinite
+                                            NumberAnimation { to: 0.3; duration: 400 }
+                                            NumberAnimation { to: 1.0; duration: 400 }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: OcrController.ocrActive ? qsTr("OCR Durdur") : qsTr("OCR Başlat")
+                                        font.pixelSize: Dimensions.fontSM
+                                        font.weight: Font.Medium
+                                        color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
+                                        textFormat: Text.PlainText
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: _startMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        OcrController.toggleOcr()
+                                        if (OcrController.ocrActive)
+                                            OcrController.setOverlayVisible(true)
+                                    }
+                                }
+                            }
+
+                            // Toggle Overlay button
+                            Rectangle {
+                                Layout.preferredWidth: 40
+                                Layout.preferredHeight: 40
+                                radius: Dimensions.radiusMD
+                                color: OcrController.overlayVisible
+                                    ? Theme.primary12 : (_overlayMouse.containsMouse ? Theme.primary08 : Theme.primary04)
+                                border.color: OcrController.overlayVisible ? Theme.primary : "transparent"
+                                border.width: 1
+                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "\uD83D\uDCDD"
+                                    font.pixelSize: 16
+                                }
+
+                                MouseArea {
+                                    id: _overlayMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: OcrController.setOverlayVisible(!OcrController.overlayVisible)
+                                }
+                            }
+                        }
+
+                        // Status text
+                        Text {
+                            Layout.fillWidth: true
+                            visible: OcrController.ocrActive
+                            text: OcrController.processing
+                                ? qsTr("OCR çalışıyor...")
+                                : qsTr("Bekleniyor — son çeviri hazır")
+                            font.pixelSize: Dimensions.fontMini
+                            color: Theme.textMuted
+                            textFormat: Text.PlainText
                         }
                     }
                 }
