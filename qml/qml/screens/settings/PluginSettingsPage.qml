@@ -93,12 +93,14 @@ ColumnLayout {
                         anchors.rightMargin: Dimensions.marginML
                         spacing: Dimensions.spacingXL
 
-                        // Label
-                        ColumnLayout {
+                        // Left: label (right-aligned text)
+                        Item {
                             Layout.fillWidth: true
-                            spacing: 2
+                            Layout.fillHeight: true
 
                             Text {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
                                 textFormat: Text.PlainText
                                 text: modelData.label || modelData.key
                                 font.pixelSize: Dimensions.fontMD
@@ -107,9 +109,9 @@ ColumnLayout {
                             }
                         }
 
-                        // Control
+                        // Right: control (left-aligned)
                         Loader {
-                            Layout.preferredWidth: 200
+                            Layout.preferredWidth: 220
                             Layout.preferredHeight: 36
 
                             sourceComponent: {

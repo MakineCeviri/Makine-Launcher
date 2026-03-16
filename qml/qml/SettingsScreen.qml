@@ -44,7 +44,7 @@ Item {
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
-    // Discover loaded plugins with settings → insert as categories
+    // Discover loaded plugins with settings → appear at bottom of sidebar
     readonly property var _pluginCategories: {
         if (!PluginManager) return []
         var result = []
@@ -61,7 +61,8 @@ Item {
         return result
     }
 
-    property var categories: _staticCategories.concat(_pluginCategories).concat(_staticCategoriesEnd)
+    // Plugin pages go AFTER Hakkında (at the very bottom)
+    property var categories: _staticCategories.concat(_staticCategoriesEnd).concat(_pluginCategories)
 
     readonly property var _staticSources: [
         "screens/settings/GeneralSettings.qml",
@@ -74,10 +75,10 @@ Item {
     ]
 
     readonly property var panelSources: {
-        var sources = _staticSources.slice()
+        var sources = _staticSources.concat(_staticSourcesEnd)
         for (var i = 0; i < _pluginCategories.length; i++)
             sources.push("screens/settings/PluginSettingsPage.qml")
-        return sources.concat(_staticSourcesEnd)
+        return sources
     }
 
     Rectangle {
