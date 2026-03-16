@@ -222,59 +222,12 @@ ColumnLayout {
             SettingsDivider {}
 
             // Free resolution scaling (TODO — coming in a future update)
-            Item {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 72
+            ToggleSetting {
                 opacity: 0.5
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Dimensions.marginML
-                    anchors.rightMargin: Dimensions.marginML
-                    spacing: Dimensions.spacingXL
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Dimensions.spacingXS
-
-                        RowLayout {
-                            spacing: Dimensions.spacingSM
-
-                            Label {
-                                textFormat: Text.PlainText
-                                text: qsTr("G\u00f6r\u00fcnt\u00fc \u00d6l\u00e7eklemeyi Serbest B\u0131rak")
-                                font.pixelSize: Dimensions.fontMD
-                                font.weight: Font.Medium
-                                color: Theme.textPrimary
-                            }
-
-                            Rectangle {
-                                implicitWidth: _todoLbl.implicitWidth + 12
-                                implicitHeight: 18; radius: Dimensions.radiusFull
-                                color: "#f59e0b22"; border.color: "#f59e0b44"; border.width: 1
-
-                                Label {
-                                    id: _todoLbl; textFormat: Text.PlainText
-                                    anchors.centerIn: parent; text: "Yak\u0131nda"
-                                    font.pixelSize: Dimensions.fontMicro; font.weight: Font.DemiBold
-                                    color: "#f59e0b"
-                                }
-                            }
-                        }
-
-                        Label {
-                            textFormat: Text.PlainText
-                            text: qsTr("Pencereyi serbestçe boyutland\u0131r ve tam ekran yap")
-                            font.pixelSize: Dimensions.fontBody
-                            color: Theme.textMuted
-                        }
-                    }
-
-                    Switch {
-                        enabled: false
-                        checked: false
-                    }
-                }
+                title: qsTr("G\u00f6r\u00fcnt\u00fc \u00d6l\u00e7eklemeyi Serbest B\u0131rak")
+                description: qsTr("Pencereyi serbestçe boyutland\u0131r ve tam ekran yap \u2014 Yak\u0131nda")
+                checked: false
+                enabled: false
             }
         }
     }
