@@ -39,6 +39,7 @@ Rectangle {
         color: closeMa.containsMouse ? Theme.danger20 : "transparent"
 
         Text {
+            textFormat: Text.PlainText
             anchors.centerIn: parent
             text: "\u2715"
             font.pixelSize: 12; color: closeMa.containsMouse ? Theme.danger : Theme.textMuted

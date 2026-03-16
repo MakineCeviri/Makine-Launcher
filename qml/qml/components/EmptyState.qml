@@ -75,6 +75,7 @@ Rectangle {
             onClicked: root.actionClicked()
 
             contentItem: Label {
+                textFormat: Text.PlainText
                 text: parent.text
                 font: parent.font
                 color: Theme.accent

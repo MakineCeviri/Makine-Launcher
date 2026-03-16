@@ -55,6 +55,7 @@ Rectangle {
         // Hidden measurement — detects if full text overflows 2 lines
         Text {
             id: _measure
+            textFormat: Text.PlainText
             visible: false
             width: contentLayout.width
             text: aboutRoot._displayText

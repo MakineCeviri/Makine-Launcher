@@ -216,6 +216,7 @@ ColumnLayout {
                     spacing: 3
 
                     Label {
+                        textFormat: Text.PlainText
                         text: qsTr("Oyununuz bunlardan biri olabilir:")
                         font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
                     }

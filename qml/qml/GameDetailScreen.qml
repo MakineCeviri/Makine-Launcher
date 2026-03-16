@@ -384,6 +384,7 @@ Item {
             spacing: Dimensions.spacingSM
 
             Text {
+                textFormat: Text.PlainText
                 text: "\uE72B"
                 font.family: "Segoe MDL2 Assets"
                 font.pixelSize: 12

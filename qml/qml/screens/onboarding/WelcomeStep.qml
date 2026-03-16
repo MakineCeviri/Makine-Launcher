@@ -149,6 +149,7 @@ Item {
             Layout.preferredHeight: 44
 
             contentItem: Text {
+                textFormat: Text.PlainText
                 text: qsTr("Devam Et")
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
