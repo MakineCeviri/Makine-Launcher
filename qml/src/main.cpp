@@ -914,7 +914,8 @@ static void createServices(
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
-    // ===== Phase 6b: Plugin system =====
+    // ===== Phase 6b: Plugin system (dev builds only) =====
+#ifdef MAKINEAI_DEV_TOOLS
     auto* pluginManager = new PluginManager(&app);
     pluginManager->discoverPlugins();
     pluginManager->loadEnabledPlugins();
@@ -926,6 +927,10 @@ static void createServices(
     // OCR Controller
     auto* ocrController = new OcrController(pluginManager, &app);
     engine.rootContext()->setContextProperty("OcrController", ocrController);
+#else
+    engine.rootContext()->setContextProperty("PluginManager", nullptr);
+    engine.rootContext()->setContextProperty("OcrController", nullptr);
+#endif
 
     // ===== Phase 7: Update service + system tray =====
     makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");

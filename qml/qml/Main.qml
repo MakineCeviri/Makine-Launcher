@@ -866,24 +866,24 @@ ApplicationWindow {
         }
     }
 
-    // ===== OCR REGION SELECTOR =====
+    // ===== OCR REGION SELECTOR (dev builds only) =====
     RegionSelector {
         id: regionSelector
         onRegionSelected: function(rx, ry, rw, rh) {
-            OcrController.setRegion(rx, ry, rw, rh)
+            if (OcrController) OcrController.setRegion(rx, ry, rw, rh)
         }
     }
 
-    // ===== OCR TRANSLATION OVERLAY (separate window) =====
+    // ===== OCR TRANSLATION OVERLAY (dev builds only) =====
     TranslationOverlay {
         id: translationOverlay
-        visible: OcrController.overlayVisible
-        sourceRegion: OcrController.captureRegion
+        visible: OcrController ? OcrController.overlayVisible : false
+        sourceRegion: OcrController ? OcrController.captureRegion : Qt.rect(0,0,0,0)
     }
 
-    // ===== OCR SIGNAL WIRING =====
+    // ===== OCR SIGNAL WIRING (dev builds only) =====
     Connections {
-        target: OcrController
+        target: OcrController || null
         function onTranslationReady(text) {
             translationOverlay.translatedText = text
         }
@@ -891,7 +891,7 @@ ApplicationWindow {
             translationOverlay.ocrText = text
         }
         function onRegionSelectingChanged() {
-            if (OcrController.regionSelecting)
+            if (OcrController && OcrController.regionSelecting)
                 regionSelector.show()
             else
                 regionSelector.hide()
