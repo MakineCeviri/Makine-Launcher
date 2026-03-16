@@ -771,8 +771,8 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: visible ? 44 : 0
         radius: Dimensions.radiusMD
-        color: Theme.error + "18"
-        border.color: Theme.error + "44"
+        color: Theme.error10
+        border.color: Theme.error12
         border.width: 1
         visible: false
         clip: true
