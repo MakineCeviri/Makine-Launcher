@@ -423,9 +423,43 @@ ColumnLayout {
                                 Layout.preferredHeight: 36
 
                                 sourceComponent: {
+                                    if (modelData.type === "toggle") return toggleComp
                                     if (modelData.type === "select") return selectComp
                                     if (modelData.type === "password") return passwordComp
                                     return textComp
+                                }
+
+                                // Toggle (Switch)
+                                Component {
+                                    id: toggleComp
+                                    Switch {
+                                        checked: {
+                                            var val = PluginManager.getPluginSetting(pluginId, modelData.key)
+                                            return val === "true" || val === "1"
+                                        }
+                                        onToggled: {
+                                            PluginManager.setPluginSetting(pluginId, modelData.key, checked ? "true" : "false")
+                                        }
+
+                                        indicator: Rectangle {
+                                            implicitWidth: 48
+                                            implicitHeight: 26
+                                            x: parent.leftPadding
+                                            y: parent.height / 2 - height / 2
+                                            radius: 13
+                                            color: parent.checked ? Theme.primary : Theme.primary12
+                                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                            Rectangle {
+                                                x: parent.parent.checked ? parent.width - width - 3 : 3
+                                                y: 3
+                                                width: 20; height: 20
+                                                radius: 10
+                                                color: Theme.textOnColor
+                                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
+                                            }
+                                        }
+                                    }
                                 }
 
                                 // Select (ComboBox)
