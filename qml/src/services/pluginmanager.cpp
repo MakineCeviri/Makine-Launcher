@@ -688,6 +688,44 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
     });
 }
 
+// ── Install from local .makine file ──
+
+void PluginManager::installFromFile(const QString& filePath)
+{
+    QFileInfo fi(filePath);
+    if (!fi.exists()) {
+        emit pluginError({}, QStringLiteral("File not found: ") + filePath);
+        return;
+    }
+
+    // Derive plugin ID from the manifest inside the package (after extraction)
+    // For now, use the filename without extension as a temp ID
+    QString tempId = fi.completeBaseName();
+
+    if (!validateZipContents(filePath, tempId))
+        return;
+
+    if (!extractPlugin(filePath, tempId)) {
+        emit pluginError(tempId, QStringLiteral("Extraction failed"));
+        return;
+    }
+
+    // Re-discover to pick up the new plugin (manifest provides real ID)
+    discoverPlugins();
+    emit pluginInstalled(tempId);
+    qCInfo(lcPlugin) << "Installed plugin from file:" << filePath;
+}
+
+// ── Query: last error for a plugin ──
+
+QString PluginManager::lastPluginError(const QString& pluginId) const
+{
+    for (const auto& p : m_plugins)
+        if (p.id == pluginId)
+            return p.lastError;
+    return {};
+}
+
 // ── Uninstall ──
 
 void PluginManager::uninstallPlugin(const QString& pluginId, bool removeData)

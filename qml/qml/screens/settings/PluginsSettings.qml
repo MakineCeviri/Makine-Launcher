@@ -66,11 +66,16 @@ ColumnLayout {
             var installed = _isDiscovered(cat.id)
             var enabled = PluginManager ? PluginManager.isPluginEnabled(cat.id) : false
             var loaded = PluginManager ? PluginManager.isPluginLoaded(cat.id) : false
+            var updateAvail = PluginManager ? PluginManager.hasUpdate(cat.id) : false
+            var newVersion = PluginManager ? PluginManager.availableVersion(cat.id) : ""
+            var lastErr = PluginManager ? PluginManager.lastPluginError(cat.id) : ""
             result.push({
                 id: cat.id, name: cat.name, description: cat.description,
                 version: cat.version, size: cat.size, icon: cat.icon,
                 accent: cat.accent, features: cat.features,
-                installed: installed, enabled: enabled, loaded: loaded
+                installed: installed, enabled: enabled, loaded: loaded,
+                hasUpdate: updateAvail, availableVersion: newVersion,
+                lastError: lastErr
             })
         }
         return result
@@ -221,68 +226,158 @@ ColumnLayout {
                                 }
                             }
 
-                            // Install/Enable button
-                            Rectangle {
-                                Layout.preferredWidth: _btnRow.implicitWidth + 28
-                                Layout.preferredHeight: 36
-                                radius: Dimensions.radiusMD
-                                color: modelData.installed
-                                    ? (modelData.enabled ? Theme.primary12 : Theme.primary)
-                                    : Theme.primary
-                                scale: _btnMouse.pressed ? 0.92 : 1.0
-                                opacity: _btnMouse.containsMouse ? 0.9 : 1.0
+                            // Action buttons column
+                            ColumnLayout {
+                                spacing: Dimensions.spacingXXS
 
-                                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+                                // Main action button
+                                Rectangle {
+                                    Layout.preferredWidth: _btnRow.implicitWidth + 28
+                                    Layout.preferredHeight: 36
+                                    radius: Dimensions.radiusMD
+                                    color: {
+                                        if (PluginManager && PluginManager.installing) return Theme.primary08
+                                        if (!modelData.installed) return Theme.primary
+                                        if (modelData.enabled) return Theme.primary12
+                                        return Theme.primary
+                                    }
+                                    scale: _btnMouse.pressed ? 0.92 : 1.0
+                                    opacity: _btnMouse.containsMouse ? 0.9 : 1.0
 
-                                Accessible.role: Accessible.Button
-                                Accessible.name: modelData.installed ? qsTr("Disable plugin") : qsTr("Install plugin")
-                                activeFocusOnTab: true
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
-                                Row {
-                                    id: _btnRow
-                                    anchors.centerIn: parent
-                                    spacing: Dimensions.spacingSM
-
-                                    Text {
-                                        textFormat: Text.PlainText
-                                        text: modelData.installed ? (modelData.enabled ? "\u2714" : "\u25B6") : "\u2913"
-                                        font.pixelSize: Dimensions.fontSM
-                                        color: modelData.installed && modelData.enabled ? Theme.primary : Theme.textOnColor
-                                        anchors.verticalCenter: parent.verticalCenter
+                                    // Install progress bar overlay
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        width: parent.width * (PluginManager ? PluginManager.installProgress : 0)
+                                        radius: Dimensions.radiusMD
+                                        color: Theme.primary + "44"
+                                        visible: PluginManager && PluginManager.installing
                                     }
 
-                                    Text {
-                                        textFormat: Text.PlainText
-                                        text: modelData.installed
-                                            ? (modelData.enabled ? qsTr("Etkin") : qsTr("Etkinleştir"))
-                                            : qsTr("Kur") + "  " + modelData.size
-                                        font.pixelSize: Dimensions.fontSM
-                                        font.weight: Font.Medium
-                                        color: modelData.installed && modelData.enabled ? Theme.primary : Theme.textOnColor
-                                        anchors.verticalCenter: parent.verticalCenter
+                                    Row {
+                                        id: _btnRow
+                                        anchors.centerIn: parent
+                                        spacing: Dimensions.spacingSM
+
+                                        Text {
+                                            textFormat: Text.PlainText
+                                            text: {
+                                                if (PluginManager && PluginManager.installing) return "\u21BB"
+                                                if (!modelData.installed) return "\u2913"
+                                                return modelData.enabled ? "\u2714" : "\u25B6"
+                                            }
+                                            font.pixelSize: Dimensions.fontSM
+                                            color: modelData.installed && modelData.enabled
+                                                ? Theme.primary : Theme.textOnColor
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+
+                                        Text {
+                                            textFormat: Text.PlainText
+                                            text: {
+                                                if (PluginManager && PluginManager.installing)
+                                                    return qsTr("Kuruluyor... %1%").arg(
+                                                        Math.round((PluginManager.installProgress || 0) * 100))
+                                                if (!modelData.installed) return qsTr("Kur") + "  " + modelData.size
+                                                return modelData.enabled ? qsTr("Etkin") : qsTr("Etkinleştir")
+                                            }
+                                            font.pixelSize: Dimensions.fontSM
+                                            font.weight: Font.Medium
+                                            color: modelData.installed && modelData.enabled
+                                                ? Theme.primary : Theme.textOnColor
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    FocusRing { offset: -1 }
+
+                                    MouseArea {
+                                        id: _btnMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        enabled: !(PluginManager && PluginManager.installing)
+                                        onClicked: {
+                                            if (!modelData.installed) {
+                                                PluginManager.installPlugin(modelData.id)
+                                                return
+                                            }
+                                            if (modelData.enabled)
+                                                PluginManager.disablePlugin(modelData.id)
+                                            else
+                                                PluginManager.enablePlugin(modelData.id)
+                                        }
                                     }
                                 }
 
-                                FocusRing { offset: -1 }
+                                // Update button (shown when update available)
+                                Rectangle {
+                                    Layout.preferredWidth: _updateRow.implicitWidth + 20
+                                    Layout.preferredHeight: 28
+                                    radius: Dimensions.radiusFull
+                                    color: "#f59e0b22"
+                                    border.color: "#f59e0b44"
+                                    border.width: 1
+                                    visible: modelData.installed && modelData.hasUpdate
+                                    scale: _updateMouse.pressed ? 0.92 : 1.0
 
-                                MouseArea {
-                                    id: _btnMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        if (!modelData.installed) {
-                                            PluginManager.installPlugin(modelData.id)
-                                            return
+                                    Row {
+                                        id: _updateRow
+                                        anchors.centerIn: parent
+                                        spacing: 4
+
+                                        Text {
+                                            textFormat: Text.PlainText
+                                            text: "\u2191 " + qsTr("Güncelle")
+                                            font.pixelSize: Dimensions.fontMini
+                                            font.weight: Font.DemiBold
+                                            color: "#f59e0b"
                                         }
-                                        if (modelData.enabled)
-                                            PluginManager.disablePlugin(modelData.id)
-                                        else
-                                            PluginManager.enablePlugin(modelData.id)
+                                    }
+
+                                    MouseArea {
+                                        id: _updateMouse
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: PluginManager.installPlugin(modelData.id)
+                                    }
+                                }
+
+                                // Uninstall button (shown when installed)
+                                Text {
+                                    textFormat: Text.PlainText
+                                    text: qsTr("Kaldır")
+                                    font.pixelSize: Dimensions.fontMini
+                                    color: _removeMouse.containsMouse ? Theme.error : Theme.textMuted
+                                    visible: modelData.installed && !modelData.enabled
+                                    Layout.alignment: Qt.AlignHCenter
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                                    MouseArea {
+                                        id: _removeMouse
+                                        anchors.fill: parent
+                                        anchors.margins: -4
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: PluginManager.uninstallPlugin(modelData.id, false)
                                     }
                                 }
                             }
+                        }
+
+                        // Error message (shown when plugin has error)
+                        Text {
+                            Layout.fillWidth: true
+                            visible: modelData.lastError.length > 0
+                            text: "\u26A0 " + (modelData.lastError || "")
+                            font.pixelSize: Dimensions.fontMini
+                            color: Theme.error
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
                         }
 
                         // Features list
@@ -907,6 +1002,157 @@ ColumnLayout {
             }
 
             Item { Layout.preferredHeight: Dimensions.marginML }
+        }
+    }
+
+    // ── Import .makine file ──
+    SettingsCard {
+        Layout.fillWidth: true
+
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 56
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Dimensions.marginML
+                anchors.rightMargin: Dimensions.marginML
+                spacing: Dimensions.spacingLG
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Dimensions.spacingXXS
+
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr("Eklenti dosyasından kur")
+                        font.pixelSize: Dimensions.fontMD
+                        font.weight: Font.Medium
+                        color: Theme.textPrimary
+                    }
+
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr(".makine dosyasını seçerek eklenti yükleyin")
+                        font.pixelSize: Dimensions.fontBody
+                        color: Theme.textMuted
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: _importLabel.implicitWidth + 28
+                    Layout.preferredHeight: 36
+                    radius: Dimensions.radiusMD
+                    color: _importMouse.containsMouse ? Theme.primary12 : Theme.primary08
+                    scale: _importMouse.pressed ? 0.92 : 1.0
+
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+
+                    Text {
+                        id: _importLabel
+                        textFormat: Text.PlainText
+                        anchors.centerIn: parent
+                        text: qsTr("Dosya Seç...")
+                        font.pixelSize: Dimensions.fontSM
+                        font.weight: Font.Medium
+                        color: Theme.textPrimary
+                    }
+
+                    FocusRing { offset: -1 }
+
+                    MouseArea {
+                        id: _importMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: _importDialog.open()
+                    }
+                }
+            }
+        }
+    }
+
+    // File dialog for .makine import
+    Loader {
+        id: _importDialogLoader
+        active: false
+        sourceComponent: Component {
+            FileDialog {
+                id: _dlg
+                title: qsTr("Eklenti Dosyası Seç")
+                nameFilters: ["MakineAI Plugin (*.makine)"]
+                onAccepted: {
+                    if (selectedFile)
+                        PluginManager.installFromFile(selectedFile.toString().replace("file:///", ""))
+                }
+            }
+        }
+    }
+
+    // Workaround: open dialog via property
+    property var _importDialog: QtObject {
+        function open() {
+            _importDialogLoader.active = true
+            _importDialogLoader.item.open()
+        }
+    }
+
+    // ── Error Banner (global plugin errors) ──
+    Connections {
+        target: PluginManager
+        function onPluginError(pluginId, error) {
+            _errorText.text = (pluginId ? pluginId + ": " : "") + error
+            _errorBanner.visible = true
+            _errorHideTimer.restart()
+        }
+    }
+
+    Rectangle {
+        id: _errorBanner
+        Layout.fillWidth: true
+        Layout.preferredHeight: visible ? 44 : 0
+        radius: Dimensions.radiusMD
+        color: "#ef444418"
+        border.color: "#ef444444"
+        border.width: 1
+        visible: false
+        clip: true
+
+        Behavior on Layout.preferredHeight { NumberAnimation { duration: 200 } }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: Dimensions.marginML
+            anchors.rightMargin: Dimensions.marginML
+
+            Text {
+                id: _errorText
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                font.pixelSize: Dimensions.fontSM
+                color: "#ef4444"
+                elide: Text.ElideRight
+            }
+
+            Text {
+                textFormat: Text.PlainText
+                text: "\u2715"
+                font.pixelSize: Dimensions.fontMD
+                color: "#ef4444"
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -8
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: _errorBanner.visible = false
+                }
+            }
+        }
+
+        Timer {
+            id: _errorHideTimer
+            interval: 8000
+            onTriggered: _errorBanner.visible = false
         }
     }
 
