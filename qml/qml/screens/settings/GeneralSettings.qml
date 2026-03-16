@@ -19,13 +19,11 @@ ColumnLayout {
     property bool startWithWindows: SettingsManager.startWithWindows
     property bool minimizeToTray: SettingsManager.minimizeToTray
     property bool disableAnimations: !SettingsManager.enableAnimations
-    property bool gameUpdateMonitoring: SettingsManager.gameUpdateMonitoring
 
     onAutoDetectGamesChanged: SettingsManager.autoDetectGames = autoDetectGames
     onStartWithWindowsChanged: SettingsManager.startWithWindows = startWithWindows
     onMinimizeToTrayChanged: SettingsManager.minimizeToTray = minimizeToTray
     onDisableAnimationsChanged: SettingsManager.enableAnimations = !disableAnimations
-    onGameUpdateMonitoringChanged: SettingsManager.gameUpdateMonitoring = gameUpdateMonitoring
 
     SettingsCard {
         Layout.fillWidth: true
@@ -71,16 +69,6 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
-
-            ToggleSetting {
-                title: qsTr("Oyun Güncelleme İzleme")
-                description: qsTr("Arka planda oyun güncellemelerini tespit et ve çeviri uyumluluğunu kontrol et")
-                checked: generalRoot.gameUpdateMonitoring
-                disableAnimations: generalRoot.disableAnimations
-                onToggled: generalRoot.gameUpdateMonitoring = !generalRoot.gameUpdateMonitoring
-            }
-
-            SettingsDivider {}
 
             // Update check — single State enum drives all UI
             ColumnLayout {

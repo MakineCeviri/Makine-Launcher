@@ -32,8 +32,6 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool startWithWindows READ startWithWindows WRITE setStartWithWindows NOTIFY startWithWindowsChanged)
     Q_PROPERTY(bool minimizeToTray READ minimizeToTray WRITE setMinimizeToTray NOTIFY minimizeToTrayChanged)
     Q_PROPERTY(bool showNotifications READ showNotifications WRITE setShowNotifications NOTIFY showNotificationsChanged)
-    Q_PROPERTY(bool gameUpdateMonitoring READ gameUpdateMonitoring WRITE setGameUpdateMonitoring NOTIFY gameUpdateMonitoringChanged)
-
     // Performance settings
     Q_PROPERTY(bool hardwareAcceleration READ hardwareAcceleration WRITE setHardwareAcceleration NOTIFY hardwareAccelerationChanged)
     Q_PROPERTY(bool useGlobalCache READ useGlobalCache WRITE setUseGlobalCache NOTIFY useGlobalCacheChanged)
@@ -78,8 +76,7 @@ public:
     bool showNotifications() const { return m_showNotifications; }
     void setShowNotifications(bool value);
 
-    bool gameUpdateMonitoring() const { return m_gameUpdateMonitoring; }
-    void setGameUpdateMonitoring(bool value);
+
 
     // Performance settings
     bool hardwareAcceleration() const { return m_hardwareAcceleration; }
@@ -132,7 +129,6 @@ signals:
     void startWithWindowsChanged();
     void minimizeToTrayChanged();
     void showNotificationsChanged();
-    void gameUpdateMonitoringChanged();
     void hardwareAccelerationChanged();
     void useGlobalCacheChanged();
     void enableAnimationsChanged();
@@ -164,8 +160,6 @@ private:
     bool m_startWithWindows{false};
     bool m_minimizeToTray{false};
     bool m_showNotifications{false};
-    bool m_gameUpdateMonitoring{false};
-
     // Performance
     bool m_hardwareAcceleration{true};
     bool m_useGlobalCache{true};
