@@ -93,25 +93,32 @@ ColumnLayout {
                         anchors.rightMargin: Dimensions.marginML
                         spacing: Dimensions.spacingXL
 
-                        // Left: label (right-aligned text)
-                        Item {
+                        // Left: label + description (left-aligned)
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
+                            spacing: 2
 
                             Text {
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
                                 textFormat: Text.PlainText
                                 text: modelData.label || modelData.key
                                 font.pixelSize: Dimensions.fontMD
                                 font.weight: Font.Medium
                                 color: Theme.textPrimary
                             }
+
+                            Text {
+                                textFormat: Text.PlainText
+                                text: modelData.key
+                                font.pixelSize: Dimensions.fontMini
+                                color: Theme.textMuted
+                                visible: (modelData.label || "") !== ""
+                            }
                         }
 
-                        // Right: control (left-aligned)
+                        // Right: control (right-aligned)
                         Loader {
                             Layout.preferredWidth: 220
+                            Layout.alignment: Qt.AlignRight
                             Layout.preferredHeight: 36
 
                             sourceComponent: {
