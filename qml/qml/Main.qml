@@ -607,6 +607,10 @@ ApplicationWindow {
                         onTranslateClicked: {
                             installFlow.startInstallFlow(detailVM.gameId, detailVM.gameName)
                         }
+                        onBackClicked: {
+                            window.currentNavIndex = window.previousNavIndex
+                            contentStackContainer.navigateTo(window.previousNavIndex === 2 ? 1 : window.previousNavIndex)
+                        }
                     }
                 }
             }

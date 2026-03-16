@@ -25,6 +25,7 @@ Item {
     readonly property bool _animEnabled: Dimensions.animSlow > 0
 
     signal translateClicked()
+    signal backClicked()
 
     // ===== ENTRY ANIMATION =====
 
@@ -360,4 +361,51 @@ Item {
 
     Accessible.role: Accessible.Pane
     Accessible.name: root.viewModel.gameName
+
+    // =========================================================================
+    // BACK BUTTON — glassmorphic overlay, top-left corner
+    // =========================================================================
+
+    Rectangle {
+        x: Dimensions.marginML
+        y: Dimensions.marginML
+        z: 100
+        implicitWidth: _backRow.implicitWidth + 20
+        implicitHeight: 32
+        radius: Dimensions.radiusMD
+        color: _backMouse.containsMouse ? "#60202020" : "#40202020"
+        scale: _backMouse.pressed ? 0.95 : 1.0
+        Behavior on color { ColorAnimation { duration: 100 } }
+        Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+
+        Row {
+            id: _backRow
+            anchors.centerIn: parent
+            spacing: Dimensions.spacingSM
+
+            Text {
+                text: "\uE72B"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 12
+                color: "#ffffff"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: qsTr("Geri")
+                font.pixelSize: Dimensions.fontBody
+                font.weight: Font.Medium
+                color: "#ffffff"
+                textFormat: Text.PlainText
+            }
+        }
+
+        MouseArea {
+            id: _backMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.backClicked()
+        }
+    }
 }
