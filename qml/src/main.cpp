@@ -682,27 +682,30 @@ static void configureQtEnvironment()
 
         double effectiveScale = 1.0;
 
-        if (uiScale == "compact") {
+        if (uiScale == "manual") {
+            effectiveScale = 1.0;  // No scaling — user controls resolution freely
+        } else if (uiScale == "compact") {
             effectiveScale = 0.92;
         } else if (uiScale == "large") {
             effectiveScale = 1.12;
         } else {
 #ifdef Q_OS_WIN
-            // auto: if screen is smaller than reference, shrink to fit
+            // auto: adaptive scale based on logical work area
+            // PerMonitorV2: SystemParametersInfo returns logical pixels (DPI-adjusted)
+            // No nativeDpr needed — Qt handles physical-to-logical mapping
             RECT wa{};
             SystemParametersInfoW(SPI_GETWORKAREA, 0, &wa, 0);
-            HDC hdc = GetDC(nullptr);
-            double nativeDpr = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0;
-            ReleaseDC(nullptr, hdc);
 
-            double usableW = (wa.right - wa.left) * 0.92;
-            double usableH = (wa.bottom - wa.top) * 0.92;
-            double fitW = usableW / (1280.0 * nativeDpr);
-            double fitH = usableH / (800.0 * nativeDpr);
+            double logicalW = (wa.right - wa.left) * 0.92;
+            double logicalH = (wa.bottom - wa.top) * 0.92;
+            double fitW = logicalW / 1280.0;
+            double fitH = logicalH / 800.0;
             double fitScale = qMin(fitW, fitH);
 
             if (fitScale < 1.0)
-                effectiveScale = qMax(fitScale, 0.80);  // never below 0.80
+                effectiveScale = qMax(fitScale, 0.80);  // shrink for small screens
+            else if (fitScale > 1.08)
+                effectiveScale = 1.0 + (fitScale - 1.0) * 0.35;  // gentle grow for large screens
 #endif
         }
 
@@ -1074,29 +1077,24 @@ static void setupRootWindow(
         int waW = workArea.right - workArea.left;
         int waH = workArea.bottom - workArea.top;
 
-        constexpr int refW = 1280;   // reference logical width
-        constexpr int refH = 800;    // reference logical height
-
-        // Native system DPI (unaffected by QT_SCALE_FACTOR)
-        HDC hdc = GetDC(nullptr);
-        qreal nativeDpr = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0;
-        ReleaseDC(nullptr, hdc);
+        constexpr int refW = 1100;   // reference logical width (smaller default)
+        constexpr int refH = 700;    // reference logical height
 
         // Effective scale (computed once at startup, includes auto-fit)
         QSettings settings("MakineAI", "MakineAI");
         double scaleFactor = settings.value("appearance/_appliedScaleFactor", 1.0).toDouble();
 
-        // Physical window = reference × native DPI × effective scale
-        int w = static_cast<int>(refW * nativeDpr * scaleFactor);
-        int h = static_cast<int>(refH * nativeDpr * scaleFactor);
+        // Window size = reference × effective scale (logical pixels, Qt handles DPI)
+        int w = static_cast<int>(refW * scaleFactor);
+        int h = static_cast<int>(refH * scaleFactor);
 
-        // Floor: at least 40 % of work area (prevents being tiny on 4K/100 %)
+        // Floor: at least 40 % of work area
         w = qMax(w, waW * 40 / 100);
         h = qMax(h, waH * 40 / 100);
 
-        // Ceiling: at most 92 % of work area (prevents filling small screens)
-        w = qMin(w, waW * 92 / 100);
-        h = qMin(h, waH * 92 / 100);
+        // Ceiling: at most 85 % of work area
+        w = qMin(w, waW * 85 / 100);
+        h = qMin(h, waH * 85 / 100);
 
         // Screen center
         int cx = workArea.left + waW / 2;

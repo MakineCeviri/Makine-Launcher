@@ -36,11 +36,11 @@ Item {
     // Static categories + dynamic plugin categories
     readonly property var _staticCategories: [
         { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın"), isPlugin: false },
+        { name: qsTr("Ekran"), description: qsTr("Tema, animasyon ve görüntü ayarları"), isPlugin: false },
         { name: qsTr("Çeviri"), description: qsTr("Çeviri tercihlerini ve dil ayarlarını düzenleyin"), isPlugin: false },
         { name: qsTr("Eklentiler"), description: qsTr("Eklenti yönetimi ve mağaza"), isPlugin: false }
     ]
     readonly property var _staticCategoriesEnd: [
-        { name: qsTr("Performans"), description: qsTr("Performans ve kaynak kullanım ayarları"), isPlugin: false },
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
@@ -66,11 +66,11 @@ Item {
 
     readonly property var _staticSources: [
         "screens/settings/GeneralSettings.qml",
+        "screens/settings/DisplaySettings.qml",
         "screens/settings/TranslationSettings.qml",
         "screens/settings/PluginsSettings.qml"
     ]
     readonly property var _staticSourcesEnd: [
-        "screens/settings/PerformanceSettings.qml",
         "screens/settings/AboutSettings.qml"
     ]
 

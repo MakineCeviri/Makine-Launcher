@@ -243,6 +243,8 @@ Rectangle {
             }
         }
 
+        Item { Layout.preferredHeight: Dimensions.cardGap }
+
         // Row 1 (expands to full height with large cards during search)
         HorizontalGameStrip {
             Layout.fillWidth: true; Layout.fillHeight: true
@@ -256,12 +258,18 @@ Rectangle {
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }
 
-        // Row separator
-        Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 1
-            Layout.leftMargin: parent.width * 0.2; Layout.rightMargin: parent.width * 0.2
+        // Row separator with padding
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Dimensions.cardGap * 2
             visible: !catalog._isSearching && catalog._row2Ready && row2Proxy.count > 0
-            color: Theme.textPrimary08
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width * 0.6
+                height: 1
+                color: Theme.textPrimary08
+            }
         }
 
         // Row 2
@@ -274,6 +282,8 @@ Rectangle {
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 catalog.gameClicked(gameId, gameName, installPath, engine)
         }
+
+        Item { Layout.preferredHeight: Dimensions.cardGap }
     }
 
     // Edge fades — inline component named CatalogEdgeFade to avoid shadowing SectionContainer's EdgeFade
