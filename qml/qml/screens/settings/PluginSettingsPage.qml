@@ -30,14 +30,14 @@ ColumnLayout {
             // Status indicator
             Rectangle {
                 width: 8; height: 8; radius: 4
-                color: info.loaded ? "#4ade80" : Theme.textMuted
+                color: info.loaded ? Theme.success : Theme.textMuted
             }
 
             Text {
                 textFormat: Text.PlainText
                 text: info.loaded ? qsTr("Eklenti aktif ve çalışıyor") : qsTr("Eklenti devre dışı")
                 font.pixelSize: Dimensions.fontSM
-                color: info.loaded ? "#4ade80" : Theme.textMuted
+                color: info.loaded ? Theme.success : Theme.textMuted
             }
 
             Item { Layout.fillWidth: true }
@@ -108,13 +108,13 @@ ColumnLayout {
                     Rectangle {
                         Layout.fillWidth: true; Layout.preferredHeight: 40
                         radius: Dimensions.radiusMD
-                        color: OcrController.ocrActive ? "#ef444418" : (_sM.containsMouse ? "#22c55e18" : Theme.primary08)
-                        border.color: OcrController.ocrActive ? "#ef4444" : "#22c55e"; border.width: 1
+                        color: OcrController.ocrActive ? Theme.error + "18" : (_sM.containsMouse ? Theme.success + "18" : Theme.primary08)
+                        border.color: OcrController.ocrActive ? Theme.error : Theme.success; border.width: 1
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                         Row {
                             anchors.centerIn: parent; spacing: Dimensions.spacingSM
                             Rectangle { width: 8; height: 8; radius: 4
-                                color: OcrController.ocrActive ? "#ef4444" : "#22c55e"
+                                color: OcrController.ocrActive ? Theme.error : Theme.success
                                 anchors.verticalCenter: parent.verticalCenter
                                 SequentialAnimation on opacity { running: OcrController.processing; loops: Animation.Infinite
                                     NumberAnimation { to: 0.3; duration: 400 }
@@ -122,7 +122,7 @@ ColumnLayout {
                             Text { textFormat: Text.PlainText
                                 text: OcrController.ocrActive ? qsTr("Durdur") : qsTr("Ba\u015Flat")
                                 font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium
-                                color: OcrController.ocrActive ? "#ef4444" : "#22c55e" }
+                                color: OcrController.ocrActive ? Theme.error : Theme.success }
                         }
                         MouseArea { id: _sM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: { OcrController.toggleOcr(); if (OcrController.ocrActive) OcrController.setOverlayVisible(true) } }
