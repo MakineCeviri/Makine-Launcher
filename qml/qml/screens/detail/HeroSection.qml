@@ -115,6 +115,13 @@ Item {
             mipmap: true
             opacity: status === Image.Ready ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+            property bool _triedFallback: false
+            onStatusChanged: {
+                if (status === Image.Error && !_triedFallback && heroRoot.vm.steamAppId !== "") {
+                    _triedFallback = true
+                    source = "https://cdn.makineceviri.net/assets/banners/" + heroRoot.vm.steamAppId + ".jpg"
+                }
+            }
         }
 
         // Top vignette — subtle darkening for contrast
