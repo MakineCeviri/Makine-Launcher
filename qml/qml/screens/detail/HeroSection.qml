@@ -115,13 +115,6 @@ Item {
             mipmap: true
             opacity: status === Image.Ready ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-            property bool _triedCdnFallback: false
-            onStatusChanged: {
-                if (status === Image.Error && !_triedCdnFallback && heroRoot.vm.steamAppId !== "") {
-                    _triedCdnFallback = true
-                    source = "https://cdn.makineceviri.net/assets/banners/" + heroRoot.vm.steamAppId + ".jpg"
-                }
-            }
         }
 
         // Top vignette — subtle darkening for contrast
@@ -172,20 +165,13 @@ Item {
             opacity: heroRoot._titleOp
             transform: Translate { y: heroRoot._titleTY }
 
-            // Game logo (Steam) — centered, with CDN fallback
+            // Game logo (Steam) — centered
             Image {
                 id: gameLogo
                 Layout.fillWidth: true
                 property real _aspect: 0
-                property bool _triedCdnFallback: false
-                onStatusChanged: {
-                    if (status === Image.Ready && implicitWidth > 0)
-                        _aspect = implicitHeight / implicitWidth
-                    if (status === Image.Error && !_triedCdnFallback && heroRoot.vm.steamAppId !== "") {
-                        _triedCdnFallback = true
-                        source = "https://cdn.makineceviri.net/assets/banners/" + heroRoot.vm.steamAppId + "_logo.png"
-                    }
-                }
+                onStatusChanged: if (status === Image.Ready && implicitWidth > 0)
+                    _aspect = implicitHeight / implicitWidth
                 Layout.preferredHeight: _aspect > 0 ? Math.min(width * _aspect, 80) : 0
                 Layout.maximumHeight: 80
                 visible: _aspect > 0
@@ -335,40 +321,6 @@ Item {
                         color: Theme.warning
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                }
-            }
-        }
-
-        // =================================================================
-        // PARTNER BADGE (ApexYama)
-        // =================================================================
-
-        Rectangle {
-            visible: heroRoot.vm.externalUrl !== undefined && heroRoot.vm.externalUrl !== ""
-            Layout.alignment: Qt.AlignHCenter
-            width: partnerRow.width + 24; height: 28
-            radius: Dimensions.radiusFull
-            color: Qt.rgba(0.565, 0.459, 0.459, 0.25)  // #907575 @ 25%
-            border.color: Qt.rgba(1.0, 0.808, 0.776, 0.35)  // #ffcec6 @ 35%
-            border.width: 1
-            opacity: heroRoot._titleOp
-
-            Row {
-                id: partnerRow
-                anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                Text {
-                    textFormat: Text.PlainText
-                    text: "ApexYama"
-                    font.pixelSize: Dimensions.fontCaption; font.weight: Font.Bold
-                    color: "#ffcec6"
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    textFormat: Text.PlainText
-                    text: qsTr("İş Ortağı Çevirisi")
-                    font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
-                    color: Theme.textSecondary
-                    anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }

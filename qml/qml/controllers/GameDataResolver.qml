@@ -25,12 +25,6 @@ QtObject {
         var hasTranslation = (gameData && gameData.hasTranslation) || false
         var pkgInstalled = (gameData && gameData.packageInstalled) || false
 
-        // Check for external partner URL and custom image overrides
-        var catalog = GameService.getCatalogEntry(resolvedSteamAppId || gameId)
-        var externalUrl = (catalog && catalog.externalUrl) || ""
-        var heroImageUrl = (catalog && catalog.heroImageUrl) || ""
-        var logoImageUrl = (catalog && catalog.logoImageUrl) || ""
-
         return {
             gameId: gameId,
             gameName: gameName,
@@ -42,10 +36,7 @@ QtObject {
             isManualGame: isManual,
             isGameInstalled: isInstalled,
             packageInstalled: pkgInstalled,
-            autoInstall: forceAutoInstall || false,
-            externalUrl: externalUrl,
-            heroImageUrl: heroImageUrl,
-            logoImageUrl: logoImageUrl
+            autoInstall: forceAutoInstall || false
         }
     }
 }
