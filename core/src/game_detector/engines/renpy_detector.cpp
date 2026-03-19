@@ -1,7 +1,7 @@
 /**
  * @file renpy_detector.cpp
  * @brief Ren'Py visual novel engine detector
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "engine_detectors.hpp"
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 namespace fs = std::filesystem;
 
@@ -110,4 +110,4 @@ EngineDetectionResult detectRenpy(const fs::path& path, const GameSignatures& si
     return result;
 }
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

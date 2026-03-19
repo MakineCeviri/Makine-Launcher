@@ -2,7 +2,7 @@
 
 Ren'Py dosya yapısı ve çeviri yöntemi teknik referansı.
 
-> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
+> **Not:** Bu doküman teknik referanstır. Makine-Launcher şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
@@ -46,7 +46,7 @@ Turkce Metin Goster
 
 ## Otomatik Algılama
 
-MakineAI Ren'Py oyunlarını şu dosyalardan tespit eder:
+Makine-Launcher Ren'Py oyunlarını şu dosyalardan tespit eder:
 
 | Dosya | Açıklama |
 |-------|----------|

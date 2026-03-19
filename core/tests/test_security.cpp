@@ -2,16 +2,16 @@
  * @file test_security.cpp
  * @brief Unit tests for Security module
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <makineai/security.hpp>
+#include <makine/security.hpp>
 #include <fstream>
 #include <filesystem>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 class SecurityTest : public ::testing::Test {
@@ -20,7 +20,7 @@ protected:
     SecurityManager security_;
 
     void SetUp() override {
-        testDir_ = std::filesystem::temp_directory_path() / "makineai_security_tests";
+        testDir_ = std::filesystem::temp_directory_path() / "makine_security_tests";
         std::filesystem::create_directories(testDir_);
     }
 
@@ -268,4 +268,4 @@ TEST_F(SecurityTest, DifferentAlgorithmsProduceDifferentHashes) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

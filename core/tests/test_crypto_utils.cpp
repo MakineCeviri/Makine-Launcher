@@ -2,11 +2,11 @@
  * @file test_crypto_utils.cpp
  * @brief Unit tests for crypto_utils.hpp
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/crypto_utils.hpp>
+#include <makine/crypto_utils.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 class CryptoUtilsTest : public ::testing::Test {
@@ -374,4 +374,4 @@ TEST_F(CryptoUtilsTest, RandomBytesDistribution) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

@@ -1,16 +1,16 @@
 /**
  * @file ssl_pinning.cpp
  * @brief TLS certificate pinning implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/ssl_pinning.hpp"
-#include "makineai/logging.hpp"
+#include "makine/ssl_pinning.hpp"
+#include "makine/logging.hpp"
 
 #include <curl/curl.h>
 #include <algorithm>
 
-namespace makineai {
+namespace makine {
 namespace ssl {
 
 std::string extractHost(const std::string& url) {
@@ -102,7 +102,7 @@ bool applySslPinning(CURL* curl, const std::string& url) {
 
     auto pinString = buildPinString(host);
     if (pinString.empty()) {
-        MAKINEAI_LOG_WARN(log::NETWORK,
+        MAKINE_LOG_WARN(log::NETWORK,
             "Domain {} is in pinned list but has no pins configured", host);
         return false;
     }
@@ -114,21 +114,21 @@ bool applySslPinning(CURL* curl, const std::string& url) {
 
     if (res == CURLE_NOT_BUILT_IN || res == CURLE_UNKNOWN_OPTION) {
         // CURL was built without pinning support — log but don't fail
-        MAKINEAI_LOG_WARN(log::NETWORK,
+        MAKINE_LOG_WARN(log::NETWORK,
             "CURL SSL pinning not supported in this build, "
             "falling back to standard TLS verification for {}", host);
         return false;
     }
 
     if (res != CURLE_OK) {
-        MAKINEAI_LOG_WARN(log::NETWORK,
+        MAKINE_LOG_WARN(log::NETWORK,
             "Failed to set SSL pin for {}: {}", host, curl_easy_strerror(res));
         return false;
     }
 
-    MAKINEAI_LOG_DEBUG(log::NETWORK, "SSL pinning applied for {}", host);
+    MAKINE_LOG_DEBUG(log::NETWORK, "SSL pinning applied for {}", host);
     return true;
 }
 
 } // namespace ssl
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 /**
  * @file frametimer.h
  * @brief High-precision frame timing for QML render pipeline
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Hooks into QQuickWindow render signals to measure:
  * - Frame-to-frame time (vsync cadence)
@@ -21,7 +21,7 @@
 #include <chrono>
 #include <cstdint>
 
-namespace makineai {
+namespace makine {
 
 class FrameTimer : public QObject
 {
@@ -128,4 +128,4 @@ private:
     int m_interactionJankRaw{0};
 };
 
-} // namespace makineai
+} // namespace makine

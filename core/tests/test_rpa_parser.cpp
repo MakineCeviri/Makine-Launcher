@@ -1,7 +1,7 @@
 /**
  * @file test_rpa_parser.cpp
  * @brief Unit tests for Ren'Py RPA archive parser and pickle decoder
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
@@ -19,8 +19,8 @@
 #include <vector>
 
 namespace fs = std::filesystem;
-using namespace makineai;
-using namespace makineai::formats;
+using namespace makine;
+using namespace makine::formats;
 
 // ============================================================================
 // PICKLE DECODER TESTS
@@ -368,7 +368,7 @@ protected:
     fs::path tempDir;
 
     void SetUp() override {
-        tempDir = fs::temp_directory_path() / "makineai_rpa_test";
+        tempDir = fs::temp_directory_path() / "makine_rpa_test";
         fs::create_directories(tempDir);
     }
 
@@ -416,7 +416,7 @@ protected:
     fs::path tempDir;
 
     void SetUp() override {
-        tempDir = fs::temp_directory_path() / "makineai_rpa_archive_test";
+        tempDir = fs::temp_directory_path() / "makine_rpa_archive_test";
         fs::create_directories(tempDir);
     }
 

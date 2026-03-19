@@ -1,7 +1,7 @@
 /**
  * @file test_sqlite_utils.cpp
  * @brief Unit tests for sqlite_utils.hpp (raw SQLite C++ wrappers)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Tests Value types, Statement, Transaction, and free functions
  * using an in-memory SQLite database.
@@ -9,18 +9,19 @@
 
 #include <gtest/gtest.h>
 #include <sqlite3.h>
-#include <makineai/sqlite_utils.hpp>
+#include <makine/sqlite_utils.hpp>
 #include <filesystem>
 #include <string>
+#include <variant>
 #include <cstdint>
 #include <vector>
 
 
 namespace fs = std::filesystem;
-using namespace makineai;
-using namespace makineai::sqlite;
+using namespace makine;
+using namespace makine::sqlite;
 
-#ifndef MAKINEAI_HAS_SQLITECPP
+#ifndef MAKINE_HAS_SQLITECPP
 
 // =============================================================================
 // TEST FIXTURE -- in-memory SQLite database lifecycle
@@ -394,7 +395,7 @@ TEST_F(SqliteUtilsTest, BackupToTempFile) {
     createTestTable();
     exec(db_, "INSERT INTO test (id, name) VALUES (1, 'backup_test')");
 
-    auto tempPath = fs::temp_directory_path() / "makineai_sqlite_backup_test.db";
+    auto tempPath = fs::temp_directory_path() / "makine_sqlite_backup_test.db";
     auto result = backup(db_, tempPath.string());
     ASSERT_TRUE(result.has_value());
 
@@ -419,20 +420,20 @@ TEST_F(SqliteUtilsTest, BackupToTempFile) {
 }
 
 
-#else  // MAKINEAI_HAS_SQLITECPP
+#else  // MAKINE_HAS_SQLITECPP
 
 TEST(SqliteUtilsTest, SkippedWithSqliteCpp) {
     GTEST_SKIP() << "sqlite_utils raw API tests skipped (SQLiteCpp is available)";
 }
 
-#endif  // !MAKINEAI_HAS_SQLITECPP
+#endif  // !MAKINE_HAS_SQLITECPP
 
 // =============================================================================
 // Info functions (always available, independent of SQLiteCpp)
 // =============================================================================
 
 TEST(SqliteInfoTest, SqliteVersionReturnsNonNull) {
-    const char* version = makineai::sqlite::sqliteVersion();
+    const char* version = makine::sqlite::sqliteVersion();
     ASSERT_NE(version, nullptr);
     EXPECT_GT(std::string(version).size(), 0u);
 }

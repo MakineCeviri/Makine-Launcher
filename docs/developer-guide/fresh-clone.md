@@ -7,8 +7,8 @@ Clone'dan çalışan exe'ye adım adım rehber.
 ## 1. Clone
 
 ```bash
-git clone https://github.com/MakineCeviri/MakineAI-Launcher.git
-cd MakineAI-Launcher
+git clone https://github.com/MakineCeviri/Makine-Launcher.git
+cd Makine-Launcher
 ```
 
 ## 2. Ortam Değişkenleri (.env)
@@ -20,7 +20,7 @@ cp .env.example .env
 
 Gerekli token'lar:
 - `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` — CDN erişimi
-- `MAKINEAI_SENTRY_DSN` — crash reporting (opsiyonel, sadece release build)
+- `MAKINE_SENTRY_DSN` — crash reporting (opsiyonel, sadece release build)
 
 Diğer token'lar (Discord, Railway, Gemini) sadece belirli servisler için gerekli.
 
@@ -29,7 +29,7 @@ Diğer token'lar (Discord, Railway, Gemini) sadece belirli servisler için gerek
 Bu dosya repo'da yoktur. Paket şifreleme/çözme için gereklidir.
 
 ```
-core/include/makineai/encryption_key.h
+core/include/makine/encryption_key.h
 ```
 
 Dosyayı proje sahibinden al veya kendi anahtarını üret. Olmadan build eder ama şifreli paketler çözülemez.
@@ -94,7 +94,7 @@ just run
 # Veya manuel
 cmake --preset dev
 cmake --build --preset dev
-./build/dev/MakineAI.exe
+./build/dev/Makine-Launcher.exe
 ```
 
 ### Build Alternatifleri

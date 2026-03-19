@@ -2,21 +2,21 @@
  * @file test_crash_recovery.cpp
  * @brief Unit tests for crash recovery journal
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/crash_recovery.hpp>
+#include <makine/crash_recovery.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
-using namespace makineai::recovery;
+using namespace makine::recovery;
 
 // =============================================================================
 // Test Fixture — temp directory per test
@@ -27,7 +27,7 @@ protected:
     fs::path testDir_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makineai_crash_recovery_tests";
+        testDir_ = fs::temp_directory_path() / "makine_crash_recovery_tests";
         fs::create_directories(testDir_);
     }
 
@@ -515,4 +515,4 @@ TEST_F(CrashRecoveryTest, ReadPendingWithNoJournal) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

@@ -1,4 +1,4 @@
-# MakineAI - Nihai Vizyon
+# Makine-Launcher - Nihai Vizyon
 
 **Bu doküman uygulamanın ruhudur. Asla silinmemeli.**
 
@@ -144,5 +144,5 @@ Bu vizyon tamamlandığında, uygulama BİTMİŞTİR.
 
 ---
 
-*MakineAI — 2026*
+*Makine-Launcher — 2026*
 *Bu doküman ASLA silinmemelidir.*

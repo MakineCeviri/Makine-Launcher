@@ -2,15 +2,15 @@
  * @file test_memory.cpp
  * @brief Unit tests for memory.hpp — MemoryTracker, MemoryGuard, ScopedMemoryTrack
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/memory.hpp>
+#include <makine/memory.hpp>
 
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 class MemoryTrackerTest : public ::testing::Test {
@@ -284,4 +284,4 @@ TEST(MemoryConvenienceTest, StartStopTracking) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

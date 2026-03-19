@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
- * @brief MakineAI QML Application Entry Point
- * @copyright (c) 2026 MakineAI Team
+ * @brief Makine Launcher QML Application Entry Point
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include <QGuiApplication>
@@ -32,7 +32,7 @@
 #include "services/crashreporter.h"
 #include <QLoggingCategory>
 
-Q_LOGGING_CATEGORY(lcApp, "makineai.app")
+Q_LOGGING_CATEGORY(lcApp, "makine.app")
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -188,7 +188,7 @@ public:
     }
 
 private:
-    // Brand gradient palette (MakineAI official colors)
+    // Brand gradient palette (Makine official colors)
     static constexpr COLORREF kBrandColors[] = {
         RGB(252, 205, 102), RGB(247, 174, 118), RGB(238, 150, 143),
         RGB(204, 159, 216), RGB(144, 194, 230), RGB(119, 219, 200),
@@ -416,8 +416,8 @@ private:
             HFONT oldFont = (HFONT)SelectObject(mem, verFont);
             SetTextColor(mem, RGB(60, 60, 75));
             RECT verRc = {0, h - 24, w - 14, h - 8};
-            // Version from CMake — MAKINEAI_APP_VERSION is narrow, convert to wide
-            auto _verStr = QStringLiteral("v" MAKINEAI_APP_VERSION);
+            // Version from CMake — MAKINE_APP_VERSION is narrow, convert to wide
+            auto _verStr = QStringLiteral("v" MAKINE_APP_VERSION);
             DrawTextW(mem, (LPCWSTR)_verStr.utf16(), -1, &verRc, DT_RIGHT | DT_SINGLELINE);
             SelectObject(mem, oldFont);
             DeleteObject(verFont);
@@ -459,7 +459,7 @@ private:
         WNDCLASSW wc{};
         wc.lpfnWndProc = wndProc;
         wc.hInstance = GetModuleHandleW(nullptr);
-        wc.lpszClassName = L"MakineAISplash";
+        wc.lpszClassName = L"MakineSplash";
         wc.hbrBackground = CreateSolidBrush(RGB(10, 10, 15));
         wc.hCursor = LoadCursorW(nullptr, IDC_APPSTARTING);
         RegisterClassW(&wc);
@@ -470,7 +470,7 @@ private:
 
         self->m_hwnd = CreateWindowExW(
             WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-            L"MakineAISplash", L"",
+            L"MakineSplash", L"",
             WS_POPUP,
             sx, sy, w, h,
             nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
@@ -522,9 +522,9 @@ constexpr int kStartupSettleMs = 5000;
 // Resolve log file path using organized directory layout
 #include "services/apppaths.h"
 static QString getLogFilePath() {
-    QString logDir = makineai::AppPaths::logsDir();
+    QString logDir = makine::AppPaths::logsDir();
     QDir().mkpath(logDir);
-    return makineai::AppPaths::debugLog();
+    return makine::AppPaths::debugLog();
 }
 
 // File-based logging for debugging
@@ -559,7 +559,7 @@ void logToFile(const QString& msg) {
 #include "services/manifestsyncservice.h"
 #include "services/translationdownloader.h"
 #include "services/corebridge.h"
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
 #include "services/frametimer.h"
 #include "services/sceneprofiler.h"
 #include "services/memoryprofiler.h"
@@ -567,7 +567,7 @@ void logToFile(const QString& msg) {
 
 // Bring service types into scope for helper function signatures.
 // NOLINT: spdlog is not used in this file — no ADL collision risk.
-using namespace makineai;
+using namespace makine;
 
 // -----------------------------------------------------------------------------
 // Forward declarations of helper functions
@@ -632,7 +632,7 @@ static void setupRootWindow(
 // Schedule post-startup heap compact + working-set release.
 static void scheduleMemoryTrim();
 
-// Wire performance reporting for MAKINEAI_PERF_ACTIVE builds.
+// Wire performance reporting for MAKINE_PERF_ACTIVE builds.
 static void setupPerfReporting(QGuiApplication& app, int argc, char* argv[]);
 
 // -----------------------------------------------------------------------------
@@ -677,7 +677,7 @@ static void configureQtEnvironment()
     // The numeric factor is persisted so configureWindowOnReady() can
     // size the window to the exact matching physical resolution.
     {
-        QSettings settings("MakineAI", "MakineAI");
+        QSettings settings("MakineCeviri", "Makine-Launcher");
         QString uiScale = settings.value("appearance/uiScale", "auto").toString();
 
         double effectiveScale = 1.0;
@@ -724,11 +724,11 @@ static bool acquireSingleInstance(bool isPostUpdate)
     const int maxRetries = isPostUpdate ? 10 : 1;
 
     for (int attempt = 0; attempt < maxRetries; ++attempt) {
-        QSharedMemory cleanupMemory("MakineAI_SingleInstance_Guard");
+        QSharedMemory cleanupMemory("MakineLauncher_SingleInstance_Guard");
         if (cleanupMemory.attach())
             cleanupMemory.detach();
 
-        QSharedMemory testGuard("MakineAI_SingleInstance_Guard");
+        QSharedMemory testGuard("MakineLauncher_SingleInstance_Guard");
         if (testGuard.create(1))
             return true;
 
@@ -746,18 +746,18 @@ static bool acquireSingleInstance(bool isPostUpdate)
 static void configureApplication(QGuiApplication& app)
 {
     // Set dynamically after SettingsManager init (based on minimizeToTray)
-    app.setApplicationName("MakineAI");
-    app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - MakineAI"));
-    app.setApplicationVersion(MAKINEAI_APP_VERSION);
-    app.setOrganizationName("MakineAI");
-    app.setOrganizationDomain("makineai.com");
-    app.setWindowIcon(QIcon(":/qt/qml/MakineAI/resources/images/logo.png"));
+    app.setApplicationName("Makine-Launcher");
+    app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - Makine Launcher"));
+    app.setApplicationVersion(MAKINE_APP_VERSION);
+    app.setOrganizationName("MakineCeviri");
+    app.setOrganizationDomain("makineceviri.net");
+    app.setWindowIcon(QIcon(":/qt/qml/MakineLauncher/resources/images/logo.png"));
     QQuickStyle::setStyle("Basic");
 
-    int interRegular = QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Regular.ttf");
-    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Medium.ttf");
-    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-SemiBold.ttf");
-    QFontDatabase::addApplicationFont(":/qt/qml/MakineAI/resources/fonts/Inter-Bold.ttf");
+    int interRegular = QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Medium.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-SemiBold.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Bold.ttf");
 
     QString fontFamily = interRegular >= 0 ? "Inter" : "Segoe UI";
     QFont defaultFont(fontFamily, 10);
@@ -779,7 +779,7 @@ static void configureApplication(QGuiApplication& app)
 static void configureEngine(QQmlApplicationEngine& engine)
 {
     // Dev tools availability (must be set BEFORE QML creation)
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     engine.rootContext()->setContextProperty("devToolsEnabled", true);
 #else
     engine.rootContext()->setContextProperty("devToolsEnabled", false);
@@ -789,9 +789,9 @@ static void configureEngine(QQmlApplicationEngine& engine)
     // Manual registration — works in both shared and static Qt builds.
     // (QML_ELEMENT/QML_SINGLETON relies on linker keeping registration code,
     //  which --gc-sections strips in static builds.)
-    qmlRegisterUncreatableType<makineai::SupportedGamesModel>("MakineAI", 1, 0,
+    qmlRegisterUncreatableType<makine::SupportedGamesModel>("MakineLauncher", 1, 0,
         "SupportedGamesModel", "Use GameService.supportedGamesModel");
-    qmlRegisterType<makineai::CatalogProxyModel>("MakineAI", 1, 0, "CatalogProxyModel");
+    qmlRegisterType<makine::CatalogProxyModel>("MakineLauncher", 1, 0, "CatalogProxyModel");
 }
 
 static void createServices(
@@ -810,7 +810,7 @@ static void createServices(
     ProcessScanner*& outProcessScanner)
 {
     // ===== Phase 1: Directory structure + configuration =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 1: Directory structure + configuration");
+    makine::CrashReporter::addBreadcrumb("startup", "Phase 1: Directory structure + configuration");
 #ifdef Q_OS_WIN
     splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
 #endif
@@ -854,13 +854,13 @@ static void createServices(
     // syncCatalog() called in Phase 7.5 — loads catalog index before QML creation
 
     auto* translationDownloader = new TranslationDownloader(&app);
-    translationDownloader->setDataPath(makineai::AppPaths::packagesDir());
+    translationDownloader->setDataPath(makine::AppPaths::packagesDir());
     engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
 
     // UpdateService registered as singleton instance in Phase 7 (below)
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 3: Game library construction");
+    makine::CrashReporter::addBreadcrumb("startup", "Phase 3: Game library construction");
 #ifdef Q_OS_WIN
     splash.setStatus(L"Oyun k\u00FCt\u00FCphanesi haz\u0131rlan\u0131yor...");
 #endif
@@ -915,7 +915,7 @@ static void createServices(
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
     // ===== Phase 6b: Plugin system (dev builds only) =====
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     auto* pluginManager = new PluginManager(&app);
     pluginManager->discoverPlugins();
     pluginManager->loadEnabledPlugins();
@@ -933,7 +933,7 @@ static void createServices(
 #endif
 
     // ===== Phase 7: Update service + system tray =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
+    makine::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
 #ifdef Q_OS_WIN
     splash.setStatus(L"G\u00FCncelleme servisi haz\u0131rlan\u0131yor...");
 #endif
@@ -941,7 +941,7 @@ static void createServices(
     updateService->setParent(&app);
     // Singleton instance: exposes BOTH the instance AND Q_ENUM(State) values to QML.
     // (setContextProperty only exposes the instance — enum constants resolve to undefined)
-    qmlRegisterSingletonInstance("MakineAI", 1, 0, "UpdateService", updateService);
+    qmlRegisterSingletonInstance("MakineLauncher", 1, 0, "UpdateService", updateService);
 
     // Startup update check — once, async, unless we just updated
     if (!isPostUpdate)
@@ -978,7 +978,7 @@ static void wireSignals(
     // so we inject it + rebuild on every scanCompleted.
     QObject::connect(gameService, &GameService::scanCompleted,
                      processScanner, [processScanner]() {
-        processScanner->setPackageManager(makineai::CoreBridge::instance()->packageManager());
+        processScanner->setPackageManager(makine::CoreBridge::instance()->packageManager());
         processScanner->rebuildProcessMap();
     });
 
@@ -995,14 +995,14 @@ static void wireSignals(
 
     // Connect ManifestSync signals BEFORE syncing,
     // so catalogReady/packageDetailReady are never missed.
-    QObject::connect(manifestSync, &makineai::ManifestSyncService::catalogReady,
+    QObject::connect(manifestSync, &makine::ManifestSyncService::catalogReady,
         gameService, []() {
-            if (auto* bridge = makineai::CoreBridge::instance())
+            if (auto* bridge = makine::CoreBridge::instance())
                 bridge->refreshPackageManifest();
         });
-    QObject::connect(manifestSync, &makineai::ManifestSyncService::packageDetailReady,
+    QObject::connect(manifestSync, &makine::ManifestSyncService::packageDetailReady,
         gameService, [manifestSync](const QString& appId) {
-            if (auto* bridge = makineai::CoreBridge::instance()) {
+            if (auto* bridge = makine::CoreBridge::instance()) {
                 QVariantMap detail = manifestSync->getPackageDetail(appId);
                 QJsonDocument doc(QJsonObject::fromVariantMap(detail));
                 bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
@@ -1012,13 +1012,13 @@ static void wireSignals(
 
 static void logStartupDiagnostics(QGuiApplication& app, QQmlApplicationEngine& engine)
 {
-    logToFile("=== MakineAI Starting ===");
+    logToFile("=== Makine Launcher Starting ===");
     logToFile(QString("App version: %1").arg(app.applicationVersion()));
     logToFile(QString("Qt version: %1").arg(qVersion()));
     logToFile(QString("Log file: %1").arg(getLogFilePath()));
     logToFile(QString("QSG_RENDER_LOOP: %1").arg(qEnvironmentVariable("QSG_RENDER_LOOP")));
     {
-        QSettings settings("MakineAI", "MakineAI");
+        QSettings settings("MakineCeviri", "Makine-Launcher");
         auto api = QQuickWindow::graphicsApi();
         QString apiName = api == QSGRendererInterface::Direct3D12 ? "D3D12" :
                           api == QSGRendererInterface::Vulkan     ? "Vulkan" :
@@ -1086,7 +1086,7 @@ static void setupRootWindow(
         constexpr int refH = 700;    // reference logical height
 
         // Effective scale (computed once at startup, includes auto-fit)
-        QSettings settings("MakineAI", "MakineAI");
+        QSettings settings("MakineCeviri", "Makine-Launcher");
         double scaleFactor = settings.value("appearance/_appliedScaleFactor", 1.0).toDouble();
 
         // Window size = reference × effective scale (logical pixels, Qt handles DPI)
@@ -1187,7 +1187,7 @@ static void setupRootWindow(
         MAKINE_FRAME;
     }, Qt::DirectConnection);
 
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     // Dev-only frame timer: high-precision render pipeline metrics
     auto* frameTimer = new FrameTimer(&app);
     engine.rootContext()->setContextProperty("FrameTimer", frameTimer);
@@ -1211,8 +1211,8 @@ static void setupRootWindow(
 
     // Dump profiler reports on exit
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [sceneProfiler, memoryProfiler, imageCache]() {
-#ifdef MAKINEAI_PERF_ACTIVE
-        auto& reporter = makineai::PerfReporter::instance();
+#ifdef MAKINE_PERF_ACTIVE
+        auto& reporter = makine::PerfReporter::instance();
         reporter.addCustomSection(QStringLiteral("scene"), sceneProfiler->sceneReport());
         reporter.addCustomSection(QStringLiteral("memory"), memoryProfiler->memoryReport());
 
@@ -1256,8 +1256,8 @@ static void scheduleMemoryTrim()
 
 static void setupPerfReporting(QGuiApplication& app, int argc, char* argv[])
 {
-#ifdef MAKINEAI_PERF_ACTIVE
-    makineai::PerfReporter::instance().setMainThread();
+#ifdef MAKINE_PERF_ACTIVE
+    makine::PerfReporter::instance().setMainThread();
 
     // --profile-duration=N: auto-quit after N seconds (automated profiling)
     for (int i = 1; i < argc; ++i) {
@@ -1279,8 +1279,8 @@ static void setupPerfReporting(QGuiApplication& app, int argc, char* argv[])
 
     // Dump performance report on exit
     QObject::connect(&app, &QCoreApplication::aboutToQuit, []() {
-        QString reportPath = makineai::AppPaths::perfReportFile();
-        makineai::PerfReporter::instance().dumpReport(reportPath);
+        QString reportPath = makine::AppPaths::perfReportFile();
+        makine::PerfReporter::instance().dumpReport(reportPath);
         logToFile(QString("Performance report saved to: %1").arg(reportPath));
     });
 #else
@@ -1311,34 +1311,34 @@ int main(int argc, char *argv[])
     if (!acquireSingleInstance(isPostUpdate)) {
 #ifdef Q_OS_WIN
         MessageBoxW(nullptr,
-            L"MakineAI zaten \u00e7al\u0131\u015f\u0131yor.\n\n"
+            L"Makine Launcher zaten \u00e7al\u0131\u015f\u0131yor.\n\n"
             L"L\u00fctfen sistem tepsisindeki simgeyi kontrol edin "
             L"veya g\u00f6rev y\u00f6neticisinden kapat\u0131n.",
-            L"MakineAI",
+            L"Makine Launcher",
             MB_OK | MB_ICONWARNING);
 #endif
         return 0;
     }
 
     // Persistent guard — lives for the lifetime of the process
-    QSharedMemory singleInstanceGuard("MakineAI_SingleInstance_Guard");
+    QSharedMemory singleInstanceGuard("MakineLauncher_SingleInstance_Guard");
     singleInstanceGuard.create(1);
 
     QGuiApplication app(argc, argv);
 
     // === Phase 0: Crash reporting (as early as possible after QApp) ===
-    makineai::CrashReporter::initialize();
-    makineai::CrashReporter::installQtMessageHandler();
+    makine::CrashReporter::initialize();
+    makine::CrashReporter::installQtMessageHandler();
 
     // Anti-RE: run all checks before anything else (no-op in debug builds)
-    makineai::protection::initialize();
+    makine::protection::initialize();
 
 #ifdef Q_OS_WIN
     SplashWindow splash;
     // Load Inter font for splash (before splash thread starts)
     bool interLoaded = false;
     {
-        QFile fontFile(":/qt/qml/MakineAI/resources/fonts/Inter-Medium.ttf");
+        QFile fontFile(":/qt/qml/MakineLauncher/resources/fonts/Inter-Medium.ttf");
         if (fontFile.open(QIODevice::ReadOnly)) {
             QByteArray fontData = fontFile.readAll();
             DWORD numFonts = 0;
@@ -1349,7 +1349,7 @@ int main(int argc, char *argv[])
     splash.setInterFont(interLoaded);
     // Load logo from Qt resources and scale for splash
     {
-        QImage logoImg(":/qt/qml/MakineAI/resources/images/logo.png");
+        QImage logoImg(":/qt/qml/MakineLauncher/resources/images/logo.png");
         if (!logoImg.isNull())
             splash.setLogo(logoImg.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
@@ -1399,7 +1399,7 @@ int main(int argc, char *argv[])
     QQmlComponent mainComponent(&engine);
     {
         MAKINE_ZONE_NAMED("QML::loadFromModule");
-        mainComponent.loadFromModule("MakineAI", "Main");
+        mainComponent.loadFromModule("MakineLauncher", "Main");
 
         // Pump events while QML compiles (first launch is slow)
 #ifdef Q_OS_WIN
@@ -1416,7 +1416,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
         splash.close();
 #endif
-        makineai::CrashReporter::shutdown();
+        makine::CrashReporter::shutdown();
         return -1;
     }
 
@@ -1441,7 +1441,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
         splash.close();
 #endif
-        makineai::CrashReporter::shutdown();
+        makine::CrashReporter::shutdown();
         return -1;
     }
     engine.setObjectOwnership(rootObject, QQmlEngine::JavaScriptOwnership);
@@ -1449,7 +1449,7 @@ int main(int argc, char *argv[])
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 10: Pre-render + finalize =====
-    makineai::CrashReporter::addBreadcrumb("startup", "Phase 10: Pre-render + finalize");
+    makine::CrashReporter::addBreadcrumb("startup", "Phase 10: Pre-render + finalize");
 #ifdef Q_OS_WIN
     splash.setStatus(L"Son haz\u0131rl\u0131klar yap\u0131l\u0131yor...");
     splash.pumpMessages();
@@ -1471,9 +1471,9 @@ int main(int argc, char *argv[])
     logToFile("Entering event loop...");
 
     // Anti-RE: periodic re-checks once event loop is running
-    makineai::protection::schedulePeriodicChecks();
+    makine::protection::schedulePeriodicChecks();
 
     int exitCode = app.exec();
-    makineai::CrashReporter::shutdown();
+    makine::CrashReporter::shutdown();
     return exitCode;
 }

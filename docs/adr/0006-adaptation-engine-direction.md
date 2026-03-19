@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The original MakineAI architecture (ADR-0003, ADR-0005) was designed around a string extraction pipeline with engine-specific handlers (UnityHandler, UnrealHandler, etc.) and a translation decision engine with weighted scoring. This approach had several fundamental problems:
+The original Makine-Launcher architecture (ADR-0003, ADR-0005) was designed around a string extraction pipeline with engine-specific handlers (UnityHandler, UnrealHandler, etc.) and a translation decision engine with weighted scoring. This approach had several fundamental problems:
 
 1. **Redundant work**: Game modding communities already have mature tools for each engine (BepInEx for Unity, UE4SS for Unreal, RPG Maker modding tools, etc.). Reimplementing string extraction per engine is duplicating effort.
 

@@ -2,7 +2,7 @@
  * @file misc_detectors.cpp
  * @brief Miscellaneous engine detectors: Bethesda, Godot, GameMaker, Source,
  *        CryEngine, Frostbite, id Tech
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "engine_detectors.hpp"
@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 namespace fs = std::filesystem;
 
@@ -362,4 +362,4 @@ EngineDetectionResult detectIdTech(const fs::path& path, const GameSignatures& s
     return result;
 }
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

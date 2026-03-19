@@ -29,9 +29,9 @@ except ImportError:
 
 SENTRY_BASE_URL = "https://sentry.io/api/0"
 SENTRY_ORG = "makine-ceviri"
-SENTRY_PROJECT = "makineai"
+SENTRY_PROJECT = "makine-launcher"
 GITHUB_ORG = "MakineCeviri"
-GITHUB_REPO = "MakineAI"
+GITHUB_REPO = "Makine-Launcher"
 
 
 def load_env():

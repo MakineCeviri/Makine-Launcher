@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -285,7 +285,7 @@ ColumnLayout {
 
             ClickableRow {
                 title: qsTr("Aramıza Katıl")
-                subtitle: qsTr("MakineAI ekibine katılın")
+                subtitle: qsTr("MakineCeviri ekibine katılın")
                 onClicked: Qt.openUrlExternally("https://makineceviri.net")
             }
         }

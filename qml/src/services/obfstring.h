@@ -1,7 +1,7 @@
 /**
  * @file obfstring.h
  * @brief Compile-time XOR string encryption
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Every OBF("text") call produces a unique XOR-encrypted byte sequence
  * at compile time. The plaintext never appears in the binary's .rodata.

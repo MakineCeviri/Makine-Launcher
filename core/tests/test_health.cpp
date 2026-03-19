@@ -2,17 +2,17 @@
  * @file test_health.cpp
  * @brief Unit tests for health.hpp -- ComponentHealth, HealthStatus, HealthChecker
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/health.hpp>
+#include <makine/health.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
@@ -197,7 +197,7 @@ class HealthCheckerTest : public ::testing::Test {
 protected:
     fs::path testDir_;
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makineai_health_tests";
+        testDir_ = fs::temp_directory_path() / "makine_health_tests";
         fs::create_directories(testDir_);
         HealthChecker::instance().setDataDirectory("");
         HealthChecker::instance().setDatabasePath("");
@@ -349,4 +349,4 @@ TEST(HealthConvenienceTest, IsSystemHealthy) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

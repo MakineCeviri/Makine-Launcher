@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-This directory contains Architecture Decision Records for the MakineAI project.
+This directory contains Architecture Decision Records for the Makine-Launcher project.
 
 ## What is an ADR?
 

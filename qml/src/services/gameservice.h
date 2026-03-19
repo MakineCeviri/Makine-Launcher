@@ -1,7 +1,7 @@
 /**
  * @file gameservice.h
  * @brief Game management backend service
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -21,7 +21,7 @@
 #include "steamdetailsservice.h"
 #include "supportedgamesmodel.h"
 
-namespace makineai {
+namespace makine {
 
 /**
  * @brief Game data model
@@ -337,6 +337,6 @@ private:
     SupportedGamesModel* m_supportedGamesModel{nullptr};
 };
 
-} // namespace makineai
+} // namespace makine
 
-Q_DECLARE_METATYPE(makineai::GameInfo)
+Q_DECLARE_METATYPE(makine::GameInfo)

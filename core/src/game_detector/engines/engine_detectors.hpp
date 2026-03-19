@@ -1,7 +1,7 @@
 /**
  * @file engine_detectors.hpp
  * @brief Free function declarations for engine detection
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Each detector is a pure stateless function:
  *   - takes a game path + pre-scanned GameSignatures
@@ -12,13 +12,13 @@
 
 #pragma once
 
-#include "makineai/game_detector.hpp"
+#include "makine/game_detector.hpp"
 
 #include <filesystem>
 #include <string>
 #include <vector>
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 namespace fs = std::filesystem;
 
@@ -72,4 +72,4 @@ inline std::string joinDetails(const std::vector<std::string>& details) {
 std::string readUnityVersion(const fs::path& gameDir);
 std::string readRenpyVersion(const fs::path& gameDir);
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

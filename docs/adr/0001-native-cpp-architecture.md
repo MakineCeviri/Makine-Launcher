@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-MakineAI requires:
+Makine-Launcher requires:
 - High-performance file parsing (game assets can be hundreds of MB)
 - Low-level binary manipulation for patching
 - Cross-platform filesystem operations
@@ -25,7 +25,7 @@ This architecture had several issues:
 
 ## Decision
 
-Rebuild MakineAI with a pure C++20/23 core library and Qt6/QML for the UI.
+Rebuild Makine-Launcher with a pure C++20/23 core library and Qt6/QML for the UI.
 
 Architecture:
 ```
@@ -34,7 +34,7 @@ Architecture:
 ├─────────────────────────────────┤
 │      Qt C++ Service Layer       │
 ├─────────────────────────────────┤
-│       MakineAI C++ Core         │
+│      Makine-Launcher C++ Core    │
 │  ┌────────────────────────────┐ │
 │  │ Handlers │ Parsers │ TM    │ │
 │  ├────────────────────────────┤ │
@@ -44,7 +44,7 @@ Architecture:
 ```
 
 - C++20 minimum, C++23 where available
-- Static library (`makineai_core.lib`) linked directly
+- Static library (`makine_core.lib`) linked directly
 - Qt6 for UI (QML for modern, declarative interface)
 - vcpkg for dependency management
 

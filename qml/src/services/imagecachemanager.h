@@ -1,7 +1,7 @@
 /**
  * @file imagecachemanager.h
  * @brief Disk-based image cache for game images from R2 CDN
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Downloads game card images from Cloudflare R2 CDN and stores them
  * locally in AppData cache for instant loading on subsequent launches.
@@ -16,7 +16,7 @@
 #include <QVariantMap>
 #include <QNetworkAccessManager>
 
-namespace makineai {
+namespace makine {
 
 class ImageCacheManager : public QObject
 {
@@ -56,7 +56,7 @@ public:
     int cachedImageCount() const;
     qint64 cachedImageBytes() const;
 
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     Q_INVOKABLE QVariantMap imageStats() const;
 #endif
 
@@ -86,11 +86,11 @@ private:
     mutable int m_cachedImageCount{-1};        // Incremental image count tracking
     static constexpr int MAX_CONCURRENT = 8;
 
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     int m_downloadCount{0};
     int m_cacheHitCount{0};
     int m_queuePeakSize{0};
 #endif
 };
 
-} // namespace makineai
+} // namespace makine

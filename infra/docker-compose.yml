@@ -1,11 +1,11 @@
-# MakineAI CI/CD Infrastructure — Portainer Stack
+# Makine-Launcher CI/CD Infrastructure — Portainer Stack
 #
 # Portainer'dan deploy:
 #   Stacks > Add stack > Upload docker-compose.yml
 #   Environment variables'a GITHUB_PAT ekle
 #
 # Veya CLI'dan:
-#   cd /opt/makineai && docker compose -p makineai up -d
+#   cd /opt/makine-launcher && docker compose -p makine-launcher up -d
 #
 # Environment variables (Portainer stack config veya .env dosyasi):
 #   GITHUB_PAT — GitHub PAT (repo scope) — runner auto-registration icin
@@ -18,11 +18,11 @@ services:
     image: myoung34/github-runner:latest
     restart: unless-stopped
     environment:
-      RUNNER_NAME: makineai-server
+      RUNNER_NAME: makine-launcher-server
       RUNNER_WORKDIR: /home/runner/_work
       LABELS: deploy,linux,self-hosted
       RUNNER_SCOPE: repo
-      REPO_URL: https://github.com/MakineCeviri/MakineAI-Launcher
+      REPO_URL: https://github.com/MakineCeviri/Makine-Launcher
       ACCESS_TOKEN: ${GITHUB_PAT}
       DISABLE_AUTO_UPDATE: "true"
       REPLACE_EXISTING_RUNNER: "true"
@@ -30,8 +30,8 @@ services:
       - runner-work:/home/runner/_work
       - runner-data:/home/runner
     labels:
-      - "com.makineai.service=ci-runner"
-      - "com.makineai.description=GitHub Actions self-hosted runner for deployments"
+      - "com.makine.service=ci-runner"
+      - "com.makine.description=GitHub Actions self-hosted runner for deployments"
 
   # ── Release File Server ───────────────────────────────────────────────
   # Release artifact'lerini sunar (GitHub Releases yedegi)
@@ -47,8 +47,8 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     labels:
-      - "com.makineai.service=release-server"
-      - "com.makineai.description=Release artifact file server"
+      - "com.makine.service=release-server"
+      - "com.makine.description=Release artifact file server"
 
 volumes:
   runner-work:

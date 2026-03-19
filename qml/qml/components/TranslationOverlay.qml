@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Window
-import MakineAI 1.0
+import MakineLauncher 1.0
 
 /**
  * Minimal frameless overlay — just translated text, nothing else.

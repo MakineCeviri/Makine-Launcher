@@ -1,11 +1,11 @@
 /**
  * @file registry.cpp
  * @brief Windows registry operations
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/types.hpp"
-#include "makineai/error.hpp"
+#include "makine/types.hpp"
+#include "makine/error.hpp"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -13,7 +13,7 @@
 #include <vector>
 #include <optional>
 
-namespace makineai::platform::windows {
+namespace makine::platform::windows {
 
 // RAII wrapper for Windows registry key handles
 class RegKeyGuard {
@@ -251,6 +251,6 @@ std::optional<UninstallInfo> getUninstallInfo(const std::string& productCode) {
     return info;
 }
 
-} // namespace makineai::platform::windows
+} // namespace makine::platform::windows
 
 #endif // _WIN32

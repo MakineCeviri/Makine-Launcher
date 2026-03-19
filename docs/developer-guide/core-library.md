@@ -1,6 +1,6 @@
 # Core Kütüphane
 
-MakineAI C++ Core kütüphanesinin detaylı açıklaması.
+Makine-Launcher C++ Core kütüphanesinin detaylı açıklaması.
 
 > **Not:** Core kütüphane `dev` (MinGW+vcpkg) ve `release` (MSVC+vcpkg) build'lerde
 > UI'ya entegre çalışır. `dev-ui` build'de Core devre dışıdır, saf Qt servisleri kullanılır.
@@ -9,7 +9,7 @@ MakineAI C++ Core kütüphanesinin detaylı açıklaması.
 
 ## Genel Bakış
 
-Core kütüphane, MakineAI'nin ileri iş mantığı içeren C++ kütüphanesidir.
+Core kütüphane, Makine-Launcher'ın ileri iş mantığı içeren C++ kütüphanesidir.
 
 **Özellikler:**
 - Modern C++20/23
@@ -23,7 +23,7 @@ Core kütüphane, MakineAI'nin ileri iş mantığı içeren C++ kütüphanesidir
 
 ```
 core/
-├── include/makineai/
+├── include/makine/
 │   ├── core.hpp           # Ana header
 │   ├── types.hpp          # Tip tanimlari
 │   ├── error.hpp          # Hata tipleri
@@ -69,9 +69,9 @@ core/
 Ana giriş noktası:
 
 ```cpp
-#include <makineai/core.hpp>
+#include <makine/core.hpp>
 
-auto& core = makineai::Core::instance();
+auto& core = makine::Core::instance();
 auto result = core.initialize();
 
 if (result) {
@@ -173,8 +173,8 @@ auto game = *result;
 
 ```cpp
 CoreConfig config;
-config.dataDir = "C:/MakineAI/data";
-config.cacheDir = "C:/MakineAI/cache";
+config.dataDir = "C:/MakineLauncher/data";
+config.cacheDir = "C:/MakineLauncher/cache";
 config.logLevel = LogLevel::Info;
 
 core.initialize(config);

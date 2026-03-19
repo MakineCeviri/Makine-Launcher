@@ -1,6 +1,6 @@
 # Geliştirme Ortamı Kurulumu
 
-Bu kılavuz MakineAI geliştirme ortamının kurulumunu anlatmaktadır.
+Bu kılavuz Makine-Launcher geliştirme ortamının kurulumunu anlatmaktadır.
 
 ---
 
@@ -40,7 +40,7 @@ Visual Studio Installer'dan kurun:
 
 ```bash
 git clone <repo-url>
-cd MakineAI-Launcher
+cd Makine-Launcher
 ```
 
 ### 2. vcpkg Kurulumu
@@ -72,7 +72,7 @@ setx Qt6_DIR "C:\Qt\6.10.1\msvc2022_64"
 ### 4. Bağımlılıkları Kur
 
 ```bash
-cd C:\cedra\MakineAI
+cd C:\Workspace\Makine\Makine-Launcher
 
 # just ile (önerilen)
 just setup
@@ -144,7 +144,7 @@ cmake --preset dev
 cmake --build build/dev
 
 # Run
-./build/dev/MakineAI.exe
+./build/dev/Makine-Launcher.exe
 ```
 
 ---
@@ -166,7 +166,7 @@ cmake --build build/dev
 
 Build başarılı ise:
 ```bash
-./build/dev/MakineAI.exe
+./build/dev/Makine-Launcher.exe
 ```
 
 Uygulama açılmalı ve ana ekranı göstermelidir.

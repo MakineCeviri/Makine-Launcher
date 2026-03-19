@@ -3,10 +3,10 @@
 /**
  * @file localpackagemanager.h
  * @brief Local translation package management
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Manages translation packages via network-based catalog.
- * Delegates catalog/query operations to makineai::packages::PackageCatalog.
+ * Delegates catalog/query operations to makine::packages::PackageCatalog.
  * Install/uninstall file operations stay in this QML service.
  */
 
@@ -24,9 +24,9 @@
 #include <set>
 #include <string>
 
-#include <makineai/package_catalog.hpp>
+#include <makine/package_catalog.hpp>
 
-namespace makineai {
+namespace makine {
 
 class OperationJournal;
 
@@ -247,4 +247,4 @@ private:
     std::atomic<bool> m_cancelRequested{false};
 };
 
-} // namespace makineai
+} // namespace makine

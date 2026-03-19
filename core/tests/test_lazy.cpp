@@ -2,17 +2,17 @@
  * @file test_lazy.cpp
  * @brief Unit tests for lazy.hpp — Lazy<T>, LazyFile, LazyJson, LazyResource
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/lazy.hpp>
+#include <makine/lazy.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
@@ -165,7 +165,7 @@ protected:
     fs::path testDir_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makineai_lazy_tests";
+        testDir_ = fs::temp_directory_path() / "makine_lazy_tests";
         fs::create_directories(testDir_);
     }
 
@@ -478,4 +478,4 @@ TEST_F(LazyFileTest, LazyJsonConvenience) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

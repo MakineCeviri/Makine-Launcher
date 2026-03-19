@@ -1,4 +1,4 @@
-# MakineAI Kapsamli Guvenlik Iyilestirme Plani
+# Makine-Launcher Kapsamli Guvenlik Iyilestirme Plani
 # =============================================
 # Tarih: 2026-02-12
 # Durum: Onay bekliyor (plan mode)
@@ -30,26 +30,26 @@ Satir 291 civarinda, `endif()` oncesine eklenecek:
 ```cmake
 # ===== Security Hardening =====
 if(MSVC)
-    target_compile_options(MakineAI PRIVATE
+    target_compile_options(MakineLauncher PRIVATE
         /GS           # Buffer security check (stack cookies)
         /guard:cf     # Control Flow Guard
         /sdl          # Additional security checks
         /DYNAMICBASE  # ASLR
         /NXCOMPAT     # DEP (Data Execution Prevention)
     )
-    target_link_options(MakineAI PRIVATE
+    target_link_options(MakineLauncher PRIVATE
         /DYNAMICBASE          # ASLR
         /NXCOMPAT             # DEP
         /HIGHENTROPYVA        # 64-bit ASLR
         /CETCOMPAT            # Intel CET shadow stack
     )
 elseif(MINGW OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(MakineAI PRIVATE
+    target_compile_options(MakineLauncher PRIVATE
         -fstack-protector-strong      # Stack smashing protection
         -D_FORTIFY_SOURCE=2           # Buffer overflow detection
         -Wformat -Wformat-security    # Format string warnings
     )
-    target_link_options(MakineAI PRIVATE
+    target_link_options(MakineLauncher PRIVATE
         -Wl,--dynamicbase             # ASLR
         -Wl,--nxcompat                # DEP
         -Wl,--high-entropy-va         # 64-bit ASLR
@@ -59,7 +59,7 @@ endif()
 
 ### 1b. `core/CMakeLists.txt`
 
-Satir 184 sonrasi (add_library sonrasi). Ayni blok, target adi `makineai_core`.
+Satir 184 sonrasi (add_library sonrasi). Ayni blok, target adi `makine_core`.
 
 ### 1c. QML Release Hardening — `qml/src/main.cpp`
 
@@ -86,7 +86,7 @@ CMakeLists.txt'te BACKEND_HEADERS listesine eklenmeli: `src/services/pathsecurit
 #include <QFileInfo>
 #include <QDebug>
 
-namespace makineai::security {
+namespace makine::security {
 
 // Resolved path'in base directory icinde kaldigini kontrol et
 inline bool isPathContained(const QString& basePath, const QString& fullPath) {
@@ -125,7 +125,7 @@ inline bool isPathSafe(const QString& path) {
     return true;
 }
 
-} // namespace makineai::security
+} // namespace makine::security
 ```
 
 ### 2b. `localpackagemanager.cpp` — Install traversal fix (KRITIK)
@@ -218,7 +218,7 @@ std::string vdfContent = vdfFile.readAll().toStdString();
 
 // SONRA:
 QByteArray rawContent = vdfFile.readAll();
-if (rawContent.size() > static_cast<qsizetype>(makineai::vdf::detail::kMaxVdfFileSize)) {
+if (rawContent.size() > static_cast<qsizetype>(makine::vdf::detail::kMaxVdfFileSize)) {
     qWarning() << "VDF file too large, skipping:" << vdfPath;
     return;
 }
@@ -293,7 +293,7 @@ QByteArray SettingsManager::protectData(const QByteArray& plaintext) {
         reinterpret_cast<BYTE*>(const_cast<char*>(plaintext.data()))
     };
     DATA_BLOB output{};
-    if (CryptProtectData(&input, L"MakineAI", nullptr, nullptr, nullptr,
+    if (CryptProtectData(&input, L"MakineLauncher", nullptr, nullptr, nullptr,
                           CRYPTPROTECT_UI_FORBIDDEN, &output)) {
         QByteArray result(reinterpret_cast<const char*>(output.pbData),
                           static_cast<int>(output.cbData));
@@ -401,11 +401,11 @@ m_nid = NOTIFYICONDATAW{};
 Asagidaki dosyalardaki placeholder'lar KASITLI olarak birakiliyor:
 - `core/src/security/security_manager.cpp:89-101` — Placeholder RSA public key
   - `EMBEDDED_KEY_IS_REAL = false` guard'i release build'de zaten hata donduruyor
-- `core/include/makineai/ssl_pinning.hpp:50-70` — Placeholder certificate pins
+- `core/include/makine/ssl_pinning.hpp:50-70` — Placeholder certificate pins
   - Sunucu altyapisi hazir oldugunda gercek degerlerle degistirilecek
 - `core/src/package_builder/package_builder.cpp:1006` — Placeholder signature
 
-Bu degerler sunucu altyapisi (api.makineai.com, cdn.makineai.com) hazir oldugunda
+Bu degerler sunucu altyapisi (api.makineceviri.net, cdn.makineceviri.net) hazir oldugunda
 gercek sertifika ve anahtar degerleriyle degistirilecek.
 
 ---
@@ -432,12 +432,12 @@ gercek sertifika ve anahtar degerleriyle degistirilecek.
 
 | Dosya | Icerik |
 |-------|--------|
-| `core/include/makineai/security.hpp` | PathValidator, PathGuard, SecurityManager, IntegrityChecker |
-| `core/include/makineai/validation.hpp` | Path/string/ID/URL/hash validators |
-| `core/include/makineai/path_utils.hpp` | Traversal detection, sanitization, safe join |
-| `core/include/makineai/sandbox.hpp` | SandboxPolicy, SandboxContext, ScopedSandbox, RAII |
-| `core/include/makineai/credential_store.hpp` | Windows Credential Manager |
-| `core/include/makineai/ssl_pinning.hpp` | Certificate pinning (placeholder pins) |
+| `core/include/makine/security.hpp` | PathValidator, PathGuard, SecurityManager, IntegrityChecker |
+| `core/include/makine/validation.hpp` | Path/string/ID/URL/hash validators |
+| `core/include/makine/path_utils.hpp` | Traversal detection, sanitization, safe join |
+| `core/include/makine/sandbox.hpp` | SandboxPolicy, SandboxContext, ScopedSandbox, RAII |
+| `core/include/makine/credential_store.hpp` | Windows Credential Manager |
+| `core/include/makine/ssl_pinning.hpp` | Certificate pinning (placeholder pins) |
 | `core/src/security/security_manager.cpp` | OpenSSL + libsodium, Authenticode |
 | `core/src/security/credential_store.cpp` | CredWrite/CredRead |
 | `core/src/security/ssl_pinning.cpp` | CURL pin application |
@@ -464,4 +464,4 @@ export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"
 
 - Commit'lerde Co-Authored-By EKLEME — kullanicinin kendi adina olmali
 - Kod yorumlari Ingilizce, kullanici iletisimi Turkce
-- Repo: PRIVATE (github.com/jlceaser/MakineAI)
+- Repo: PRIVATE (github.com/MakineCeviri/Makine-Launcher)

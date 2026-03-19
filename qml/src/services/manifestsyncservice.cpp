@@ -1,7 +1,7 @@
 /**
  * @file manifestsyncservice.cpp
  * @brief Remote manifest sync from Cloudflare R2 CDN
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "manifestsyncservice.h"
@@ -21,9 +21,9 @@
 #include <QUrl>
 #include <QLoggingCategory>
 
-Q_LOGGING_CATEGORY(lcManifestSync, "makineai.manifest")
+Q_LOGGING_CATEGORY(lcManifestSync, "makine.manifest")
 
-namespace makineai {
+namespace makine {
 
 static constexpr auto CDN_BASE = cdn::kAssetsBase;
 
@@ -73,7 +73,7 @@ void ManifestSyncService::syncCatalog()
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(10000);
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1"));
 
     // ETag conditional request — if unchanged, server returns 304
     if (!m_etag.isEmpty())
@@ -278,7 +278,7 @@ void ManifestSyncService::fetchPackageDetail(const QString& appId)
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(10000);
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1"));
 
     QNetworkReply* reply = m_nam.get(req);
 
@@ -408,4 +408,4 @@ void ManifestSyncService::setOffline(bool offline)
     }
 }
 
-} // namespace makineai
+} // namespace makine

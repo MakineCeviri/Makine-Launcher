@@ -1,7 +1,7 @@
 /**
  * @file test_database.cpp
  * @brief Unit tests for SQLite database operations
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Tests game CRUD, settings, backup, and transaction support
  * against a real SQLite DB.
@@ -9,13 +9,13 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <makineai/database.hpp>
-#include <makineai/types.hpp>
+#include <makine/database.hpp>
+#include <makine/types.hpp>
 #include <filesystem>
 #include <string>
 
 namespace fs = std::filesystem;
-using namespace makineai;
+using namespace makine;
 using ::testing::SizeIs;
 
 // Database tests require DPAPI (CryptProtectData/CryptUnprotectData) which
@@ -39,7 +39,7 @@ protected:
         // Calling initialize() again is a no-op (early return if initialized)
         auto& db = Database::instance();
         if (!db.isInitialized()) {
-            tempDir_ = fs::temp_directory_path() / "makineai_test_db";
+            tempDir_ = fs::temp_directory_path() / "makine_test_db";
             fs::create_directories(tempDir_);
             dbPath_ = tempDir_ / "test.db";
             auto result = db.initialize(dbPath_);

@@ -3,7 +3,7 @@
 dev_release.py -- Publish dev build via GitHub Releases for auto-update.
 
 Flow:
-  1. Locate built EXE (build/dev/MakineAI.exe)
+  1. Locate built EXE (build/dev/Makine-Launcher.exe)
   2. Compute SHA-256 checksum
   3. Create git tag + GitHub Release (prerelease)
   4. Upload EXE as release asset
@@ -26,9 +26,9 @@ PROJECT_DIR = SCRIPT_DIR.parent
 
 # Build output locations (in priority order)
 EXE_CANDIDATES = [
-    PROJECT_DIR / "build" / "dev" / "MakineAI.exe",
-    PROJECT_DIR / "build" / "release" / "MakineAI.exe",
-    PROJECT_DIR / "build" / "release-static" / "MakineAI.exe",
+    PROJECT_DIR / "build" / "dev" / "Makine-Launcher.exe",
+    PROJECT_DIR / "build" / "release" / "Makine-Launcher.exe",
+    PROJECT_DIR / "build" / "release-static" / "Makine-Launcher.exe",
 ]
 
 
@@ -48,7 +48,7 @@ def get_version() -> str:
                     if v and v[0].isdigit():
                         version = v
                     break
-        if s.lower().startswith("set(makineai_version_suffix"):
+        if s.lower().startswith("set(makine_version_suffix"):
             if '"' in s:
                 suffix = s.split('"')[1]
     return f"{version}-{suffix}" if version and suffix else version or "0.1.0"
@@ -102,7 +102,7 @@ def main():
         print("[DRY RUN] Would create:")
         print(f"  Git tag: {tag}")
         print(f"  GitHub Release: {tag} (prerelease)")
-        print(f"  Asset: MakineAI.exe ({exe_size:,} bytes)")
+        print(f"  Asset: Makine-Launcher.exe ({exe_size:,} bytes)")
         return
 
     # Build release notes with checksum
@@ -132,7 +132,7 @@ def main():
     r = subprocess.run(
         ["gh", "release", "create", tag,
          str(exe_path),
-         "--title", f"MakineAI {tag}",
+         "--title", f"Makine-Launcher {tag}",
          "--notes", release_body,
          "--prerelease"],
         capture_output=True, text=True, cwd=str(PROJECT_DIR)

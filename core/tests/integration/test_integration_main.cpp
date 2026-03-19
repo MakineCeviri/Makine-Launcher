@@ -1,6 +1,6 @@
 /**
  * @file test_integration_main.cpp
- * @brief Main entry point for MakineAI integration tests
+ * @brief Main entry point for Makine integration tests
  *
  * Integration tests verify complete workflows across multiple modules.
  * They test real-world scenarios like:
@@ -8,7 +8,7 @@
  * - Handler workflows for each supported engine
  * - Package installation and removal
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
@@ -23,8 +23,8 @@ namespace {
      * @brief Get the fixtures directory path
      */
     fs::path getFixturesDir() {
-        #ifdef MAKINEAI_TEST_FIXTURES_DIR
-            return MAKINEAI_TEST_FIXTURES_DIR;
+        #ifdef MAKINE_TEST_FIXTURES_DIR
+            return MAKINE_TEST_FIXTURES_DIR;
         #else
             return fs::current_path() / "fixtures";
         #endif
@@ -34,10 +34,10 @@ namespace {
      * @brief Get the temp directory path for test outputs
      */
     fs::path getTempDir() {
-        #ifdef MAKINEAI_TEST_TEMP_DIR
-            return MAKINEAI_TEST_TEMP_DIR;
+        #ifdef MAKINE_TEST_TEMP_DIR
+            return MAKINE_TEST_TEMP_DIR;
         #else
-            return fs::temp_directory_path() / "makineai_tests";
+            return fs::temp_directory_path() / "makine_tests";
         #endif
     }
 
@@ -73,7 +73,7 @@ public:
         }
 
         // Log fixtures status
-        std::cout << "\n=== MakineAI Integration Tests ===" << std::endl;
+        std::cout << "\n=== Makine Integration Tests ===" << std::endl;
         std::cout << "Fixtures dir: " << getFixturesDir() << std::endl;
         std::cout << "Temp dir: " << tempDir << std::endl;
 

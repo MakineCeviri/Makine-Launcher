@@ -1,7 +1,7 @@
 /**
  * @file selfupdater.h
  * @brief Platform-specific executable self-swap and restart utilities
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Isolates Win32-specific self-update mechanics (rename running EXE,
  * move new EXE into place, launch child process, terminate).
@@ -13,7 +13,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace makineai {
+namespace makine {
 
 struct SelfUpdater {
     /**
@@ -49,4 +49,4 @@ struct SelfUpdater {
     [[noreturn]] static void swapAndRestart(const QString& newExePath);
 };
 
-} // namespace makineai
+} // namespace makine

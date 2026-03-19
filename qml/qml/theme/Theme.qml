@@ -1,6 +1,6 @@
 pragma Singleton
 import QtQuick
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -196,7 +196,7 @@ QtObject {
     readonly property color shadowHard: Qt.rgba(0, 0, 0, 0.47)
 
     // =========================================================================
-    // GRADIENT COLORS (MakineAI brand)
+    // GRADIENT COLORS (Makine brand)
     // =========================================================================
 
     readonly property color gold: "#DDC66A"
@@ -207,7 +207,7 @@ QtObject {
     // Pink for hover effects
     readonly property color pink: "#FF69B4"
 
-    // Brand gradient palette (official MakineAI colors)
+    // Brand gradient palette (official Makine colors)
     readonly property var brandGradient: [
         "#FCCD66", "#F7AE76", "#EE968F", "#CC9FD8",
         "#90C2E6", "#77DBC8", "#80E59D", "#C8EB7C", "#D4BE77"

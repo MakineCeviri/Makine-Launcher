@@ -1,6 +1,6 @@
-# MakineAI Plugin Template
+# Makine-Launcher Plugin Template
 
-A template for creating MakineAI Launcher plugins.
+A template for creating Makine-Launcher plugins.
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ A template for creating MakineAI Launcher plugins.
 4. **Build** — `cmake -B build -G Ninja && cmake --build build`
 5. **Package** — `python makine-pack.py ./build/release/`
 6. **Release** — Create a GitHub Release, attach the `.makine` file
-7. **Discover** — Add `makineai-plugin` topic to your repo
+7. **Discover** — Add `makine-plugin` topic to your repo
 
 ## Project Structure
 
@@ -19,7 +19,7 @@ A template for creating MakineAI Launcher plugins.
 ├── plugin.cpp       — Plugin implementation (C ABI exports)
 ├── CMakeLists.txt   — Build configuration
 └── include/         — (optional) Local copy of plugin API headers
-    └── makineai/plugin/
+    └── makine/plugin/
         ├── plugin_api.h
         └── plugin_types.h
 ```
@@ -30,11 +30,11 @@ Every plugin DLL must export these 5 functions:
 
 | Function | Signature | Purpose |
 |----------|-----------|---------|
-| `makineai_get_info` | `MakineAiPluginInfo (void)` | Return plugin metadata |
-| `makineai_initialize` | `MakineAiError (const char* dataPath)` | Initialize plugin |
-| `makineai_shutdown` | `void (void)` | Clean up resources |
-| `makineai_is_ready` | `bool (void)` | Check if plugin is ready |
-| `makineai_get_last_error` | `const char* (void)` | Get last error message |
+| `makine_get_info` | `MakinePluginInfo (void)` | Return plugin metadata |
+| `makine_initialize` | `MakineError (const char* dataPath)` | Initialize plugin |
+| `makine_shutdown` | `void (void)` | Clean up resources |
+| `makine_is_ready` | `bool (void)` | Check if plugin is ready |
+| `makine_get_last_error` | `const char* (void)` | Get last error message |
 
 ## Building
 
@@ -61,15 +61,15 @@ Output: `com-github-username-my-plugin-0.1.0.makine`
 
 1. Create a GitHub Release (e.g., `v0.1.0`)
 2. Attach the `.makine` file as a release asset
-3. Add `makineai-plugin` topic to your repository
-4. Your plugin will appear in MakineAI Launcher's community section
+3. Add `makine-plugin` topic to your repository
+4. Your plugin will appear in Makine-Launcher's community section
 
 ## Getting Approved
 
 To get the "Approved" badge in the launcher:
 1. Keep your plugin open source
 2. Follow the [Plugin Guidelines](https://makineceviri.net/docs/plugin-guidelines)
-3. Submit for review at [MakineCeviri/makineai-plugins](https://github.com/MakineCeviri/makineai-plugins/issues/new)
+3. Submit for review at [MakineCeviri/makine-plugins](https://github.com/MakineCeviri/makine-plugins/issues/new)
 
 ## License
 

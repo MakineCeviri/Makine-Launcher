@@ -1,7 +1,7 @@
 /**
  * @file corebridge.cpp
  * @brief Core Bridge Implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "corebridge.h"
@@ -30,17 +30,17 @@
 #include <optional>
 #include <string>
 
-#ifndef MAKINEAI_UI_ONLY
-#include <makineai/core.hpp>
+#ifndef MAKINE_UI_ONLY
+#include <makine/core.hpp>
 #endif
 
-Q_LOGGING_CATEGORY(lcCoreBridge, "makineai.bridge")
+Q_LOGGING_CATEGORY(lcCoreBridge, "makine.bridge")
 
-namespace makineai {
+namespace makine {
 
 CoreBridge* CoreBridge::s_instance = nullptr;
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 static bool s_coreInitialized = false;
 
 // Initialize Core singleton on first use
@@ -51,7 +51,7 @@ static bool ensureCoreInitialized() {
     try {
         auto& core = Core::instance();
         if (!core.isInitialized()) {
-            qCDebug(lcCoreBridge) << "Initializing MakineAI Core...";
+            qCDebug(lcCoreBridge) << "Initializing Makine Core...";
             auto result = core.initialize();
             if (result) {
                 qCDebug(lcCoreBridge) << "Core initialized successfully in" << result->initDuration.count() << "ms";
@@ -142,14 +142,14 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
         return;
     }
 
-    if (vdfFile.size() > static_cast<qint64>(makineai::vdf::detail::kMaxVdfFileSize)) {
+    if (vdfFile.size() > static_cast<qint64>(makine::vdf::detail::kMaxVdfFileSize)) {
         qCWarning(lcCoreBridge) << "VDF file too large, skipping:" << vdfPath;
         return;
     }
     std::string vdfContent = vdfFile.readAll().toStdString();
     vdfFile.close();
 
-    auto vdfRoot = makineai::vdf::parse(vdfContent);
+    auto vdfRoot = makine::vdf::parse(vdfContent);
     if (!vdfRoot) {
         qCWarning(lcCoreBridge) << "Failed to parse libraryfolders.vdf";
         return;
@@ -214,7 +214,7 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
             std::string acfContent = file.readAll().toStdString();
             file.close();
 
-            auto acfRoot = makineai::vdf::parse(acfContent);
+            auto acfRoot = makine::vdf::parse(acfContent);
             if (!acfRoot) continue;
 
             const auto* appState = acfRoot->find("AppState");
@@ -498,7 +498,7 @@ void CoreBridge::scanAllLibraries()
 
     (void)QtConcurrent::run([this, pkgMgr, indexPath, packageCache]() {
         MAKINE_THREAD_NAME("Worker-Scan");
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
         // Lazy Core init — runs once in background, doesn't block UI
         ensureCoreInitialized();
 #endif
@@ -1036,4 +1036,4 @@ void CoreBridge::enrichPackageFromJson(const QString& steamAppId, const QByteArr
     }
 }
 
-} // namespace makineai
+} // namespace makine

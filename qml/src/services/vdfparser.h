@@ -1,9 +1,9 @@
 /**
  * @file vdfparser.h
  * @brief Valve Data Format (VDF) parser - header-only
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
- * Copied from core/include/makineai/vdf_parser.hpp for UI_ONLY builds.
+ * Copied from core/include/makine/vdf_parser.hpp for UI_ONLY builds.
  * Recursive descent parser for Valve's key-value text format.
  * Used by Steam's libraryfolders.vdf and appmanifest_*.acf files.
  */
@@ -14,7 +14,7 @@
 #include <optional>
 #include <string>
 
-namespace makineai::vdf {
+namespace makine::vdf {
 
 /// Tree node for parsed VDF data
 struct Node {
@@ -119,4 +119,4 @@ inline std::optional<Node> parse(const std::string& content) {
     return root;
 }
 
-} // namespace makineai::vdf
+} // namespace makine::vdf

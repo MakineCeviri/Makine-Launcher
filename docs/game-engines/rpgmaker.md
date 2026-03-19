@@ -2,7 +2,7 @@
 
 RPG Maker dosya yapısı ve çeviri yöntemi teknik referansı.
 
-> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
+> **Not:** Bu doküman teknik referanstır. Makine-Launcher şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
@@ -35,7 +35,7 @@ RPG Maker oyunları JSON/Ruby tabanlı dil dosyaları kullanır:
 
 ## Otomatik Algılama
 
-MakineAI RPG Maker oyunlarını şu dosyalardan tespit eder:
+Makine-Launcher RPG Maker oyunlarını şu dosyalardan tespit eder:
 
 | Motor | Dosya |
 |-------|-------|

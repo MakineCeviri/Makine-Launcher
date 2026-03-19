@@ -59,7 +59,7 @@ def main():
 #include <array>
 #include <cstdint>
 
-namespace makineai::crypto {{
+namespace makine::crypto {{
 
 namespace detail {{
 
@@ -107,7 +107,7 @@ constexpr unsigned MKPK_NONCE_SIZE  = 12;  // AES-GCM standard
 constexpr unsigned MKPK_TAG_SIZE    = 16;  // GCM auth tag
 constexpr unsigned MKPK_HEADER_SIZE = 4 + 1 + MKPK_NONCE_SIZE; // 17 bytes
 
-}} // namespace makineai::crypto
+}} // namespace makine::crypto
 '''
 
     OUTPUT.write_text(header)

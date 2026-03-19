@@ -5,7 +5,7 @@
  * Replaces QVariantList supportedGames() to eliminate 6.3s QML freeze.
  * ListView receives granular dataChanged() instead of full list replacement.
  *
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <QString>
 #include <QVector>
 
-namespace makineai {
+namespace makine {
 
 struct CatalogEntry {
     QString gameId;
@@ -78,4 +78,4 @@ private:
     QHash<QString, int> m_appIdToIndex; // steamAppId -> row index
 };
 
-} // namespace makineai
+} // namespace makine

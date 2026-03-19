@@ -1,7 +1,7 @@
 /**
  * @file rpgmaker_detector.cpp
  * @brief RPG Maker MV/MZ and VX Ace engine detectors
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "engine_detectors.hpp"
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 namespace fs = std::filesystem;
 
@@ -140,4 +140,4 @@ EngineDetectionResult detectRpgMakerVxAce(const fs::path& /*path*/, const GameSi
     return result;
 }
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

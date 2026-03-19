@@ -249,7 +249,7 @@ def verify_package(app_id: str, output_dir: Path, data_dir: Path, key: bytes) ->
         # Compare with source directory
         source_dir = None
         # Find source dir from manifest
-        manifest_path = Path("C:/cedra/MakineAI-Assets/packages") / f"{app_id}.json"
+        manifest_path = Path("C:/cedra/Makine-Assets/packages") / f"{app_id}.json"
         if manifest_path.exists():
             pkg = json.loads(manifest_path.read_text(encoding="utf-8"))
             dir_name = pkg.get("dirName", "")
@@ -366,13 +366,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Compress + encrypt translation packages for distribution"
     )
-    parser.add_argument("--manifest", default="C:/cedra/MakineAI-Assets/index.json",
+    parser.add_argument("--manifest", default="C:/cedra/Makine-Assets/index.json",
                         help="Path to index.json")
-    parser.add_argument("--packages-dir", default="C:/cedra/MakineAI-Assets/packages",
+    parser.add_argument("--packages-dir", default="C:/cedra/Makine-Assets/packages",
                         help="Path to per-game JSON directory")
     parser.add_argument("--data", default="C:/cedra/translation_data",
                         help="Translation data root directory")
-    parser.add_argument("--output", default="C:/cedra/MakineAI-Assets-Build/data",
+    parser.add_argument("--output", default="C:/cedra/Makine-Assets-Build/data",
                         help="Output directory for .makine files")
     parser.add_argument("--key", default="scripts/.encryption_key",
                         help="Path to encryption key file")

@@ -1,6 +1,6 @@
 # Qt Services API Referansı
 
-MakineAI Qt servis sınıflarının API referansı.
+Makine-Launcher Qt servis sınıflarının API referansı.
 
 > **Not:** Bu dökümanlar UI_ONLY (dev) build'de kullanılan saf Qt servislerini tanımlar.
 > Tüm servisler `qml/src/services/` altındadır.

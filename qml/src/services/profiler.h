@@ -5,7 +5,7 @@
  *
  * Three modes:
  *   1. TRACY_ENABLE defined: Tracy zones + PerfReporter recording (full profiling)
- *   2. MAKINEAI_PERF_REPORT defined: PerfReporter only (lightweight, no Tracy)
+ *   2. MAKINE_PERF_REPORT defined: PerfReporter only (lightweight, no Tracy)
  *   3. Neither: all macros compile to nothing (zero overhead)
  *
  * PerfReporter is always active when any profiling is enabled.
@@ -23,11 +23,11 @@
  */
 
 // PerfReporter is active when Tracy OR standalone perf mode is enabled
-#if defined(TRACY_ENABLE) || defined(MAKINEAI_PERF_REPORT)
-#define MAKINEAI_PERF_ACTIVE
+#if defined(TRACY_ENABLE) || defined(MAKINE_PERF_REPORT)
+#define MAKINE_PERF_ACTIVE
 #endif
 
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
 #include "perfreporter.h"
 #endif
 
@@ -42,15 +42,15 @@
 // ============================================================================
 // MAKINE_ZONE_NAMED(n) — Named zone with timing (reported in perf JSON)
 // ============================================================================
-#if defined(TRACY_ENABLE) && defined(MAKINEAI_PERF_ACTIVE)
+#if defined(TRACY_ENABLE) && defined(MAKINE_PERF_ACTIVE)
     // Tracy + PerfReporter
     #define MAKINE_ZONE_NAMED(n) \
         ZoneScopedN(n); \
-        makineai::PerfZone MAKINE_CONCAT(_makine_pz_, __LINE__)(n)
-#elif defined(MAKINEAI_PERF_ACTIVE)
+        makine::PerfZone MAKINE_CONCAT(_makine_pz_, __LINE__)(n)
+#elif defined(MAKINE_PERF_ACTIVE)
     // PerfReporter only
     #define MAKINE_ZONE_NAMED(n) \
-        makineai::PerfZone MAKINE_CONCAT(_makine_pz_, __LINE__)(n)
+        makine::PerfZone MAKINE_CONCAT(_makine_pz_, __LINE__)(n)
 #else
     #define MAKINE_ZONE_NAMED(n)
 #endif
@@ -94,13 +94,13 @@
 // ============================================================================
 // MAKINE_THREAD_NAME(n) — Thread naming (both Tracy + PerfReporter)
 // ============================================================================
-#if defined(TRACY_ENABLE) && defined(MAKINEAI_PERF_ACTIVE)
+#if defined(TRACY_ENABLE) && defined(MAKINE_PERF_ACTIVE)
     #define MAKINE_THREAD_NAME(n) \
         tracy::SetThreadName(n); \
-        makineai::PerfReporter::instance().registerThread(n)
-#elif defined(MAKINEAI_PERF_ACTIVE)
+        makine::PerfReporter::instance().registerThread(n)
+#elif defined(MAKINE_PERF_ACTIVE)
     #define MAKINE_THREAD_NAME(n) \
-        makineai::PerfReporter::instance().registerThread(n)
+        makine::PerfReporter::instance().registerThread(n)
 #else
     #define MAKINE_THREAD_NAME(n)
 #endif

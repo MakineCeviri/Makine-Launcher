@@ -1,7 +1,7 @@
 /**
  * @file imagecachemanager.cpp
  * @brief Disk-based image cache — downloads from Cloudflare R2 CDN
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "imagecachemanager.h"
@@ -17,7 +17,7 @@
 #include <QRegularExpression>
 #include <QUrl>
 
-namespace makineai {
+namespace makine {
 
 static constexpr auto CDN_IMAGE_BASE = cdn::kImagesBase;
 
@@ -68,7 +68,7 @@ QString ImageCacheManager::resolve(const QString& appId)
 
     // Already cached on disk — instant file URL
     if (QFile::exists(path)) {
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
         ++m_cacheHitCount;
 #endif
         return QUrl::fromLocalFile(path).toString();
@@ -82,7 +82,7 @@ QString ImageCacheManager::resolve(const QString& appId)
     if (!m_pending.contains(appId) && !m_queued.contains(appId)) {
         m_queue.enqueue(appId);
         m_queued.insert(appId);
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
         if (m_queue.size() > m_queuePeakSize)
             m_queuePeakSize = m_queue.size();
 #endif
@@ -107,7 +107,7 @@ void ImageCacheManager::processQueue()
 void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
 {
     m_pending.insert(appId);
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     ++m_downloadCount;
 #endif
 
@@ -116,7 +116,7 @@ void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(15000);
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1"));
 
     QNetworkReply* reply = m_nam.get(req);
 
@@ -223,7 +223,7 @@ qint64 ImageCacheManager::cachedImageBytes() const
     return cacheSizeBytes();
 }
 
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
 QVariantMap ImageCacheManager::imageStats() const
 {
     QVariantMap map;
@@ -237,4 +237,4 @@ QVariantMap ImageCacheManager::imageStats() const
 }
 #endif
 
-} // namespace makineai
+} // namespace makine

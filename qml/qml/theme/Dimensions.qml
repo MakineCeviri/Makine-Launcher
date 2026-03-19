@@ -1,17 +1,17 @@
 pragma Singleton
 import QtQuick
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * Dimensions.qml - Design system constants for MakineAI
+ * Dimensions.qml - Design system constants for Makine-Launcher
  */
 QtObject {
     // =========================================================================
     // APP INFO
     // =========================================================================
 
-    readonly property string appName: "MakineAI"
+    readonly property string appName: "Makine Launcher"
     readonly property string appVersion: Qt.application.version
     readonly property string appVersionFull: "v" + Qt.application.version
 
@@ -25,7 +25,7 @@ QtObject {
 
     // GitHub
     readonly property string githubOwner: "MakineCeviri"
-    readonly property string githubRepo: "MakineAI"
+    readonly property string githubRepo: "Makine-Launcher"
     readonly property string githubReleasesUrl: "https://api.github.com/repos/" + githubOwner + "/" + githubRepo + "/releases/latest"
 
     // =========================================================================

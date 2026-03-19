@@ -1,14 +1,14 @@
 /**
  * @file epic_scanner.cpp
  * @brief Epic Games scanner implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/game_detector.hpp"
-#include "makineai/core.hpp"
-#include "makineai/json_utils.hpp"
-#include "makineai/logging.hpp"
-#include "makineai/metrics.hpp"
+#include "makine/game_detector.hpp"
+#include "makine/core.hpp"
+#include "makine/json_utils.hpp"
+#include "makine/logging.hpp"
+#include "makine/metrics.hpp"
 
 #include <fstream>
 
@@ -17,34 +17,34 @@
 #include <ShlObj.h>
 #endif
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 bool EpicScanner::isAvailable() const {
     auto manifestResult = findManifestDirectory();
     if (manifestResult.has_value()) {
-        MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Available at {}", manifestResult->string());
+        MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Available at {}", manifestResult->string());
         return true;
     }
-    MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Not available");
+    MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Not available");
     return false;
 }
 
 Result<std::vector<GameInfo>> EpicScanner::scan() const {
-    MAKINEAI_TIMED_SCOPE(log::SCANNER, "EpicScanner::scan");
-    MAKINEAI_LOG_INFO(log::SCANNER, "Starting Epic Games scan");
+    MAKINE_TIMED_SCOPE(log::SCANNER, "EpicScanner::scan");
+    MAKINE_LOG_INFO(log::SCANNER, "Starting Epic Games scan");
 
     auto scanTimer = metrics().timer("epic_scan");
     std::vector<GameInfo> games;
 
     auto manifestDirResult = findManifestDirectory();
     if (!manifestDirResult) {
-        MAKINEAI_LOG_WARN(log::SCANNER, "Epic: Failed to find manifest directory: {}",
+        MAKINE_LOG_WARN(log::SCANNER, "Epic: Failed to find manifest directory: {}",
                          manifestDirResult.error().message());
         return std::unexpected(manifestDirResult.error());
     }
 
     fs::path manifestDir = *manifestDirResult;
-    MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Scanning manifests in: {} (using {})",
+    MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Scanning manifests in: {} (using {})",
                        manifestDir.string(), json::backendInfo());
 
     try {
@@ -57,7 +57,7 @@ Result<std::vector<GameInfo>> EpicScanner::scan() const {
             // Parse manifest using optimized JSON parser
             auto docResult = json::parseFile(entry.path());
             if (!docResult) {
-                MAKINEAI_LOG_TRACE(log::SCANNER, "Epic: Failed to parse manifest {}: {}",
+                MAKINE_LOG_TRACE(log::SCANNER, "Epic: Failed to parse manifest {}: {}",
                                    entry.path().string(), docResult.error().message());
                 continue;
             }
@@ -74,7 +74,7 @@ Result<std::vector<GameInfo>> EpicScanner::scan() const {
 
             game.installPath = installLocation;
             if (!fs::exists(game.installPath)) {
-                MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Game path not found for '{}': {}",
+                MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Game path not found for '{}': {}",
                                    game.name, installLocation);
                 continue;
             }
@@ -88,16 +88,16 @@ Result<std::vector<GameInfo>> EpicScanner::scan() const {
             // Get size
             game.sizeBytes = manifest.getUint("InstallSize", 0);
 
-            MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Found game '{}' (ID: {})",
+            MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Found game '{}' (ID: {})",
                                game.name, game.id.storeId);
             games.push_back(std::move(game));
             metrics().increment("epic_games_found");
         }
     } catch (const std::exception& e) {
-        MAKINEAI_LOG_WARN(log::SCANNER, "Epic: Access error scanning manifests: {}", e.what());
+        MAKINE_LOG_WARN(log::SCANNER, "Epic: Access error scanning manifests: {}", e.what());
     }
 
-    MAKINEAI_LOG_INFO(log::SCANNER, "Epic scan complete: {} games found", games.size());
+    MAKINE_LOG_INFO(log::SCANNER, "Epic scan complete: {} games found", games.size());
     metrics().gauge("epic_total_games", static_cast<double>(games.size()));
     return games;
 }
@@ -119,7 +119,7 @@ Result<GameInfo> EpicScanner::getGame(const std::string& catalogId) const {
 }
 
 Result<fs::path> EpicScanner::findManifestDirectory() const {
-    MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Searching for manifest directory");
+    MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Searching for manifest directory");
 
 #ifdef _WIN32
     wchar_t* programData = nullptr;
@@ -129,7 +129,7 @@ Result<fs::path> EpicScanner::findManifestDirectory() const {
         CoTaskMemFree(programData);
 
         if (fs::exists(manifestDir)) {
-            MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Found manifest directory via ProgramData: {}",
+            MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Found manifest directory via ProgramData: {}",
                                manifestDir.string());
             return manifestDir;
         }
@@ -138,14 +138,14 @@ Result<fs::path> EpicScanner::findManifestDirectory() const {
     // Try alternate location
     fs::path altPath = "C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests";
     if (fs::exists(altPath)) {
-        MAKINEAI_LOG_DEBUG(log::SCANNER, "Epic: Found manifest directory at default path");
+        MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Found manifest directory at default path");
         return altPath;
     }
 #endif
 
-    MAKINEAI_LOG_WARN(log::SCANNER, "Epic: Manifest directory not found");
+    MAKINE_LOG_WARN(log::SCANNER, "Epic: Manifest directory not found");
     return std::unexpected(Error(ErrorCode::GameNotFound,
         "Epic Games manifest directory not found"));
 }
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

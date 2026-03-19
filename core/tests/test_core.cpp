@@ -2,15 +2,15 @@
  * @file test_core.cpp
  * @brief Unit tests for core.hpp -- InitOptions, InitResult, Core singleton basics
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/core.hpp>
+#include <makine/core.hpp>
 
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -134,4 +134,4 @@ TEST(CoreTest, InitResultBeforeInit) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

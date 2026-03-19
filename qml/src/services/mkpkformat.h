@@ -1,7 +1,7 @@
 /**
  * @file mkpkformat.h
  * @brief MKPK binary format: decrypt (AES-256-GCM) + decompress (zstd) + tar extract
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * MKPK format v1 (encrypted — translation packages):
  *   [Magic: 4B "MKPK"] [Version: 1B = 0x01] [Nonce: 12B] [Ciphertext+AuthTag: NB]
@@ -19,7 +19,7 @@
 
 #pragma once
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 
 #include "encryption_key.h"
 
@@ -36,7 +36,7 @@
 #include <openssl/evp.h>
 #include <zstd.h>
 
-namespace makineai::mkpk {
+namespace makine::mkpk {
 
 // ============================================================================
 // Error type
@@ -443,6 +443,6 @@ inline int process_plugin_package(
     return process_mkpkg(data, size, dest_dir, err, std::move(on_file));
 }
 
-} // namespace makineai::mkpk
+} // namespace makine::mkpk
 
-#endif // !MAKINEAI_UI_ONLY
+#endif // !MAKINE_UI_ONLY

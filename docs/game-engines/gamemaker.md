@@ -2,7 +2,7 @@
 
 GameMaker dosya yapısı ve çeviri yöntemi teknik referansı.
 
-> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
+> **Not:** Bu doküman teknik referanstır. Makine-Launcher şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
@@ -46,7 +46,7 @@ Yeni data.win Olustur
 
 ## Otomatik Algılama
 
-MakineAI GameMaker oyunlarını şu dosyalardan tespit eder:
+Makine-Launcher GameMaker oyunlarını şu dosyalardan tespit eder:
 
 | Dosya | Açıklama |
 |-------|----------|
@@ -181,7 +181,7 @@ Açık kaynak data.win editörü:
 
 ### data.win Parser
 
-MakineAI içinde:
+Makine-Launcher içinde:
 ```cpp
 class DataWinParser {
     std::vector<std::string> extractStrings(const std::string& path);

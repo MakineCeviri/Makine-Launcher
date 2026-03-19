@@ -2,7 +2,7 @@
 
 Bethesda Creation Engine dosya yapısı ve çeviri yöntemi teknik referansı.
 
-> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
+> **Not:** Bu doküman teknik referanstır. Makine-Launcher şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
@@ -47,7 +47,7 @@ Load Order ile Yukle
 
 ## Otomatik Algılama
 
-MakineAI Bethesda oyunlarını şu dosyalardan tespit eder:
+Makine-Launcher Bethesda oyunlarını şu dosyalardan tespit eder:
 
 | Dosya | Açıklama |
 |-------|----------|

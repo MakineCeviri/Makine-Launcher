@@ -1,7 +1,7 @@
 /**
  * @file gamemaker_data.hpp
  * @brief GameMaker data.win IFF format structures
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Reference: GameMaker Studio IFF/FORM chunk format
  * Used by: GameMaker Studio 1.x and 2.x games
@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include "../makineai/types.hpp"
+#include "../makine/types.hpp"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
 
-namespace makineai::formats {
+namespace makine::formats {
 
 // FORM magic signature
 constexpr uint32_t kFormMagic = 0x4D524F46; // "FORM"
@@ -261,4 +261,4 @@ namespace AssetPrefixes {
     return false;
 }
 
-} // namespace makineai::formats
+} // namespace makine::formats

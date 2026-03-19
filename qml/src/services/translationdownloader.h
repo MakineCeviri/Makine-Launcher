@@ -1,7 +1,7 @@
 /**
  * @file translationdownloader.h
  * @brief Download, decrypt, and extract translation packages from R2
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Handles the complete flow:
  *   1. HTTP GET from Cloudflare R2 (with progress + resume)
@@ -26,7 +26,7 @@
 #include <QNetworkReply>
 #include <QTimer>
 
-namespace makineai {
+namespace makine {
 
 class TranslationDownloader : public QObject
 {
@@ -128,4 +128,4 @@ private:
     QString m_dataPath;
 };
 
-} // namespace makineai
+} // namespace makine

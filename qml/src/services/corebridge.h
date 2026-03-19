@@ -1,7 +1,7 @@
 /**
  * @file corebridge.h
  * @brief Bridge between QML services and C++ Core library
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -17,7 +17,7 @@
 
 #include "localpackagemanager.h"
 
-namespace makineai {
+namespace makine {
 
 class OperationJournal;
 
@@ -267,4 +267,4 @@ private:
     QHash<QString, int> m_steamAppIdToDetectedIndex;
 };
 
-} // namespace makineai
+} // namespace makine

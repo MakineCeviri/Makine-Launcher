@@ -1,4 +1,4 @@
-# MakineAI — Submodule Temizlik & Commit Planı
+# Makine-Launcher — Submodule Temizlik & Commit Planı
 **Tarih:** 2026-03-05
 **Durum:** 49 dosya staged, ~20K satır, henüz commit edilmedi
 **Son commit:** 7bfbc89 feat(ui): update app icon and in-app logo with new branding
@@ -16,13 +16,13 @@ Ama bazı dosyalar kullanılmıyor, bazıları deferred feature stub'ı, CMakeLi
 ### Hiç kullanılmayan (src ve test'lerde 0 referans):
 - `core/include/formats/bethesda_ba2.hpp` (211 satır)
 - `core/include/formats/unreal_pak.hpp` (172 satır)
-- `core/include/makineai/debug.hpp` (7 satır, sadece forward)
-- `core/include/makineai/pimpl.hpp` (322 satır)
+- `core/include/makine/debug.hpp` (7 satır, sadece forward)
+- `core/include/makine/pimpl.hpp` (322 satır)
 
 ### Deferred feature stub'ları (TM, Glossary, Pipeline — ertelenmiş):
-- `core/include/makineai/types/tm_types.hpp` (62 satır)
-- `core/include/makineai/types/pipeline_types.hpp` (110 satır)
-- `core/include/makineai/types/translation_types.hpp` (295 satır)
+- `core/include/makine/types/tm_types.hpp` (62 satır)
+- `core/include/makine/types/pipeline_types.hpp` (110 satır)
+- `core/include/makine/types/translation_types.hpp` (295 satır)
 
 ---
 
@@ -33,13 +33,13 @@ Tek satıra sıkışmış bloklar var, düzgün formatlanacak:
 - `find_package(mio ...)` ve diğer 6 optional package — her biri ayrı satır
 - `if(TARGET mio::mio)` ve diğer 7 optional library bloğu — her biri ayrı if/endif
 
-### core/include/makineai/types.hpp
+### core/include/makine/types.hpp
 Deferred include'lar kaldırılacak:
 ```cpp
 // KALDIRILACAK:
-#include "makineai/types/translation_types.hpp"
-#include "makineai/types/tm_types.hpp"
-#include "makineai/types/pipeline_types.hpp"
+#include "makine/types/translation_types.hpp"
+#include "makine/types/tm_types.hpp"
+#include "makine/types/pipeline_types.hpp"
 ```
 
 ---
@@ -128,23 +128,23 @@ Deferred include'lar kaldırılacak:
 ## Komutlar (sırayla çalıştır)
 
 ```bash
-cd /c/cedra/MakineAI
+cd /c/Workspace/Makine/Makine-Launcher
 
 # 1. Dead dosyaları unstage et ve sil
 git reset HEAD core/include/formats/bethesda_ba2.hpp
 git reset HEAD core/include/formats/unreal_pak.hpp
-git reset HEAD core/include/makineai/debug.hpp
-git reset HEAD core/include/makineai/pimpl.hpp
-git reset HEAD core/include/makineai/types/tm_types.hpp
-git reset HEAD core/include/makineai/types/pipeline_types.hpp
-git reset HEAD core/include/makineai/types/translation_types.hpp
+git reset HEAD core/include/makine/debug.hpp
+git reset HEAD core/include/makine/pimpl.hpp
+git reset HEAD core/include/makine/types/tm_types.hpp
+git reset HEAD core/include/makine/types/pipeline_types.hpp
+git reset HEAD core/include/makine/types/translation_types.hpp
 rm core/include/formats/bethesda_ba2.hpp
 rm core/include/formats/unreal_pak.hpp
-rm core/include/makineai/debug.hpp
-rm core/include/makineai/pimpl.hpp
-rm core/include/makineai/types/tm_types.hpp
-rm core/include/makineai/types/pipeline_types.hpp
-rm core/include/makineai/types/translation_types.hpp
+rm core/include/makine/debug.hpp
+rm core/include/makine/pimpl.hpp
+rm core/include/makine/types/tm_types.hpp
+rm core/include/makine/types/pipeline_types.hpp
+rm core/include/makine/types/translation_types.hpp
 
 # 2. types.hpp'den deferred include'ları kaldır (manual edit)
 

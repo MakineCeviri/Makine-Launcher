@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import MakineAI 1.0
+import MakineLauncher 1.0
 
 /**
  * InfoTilesBar.qml - Apple App Store-style horizontal metadata bar

@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-MakineAI can benefit from several performance and feature libraries:
+Makine-Launcher can benefit from several performance and feature libraries:
 - **simdjson**: 10x faster JSON parsing
 - **simdutf**: SIMD-accelerated UTF conversion
 - **taskflow**: Parallel task execution
@@ -31,7 +31,7 @@ Implement a compile-time feature detection system with graceful fallback.
 
 Pattern:
 1. CMake detects library availability via `find_package(... QUIET)`
-2. If found, define `MAKINEAI_HAS_<LIBRARY>` macro
+2. If found, define `MAKINE_HAS_<LIBRARY>` macro
 3. Code uses `#ifdef` to choose optimized or fallback path
 4. Runtime feature detection via `Features` struct
 
@@ -39,14 +39,14 @@ CMake:
 ```cmake
 find_package(simdjson CONFIG QUIET)
 if(TARGET simdjson::simdjson)
-    target_link_libraries(makineai_core PUBLIC simdjson::simdjson)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDJSON)
+    target_link_libraries(makine_core PUBLIC simdjson::simdjson)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_SIMDJSON)
 endif()
 ```
 
 Code:
 ```cpp
-#ifdef MAKINEAI_HAS_SIMDJSON
+#ifdef MAKINE_HAS_SIMDJSON
     simdjson::dom::parser parser;
     auto doc = parser.parse(jsonStr);
 #else
@@ -122,14 +122,14 @@ Current optional library status:
 
 | Library | Purpose | Detection Macro | Fallback |
 |---------|---------|-----------------|----------|
-| simdjson | Fast JSON | `MAKINEAI_HAS_SIMDJSON` | nlohmann-json |
-| simdutf | UTF conversion | `MAKINEAI_HAS_SIMDUTF` | Standard library |
-| taskflow | Parallel execution | `MAKINEAI_HAS_TASKFLOW` | std::async |
-| mio | Memory mapping | `MAKINEAI_HAS_MIO` | std::ifstream |
-| libsodium | Cryptography | `MAKINEAI_HAS_SODIUM` | OpenSSL |
-| bit7z | 7-zip support | `MAKINEAI_HAS_BIT7Z` | None (feature disabled) |
-| efsw | File watching | `MAKINEAI_HAS_EFSW` | Polling |
-| SQLiteCpp | SQLite wrapper | `MAKINEAI_HAS_SQLITECPP` | Raw sqlite3 API |
+| simdjson | Fast JSON | `MAKINE_HAS_SIMDJSON` | nlohmann-json |
+| simdutf | UTF conversion | `MAKINE_HAS_SIMDUTF` | Standard library |
+| taskflow | Parallel execution | `MAKINE_HAS_TASKFLOW` | std::async |
+| mio | Memory mapping | `MAKINE_HAS_MIO` | std::ifstream |
+| libsodium | Cryptography | `MAKINE_HAS_SODIUM` | OpenSSL |
+| bit7z | 7-zip support | `MAKINE_HAS_BIT7Z` | None (feature disabled) |
+| efsw | File watching | `MAKINE_HAS_EFSW` | Polling |
+| SQLiteCpp | SQLite wrapper | `MAKINE_HAS_SQLITECPP` | Raw sqlite3 API |
 
 Abstraction headers:
 - `json_utils.hpp` - JSON parsing abstraction

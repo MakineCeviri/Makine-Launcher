@@ -2,21 +2,21 @@
  * @file test_validation.cpp
  * @brief Unit tests for validation utilities
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/validation.hpp>
-#include <makineai/path_utils.hpp>
+#include <makine/validation.hpp>
+#include <makine/path_utils.hpp>
 #include <filesystem>
 #include <fstream>
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
-using namespace makineai::validation;
+using namespace makine::validation;
 
 // =============================================================================
 // TEST FIXTURE
@@ -28,7 +28,7 @@ protected:
     fs::path testFile_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makineai_validation_tests";
+        testDir_ = fs::temp_directory_path() / "makine_validation_tests";
         fs::create_directories(testDir_);
 
         testFile_ = testDir_ / "sample.txt";
@@ -142,7 +142,7 @@ TEST_F(ValidationTest, ValidateWritable_WritableDir) {
     auto result = validateWritable(testDir_);
     ASSERT_TRUE(result.has_value());
     // Write test file should be cleaned up by the function
-    EXPECT_FALSE(fs::exists(testDir_ / ".makineai_write_test"));
+    EXPECT_FALSE(fs::exists(testDir_ / ".makine_write_test"));
 }
 
 // =============================================================================
@@ -489,4 +489,4 @@ TEST_F(ValidationTest, SanitizePath_NormalPathUnchanged) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

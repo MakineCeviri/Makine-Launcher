@@ -2,18 +2,18 @@
  * @file test_metrics.cpp
  * @brief Unit tests for metrics.hpp — MetricValue, ScopedMetricTimer, Metrics
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/metrics.hpp>
+#include <makine/metrics.hpp>
 
 #include <chrono>
 #include <cmath>
 #include <string>
 #include <thread>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -232,7 +232,7 @@ TEST_F(MetricsTest, ToTextNonEmpty) {
     Metrics::instance().increment("test");
     auto text = Metrics::instance().toText();
     EXPECT_FALSE(text.empty());
-    EXPECT_NE(text.find("MakineAI Metrics"), std::string::npos);
+    EXPECT_NE(text.find("Makine Metrics"), std::string::npos);
 }
 
 // --- Reset ---
@@ -289,4 +289,4 @@ TEST_F(MetricsTest, ConvenienceFunction) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

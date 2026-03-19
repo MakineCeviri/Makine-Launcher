@@ -1,10 +1,10 @@
 /**
  * @file localpackagemanager.cpp
  * @brief Local translation package management implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Network-based package catalog with on-demand detail enrichment.
- * operations delegate to makineai::packages::PackageCatalog.
+ * operations delegate to makine::packages::PackageCatalog.
  * Install/uninstall file operations (QFile::copy, QProcess, etc.)
  * always remain in this QML service layer.
  */
@@ -39,9 +39,9 @@
 #include <string>
 #include <vector>
 
-Q_LOGGING_CATEGORY(lcPackageManager, "makineai.package")
+Q_LOGGING_CATEGORY(lcPackageManager, "makine.package")
 
-namespace makineai {
+namespace makine {
 
 // =============================================================================
 // CONSTRUCTION / LOADING
@@ -662,7 +662,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
     // Write permission pre-check
     {
-        QString testPath = gamePath + "/.makineai_write_test";
+        QString testPath = gamePath + "/.makine_write_test";
         QFile testFile(testPath);
         if (!testFile.open(QIODevice::WriteOnly)) {
             emit installCompleted(false,
@@ -1642,11 +1642,11 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
             continue;
         }
 
-        // Handle Unity bundle patch restore: "_unitypatch:relPath" -> restore .makineai_backup
+        // Handle Unity bundle patch restore: "_unitypatch:relPath" -> restore .makine_backup
         if (relPath.startsWith("_unitypatch:")) {
             QString bundleRelPath = relPath.mid(12); // strip "_unitypatch:" prefix
             QString bundleFullPath = QDir::cleanPath(basePath + "/" + bundleRelPath);
-            QString backupPath = bundleFullPath + ".makineai_backup";
+            QString backupPath = bundleFullPath + ".makine_backup";
 
             if (QFile::exists(backupPath)) {
                 if (QFile::exists(bundleFullPath)) QFile::remove(bundleFullPath);
@@ -1688,4 +1688,4 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     return true;
 }
 
-} // namespace makineai
+} // namespace makine

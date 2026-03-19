@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-perf_report.py - Format MakineAI performance report JSON into markdown.
+perf_report.py - Format Makine-Launcher performance report JSON into markdown.
 
-Reads: %LOCALAPPDATA%/MakineAI/logs/perf_report.json
+Reads: %LOCALAPPDATA%/Makine/logs/perf_report.json
 Output: Formatted markdown to stdout (Claude Code can read this directly)
 
 Usage:
@@ -23,7 +23,7 @@ def find_report(path=None):
     # Qt AppLocalDataLocation = %LOCALAPPDATA%/<OrgName>/<AppName>
     default = os.path.join(
         os.environ.get("LOCALAPPDATA", ""),
-        "MakineAI", "MakineAI", "logs", "perf_report.json"
+        "MakineCeviri", "Makine-Launcher", "logs", "perf_report.json"
     )
     if os.path.exists(default):
         return default
@@ -43,7 +43,7 @@ def format_ms(ms):
 def format_report(data):
     """Format JSON data into markdown report."""
     lines = []
-    lines.append("# MakineAI Performance Report")
+    lines.append("# Makine-Launcher Performance Report")
     lines.append("")
     lines.append(f"**Timestamp:** {data.get('timestamp', 'N/A')}")
     lines.append(f"**Uptime:** {format_ms(data.get('uptime_ms', 0))}")
@@ -119,7 +119,7 @@ def main():
 
     if not report_file:
         print("ERROR: No performance report found.")
-        print(f"Expected at: %LOCALAPPDATA%/MakineAI/logs/perf_report.json")
+        print(f"Expected at: %LOCALAPPDATA%/MakineCeviri/Makine-Launcher/logs/perf_report.json")
         print("Run 'just profile-auto' to generate one.")
         sys.exit(1)
 

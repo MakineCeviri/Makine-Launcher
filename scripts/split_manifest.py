@@ -7,7 +7,7 @@ Kullanım:
 
 Varsayılan:
     --manifest  C:/cedra/translation_data/manifest.json
-    --output    C:/cedra/MakineAI-Assets
+    --output    C:/cedra/Makine-Assets
     --data      C:/cedra/translation_data
 
 Çıktı:
@@ -67,7 +67,7 @@ def main():
     parser = argparse.ArgumentParser(description="Split monolithic manifest into index + per-game JSON files")
     parser.add_argument("--manifest", default="C:/cedra/translation_data/manifest.json",
                         help="Path to monolithic manifest.json")
-    parser.add_argument("--output", default="C:/cedra/MakineAI-Assets",
+    parser.add_argument("--output", default="C:/cedra/Makine-Assets",
                         help="Output directory for split files")
     parser.add_argument("--data", default="C:/cedra/translation_data",
                         help="Translation data directory (for size calculation)")

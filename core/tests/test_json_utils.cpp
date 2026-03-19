@@ -1,17 +1,17 @@
 /**
  * @file test_json_utils.cpp
  * @brief Unit tests for JSON utility classes (JsonValue, JsonDocument, ArrayIterator)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/json_utils.hpp>
+#include <makine/json_utils.hpp>
 #include <filesystem>
 #include <fstream>
 
 namespace fs = std::filesystem;
-using namespace makineai;
-using namespace makineai::json;
+using namespace makine;
+using namespace makine::json;
 
 // =============================================================================
 // TEST FIXTURE — temp directory for file-based tests
@@ -22,7 +22,7 @@ protected:
     fs::path tempDir_;
 
     void SetUp() override {
-        tempDir_ = fs::temp_directory_path() / "makineai_json_test";
+        tempDir_ = fs::temp_directory_path() / "makine_json_test";
         fs::create_directories(tempDir_);
     }
 
@@ -369,10 +369,10 @@ TEST(JsonDocumentTest, SizeOnArrayAndObject) {
 // =============================================================================
 
 TEST(JsonDocumentTest, DocumentGetStringAndGetInt) {
-    auto result = JsonDocument::parse(R"({"title": "MakineAI", "version": 1})");
+    auto result = JsonDocument::parse(R"({"title": "Makine-Launcher", "version": 1})");
     ASSERT_TRUE(result.has_value());
 
-    EXPECT_EQ(result->getString("title"), "MakineAI");
+    EXPECT_EQ(result->getString("title"), "Makine-Launcher");
     EXPECT_EQ(result->getInt("version"), 1);
     EXPECT_EQ(result->getString("missing", "default"), "default");
     EXPECT_EQ(result->getInt("missing", -1), -1);

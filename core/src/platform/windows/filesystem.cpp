@@ -1,19 +1,20 @@
 /**
  * @file filesystem.cpp
  * @brief Windows filesystem utilities
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/types.hpp"
-#include "makineai/error.hpp"
+#include "makine/types.hpp"
+#include "makine/error.hpp"
 
 #ifdef _WIN32
 #include <Windows.h>
 #include <ShlObj.h>
 #include <shellapi.h>
 #include <string>
+#include <algorithm>
 
-namespace makineai::platform::windows {
+namespace makine::platform::windows {
 
 /**
  * @brief Get known folder path
@@ -334,6 +335,6 @@ VoidResult createShortcut(
     return {};
 }
 
-} // namespace makineai::platform::windows
+} // namespace makine::platform::windows
 
 #endif // _WIN32

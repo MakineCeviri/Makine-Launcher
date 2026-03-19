@@ -5,15 +5,15 @@
  * Provides Google Mock implementations of IGameScanner and related interfaces
  * for unit testing without requiring actual game installations.
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
 
 #include <gmock/gmock.h>
-#include "makineai/game_detector.hpp"
+#include "makine/game_detector.hpp"
 
-namespace makineai::testing {
+namespace makine::testing {
 
 /**
  * @brief Mock implementation of IGameScanner
@@ -129,4 +129,4 @@ inline scanners::EngineDetectionResult createFakeDetectionResult(
     return result;
 }
 
-} // namespace makineai::testing
+} // namespace makine::testing

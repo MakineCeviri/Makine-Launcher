@@ -1,4 +1,4 @@
-# Makine Çeviri - MakineAI Launcher
+# Makine Çeviri - Makine Launcher
 
 Windows oyunlarını Türkçe'ye çeviren ve çevirileri güncel tutan masaüstü uygulaması.
 
@@ -27,8 +27,8 @@ Launcher UI katmanı saf Qt6 QML + C++ backend olarak çalışır. Core kütüph
 ## Kurulum ve Build
 
 ```bash
-git clone https://github.com/MakineCeviri/MakineAI-Launcher.git
-cd MakineAI-Launcher
+git clone https://github.com/MakineCeviri/Makine-Launcher.git
+cd Makine-Launcher
 ```
 
 ### Hızlı Geliştirme (MinGW, Core+UI)
@@ -36,7 +36,7 @@ cd MakineAI-Launcher
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-./build/dev/MakineAI.exe
+./build/dev/Makine-Launcher.exe
 ```
 
 Veya `just` kuruluysa:
@@ -79,12 +79,12 @@ ctest --preset core-tests              # testleri çalıştır
 | `full-static` | MinGW+vcpkg (static) | Tek EXE, Core+UI | `build/full-static/` |
 | `core` | MSVC/vcpkg | Core kütüphane | `core/build/` |
 
-`dev` preset hem Core hem UI'yı MinGW+vcpkg ile derler. `dev-ui` (`MAKINEAI_UI_ONLY=ON`) Core olmadan sadece Qt servislerini derler (vcpkg gerektirmez).
+`dev` preset hem Core hem UI'yı MinGW+vcpkg ile derler. `dev-ui` (`MAKINE_UI_ONLY=ON`) Core olmadan sadece Qt servislerini derler (vcpkg gerektirmez).
 
 ## Proje Yapısı
 
 ```
-MakineAI/
+Makine-Launcher/
 ├── qml/                        # Ana uygulama (Qt6 QML)
 │   ├── src/                    # C++ backend
 │   │   ├── main.cpp            # Uygulama giriş noktası
@@ -110,7 +110,7 @@ MakineAI/
 │   │   └── dialogs/            # Dialog pencereleri
 │   └── resources/              # İkon, font, görsel
 ├── core/                       # C++ core kütüphanesi (vcpkg)
-│   ├── include/makineai/       # Public API (.hpp)
+│   ├── include/makine/        # Public API (.hpp)
 │   ├── src/                    # Implementasyon
 │   │   ├── asset_parser/       # Dosya formatı ayrıştırıcıları
 │   │   ├── game_detector/      # Platform tarayıcıları
@@ -179,6 +179,6 @@ just stats          # Proje istatistikleri
 
 ## Lisans
 
-Proprietary — MakineAI. Tüm hakları saklıdır.
+Proprietary — Makine Çeviri. Tüm hakları saklıdır.
 
 Detaylar için [LICENSE](LICENSE).

@@ -1,30 +1,30 @@
 /**
  * @file test_main.cpp
- * @brief Main test runner for MakineAI Core
+ * @brief Main test runner for Makine Core
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
-#include <makineai/core.hpp>
+#include <makine/core.hpp>
 #include <filesystem>
 #include <cstring>
 #include <thread>
 #include <chrono>
 
 // Global test environment to handle Core initialization
-class MakineAITestEnvironment : public ::testing::Environment {
+class MakineTestEnvironment : public ::testing::Environment {
 public:
     void SetUp() override {
         // Initialize logging for tests
         spdlog::set_level(spdlog::level::warn);
 
-        // Initialize MakineAI Core with test configuration
-        makineai::CoreConfig testConfig;
-        testConfig.dataDirectory = (std::filesystem::temp_directory_path() / "makineai_test_data").string();
-        testConfig.cacheDirectory = (std::filesystem::temp_directory_path() / "makineai_test_cache").string();
-        testConfig.logsDirectory = (std::filesystem::temp_directory_path() / "makineai_test_logs").string();
+        // Initialize Makine Core with test configuration
+        makine::CoreConfig testConfig;
+        testConfig.dataDirectory = (std::filesystem::temp_directory_path() / "makine_test_data").string();
+        testConfig.cacheDirectory = (std::filesystem::temp_directory_path() / "makine_test_cache").string();
+        testConfig.logsDirectory = (std::filesystem::temp_directory_path() / "makine_test_logs").string();
         testConfig.logLevel = spdlog::level::warn;
 
         // Create test directories
@@ -36,24 +36,24 @@ public:
         {
             std::error_code ec;
             auto dataDir = std::filesystem::path(testConfig.dataDirectory);
-            std::filesystem::remove(dataDir / "makineai.db.enc", ec);
-            std::filesystem::remove(dataDir / "makineai.db", ec);
-            std::filesystem::remove(dataDir / "makineai.db-wal", ec);
-            std::filesystem::remove(dataDir / "makineai.db-shm", ec);
+            std::filesystem::remove(dataDir / "makine.db.enc", ec);
+            std::filesystem::remove(dataDir / "makine.db", ec);
+            std::filesystem::remove(dataDir / "makine.db-wal", ec);
+            std::filesystem::remove(dataDir / "makine.db-shm", ec);
         }
 
         // Initialize core
-        auto& core = makineai::Core::instance();
+        auto& core = makine::Core::instance();
         auto initResult = core.initialize(testConfig);
         if (!initResult) {
-            std::cerr << "Failed to initialize MakineAI Core: "
+            std::cerr << "Failed to initialize Makine Core: "
                       << initResult.error().message() << std::endl;
         }
     }
 
     void TearDown() override {
         // Cleanup core (this also resets its internal logger)
-        auto& core = makineai::Core::instance();
+        auto& core = makine::Core::instance();
         if (core.isInitialized()) {
             core.shutdown();
         }
@@ -66,9 +66,9 @@ public:
         // Clean up temp directories
         auto tempPath = std::filesystem::temp_directory_path();
         std::error_code ec;
-        std::filesystem::remove_all(tempPath / "makineai_test_data", ec);
-        std::filesystem::remove_all(tempPath / "makineai_test_cache", ec);
-        std::filesystem::remove_all(tempPath / "makineai_test_logs", ec);
+        std::filesystem::remove_all(tempPath / "makine_test_data", ec);
+        std::filesystem::remove_all(tempPath / "makine_test_cache", ec);
+        std::filesystem::remove_all(tempPath / "makine_test_logs", ec);
     }
 };
 
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
 
     // Register our environment (SetUp is called after test discovery)
-    ::testing::AddGlobalTestEnvironment(new MakineAITestEnvironment());
+    ::testing::AddGlobalTestEnvironment(new MakineTestEnvironment());
 
     return RUN_ALL_TESTS();
 }

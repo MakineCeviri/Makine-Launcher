@@ -2,13 +2,13 @@
  * @file test_runtime_manager.cpp
  * @brief Unit tests for RuntimeManager stub
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/runtime_manager.hpp>
+#include <makine/runtime_manager.hpp>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 TEST(RuntimeManagerTest, NeedsRuntimeAlwaysFalse) {
@@ -37,4 +37,4 @@ TEST(RuntimeManagerTest, DefaultConstruction) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

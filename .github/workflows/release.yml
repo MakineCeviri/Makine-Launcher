@@ -20,7 +20,7 @@ env:
   QT_VERSION: '6.10.1'
   MINGW_DIR: 'C:/Qt/Tools/mingw1310_64'
   VCPKG_ROOT: 'C:/vcpkg'
-  ARTIFACT_NAME: MakineAI-v${{ github.event.inputs.version }}-win64
+  ARTIFACT_NAME: Makine-Launcher-v${{ github.event.inputs.version }}-win64
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Job 1: Build + Sign (Windows)
@@ -68,21 +68,21 @@ jobs:
 
       - name: Verify binary
         run: |
-          if (!(Test-Path "build/dev/MakineAI.exe")) {
+          if (!(Test-Path "build/dev/Makine-Launcher.exe")) {
             Write-Host "::error::Build output not found"; exit 1
           }
-          $size = [math]::Round((Get-Item "build/dev/MakineAI.exe").Length / 1MB, 1)
-          Write-Host "::notice::MakineAI.exe built successfully ($size MB)"
+          $size = [math]::Round((Get-Item "build/dev/Makine-Launcher.exe").Length / 1MB, 1)
+          Write-Host "::notice::Makine-Launcher.exe built successfully ($size MB)"
         shell: pwsh
 
       # ─── Prepare dist ──────────────────────────────────────────────────
       - name: Prepare distribution
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "build/dev/MakineAI.exe" dist/
+          Copy-Item "build/dev/Makine-Launcher.exe" dist/
 
           $env:PATH = "C:/Qt/${{ env.QT_VERSION }}/mingw_64/bin;${{ env.MINGW_DIR }}/bin;$env:PATH"
-          windeployqt --qmldir qml/qml --release dist/MakineAI.exe
+          windeployqt --qmldir qml/qml --release dist/Makine-Launcher.exe
 
           # vcpkg runtime DLLs
           $vcpkgBin = "${{ env.VCPKG_ROOT }}/installed/x64-mingw-dynamic/bin"
@@ -208,10 +208,10 @@ jobs:
           fi
 
           gh release create "$TAG" \
-            --title "MakineAI $TAG" \
+            --title "Makine-Launcher $TAG" \
             $DRAFT_FLAG \
             --notes "$(cat <<NOTES
-          ## MakineAI $TAG
+          ## Makine-Launcher $TAG
 
           Turkce oyun ceviri platformu.
 

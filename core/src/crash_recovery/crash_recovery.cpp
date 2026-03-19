@@ -1,11 +1,11 @@
 /**
  * @file crash_recovery.cpp
  * @brief Crash recovery journal implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/crash_recovery.hpp"
-#include "makineai/logging.hpp"
+#include "makine/crash_recovery.hpp"
+#include "makine/logging.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -15,7 +15,7 @@
 #include <set>
 #include <string>
 
-namespace makineai::recovery {
+namespace makine::recovery {
 
 using json = nlohmann::json;
 
@@ -85,7 +85,7 @@ bool CrashRecoveryJournal::beginOperation(const JournalEntry& entry) {
     std::lock_guard lock(mutex_);
 
     if (active_) {
-        MAKINEAI_LOG_WARN(log::CORE, "CrashRecoveryJournal: operation already in progress");
+        MAKINE_LOG_WARN(log::CORE, "CrashRecoveryJournal: operation already in progress");
         return false;
     }
 
@@ -162,7 +162,7 @@ JournalEntry CrashRecoveryJournal::readPendingOperation() const {
             }
         }
     } catch (const json::exception& e) {
-        MAKINEAI_LOG_WARN(log::CORE, "CrashRecoveryJournal: corrupted journal: {}", e.what());
+        MAKINE_LOG_WARN(log::CORE, "CrashRecoveryJournal: corrupted journal: {}", e.what());
         return {};
     }
 
@@ -178,12 +178,12 @@ RecoveryResult CrashRecoveryJournal::recover(const fs::path& installedStatePath)
 
     // Corrupted or empty journal
     if (entry.gameId.empty() && entry.backupPath.empty()) {
-        MAKINEAI_LOG_WARN(log::CORE, "CrashRecoveryJournal: empty/corrupt journal, deleting");
+        MAKINE_LOG_WARN(log::CORE, "CrashRecoveryJournal: empty/corrupt journal, deleting");
         deleteJournal();
         return {true, 0, "Corrupted journal cleaned up"};
     }
 
-    MAKINEAI_LOG_INFO(log::CORE, "CrashRecoveryJournal: recovering {} for game {}",
+    MAKINE_LOG_INFO(log::CORE, "CrashRecoveryJournal: recovering {} for game {}",
                       operationTypeToString(entry.type), entry.gameId);
 
     RecoveryResult result;
@@ -204,7 +204,7 @@ RecoveryResult CrashRecoveryJournal::recover(const fs::path& installedStatePath)
 
     deleteJournal();
 
-    MAKINEAI_LOG_INFO(log::CORE, "CrashRecoveryJournal: recovery {} ({} files processed)",
+    MAKINE_LOG_INFO(log::CORE, "CrashRecoveryJournal: recovery {} ({} files processed)",
                       result.success ? "succeeded" : "failed", result.filesProcessed);
     return result;
 }
@@ -390,4 +390,4 @@ void CrashRecoveryJournal::deleteJournal() {
     fs::remove(tmpPath, ec);
 }
 
-} // namespace makineai::recovery
+} // namespace makine::recovery

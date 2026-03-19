@@ -1,7 +1,7 @@
 /**
  * @file unity_bundle.hpp
  * @brief Unity AssetBundle (UnityFS) format structures
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Reference: UnityFS format documentation
  * Supports Unity 5.x and later bundle formats with LZ4/LZMA compression
@@ -9,13 +9,13 @@
 
 #pragma once
 
-#include "../makineai/types.hpp"
+#include "../makine/types.hpp"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace makineai::formats {
+namespace makine::formats {
 
 // Magic signatures
 constexpr char kUnityFSMagic[] = "UnityFS";
@@ -195,4 +195,4 @@ namespace ClassId {
     constexpr int32_t SpriteAtlas = 687078895;
 }
 
-} // namespace makineai::formats
+} // namespace makine::formats

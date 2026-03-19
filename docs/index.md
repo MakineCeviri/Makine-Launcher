@@ -1,4 +1,4 @@
-# MakineAI Dokümantasyonu
+# Makine-Launcher Dokümantasyonu
 
 Türkçe oyun çeviri platformuna hoş geldiniz!
 
@@ -6,7 +6,7 @@ Türkçe oyun çeviri platformuna hoş geldiniz!
 
 ## Proje Hakkında
 
-MakineAI iki parçadan oluşur:
+Makine-Launcher iki parçadan oluşur:
 
 - **Makine** — Çeviri dağıtım platformu (oyun tespit, paket kur/kaldır, yedekle)
 - **MakineAI** — Adaptasyon motoru (oyun güncelleme tespiti, otomatik çeviri uyarlama)
@@ -66,4 +66,4 @@ Teknik referans — her motorun dosya yapısı ve çeviri yöntemi:
 
 ---
 
-*MakineAI v0.1.0-alpha*
+*Makine-Launcher v0.1.0-alpha*

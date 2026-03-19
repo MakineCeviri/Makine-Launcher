@@ -82,9 +82,10 @@
       "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_UI_ONLY": "OFF",
-        "MAKINEAI_DEV_TOOLS": "ON",
-        "MAKINEAI_CRASH_REPORTING": "ON"
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_DEV_TOOLS": "ON",
+        "MAKINE_CRASH_REPORTING": "ON",
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
       }
     },
     {
@@ -95,8 +96,9 @@
       "binaryDir": "${sourceDir}/qml/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_UI_ONLY": "ON",
-        "MAKINEAI_DEV_TOOLS": "ON"
+        "MAKINE_UI_ONLY": "ON",
+        "MAKINE_DEV_TOOLS": "ON",
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
       }
     },
     {
@@ -107,8 +109,9 @@
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "MAKINEAI_UI_ONLY": "OFF",
-        "MAKINEAI_DEV_TOOLS": "ON"
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_DEV_TOOLS": "ON",
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
       }
     },
     {
@@ -121,8 +124,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}",
-        "MAKINEAI_UI_ONLY": "OFF",
-        "MAKINEAI_RELEASE_VERIFIED": "ON"
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_RELEASE_VERIFIED": "ON"
       },
       "condition": {
         "type": "equals",
@@ -139,7 +142,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64_static",
-        "MAKINEAI_UI_ONLY": "OFF",
+        "MAKINE_UI_ONLY": "OFF",
         "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
         "VCPKG_MANIFEST_MODE": "OFF"
@@ -152,7 +155,7 @@
       "inherits": "dev",
       "binaryDir": "${sourceDir}/build/dev-profile",
       "cacheVariables": {
-        "MAKINEAI_PROFILER": "ON"
+        "MAKINE_PROFILER": "ON"
       }
     },
     {
@@ -164,9 +167,9 @@
       "binaryDir": "${sourceDir}/core/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "MAKINEAI_CORE_ONLY": "ON",
+        "MAKINE_CORE_ONLY": "ON",
         "BUILD_TESTING": "ON",
-        "MAKINEAI_BUILD_TESTS": "ON",
+        "MAKINE_BUILD_TESTS": "ON",
         "VCPKG_MANIFEST_MODE": "OFF",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
         "CMAKE_C_COMPILER_LAUNCHER": "",

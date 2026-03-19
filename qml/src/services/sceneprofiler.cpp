@@ -1,13 +1,13 @@
 /**
  * @file sceneprofiler.cpp
  * @brief Scene profiling implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "sceneprofiler.h"
 #include "profiler.h"
 
-namespace makineai {
+namespace makine {
 
 SceneProfiler::SceneProfiler(QObject* parent)
     : QObject(parent)
@@ -38,7 +38,7 @@ void SceneProfiler::endTransition()
 
     m_transitions.push_back({m_transitionFrom, m_transitionTo, ms});
 
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
     // Record as zone: "Transition::Home->GameDetail"
     QString zoneName = QStringLiteral("Transition::%1->%2").arg(m_transitionFrom, m_transitionTo);
     QByteArray nameBytes = zoneName.toUtf8();
@@ -58,7 +58,7 @@ void SceneProfiler::screenLoaded(const QString& screenName)
     double ms = m_appTimer.elapsed();
     m_screenLoads.push_back({screenName, ms});
 
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
     QString zoneName = QStringLiteral("ScreenLoaded::%1").arg(screenName);
     QByteArray nameBytes = zoneName.toUtf8();
     static QSet<QByteArray> s_screenNames;
@@ -89,7 +89,7 @@ void SceneProfiler::endInteraction()
 
     double ms = m_interactionTimer.elapsed();
 
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
     QString zoneName = QStringLiteral("Interaction::%1").arg(m_activeInteraction);
     QByteArray nameBytes = zoneName.toUtf8();
     static QSet<QByteArray> s_interactionNames;
@@ -131,7 +131,7 @@ void SceneProfiler::markDialogClose(const QString& name)
 
 void SceneProfiler::markLoaderReady(const QString& loaderName)
 {
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
     double ms = m_appTimer.elapsed();
     QString zoneName = QStringLiteral("LoaderReady::%1").arg(loaderName);
     QByteArray nameBytes = zoneName.toUtf8();
@@ -219,4 +219,4 @@ QJsonObject SceneProfiler::sceneReport() const
     return obj;
 }
 
-} // namespace makineai
+} // namespace makine

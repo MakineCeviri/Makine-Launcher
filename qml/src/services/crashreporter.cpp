@@ -1,12 +1,12 @@
 /**
  * @file crashreporter.cpp
  * @brief Sentry crash reporting implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "crashreporter.h"
 
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
 #include <sentry.h>
 #include <QSysInfo>
 #include <QCoreApplication>
@@ -38,14 +38,14 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
         // Skip info messages
         break;
     case QtWarningMsg:
-        makineai::CrashReporter::addBreadcrumb(category, utf8.constData(), "warning");
+        makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "warning");
         break;
     case QtCriticalMsg:
-        makineai::CrashReporter::addBreadcrumb(category, utf8.constData(), "error");
-        makineai::CrashReporter::captureMessage(utf8.constData(), "error");
+        makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "error");
+        makine::CrashReporter::captureMessage(utf8.constData(), "error");
         break;
     case QtFatalMsg:
-        makineai::CrashReporter::captureMessage(utf8.constData(), "fatal");
+        makine::CrashReporter::captureMessage(utf8.constData(), "fatal");
         break;
     }
 }
@@ -115,19 +115,19 @@ sentry_value_t beforeSend(sentry_value_t event, void* /*hint*/, void* /*closure*
 }
 
 } // namespace
-#endif // MAKINEAI_HAS_SENTRY
+#endif // MAKINE_HAS_SENTRY
 
-namespace makineai {
+namespace makine {
 
 void CrashReporter::initialize()
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     sentry_options_t* options = sentry_options_new();
 
     // DSN from CMake compile definition (SENTRY_DSN)
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     // Dev: allow env var override
-    QByteArray envDsn = qgetenv("MAKINEAI_SENTRY_DSN");
+    QByteArray envDsn = qgetenv("MAKINE_SENTRY_DSN");
     const char* dsn = envDsn.isEmpty() ? SENTRY_DSN : envDsn.constData();
 #else
     const char* dsn = SENTRY_DSN;
@@ -135,7 +135,7 @@ void CrashReporter::initialize()
     sentry_options_set_dsn(options, dsn);
 
     // Release tag for version tracking (matches deploy.py Sentry release name)
-    sentry_options_set_release(options, MAKINEAI_SENTRY_RELEASE);
+    sentry_options_set_release(options, MAKINE_SENTRY_RELEASE);
 
     // Environment
 #ifdef NDEBUG
@@ -190,7 +190,7 @@ void CrashReporter::initialize()
 
 void CrashReporter::shutdown()
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     addBreadcrumb("app", "Application shutting down", "info");
     sentry_close();
 #endif
@@ -199,7 +199,7 @@ void CrashReporter::shutdown()
 void CrashReporter::addBreadcrumb(const char* category, const char* message,
                                    const char* level)
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     sentry_value_t crumb = sentry_value_new_breadcrumb("default", message);
     sentry_value_set_by_key(crumb, "category", sentry_value_new_string(category));
     sentry_value_set_by_key(crumb, "level", sentry_value_new_string(level));
@@ -213,7 +213,7 @@ void CrashReporter::addBreadcrumb(const char* category, const char* message,
 
 void CrashReporter::setContext(const char* key, const QString& value)
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     sentry_set_tag(key, value.toUtf8().constData());
 #else
     Q_UNUSED(key)
@@ -223,7 +223,7 @@ void CrashReporter::setContext(const char* key, const QString& value)
 
 void CrashReporter::setUser(const QString& id)
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     sentry_value_t user = sentry_value_new_object();
     sentry_value_set_by_key(user, "id", sentry_value_new_string(id.toUtf8().constData()));
     sentry_set_user(user);
@@ -234,14 +234,14 @@ void CrashReporter::setUser(const QString& id)
 
 void CrashReporter::captureMessage(const char* message, const char* level)
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     sentry_level_t sentryLevel = SENTRY_LEVEL_INFO;
     if (qstrcmp(level, "warning") == 0)      sentryLevel = SENTRY_LEVEL_WARNING;
     else if (qstrcmp(level, "error") == 0)    sentryLevel = SENTRY_LEVEL_ERROR;
     else if (qstrcmp(level, "fatal") == 0)    sentryLevel = SENTRY_LEVEL_FATAL;
     else if (qstrcmp(level, "debug") == 0)    sentryLevel = SENTRY_LEVEL_DEBUG;
 
-    sentry_capture_event(sentry_value_new_message_event(sentryLevel, "makineai", message));
+    sentry_capture_event(sentry_value_new_message_event(sentryLevel, "makine", message));
 #else
     Q_UNUSED(message)
     Q_UNUSED(level)
@@ -250,7 +250,7 @@ void CrashReporter::captureMessage(const char* message, const char* level)
 
 void CrashReporter::setGameContext(const QString& gameId, const QString& gameName)
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     setContext("game.id", gameId);
     setContext("game.name", gameName);
 
@@ -264,9 +264,9 @@ void CrashReporter::setGameContext(const QString& gameId, const QString& gameNam
 
 void CrashReporter::installQtMessageHandler()
 {
-#ifdef MAKINEAI_HAS_SENTRY
+#ifdef MAKINE_HAS_SENTRY
     s_previousHandler = qInstallMessageHandler(sentryMessageHandler);
 #endif
 }
 
-} // namespace makineai
+} // namespace makine

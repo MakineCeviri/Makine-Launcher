@@ -1,9 +1,9 @@
 /**
  * @file integrityservice.h
  * @brief Binary self-integrity verification service
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
- * Thin Qt wrapper around makineai::integrity core module.
+ * Thin Qt wrapper around makine::integrity core module.
  * Verifies that the application binary has not been tampered with by
  * comparing its SHA-256 hash against a known-good hash generated at
  * build time.
@@ -15,7 +15,7 @@
 #include <QString>
 #include <QQmlEngine>
 
-namespace makineai {
+namespace makine {
 
 class IntegrityService : public QObject
 {
@@ -49,4 +49,4 @@ private:
     QString m_status{"pending"};
 };
 
-} // namespace makineai
+} // namespace makine

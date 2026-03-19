@@ -1,7 +1,7 @@
 /**
  * @file systemtraymanager.h
  * @brief System tray icon using native Win32 APIs (no Qt6Widgets dependency)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Uses Shell_NotifyIconW + native popup menu to avoid linking Qt6::Widgets.
  * Saves ~7 MB by allowing QGuiApplication instead of QApplication.

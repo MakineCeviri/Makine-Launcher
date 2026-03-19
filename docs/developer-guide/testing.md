@@ -1,6 +1,6 @@
 # Test Yazma
 
-MakineAI test stratejisi ve örnekleri.
+Makine-Launcher test stratejisi ve örnekleri.
 
 ---
 
@@ -28,7 +28,7 @@ core/
 ```
 
 > **Not:** Game-specific integration testler engine handler implementasyonu
-> bekledigi icin devre disi birakilmistir. `makineai_tests` unit test
+> bekledigi icin devre disi birakilmistir. `makine_tests` unit test
 > target'i aktiftir.
 
 ---
@@ -39,10 +39,10 @@ core/
 
 ```cpp
 #include <gtest/gtest.h>
-#include <makineai/core.hpp>
+#include <makine/core.hpp>
 
 TEST(GameDetectorTest, DetectsSteamGames) {
-    auto& core = makineai::Core::instance();
+    auto& core = makine::Core::instance();
     core.initialize();
 
     auto& detector = core.gameDetector();
@@ -60,7 +60,7 @@ TEST(GameDetectorTest, DetectsSteamGames) {
 class AssetParserTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        core_ = &makineai::Core::instance();
+        core_ = &makine::Core::instance();
         core_->initialize();
     }
 
@@ -68,7 +68,7 @@ protected:
         core_->shutdown();
     }
 
-    makineai::Core* core_;
+    makine::Core* core_;
 };
 
 TEST_F(AssetParserTest, DetectsUnityEngine) {
@@ -77,7 +77,7 @@ TEST_F(AssetParserTest, DetectsUnityEngine) {
     auto result = parser.detectEngine("testdata/unity_game");
 
     ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value(), makineai::EngineType::Unity);
+    EXPECT_EQ(result.value(), makine::EngineType::Unity);
 }
 
 TEST_F(AssetParserTest, DetectsUnrealEngine) {
@@ -86,7 +86,7 @@ TEST_F(AssetParserTest, DetectsUnrealEngine) {
     auto result = parser.detectEngine("testdata/unreal_game");
 
     ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value(), makineai::EngineType::Unreal);
+    EXPECT_EQ(result.value(), makine::EngineType::Unreal);
 }
 ```
 
@@ -94,13 +94,13 @@ TEST_F(AssetParserTest, DetectsUnrealEngine) {
 
 ```cpp
 class EngineDetectionTest : public ::testing::TestWithParam<
-    std::tuple<std::string, makineai::EngineType>
+    std::tuple<std::string, makine::EngineType>
 > {};
 
 TEST_P(EngineDetectionTest, DetectsEngine) {
     auto [path, expectedEngine] = GetParam();
 
-    auto& parser = makineai::Core::instance().assetParser();
+    auto& parser = makine::Core::instance().assetParser();
     auto result = parser.detectEngine(path);
 
     ASSERT_TRUE(result.success());
@@ -111,9 +111,9 @@ INSTANTIATE_TEST_SUITE_P(
     Engines,
     EngineDetectionTest,
     ::testing::Values(
-        std::make_tuple("testdata/unity_game", makineai::EngineType::Unity),
-        std::make_tuple("testdata/unreal_game", makineai::EngineType::Unreal),
-        std::make_tuple("testdata/rpgmaker_game", makineai::EngineType::RpgMaker)
+        std::make_tuple("testdata/unity_game", makine::EngineType::Unity),
+        std::make_tuple("testdata/unreal_game", makine::EngineType::Unreal),
+        std::make_tuple("testdata/rpgmaker_game", makine::EngineType::RpgMaker)
     )
 );
 ```

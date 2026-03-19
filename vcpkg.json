@@ -1,9 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "name": "makineai",
+  "name": "makine-launcher",
   "version": "0.1.0",
   "description": "Turkish game translation launcher",
-  "homepage": "https://makineai.com",
+  "homepage": "https://makineceviri.net",
   "license": "LicenseRef-Proprietary",
   "supports": "windows & x64",
   "dependencies": [

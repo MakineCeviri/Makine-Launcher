@@ -3,15 +3,15 @@
 /**
  * @file crashreporter.h
  * @brief Sentry crash reporting integration
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Wraps sentry-native SDK for automatic crash reporting.
- * All methods are static and no-op when built without MAKINEAI_HAS_SENTRY.
+ * All methods are static and no-op when built without MAKINE_HAS_SENTRY.
  */
 
 #include <QString>
 
-namespace makineai {
+namespace makine {
 
 class CrashReporter
 {
@@ -42,4 +42,4 @@ public:
     static void installQtMessageHandler();
 };
 
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -124,7 +124,7 @@ Item {
 
                 Image {
                     anchors.fill: parent
-                    source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
+                    source: "qrc:/qt/qml/MakineLauncher/resources/images/logo.png"
                     sourceSize: Qt.size(64, 64)
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true

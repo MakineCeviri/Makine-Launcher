@@ -24,7 +24,7 @@
 
 class QString;
 
-namespace makineai {
+namespace makine {
 
 struct ZoneStats {
     const char* name = nullptr;
@@ -108,4 +108,4 @@ struct PerfZone {
     PerfZone& operator=(const PerfZone&) = delete;
 };
 
-} // namespace makineai
+} // namespace makine

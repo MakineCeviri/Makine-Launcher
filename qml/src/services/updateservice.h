@@ -1,7 +1,7 @@
 /**
  * @file updateservice.h
  * @brief Application update lifecycle — single QML facade
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * State-enum driven API. C++ computes all derived display
  * properties; QML only binds, never switches on state.
@@ -17,7 +17,7 @@
 #include <QFile>
 #include <memory>
 
-namespace makineai {
+namespace makine {
 
 class UpdateService : public QObject
 {
@@ -124,4 +124,4 @@ private:
     int m_githubAssetId{0};
 };
 
-} // namespace makineai
+} // namespace makine

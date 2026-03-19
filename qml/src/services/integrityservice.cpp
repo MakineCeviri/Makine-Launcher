@@ -1,9 +1,9 @@
 /**
  * @file integrityservice.cpp
  * @brief Binary self-integrity verification — thin Qt wrapper
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
- * Delegates hash computation to makineai::integrity core module
+ * Delegates hash computation to makine::integrity core module
  * when available, falls back to QCryptographicHash for UI-only builds.
  */
 
@@ -14,17 +14,17 @@
 #include <QFileInfo>
 #include <QLoggingCategory>
 
-#ifndef MAKINEAI_UI_ONLY
-#include <makineai/file_integrity.hpp>
+#ifndef MAKINE_UI_ONLY
+#include <makine/file_integrity.hpp>
 #else
 #include <QCryptographicHash>
 #include <QFile>
 #include <QRegularExpression>
 #endif
 
-Q_LOGGING_CATEGORY(lcIntegrity, "makineai.integrity")
+Q_LOGGING_CATEGORY(lcIntegrity, "makine.integrity")
 
-namespace makineai {
+namespace makine {
 
 IntegrityService::IntegrityService(QObject *parent)
     : QObject(parent)
@@ -47,7 +47,7 @@ void IntegrityService::verify()
     MAKINE_ZONE_NAMED("IntegrityService::verify");
     if (m_checking) return;
 
-#ifndef MAKINEAI_RELEASE_VERIFIED
+#ifndef MAKINE_RELEASE_VERIFIED
     // Skip integrity check unless explicitly enabled for release distribution
     m_verified = true;
     m_status = "skipped";
@@ -70,8 +70,8 @@ void IntegrityService::performCheck()
     MAKINE_THREAD_NAME("Worker-Integrity");
     const QString exePath = QCoreApplication::applicationFilePath();
 
-#ifndef MAKINEAI_UI_ONLY
-    // Core module: makineai::integrity handles everything
+#ifndef MAKINE_UI_ONLY
+    // Core module: makine::integrity handles everything
     auto result = integrity::verifyFile(exePath.toStdString());
 
     if (!result) {
@@ -187,4 +187,4 @@ void IntegrityService::performCheck()
 #endif
 }
 
-} // namespace makineai
+} // namespace makine

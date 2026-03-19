@@ -1,11 +1,11 @@
 /**
  * @file core.cpp
- * @brief MakineAI core implementation with full system integration
- * @copyright (c) 2026 MakineAI Team
+ * @brief Makine core implementation with full system integration
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/core.hpp"
-#include "makineai/crypto_utils.hpp"
+#include "makine/core.hpp"
+#include "makine/crypto_utils.hpp"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 
 // =============================================================================
 // Singleton Instance
@@ -63,7 +63,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
         return std::unexpected(logResult.error());
     }
 
-    MAKINEAI_LOG_INFO(log::CORE, "MakineAI Core {} initializing...", version());
+    MAKINE_LOG_INFO(log::CORE, "Makine Core {} initializing...", version());
 
     // Create required directories
     std::error_code ec;
@@ -77,11 +77,11 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     // Pre-flight health check
     configureHealthChecker(config);
     if (!options.skipHealthCheck) {
-        MAKINEAI_LOG_DEBUG(log::CORE, "Running pre-flight health check...");
+        MAKINE_LOG_DEBUG(log::CORE, "Running pre-flight health check...");
         result.healthStatus = HealthChecker::instance().check();
 
         if (!result.healthStatus.healthy) {
-            MAKINEAI_LOG_WARN(log::CORE, "Health check warnings: {}",
+            MAKINE_LOG_WARN(log::CORE, "Health check warnings: {}",
                 result.healthStatus.toText());
 
             // Only fail on critical issues
@@ -95,14 +95,14 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
 
     if (!options.skipDatabaseInit) {
         if (auto dbResult = initializeDatabase(config); !dbResult) {
-            MAKINEAI_LOG_ERROR(log::CORE, "Database initialization failed: {}",
+            MAKINE_LOG_ERROR(log::CORE, "Database initialization failed: {}",
                 dbResult.error().message());
             return std::unexpected(dbResult.error());
         }
     }
 
     if (auto modResult = initializeModules(config); !modResult) {
-        MAKINEAI_LOG_ERROR(log::CORE, "Module initialization failed: {}",
+        MAKINE_LOG_ERROR(log::CORE, "Module initialization failed: {}",
             modResult.error().message());
         return std::unexpected(modResult.error());
     }
@@ -138,7 +138,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     result.features.hasEfsw = Features::has_efsw;
 
     result.success = true;
-    result.message = "MakineAI Core initialized successfully";
+    result.message = "Makine Core initialized successfully";
     initResult_ = result;
 
     initialized_.store(true, std::memory_order_release);
@@ -146,7 +146,7 @@ Result<InitResult> Core::initialize(const CoreConfig& config, const InitOptions&
     AuditLogger::instance().logSystemEvent("core_initialized",
         fmt::format("Version: {}, Duration: {}ms", version(), result.initDuration.count()));
 
-    MAKINEAI_LOG_INFO(log::CORE, "MakineAI Core initialized in {}ms",
+    MAKINE_LOG_INFO(log::CORE, "Makine Core initialized in {}ms",
         result.initDuration.count());
 
     return result;
@@ -163,14 +163,14 @@ void Core::shutdown() {
         return;
     }
 
-    MAKINEAI_LOG_INFO(log::CORE, "MakineAI Core shutting down...");
+    MAKINE_LOG_INFO(log::CORE, "Makine Core shutting down...");
 
     // Invoke shutdown callbacks in reverse order
     for (auto it = shutdownCallbacks_.rbegin(); it != shutdownCallbacks_.rend(); ++it) {
         try {
             (*it)();
         } catch (const std::exception& ex) {
-            MAKINEAI_LOG_WARN(log::CORE, "Shutdown callback exception: {}", ex.what());
+            MAKINE_LOG_WARN(log::CORE, "Shutdown callback exception: {}", ex.what());
         }
     }
     shutdownCallbacks_.clear();
@@ -189,7 +189,7 @@ void Core::shutdown() {
     // Database last (others may depend on it)
     // Database is a singleton, so just ensure it's clean
 
-    MAKINEAI_LOG_INFO(log::CORE, "MakineAI Core shutdown complete");
+    MAKINE_LOG_INFO(log::CORE, "Makine Core shutdown complete");
 
     // Reset logger last
     logger_.reset();
@@ -210,17 +210,17 @@ Result<void> initializeCrypto() {
 }
 
 Result<void> Core::initializeCrypto() {
-    return makineai::initializeCrypto();
+    return makine::initializeCrypto();
 }
 
 Result<void> Core::initializeLogging(const CoreConfig& config, bool verbose) {
     try {
         auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto fileSink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-            (fs::path(config.logsDirectory) / "makineai.log").string(), true);
+            (fs::path(config.logsDirectory) / "makine.log").string(), true);
 
         std::vector<spdlog::sink_ptr> sinks{consoleSink, fileSink};
-        logger_ = std::make_shared<spdlog::logger>("makineai", sinks.begin(), sinks.end());
+        logger_ = std::make_shared<spdlog::logger>("makine", sinks.begin(), sinks.end());
 
         // Set log level
         auto level = verbose ? spdlog::level::debug : config.logLevel;
@@ -236,22 +236,22 @@ Result<void> Core::initializeLogging(const CoreConfig& config, bool verbose) {
 }
 
 Result<void> Core::initializeDatabase(const CoreConfig& config) {
-    MAKINEAI_LOG_DEBUG(log::CORE, "Initializing database...");
+    MAKINE_LOG_DEBUG(log::CORE, "Initializing database...");
     auto timer = Metrics::instance().timer("db_init");
 
-    auto dbPath = fs::path(config.dataDirectory) / "makineai.db";
+    auto dbPath = fs::path(config.dataDirectory) / "makine.db";
     auto result = Database::instance().initialize(dbPath);
 
     if (!result) {
         return std::unexpected(result.error());
     }
 
-    MAKINEAI_LOG_DEBUG(log::CORE, "Database initialized at: {}", dbPath.string());
+    MAKINE_LOG_DEBUG(log::CORE, "Database initialized at: {}", dbPath.string());
     return {};
 }
 
 Result<void> Core::initializeModules(const CoreConfig& config) {
-    MAKINEAI_LOG_DEBUG(log::CORE, "Initializing core modules...");
+    MAKINE_LOG_DEBUG(log::CORE, "Initializing core modules...");
     auto timer = Metrics::instance().timer("modules_init");
 
     try {
@@ -270,28 +270,28 @@ Result<void> Core::initializeModules(const CoreConfig& config) {
         {
             auto embeddedResult = securityManager_->loadEmbeddedKey();
             if (!embeddedResult) {
-                MAKINEAI_LOG_DEBUG(log::CORE, "Embedded key not available: {}",
+                MAKINE_LOG_DEBUG(log::CORE, "Embedded key not available: {}",
                     embeddedResult.error().message());
 
                 // Fall back to external key file if configured
                 if (!config.publicKeyPath.empty() && fs::exists(config.publicKeyPath)) {
                     auto fileResult = securityManager_->loadPublicKey(config.publicKeyPath);
                     if (!fileResult) {
-                        MAKINEAI_LOG_WARN(log::CORE, "Failed to load public key: {}",
+                        MAKINE_LOG_WARN(log::CORE, "Failed to load public key: {}",
                             fileResult.error().message());
                         AuditLogger::instance().logSystemEvent("public_key_load_failed",
                             fileResult.error().message());
                     }
                 } else {
-                    MAKINEAI_LOG_WARN(log::CORE,
+                    MAKINE_LOG_WARN(log::CORE,
                         "No public key available — package signature verification will fail");
                 }
             } else {
-                MAKINEAI_LOG_INFO(log::CORE, "Embedded public key loaded successfully");
+                MAKINE_LOG_INFO(log::CORE, "Embedded public key loaded successfully");
             }
         }
 
-        MAKINEAI_LOG_DEBUG(log::CORE, "Core modules initialized");
+        MAKINE_LOG_DEBUG(log::CORE, "Core modules initialized");
         return {};
 
     } catch (const std::exception& ex) {
@@ -310,7 +310,7 @@ void Core::configureHealthChecker(const CoreConfig& config) {
     checker.setDataDirectory(fs::path(config.dataDirectory));
 
     // Set database path
-    checker.setDatabasePath(fs::path(config.dataDirectory) / "makineai.db");
+    checker.setDatabasePath(fs::path(config.dataDirectory) / "makine.db");
 }
 
 void Core::configureAuditLogger(const CoreConfig& config) {
@@ -325,18 +325,18 @@ void Core::configureAuditLogger(const CoreConfig& config) {
 }
 
 void Core::logFeatureAvailability() {
-    MAKINEAI_LOG_INFO(log::CORE, "=== Feature Availability ===");
-    MAKINEAI_LOG_INFO(log::CORE, "  Taskflow (parallel):    {}", Features::has_taskflow ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  simdjson (fast JSON):   {}", Features::has_simdjson ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  mio (memory-mapped):    {}", Features::has_mio ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  libsodium (crypto):     {}", Features::has_sodium ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  bit7z (7-zip):          {}", Features::has_bit7z ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  libarchive (archives):  {}", Features::has_libarchive ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  efsw (file watcher):    {}", Features::has_efsw ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  simdutf (UTF conv):     {}", Features::has_simdutf ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  SQLiteCpp:              {}", Features::has_sqlitecpp ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  concurrentqueue:        {}", Features::has_concurrentqueue ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "============================");
+    MAKINE_LOG_INFO(log::CORE, "=== Feature Availability ===");
+    MAKINE_LOG_INFO(log::CORE, "  Taskflow (parallel):    {}", Features::has_taskflow ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  simdjson (fast JSON):   {}", Features::has_simdjson ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  mio (memory-mapped):    {}", Features::has_mio ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  libsodium (crypto):     {}", Features::has_sodium ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  bit7z (7-zip):          {}", Features::has_bit7z ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  libarchive (archives):  {}", Features::has_libarchive ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  efsw (file watcher):    {}", Features::has_efsw ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  simdutf (UTF conv):     {}", Features::has_simdutf ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  SQLiteCpp:              {}", Features::has_sqlitecpp ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  concurrentqueue:        {}", Features::has_concurrentqueue ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "============================");
 }
 
 // =============================================================================
@@ -467,18 +467,18 @@ std::optional<Version> Version::parse(std::string_view str) {
 
 void Features::log_features() {
     // Log directly without Core access
-    MAKINEAI_LOG_INFO(log::CORE, "=== Feature Availability ===");
-    MAKINEAI_LOG_INFO(log::CORE, "  Taskflow (parallel):    {}", Features::has_taskflow ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  simdjson (fast JSON):   {}", Features::has_simdjson ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  mio (memory-mapped):    {}", Features::has_mio ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  libsodium (crypto):     {}", Features::has_sodium ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  bit7z (7-zip):          {}", Features::has_bit7z ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  libarchive (archives):  {}", Features::has_libarchive ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  efsw (file watcher):    {}", Features::has_efsw ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  simdutf (UTF conv):     {}", Features::has_simdutf ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  SQLiteCpp:              {}", Features::has_sqlitecpp ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "  concurrentqueue:        {}", Features::has_concurrentqueue ? "YES" : "NO");
-    MAKINEAI_LOG_INFO(log::CORE, "============================");
+    MAKINE_LOG_INFO(log::CORE, "=== Feature Availability ===");
+    MAKINE_LOG_INFO(log::CORE, "  Taskflow (parallel):    {}", Features::has_taskflow ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  simdjson (fast JSON):   {}", Features::has_simdjson ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  mio (memory-mapped):    {}", Features::has_mio ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  libsodium (crypto):     {}", Features::has_sodium ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  bit7z (7-zip):          {}", Features::has_bit7z ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  libarchive (archives):  {}", Features::has_libarchive ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  efsw (file watcher):    {}", Features::has_efsw ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  simdutf (UTF conv):     {}", Features::has_simdutf ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  SQLiteCpp:              {}", Features::has_sqlitecpp ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "  concurrentqueue:        {}", Features::has_concurrentqueue ? "YES" : "NO");
+    MAKINE_LOG_INFO(log::CORE, "============================");
 }
 
-} // namespace makineai
+} // namespace makine

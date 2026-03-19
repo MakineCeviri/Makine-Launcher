@@ -15,7 +15,7 @@
 #include <QRegularExpression>
 #include <QDesktopServices>
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 #include "mkpkformat.h"
 #endif
 
@@ -24,9 +24,9 @@
 #include <softpub.h>
 #endif
 
-using namespace makineai;
+using namespace makine;
 
-Q_LOGGING_CATEGORY(lcPlugin, "makineai.plugin")
+Q_LOGGING_CATEGORY(lcPlugin, "makine.plugin")
 
 PluginManager::PluginManager(QObject* parent)
     : QObject(parent)
@@ -148,10 +148,10 @@ bool PluginManager::loadManifest(const QString& dirPath, PluginEntry& entry)
     }
 
     // Check API version compatibility
-    if (entry.apiVersion > MAKINEAI_PLUGIN_API_VERSION) {
+    if (entry.apiVersion > MAKINE_PLUGIN_API_VERSION) {
         qCWarning(lcPlugin) << "Plugin" << entry.id
                             << "requires API v" << entry.apiVersion
-                            << "(launcher supports v" << MAKINEAI_PLUGIN_API_VERSION << ")";
+                            << "(launcher supports v" << MAKINE_PLUGIN_API_VERSION << ")";
         entry.lastError = QStringLiteral("Incompatible API version");
         return false;
     }
@@ -182,28 +182,28 @@ bool PluginManager::loadPlugin(PluginEntry& entry)
     }
 
     // Resolve required exported symbols
-    entry.fnGetInfo     = reinterpret_cast<MakineAiFn_GetInfo>(
-                              GetProcAddress(entry.hModule, "makineai_get_info"));
-    entry.fnInitialize  = reinterpret_cast<MakineAiFn_Initialize>(
-                              GetProcAddress(entry.hModule, "makineai_initialize"));
-    entry.fnShutdown    = reinterpret_cast<MakineAiFn_Shutdown>(
-                              GetProcAddress(entry.hModule, "makineai_shutdown"));
-    entry.fnIsReady     = reinterpret_cast<MakineAiFn_IsReady>(
-                              GetProcAddress(entry.hModule, "makineai_is_ready"));
-    entry.fnGetLastError = reinterpret_cast<MakineAiFn_GetLastError>(
-                              GetProcAddress(entry.hModule, "makineai_get_last_error"));
+    entry.fnGetInfo     = reinterpret_cast<MakineFn_GetInfo>(
+                              GetProcAddress(entry.hModule, "makine_get_info"));
+    entry.fnInitialize  = reinterpret_cast<MakineFn_Initialize>(
+                              GetProcAddress(entry.hModule, "makine_initialize"));
+    entry.fnShutdown    = reinterpret_cast<MakineFn_Shutdown>(
+                              GetProcAddress(entry.hModule, "makine_shutdown"));
+    entry.fnIsReady     = reinterpret_cast<MakineFn_IsReady>(
+                              GetProcAddress(entry.hModule, "makine_is_ready"));
+    entry.fnGetLastError = reinterpret_cast<MakineFn_GetLastError>(
+                              GetProcAddress(entry.hModule, "makine_get_last_error"));
 
     // Optional: settings exports
     entry.fnGetSetting = reinterpret_cast<PluginEntry::GetSettingFn>(
-                              GetProcAddress(entry.hModule, "makineai_get_setting"));
+                              GetProcAddress(entry.hModule, "makine_get_setting"));
     entry.fnSetSetting = reinterpret_cast<PluginEntry::SetSettingFn>(
-                              GetProcAddress(entry.hModule, "makineai_set_setting"));
+                              GetProcAddress(entry.hModule, "makine_set_setting"));
 
     // Optional: OCR+translate exports
     entry.fnCaptureOcrTranslate = reinterpret_cast<PluginEntry::CaptureOcrTranslateFn>(
-                              GetProcAddress(entry.hModule, "makineai_capture_ocr_translate"));
+                              GetProcAddress(entry.hModule, "makine_capture_ocr_translate"));
     entry.fnGetLastOcrText = reinterpret_cast<PluginEntry::GetLastOcrTextFn>(
-                              GetProcAddress(entry.hModule, "makineai_get_last_ocr_text"));
+                              GetProcAddress(entry.hModule, "makine_get_last_ocr_text"));
 
     if (!entry.fnGetInfo || !entry.fnInitialize || !entry.fnShutdown
         || !entry.fnIsReady || !entry.fnGetLastError) {
@@ -218,8 +218,8 @@ bool PluginManager::loadPlugin(PluginEntry& entry)
     const QString dataPath = AppPaths::pluginDataDir() + "/" + entry.id;
     QDir().mkpath(dataPath);
 
-    MakineAiError err = entry.fnInitialize(dataPath.toUtf8().constData());
-    if (err != MAKINEAI_OK) {
+    MakineError err = entry.fnInitialize(dataPath.toUtf8().constData());
+    if (err != MAKINE_OK) {
         const char* errMsg = entry.fnGetLastError();
         entry.lastError = errMsg ? QString::fromUtf8(errMsg) : QStringLiteral("Initialize failed");
         qCWarning(lcPlugin) << "Plugin" << entry.id << "init failed:" << entry.lastError;
@@ -427,7 +427,7 @@ void PluginManager::checkForUpdates()
     const QString url = QStringLiteral("https://raw.githubusercontent.com/%1/main/index.json")
                             .arg(QString::fromLatin1(kRegistryRepo));
     QNetworkRequest req{QUrl(url)};
-    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+    req.setRawHeader("User-Agent", "Makine-Launcher");
     auto* reply = m_net->get(req);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -520,7 +520,7 @@ void PluginManager::fetchGitHubRelease(const QString& repo, const QString& plugi
     const QString apiUrl = QStringLiteral("https://api.github.com/repos/%1/releases/latest").arg(repo);
     QNetworkRequest req{QUrl(apiUrl)};
     req.setRawHeader("Accept", "application/vnd.github+json");
-    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+    req.setRawHeader("User-Agent", "Makine-Launcher");
 
     auto* reply = m_net->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply, pluginId]() {
@@ -616,7 +616,7 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
     emit installProgressChanged();
 
     QNetworkRequest req{parsed};
-    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+    req.setRawHeader("User-Agent", "Makine-Launcher");
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::NoLessSafeRedirectPolicy);
     auto* reply = m_net->get(req);
@@ -934,7 +934,7 @@ bool PluginManager::extractPlugin(const QString& packagePath, const QString& plu
     const QString destDir = AppPaths::pluginsDir() + "/" + pluginId;
     QDir().mkpath(destDir);
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
     // Use .makine format (MKPK v2: zstd + tar, no encryption)
     QFile file(packagePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -945,8 +945,8 @@ bool PluginManager::extractPlugin(const QString& packagePath, const QString& plu
     const QByteArray data = file.readAll();
     file.close();
 
-    makineai::mkpk::MkpkError mkpkErr{""};
-    int count = makineai::mkpk::process_mkpkg(
+    makine::mkpk::MkpkError mkpkErr{""};
+    int count = makine::mkpk::process_mkpkg(
         reinterpret_cast<const uint8_t*>(data.constData()),
         static_cast<size_t>(data.size()),
         destDir.toStdWString(),
@@ -1041,7 +1041,7 @@ void PluginManager::fetchCommunityPlugins()
     m_loadingCommunity = true;
     emit loadingCommunityChanged();
 
-    // Search GitHub for repos with "makineai-plugin" topic, sorted by stars
+    // Search GitHub for repos with "makine-plugin" topic, sorted by stars
     const QString url = QStringLiteral(
         "https://api.github.com/search/repositories?"
         "q=topic:%1+fork:false&sort=stars&order=desc&per_page=%2")
@@ -1050,7 +1050,7 @@ void PluginManager::fetchCommunityPlugins()
 
     QNetworkRequest req{QUrl(url)};
     req.setRawHeader("Accept", "application/vnd.github+json");
-    req.setRawHeader("User-Agent", "MakineAI-Launcher");
+    req.setRawHeader("User-Agent", "Makine-Launcher");
 
     auto* reply = m_net->get(req);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {

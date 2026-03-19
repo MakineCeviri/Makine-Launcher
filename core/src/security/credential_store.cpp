@@ -1,12 +1,12 @@
 /**
  * @file credential_store.cpp
  * @brief Windows Credential Manager wrapper implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/credential_store.hpp"
-#include "makineai/logging.hpp"
-#include "makineai/audit.hpp"
+#include "makine/credential_store.hpp"
+#include "makine/logging.hpp"
+#include "makine/audit.hpp"
 
 #include <optional>
 #include <string>
@@ -17,7 +17,7 @@
 #pragma comment(lib, "advapi32.lib")
 #endif
 
-namespace makineai {
+namespace makine {
 
 std::string CredentialStore::makeTarget(const std::string& key) {
     return std::string(PREFIX) + key;
@@ -42,19 +42,19 @@ VoidResult CredentialStore::save(const std::string& key, const std::string& valu
 
     cred.Persist = CRED_PERSIST_LOCAL_MACHINE;
 
-    std::wstring wComment = L"MakineAI credential";
+    std::wstring wComment = L"Makine credential";
     cred.Comment = const_cast<LPWSTR>(wComment.c_str());
 
     if (!CredWriteW(&cred, 0)) {
         DWORD error = GetLastError();
-        MAKINEAI_LOG_ERROR(log::SECURITY,
+        MAKINE_LOG_ERROR(log::SECURITY,
             "Failed to save credential '{}': Windows error {}",
             key, error);
         return std::unexpected(Error(ErrorCode::IOError,
             fmt::format("Failed to save credential: Windows error {}", error)));
     }
 
-    MAKINEAI_LOG_INFO(log::SECURITY, "Credential saved: {}", key);
+    MAKINE_LOG_INFO(log::SECURITY, "Credential saved: {}", key);
     AuditLogger::logSystemEvent("credential_saved",
         fmt::format("Key: {}", key), AuditSeverity::Info);
     return {};
@@ -75,7 +75,7 @@ std::optional<std::string> CredentialStore::load(const std::string& key) {
 
     PCREDENTIALW pCred = nullptr;
     if (!CredReadW(wTarget.c_str(), CRED_TYPE_GENERIC, 0, &pCred)) {
-        MAKINEAI_LOG_DEBUG(log::SECURITY, "Credential not found: {}", key);
+        MAKINE_LOG_DEBUG(log::SECURITY, "Credential not found: {}", key);
         return std::nullopt;
     }
 
@@ -86,7 +86,7 @@ std::optional<std::string> CredentialStore::load(const std::string& key) {
 
     CredFree(pCred);
 
-    MAKINEAI_LOG_DEBUG(log::SECURITY, "Credential loaded: {}", key);
+    MAKINE_LOG_DEBUG(log::SECURITY, "Credential loaded: {}", key);
     return value;
 #else
     return std::nullopt;
@@ -107,14 +107,14 @@ VoidResult CredentialStore::remove(const std::string& key) {
         if (error == ERROR_NOT_FOUND) {
             return {};  // Already removed
         }
-        MAKINEAI_LOG_ERROR(log::SECURITY,
+        MAKINE_LOG_ERROR(log::SECURITY,
             "Failed to delete credential '{}': Windows error {}",
             key, error);
         return std::unexpected(Error(ErrorCode::IOError,
             fmt::format("Failed to delete credential: Windows error {}", error)));
     }
 
-    MAKINEAI_LOG_INFO(log::SECURITY, "Credential deleted: {}", key);
+    MAKINE_LOG_INFO(log::SECURITY, "Credential deleted: {}", key);
     AuditLogger::logSystemEvent("credential_deleted",
         fmt::format("Key: {}", key), AuditSeverity::Info);
     return {};
@@ -144,4 +144,4 @@ bool CredentialStore::exists(const std::string& key) {
 #endif
 }
 
-} // namespace makineai
+} // namespace makine

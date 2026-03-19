@@ -1,17 +1,17 @@
 /**
  * @file game_detector.cpp
  * @brief Game detector implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/game_detector.hpp"
-#include "makineai/core.hpp"
-#include "makineai/security.hpp"
-#include "makineai/features.hpp"
-#include "makineai/parallel.hpp"
-#include "makineai/mio_utils.hpp"
-#include "makineai/logging.hpp"
-#include "makineai/metrics.hpp"
+#include "makine/game_detector.hpp"
+#include "makine/core.hpp"
+#include "makine/security.hpp"
+#include "makine/features.hpp"
+#include "makine/parallel.hpp"
+#include "makine/mio_utils.hpp"
+#include "makine/logging.hpp"
+#include "makine/metrics.hpp"
 
 #include "engines/engine_detectors.hpp"
 
@@ -24,11 +24,11 @@
 #include <unordered_set>
 
 // Optional: efsw for filesystem watching
-#ifdef MAKINEAI_HAS_EFSW
+#ifdef MAKINE_HAS_EFSW
 #include <efsw/efsw.hpp>
 #endif
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 GameDetector::GameDetector() {
     registerBuiltinScanners();
@@ -53,17 +53,17 @@ void GameDetector::registerBuiltinScanners() {
 }
 
 Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) const {
-    MAKINEAI_TIMED_SCOPE(log::DETECTOR, "scanAll");
+    MAKINE_TIMED_SCOPE(log::DETECTOR, "scanAll");
 
     auto scanAllTimer = metrics().timer("detector_scan_all");
     const uint32_t totalScanners = static_cast<uint32_t>(scanners_.size());
 
     if (scanners_.empty()) {
-        MAKINEAI_LOG_WARN(log::DETECTOR, "No scanners registered");
+        MAKINE_LOG_WARN(log::DETECTOR, "No scanners registered");
         return std::vector<GameInfo>{};
     }
 
-    MAKINEAI_LOG_INFO(log::DETECTOR, "Starting game scan with {} scanners (backend: {})",
+    MAKINE_LOG_INFO(log::DETECTOR, "Starting game scan with {} scanners (backend: {})",
                       totalScanners, parallel::backendInfo());
     metrics().increment("scan_operations");
 
@@ -74,14 +74,14 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
     for (const auto& scanner : scanners_) {
         if (scanner->isAvailable()) {
             availableScanners.push_back(scanner.get());
-            MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanner available: {}", scanner->name());
+            MAKINE_LOG_DEBUG(log::DETECTOR, "Scanner available: {}", scanner->name());
         } else {
-            MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanner not available: {}", scanner->name());
+            MAKINE_LOG_DEBUG(log::DETECTOR, "Scanner not available: {}", scanner->name());
         }
     }
 
     if (availableScanners.empty()) {
-        MAKINEAI_LOG_WARN(log::DETECTOR, "No game stores available");
+        MAKINE_LOG_WARN(log::DETECTOR, "No game stores available");
         return std::vector<GameInfo>{};
     }
 
@@ -98,11 +98,11 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
     auto scanResults = parallel::map(
         availableScanners,
         [self](IGameScanner* scanner) -> std::vector<GameInfo> {
-            MAKINEAI_LOG_DEBUG(log::DETECTOR, "Scanning: {}", scanner->name());
+            MAKINE_LOG_DEBUG(log::DETECTOR, "Scanning: {}", scanner->name());
 
             auto result = scanner->scan();
             if (!result) {
-                MAKINEAI_LOG_WARN(log::DETECTOR, "Scanner {} failed: {}",
+                MAKINE_LOG_WARN(log::DETECTOR, "Scanner {} failed: {}",
                                   scanner->name(), result.error().message());
                 return {};
             }
@@ -116,7 +116,7 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
                 }
             }
 
-            MAKINEAI_LOG_INFO(log::DETECTOR, "Found {} games from {}",
+            MAKINE_LOG_INFO(log::DETECTOR, "Found {} games from {}",
                               games.size(), scanner->name());
             return games;
         },
@@ -149,7 +149,7 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
                   return a.name < b.name;
               });
 
-    MAKINEAI_LOG_INFO(log::DETECTOR, "Scan complete: {} total games from {} stores",
+    MAKINE_LOG_INFO(log::DETECTOR, "Scan complete: {} total games from {} stores",
                       allGames.size(), availableScanners.size());
 
     metrics().gauge("total_games_detected", static_cast<double>(allGames.size()));
@@ -693,4 +693,4 @@ std::vector<GameInfo> GameDetector::filterWithTranslations(
 //                           detectIdTech
 // =============================================================================
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

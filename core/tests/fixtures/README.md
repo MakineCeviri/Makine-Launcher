@@ -1,4 +1,4 @@
-# MakineAI Test Fixtures
+# Makine-Launcher Test Fixtures
 
 This directory contains sample game files for integration testing.
 
@@ -52,12 +52,12 @@ For comprehensive testing with real games:
 
 1. Create a `fixtures_real/` directory (gitignored)
 2. Copy actual game folders there
-3. Set `MAKINEAI_TEST_FIXTURES_DIR` environment variable
+3. Set `MAKINE_TEST_FIXTURES_DIR` environment variable
 4. Run integration tests
 
 ```bash
 # Example
-set MAKINEAI_TEST_FIXTURES_DIR=C:\path\to\fixtures_real
+set MAKINE_TEST_FIXTURES_DIR=C:\path\to\fixtures_real
 ctest -R integration
 ```
 

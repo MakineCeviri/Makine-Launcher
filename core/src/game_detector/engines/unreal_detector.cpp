@@ -1,7 +1,7 @@
 /**
  * @file unreal_detector.cpp
  * @brief Unreal Engine 4/5 detector
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "engine_detectors.hpp"
@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 EngineDetectionResult detectUnreal(const fs::path& /*path*/, const GameSignatures& sig) {
     int confidence = 0;
@@ -60,4 +60,4 @@ EngineDetectionResult detectUnreal(const fs::path& /*path*/, const GameSignature
     return result;
 }
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

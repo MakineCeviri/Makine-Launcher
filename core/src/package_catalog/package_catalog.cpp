@@ -1,15 +1,15 @@
 /**
  * @file package_catalog.cpp
  * @brief Network-based translation package catalog implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Pure C++ implementation — no Qt dependency.
  * Loads lightweight index.json from CDN cache, enriches on-demand
  * with per-game detail JSON.
  */
 
-#include "makineai/package_catalog.hpp"
-#include "makineai/logging.hpp"
+#include "makine/package_catalog.hpp"
+#include "makine/logging.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -23,7 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace packages {
 
 using json = nlohmann::json;
@@ -121,14 +121,14 @@ bool PackageCatalog::loadFromIndex(const fs::path& indexPath, const fs::path& pa
 
     std::error_code ec;
     if (!fs::exists(indexPath, ec)) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Index file does not exist: {}",
+        MAKINE_LOG_WARN(log::PACKAGE, "Index file does not exist: {}",
                           indexPath.string());
         return false;
     }
 
     parseIndex(indexPath);
 
-    MAKINEAI_LOG_INFO(log::PACKAGE, "PackageCatalog: loaded {} packages from index (network-only)",
+    MAKINE_LOG_INFO(log::PACKAGE, "PackageCatalog: loaded {} packages from index (network-only)",
                       packages_.size());
     return !packages_.empty();
 }
@@ -291,7 +291,7 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
 {
     auto it = packages_.find(steamAppId);
     if (it == packages_.end()) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "enrichPackage: unknown appId {}", steamAppId);
+        MAKINE_LOG_WARN(log::PACKAGE, "enrichPackage: unknown appId {}", steamAppId);
         return false;
     }
 
@@ -299,7 +299,7 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
     try {
         doc = json::parse(detailJson);
     } catch (const json::parse_error& e) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "enrichPackage parse error for {}: {}", steamAppId, e.what());
+        MAKINE_LOG_WARN(log::PACKAGE, "enrichPackage parse error for {}: {}", steamAppId, e.what());
         return false;
     }
 
@@ -345,7 +345,7 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
 
     entry.detailLoaded = true;
 
-    MAKINEAI_LOG_DEBUG(log::PACKAGE, "enrichPackage: {} enriched (installMethod={})",
+    MAKINE_LOG_DEBUG(log::PACKAGE, "enrichPackage: {} enriched (installMethod={})",
                        steamAppId, entry.installMethodType);
     return true;
 }
@@ -365,7 +365,7 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
 {
     std::ifstream file(indexPath);
     if (!file.is_open()) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Cannot open index: {}", indexPath.string());
+        MAKINE_LOG_WARN(log::PACKAGE, "Cannot open index: {}", indexPath.string());
         return;
     }
 
@@ -373,12 +373,12 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
     try {
         doc = json::parse(file);
     } catch (const json::parse_error& e) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Index parse error: {}", e.what());
+        MAKINE_LOG_WARN(log::PACKAGE, "Index parse error: {}", e.what());
         return;
     }
 
     if (!doc.contains("packages") || !doc["packages"].is_object()) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Index missing 'packages' object");
+        MAKINE_LOG_WARN(log::PACKAGE, "Index missing 'packages' object");
         return;
     }
 
@@ -401,7 +401,7 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
         packages_[info.steamAppId] = std::move(info);
     }
 
-    MAKINEAI_LOG_DEBUG(log::PACKAGE, "Index loaded: {} packages", packages_.size());
+    MAKINE_LOG_DEBUG(log::PACKAGE, "Index loaded: {} packages", packages_.size());
 }
 
 // =============================================================================
@@ -894,7 +894,7 @@ void PackageCatalog::loadInstalledState(const fs::path& statePath)
 
     std::ifstream file(statePath);
     if (!file.is_open()) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Cannot open installed state file: {}",
+        MAKINE_LOG_WARN(log::PACKAGE, "Cannot open installed state file: {}",
                           statePath.string());
         return;
     }
@@ -903,7 +903,7 @@ void PackageCatalog::loadInstalledState(const fs::path& statePath)
     try {
         doc = json::parse(file);
     } catch (const json::parse_error& e) {
-        MAKINEAI_LOG_WARN(log::PACKAGE, "Installed state parse error: {}", e.what());
+        MAKINE_LOG_WARN(log::PACKAGE, "Installed state parse error: {}", e.what());
         return;
     }
 
@@ -942,7 +942,7 @@ void PackageCatalog::loadInstalledState(const fs::path& statePath)
         installed_[it.key()] = std::move(state);
     }
 
-    MAKINEAI_LOG_DEBUG(log::PACKAGE, "Loaded installed state: {} entries from {}",
+    MAKINE_LOG_DEBUG(log::PACKAGE, "Loaded installed state: {} entries from {}",
                        installed_.size(), statePath.string());
 }
 
@@ -959,7 +959,7 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
     if (!parentDir.empty()) {
         fs::create_directories(parentDir, ec);
         if (ec) {
-            MAKINEAI_LOG_WARN(log::PACKAGE, "Cannot create directory for installed state: {}",
+            MAKINE_LOG_WARN(log::PACKAGE, "Cannot create directory for installed state: {}",
                               ec.message());
         }
     }
@@ -1000,7 +1000,7 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
     {
         std::ofstream file(tempPath, std::ios::trunc);
         if (!file.is_open()) {
-            MAKINEAI_LOG_ERROR(log::PACKAGE, "Cannot write installed state file: {}",
+            MAKINE_LOG_ERROR(log::PACKAGE, "Cannot write installed state file: {}",
                                statePath.string());
             return;
         }
@@ -1010,7 +1010,7 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
         if (!file.good()) {
             file.close();
             fs::remove(tempPath, ec);
-            MAKINEAI_LOG_ERROR(log::PACKAGE, "Installed state write failed (flush error)");
+            MAKINE_LOG_ERROR(log::PACKAGE, "Installed state write failed (flush error)");
             return;
         }
     } // file closed here
@@ -1019,12 +1019,12 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
     if (ec) {
         // Rename failed — try to clean up temp file
         fs::remove(tempPath, ec);
-        MAKINEAI_LOG_ERROR(log::PACKAGE, "Installed state atomic rename failed: {}",
+        MAKINE_LOG_ERROR(log::PACKAGE, "Installed state atomic rename failed: {}",
                            ec.message());
         return;
     }
 
-    MAKINEAI_LOG_DEBUG(log::PACKAGE, "Saved installed state: {} entries to {}",
+    MAKINE_LOG_DEBUG(log::PACKAGE, "Saved installed state: {} entries to {}",
                        installed_.size(), statePath.string());
 }
 
@@ -1056,4 +1056,4 @@ std::unordered_map<std::string, std::string> PackageCatalog::getAllExeMap() cons
 }
 
 } // namespace packages
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 /**
  * @file selfupdater.cpp
  * @brief Win32 self-swap implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "selfupdater.h"
@@ -19,9 +19,9 @@
 #pragma comment(lib, "wintrust")
 #endif
 
-Q_LOGGING_CATEGORY(lcSelfUpdater, "makineai.updater")
+Q_LOGGING_CATEGORY(lcSelfUpdater, "makine.updater")
 
-namespace makineai {
+namespace makine {
 
 bool SelfUpdater::swapExecutable(const QString& newExePath)
 {
@@ -92,7 +92,7 @@ bool SelfUpdater::launchDetached(const QString& exePath, const QStringList& args
 
 void SelfUpdater::releaseInstanceGuard()
 {
-    QSharedMemory guard(QStringLiteral("MakineAI_SingleInstance_Guard"));
+    QSharedMemory guard(QStringLiteral("MakineLauncher_SingleInstance_Guard"));
     if (guard.attach())
         guard.detach();
 }
@@ -152,4 +152,4 @@ void SelfUpdater::swapAndRestart(const QString& newExePath)
     ::_exit(0);
 }
 
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 /**
  * @file settingsmanager.h
  * @brief Application settings management
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -12,7 +12,7 @@
 #include <QQmlEngine>
 #include <QVariantMap>
 
-namespace makineai {
+namespace makine {
 
 /**
  * @brief Settings Manager - Manages application settings
@@ -184,4 +184,4 @@ private:
     QString m_translationDataPath{"C:/cedra/translation_data"};
 };
 
-} // namespace makineai
+} // namespace makine

@@ -1,16 +1,16 @@
 /**
  * @file batchoperationservice.cpp
  * @brief Batch translation operations implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "batchoperationservice.h"
 #include "profiler.h"
 #include <QLoggingCategory>
 
-Q_LOGGING_CATEGORY(lcBatchOps, "makineai.batch")
+Q_LOGGING_CATEGORY(lcBatchOps, "makine.batch")
 
-namespace makineai {
+namespace makine {
 
 BatchOperationService::BatchOperationService(QObject *parent)
     : QObject(parent)
@@ -335,4 +335,4 @@ void BatchOperationService::clearResults()
     emit progressChanged();
 }
 
-} // namespace makineai
+} // namespace makine

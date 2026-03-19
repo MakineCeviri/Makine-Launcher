@@ -1,7 +1,7 @@
 /**
  * @file bench_json_parsing.cpp
  * @brief Benchmark: JSON parsing performance comparison
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Compares performance of:
  * - nlohmann::json (baseline)
@@ -17,20 +17,21 @@
 
 #include <benchmark/benchmark.h>
 
-#include <makineai/json_utils.hpp>
-#include <makineai/features.hpp>
+#include <makine/json_utils.hpp>
+#include <makine/features.hpp>
 
 #include <nlohmann/json.hpp>
 
-#ifdef MAKINEAI_HAS_SIMDJSON
+#ifdef MAKINE_HAS_SIMDJSON
 #include <simdjson.h>
 #endif
 
 #include <fstream>
-#include <sstream>
+#include <functional>
 #include <random>
+#include <sstream>
 
-using namespace makineai;
+using namespace makine;
 
 // ============================================================================
 // TEST DATA GENERATION
@@ -208,7 +209,7 @@ BENCHMARK_DEFINE_F(JsonParsingFixture, NlohmannAccess)(benchmark::State& state) 
 // SIMDJSON BENCHMARKS (if available)
 // ============================================================================
 
-#ifdef MAKINEAI_HAS_SIMDJSON
+#ifdef MAKINE_HAS_SIMDJSON
 
 BENCHMARK_DEFINE_F(JsonParsingFixture, SimdjsonParse_Small)(benchmark::State& state) {
     simdjson::dom::parser parser;
@@ -253,7 +254,7 @@ BENCHMARK_DEFINE_F(JsonParsingFixture, SimdjsonAccess)(benchmark::State& state) 
     }
 }
 
-#endif  // MAKINEAI_HAS_SIMDJSON
+#endif  // MAKINE_HAS_SIMDJSON
 
 // ============================================================================
 // JSON_UTILS ABSTRACTION BENCHMARKS
@@ -310,7 +311,7 @@ BENCHMARK_REGISTER_F(JsonParsingFixture, NlohmannParse_Large)
 BENCHMARK_REGISTER_F(JsonParsingFixture, NlohmannAccess)
     ->Unit(benchmark::kNanosecond);
 
-#ifdef MAKINEAI_HAS_SIMDJSON
+#ifdef MAKINE_HAS_SIMDJSON
 BENCHMARK_REGISTER_F(JsonParsingFixture, SimdjsonParse_Small)
     ->RangeMultiplier(2)
     ->Range(10, 100)

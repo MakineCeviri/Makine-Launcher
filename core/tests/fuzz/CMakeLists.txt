@@ -1,5 +1,5 @@
-# MakineAI Fuzzing Tests
-# Copyright (c) 2026 MakineAI Team
+# Makine Fuzzing Tests
+# Copyright (c) 2026 Makine Team
 #
 # Supports: LibFuzzer (Clang), AFL++
 #
@@ -59,7 +59,7 @@ add_executable(fuzz_unity_bundle
 )
 
 target_link_libraries(fuzz_unity_bundle PRIVATE
-    makineai_core
+    makine_core
 )
 
 target_include_directories(fuzz_unity_bundle PRIVATE
@@ -84,7 +84,7 @@ add_executable(fuzz_gamemaker_data
 )
 
 target_link_libraries(fuzz_gamemaker_data PRIVATE
-    makineai_core
+    makine_core
 )
 
 target_include_directories(fuzz_gamemaker_data PRIVATE
@@ -109,7 +109,7 @@ add_executable(fuzz_json_parser
 )
 
 target_link_libraries(fuzz_json_parser PRIVATE
-    makineai_core
+    makine_core
 )
 
 target_include_directories(fuzz_json_parser PRIVATE
@@ -134,7 +134,7 @@ add_executable(fuzz_translation_memory
 )
 
 target_link_libraries(fuzz_translation_memory PRIVATE
-    makineai_core
+    makine_core
 )
 
 target_include_directories(fuzz_translation_memory PRIVATE

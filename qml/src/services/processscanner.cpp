@@ -1,7 +1,7 @@
 /**
  * @file processscanner.cpp
  * @brief Process Scanner Implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "processscanner.h"
@@ -39,9 +39,9 @@ private:
 };
 #endif
 
-Q_LOGGING_CATEGORY(lcProcessScanner, "makineai.process")
+Q_LOGGING_CATEGORY(lcProcessScanner, "makine.process")
 
-namespace makineai {
+namespace makine {
 
 ProcessScanner::ProcessScanner(QObject *parent)
     : QObject(parent)
@@ -501,7 +501,7 @@ void ProcessScanner::updateHeavyProcessList(const QList<ProcessInfo>& processes)
         QStringLiteral("hwmonitor.exe"),       QStringLiteral("gpumon.exe"),
         QStringLiteral("furmark.exe"),         QStringLiteral("kombustor.exe"),
         // Self
-        QStringLiteral("makineai.exe"),
+        QStringLiteral("makine.exe"),
     };
 
     auto isSkipExe = [](const QString& lower) {
@@ -748,4 +748,4 @@ QString ProcessScanner::resolveSelectedProcess(qint64 pid)
 #endif
     return {};
 }
-} // namespace makineai
+} // namespace makine

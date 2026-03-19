@@ -1,11 +1,11 @@
 ﻿/**
  * @file config.cpp
- * @brief MakineAI configuration system implementation
- * @copyright (c) 2026 MakineAI Team
+ * @brief Makine configuration system implementation
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/config.hpp"
-#include "makineai/logging.hpp"
+#include "makine/config.hpp"
+#include "makine/logging.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -18,7 +18,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 
 using json = nlohmann::json;
 
@@ -217,27 +217,27 @@ CoreConfig CoreConfig::loadFromFile(const fs::path& path) {
     CoreConfig config = getDefaults();
 
     if (!fs::exists(path)) {
-        MAKINEAI_LOG_WARN(log::CONFIG, "Config file not found: {}, using defaults", path.string());
+        MAKINE_LOG_WARN(log::CONFIG, "Config file not found: {}, using defaults", path.string());
         return config;
     }
 
     try {
         std::ifstream file(path);
         if (!file) {
-            MAKINEAI_LOG_ERROR(log::CONFIG, "Cannot open config file: {}", path.string());
+            MAKINE_LOG_ERROR(log::CONFIG, "Cannot open config file: {}", path.string());
             return config;
         }
 
         json j = json::parse(file);
         config = j.get<CoreConfig>();
 
-        MAKINEAI_LOG_INFO(log::CONFIG, "Configuration loaded from: {}", path.string());
+        MAKINE_LOG_INFO(log::CONFIG, "Configuration loaded from: {}", path.string());
     }
     catch (const json::exception& e) {
-        MAKINEAI_LOG_ERROR(log::CONFIG, "Failed to parse config file: {}", e.what());
+        MAKINE_LOG_ERROR(log::CONFIG, "Failed to parse config file: {}", e.what());
     }
     catch (const std::exception& e) {
-        MAKINEAI_LOG_ERROR(log::CONFIG, "Failed to load config file: {}", e.what());
+        MAKINE_LOG_ERROR(log::CONFIG, "Failed to load config file: {}", e.what());
     }
 
     config.applyEnvironmentOverrides();
@@ -255,15 +255,15 @@ void CoreConfig::saveToFile(const fs::path& path) const {
         json j = *this;
         std::ofstream file(path);
         if (!file) {
-            MAKINEAI_LOG_ERROR(log::CONFIG, "Cannot create config file: {}", path.string());
+            MAKINE_LOG_ERROR(log::CONFIG, "Cannot create config file: {}", path.string());
             return;
         }
 
         file << j.dump(4);
-        MAKINEAI_LOG_INFO(log::CONFIG, "Configuration saved to: {}", path.string());
+        MAKINE_LOG_INFO(log::CONFIG, "Configuration saved to: {}", path.string());
     }
     catch (const std::exception& e) {
-        MAKINEAI_LOG_ERROR(log::CONFIG, "Failed to save config file: {}", e.what());
+        MAKINE_LOG_ERROR(log::CONFIG, "Failed to save config file: {}", e.what());
     }
 }
 
@@ -274,29 +274,29 @@ CoreConfig CoreConfig::getDefaults() {
 #ifdef _WIN32
     const char* appData = std::getenv("LOCALAPPDATA");
     if (appData) {
-        fs::path base = fs::path(appData) / "MakineAI";
+        fs::path base = fs::path(appData) / "MakineLauncher";
         config.dataDirectory = base.string();
         config.tempDirectory = (base / "temp").string();
         config.backupDirectory = (base / "backups").string();
         config.cacheDirectory = (base / "cache").string();
         config.logsDirectory = (base / "logs").string();
-        config.database.databasePath = (base / "makineai.db").string();
+        config.database.databasePath = (base / "makine.db").string();
     }
 #else
     const char* home = std::getenv("HOME");
     if (home) {
-        fs::path base = fs::path(home) / ".makineai";
+        fs::path base = fs::path(home) / ".makine";
         config.dataDirectory = base.string();
         config.tempDirectory = (base / "temp").string();
         config.backupDirectory = (base / "backups").string();
         config.cacheDirectory = (base / "cache").string();
         config.logsDirectory = (base / "logs").string();
-        config.database.databasePath = (base / "makineai.db").string();
+        config.database.databasePath = (base / "makine.db").string();
     }
 #endif
 
     // API and runtime settings
-    config.apiBaseUrl = "https://api.makineai.com/v1";
+    config.apiBaseUrl = "https://api.makineceviri.net/v1";
     config.publicKeyPath = "";
     config.logLevel = spdlog::level::info;
     config.autoUpdateRuntime = true;
@@ -306,49 +306,49 @@ CoreConfig CoreConfig::getDefaults() {
 }
 
 void CoreConfig::applyEnvironmentOverrides() {
-    // MAKINEAI_LOG_LEVEL
-    if (auto val = getEnvVar("MAKINEAI_LOG_LEVEL")) {
+    // MAKINE_LOG_LEVEL
+    if (auto val = getEnvVar("MAKINE_LOG_LEVEL")) {
         logging.level = *val;
-        MAKINEAI_LOG_DEBUG(log::CONFIG, "Log level overridden by env: {}", *val);
+        MAKINE_LOG_DEBUG(log::CONFIG, "Log level overridden by env: {}", *val);
     }
 
-    // MAKINEAI_DATA_DIR
-    if (auto val = getEnvVar("MAKINEAI_DATA_DIR")) {
+    // MAKINE_DATA_DIR
+    if (auto val = getEnvVar("MAKINE_DATA_DIR")) {
         dataDirectory = *val;
-        MAKINEAI_LOG_DEBUG(log::CONFIG, "Data directory overridden by env: {}", *val);
+        MAKINE_LOG_DEBUG(log::CONFIG, "Data directory overridden by env: {}", *val);
     }
 
-    // MAKINEAI_SCAN_TIMEOUT
-    if (auto val = getEnvVar("MAKINEAI_SCAN_TIMEOUT")) {
+    // MAKINE_SCAN_TIMEOUT
+    if (auto val = getEnvVar("MAKINE_SCAN_TIMEOUT")) {
         try {
             scanning.scanTimeoutMs = std::stoul(*val);
-            MAKINEAI_LOG_DEBUG(log::CONFIG, "Scan timeout overridden by env: {}ms", *val);
+            MAKINE_LOG_DEBUG(log::CONFIG, "Scan timeout overridden by env: {}ms", *val);
         } catch (const std::exception&) {
-            MAKINEAI_LOG_WARN(log::CONFIG, "Invalid MAKINEAI_SCAN_TIMEOUT value: {}", *val);
+            MAKINE_LOG_WARN(log::CONFIG, "Invalid MAKINE_SCAN_TIMEOUT value: {}", *val);
         }
     }
 
-    // MAKINEAI_MIN_DISK_SPACE
-    if (auto val = getEnvVar("MAKINEAI_MIN_DISK_SPACE")) {
+    // MAKINE_MIN_DISK_SPACE
+    if (auto val = getEnvVar("MAKINE_MIN_DISK_SPACE")) {
         try {
             patching.minDiskSpaceMB = std::stoull(*val);
-            MAKINEAI_LOG_DEBUG(log::CONFIG, "Min disk space overridden by env: {}MB", *val);
+            MAKINE_LOG_DEBUG(log::CONFIG, "Min disk space overridden by env: {}MB", *val);
         } catch (const std::exception&) {
-            MAKINEAI_LOG_WARN(log::CONFIG, "Invalid MAKINEAI_MIN_DISK_SPACE value: {}", *val);
+            MAKINE_LOG_WARN(log::CONFIG, "Invalid MAKINE_MIN_DISK_SPACE value: {}", *val);
         }
     }
 
-    // MAKINEAI_PROXY_URL
-    if (auto val = getEnvVar("MAKINEAI_PROXY_URL")) {
+    // MAKINE_PROXY_URL
+    if (auto val = getEnvVar("MAKINE_PROXY_URL")) {
         network.proxyUrl = *val;
-        MAKINEAI_LOG_DEBUG(log::CONFIG, "Proxy URL overridden by env");
+        MAKINE_LOG_DEBUG(log::CONFIG, "Proxy URL overridden by env");
     }
 
-    // MAKINEAI_VERIFY_SSL — only allow disabling in debug builds
+    // MAKINE_VERIFY_SSL — only allow disabling in debug builds
 #ifndef NDEBUG
-    if (auto val = getEnvVar("MAKINEAI_VERIFY_SSL")) {
+    if (auto val = getEnvVar("MAKINE_VERIFY_SSL")) {
         network.verifySsl = (*val == "1" || *val == "true" || *val == "yes");
-        MAKINEAI_LOG_WARN(log::CONFIG, "SSL verification overridden by env: {} (debug build only)", network.verifySsl);
+        MAKINE_LOG_WARN(log::CONFIG, "SSL verification overridden by env: {} (debug build only)", network.verifySsl);
     }
 #endif
 }
@@ -431,17 +431,17 @@ bool ConfigManager::initialize(const fs::path& configPath) {
     auto validation = validateConfig(config_);
     if (!validation.valid) {
         for (const auto& error : validation.errors) {
-            MAKINEAI_LOG_ERROR(log::CONFIG, "Configuration error: {}", error);
+            MAKINE_LOG_ERROR(log::CONFIG, "Configuration error: {}", error);
         }
         return false;
     }
 
     for (const auto& warning : validation.warnings) {
-        MAKINEAI_LOG_WARN(log::CONFIG, "Configuration warning: {}", warning);
+        MAKINE_LOG_WARN(log::CONFIG, "Configuration warning: {}", warning);
     }
 
     initialized_ = true;
-    MAKINEAI_LOG_INFO(log::CONFIG, "Configuration manager initialized");
+    MAKINE_LOG_INFO(log::CONFIG, "Configuration manager initialized");
     return true;
 }
 
@@ -464,14 +464,14 @@ ConfigValidationResult ConfigManager::updateConfig(const CoreConfig& newConfig) 
     }
 
     notifyObservers(oldConfig, newConfig);
-    MAKINEAI_LOG_INFO(log::CONFIG, "Configuration updated");
+    MAKINE_LOG_INFO(log::CONFIG, "Configuration updated");
 
     return validation;
 }
 
 bool ConfigManager::reloadFromFile() {
     if (configPath_.empty()) {
-        MAKINEAI_LOG_ERROR(log::CONFIG, "Cannot reload: no config file path set");
+        MAKINE_LOG_ERROR(log::CONFIG, "Cannot reload: no config file path set");
         return false;
     }
 
@@ -482,7 +482,7 @@ bool ConfigManager::reloadFromFile() {
 
 bool ConfigManager::saveToFile() {
     if (configPath_.empty()) {
-        MAKINEAI_LOG_ERROR(log::CONFIG, "Cannot save: no config file path set");
+        MAKINE_LOG_ERROR(log::CONFIG, "Cannot save: no config file path set");
         return false;
     }
 
@@ -521,9 +521,9 @@ void ConfigManager::notifyObservers(const CoreConfig& oldConfig, const CoreConfi
         try {
             callback(oldConfig, newConfig);
         } catch (const std::exception& e) {
-            MAKINEAI_LOG_ERROR(log::CONFIG, "Observer callback threw exception: {}", e.what());
+            MAKINE_LOG_ERROR(log::CONFIG, "Observer callback threw exception: {}", e.what());
         }
     }
 }
 
-} // namespace makineai
+} // namespace makine

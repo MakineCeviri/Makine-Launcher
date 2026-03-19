@@ -2,18 +2,19 @@
  * @file test_archive_utils.cpp
  * @brief Unit tests for archive_utils.hpp — Format detection, formatToString, backends
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/archive_utils.hpp>
+#include <makine/archive_utils.hpp>
 
 #include <cstring>
 #include <span>
 #include <string>
+#include <filesystem>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 using namespace archive;
@@ -179,4 +180,4 @@ TEST(ArchiveDetectFileTest, NonexistentFileReturnsUnknown) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

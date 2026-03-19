@@ -2,17 +2,17 @@
  * @file test_patch_engine.cpp
  * @brief Unit tests for PatchEngine module
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <makineai/patch_engine.hpp>
+#include <makine/patch_engine.hpp>
 #include <fstream>
 #include <filesystem>
 #include <unordered_map>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 class PatchEngineTest : public ::testing::Test {
@@ -22,8 +22,8 @@ protected:
     PatchEngine patcher_;
 
     void SetUp() override {
-        testDir_ = std::filesystem::temp_directory_path() / "makineai_patch_tests";
-        backupDir_ = std::filesystem::temp_directory_path() / "makineai_patch_backups";
+        testDir_ = std::filesystem::temp_directory_path() / "makine_patch_tests";
+        backupDir_ = std::filesystem::temp_directory_path() / "makine_patch_backups";
         std::filesystem::create_directories(testDir_);
         std::filesystem::create_directories(backupDir_);
 
@@ -417,4 +417,4 @@ TEST_F(PatchEngineTest, DeleteNonexistentBackup) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

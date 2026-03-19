@@ -2,16 +2,16 @@
  * @file test_string_pool.cpp
  * @brief Unit tests for string_pool.hpp — StringPool, ObjectPool, BufferPool, GlobalPools
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/string_pool.hpp>
+#include <makine/string_pool.hpp>
 
 #include <string>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -403,4 +403,4 @@ TEST(GlobalPoolsTest, ConvenienceFunction) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

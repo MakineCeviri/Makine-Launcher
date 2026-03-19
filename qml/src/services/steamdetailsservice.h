@@ -1,7 +1,7 @@
 /**
  * @file steamdetailsservice.h
  * @brief Steam store details fetching and caching service
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <QStringList>
 #include <QNetworkAccessManager>
 
-namespace makineai {
+namespace makine {
 
 /**
  * @brief Steam store details for a game
@@ -97,4 +97,4 @@ private:
     QSet<QString> m_pendingFetches;
 };
 
-} // namespace makineai
+} // namespace makine

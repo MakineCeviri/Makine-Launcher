@@ -2,17 +2,17 @@
  * @file test_package_catalog.cpp
  * @brief Unit tests for PackageCatalog module
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/package_catalog.hpp>
+#include <makine/package_catalog.hpp>
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
 #include <set>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 using json = nlohmann::json;
@@ -26,7 +26,7 @@ protected:
     packages::PackageCatalog catalog_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makineai_catalog_tests";
+        testDir_ = fs::temp_directory_path() / "makine_catalog_tests";
         cachePath_ = testDir_ / "cache";
         indexPath_ = testDir_ / "index.json";
         fs::create_directories(cachePath_);
@@ -437,4 +437,4 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdEmptyString) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

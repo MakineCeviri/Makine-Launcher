@@ -1,9 +1,9 @@
 /**
  * @file operationjournal.h
  * @brief Crash recovery journal — thin Qt wrapper
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
- * Thin Qt wrapper around makineai::recovery::CrashRecoveryJournal.
+ * Thin Qt wrapper around makine::recovery::CrashRecoveryJournal.
  * Provides QObject signals for UI integration, delegates all business
  * logic to the pure C++ core module.
  */
@@ -14,16 +14,16 @@
 #include <QString>
 #include <QStringList>
 
-#ifndef MAKINEAI_UI_ONLY
-#include <makineai/crash_recovery.hpp>
+#ifndef MAKINE_UI_ONLY
+#include <makine/crash_recovery.hpp>
 #include <memory>
 #endif
 
-#ifdef MAKINEAI_UI_ONLY
+#ifdef MAKINE_UI_ONLY
 #include <QMutex>
 #endif
 
-namespace makineai {
+namespace makine {
 
 enum class OpType { Install, Uninstall, BackupCreate, BackupRestore };
 
@@ -62,7 +62,7 @@ signals:
     void recoveryCompleted(bool success, const QString& message);
 
 private:
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
     std::unique_ptr<recovery::CrashRecoveryJournal> m_journal;
 #else
     void flushJournal();
@@ -81,4 +81,4 @@ private:
 #endif
 };
 
-} // namespace makineai
+} // namespace makine
