@@ -177,6 +177,6 @@ private:
     // GitHub configuration
     static constexpr const char* kTrustedGitHubOrg = "MakineCeviri";
     static constexpr const char* kGitHubTopic = "makine-plugin";
-    static constexpr const char* kRegistryRepo = "MakineCeviri/makine-plugins";
+    static constexpr const char* kRegistryRepo = "MakineCeviri/Makine-LauncherPlugins";
     static constexpr int kCommunityMaxDisplay = 3;
 };
