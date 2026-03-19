@@ -17,12 +17,14 @@ QtObject {
     property string steamAppId: ""
     property string imageUrl: ""
     property string heroImageUrl: ""
+    property string logoImageUrl: ""
     property bool verified: false
     property string engine: ""
     property bool hasTranslation: false
     property bool isEditorsPick: false
     property string editorsNote: ""
     property bool isManualGame: false
+    property string externalUrl: ""
 
     // ===== GAME INSTALL STATE =====
     property bool isGameInstalled: false
@@ -84,11 +86,11 @@ QtObject {
     readonly property string impactLevel: updateImpact ? updateImpact.level : ""
     readonly property int progressPercent: Math.round(installProgress * 100)
 
-    // Pre-computed Steam CDN URLs — eliminates string concat in view bindings
+    // Pre-computed Steam CDN URLs — catalog overrides take priority (hash-based Steam URLs)
     readonly property string _steamBase: steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + steamAppId : ""
-    readonly property string heroUrl: _steamBase !== "" ? _steamBase + "/library_hero.jpg" : heroImageUrl
+    readonly property string heroUrl: heroImageUrl !== "" ? heroImageUrl : (_steamBase !== "" ? _steamBase + "/library_hero.jpg" : "")
     readonly property string coverUrl: imageUrl !== "" ? imageUrl : (_steamBase !== "" ? _steamBase + "/library_600x900_2x.jpg" : "")
-    readonly property string logoUrl: _steamBase !== "" ? _steamBase + "/logo.png" : ""
+    readonly property string logoUrl: logoImageUrl !== "" ? logoImageUrl : (_steamBase !== "" ? _steamBase + "/logo.png" : "")
 
     // Pre-joined detail strings — eliminates .join() in view bindings
     readonly property string developersText: developers.join(", ")
@@ -99,9 +101,10 @@ QtObject {
 
     function reset() {
         gameId = ""; gameName = ""; steamAppId = ""; imageUrl = ""
-        heroImageUrl = ""; verified = false; engine = ""
+        heroImageUrl = ""; logoImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
-        isManualGame = false; isGameInstalled = false; packageInstalled = false
+        isManualGame = false; externalUrl = ""
+        isGameInstalled = false; packageInstalled = false
         hasTranslationUpdate = false; autoInstall = false; fromLibrary = false
         description = ""; developers = []; publishers = []
         releaseDate = ""; genres = []; metacriticScore = 0
@@ -129,6 +132,9 @@ QtObject {
         steamAppId = d.steamAppId || ""
         hasTranslation = d.hasTranslation || false
         isManualGame = d.isManualGame || false
+        externalUrl = d.externalUrl || ""
+        heroImageUrl = d.heroImageUrl || ""
+        logoImageUrl = d.logoImageUrl || ""
         isGameInstalled = d.isGameInstalled || false
         packageInstalled = d.packageInstalled || false
         autoInstall = d.autoInstall || false
