@@ -18,8 +18,6 @@ QtObject {
     property string imageUrl: ""
     property string heroImageUrl: ""
     property string logoImageUrl: ""
-    property string _catalogHeroUrl: ""
-    property string _catalogLogoUrl: ""
     property bool verified: false
     property string engine: ""
     property bool hasTranslation: false
@@ -88,11 +86,11 @@ QtObject {
     readonly property string impactLevel: updateImpact ? updateImpact.level : ""
     readonly property int progressPercent: Math.round(installProgress * 100)
 
-    // Pre-computed Steam CDN URLs — _catalog overrides only for games with hash-based Steam URLs
+    // Pre-computed Steam CDN URLs — catalog overrides take priority (hash-based Steam URLs)
     readonly property string _steamBase: steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + steamAppId : ""
-    readonly property string heroUrl: _catalogHeroUrl !== "" ? _catalogHeroUrl : (_steamBase !== "" ? _steamBase + "/library_hero.jpg" : heroImageUrl)
+    readonly property string heroUrl: heroImageUrl !== "" ? heroImageUrl : (_steamBase !== "" ? _steamBase + "/library_hero.jpg" : "")
     readonly property string coverUrl: imageUrl !== "" ? imageUrl : (_steamBase !== "" ? _steamBase + "/library_600x900_2x.jpg" : "")
-    readonly property string logoUrl: _catalogLogoUrl !== "" ? _catalogLogoUrl : (_steamBase !== "" ? _steamBase + "/logo.png" : "")
+    readonly property string logoUrl: logoImageUrl !== "" ? logoImageUrl : (_steamBase !== "" ? _steamBase + "/logo.png" : "")
 
     // Pre-joined detail strings — eliminates .join() in view bindings
     readonly property string developersText: developers.join(", ")
@@ -103,7 +101,7 @@ QtObject {
 
     function reset() {
         gameId = ""; gameName = ""; steamAppId = ""; imageUrl = ""
-        heroImageUrl = ""; logoImageUrl = ""; _catalogHeroUrl = ""; _catalogLogoUrl = ""; verified = false; engine = ""
+        heroImageUrl = ""; logoImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
         isManualGame = false; externalUrl = ""
         isGameInstalled = false; packageInstalled = false
@@ -135,8 +133,8 @@ QtObject {
         hasTranslation = d.hasTranslation || false
         isManualGame = d.isManualGame || false
         externalUrl = d.externalUrl || ""
-        _catalogHeroUrl = d.heroImageUrl || ""
-        _catalogLogoUrl = d.logoImageUrl || ""
+        heroImageUrl = d.heroImageUrl || ""
+        logoImageUrl = d.logoImageUrl || ""
         isGameInstalled = d.isGameInstalled || false
         packageInstalled = d.packageInstalled || false
         autoInstall = d.autoInstall || false
