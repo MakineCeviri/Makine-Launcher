@@ -1,10 +1,10 @@
-# MakineAI C++ Native Core — Launcher Library
-# Copyright (c) 2026 MakineAI Team
+# MakineLauncher C++ Native Core — Launcher Library
+# Copyright (c) 2026 MakineCeviri Team
 # Game detection, package management, patching, security
 
 cmake_minimum_required(VERSION 3.28)
 
-project(MakineAI
+project(MakineLauncher
     VERSION 0.1.0
     DESCRIPTION "Turkish Game Translation Launcher - Native Core"
     LANGUAGES CXX
@@ -72,10 +72,10 @@ if(BUILD_TESTING)
 endif()
 
 # Include directories
-set(MAKINEAI_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(MAKINE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Source files — launcher only (intelligence code moved to Makine/engine)
-set(MAKINEAI_SOURCES
+set(MAKINE_SOURCES
     # Core
     src/core.cpp
 
@@ -122,40 +122,40 @@ set(MAKINEAI_SOURCES
 )
 
 # Header files (for IDE)
-set(MAKINEAI_HEADERS
-    include/makineai/core.hpp
-    include/makineai/patch_engine.hpp
-    include/makineai/game_detector.hpp
-    include/makineai/vdf_parser.hpp
-    include/makineai/package_catalog.hpp
-    include/makineai/runtime_manager.hpp
-    include/makineai/security.hpp
-    include/makineai/ssl_pinning.hpp
-    include/makineai/credential_store.hpp
-    include/makineai/file_integrity.hpp
-    include/makineai/crash_recovery.hpp
-    include/makineai/detail/scoped_metrics.hpp
+set(MAKINE_HEADERS
+    include/makine/core.hpp
+    include/makine/patch_engine.hpp
+    include/makine/game_detector.hpp
+    include/makine/vdf_parser.hpp
+    include/makine/package_catalog.hpp
+    include/makine/runtime_manager.hpp
+    include/makine/security.hpp
+    include/makine/ssl_pinning.hpp
+    include/makine/credential_store.hpp
+    include/makine/file_integrity.hpp
+    include/makine/crash_recovery.hpp
+    include/makine/detail/scoped_metrics.hpp
 )
 
 # Static library
-add_library(makineai_core STATIC ${MAKINEAI_SOURCES} ${MAKINEAI_HEADERS})
+add_library(makine_core STATIC ${MAKINE_SOURCES} ${MAKINE_HEADERS})
 
 # ===== Security Hardening =====
 if(MSVC)
-    target_compile_options(makineai_core PRIVATE
+    target_compile_options(makine_core PRIVATE
         /GS           # Buffer security check (stack cookies)
         /guard:cf     # Control Flow Guard
         /sdl          # Additional security checks
     )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(makineai_core PRIVATE
+    target_compile_options(makine_core PRIVATE
         -fstack-protector-strong     # Stack smashing protection
         -D_FORTIFY_SOURCE=2          # Buffer overflow detection
         -Wformat -Wformat-security   # Format string warnings
         -fPIE                        # Position-independent executable
     )
     # M-15: Linker hardening flags
-    target_link_options(makineai_core PRIVATE
+    target_link_options(makine_core PRIVATE
         -Wl,-z,relro                 # Partial RELRO (read-only relocations)
         -Wl,-z,now                   # Full RELRO (resolve all symbols at load time)
         -Wl,-z,noexecstack           # Non-executable stack
@@ -165,13 +165,13 @@ endif()
 # Include directories:
 # - core/include — launcher-specific headers
 
-target_include_directories(makineai_core
+target_include_directories(makine_core
     PUBLIC
-        $<BUILD_INTERFACE:${MAKINEAI_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${MAKINE_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(makineai_core
+target_link_libraries(makine_core
     PUBLIC
 
         # Launcher-specific dependencies
@@ -191,62 +191,62 @@ target_link_libraries(makineai_core
 
 # Launcher-specific optional libraries
 if(TARGET bit7z::bit7z)
-    target_link_libraries(makineai_core PUBLIC bit7z::bit7z)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_BIT7Z)
+    target_link_libraries(makine_core PUBLIC bit7z::bit7z)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_BIT7Z)
     message(STATUS "bit7z found - 7-zip support enabled")
 endif()
 
 if(TARGET LibArchive::LibArchive)
-    target_link_libraries(makineai_core PUBLIC LibArchive::LibArchive)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_LIBARCHIVE)
+    target_link_libraries(makine_core PUBLIC LibArchive::LibArchive)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_LIBARCHIVE)
     message(STATUS "libarchive found - Multi-format archive support enabled")
 endif()
 
 if(TARGET efsw::efsw)
-    target_link_libraries(makineai_core PUBLIC efsw::efsw)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_EFSW)
+    target_link_libraries(makine_core PUBLIC efsw::efsw)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_EFSW)
     message(STATUS "efsw found - Filesystem watcher enabled")
 endif()
 
 # Common optional libraries (formerly in makine-common)
 if(TARGET mio::mio)
-    target_link_libraries(makineai_core PUBLIC mio::mio)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_MIO)
+    target_link_libraries(makine_core PUBLIC mio::mio)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_MIO)
 endif()
 
 if(TARGET Taskflow::Taskflow)
-    target_link_libraries(makineai_core PUBLIC Taskflow::Taskflow)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_TASKFLOW)
+    target_link_libraries(makine_core PUBLIC Taskflow::Taskflow)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_TASKFLOW)
 endif()
 
 if(TARGET unofficial::concurrentqueue::concurrentqueue)
-    target_link_libraries(makineai_core PUBLIC unofficial::concurrentqueue::concurrentqueue)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_CONCURRENTQUEUE)
+    target_link_libraries(makine_core PUBLIC unofficial::concurrentqueue::concurrentqueue)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_CONCURRENTQUEUE)
 endif()
 
 if(TARGET simdutf::simdutf)
-    target_link_libraries(makineai_core PUBLIC simdutf::simdutf)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDUTF)
+    target_link_libraries(makine_core PUBLIC simdutf::simdutf)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_SIMDUTF)
 endif()
 
 if(TARGET simdjson::simdjson)
-    target_link_libraries(makineai_core PUBLIC simdjson::simdjson)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SIMDJSON)
+    target_link_libraries(makine_core PUBLIC simdjson::simdjson)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_SIMDJSON)
 endif()
 
 if(TARGET SQLiteCpp)
-    target_link_libraries(makineai_core PUBLIC SQLiteCpp)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SQLITECPP)
+    target_link_libraries(makine_core PUBLIC SQLiteCpp)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_SQLITECPP)
 endif()
 
 if(TARGET unofficial-sodium::sodium)
-    target_link_libraries(makineai_core PUBLIC unofficial-sodium::sodium)
-    target_compile_definitions(makineai_core PUBLIC MAKINEAI_HAS_SODIUM)
+    target_link_libraries(makine_core PUBLIC unofficial-sodium::sodium)
+    target_compile_definitions(makine_core PUBLIC MAKINE_HAS_SODIUM)
 endif()
 
 # Windows-specific libraries
 if(WIN32)
-    target_link_libraries(makineai_core PUBLIC
+    target_link_libraries(makine_core PUBLIC
         Shlwapi
         Advapi32
         Crypt32
@@ -259,7 +259,7 @@ endif()
 if(GTest_FOUND)
     enable_testing()
 
-    add_executable(makineai_tests
+    add_executable(makine_tests
         tests/test_main.cpp
         tests/test_patch_engine.cpp
         tests/test_game_detector.cpp
@@ -294,20 +294,20 @@ if(GTest_FOUND)
         tests/test_sqlite_utils.cpp
     )
 
-    target_link_libraries(makineai_tests PRIVATE
-        makineai_core
+    target_link_libraries(makine_tests PRIVATE
+        makine_core
         GTest::gtest
         GTest::gtest_main
         GTest::gmock
     )
 
-    target_include_directories(makineai_tests PRIVATE ${MAKINEAI_INCLUDE_DIR})
+    target_include_directories(makine_tests PRIVATE ${MAKINE_INCLUDE_DIR})
 
-    add_test(NAME makineai_tests COMMAND makineai_tests)
+    add_test(NAME makine_tests COMMAND makine_tests)
 endif()
 
 # Install targets
-install(TARGETS makineai_core
+install(TARGETS makine_core
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
@@ -317,7 +317,7 @@ install(DIRECTORY include/ DESTINATION include)
 
 # Print configuration summary
 message(STATUS "")
-message(STATUS "=== MakineAI Launcher Core Configuration ===")
+message(STATUS "=== MakineLauncher Core Configuration ===")
 message(STATUS "Version: ${PROJECT_VERSION}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MakineAI CI/CD Server Setup
+# Makine-Launcher CI/CD Server Setup
 #
 # Bu script sunucuda Docker + Portainer + GitHub Actions runner kurar.
 # SSH ile sunucuya baglanip calistir:
@@ -8,14 +8,14 @@
 # Gereksinimler:
 #   - Docker + Docker Compose kurulu
 #   - GitHub PAT (repo scope): Settings > Developer settings > PAT
-#   - Runner token: github.com/MakineCeviri/MakineAI-Launcher/settings/actions/runners/new
+#   - Runner token: github.com/MakineCeviri/Makine-Launcher/settings/actions/runners/new
 #
 set -euo pipefail
 
-REPO="MakineCeviri/MakineAI-Launcher"
-WORKDIR="/opt/makineai"
+REPO="MakineCeviri/Makine-Launcher"
+WORKDIR="/opt/makine-launcher"
 
-echo "=== MakineAI CI/CD Server Setup ==="
+echo "=== Makine-Launcher CI/CD Server Setup ==="
 echo ""
 
 # ── 1. Portainer (skip if already running) ─────────────────────────────
@@ -71,7 +71,7 @@ else
         ./config.sh \
             --url "https://github.com/$REPO" \
             --token "$RUNNER_TOKEN" \
-            --name "makineai-server" \
+            --name "makine-launcher-server" \
             --labels "deploy,linux,self-hosted" \
             --work "_work" \
             --unattended \
@@ -88,11 +88,11 @@ fi
 # ── 4. Release file server (Caddy) ────────────────────────────────────
 echo "[4/4] Setting up release file server..."
 
-if docker ps --format '{{.Names}}' | grep -q makineai-caddy; then
+if docker ps --format '{{.Names}}' | grep -q makine-caddy; then
     echo "[OK] Caddy already running"
 else
     docker run -d \
-        --name makineai-caddy \
+        --name makine-caddy \
         --restart unless-stopped \
         -p 8080:80 \
         -v "$WORKDIR/releases:/srv/releases:ro" \
@@ -118,5 +118,5 @@ echo ""
 echo "Sertifika olusturmak icin (PC'de):"
 echo "  just setup-cert"
 echo "  # PFX'i base64'e cevir:"
-echo "  [Convert]::ToBase64String([IO.File]::ReadAllBytes('scripts/certs/MakineAI-CodeSign.pfx'))"
+echo "  [Convert]::ToBase64String([IO.File]::ReadAllBytes('scripts/certs/Makine-CodeSign.pfx'))"
 echo "  # Ciktiyi SIGNING_PFX_BASE64 secret'ina yapistir"

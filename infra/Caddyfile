@@ -1,4 +1,4 @@
-# MakineAI Release File Server
+# Makine-Launcher Release File Server
 # Serves signed release artifacts over HTTPS
 
 :80 {

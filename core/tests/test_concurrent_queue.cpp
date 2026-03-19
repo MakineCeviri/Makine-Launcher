@@ -2,11 +2,11 @@
  * @file test_concurrent_queue.cpp
  * @brief Unit tests for concurrent_queue.hpp — Queue, BlockingQueue, SPSCQueue
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/concurrent_queue.hpp>
+#include <makine/concurrent_queue.hpp>
 
 #include <chrono>
 #include <string>
@@ -14,7 +14,7 @@
 #include <vector>
 #include <cstring>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -306,4 +306,4 @@ TEST(ConcurrentBackendTest, BackendNameNonNull) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

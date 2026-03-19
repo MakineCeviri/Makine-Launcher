@@ -1,18 +1,18 @@
 /**
  * @file test_file_integrity.cpp
  * @brief Unit tests for file integrity module
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/file_integrity.hpp>
+#include <makine/file_integrity.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
 namespace fs = std::filesystem;
-using namespace makineai::integrity;
+using namespace makine::integrity;
 
 // Well-known SHA-256 hashes for test vectors
 static constexpr const char* kEmptyFileHash =
@@ -29,7 +29,7 @@ protected:
     fs::path tempDir_;
 
     void SetUp() override {
-        tempDir_ = fs::temp_directory_path() / "makineai_integrity_tests";
+        tempDir_ = fs::temp_directory_path() / "makine_integrity_tests";
         fs::create_directories(tempDir_);
     }
 
@@ -79,7 +79,7 @@ TEST_F(FileIntegrityTest, ComputeFileHash_NonexistentFile) {
     auto result = computeFileHash(tempDir_ / "does_not_exist.bin");
 
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code(), makineai::ErrorCode::FileNotFound);
+    EXPECT_EQ(result.error().code(), makine::ErrorCode::FileNotFound);
 }
 
 TEST_F(FileIntegrityTest, ComputeFileHash_DifferentChunkSizesProduceSameHash) {
@@ -144,7 +144,7 @@ TEST_F(FileIntegrityTest, ReadHashFile_NonexistentFile) {
     auto result = readHashFile(tempDir_ / "missing.sha256");
 
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code(), makineai::ErrorCode::FileNotFound);
+    EXPECT_EQ(result.error().code(), makine::ErrorCode::FileNotFound);
 }
 
 TEST_F(FileIntegrityTest, ReadHashFile_EmptyFile) {
@@ -152,7 +152,7 @@ TEST_F(FileIntegrityTest, ReadHashFile_EmptyFile) {
     auto result = readHashFile(hashFile);
 
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code(), makineai::ErrorCode::FileCorrupted);
+    EXPECT_EQ(result.error().code(), makine::ErrorCode::FileCorrupted);
 }
 
 TEST_F(FileIntegrityTest, ReadHashFile_InvalidHashContent) {
@@ -160,7 +160,7 @@ TEST_F(FileIntegrityTest, ReadHashFile_InvalidHashContent) {
     auto result = readHashFile(hashFile);
 
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code(), makineai::ErrorCode::FileCorrupted);
+    EXPECT_EQ(result.error().code(), makine::ErrorCode::FileCorrupted);
 }
 
 // ============================================================================
@@ -195,7 +195,7 @@ TEST_F(FileIntegrityTest, VerifyFile_NoSidecarFile) {
     auto result = verifyFile(path);
 
     ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code(), makineai::ErrorCode::FileNotFound);
+    EXPECT_EQ(result.error().code(), makine::ErrorCode::FileNotFound);
 }
 
 // ============================================================================

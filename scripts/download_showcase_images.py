@@ -39,7 +39,7 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 5  # seconds
 MIN_IMAGE_SIZE = 5 * 1024  # 5KB minimum for valid JPEG
 JPEG_MAGIC = b"\xff\xd8\xff"
-USER_AGENT = "MakineAI/0.1 (showcase-downloader)"
+USER_AGENT = "Makine-Launcher/0.1 (showcase-downloader)"
 
 
 def normalize(name: str) -> str:
@@ -152,7 +152,7 @@ def save_cache(cache: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download MakineAI showcase images")
+    parser = argparse.ArgumentParser(description="Download Makine-Launcher showcase images")
     parser.add_argument("--force", action="store_true", help="Re-download everything")
     args = parser.parse_args()
 
@@ -165,7 +165,7 @@ def main():
     packages = manifest.get("packages", {})
     total = len(packages)
 
-    print(f"=== MakineAI Showcase Image Downloader ===")
+    print(f"=== Makine-Launcher Showcase Image Downloader ===")
     print(f"Manifest: {total} packages")
     print()
 

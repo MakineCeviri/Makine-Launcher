@@ -5,14 +5,14 @@
  * Provides Google Mock implementations for database operations
  * allowing unit tests to run without SQLite dependency.
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
 
 #include <gmock/gmock.h>
-#include "makineai/database.hpp"
-#include "makineai/types.hpp"
+#include "makine/database.hpp"
+#include "makine/types.hpp"
 
 #include <string>
 
@@ -20,7 +20,7 @@
 #include <vector>
 #include <optional>
 
-namespace makineai::testing {
+namespace makine::testing {
 
 /**
  * @brief Mock implementation of Database
@@ -194,4 +194,4 @@ inline TranslationPackage createFakePackage(
     return package;
 }
 
-} // namespace makineai::testing
+} // namespace makine::testing

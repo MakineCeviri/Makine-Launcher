@@ -1,9 +1,9 @@
 /**
  * @file operationjournal.cpp
  * @brief Crash recovery journal — thin Qt wrapper implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
- * When core is available, delegates to makineai::recovery::CrashRecoveryJournal.
+ * When core is available, delegates to makine::recovery::CrashRecoveryJournal.
  * In UI-only mode, falls back to QJsonDocument-based implementation.
  */
 
@@ -16,7 +16,7 @@
 #include <QLoggingCategory>
 #include <memory>
 
-#ifdef MAKINEAI_UI_ONLY
+#ifdef MAKINE_UI_ONLY
 #include "pathsecurity.h"
 #include <QFile>
 #include <QFileInfo>
@@ -27,15 +27,15 @@
 #include <QDateTime>
 #endif
 
-Q_LOGGING_CATEGORY(lcJournal, "makineai.journal")
+Q_LOGGING_CATEGORY(lcJournal, "makine.journal")
 
-namespace makineai {
+namespace makine {
 
 // ============================================================================
 // Qt ↔ Core conversion helpers
 // ============================================================================
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 
 static recovery::OperationType opTypeToCore(OpType t) {
     switch (t) {
@@ -88,7 +88,7 @@ static JournalEntry fromCoreEntry(const recovery::JournalEntry& ce) {
     return qe;
 }
 
-#endif // !MAKINEAI_UI_ONLY
+#endif // !MAKINE_UI_ONLY
 
 // ============================================================================
 // Construction
@@ -97,7 +97,7 @@ static JournalEntry fromCoreEntry(const recovery::JournalEntry& ce) {
 OperationJournal::OperationJournal(QObject *parent)
     : QObject(parent)
 {
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
     QString dir = AppPaths::dataDir();
     QDir().mkpath(dir);
     m_journal = std::make_unique<recovery::CrashRecoveryJournal>(
@@ -114,7 +114,7 @@ QString OperationJournal::journalPath()
 // Core-delegated implementation
 // ============================================================================
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 
 bool OperationJournal::beginOperation(const JournalEntry& entry)
 {
@@ -170,7 +170,7 @@ bool OperationJournal::recover()
     return result.success;
 }
 
-#else // MAKINEAI_UI_ONLY — full fallback implementation
+#else // MAKINE_UI_ONLY — full fallback implementation
 
 // ============================================================================
 // UI-only fallback (same as original QJsonDocument-based implementation)
@@ -473,6 +473,6 @@ void OperationJournal::deleteJournal()
     QFile::remove(journalPath() + ".tmp");
 }
 
-#endif // MAKINEAI_UI_ONLY
+#endif // MAKINE_UI_ONLY
 
-} // namespace makineai
+} // namespace makine

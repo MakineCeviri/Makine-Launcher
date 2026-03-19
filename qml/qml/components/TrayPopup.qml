@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -141,7 +141,7 @@ Window {
 
                     Text {
                         textFormat: Text.PlainText
-                        text: "MakineAI"
+                        text: "Makine Launcher"
                         font.pixelSize: 13; font.weight: Font.DemiBold
                         color: "#EAEAED"
                     }
@@ -166,7 +166,7 @@ Window {
 
             // Menu items
             TrayMenuItem {
-                label: qsTr("MakineAI'ı Aç")
+                label: qsTr("Makine Launcher'ı Aç")
                 onClicked: { popup.visible = false; popup.showRequested() }
             }
 

@@ -6,16 +6,16 @@
  * JSON round-trip serialization, file save/load,
  * environment variable overrides, and ConfigValidationResult.
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <makineai/config.hpp>
+#include <makine/config.hpp>
 #include <fstream>
 #include <cstdlib>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 using ::testing::Contains;
@@ -74,7 +74,7 @@ TEST_F(DefaultConfigTest, NetworkDefaults) {
     EXPECT_EQ(c.connectionTimeoutMs, kShortTimeoutMs);
     EXPECT_EQ(c.readTimeoutMs, kDefaultTimeoutMs);
     EXPECT_EQ(c.maxDownloadRetries, 3u);
-    EXPECT_EQ(c.userAgent, "MakineAI/0.1.0");
+    EXPECT_EQ(c.userAgent, "Makine-Launcher/0.1.0");
     EXPECT_TRUE(c.proxyUrl.empty());
     EXPECT_TRUE(c.verifySsl);
     EXPECT_EQ(c.maxConcurrentDownloads, 4u);
@@ -92,7 +92,7 @@ TEST_F(DefaultConfigTest, LoggingDefaults) {
 
 TEST_F(DefaultConfigTest, DatabaseDefaults) {
     DatabaseConfig c;
-    EXPECT_EQ(c.databasePath, "makineai.db");
+    EXPECT_EQ(c.databasePath, "makine.db");
     EXPECT_TRUE(c.enableWAL);
     EXPECT_EQ(c.connectionPoolSize, 4u);
     EXPECT_EQ(c.queryTimeoutMs, 5000u);
@@ -101,7 +101,7 @@ TEST_F(DefaultConfigTest, DatabaseDefaults) {
 
 TEST_F(DefaultConfigTest, CoreConfigDefaults) {
     CoreConfig c;
-    EXPECT_EQ(c.apiBaseUrl, "https://api.makineai.com/v1");
+    EXPECT_EQ(c.apiBaseUrl, "https://api.makineceviri.net/v1");
     EXPECT_TRUE(c.autoUpdateRuntime);
     EXPECT_FALSE(c.enableAnalytics);
 }
@@ -247,7 +247,7 @@ protected:
     fs::path configFile;
 
     void SetUp() override {
-        tempDir = fs::temp_directory_path() / "makineai_test_config";
+        tempDir = fs::temp_directory_path() / "makine_test_config";
         fs::create_directories(tempDir);
         configFile = tempDir / "test_config.json";
     }
@@ -397,4 +397,4 @@ TEST_F(ConfigValidationTest, ExtremelyHighParallelScansStillValid) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

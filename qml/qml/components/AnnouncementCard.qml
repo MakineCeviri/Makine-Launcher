@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -111,7 +111,7 @@ Rectangle {
 
             Image {
                 anchors.centerIn: parent
-                source: "qrc:/qt/qml/MakineAI/resources/icons/discord-white.svg"
+                source: "qrc:/qt/qml/MakineLauncher/resources/icons/discord-white.svg"
                 width: 22; height: 22
                 sourceSize: Qt.size(22, 22)
                 mipmap: true

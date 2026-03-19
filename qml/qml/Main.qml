@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Dialogs
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -16,7 +16,7 @@ ApplicationWindow {
     minimumWidth: Dimensions.minWindowWidth
     minimumHeight: Dimensions.minWindowHeight
 
-    title: "Makine \u00C7eviri - MakineAI"
+    title: "Makine \u00C7eviri - Makine Launcher"
     color: Theme.bgPrimary
 
     flags: Qt.Window | Qt.FramelessWindowHint
@@ -277,7 +277,7 @@ ApplicationWindow {
                 spacing: Dimensions.spacingMD
 
                 Image {
-                    source: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg"
+                    source: "qrc:/qt/qml/MakineLauncher/resources/icons/shield-check.svg"
                     sourceSize: Qt.size(14, 14)
                     Layout.preferredWidth: 14
                     Layout.preferredHeight: 14

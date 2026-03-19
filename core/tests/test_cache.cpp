@@ -2,17 +2,17 @@
  * @file test_cache.cpp
  * @brief Unit tests for cache utilities (LRUCache, TTLCache)
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/cache.hpp>
+#include <makine/cache.hpp>
 
 #include <chrono>
 #include <string>
 #include <thread>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // =========================================================================
@@ -317,4 +317,4 @@ TEST_F(TTLCacheTest, CleanupExpiredOnFreshCacheReturnsZero) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

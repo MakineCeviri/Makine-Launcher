@@ -1,7 +1,7 @@
 /**
  * @file systemtraymanager.cpp
  * @brief Native Win32 system tray implementation (no Qt6Widgets)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "systemtraymanager.h"
@@ -18,7 +18,7 @@ constexpr int kUpdateCheckIntervalMs = 6 * 60 * 60 * 1000; // 6 hours
 }
 
 static const UINT WM_TRAYICON = WM_APP + 1;
-static const wchar_t TrayWindowClassName[] = L"MakineAI_TrayMsgWindow";
+static const wchar_t TrayWindowClassName[] = L"MakineLauncher_TrayMsgWindow";
 
 // Accessed only from GUI thread (Win32 message pump) — no synchronization needed
 static SystemTrayManager *s_instance = nullptr;
@@ -155,7 +155,7 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     RegisterClassExW(&wc);
 
     // Create message-only window (HWND_MESSAGE = invisible, no taskbar entry)
-    m_msgWindow = CreateWindowExW(0, TrayWindowClassName, L"MakineAI_TrayMsg",
+    m_msgWindow = CreateWindowExW(0, TrayWindowClassName, L"MakineLauncher_TrayMsg",
                                    0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
                                    GetModuleHandle(nullptr), nullptr);
 
@@ -165,7 +165,7 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     // NOTE: NO WS_EX_NOACTIVATE — that flag prevents activation and breaks SetForegroundWindow.
     m_anchorWindow = CreateWindowExW(
         WS_EX_TOOLWINDOW,
-        TrayWindowClassName, L"MakineAI_TrayAnchor",
+        TrayWindowClassName, L"MakineLauncher_TrayAnchor",
         WS_POPUP,
         -1, -1, 1, 1,
         nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
@@ -179,7 +179,7 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     m_nid.uFlags           = NIF_ICON | NIF_TIP | NIF_MESSAGE | NIF_SHOWTIP;
     m_nid.uCallbackMessage = WM_TRAYICON;
     m_nid.uVersion         = NOTIFYICON_VERSION_4;
-    wcscpy_s(m_nid.szTip, _countof(m_nid.szTip), L"MakineAI");
+    wcscpy_s(m_nid.szTip, _countof(m_nid.szTip), L"Makine Launcher");
 #endif
 
     // Background update check timer (disabled by default)
@@ -271,7 +271,7 @@ void SystemTrayManager::setBackgroundCheckEnabled(bool enabled)
 
 void SystemTrayManager::updateTooltip()
 {
-    QString tooltip = "MakineAI";
+    QString tooltip = "Makine Launcher";
     if (m_pendingUpdates > 0) {
         tooltip += tr(" — %1 güncelleme mevcut").arg(m_pendingUpdates);
     }

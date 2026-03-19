@@ -1,4 +1,4 @@
-# MakineAI Build System
+# MakineLauncher Build System
 # Usage: just <recipe>
 # Install just: cargo install just (or winget install just)
 #
@@ -109,7 +109,7 @@ release-static:
 
 # Run static release build
 run-static: release-static
-    ./build/release-static/MakineAI.exe
+    ./build/release-static/Makine-Launcher.exe
 
 # ============================================================================
 # TRANSLATION PACKAGE PUBLISHING
@@ -147,21 +147,21 @@ sentry-setup-dry:
 deploy: release
     @echo "Deploying QML app..."
     powershell -Command "New-Item -ItemType Directory -Force -Path dist | Out-Null"
-    powershell -Command "Copy-Item build/release/MakineAI.exe dist/"
-    windeployqt --qmldir qml/qml --release dist/MakineAI.exe
+    powershell -Command "Copy-Item build/release/Makine-Launcher.exe dist/"
+    windeployqt --qmldir qml/qml --release dist/Makine-Launcher.exe
 
 # Create release archive (shared Qt build — includes DLLs)
 package: deploy
     @echo "Creating release package..."
-    powershell -Command "Compress-Archive -Path dist/* -DestinationPath MakineAI-release.zip -Force"
+    powershell -Command "Compress-Archive -Path dist/* -DestinationPath Makine-Launcher-release.zip -Force"
 
 # Create release archive (static build — single EXE)
 package-static: release-static
     @echo "Creating static release package..."
     powershell -Command "New-Item -ItemType Directory -Force -Path dist-static | Out-Null"
-    powershell -Command "Copy-Item qml/build/release-static/MakineAI.exe dist-static/"
-    powershell -Command "Compress-Archive -Path dist-static/* -DestinationPath MakineAI-static.zip -Force"
-    @echo "Done: MakineAI-static.zip (single EXE)"
+    powershell -Command "Copy-Item qml/build/release-static/Makine-Launcher.exe dist-static/"
+    powershell -Command "Compress-Archive -Path dist-static/* -DestinationPath Makine-Launcher-static.zip -Force"
+    @echo "Done: Makine-Launcher-static.zip (single EXE)"
 
 # ============================================================================
 # CODE SIGNING (Antivirus false-positive prevention)
@@ -169,12 +169,12 @@ package-static: release-static
 
 # One-time: Create development code signing certificate (run as admin)
 setup-cert:
-    @echo "Creating MakineAI development code signing certificate..."
+    @echo "Creating MakineLauncher development code signing certificate..."
     powershell -ExecutionPolicy Bypass -File scripts/create_dev_cert.ps1
 
 # Sign all built EXEs (auto-finds cert from scripts/certs/)
 sign:
-    @echo "Signing MakineAI executables..."
+    @echo "Signing MakineLauncher executables..."
     powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1
 
 # Sign a specific file
@@ -184,7 +184,7 @@ sign-file path:
 # Build static + sign (release pipeline)
 release-signed: release-static
     @echo "Signing release..."
-    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 -Path "qml/build/release-static/MakineAI.exe"
+    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 -Path "qml/build/release-static/Makine-Launcher.exe"
     @echo "Done: signed single EXE ready for distribution"
 
 # ============================================================================
@@ -198,7 +198,7 @@ release-publish version:
     gh workflow run release.yml -f version={{version}} -f draft=true
     @echo ""
     @echo "Release pipeline started!"
-    @echo "  Dashboard: https://github.com/MakineCeviri/MakineAI-Launcher/actions"
+    @echo "  Dashboard: https://github.com/MakineCeviri/Makine-Launcher/actions"
     @echo "  Version:   v{{version}} (draft)"
 
 # Publish a final (non-draft) release
@@ -207,7 +207,7 @@ release-publish-final version:
     gh workflow run release.yml -f version={{version}} -f draft=false
     @echo ""
     @echo "Release pipeline started!"
-    @echo "  Dashboard: https://github.com/MakineCeviri/MakineAI-Launcher/actions"
+    @echo "  Dashboard: https://github.com/MakineCeviri/Makine-Launcher/actions"
     @echo "  Version:   v{{version}} (public)"
 
 # Check release pipeline status
@@ -225,14 +225,14 @@ profile:
 
 # Run profiler build (connect with Tracy GUI)
 run-profile:
-    ./build/dev-profile/MakineAI.exe
+    ./build/dev-profile/Makine-Launcher.exe
 
 # Automated profile: build, run for N seconds, generate + show report
 profile-auto duration="15":
     cmake --preset dev-profile
     cmake --build --preset dev-profile
-    @echo "Running MakineAI for {{duration}} seconds..."
-    ./build/dev-profile/MakineAI.exe --profile-duration={{duration}}
+    @echo "Running MakineLauncher for {{duration}} seconds..."
+    ./build/dev-profile/Makine-Launcher.exe --profile-duration={{duration}}
     @echo ""
     python scripts/perf_report.py
 
@@ -240,9 +240,9 @@ profile-auto duration="15":
 profile-tracy duration="12":
     cmake --preset dev-profile
     cmake --build --preset dev-profile
-    @echo "Starting Tracy capture + MakineAI ({{duration}}s)..."
+    @echo "Starting Tracy capture + MakineLauncher ({{duration}}s)..."
     C:/cedra/tools/tracy-0.13.1/tracy-capture.exe -o C:/cedra/tools/trace.tracy -s {{duration}} &
-    sleep 2 && ./build/dev-profile/MakineAI.exe --profile-duration={{duration}}
+    sleep 2 && ./build/dev-profile/Makine-Launcher.exe --profile-duration={{duration}}
     @echo ""
     @echo "=== Zone Statistics ==="
     C:/cedra/tools/tracy-0.13.1/tracy-csvexport.exe C:/cedra/tools/trace.tracy
@@ -276,15 +276,15 @@ dev-release-dry:
 
 # Run the app (dev)
 run: dev
-    ./build/dev/MakineAI.exe
+    ./build/dev/Makine-Launcher.exe
 
 # Run the app (debug)
 run-debug: debug
-    ./qml/build/debug/MakineAI.exe
+    ./qml/build/debug/Makine-Launcher.exe
 
 # Run the app (release)
 run-release: release
-    ./build/release/MakineAI.exe
+    ./build/release/Makine-Launcher.exe
 
 # ============================================================================
 # CODE QUALITY
@@ -316,7 +316,7 @@ check: check-format lint
 
 # Show project statistics
 stats:
-    @echo "=== MakineAI Project Statistics ==="
+    @echo "=== MakineLauncher Project Statistics ==="
     @echo ""
     @echo "C++ Source Files:"
     powershell -Command "$cpp = Get-ChildItem -Recurse -Include *.cpp,*.hpp,*.h -Path core/src,core/include,qml/src; Write-Host ('  Files: ' + $cpp.Count); $lines = ($cpp | Get-Content | Measure-Object -Line).Lines; Write-Host ('  Lines: ' + $lines)"
@@ -332,7 +332,7 @@ stats:
 
 # Show tool versions and system info
 info:
-    @echo "=== MakineAI Development Environment ==="
+    @echo "=== MakineLauncher Development Environment ==="
     @echo ""
     -cmake --version 2>NUL | powershell -Command "$input | Select-Object -First 1"
     -ninja --version 2>NUL

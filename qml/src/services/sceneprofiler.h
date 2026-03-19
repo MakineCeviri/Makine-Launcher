@@ -3,7 +3,7 @@
 /**
  * @file sceneprofiler.h
  * @brief QML-C++ bridge for scene transition, interaction, dialog and animation profiling
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Provides Q_INVOKABLE methods callable from QML to track:
  * - Screen transitions (navigateTo timing)
@@ -12,7 +12,7 @@
  * - Animation registry (infinite loops audit)
  *
  * All data feeds into PerfReporter zones and F3 overlay properties.
- * Gated by MAKINEAI_DEV_TOOLS — absent in release builds.
+ * Gated by MAKINE_DEV_TOOLS — absent in release builds.
  */
 
 #include <QObject>
@@ -25,7 +25,7 @@
 
 #include <vector>
 
-namespace makineai {
+namespace makine {
 
 class SceneProfiler : public QObject
 {
@@ -119,4 +119,4 @@ private:
     std::vector<AnimationEntry> m_animations;
 };
 
-} // namespace makineai
+} // namespace makine

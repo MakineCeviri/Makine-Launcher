@@ -1,7 +1,7 @@
 /**
  * @file fuzz_json_parser.cpp
  * @brief Fuzzer for JSON parsing (simdjson/nlohmann abstraction)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Tests JSON parsing robustness with malformed input.
  * Important for RPG Maker JSON files which users may edit.
@@ -15,9 +15,9 @@
 #include <string>
 #include <string_view>
 
-#include <makineai/json_utils.hpp>
+#include <makine/json_utils.hpp>
 
-using namespace makineai;
+using namespace makine;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // Need some content

@@ -95,7 +95,7 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - `.github/workflows/auto-assign.yml` - Yeni issue'lar otomatik atanıyor
 - `.github/FUNDING.yml` - GitHub sponsor butonu
 - GitHub Issues ile kapsamlı roadmap takibi (#12-#28)
-- Integration test build target (`makineai_integration_tests`)
+- Integration test build target (`makine_integration_tests`)
 - `justfile` yeni recipe'ler: `format`, `check-format`, `lint`, `check`, `stats`, `info`, `docs`
 - 20+ yeni GitHub label (type/scope/status/engine kategorileri)
 - Genişletilmiş PR auto-labeling kuralları
@@ -197,6 +197,6 @@ Yeni sürümler için v0.1.0+ kullanın.
 
 ---
 
-[Unreleased]: https://github.com/MakineCeviri/MakineAI-Launcher/compare/v0.1.0-alpha...HEAD
-[0.1.0-alpha]: https://github.com/MakineCeviri/MakineAI-Launcher/releases/tag/v0.1.0-alpha
-[0.0.8]: https://github.com/MakineCeviri/MakineAI-Launcher/releases/tag/v0.0.8
+[Unreleased]: https://github.com/MakineCeviri/Makine-Launcher/compare/v0.1.0-alpha...HEAD
+[0.1.0-alpha]: https://github.com/MakineCeviri/Makine-Launcher/releases/tag/v0.1.0-alpha
+[0.0.8]: https://github.com/MakineCeviri/Makine-Launcher/releases/tag/v0.0.8

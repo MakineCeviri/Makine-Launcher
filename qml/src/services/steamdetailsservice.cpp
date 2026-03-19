@@ -1,7 +1,7 @@
 /**
  * @file steamdetailsservice.cpp
  * @brief Steam store details fetching and caching service
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "steamdetailsservice.h"
@@ -26,7 +26,7 @@ constexpr qint64 kMaxSteamResponseBytes = 5 * 1024 * 1024; // 5 MB
 constexpr int kMaxSteamCache = 80;
 
 // Pure JSON parsing — no side effects, safe for background thread
-std::optional<makineai::SteamDetails> parseSteamJson(const QString& steamAppId,
+std::optional<makine::SteamDetails> parseSteamJson(const QString& steamAppId,
                                                       const QByteArray& data)
 {
     QJsonParseError parseError;
@@ -43,7 +43,7 @@ std::optional<makineai::SteamDetails> parseSteamJson(const QString& steamAppId,
     if (appData.isEmpty())
         return std::nullopt;
 
-    makineai::SteamDetails details;
+    makine::SteamDetails details;
     details.description = appData.value("short_description").toString();
     details.releaseDate  = appData.value("release_date").toObject().value("date").toString();
 
@@ -93,9 +93,9 @@ std::optional<makineai::SteamDetails> parseSteamJson(const QString& steamAppId,
 
 } // namespace
 
-Q_LOGGING_CATEGORY(lcSteamDetails, "makineai.steam")
+Q_LOGGING_CATEGORY(lcSteamDetails, "makine.steam")
 
-namespace makineai {
+namespace makine {
 
 SteamDetailsService::SteamDetailsService(QObject* parent)
     : QObject(parent)
@@ -129,7 +129,7 @@ void SteamDetailsService::fetchDetails(const QString& steamAppId)
     QNetworkRequest request(url);
     // Browser-compatible User-Agent to bypass CF Bot Fight Mode
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
+                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1");
 
     QNetworkReply* reply = m_networkManager.get(request);
 
@@ -317,4 +317,4 @@ void SteamDetailsService::saveCache()
     });
 }
 
-} // namespace makineai
+} // namespace makine

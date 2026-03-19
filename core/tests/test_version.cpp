@@ -2,17 +2,17 @@
  * @file test_version.cpp
  * @brief Unit tests for version.hpp and constants.hpp
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/version.hpp>
-#include <makineai/constants.hpp>
+#include <makine/version.hpp>
+#include <makine/constants.hpp>
 
 #include <string>
 #include <cstring>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -273,7 +273,7 @@ TEST(BuildInfoTest, ToTextNonEmpty) {
     auto info = getBuildInfo();
     auto text = info.toText();
     EXPECT_FALSE(text.empty());
-    EXPECT_NE(text.find("MakineAI"), std::string::npos);
+    EXPECT_NE(text.find("Makine"), std::string::npos);
     EXPECT_NE(text.find("ABI Version"), std::string::npos);
 }
 
@@ -324,14 +324,14 @@ TEST(ConstantsTest, MaxDatabaseEntriesPositive) {
 // ===========================================================================
 
 TEST(VersionMacroTest, VersionAtLeastMacroCurrentVersion) {
-    EXPECT_TRUE(MAKINEAI_VERSION_AT_LEAST(0, 0, 0));
-    EXPECT_TRUE(MAKINEAI_VERSION_AT_LEAST(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH));
+    EXPECT_TRUE(MAKINE_VERSION_AT_LEAST(0, 0, 0));
+    EXPECT_TRUE(MAKINE_VERSION_AT_LEAST(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH));
 }
 
 TEST(VersionMacroTest, VersionEncodeMacro) {
-    EXPECT_EQ(MAKINEAI_VERSION_ENCODE(1, 2, 3), 10203);
-    EXPECT_EQ(MAKINEAI_VERSION_ENCODE(0, 0, 0), 0);
+    EXPECT_EQ(MAKINE_VERSION_ENCODE(1, 2, 3), 10203);
+    EXPECT_EQ(MAKINE_VERSION_ENCODE(0, 0, 0), 0);
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import MakineAI 1.0
+import MakineLauncher 1.0
 import "../components"
 pragma ComponentBehavior: Bound
 

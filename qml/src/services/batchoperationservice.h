@@ -1,7 +1,7 @@
 /**
  * @file batchoperationservice.h
  * @brief Batch translation operations service
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Manages batch install, update, and remove operations for
  * multiple games. Provides queue management, per-game progress,
@@ -21,7 +21,7 @@
 
 #include "corebridge.h"
 
-namespace makineai {
+namespace makine {
 
 /**
  * @brief Batch operation type
@@ -144,4 +144,4 @@ private:
     QString m_statusMessage;
 };
 
-} // namespace makineai
+} // namespace makine

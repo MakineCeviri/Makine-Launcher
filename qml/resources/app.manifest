@@ -3,11 +3,11 @@
 
   <assemblyIdentity
     type="win32"
-    name="MakineAI.Application"
+    name="MakineLauncher.Application"
     version="0.1.0.0"
     processorArchitecture="amd64"/>
 
-  <description>MakineAI - Turkish Game Translation Launcher</description>
+  <description>Makine-Launcher - Turkish Game Translation Launcher</description>
 
   <!-- UAC: Run as invoker (no elevation) — reduces AV false positives -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">

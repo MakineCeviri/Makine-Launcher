@@ -2,7 +2,7 @@
 
 Unity motor dosya yapısı ve çeviri yöntemi teknik referansı.
 
-> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
+> **Not:** Bu doküman teknik referanstır. Makine-Launcher şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
@@ -19,7 +19,7 @@ Unity motor dosya yapısı ve çeviri yöntemi teknik referansı.
 
 ## Nasıl Çalışır
 
-MakineAI Unity oyunlarında BepInEx + XUnity.AutoTranslator kullanır:
+Makine-Launcher Unity oyunlarında BepInEx + XUnity.AutoTranslator kullanır:
 
 1. **BepInEx** - Unity mod framework
 2. **XUnity.AutoTranslator** - Çeviri hook sistemi
@@ -49,7 +49,7 @@ Turkce Metin Goster
 
 ## Otomatik Algılama
 
-MakineAI Unity oyunlarını şu dosyalardan tespit eder:
+Makine-Launcher Unity oyunlarını şu dosyalardan tespit eder:
 
 | Dosya | Açıklama |
 |-------|----------|

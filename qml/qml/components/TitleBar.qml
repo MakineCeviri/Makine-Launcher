@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -85,7 +85,7 @@ Rectangle {
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
             visible: !titleBarRoot.libraryMode
-            source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
+            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo.png"
             sourceSize: Qt.size(18, 18)
             fillMode: Image.PreserveAspectFit
             asynchronous: true
@@ -115,7 +115,7 @@ Rectangle {
 
         Label {
             textFormat: Text.PlainText
-            text: "MakineAI"
+            text: "Makine Launcher"
             font.pixelSize: Dimensions.fontCaption
             font.weight: Font.Medium
             color: Theme.textMuted

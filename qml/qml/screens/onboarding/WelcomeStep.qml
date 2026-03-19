@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -21,7 +21,7 @@ Item {
         // Logo
         Image {
             Layout.alignment: Qt.AlignHCenter
-            source: "qrc:/qt/qml/MakineAI/resources/images/logo.png"
+            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo.png"
             sourceSize: Qt.size(80, 80)
             fillMode: Image.PreserveAspectFit
             asynchronous: true
@@ -32,7 +32,7 @@ Item {
         Text {
             textFormat: Text.PlainText
             Layout.alignment: Qt.AlignHCenter
-            text: "MakineAI"
+            text: "Makine Launcher"
             font.pixelSize: 32
             font.weight: Font.Bold
             font.letterSpacing: -0.5
@@ -61,13 +61,13 @@ Item {
                 },
                 {
                     useTrBadge: false,
-                    icon: "qrc:/qt/qml/MakineAI/resources/icons/arrow_right.svg",
+                    icon: "qrc:/qt/qml/MakineLauncher/resources/icons/arrow_right.svg",
                     title: qsTr("T\u00fcrk\u00e7e yapar"),
                     desc: qsTr("Topluluk \u00e7evirilerini kurar, orijinalleri yedekler")
                 },
                 {
                     useTrBadge: false,
-                    icon: "qrc:/qt/qml/MakineAI/resources/icons/shield-check.svg",
+                    icon: "qrc:/qt/qml/MakineLauncher/resources/icons/shield-check.svg",
                     title: qsTr("Geri al\u0131n\u0131r"),
                     desc: qsTr("Be\u011fenmediysen kald\u0131r, hi\u00e7bir \u015fey bozulmaz")
                 }

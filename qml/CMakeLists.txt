@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 
-# Version inherited from parent CMakeLists.txt (MAKINEAI_VERSION_FULL)
+# Version inherited from parent CMakeLists.txt (MAKINE_VERSION_FULL)
 # Fallback for standalone builds
-if(NOT DEFINED MAKINEAI_VERSION_FULL)
-    project(MakineAI VERSION 0.1.0 LANGUAGES CXX)
-    set(MAKINEAI_VERSION_SUFFIX "pre-alpha")
-    set(MAKINEAI_VERSION_FULL "${PROJECT_VERSION}-${MAKINEAI_VERSION_SUFFIX}")
+if(NOT DEFINED MAKINE_VERSION_FULL)
+    project(MakineLauncher VERSION 0.1.0 LANGUAGES CXX)
+    set(MAKINE_VERSION_SUFFIX "pre-alpha")
+    set(MAKINE_VERSION_FULL "${PROJECT_VERSION}-${MAKINE_VERSION_SUFFIX}")
 else()
-    project(MakineAI VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+    project(MakineLauncher VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
@@ -17,14 +17,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # Option to build UI-only (without core library dependencies)
-option(MAKINEAI_UI_ONLY "Build UI shell only without core library" OFF)
+option(MAKINE_UI_ONLY "Build UI shell only without core library" OFF)
 
 
 # Core library path
-set(MAKINEAI_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../core)
+set(MAKINE_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../core)
 
 # vcpkg integration - only needed for standalone builds (not super-build)
-if(NOT MAKINEAI_UI_ONLY AND NOT TARGET makineai_core)
+if(NOT MAKINE_UI_ONLY AND NOT TARGET makine_core)
     if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             CACHE STRING "Vcpkg toolchain file")
@@ -65,24 +65,24 @@ qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 OLD)
 
 # Core library linkage
-if(NOT MAKINEAI_UI_ONLY)
-    if(TARGET makineai_core)
+if(NOT MAKINE_UI_ONLY)
+    if(TARGET makine_core)
         # Super-build: core target available from parent project
-        message(STATUS "MakineAI: using makineai_core target from super-build")
+        message(STATUS "MakineLauncher: using makine_core target from super-build")
     else()
         # Standalone: find prebuilt core library
-        find_library(MAKINEAI_CORE_LIB
-            NAMES makineai_core
+        find_library(MAKINE_CORE_LIB
+            NAMES makine_core
             PATHS
-                ${MAKINEAI_CORE_DIR}/build
-                ${MAKINEAI_CORE_DIR}/build/core
-                ${MAKINEAI_CORE_DIR}/build/release
-                ${MAKINEAI_CORE_DIR}/build_msvc
+                ${MAKINE_CORE_DIR}/build
+                ${MAKINE_CORE_DIR}/build/core
+                ${MAKINE_CORE_DIR}/build/release
+                ${MAKINE_CORE_DIR}/build_msvc
                 ${CMAKE_BINARY_DIR}/../core
             NO_DEFAULT_PATH
         )
 
-        if(NOT MAKINEAI_CORE_LIB)
+        if(NOT MAKINE_CORE_LIB)
             message(FATAL_ERROR "Core library not found. "
                 "Build it first or use super-build: cmake --preset release")
         endif()
@@ -151,18 +151,19 @@ set(BACKEND_HEADERS
 
 
 # QML module
-qt_add_executable(MakineAI
+qt_add_executable(MakineLauncher
     src/main.cpp
     ${BACKEND_SOURCES}
     ${BACKEND_HEADERS}
     ${CORE_SOURCES}
 )
+set_target_properties(MakineLauncher PROPERTIES OUTPUT_NAME "Makine-Launcher")
 
 # Windows resource file: icon, manifest (DPI/UTF-8/visual styles), version info
 # Generated from app.rc.in — version strings come from CMake
 if(WIN32)
     configure_file(resources/app.rc.in "${CMAKE_CURRENT_BINARY_DIR}/app.rc" @ONLY)
-    target_sources(MakineAI PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+    target_sources(MakineLauncher PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
 endif()
 
 # Mark singleton files BEFORE qt_add_qml_module
@@ -175,8 +176,8 @@ file(GLOB SHOWCASE_IMAGES CONFIGURE_DEPENDS
     "resources/showcase/*.jpg"
 )
 
-qt_add_qml_module(MakineAI
-    URI MakineAI
+qt_add_qml_module(MakineLauncher
+    URI MakineLauncher
     VERSION 1.0
     QML_FILES
         # Main Screens
@@ -307,19 +308,19 @@ qt_add_qml_module(MakineAI
 # discard unreferenced ones at link time. Critical for static Qt builds
 # where unused Qt code would otherwise bloat the binary.
 if(MSVC)
-    target_compile_options(MakineAI PRIVATE
+    target_compile_options(MakineLauncher PRIVATE
         /GS           # Buffer security check (stack cookies)
         /guard:cf     # Control Flow Guard
         /sdl          # Additional security checks
     )
-    target_link_options(MakineAI PRIVATE
+    target_link_options(MakineLauncher PRIVATE
         /DYNAMICBASE          # ASLR
         /NXCOMPAT             # DEP (Data Execution Prevention)
         /HIGHENTROPYVA        # 64-bit ASLR
         /CETCOMPAT            # Intel CET shadow stack
     )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(MakineAI PRIVATE
+    target_compile_options(MakineLauncher PRIVATE
         -ffunction-sections          # Each function in its own section
         -fdata-sections              # Each data object in its own section
         -fvisibility=hidden          # Hide all symbols by default (smaller export table)
@@ -328,7 +329,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
         -D_FORTIFY_SOURCE=2          # Buffer overflow detection
         -Wformat -Wformat-security   # Format string warnings
     )
-    target_link_options(MakineAI PRIVATE
+    target_link_options(MakineLauncher PRIVATE
         -Wl,--gc-sections            # Discard unreferenced sections at link time
         -Wl,--dynamicbase            # ASLR
         -Wl,--nxcompat               # DEP
@@ -337,21 +338,21 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
 endif()
 
 # Include directories
-target_include_directories(MakineAI PRIVATE
+target_include_directories(MakineLauncher PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services
 )
 
-if(NOT MAKINEAI_UI_ONLY AND NOT TARGET makineai_core)
+if(NOT MAKINE_UI_ONLY AND NOT TARGET makine_core)
     # Standalone: explicit include path needed
-    target_include_directories(MakineAI PRIVATE
-        ${MAKINEAI_CORE_DIR}/include
+    target_include_directories(MakineLauncher PRIVATE
+        ${MAKINE_CORE_DIR}/include
     )
-    # Super-build: includes inherited from makineai_core target (PUBLIC)
+    # Super-build: includes inherited from makine_core target (PUBLIC)
 endif()
 
 # Link Qt libraries (always required)
-target_link_libraries(MakineAI PRIVATE
+target_link_libraries(MakineLauncher PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
@@ -364,19 +365,19 @@ target_link_libraries(MakineAI PRIVATE
 )
 
 # Static Qt: import QML plugins at link time (no-op for shared builds)
-qt_import_qml_plugins(MakineAI)
+qt_import_qml_plugins(MakineLauncher)
 
 # Link core dependencies (only for full build)
-if(NOT MAKINEAI_UI_ONLY)
-    if(TARGET makineai_core)
+if(NOT MAKINE_UI_ONLY)
+    if(TARGET makine_core)
         # Super-build: link directly (transitive dependencies handled automatically)
-        target_link_libraries(MakineAI PRIVATE makineai_core)
+        target_link_libraries(MakineLauncher PRIVATE makine_core)
     else()
         # Standalone: link prebuilt library + explicit dependencies
-        target_link_libraries(MakineAI PRIVATE
-            ${MAKINEAI_CORE_LIB}
+        target_link_libraries(MakineLauncher PRIVATE
+            ${MAKINE_CORE_LIB}
         )
-        target_link_libraries(MakineAI PRIVATE
+        target_link_libraries(MakineLauncher PRIVATE
             Boost::filesystem
             OpenSSL::SSL
             OpenSSL::Crypto
@@ -390,78 +391,80 @@ if(NOT MAKINEAI_UI_ONLY)
         )
     endif()
 else()
-    # Define MAKINEAI_UI_ONLY macro for stub implementations
-    target_compile_definitions(MakineAI PRIVATE MAKINEAI_UI_ONLY)
+    # Define MAKINE_UI_ONLY macro for stub implementations
+    target_compile_definitions(MakineLauncher PRIVATE MAKINE_UI_ONLY)
+    # Core headers still needed for type definitions (plugin API, package catalog)
+    target_include_directories(MakineLauncher PRIVATE ${MAKINE_CORE_DIR}/include)
 endif()
 
 # Version string — single source from top-level CMakeLists.txt
-set(MAKINEAI_SENTRY_RELEASE "makineai@${MAKINEAI_VERSION_FULL}")
-target_compile_definitions(MakineAI PRIVATE
-    MAKINEAI_APP_VERSION="${MAKINEAI_VERSION_FULL}"
-    MAKINEAI_SENTRY_RELEASE="${MAKINEAI_SENTRY_RELEASE}"
+set(MAKINE_SENTRY_RELEASE "makine-launcher@${MAKINE_VERSION_FULL}")
+target_compile_definitions(MakineLauncher PRIVATE
+    MAKINE_APP_VERSION="${MAKINE_VERSION_FULL}"
+    MAKINE_SENTRY_RELEASE="${MAKINE_SENTRY_RELEASE}"
 )
 
 # Dev tools (FrameTimer, PerfReporter, F3 overlay) — off in release builds
 # These sources are conditionally compiled to keep release binary clean:
 #   - PerfReporter: compiled when DEV_TOOLS or PROFILER is ON
 #   - FrameTimer/SceneProfiler/MemoryProfiler: compiled only when DEV_TOOLS is ON
-option(MAKINEAI_DEV_TOOLS "Enable dev-only performance tools (FrameTimer, PerfReporter, F3 overlay)" OFF)
-if(MAKINEAI_DEV_TOOLS)
-    target_compile_definitions(MakineAI PRIVATE MAKINEAI_DEV_TOOLS MAKINEAI_PERF_REPORT)
-    target_sources(MakineAI PRIVATE
+option(MAKINE_DEV_TOOLS "Enable dev-only performance tools (FrameTimer, PerfReporter, F3 overlay)" OFF)
+if(MAKINE_DEV_TOOLS)
+    target_compile_definitions(MakineLauncher PRIVATE MAKINE_DEV_TOOLS MAKINE_PERF_REPORT)
+    target_sources(MakineLauncher PRIVATE
         src/services/perfreporter.cpp src/services/perfreporter.h
         src/services/frametimer.cpp   src/services/frametimer.h
         src/services/sceneprofiler.cpp src/services/sceneprofiler.h
         src/services/memoryprofiler.cpp src/services/memoryprofiler.h
     )
-    message(STATUS "MakineAI: Dev tools enabled (FrameTimer + PerfReporter + F3 overlay)")
+    message(STATUS "MakineLauncher: Dev tools enabled (FrameTimer + PerfReporter + F3 overlay)")
 endif()
 
 # Tracy profiler (optional, adds Tracy on top of dev tools)
-if(MAKINEAI_PROFILER AND TARGET TracyClient)
-    target_link_libraries(MakineAI PRIVATE TracyClient)
-    target_compile_definitions(MakineAI PRIVATE TRACY_ENABLE)
-    if(NOT MAKINEAI_DEV_TOOLS)
+if(MAKINE_PROFILER AND TARGET TracyClient)
+    target_link_libraries(MakineLauncher PRIVATE TracyClient)
+    target_compile_definitions(MakineLauncher PRIVATE TRACY_ENABLE)
+    if(NOT MAKINE_DEV_TOOLS)
         # PerfReporter needed for Tracy zones but dev tools not enabled
-        target_compile_definitions(MakineAI PRIVATE MAKINEAI_PERF_REPORT)
-        target_sources(MakineAI PRIVATE
+        target_compile_definitions(MakineLauncher PRIVATE MAKINE_PERF_REPORT)
+        target_sources(MakineLauncher PRIVATE
             src/services/perfreporter.cpp src/services/perfreporter.h
         )
     endif()
-    message(STATUS "MakineAI: Tracy profiler linked")
-elseif(MAKINEAI_PROFILER AND NOT MAKINEAI_DEV_TOOLS)
+    message(STATUS "MakineLauncher: Tracy profiler linked")
+elseif(MAKINE_PROFILER AND NOT MAKINE_DEV_TOOLS)
     # Standalone profiler mode (no dev tools, just PerfReporter)
-    target_compile_definitions(MakineAI PRIVATE MAKINEAI_PERF_REPORT)
-    target_sources(MakineAI PRIVATE
+    target_compile_definitions(MakineLauncher PRIVATE MAKINE_PERF_REPORT)
+    target_sources(MakineLauncher PRIVATE
         src/services/perfreporter.cpp src/services/perfreporter.h
     )
-    message(STATUS "MakineAI: PerfReporter enabled (standalone)")
+    message(STATUS "MakineLauncher: PerfReporter enabled (standalone)")
 endif()
 
 # Sentry crash reporting (optional)
-if(MAKINEAI_CRASH_REPORTING AND TARGET sentry)
-    target_link_libraries(MakineAI PRIVATE sentry)
+if(MAKINE_CRASH_REPORTING AND TARGET sentry)
+    target_link_libraries(MakineLauncher PRIVATE sentry)
 
     # Read DSN from environment — never hardcode in source (SEC-13)
-    if(DEFINED ENV{MAKINEAI_SENTRY_DSN} AND NOT "$ENV{MAKINEAI_SENTRY_DSN}" STREQUAL "")
-        set(_sentry_dsn "$ENV{MAKINEAI_SENTRY_DSN}")
+    if(DEFINED ENV{MAKINE_SENTRY_DSN} AND NOT "$ENV{MAKINE_SENTRY_DSN}" STREQUAL "")
+        set(_sentry_dsn "$ENV{MAKINE_SENTRY_DSN}")
     else()
-        message(WARNING "MAKINEAI_SENTRY_DSN not set — Sentry crash reporting will be disabled at runtime")
+        message(WARNING "MAKINE_SENTRY_DSN not set — Sentry crash reporting will be disabled at runtime")
         set(_sentry_dsn "")
     endif()
 
-    target_compile_definitions(MakineAI PRIVATE
-        MAKINEAI_HAS_SENTRY
+    target_compile_definitions(MakineLauncher PRIVATE
+        MAKINE_HAS_SENTRY
         SENTRY_DSN="${_sentry_dsn}"
     )
-    message(STATUS "MakineAI: Sentry crash reporting linked")
+    message(STATUS "MakineLauncher: Sentry crash reporting linked")
 
     # Copy crashpad_handler.exe next to binary (crashpad backend only)
     if(NOT MINGW AND TARGET crashpad_handler)
-        add_custom_command(TARGET MakineAI POST_BUILD
+        add_custom_command(TARGET MakineLauncher POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_FILE:crashpad_handler>
-                $<TARGET_FILE_DIR:MakineAI>/crashpad_handler.exe
+                $<TARGET_FILE_DIR:MakineLauncher>/crashpad_handler.exe
             COMMENT "Copying crashpad_handler.exe"
         )
     endif()
@@ -469,12 +472,12 @@ endif()
 
 # Windows specific
 if(WIN32)
-    set_target_properties(MakineAI PROPERTIES
+    set_target_properties(MakineLauncher PROPERTIES
         WIN32_EXECUTABLE TRUE
     )
 
     # Windows definitions
-    target_compile_definitions(MakineAI PRIVATE
+    target_compile_definitions(MakineLauncher PRIVATE
         UNICODE
         _UNICODE
         NOMINMAX
@@ -483,13 +486,13 @@ if(WIN32)
 
     # Security hardening & AV false-positive reduction
     if(MSVC)
-        target_compile_options(MakineAI PRIVATE
+        target_compile_options(MakineLauncher PRIVATE
             /GS             # Buffer security check (stack cookies)
             /guard:cf       # Control Flow Guard
             /sdl            # Additional security checks
             /Qspectre       # Spectre mitigation
         )
-        target_link_options(MakineAI PRIVATE
+        target_link_options(MakineLauncher PRIVATE
             /DYNAMICBASE        # ASLR
             /HIGHENTROPYVA      # High-entropy 64-bit ASLR
             /NXCOMPAT           # Data Execution Prevention (DEP)
@@ -497,11 +500,11 @@ if(WIN32)
             /CETCOMPAT          # Intel CET shadow stack compatibility
         )
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(MakineAI PRIVATE
+        target_compile_options(MakineLauncher PRIVATE
             -fstack-protector-strong
             -D_FORTIFY_SOURCE=2
         )
-        target_link_options(MakineAI PRIVATE
+        target_link_options(MakineLauncher PRIVATE
             -Wl,--dynamicbase       # ASLR
             -Wl,--high-entropy-va   # High-entropy ASLR
             -Wl,--nxcompat          # DEP
@@ -509,7 +512,7 @@ if(WIN32)
     endif()
 
     # Link Windows libraries for process scanning, system tray, and crypto
-    target_link_libraries(MakineAI PRIVATE
+    target_link_libraries(MakineLauncher PRIVATE
         psapi
         Shlwapi
         Advapi32
@@ -524,10 +527,10 @@ endif()
 find_package(Qt6 COMPONENTS LinguistTools QUIET)
 if(Qt6LinguistTools_FOUND)
     set(TS_FILES
-        i18n/makineai_en.ts
-        i18n/makineai_tr.ts
+        i18n/makine_en.ts
+        i18n/makine_tr.ts
     )
-    qt_add_translations(MakineAI
+    qt_add_translations(MakineLauncher
         TS_FILES ${TS_FILES}
         RESOURCE_PREFIX "/i18n"
     )
@@ -538,21 +541,21 @@ endif()
 
 # Strip debug symbols in release builds (all configs, not just static)
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MSVC)
-    add_custom_command(TARGET MakineAI POST_BUILD
-        COMMAND ${CMAKE_STRIP} "$<TARGET_FILE:MakineAI>"
+    add_custom_command(TARGET MakineLauncher POST_BUILD
+        COMMAND ${CMAKE_STRIP} "$<TARGET_FILE:MakineLauncher>"
         COMMENT "Stripping release binary for minimal size"
         VERBATIM
     )
 endif()
 
 # Optional: UPX compression for even smaller static binaries (~40-50% reduction)
-# Enable with: cmake -DMAKINEAI_UPX=ON
-option(MAKINEAI_UPX "Compress static binary with UPX" OFF)
-if(MAKINEAI_UPX AND CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
+# Enable with: cmake -DMAKINE_UPX=ON
+option(MAKINE_UPX "Compress static binary with UPX" OFF)
+if(MAKINE_UPX AND CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
     find_program(UPX_EXECUTABLE upx)
     if(UPX_EXECUTABLE)
-        add_custom_command(TARGET MakineAI POST_BUILD
-            COMMAND ${UPX_EXECUTABLE} --best --lzma "$<TARGET_FILE:MakineAI>"
+        add_custom_command(TARGET MakineLauncher POST_BUILD
+            COMMAND ${UPX_EXECUTABLE} --best --lzma "$<TARGET_FILE:MakineLauncher>"
             COMMENT "UPX compressing static binary (--best --lzma)"
             VERBATIM
         )
@@ -563,15 +566,15 @@ if(MAKINEAI_UPX AND CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
 endif()
 
 # Post-build: generate SHA-256 hash file for integrity verification
-add_custom_command(TARGET MakineAI POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E sha256sum "$<TARGET_FILE:MakineAI>"
-            > "$<TARGET_FILE:MakineAI>.sha256"
+add_custom_command(TARGET MakineLauncher POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E sha256sum "$<TARGET_FILE:MakineLauncher>"
+            > "$<TARGET_FILE:MakineLauncher>.sha256"
     COMMENT "Generating binary integrity hash"
     VERBATIM
 )
 
 # Install
-install(TARGETS MakineAI
+install(TARGETS MakineLauncher
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

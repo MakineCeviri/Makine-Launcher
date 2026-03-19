@@ -1,10 +1,10 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Sign MakineAI executables and installer with Authenticode.
+    Sign Makine-Launcher executables and installer with Authenticode.
 
 .DESCRIPTION
-    Signs EXE/DLL/MSI files using the MakineAI code signing certificate.
+    Signs EXE/DLL/MSI files using the Makine-Launcher code signing certificate.
     Supports both development (self-signed) and production (SignPath/OV) certs.
 
 .PARAMETER Path
@@ -14,7 +14,7 @@
     Certificate thumbprint. Auto-detected from scripts/certs/thumbprint.txt if omitted.
 
 .EXAMPLE
-    .\sign_exe.ps1 -Path "dist\MakineAI.exe"
+    .\sign_exe.ps1 -Path "dist\Makine-Launcher.exe"
     .\sign_exe.ps1 -Path "installer\output\*.exe"
     .\sign_exe.ps1 -Path "dist\*.exe","dist\*.dll"
 #>
@@ -89,11 +89,11 @@ if ($PfxFile) {
             $Thumbprint = (Get-Content $thumbFile -Raw).Trim()
             Write-Host "[OK] Using thumbprint from certs/thumbprint.txt" -ForegroundColor DarkGray
         } else {
-            # Try to find MakineAI cert via certutil
+            # Try to find Makine-Launcher cert via certutil
             $certOutput = certutil -user -store My 2>&1 | Out-String
-            if ($certOutput -match "MakineAI" -and $certOutput -match "Cert Hash\(sha1\):\s*([0-9a-fA-F\s]+)") {
+            if ($certOutput -match "Makine-Launcher" -and $certOutput -match "Cert Hash\(sha1\):\s*([0-9a-fA-F\s]+)") {
                 $Thumbprint = ($Matches[1]).Trim() -replace '\s',''
-                Write-Host "[OK] Auto-detected MakineAI cert: $Thumbprint" -ForegroundColor DarkGray
+                Write-Host "[OK] Auto-detected Makine-Launcher cert: $Thumbprint" -ForegroundColor DarkGray
             } else {
                 Write-Host "[ERROR] No certificate found. Run: just setup-cert" -ForegroundColor Red
                 Write-Host "  Or use -PfxFile/-PfxPassword for CI/CD signing" -ForegroundColor Yellow
@@ -121,11 +121,11 @@ if ($PfxFile) {
 if (-not $Path) {
     # Default: sign all EXEs in known build output locations
     $Path = @(
-        "dist\MakineAI.exe",
-        "dist-static\MakineAI.exe",
-        "build\dev\MakineAI.exe",
-        "build\release\MakineAI.exe",
-        "qml\build\release-static\MakineAI.exe"
+        "dist\Makine-Launcher.exe",
+        "dist-static\Makine-Launcher.exe",
+        "build\dev\Makine-Launcher.exe",
+        "build\release\Makine-Launcher.exe",
+        "qml\build\release-static\Makine-Launcher.exe"
     )
 }
 
@@ -160,8 +160,8 @@ foreach ($file in $filesToSign) {
 
     $args += "/fd", "SHA256",
              "/td", "SHA256",
-             "/d", "MakineAI - Turkish Game Translation Platform",
-             "/du", "https://github.com/MakineCeviri/MakineAI"
+             "/d", "Makine-Launcher - Turkish Game Translation Platform",
+             "/du", "https://github.com/MakineCeviri/Makine-Launcher"
 
     if (-not $SkipTimestamp) {
         $args += "/tr", $TimestampServer

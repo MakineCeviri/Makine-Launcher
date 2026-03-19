@@ -2,7 +2,7 @@
  * @file test_sandbox.cpp
  * @brief Unit tests for sandbox policy infrastructure
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 // sandbox.hpp transitively includes <chrono> which triggers
@@ -12,12 +12,12 @@
 TEST(SandboxPolicyTest, DISABLED_SkippedOnMinGW) { GTEST_SKIP() << "chrono broken on MinGW GCC 13.1"; }
 #else
 #include <gtest/gtest.h>
-#include <makineai/sandbox.hpp>
+#include <makine/sandbox.hpp>
 
 #include <chrono>
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // =========================================================================
@@ -125,8 +125,8 @@ TEST_F(SandboxPolicyTest, FileAccessRuleEmptyDescription) {
 // =========================================================================
 
 TEST_F(SandboxPolicyTest, NetworkAccessRuleAllowHttps) {
-    auto rule = NetworkAccessRule::allowHttps("api.makineai.com", "API");
-    EXPECT_EQ(rule.hostPattern, "api.makineai.com");
+    auto rule = NetworkAccessRule::allowHttps("api.makineceviri.net", "API");
+    EXPECT_EQ(rule.hostPattern, "api.makineceviri.net");
     EXPECT_EQ(rule.portMin, 443);
     EXPECT_EQ(rule.portMax, 443);
     EXPECT_TRUE(rule.allow);
@@ -305,6 +305,6 @@ TEST_F(SandboxPolicyTest, SandboxCheckNetworkOutsideSandbox) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine
 
 #endif // !__MINGW32__

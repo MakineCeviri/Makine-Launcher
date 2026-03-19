@@ -1,4 +1,4 @@
-# MakineAI .gitignore — Qt6/QML + C++23 + vcpkg + CMake + Windows
+# Makine-Launcher .gitignore — Qt6/QML + C++23 + vcpkg + CMake + Windows
 
 # Build
 build/

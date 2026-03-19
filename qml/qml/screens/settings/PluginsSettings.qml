@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
@@ -22,7 +22,7 @@ ColumnLayout {
     property var officialCatalog: [
         {
             id: "com.makineceviri.live",
-            name: "MakineAI Live",
+            name: "Makine Live",
             description: qsTr("Gerçek zamanlı ekran OCR ve çeviri overlay sistemi"),
             version: "0.1.0",
             size: "20 MB",
@@ -38,7 +38,7 @@ ColumnLayout {
         },
         {
             id: "com.makineceviri.texthook",
-            name: "MakineAI TextHook",
+            name: "Makine TextHook",
             description: qsTr("Oyun belleğinden doğrudan metin çıkarma ve çeviri"),
             version: "0.1.0",
             size: "80 KB",
@@ -626,7 +626,7 @@ ColumnLayout {
 
                     Text {
                         textFormat: Text.PlainText
-                        text: qsTr("GitHub'da \"makineai-plugin\" topic'i ile paylaşın")
+                        text: qsTr("GitHub'da \"makine-plugin\" topic'i ile paylaşın")
                         font.pixelSize: Dimensions.fontSM
                         color: Theme.textSecondary
                         Layout.alignment: Qt.AlignHCenter
@@ -654,7 +654,7 @@ ColumnLayout {
                         if (PluginManager)
                             PluginManager.openCommunityPage()
                         else
-                            Qt.openUrlExternally("https://github.com/topics/makineai-plugin")
+                            Qt.openUrlExternally("https://github.com/topics/makine-plugin")
                     }
                 }
             }
@@ -739,7 +739,7 @@ ColumnLayout {
             FileDialog {
                 id: _dlg
                 title: qsTr("Eklenti Dosyası Seç")
-                nameFilters: ["MakineAI Plugin (*.makine)"]
+                nameFilters: ["Makine Plugin (*.makine)"]
                 onAccepted: {
                     if (selectedFile)
                         PluginManager.installFromFile(selectedFile.toString().replace("file:///", ""))

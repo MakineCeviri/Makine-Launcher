@@ -3,20 +3,20 @@
 /**
  * @file memoryprofiler.h
  * @brief Memory profiling: Win32 working set + image cache monitoring
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Periodically samples process memory via GetProcessMemoryInfo.
  * Also reads ImageCacheManager stats for image cache monitoring.
  * Updates every 2 seconds via QTimer.
  *
- * Gated by MAKINEAI_DEV_TOOLS — absent in release builds.
+ * Gated by MAKINE_DEV_TOOLS — absent in release builds.
  */
 
 #include <QObject>
 #include <QTimer>
 #include <QJsonObject>
 
-namespace makineai {
+namespace makine {
 
 class ImageCacheManager;
 
@@ -60,4 +60,4 @@ private:
     qreal m_imageCacheSizeMB{0};
 };
 
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 /**
  * @file backupmanager.h
  * @brief Game backup management
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 #include <QVariantMap>
 #include <QQmlEngine>
 
-namespace makineai {
+namespace makine {
 
 class OperationJournal;
 
@@ -156,4 +156,4 @@ private:
     OperationJournal* m_journal{nullptr};
 };
 
-} // namespace makineai
+} // namespace makine

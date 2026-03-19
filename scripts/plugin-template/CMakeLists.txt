@@ -6,22 +6,22 @@ set(CMAKE_CXX_STANDARD 23)
 # ── Plugin DLL ──
 add_library(my-plugin SHARED plugin.cpp)
 
-# Plugin API headers (download from MakineAI-Launcher or copy locally)
+# Plugin API headers (download from Makine-Launcher or copy locally)
 # Option 1: Local copy of headers in include/ directory
 # Option 2: FetchContent from GitHub
-if(EXISTS "${CMAKE_SOURCE_DIR}/include/makineai/plugin/plugin_api.h")
+if(EXISTS "${CMAKE_SOURCE_DIR}/include/makine/plugin/plugin_api.h")
     target_include_directories(my-plugin PRIVATE ${CMAKE_SOURCE_DIR}/include)
 else()
     include(FetchContent)
-    FetchContent_Declare(makineai-plugin-sdk
-        GIT_REPOSITORY https://github.com/MakineCeviri/MakineAI-Launcher.git
+    FetchContent_Declare(makine-plugin-sdk
+        GIT_REPOSITORY https://github.com/MakineCeviri/Makine-Launcher.git
         GIT_TAG main
         GIT_SHALLOW TRUE
         SOURCE_SUBDIR core  # only need core/include
     )
-    FetchContent_MakeAvailable(makineai-plugin-sdk)
+    FetchContent_MakeAvailable(makine-plugin-sdk)
     target_include_directories(my-plugin PRIVATE
-        ${makineai-plugin-sdk_SOURCE_DIR}/core/include
+        ${makine-plugin-sdk_SOURCE_DIR}/core/include
     )
 endif()
 

@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-Error handling is critical for MakineAI because:
+Error handling is critical for Makine-Launcher because:
 - Operations can fail in many ways (file not found, permission denied, corrupt data)
 - Failed operations must not corrupt game files
 - Users need clear error messages for troubleshooting

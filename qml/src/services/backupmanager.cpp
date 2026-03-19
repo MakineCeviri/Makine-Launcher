@@ -1,7 +1,7 @@
 /**
  * @file backupmanager.cpp
  * @brief Backup Manager Implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "backupmanager.h"
@@ -24,9 +24,9 @@
 #include <QtConcurrent>
 #include <algorithm>
 
-Q_LOGGING_CATEGORY(lcBackup, "makineai.backup")
+Q_LOGGING_CATEGORY(lcBackup, "makine.backup")
 
-namespace makineai {
+namespace makine {
 
 BackupManager* BackupManager::s_instance = nullptr;
 
@@ -511,4 +511,4 @@ QString BackupManager::getBackupsDirectory()
     return AppPaths::backupsDir();
 }
 
-} // namespace makineai
+} // namespace makine

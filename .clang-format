@@ -1,5 +1,5 @@
-# MakineAI Clang-Format Configuration
-# Based on Google style with MakineAI customizations
+# Makine-Launcher Clang-Format Configuration
+# Based on Google style with Makine-Launcher customizations
 # Run: clang-format -i src/**/*.cpp include/**/*.hpp
 
 ---
@@ -113,8 +113,8 @@ SeparateDefinitionBlocks: Always
 # Sorting
 IncludeBlocks: Regroup
 IncludeCategories:
-  # MakineAI headers first
-  - Regex: '^"makineai/'
+  # Makine headers first
+  - Regex: '^"makine/'
     Priority: 1
     SortPriority: 1
   # Local headers

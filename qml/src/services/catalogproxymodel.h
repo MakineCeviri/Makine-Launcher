@@ -20,7 +20,7 @@
  *
  * rowCount() is pure — O(1), no side effects, no const_cast.
  *
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -31,7 +31,7 @@
 
 #include <vector>
 
-namespace makineai {
+namespace makine {
 
 class CatalogProxyModel : public QAbstractListModel
 {
@@ -129,4 +129,4 @@ private:
     int m_exposedCount{0};
 };
 
-} // namespace makineai
+} // namespace makine

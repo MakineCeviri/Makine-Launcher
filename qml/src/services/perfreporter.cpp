@@ -8,8 +8,10 @@
 #include <QDir>
 
 #include <algorithm>
+#include <mutex>
+#include <thread>
 
-namespace makineai {
+namespace makine {
 
 PerfReporter& PerfReporter::instance() {
     static PerfReporter s;
@@ -143,4 +145,4 @@ void PerfReporter::dumpReport(const QString& path) {
     }
 }
 
-} // namespace makineai
+} // namespace makine

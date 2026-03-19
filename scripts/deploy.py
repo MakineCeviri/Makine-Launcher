@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-deploy.py -- Full deployment orchestrator for MakineAI translation packages.
+deploy.py -- Full deployment orchestrator for Makine translation packages.
 
 Single command to:
   1. Run compression + encryption pipeline (package_pipeline.py)
@@ -34,8 +34,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
 NPX = "npx.cmd" if sys.platform == "win32" else "npx"
-ASSETS_DIR = Path("C:/cedra/MakineAI-Assets")  # Local manifest cache
-BUILD_DIR = Path("C:/cedra/MakineAI-Assets-Build/data")
+ASSETS_DIR = Path("C:/cedra/Makine-Assets")  # Local manifest cache
+BUILD_DIR = Path("C:/cedra/Makine-Assets-Build/data")
 R2_BUCKET = "makineai-translations"
 PYTHON = sys.executable
 
@@ -128,7 +128,7 @@ def upload_manifests_to_r2(dry_run: bool = False) -> bool:
 
 
 def get_app_version() -> str:
-    """Read MAKINEAI_VERSION_FULL from top-level CMakeLists.txt."""
+    """Read MAKINE_VERSION_FULL from top-level CMakeLists.txt."""
     cmake_path = PROJECT_DIR / "CMakeLists.txt"
     if not cmake_path.exists():
         return "0.1.0-alpha"
@@ -138,14 +138,14 @@ def get_app_version() -> str:
     for line in cmake_path.read_text().splitlines():
         stripped = line.strip()
         if stripped.startswith("project(") and "VERSION" in stripped:
-            # project(MakineAI VERSION 0.1.0 ...)
+            # project(MakineLauncher VERSION 0.1.0 ...)
             parts = stripped.split()
             for i, p in enumerate(parts):
                 if p == "VERSION" and i + 1 < len(parts):
                     version = parts[i + 1].rstrip(")")
                     break
-        if "MAKINEAI_VERSION_SUFFIX" in stripped and "set(" in stripped.lower():
-            # set(MAKINEAI_VERSION_SUFFIX "pre-alpha")
+        if "MAKINE_VERSION_SUFFIX" in stripped and "set(" in stripped.lower():
+            # set(MAKINE_VERSION_SUFFIX "pre-alpha")
             if '"' in stripped:
                 suffix = stripped.split('"')[1]
 
@@ -284,7 +284,7 @@ def main():
     r2_data_url = f"{r2_public_url}/data"
 
     print("=" * 70)
-    print("  MakineAI Translation Package Deployment")
+    print("  Makine-Launcher Translation Package Deployment")
     print("=" * 70)
     print(f"  Pipeline output: {BUILD_DIR}")
     print(f"  Manifests:       {ASSETS_DIR}")
@@ -348,7 +348,7 @@ def main():
             sys.exit(1)
 
     # ── Step 4: Sentry release tracking ──
-    sentry_release = f"makineai@{get_app_version()}"
+    sentry_release = f"makine-launcher@{get_app_version()}"
     steps_total += 1
     if sentry_release_tracking(sentry_release, args.dry_run):
         steps_ok += 1

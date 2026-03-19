@@ -1,5 +1,5 @@
-# MakineAI Benchmark Tests
-# Copyright (c) 2026 MakineAI Team
+# Makine Benchmark Tests
+# Copyright (c) 2026 Makine Team
 #
 # Requires: Google Benchmark library
 # Install: vcpkg install benchmark
@@ -39,7 +39,7 @@ add_executable(bench_json_parsing
 )
 
 target_link_libraries(bench_json_parsing PRIVATE
-    makineai_core
+    makine_core
     benchmark::benchmark
     benchmark::benchmark_main
 )
@@ -61,7 +61,7 @@ add_executable(bench_translation_memory
 )
 
 target_link_libraries(bench_translation_memory PRIVATE
-    makineai_core
+    makine_core
     benchmark::benchmark
     benchmark::benchmark_main
 )

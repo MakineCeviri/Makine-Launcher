@@ -4,17 +4,17 @@
  *
  * Critical for a Turkish game translation app.
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/utf_utils.hpp>
+#include <makine/utf_utils.hpp>
 
 #include <cstring>
 #include <string>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -339,4 +339,4 @@ TEST(UtfBackendTest, SimdutfVersionNonNull) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

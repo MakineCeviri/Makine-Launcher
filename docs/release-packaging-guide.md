@@ -1,4 +1,4 @@
-# MakineAI-Launcher — Release Packaging Guide
+# Makine-Launcher — Release Packaging Guide
 
 > Versiyon: 0.1.0-pre-alpha | Qt 6.10.1, MinGW 13.1.0, C++23
 > Bu rehber, dağıtım için hazır tek-EXE paket üretmenin adım adım sürecini belgeler.
@@ -11,7 +11,7 @@ Projenin iki farklı dağıtım yolu var:
 
 | Yol | Preset | Çıktı | Durum |
 |-----|--------|-------|-------|
-| **Static Qt** | `release-static` | `build/release-static/MakineAI.exe` — tek EXE, DLL yok | Tercih edilen, kurulum gerektirir |
+| **Static Qt** | `release-static` | `build/release-static/Makine-Launcher.exe` — tek EXE, DLL yok | Tercih edilen, kurulum gerektirir |
 | **Shared Qt + windeployqt** | `dev` + `just deploy` | `dist/` klasörü — EXE + DLL'ler | Geçici çözüm (şu an kullanılan) |
 
 Static build hedef; windeployqt yolu ise static Qt build kurulana kadar geçerli ara çözümdür.
@@ -47,12 +47,12 @@ just setup-static-qt
 ```bash
 # 1. Build
 just release-static
-# → build/release-static/MakineAI.exe
+# → build/release-static/Makine-Launcher.exe
 
 # 2. Paketle (zip)
 just package-static
-# → dist-static/MakineAI.exe
-# → MakineAI-static.zip
+# → dist-static/Makine-Launcher.exe
+# → Makine-Launcher-static.zip
 ```
 
 **Preset detayları** (`release-static` — `CMakePresets.json`):
@@ -65,33 +65,33 @@ just package-static
 
 Post-build otomatik çalışanlar:
 - `cmake --strip` — debug sembollerini temizler
-- `sha256sum` → `MakineAI.exe.sha256` üretir
-- (Opsiyonel) UPX sıkıştırma: `cmake -DMAKINEAI_UPX=ON` ile etkinleştirilir
+- `sha256sum` → `Makine-Launcher.exe.sha256` üretir
+- (Opsiyonel) UPX sıkıştırma: `cmake -DMAKINE_UPX=ON` ile etkinleştirilir
 
 ### Yol B — Shared Qt + windeployqt (Geçici Çözüm)
 
 ```bash
 # 1. Build + deploy (tek komut)
 just deploy
-# → dist/MakineAI.exe
+# → dist/Makine-Launcher.exe
 # → dist/ altında Qt DLL'leri, QML plugin'leri, platform plugin'leri
 
 # 2. Arşivle
 just package
-# → MakineAI-release.zip
+# → Makine-Launcher-release.zip
 ```
 
 `just deploy` komutunun içeriği:
 ```powershell
 cmake --preset release && cmake --build --preset release
-Copy-Item build/release/MakineAI.exe dist/
-windeployqt --qmldir qml/qml --release dist/MakineAI.exe
+Copy-Item build/release/Makine-Launcher.exe dist/
+windeployqt --qmldir qml/qml --release dist/Makine-Launcher.exe
 ```
 
 **`release` preset** (`CMakePresets.json`):
 - Compiler: MSVC (vcpkg-base inherit)
 - Qt path: `$env{Qt6_DIR}` ortam değişkeninden
-- `MAKINEAI_RELEASE_VERIFIED=ON` — SSL pin doğrulama ve integrity service aktif
+- `MAKINE_RELEASE_VERIFIED=ON` — SSL pin doğrulama ve integrity service aktif
 - Çıktı: `build/release/`
 
 ---
@@ -141,14 +141,14 @@ libarchive     → archive.dll
 | Değer | Kaynak | Nasıl |
 |-------|--------|-------|
 | Şifreleme anahtarı | `qml/src/services/encryption_key.h` | Header doğrudan include edilir |
-| Sentry DSN | `$MAKINEAI_SENTRY_DSN` ortam değişkeni | CMake build sırasında okunur |
+| Sentry DSN | `$MAKINE_SENTRY_DSN` ortam değişkeni | CMake build sırasında okunur |
 | CDN URL'leri | `qml/src/services/cdnconfig.h` | `constexpr` sabitler |
-| Uygulama versiyonu | `CMakeLists.txt` → `MAKINEAI_VERSION_FULL` | Makro olarak tanımlanır |
+| Uygulama versiyonu | `CMakeLists.txt` → `MAKINE_VERSION_FULL` | Makro olarak tanımlanır |
 
 ### Sentry DSN (Crash Reporting)
-`dev` preset'te `MAKINEAI_CRASH_REPORTING=ON`; release build'de Sentry aktifse:
+`dev` preset'te `MAKINE_CRASH_REPORTING=ON`; release build'de Sentry aktifse:
 ```bash
-export MAKINEAI_SENTRY_DSN="https://xxxxx@sentry.io/xxxxx"
+export MAKINE_SENTRY_DSN="https://xxxxx@sentry.io/xxxxx"
 just release
 ```
 DSN ayarlanmazsa CMake warning üretir, Sentry devre dışı kalır (build başarısız olmaz).
@@ -172,17 +172,17 @@ scripts/certs/
 
 ### Mevcut Versiyon
 - `vcpkg.json`: `"version": "0.1.0"`
-- `CMakeLists.txt`: `project(MakineAI VERSION 0.1.0)` + suffix `"pre-alpha"`
+- `CMakeLists.txt`: `project(MakineLauncher VERSION 0.1.0)` + suffix `"pre-alpha"`
 - Tam versiyon string'i: `0.1.0-pre-alpha`
-- Sentry release tag: `makineai@0.1.0-pre-alpha`
+- Sentry release tag: `makine-launcher@0.1.0-pre-alpha`
 
 ### Versiyon Nasıl Güncellenir
 İki yerde değiştirilmeli — ikisi de tutarlı olmalı:
 
 **1. `CMakeLists.txt` (satır 30 ve 36):**
 ```cmake
-project(MakineAI VERSION 0.2.0 ...)
-set(MAKINEAI_VERSION_SUFFIX "alpha")   # Stabil release için boş bırak
+project(MakineLauncher VERSION 0.2.0 ...)
+set(MAKINE_VERSION_SUFFIX "alpha")   # Stabil release için boş bırak
 ```
 
 **2. `vcpkg.json` (satır 3):**
@@ -218,10 +218,10 @@ just setup-cert
 ```bash
 # Static EXE için (tercih edilen release pipeline)
 just release-signed
-# Eşdeğer: just release-static && scripts/sign_exe.ps1 -Path build/release-static/MakineAI.exe
+# Eşdeğer: just release-static && scripts/sign_exe.ps1 -Path build/release-static/Makine-Launcher.exe
 
 # Belirli bir dosya için
-just sign-file build/release-static/MakineAI.exe
+just sign-file build/release-static/Makine-Launcher.exe
 
 # Tüm build çıktılarını otomatik tara ve imzala
 just sign
@@ -241,16 +241,16 @@ just sign
 
 Build sırasında otomatik olarak üretilir (post-build command):
 ```
-build/release-static/MakineAI.exe.sha256
+build/release-static/Makine-Launcher.exe.sha256
 ```
 
 Manuel üretim:
 ```bash
 # PowerShell
-Get-FileHash dist-static\MakineAI.exe -Algorithm SHA256 | Select-Object Hash
+Get-FileHash dist-static\Makine-Launcher.exe -Algorithm SHA256 | Select-Object Hash
 
 # bash
-sha256sum dist-static/MakineAI.exe
+sha256sum dist-static/Makine-Launcher.exe
 ```
 
 Release notlarına ve GitHub release'e hash eklenmeli.
@@ -277,7 +277,7 @@ CHANGELOG.md için giriş formatı:
 - ci: ...
 
 ### SHA-256
-MakineAI-0.x.0.exe: `<hash>`
+Makine-Launcher-0.x.0.exe: `<hash>`
 ```
 
 Conventional commit tipleri: `feat` `fix` `refactor` `build` `ci` `docs` `test` `chore`
@@ -308,10 +308,10 @@ Scopelar: `core` `ui` `build` `ci` `docs`
 
 [ ] 6. İmzalama yapıldı
       just release-signed
-      signtool verify /pa /v build/release-static/MakineAI.exe
+      signtool verify /pa /v build/release-static/Makine-Launcher.exe
 
 [ ] 7. SHA-256 hash üretildi
-      build/release-static/MakineAI.exe.sha256 mevcut
+      build/release-static/Makine-Launcher.exe.sha256 mevcut
       Hash release notlarına kopyalandı
 
 [ ] 8. windeployqt çıktısı kontrol edildi (shared build ise)
@@ -320,8 +320,8 @@ Scopelar: `core` `ui` `build` `ci` `docs`
       Temiz bir Windows makinesinde test edildi
 
 [ ] 9. Paket arşivi oluşturuldu
-      just package-static    → MakineAI-static.zip
-      just package           → MakineAI-release.zip (shared)
+      just package-static    → Makine-Launcher-static.zip
+      just package           → Makine-Launcher-release.zip (shared)
 
 [ ] 10. GitHub release oluşturuldu
        Tag: vX.Y.Z
@@ -355,7 +355,7 @@ Scopelar: `core` `ui` `build` `ci` `docs`
 - `release` preset MSVC gerektirir (`Qt6_DIR` ortam değişkeni ayarlanmalı)
 - Sentry crash reporting MinGW'de `breakpad` backend kullanır (crashpad yok)
 - MSIX/NSIS installer desteği yok — dağıtım zip arşivi veya naked EXE ile
-- UPX sıkıştırma opsiyonel: `cmake -DMAKINEAI_UPX=ON --preset release-static`
+- UPX sıkıştırma opsiyonel: `cmake -DMAKINE_UPX=ON --preset release-static`
 
 ---
 

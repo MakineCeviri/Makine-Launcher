@@ -47,7 +47,7 @@ Game Process (read-only)
 ## Core API Design
 
 ```cpp
-namespace makineai {
+namespace makine {
 
 // Process attachment
 struct ProcessInfo {
@@ -110,7 +110,7 @@ public:
         uint64_t base_addr) const = 0;
 };
 
-} // namespace makineai
+} // namespace makine
 ```
 
 ## Engine Module: RAGE (GTA/RDR)
@@ -255,41 +255,41 @@ score = (printable_ratio * 0.4) +
 // Accept if score > 0.7
 ```
 
-## Integration with MakineAI
+## Integration with Makine-Launcher
 
 ### Adaptation Engine Workflow
 
 ```
 1. User installs community translation (overlay/ASI/mod)
-2. User runs MakineAI → "Extract Translation Data"
-3. MakineAI attaches to running game → scans memory
+2. User runs Makine-Launcher → "Extract Translation Data"
+3. Makine-Launcher attaches to running game → scans memory
 4. Produces translation_db.json (hash→text mappings)
 5. Stores DB as baseline for this game+version
 
 --- Game updates ---
 
-6. MakineAI detects game update (file hash change)
+6. Makine-Launcher detects game update (file hash change)
 7. User runs updated game (with/without old translation)
 8. Option A: Re-extract from memory → diff with baseline
    Option B: File-level diff on game assets
 9. Adaptation engine: merge changes into translation
-10. MakineAI packages adapted translation for installation
+10. Makine-Launcher packages adapted translation for installation
 ```
 
 ### CLI Usage (planned)
 
 ```bash
 # Extract from running game
-makineai extract --process RDR2.exe --engine rage --output rdr2_tr.json
+makine extract --process RDR2.exe --engine rage --output rdr2_tr.json
 
 # Extract with auto-detect
-makineai extract --process "Elden Ring.exe" --output er_tr.json
+makine extract --process "Elden Ring.exe" --output er_tr.json
 
 # Compare two extraction databases
-makineai diff --base v1.0_tr.json --updated v1.1_tr.json --output changes.json
+makine diff --base v1.0_tr.json --updated v1.1_tr.json --output changes.json
 
 # Adapt translation to new version
-makineai adapt --translation v1.0_tr.json --changes changes.json --output v1.1_tr.json
+makine adapt --translation v1.0_tr.json --changes changes.json --output v1.1_tr.json
 ```
 
 ## Performance Characteristics

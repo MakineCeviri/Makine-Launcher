@@ -1,16 +1,16 @@
 /**
  * @file runtime_manager.cpp
  * @brief Runtime translation system manager (stub)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/runtime_manager.hpp"
+#include "makine/runtime_manager.hpp"
 
-namespace makineai {
+namespace makine {
 
 bool RuntimeManager::needsRuntime([[maybe_unused]] const GameInfo& game) const {
     // No runtime backend configured — nothing needs runtime translation
     return false;
 }
 
-} // namespace makineai
+} // namespace makine

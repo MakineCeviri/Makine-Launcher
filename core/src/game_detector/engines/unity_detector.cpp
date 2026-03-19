@@ -1,20 +1,20 @@
 /**
  * @file unity_detector.cpp
  * @brief Unity engine detector (Mono and IL2CPP)
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "engine_detectors.hpp"
 
-#include "makineai/mio_utils.hpp"
-#include "makineai/logging.hpp"
+#include "makine/mio_utils.hpp"
+#include "makine/logging.hpp"
 
 #include <algorithm>
 #include <filesystem>
 #include <string>
 #include <vector>
 
-namespace makineai::scanners {
+namespace makine::scanners {
 
 namespace fs = std::filesystem;
 
@@ -36,7 +36,7 @@ std::string readUnityVersion(const fs::path& gameDir) {
 
                         auto mappedResult = mio_utils::mapFile(ggmPath, 0, READ_SIZE);
                         if (!mappedResult) {
-                            MAKINEAI_LOG_TRACE(log::DETECTOR,
+                            MAKINE_LOG_TRACE(log::DETECTOR,
                                 "Failed to map globalgamemanagers: {}",
                                 mappedResult.error().message());
                             break;
@@ -74,7 +74,7 @@ std::string readUnityVersion(const fs::path& gameDir) {
                             std::string ver = content.substr(start, i - start);
                             // Sanity: Unity versions start with year >= 3
                             if (ver.size() >= 5) {
-                                MAKINEAI_LOG_TRACE(log::DETECTOR,
+                                MAKINE_LOG_TRACE(log::DETECTOR,
                                     "Unity version detected: {}", ver);
                                 return ver;
                             }
@@ -86,7 +86,7 @@ std::string readUnityVersion(const fs::path& gameDir) {
         }
     }
     catch (const std::exception& e) {
-        MAKINEAI_LOG_TRACE(log::DETECTOR, "Failed to read Unity version: {}", e.what());
+        MAKINE_LOG_TRACE(log::DETECTOR, "Failed to read Unity version: {}", e.what());
     }
     return "";
 }
@@ -171,4 +171,4 @@ EngineDetectionResult detectUnity(const fs::path& path, const GameSignatures& si
     return result;
 }
 
-} // namespace makineai::scanners
+} // namespace makine::scanners

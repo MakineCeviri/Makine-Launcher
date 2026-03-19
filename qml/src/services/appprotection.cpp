@@ -1,7 +1,7 @@
 /**
  * @file appprotection.cpp
  * @brief Anti-reverse-engineering and tamper detection implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Release builds (NDEBUG): 8 anti-debug checks, periodic re-checks,
  * and delayed exit. Extended checks (RE tools, VM, DLL) in C:\cedra\security\.
@@ -30,11 +30,11 @@ static std::atomic<int>  g_checkFailCount{0};
 // These are never referenced in real logic — they exist only to appear
 // in memory dumps and waste the reverser's time.
 [[maybe_unused]] static volatile const char* g_decoys[] = {
-    "https://api.makineai.com/v2/license/check",
+    "https://api.makineceviri.net/v2/license/check",
     "X-HWID-Signature",
     "AES-256-CBC",
     "remote_kill_endpoint",
-    "HKEY_LOCAL_MACHINE\\SOFTWARE\\MakineAI\\License",
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\MakineCeviri\\License",
     "jwt_validation_server",
     "telemetry_heartbeat",
     "drm_challenge_response",
@@ -42,7 +42,7 @@ static std::atomic<int>  g_checkFailCount{0};
     // Reverser easter eggs
     "Buraya kadar geldiysen tebrikler, ama daha yolun var :)",
     "Hala mi ugrasiyorsun? Cay koy gel rahatla",
-    "GGWP - MakineAI Protection v3.7.2",
+    "GGWP - Makine Protection v3.7.2",
 };
 
 // ───────── helpers ─────────
@@ -192,13 +192,13 @@ void runAllChecks()
 
 // ───────── public API ─────────
 
-void makineai::protection::initialize()
+void makine::protection::initialize()
 {
     ANTI_DISASM();
     runAllChecks();
 }
 
-void makineai::protection::schedulePeriodicChecks()
+void makine::protection::schedulePeriodicChecks()
 {
     // Re-run checks every 45–90 seconds (varies by __LINE__ seed to
     // make the interval harder to predict from static analysis)
@@ -218,12 +218,12 @@ void makineai::protection::schedulePeriodicChecks()
     timer->start(intervalMs);
 }
 
-bool makineai::protection::isCompromised()
+bool makine::protection::isCompromised()
 {
     return g_flagged.load(std::memory_order_relaxed);
 }
 
-void makineai::protection::onViolation(int site)
+void makine::protection::onViolation(int site)
 {
     // Delayed exit: 10–60 seconds — makes it very hard to correlate
     // the trigger with the actual check that detected the debugger
@@ -243,9 +243,9 @@ void makineai::protection::onViolation(int site)
 #else // ==================== DEBUG BUILD ====================
 
 // All functions are no-ops — zero overhead, no false positives
-void makineai::protection::initialize() {}
-void makineai::protection::schedulePeriodicChecks() {}
-bool makineai::protection::isCompromised() { return false; }
-void makineai::protection::onViolation(int) {}
+void makine::protection::initialize() {}
+void makine::protection::schedulePeriodicChecks() {}
+bool makine::protection::isCompromised() { return false; }
+void makine::protection::onViolation(int) {}
 
 #endif

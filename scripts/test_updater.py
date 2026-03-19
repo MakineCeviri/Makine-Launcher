@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Local HTTP server for testing MakineAI auto-updater (self-swap).
+Local HTTP server for testing Makine-Launcher auto-updater (self-swap).
 
 Usage:
     python scripts/test_updater.py
 
-Then run MakineAI with:
-    MAKINEAI_UPDATE_URL=http://localhost:8765/update.json ./build/dev/MakineAI.exe
+Then run Makine-Launcher with:
+    MAKINE_UPDATE_URL=http://localhost:8765/update.json ./build/dev/Makine-Launcher.exe
 """
 
 import hashlib
@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 
 PORT = 8765
-EXE_NAME = "MakineAI.exe"
+EXE_NAME = "Makine-Launcher.exe"
 FAKE_VERSION = "99.0.0"
 
 # Locate the dev build EXE
@@ -29,7 +29,7 @@ BUILD_EXE = PROJECT_ROOT / "build" / "dev" / EXE_NAME
 
 def setup_serve_dir() -> Path:
     """Copy build EXE to a temp directory and generate update.json alongside it."""
-    serve_dir = Path(tempfile.mkdtemp(prefix="makineai_update_test_"))
+    serve_dir = Path(tempfile.mkdtemp(prefix="makine_update_test_"))
 
     if not BUILD_EXE.exists():
         print(f"ERROR: Build EXE not found at {BUILD_EXE}")
@@ -71,22 +71,22 @@ def main():
             super().__init__(*args, directory=str(serve_dir), **kwargs)
 
     print(f"\n{'='*60}")
-    print(f"  MakineAI Update Test Server")
+    print(f"  Makine-Launcher Update Test Server")
     print(f"  Serving on http://localhost:{PORT}")
     print(f"  Fake version: {FAKE_VERSION}")
     print(f"  Serve dir: {serve_dir}")
     print(f"{'='*60}")
     print(f"\nTo test, run in another terminal:")
-    print(f"  export MAKINEAI_UPDATE_URL=http://localhost:{PORT}/update.json")
+    print(f"  export MAKINE_UPDATE_URL=http://localhost:{PORT}/update.json")
     print(f'  export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"')
-    print(f"  ./build/dev/MakineAI.exe")
+    print(f"  ./build/dev/Makine-Launcher.exe")
     print(f"\nVerification checklist:")
     print(f"  1. NavBar download icon appears (pulse animation)")
     print(f'  2. Tooltip: "Guncelleme indir (v{FAKE_VERSION})"')
     print(f"  3. Click -> download starts, progress ring spins")
     print(f"  4. Download completes -> green sync icon")
     print(f"  5. Click -> app closes, self-swap occurs")
-    print(f"  6. MakineAI.exe.old created, new EXE in place")
+    print(f"  6. Makine-Launcher.exe.old created, new EXE in place")
     print(f"  7. New version launches with --post-update")
     print(f"\nPress Ctrl+C to stop.\n")
 

@@ -1,7 +1,7 @@
 /**
  * @file translationdownloader.cpp
  * @brief Download, decrypt, and extract translation packages from R2
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "translationdownloader.h"
@@ -19,15 +19,15 @@
 #include <QTimer>
 #include <QLoggingCategory>
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 #include "mkpkformat.h"
 #include <QtConcurrent>
 #include <QCryptographicHash>
 #endif
 
-Q_LOGGING_CATEGORY(lcDownloader, "makineai.download")
+Q_LOGGING_CATEGORY(lcDownloader, "makine.download")
 
-namespace makineai {
+namespace makine {
 
 TranslationDownloader::TranslationDownloader(QObject* parent)
     : QObject(parent)
@@ -92,7 +92,7 @@ void TranslationDownloader::downloadPackage(
         return;
     }
 
-#ifdef MAKINEAI_UI_ONLY
+#ifdef MAKINE_UI_ONLY
     emit downloadError(appId, tr("Bu sürümde indirme desteklenmiyor"));
     return;
 #else
@@ -118,12 +118,12 @@ void TranslationDownloader::downloadPackage(
 
     startHttpRequest(appId);
 
-#endif // !MAKINEAI_UI_ONLY
+#endif // !MAKINE_UI_ONLY
 }
 
 void TranslationDownloader::startHttpRequest(const QString& appId)
 {
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
     auto it = m_activeDownloads.find(appId);
     if (it == m_activeDownloads.end()) return;
     auto& state = it.value();
@@ -140,7 +140,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setHeader(QNetworkRequest::UserAgentHeader,
-                  QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1"));
+                  QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1"));
 
     if (state.resumeOffset > 0) {
         req.setRawHeader("Range",
@@ -292,7 +292,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
             emit extractionStarted(appId);
             processDownloadedFile(appId, state.tempPath, state.dirName);
         });
-#endif // !MAKINEAI_UI_ONLY
+#endif // !MAKINE_UI_ONLY
 }
 
 void TranslationDownloader::cancelDownload(const QString& appId)
@@ -318,7 +318,7 @@ void TranslationDownloader::processDownloadedFile(
     const QString& tempPath,
     const QString& dirName)
 {
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
     MAKINE_ZONE_NAMED("TranslationDownloader::processDownloadedFile");
 
     const QString destDir = m_dataPath + QStringLiteral("/") + dirName;
@@ -386,7 +386,7 @@ void TranslationDownloader::processDownloadedFile(
 #endif
 }
 
-#ifndef MAKINEAI_UI_ONLY
+#ifndef MAKINE_UI_ONLY
 
 bool TranslationDownloader::verifyChecksum(
     const QString& appId,
@@ -433,6 +433,6 @@ bool TranslationDownloader::verifyChecksum(
     return true;
 }
 
-#endif // !MAKINEAI_UI_ONLY
+#endif // !MAKINE_UI_ONLY
 
-} // namespace makineai
+} // namespace makine

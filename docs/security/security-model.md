@@ -1,6 +1,6 @@
 # Güvenlik Modeli
 
-MakineAI güvenlik mimarisi ve politikaları.
+Makine-Launcher güvenlik mimarisi ve politikaları.
 
 > **Durum:** Bu doküman hedef güvenlik mimarisini tanımlar.
 > Paket imzalama, sunucu dağıtımı ve HTTPS entegrasyonu henüz implemente edilmemiştir.
@@ -10,7 +10,7 @@ MakineAI güvenlik mimarisi ve politikaları.
 
 ## Genel Bakış
 
-MakineAI, kullanıcı verilerini ve sistemini korumak için katmanlı güvenlik modeli kullanır.
+Makine-Launcher, kullanıcı verilerini ve sistemini korumak için katmanlı güvenlik modeli kullanır.
 
 ### Temel İlkeler
 
@@ -28,7 +28,7 @@ MakineAI, kullanıcı verilerini ve sistemini korumak için katmanlı güvenlik 
 Her patch işleminden önce otomatik yedekleme:
 
 ```
-[Oyun]/MakineAI_Backups/
+[Oyun]/MakineLauncher_Backups/
 └── 2026-02-03_14-30-00/
     ├── orijinal_dosya.dat
     ├── manifest.json
@@ -37,10 +37,10 @@ Her patch işleminden önce otomatik yedekleme:
 
 ### Dosya İzinleri
 
-MakineAI sadece şu klasörlere yazar:
+Makine-Launcher sadece şu klasörlere yazar:
 - Oyun kurulum klasörü (patch için)
-- `%APPDATA%/MakineAI/` (ayarlar)
-- `%LOCALAPPDATA%/MakineAI/` (cache, logs)
+- `%APPDATA%/MakineLauncher/` (ayarlar)
+- `%LOCALAPPDATA%/MakineLauncher/` (cache, logs)
 
 ### Rollback
 
@@ -88,7 +88,7 @@ Kuruluma İzin Ver
 ### Güvenli İndirme
 
 - HTTPS zorunlu
-- Certificate pinning (MakineAI API endpointleri)
+- Certificate pinning (Makine-Launcher API endpointleri)
 - Timeout ve retry politikaları
 
 ---
@@ -144,8 +144,8 @@ Kuruluma İzin Ver
 ### Log Konumu
 
 ```
-%LOCALAPPDATA%/MakineAI/logs/
-├── makineai.log        # Ana log
+%LOCALAPPDATA%/MakineLauncher/logs/
+├── makine.log          # Ana log
 ├── audit.log           # Güvenlik logu
 └── error.log           # Hata logu
 ```
@@ -175,7 +175,7 @@ Yerel veriler:
 ### Veri Silme
 
 Kaldırma sırasında:
-- Tüm MakineAI verileri silinir
+- Tüm Makine-Launcher verileri silinir
 - Oyun yedekleri kullanıcıya bırakılır
 
 ---
@@ -230,7 +230,7 @@ Anti-cheat tespit edildiğinde:
 
 Bir güvenlik açığı buldunuz mu?
 
-1. **Email:** security@makineai.com
+1. **Email:** security@makineceviri.net
 2. **Konu:** [SECURITY] Kısa açıklama
 3. **İçerik:**
    - Açıklamanın detayı

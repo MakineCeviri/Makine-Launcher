@@ -1,7 +1,7 @@
 /**
  * @file processscanner.h
  * @brief Running game process detection
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Three-layer detection:
  * 1. Known exe match (disk scan + catalog fingerprints) - automatic
@@ -22,7 +22,7 @@
 #include <windows.h>
 #endif
 
-namespace makineai {
+namespace makine {
 
 class GameService;
 class LocalPackageManager;
@@ -136,4 +136,4 @@ private:
     LocalPackageManager* m_packageManager{nullptr};
 };
 
-} // namespace makineai
+} // namespace makine

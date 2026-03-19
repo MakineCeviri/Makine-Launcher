@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import MakineAI 1.0
+import MakineLauncher 1.0
 
 /**
  * StyledToolTip — Modern, minimal tooltip matching app design.

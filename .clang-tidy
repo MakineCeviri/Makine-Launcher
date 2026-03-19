@@ -1,4 +1,4 @@
-# MakineAI .clang-tidy configuration
+# Makine-Launcher .clang-tidy configuration
 # C++23 project with Qt6/QML integration
 ---
 Checks: >
@@ -28,7 +28,7 @@ Checks: >
 
 WarningsAsErrors: ''
 
-HeaderFilterRegex: 'core/include/makineai/.*\.hpp$'
+HeaderFilterRegex: 'core/include/makine/.*\.hpp$'
 
 CheckOptions:
   - key: readability-identifier-naming.ClassCase
@@ -50,7 +50,7 @@ CheckOptions:
   - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
   - key: readability-identifier-naming.MacroDefinitionPrefix
-    value: 'MAKINEAI_'
+    value: 'MAKINE_'
   - key: modernize-use-override.IgnoreDestructors
     value: true
   - key: performance-move-const-arg.CheckTriviallyCopyableMove

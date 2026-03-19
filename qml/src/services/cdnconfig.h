@@ -16,7 +16,7 @@
  *   data/{id}.makine            - Encrypted translation packages
  */
 
-namespace makineai::cdn {
+namespace makine::cdn {
 
 // Base domain — change this single line to migrate all endpoints
 inline constexpr auto kDomain     = "cdn.makineceviri.net";
@@ -31,4 +31,4 @@ inline constexpr auto kBannersBase= "https://cdn.makineceviri.net/assets/banners
 // Data endpoint (encrypted .makine packages)
 inline constexpr auto kDataBase   = "https://cdn.makineceviri.net/data/";
 
-} // namespace makineai::cdn
+} // namespace makine::cdn

@@ -2,18 +2,18 @@
  * @file test_audit.cpp
  * @brief Unit tests for audit.hpp — AuditEvent, AuditLogger, SecureBuffer, secureZero, secureCompare
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/audit.hpp>
+#include <makine/audit.hpp>
 
 #include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
@@ -106,7 +106,7 @@ protected:
     fs::path testDir_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makineai_audit_tests";
+        testDir_ = fs::temp_directory_path() / "makine_audit_tests";
         fs::create_directories(testDir_);
 
         // Configure with in-memory buffer, no file output
@@ -399,4 +399,4 @@ TEST(SecureCompareTest, AllZeroBuffers) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

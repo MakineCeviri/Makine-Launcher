@@ -1,12 +1,12 @@
 # Build Sistemi
 
-MakineAI CMake ve vcpkg tabanli build sisteminin aciklamasi.
+Makine-Launcher CMake ve vcpkg tabanli build sisteminin aciklamasi.
 
 ---
 
 ## Genel Bakis
 
-MakineAI su araclari kullanir:
+Makine-Launcher su araclari kullanir:
 - **CMake** - Build konfigürasyonu
 - **vcpkg** - C++ paket yonetimi
 - **Ninja** - Build sistemi (opsiyonel)
@@ -49,7 +49,7 @@ cmake --build --preset dev
 
 ```json
 {
-  "name": "makineai",
+  "name": "makine-launcher",
   "version": "0.1.0",
   "dependencies": [
     "boost-filesystem",
@@ -96,7 +96,7 @@ vcpkg install --triplet x64-windows
 ## Proje Yapisi
 
 ```
-MakineAI/
+Makine-Launcher/
 ├── CMakeLists.txt          # Root CMake
 ├── CMakePresets.json       # Presetler
 ├── vcpkg.json              # Bagimliliklar
@@ -126,17 +126,17 @@ cmake --build qml/build/dev    # Build
 
 ```cmake
 # Static library
-add_library(makineai_core STATIC
+add_library(makine_core STATIC
     src/game_detector/steam_scanner.cpp
     src/game_detector/epic_scanner.cpp
     # ...
 )
 
-target_include_directories(makineai_core PUBLIC
+target_include_directories(makine_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(makineai_core PUBLIC
+target_link_libraries(makine_core PUBLIC
     Boost::filesystem
     spdlog::spdlog
     # ...
@@ -146,14 +146,14 @@ target_link_libraries(makineai_core PUBLIC
 ### QML CMakeLists.txt
 
 ```cmake
-qt_add_executable(MakineAI
+qt_add_executable(MakineLauncher
     src/main.cpp
     src/services/gameservice.cpp
     # ...
 )
 
-qt_add_qml_module(MakineAI
-    URI MakineAI
+qt_add_qml_module(MakineLauncher
+    URI MakineLauncher
     VERSION 1.0
     QML_FILES
         qml/Main.qml
@@ -161,8 +161,8 @@ qt_add_qml_module(MakineAI
         # ...
 )
 
-target_link_libraries(MakineAI PRIVATE
-    makineai_core
+target_link_libraries(MakineLauncher PRIVATE
+    makine_core
     Qt6::Quick
     Qt6::QuickControls2
 )
@@ -217,8 +217,8 @@ find_package(Qt6 REQUIRED COMPONENTS
 ### QML Modul
 
 ```cmake
-qt_add_qml_module(MakineAI
-    URI MakineAI
+qt_add_qml_module(MakineLauncher
+    URI MakineLauncher
     VERSION 1.0
     QML_FILES
         qml/Main.qml
@@ -231,7 +231,7 @@ qt_add_qml_module(MakineAI
 
 ```bash
 # Windows
-windeployqt.exe MakineAI.exe --qmldir qml/qml
+windeployqt.exe Makine-Launcher.exe --qmldir qml/qml
 
 # veya just ile
 just deploy

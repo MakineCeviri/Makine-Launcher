@@ -3,7 +3,7 @@
 
 #include <QtConcurrent>
 
-Q_LOGGING_CATEGORY(lcOcr, "makineai.ocr")
+Q_LOGGING_CATEGORY(lcOcr, "makine.ocr")
 
 OcrController::OcrController(PluginManager* pm, QObject* parent)
     : QObject(parent), m_pluginManager(pm)

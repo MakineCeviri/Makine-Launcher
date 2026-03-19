@@ -1,7 +1,7 @@
 /**
  * @file gameservice.cpp
  * @brief Game Service Implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "gameservice.h"
@@ -22,13 +22,13 @@
 #include <QProcess>
 #include <optional>
 
-Q_LOGGING_CATEGORY(lcGameService, "makineai.game")
+Q_LOGGING_CATEGORY(lcGameService, "makine.game")
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
 } // namespace
 
-namespace makineai {
+namespace makine {
 
 GameService::GameService(QObject *parent)
     : QObject(parent)
@@ -1433,4 +1433,4 @@ void GameService::checkForUpdates()
 
 }
 
-} // namespace makineai
+} // namespace makine

@@ -1,6 +1,6 @@
 # Mimari Genel Bakış
 
-MakineAI'nin sistem mimarisini açıklar.
+Makine-Launcher'ın sistem mimarisini açıklar.
 
 ---
 

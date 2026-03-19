@@ -2,18 +2,18 @@
  * @file test_ssl_pinning.cpp
  * @brief Unit tests for SSL certificate pinning
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/ssl_pinning.hpp>
+#include <makine/ssl_pinning.hpp>
 
 #include <string>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
-using namespace makineai::ssl;
+using namespace makine::ssl;
 
 class SslPinningTest : public ::testing::Test {};
 
@@ -188,4 +188,4 @@ TEST_F(SslPinningTest, PlaceholderDetectionReturnsFalse) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

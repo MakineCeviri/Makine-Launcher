@@ -13,7 +13,7 @@
 #include <windows.h>
 #endif
 
-#include <makineai/plugin/plugin_api.h>
+#include <makine/plugin/plugin_api.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lcPlugin)
 
@@ -126,11 +126,11 @@ private:
 #ifdef Q_OS_WIN
         HMODULE hModule = nullptr;
 #endif
-        MakineAiFn_GetInfo fnGetInfo = nullptr;
-        MakineAiFn_Initialize fnInitialize = nullptr;
-        MakineAiFn_Shutdown fnShutdown = nullptr;
-        MakineAiFn_IsReady fnIsReady = nullptr;
-        MakineAiFn_GetLastError fnGetLastError = nullptr;
+        MakineFn_GetInfo fnGetInfo = nullptr;
+        MakineFn_Initialize fnInitialize = nullptr;
+        MakineFn_Shutdown fnShutdown = nullptr;
+        MakineFn_IsReady fnIsReady = nullptr;
+        MakineFn_GetLastError fnGetLastError = nullptr;
 
         QVariantMap toVariantMap() const;
     };
@@ -139,7 +139,7 @@ private:
     struct RemotePluginEntry {
         QString id;
         QString version;
-        QString githubRepo;     // e.g. "MakineCeviri/makineai-plugin-live"
+        QString githubRepo;     // e.g. "MakineCeviri/makine-plugin-live"
         QString downloadUrl;    // GitHub release asset URL
         QString sha256;
         qint64 size = 0;
@@ -176,7 +176,7 @@ private:
 
     // GitHub configuration
     static constexpr const char* kTrustedGitHubOrg = "MakineCeviri";
-    static constexpr const char* kGitHubTopic = "makineai-plugin";
-    static constexpr const char* kRegistryRepo = "MakineCeviri/makineai-plugins";
+    static constexpr const char* kGitHubTopic = "makine-plugin";
+    static constexpr const char* kRegistryRepo = "MakineCeviri/makine-plugins";
     static constexpr int kCommunityMaxDisplay = 3;
 };

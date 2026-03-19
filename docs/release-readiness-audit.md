@@ -1,4 +1,4 @@
-# MakineAI-Launcher — Release Readiness Audit
+# Makine-Launcher — Release Readiness Audit
 
 **Tarih:** 2026-03-12
 **Versiyon:** v0.1.0-pre-alpha
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-MakineAI-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca olgun bir noktada. Core kutuphane katmani (22K+ satir C++) saglam error handling, path security, SSL pinning ve Ed25519 imza dogrulama iceriyor. UI katmani (10K+ satir QML + 22K satir C++ backend) profesyonel seviyede: onboarding wizard, batch operations, system tray, self-updater, crash reporting (Sentry), ve Tracy profiler entegrasyonu mevcut. Build sistemi 7 preset ile kapsamli; security hardening (ASLR, DEP, CFG, stack protector) her iki CMakeLists'te aktif. Test kapsami core icin kapsamli (33 test dosyasi, ~12K satir) ancak UI backend icin test yok. Ana blokajlar: Static Qt build, MSIX paketleme ve kod imzalama. Genel hazirlik skoru: **%78 — Alpha release icin yakin, ancak 3 kritik ve 5 yuksek oncelikli bulgu giderilmeli.**
+Makine-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca olgun bir noktada. Core kutuphane katmani (22K+ satir C++) saglam error handling, path security, SSL pinning ve Ed25519 imza dogrulama iceriyor. UI katmani (10K+ satir QML + 22K satir C++ backend) profesyonel seviyede: onboarding wizard, batch operations, system tray, self-updater, crash reporting (Sentry), ve Tracy profiler entegrasyonu mevcut. Build sistemi 7 preset ile kapsamli; security hardening (ASLR, DEP, CFG, stack protector) her iki CMakeLists'te aktif. Test kapsami core icin kapsamli (33 test dosyasi, ~12K satir) ancak UI backend icin test yok. Ana blokajlar: Static Qt build, MSIX paketleme ve kod imzalama. Genel hazirlik skoru: **%78 — Alpha release icin yakin, ancak 3 kritik ve 5 yuksek oncelikli bulgu giderilmeli.**
 
 ---
 
@@ -32,7 +32,7 @@ MakineAI-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca 
 │  LocalPackageManager, TranslationDownloader,            │
 │  UpdateService, SelfUpdater, IntegrityService, ...      │
 ├────────────────────────────────────────────────────────┤
-│  C++ Core Library (makineai_core, static lib)          │
+│  C++ Core Library (makine_core, static lib)            │
 │  game_detector (5 scanner), patch_engine,               │
 │  package_catalog, security_manager, ssl_pinning,        │
 │  crash_recovery, file_integrity, credential_store       │
@@ -42,7 +42,7 @@ MakineAI-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca 
 
 **Onemli tasarim kararlari:**
 - Super-build: tek `cmake --preset dev` ile core + UI birlikte derlenir
-- `MAKINEAI_UI_ONLY` modu: UI gelistirme icin vcpkg gereksiz, hizli iterasyon
+- `MAKINE_UI_ONLY` modu: UI gelistirme icin vcpkg gereksiz, hizli iterasyon
 - Hybrid katalog: `index.json` (93KB, startup) + on-demand `packages/{id}.json` (~700B)
 - MKPK format: AES-256-GCM sifreleme + zstd sikistirma + tar arsiv
 - Ed25519 paket imzalama, compile-time XOR key obfuscation (`obfstring.h`)
@@ -84,12 +84,12 @@ MakineAI-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca 
 | 3 | **KRİTİK** | Guvenlik | `encryption_key.h` dosyasi binary'de compile-time XOR ile obfuscate ediliyor (`obfstring.h`), ancak deterministic bir PRNG kullaniyor (`__LINE__` bazli seed). Reverse engineering ile key cikarilabilir. | Paket sifreleme kirilabilir | Kabul edilebilir risk (DRM degil, casual protection). Dokumante et. Long-term: server-side key exchange | Bilgi |
 | 4 | YUKSEK | Test | UI backend servisleri (17 dosya, ~22K satir) icin birim testi yok. `GameService`, `LocalPackageManager`, `BackupManager` gibi kritik servisler test edilmemis. | Regresyon riski | GameService ve LocalPackageManager icin en az smoke test ekle | 2-3 gun |
 | 5 | YUKSEK | Hata Yonetimi | QML backend'de try/catch kullanimi cok sinirli (7 toplam yer, 4 dosyada). `localpackagemanager.cpp` file I/O islemleri exception yakalami yapmadan devam edebilir. | Islenmemis exception crash | Kritik dosya islemlerini try/catch ile sar; `gameservice.cpp`, `backupmanager.cpp`, `localpackagemanager.cpp` | 1 gun |
-| 6 | YUKSEK | Guvenlik | Sentry DSN, CMake build-time'da `$ENV{MAKINEAI_SENTRY_DSN}` olarak enjekte ediliyor (`qml/CMakeLists.txt:442`). Bu deger binary'nin `.rodata` section'inda plaintext kalir. | DSN leak (dusuk etki ama best practice degil) | Sentry client-key DSN zaten "dusuk yetkili" — kabul edilebilir. Alternatif: runtime `.env` okuma | Dusuk |
+| 6 | YUKSEK | Guvenlik | Sentry DSN, CMake build-time'da `$ENV{MAKINE_SENTRY_DSN}` olarak enjekte ediliyor (`qml/CMakeLists.txt:442`). Bu deger binary'nin `.rodata` section'inda plaintext kalir. | DSN leak (dusuk etki ama best practice degil) | Sentry client-key DSN zaten "dusuk yetkili" — kabul edilebilir. Alternatif: runtime `.env` okuma | Dusuk |
 | 7 | YUKSEK | CI/CD | GitHub Actions'da yalnizca `deploy-manifests.yml` mevcut (manifest sagligi). Build CI, test CI, CodeQL taramasi yok. | Regresyon CI tarafindan yakalanamaz | Build + test + CodeQL workflow ekle. `.github/workflows/ci.yml` | 1 gun |
-| 8 | YUKSEK | Guvenlik | `vcpkg.json` lisesinde `"license": "MIT"` yazili, ancak `LICENSE` dosyasi "MakineAI Proprietary License". Tutarsizlik. | Lisans karisikligi | `vcpkg.json` icinde `"license": "LicenseRef-Proprietary"` yap | 5 dk |
+| 8 | YUKSEK | Guvenlik | `vcpkg.json` lisesinde `"license": "MIT"` yazili, ancak `LICENSE` dosyasi "Makine-Launcher Proprietary License". Tutarsizlik. | Lisans karisikligi | `vcpkg.json` icinde `"license": "LicenseRef-Proprietary"` yap | 5 dk |
 | 9 | ORTA | Gozlemlenebilirlik | `HealthChecker::checkNetwork()` placeholder — gercek network kontrolu yapmiyOr (`health.hpp:384-398`). CDN erisim kontrolu eksik. | Offline hata tespiti gecikir | CURL ile `cdn.makineceviri.net` HEAD istegi ekle | 2 saat |
 | 10 | ORTA | Kararlilik | `GameService::gameCount()` her cagirisinda `games().count()` calistirir (`gameservice.h:100`) — `games()` bir `QVariantList` kopyasi donduruyor. Hot path'te gereksiz kopya. | Performans (micro) | `return m_games.count()` kullan | 5 dk |
-| 11 | ORTA | i18n | `qml/i18n/` dizininde `makineai_en.ts`, `makineai_en.qm`, `makineai_tr.ts` mevcut. Ancak `qml/CMakeLists.txt:516`'da sadece `makineai_en.ts` kayitli — `_tr.ts` CMake'e dahil degil. | Turkce ceviriler uygulamaya yuklenmez | TS_FILES listesine `i18n/makineai_tr.ts` ekle | 5 dk |
+| 11 | ORTA | i18n | `qml/i18n/` dizininde `makine_en.ts`, `makine_en.qm`, `makine_tr.ts` mevcut. Ancak `qml/CMakeLists.txt:516`'da sadece `makine_en.ts` kayitli — `_tr.ts` CMake'e dahil degil. | Turkce ceviriler uygulamaya yuklenmez | TS_FILES listesine `i18n/makine_tr.ts` ekle | 5 dk |
 | 12 | ORTA | UX | `EmptyState` componenti sadece 3 yerde kullaniliyor (BackupsSettings, GameSection, EmptyState.qml). Library ekrani, HomePage, ve GameDetailScreen'de bos durum gosterimi eksik olabilir. | Kullanici bosluklarda ne yapacagini bilemez | Tum veri-bagli ekranlarda EmptyState kullanildigini dogrula | 2 saat |
 | 13 | ORTA | Erisilebilirlik | `Accessible` property'leri 22 QML dosyasinda 71 yerde kullaniliyor — iyi kapsam. Ancak `HomePage.qml`, `Library.qml`, `HomeScreen.qml` ana ekranlarda Accessible kontrol gerekli. | Ekran okuyucu desteği eksik olabilir | Ana ekranlarda `Accessible.name` ve `Accessible.role` kontrolu yap | 1 saat |
 | 14 | ORTA | Guvenlik | `scripts/.encryption_key` (66 byte) ve `scripts/r2_config.json` (450 byte) `.gitignore`'da listelenmiyor — `.gitignore` icinde `scripts/.encryption_key` ve `scripts/r2_config.json` satirlari VAR. Ancak dosyalar diskte mevcut. Git'e commit edilmedigini dogrula. | Secret leak | `git ls-files scripts/.encryption_key scripts/r2_config.json` ile kontrol et | 5 dk |
@@ -130,7 +130,7 @@ MakineAI-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca 
 - [x] Ed25519 paket imzalama ve dogrulama
 - [x] AES-256-GCM paket sifreleme (MKPK format)
 - [x] Compile-time key obfuscation (`obfstring.h`)
-- [x] `MAKINEAI_RELEASE_VERIFIED` static_assert — placeholder pin koruması
+- [x] `MAKINE_RELEASE_VERIFIED` static_assert — placeholder pin koruması
 - [x] Sentry PII stripping (Windows kullanici adi redaction)
 - [x] VDF parser recursion depth limiti (32) ve dosya boyutu limiti (10MB)
 - [x] Windows Credential Manager entegrasyonu (`credential_store.hpp`)
@@ -155,7 +155,7 @@ MakineAI-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca 
 
 ### Gate 5: Observability
 - [x] Sentry crash reporting (breakpad backend, MinGW uyumlu)
-- [x] Qt categorized logging (16 kategori: `makineai.*`)
+- [x] Qt categorized logging (16 kategori: `makine.*`)
 - [x] Tracy profiler entegrasyonu (on-demand, sifir overhead)
 - [x] FrameTimer, SceneProfiler, MemoryProfiler (dev tools)
 - [x] PerformanceMonitor QML overlay (F3)
@@ -185,7 +185,7 @@ Alpha release icin **mutlaka** tamamlanmasi gerekenler:
 | 1 | Static Qt build (`just setup-static-qt` + `just release-static`) | 2-3 saat | **Evet** |
 | 2 | Kod imzalama (self-signed en az, CA ideal) | 1 gun | **Evet** |
 | 3 | `vcpkg.json` lisans duzeltmesi ("MIT" → "LicenseRef-Proprietary") | 5 dk | Hayir |
-| 4 | `makineai_tr.ts` CMake'e dahil etme | 5 dk | Hayir |
+| 4 | `makine_tr.ts` CMake'e dahil etme | 5 dk | Hayir |
 | 5 | Exception handling — kritik I/O islemlerinde try/catch | 4 saat | Hayir (ama onerilen) |
 | 6 | `release` preset MSVC build testi | 1 saat | Test |
 
@@ -276,7 +276,7 @@ Alpha release icin **mutlaka** tamamlanmasi gerekenler:
 ### Hemen (< 30 dakika)
 
 1. **`vcpkg.json` lisans duzeltmesi** — `"license": "MIT"` → `"license": "LicenseRef-Proprietary"`
-2. **`makineai_tr.ts` CMake'e dahil etme** — `qml/CMakeLists.txt:515` TS_FILES listesine ekle
+2. **`makine_tr.ts` CMake'e dahil etme** — `qml/CMakeLists.txt:515` TS_FILES listesine ekle
 3. **`localpackagemanager.h` cift `#pragma once`** kaldir (satir 1 veya satir 6)
 4. **`gameservice.h:100` optimizasyon** — `games().count()` → `m_games.count()`
 5. **Secrets kontrol:** `git ls-files scripts/.encryption_key scripts/r2_config.json` — commit edilmemis olmali
@@ -310,7 +310,7 @@ Alpha release icin **mutlaka** tamamlanmasi gerekenler:
 | vcpkg bagimliliklari | 14 (+ 5 opsiyonel classic-mode) |
 | Q_INVOKABLE + Q_PROPERTY | 193 toplam (17 servis dosyasi) |
 | QML componenti | 37 + 6 dialog + 3 controller |
-| Logging kategorileri | 16 (`makineai.*`) |
+| Logging kategorileri | 16 (`makine.*`) |
 | CDN paketleri | 258 .mkpkg + .sig |
 | Git commitleri (son 5) | Refactoring, logging, backup fix |
 

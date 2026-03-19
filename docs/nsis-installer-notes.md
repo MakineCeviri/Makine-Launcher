@@ -78,11 +78,11 @@ Offset      | İçerik
 - **Şifresiz bloklar:** Start header CRC ✅, Next header CRC ✅
 - **Şifreli bloklar:** Start header CRC ✅, Next header CRC ❌ (AES-256 opak)
 
-## 4. MakineAI İçin Uyarlanabilir Teknikler
+## 4. Makine-Launcher İçin Uyarlanabilir Teknikler
 
 ### A) İç İçe Arşiv + Bütünlük Kontrolü
 ```
-MakineAI Paket Formatı (önerilen):
+Makine-Launcher Paket Formatı (önerilen):
 ├── Manifest (JSON, imzalı)
 ├── Metadata bloğu (LZMA2 sıkıştırılmış)
 │   ├── Oyun bilgisi
@@ -117,7 +117,7 @@ Bu NSIS installer'ın sağlamlığı şunlardan geliyor:
 3. **Runtime doğrulama** — oyun yolu, registry check
 4. **Modern NSIS** — 2024 versiyonu, eski araçlar tanımıyor
 
-Bu tekniklerin çoğu MakineAI'nin network data downloader'ına uyarlanabilir.
+Bu tekniklerin çoğu Makine-Launcher'ın network data downloader'ına uyarlanabilir.
 
 ---
 *Analiz: 2026-02-18, Claude Code*

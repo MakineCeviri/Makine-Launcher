@@ -1,10 +1,10 @@
-# MakineAI-Launcher - Claude Code Context
+# Makine-Launcher - Claude Code Context
 
 ## Project Overview
 
 Turkish game translation launcher + adaptation engine.
 
-- **MakineAI-Launcher** (this repo) — Launcher: game detection, package install/remove, patching, catalog UI
+- **Makine-Launcher** (this repo) — Launcher: game detection, package install/remove, patching, catalog UI
 - **MakineAI** (separate repo) — Türkçe AI model: tokenizer, corpus, Python/Rust pipeline
 
 ## Build Commands
@@ -17,7 +17,7 @@ just dev        # or: cmake --preset dev && cmake --build --preset dev
 just dev-ui     # or: cmake --preset dev-ui && cmake --build --preset dev-ui
 
 # Run after build
-just run        # or: ./build/dev/MakineAI-Launcher.exe
+just run        # or: ./build/dev/Makine-Launcher.exe
 
 # Core library only (MSVC)
 just core
@@ -44,7 +44,7 @@ qml/src/services/     — C++ backend services (GameService, CoreBridge, etc.)
 qml/qml/              — QML UI files (Main.qml, screens/, components/, dialogs/)
 qml/qml/controllers/  — QML logic controllers (InstallFlowController)
 core/src/              — C++ core library (asset_parser, game_detector, security, etc.)
-core/include/makineai/ — Public headers (.hpp, snake_case)
+core/include/makine/  — Public headers (.hpp, snake_case)
 ```
 
 ### Package Catalog Architecture
@@ -60,7 +60,7 @@ Hybrid index + on-demand detail system:
 
 ## Coding Conventions
 
-- **C++23** standard, namespace `makineai`
+- **C++23** standard, namespace `makine`
 - **QML/UI C++**: camelCase filenames, `.h`/`.cpp` — e.g. `gameservice.h`
 - **Core C++**: snake_case filenames, `.hpp`/`.cpp` — e.g. `game_detector.hpp`
 - **QML**: PascalCase filenames — e.g. `GameDetailScreen.qml`
@@ -74,7 +74,7 @@ Hybrid index + on-demand detail system:
 | Preset | Compiler | Description |
 |--------|----------|-------------|
 | `dev` | MinGW+vcpkg | Core+UI, daily development |
-| `dev-ui` | MinGW | UI-only (`MAKINEAI_UI_ONLY=ON`), no vcpkg |
+| `dev-ui` | MinGW | UI-only (`MAKINE_UI_ONLY=ON`), no vcpkg |
 | `debug` | MinGW+vcpkg | Core+UI with debug symbols |
 | `release` | MSVC+vcpkg | Full release |
 | `release-static` | MinGW (static Qt) | Single EXE, UI-only |
@@ -85,7 +85,7 @@ Hybrid index + on-demand detail system:
 Full list with examples: `~/.claude/rules/compatibility-rules.md`
 
 - **MinGW GCC 13.1 `<regex>`**: Broken — files using it are excluded from build
-- **spdlog ADL**: `spdlog::info` may resolve to `makineai::info` — use fully qualified calls
+- **spdlog ADL**: `spdlog::info` may resolve to `makine::info` — use fully qualified calls
 - **`#include <set>`**: Must be explicit (implicit on MSVC, not on MinGW)
 - **vcpkg classic mode**: Use `--classic` flag and `-DVCPKG_MANIFEST_MODE=OFF`
 - **QML Theme**: Use `Theme.bgPrimary` (not `Theme.background` — doesn't exist)
@@ -115,7 +115,7 @@ These modules are intentionally deferred — stub headers removed:
 
 ## Logging
 
-- **Core (C++)**: `MAKINEAI_LOG_*` macros via spdlog (see `core/include/makineai/logging.hpp`)
+- **Core (C++)**: `MAKINE_LOG_*` macros via spdlog (see `core/include/makine/logging.hpp`)
 - **UI (Qt)**: `qCDebug(lcXxx)` / `qCWarning(lcXxx)` — categorized logging with `QLoggingCategory`
-  - Categories: `makineai.app`, `makineai.game`, `makineai.bridge`, `makineai.package`, `makineai.download`, `makineai.batch`, `makineai.backup`, `makineai.process`, `makineai.integrity`, `makineai.manifest`, `makineai.journal`, `makineai.steam`, `makineai.update`, `makineai.updater`, `makineai.security`
-  - Filter at runtime: `QT_LOGGING_RULES="makineai.*=true"` or `"makineai.game=false"`
+  - Categories: `makine.app`, `makine.game`, `makine.bridge`, `makine.package`, `makine.download`, `makine.batch`, `makine.backup`, `makine.process`, `makine.integrity`, `makine.manifest`, `makine.journal`, `makine.steam`, `makine.update`, `makine.updater`, `makine.security`
+  - Filter at runtime: `QT_LOGGING_RULES="makine.*=true"` or `"makine.game=false"`

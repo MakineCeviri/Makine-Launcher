@@ -1,11 +1,11 @@
 /**
  * @file file_integrity.cpp
  * @brief File integrity verification implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
-#include "makineai/file_integrity.hpp"
-#include "makineai/logging.hpp"
+#include "makine/file_integrity.hpp"
+#include "makine/logging.hpp"
 
 #include <openssl/evp.h>
 
@@ -17,7 +17,7 @@
 #include <memory>
 #include <sstream>
 
-namespace makineai::integrity {
+namespace makine::integrity {
 
 namespace {
 
@@ -163,4 +163,4 @@ bool isValidSha256Hex(std::string_view hex) noexcept {
     });
 }
 
-} // namespace makineai::integrity
+} // namespace makine::integrity

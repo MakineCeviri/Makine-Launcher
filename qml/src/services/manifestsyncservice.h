@@ -1,7 +1,7 @@
 /**
  * @file manifestsyncservice.h
  * @brief Remote manifest sync from GitHub Assets repository
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Downloads and caches the translation catalog from GitHub:
  *   - index.json at startup (ETag conditional, ~15KB)
@@ -22,7 +22,7 @@
 #include <QNetworkAccessManager>
 #include <QTimer>
 
-namespace makineai {
+namespace makine {
 
 class ManifestSyncService : public QObject
 {
@@ -132,4 +132,4 @@ private:
     QSet<QString> m_pendingDetails;  // appIds currently being fetched
 };
 
-} // namespace makineai
+} // namespace makine

@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Create a self-signed code signing certificate for MakineAI development.
+    Create a self-signed code signing certificate for Makine-Launcher development.
     Uses certreq.exe + certutil.exe — fully automated, no GUI dialogs.
 
 .DESCRIPTION
@@ -18,7 +18,7 @@
 
 param(
     [string]$CertDir = "$PSScriptRoot\certs",
-    [string]$Password = "MakineAI-Dev-2026",
+    [string]$Password = "Makine-Dev-2026",
     [switch]$Force
 )
 
@@ -27,10 +27,10 @@ $ErrorActionPreference = "Stop"
 # ── Setup output dir ─────────────────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $CertDir | Out-Null
 
-$csPfx     = Join-Path $CertDir "MakineAI-CodeSign.pfx"
+$csPfx     = Join-Path $CertDir "Makine-CodeSign.pfx"
 $thumbFile = Join-Path $CertDir "thumbprint.txt"
 $infFile   = Join-Path $CertDir "certreq.inf"
-$cerFile   = Join-Path $CertDir "MakineAI-CodeSign.cer"
+$cerFile   = Join-Path $CertDir "Makine-CodeSign.cer"
 
 if ((Test-Path $csPfx) -and -not $Force) {
     Write-Host "[OK] Certificate already exists: $csPfx" -ForegroundColor Green
@@ -39,7 +39,7 @@ if ((Test-Path $csPfx) -and -not $Force) {
 }
 
 Write-Host ""
-Write-Host "=== MakineAI Code Signing Certificate Setup ===" -ForegroundColor Cyan
+Write-Host "=== Makine-Launcher Code Signing Certificate Setup ===" -ForegroundColor Cyan
 Write-Host ""
 
 # ── Step 1: Create INF template ──────────────────────────────────────────────
@@ -50,7 +50,7 @@ $infContent = @"
 Signature="`$Windows NT`$"
 
 [NewRequest]
-Subject = "CN=MakineAI Team, O=MakineAI, L=Istanbul, C=TR"
+Subject = "CN=MakineCeviri Team, O=MakineCeviri, L=Istanbul, C=TR"
 KeyLength = 4096
 KeyAlgorithm = RSA
 HashAlgorithm = SHA256
@@ -132,7 +132,7 @@ Write-Host ""
 Write-Host "=== Setup Complete ===" -ForegroundColor Green
 Write-Host ""
 Write-Host "Certificate Details:" -ForegroundColor Cyan
-Write-Host "  Subject:     CN=MakineAI Team, O=MakineAI, L=Istanbul, C=TR"
+Write-Host "  Subject:     CN=MakineCeviri Team, O=MakineCeviri, L=Istanbul, C=TR"
 Write-Host "  Thumbprint:  $thumbprint"
 Write-Host "  PFX:         $csPfx"
 Write-Host "  Password:    $Password"

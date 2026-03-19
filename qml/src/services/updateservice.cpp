@@ -1,7 +1,7 @@
 /**
  * @file updateservice.cpp
  * @brief Application update lifecycle management
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "updateservice.h"
@@ -24,9 +24,9 @@
 #include <QCryptographicHash>
 #include <memory>
 
-Q_LOGGING_CATEGORY(lcUpdateService, "makineai.update")
+Q_LOGGING_CATEGORY(lcUpdateService, "makine.update")
 
-namespace makineai {
+namespace makine {
 
 static constexpr const char* kUpdateJsonUrl = cdn::kUpdateJson;
 
@@ -66,7 +66,7 @@ void UpdateService::handlePostUpdate()
 
     // Clear update check cache so we don't immediately re-show
     // "update available" for the version we just installed
-    QSettings settings(QStringLiteral("MakineAI"), QStringLiteral("MakineAI"));
+    QSettings settings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"));
     settings.remove(QStringLiteral("update/lastCheckTime"));
     settings.remove(QStringLiteral("update/cachedHasUpdate"));
     settings.remove(QStringLiteral("update/cachedVersion"));
@@ -87,7 +87,7 @@ void UpdateService::check()
     setState(Checking);
     setError({});
 
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     // Dev builds: prefer GitHub Releases API (private repo, token from gh CLI)
     m_githubToken = readGitHubToken();
     if (!m_githubToken.isEmpty()) {
@@ -96,7 +96,7 @@ void UpdateService::check()
     }
     qCDebug(lcUpdateService) << "UpdateService: No GitHub token, falling back to CDN";
 
-    QString urlStr = qEnvironmentVariable("MAKINEAI_UPDATE_URL");
+    QString urlStr = qEnvironmentVariable("MAKINE_UPDATE_URL");
     if (urlStr.isEmpty())
         urlStr = QString::fromLatin1(kUpdateJsonUrl);
     else
@@ -108,7 +108,7 @@ void UpdateService::check()
     qCDebug(lcUpdateService) << "UpdateService: Checking for updates at" << urlStr;
 
     QNetworkRequest request{QUrl{urlStr}};
-    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1");
     request.setTransferTimeout(15000);
 
     auto *reply = m_nam.get(request);
@@ -164,7 +164,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
 
     // Channel filtering: dev updates only visible to dev builds
     if (channel == QStringLiteral("dev")) {
-#ifndef MAKINEAI_DEV_TOOLS
+#ifndef MAKINE_DEV_TOOLS
         qCDebug(lcUpdateService) << "UpdateService: Ignoring dev channel update (production build)";
         setState(Idle);
         return;
@@ -202,7 +202,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     bool hasUpdate = (cmp > 0) || (cmp == 0 && currentPre.size() > 0 && remotePre.isEmpty());
 
     // Cache result with timestamp
-    QSettings settings(QStringLiteral("MakineAI"), QStringLiteral("MakineAI"));
+    QSettings settings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"));
     settings.setValue(QStringLiteral("update/lastCheckTime"), QDateTime::currentDateTime());
     settings.setValue(QStringLiteral("update/cachedHasUpdate"), hasUpdate);
     settings.setValue(QStringLiteral("update/cachedVersion"), version);
@@ -232,7 +232,7 @@ void UpdateService::download()
         return;
 
     // GitHub asset download (private repo): use API with auth + redirect
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
     if (m_githubAssetId > 0 && !m_githubToken.isEmpty()) {
         downloadGitHubAsset();
         return;
@@ -243,7 +243,7 @@ void UpdateService::download()
     static const QStringList allowedHosts = {
         QString::fromLatin1(cdn::kDomain),
         QStringLiteral("makineceviri.net"),
-#ifdef MAKINEAI_DEV_TOOLS
+#ifdef MAKINE_DEV_TOOLS
         QStringLiteral("localhost"),
         QStringLiteral("127.0.0.1"),
 #endif
@@ -268,7 +268,7 @@ void UpdateService::download()
 
     QString fileName = QUrl(m_downloadUrl).fileName();
     if (fileName.isEmpty())
-        fileName = QStringLiteral("MakineAI.exe");
+        fileName = QStringLiteral("Makine-Launcher.exe");
     m_installerPath = tempDir + QStringLiteral("/") + fileName;
 
     // Remove old file if exists
@@ -288,7 +288,7 @@ void UpdateService::download()
 
     QUrl dlUrl{m_downloadUrl};
     QNetworkRequest request{dlUrl};
-    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MakineAI/0.1");
+    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1");
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::SameOriginRedirectPolicy);
 
@@ -366,7 +366,7 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
     }
 
 #ifdef Q_OS_WIN
-#ifndef MAKINEAI_DEV_TOOLS
+#ifndef MAKINE_DEV_TOOLS
     // Verify Authenticode signature
     if (!SelfUpdater::verifySignature(filePath)) {
         setError(QStringLiteral("Signature verification failed. The file may be tampered."));
@@ -584,14 +584,14 @@ QString UpdateService::readGitHubToken()
 void UpdateService::checkGitHub()
 {
     static const QString kGitHubApiUrl =
-        QStringLiteral("https://api.github.com/repos/MakineCeviri/MakineAI-Launcher/releases/latest");
+        QStringLiteral("https://api.github.com/repos/MakineCeviri/Makine-Launcher/releases/latest");
 
     qCDebug(lcUpdateService) << "UpdateService: Checking GitHub Releases API";
 
     QNetworkRequest request{QUrl{kGitHubApiUrl}};
     request.setRawHeader("Authorization", ("Bearer " + m_githubToken).toUtf8());
     request.setRawHeader("Accept", "application/vnd.github+json");
-    request.setRawHeader("User-Agent", "MakineAI-Launcher");
+    request.setRawHeader("User-Agent", "Makine-Launcher");
     request.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
     request.setTransferTimeout(15000);
 
@@ -718,13 +718,13 @@ void UpdateService::downloadGitHubAsset()
 
     // Step 1: Request asset via API with auth — GitHub returns 302 to presigned S3 URL
     QString apiUrl = QStringLiteral(
-        "https://api.github.com/repos/MakineCeviri/MakineAI-Launcher/releases/assets/%1")
+        "https://api.github.com/repos/MakineCeviri/Makine-Launcher/releases/assets/%1")
         .arg(m_githubAssetId);
 
     QNetworkRequest request{QUrl{apiUrl}};
     request.setRawHeader("Authorization", ("Bearer " + m_githubToken).toUtf8());
     request.setRawHeader("Accept", "application/octet-stream");
-    request.setRawHeader("User-Agent", "MakineAI-Launcher");
+    request.setRawHeader("User-Agent", "Makine-Launcher");
     // Manual redirect: we need to follow without forwarding auth header
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
@@ -745,7 +745,7 @@ void UpdateService::downloadGitHubAsset()
         // Prepare temp file
         QString tempDir = AppPaths::updateTempDir();
         QDir().mkpath(tempDir);
-        m_installerPath = tempDir + QStringLiteral("/MakineAI.exe");
+        m_installerPath = tempDir + QStringLiteral("/Makine-Launcher.exe");
         QFile::remove(m_installerPath);
 
         m_downloadFile = std::make_unique<QFile>(m_installerPath);
@@ -758,7 +758,7 @@ void UpdateService::downloadGitHubAsset()
 
         // Download from presigned URL (unauthenticated)
         QNetworkRequest dlReq{url};
-        dlReq.setRawHeader("User-Agent", "MakineAI-Launcher");
+        dlReq.setRawHeader("User-Agent", "Makine-Launcher");
         dlReq.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                            QNetworkRequest::NoLessSafeRedirectPolicy);
 
@@ -820,4 +820,4 @@ void UpdateService::downloadGitHubAsset()
     });
 }
 
-} // namespace makineai
+} // namespace makine

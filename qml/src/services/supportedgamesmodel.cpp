@@ -1,13 +1,13 @@
 /**
  * @file supportedgamesmodel.cpp
  * @brief QAbstractListModel implementation for supported games catalog
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "supportedgamesmodel.h"
 #include <QVariantMap>
 
-namespace makineai {
+namespace makine {
 
 SupportedGamesModel::SupportedGamesModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -131,4 +131,4 @@ void SupportedGamesModel::updatePackageStatus(const QString &steamAppId, bool pa
     emit dataChanged(idx, idx, {PackageInstalledRole});
 }
 
-} // namespace makineai
+} // namespace makine

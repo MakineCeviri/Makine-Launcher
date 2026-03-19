@@ -1,7 +1,7 @@
 /**
  * @file renpy_rpa.hpp
  * @brief Ren'Py RPA archive format structures
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * Reference: Ren'Py RPA-2.0 / RPA-3.0 archive format
  * Used by: Ren'Py visual novels (most ship scripts inside .rpa archives)
@@ -16,14 +16,14 @@
 
 #pragma once
 
-#include "../makineai/error.hpp"
+#include "../makine/error.hpp"
 
 #include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
 
-namespace makineai::formats {
+namespace makine::formats {
 
 // ============================================================================
 // RPA VERSION
@@ -111,4 +111,4 @@ namespace fs = std::filesystem;
     const RpaIndexEntry& entry
 );
 
-} // namespace makineai::formats
+} // namespace makine::formats

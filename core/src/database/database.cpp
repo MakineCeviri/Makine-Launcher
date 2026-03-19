@@ -1,17 +1,17 @@
 /**
  * @file database.cpp
- * @brief MakineAI SQLite database implementation
- * @copyright (c) 2026 MakineAI Team
+ * @brief Makine SQLite database implementation
+ * @copyright (c) 2026 MakineCeviri Team
  *
- * Full implementation of the database layer for MakineAI.
+ * Full implementation of the database layer for Makine.
  * Based on the original Dart implementation from v0.0.8.
  */
 
 #include <map>
-#include "makineai/database.hpp"
-#include "makineai/logging.hpp"
-#include "makineai/metrics.hpp"
-#include "makineai/detail/scoped_metrics.hpp"
+#include "makine/database.hpp"
+#include "makine/logging.hpp"
+#include "makine/metrics.hpp"
+#include "makine/detail/scoped_metrics.hpp"
 
 #include <sqlite3.h>
 
@@ -34,7 +34,7 @@
 #pragma comment(lib, "crypt32.lib")
 #endif
 
-namespace makineai {
+namespace makine {
 
 // ============== DPAPI FILE ENCRYPTION ==============
 
@@ -66,7 +66,7 @@ bool dpapiEncryptFile(const fs::path& plainPath, const fs::path& encPath) {
 
     // CryptProtectData — encrypts data using the current user's credentials
     // Flag 0 = user-specific encryption (only current user can decrypt)
-    if (!CryptProtectData(&input, L"MakineAI Database",
+    if (!CryptProtectData(&input, L"Makine Database",
                           nullptr, nullptr, nullptr,
                           0, &output)) {
         SecureZeroMemory(plainData.data(), plainData.size());
@@ -163,14 +163,14 @@ static fs::path getDefaultDbPath() {
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localAppData))) {
         fs::path path(localAppData);
         CoTaskMemFree(localAppData);
-        return path / "MakineAI" / DATABASE_NAME;
+        return path / "MakineLauncher" / DATABASE_NAME;
     }
     // Fallback
-    return fs::path(std::getenv("LOCALAPPDATA")) / "MakineAI" / DATABASE_NAME;
+    return fs::path(std::getenv("LOCALAPPDATA")) / "MakineLauncher" / DATABASE_NAME;
 #else
     const char* home = std::getenv("HOME");
     if (home) {
-        return fs::path(home) / ".local" / "share" / "MakineAI" / DATABASE_NAME;
+        return fs::path(home) / ".local" / "share" / "MakineLauncher" / DATABASE_NAME;
     }
     return fs::path(".") / DATABASE_NAME;
 #endif
@@ -287,19 +287,19 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         }
     }
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Database path: {}", dbPath_.string());
+    MAKINE_LOG_INFO(log::DATABASE, "Database path: {}", dbPath_.string());
 
 #ifdef _WIN32
     // If encrypted database exists but plaintext doesn't, decrypt first
     auto encPath = getEncryptedPath(dbPath_);
     if (fs::exists(encPath) && !fs::exists(dbPath_)) {
-        MAKINEAI_LOG_INFO(log::DATABASE, "Decrypting database from: {}", encPath.string());
+        MAKINE_LOG_INFO(log::DATABASE, "Decrypting database from: {}", encPath.string());
         if (!dpapiDecryptFile(encPath, dbPath_)) {
-            MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to decrypt database — DPAPI error");
+            MAKINE_LOG_ERROR(log::DATABASE, "Failed to decrypt database — DPAPI error");
             return std::unexpected(Error{ErrorCode::IOError,
                 "Failed to decrypt database. The database may have been created by a different user."});
         }
-        MAKINEAI_LOG_INFO(log::DATABASE, "Database decrypted successfully");
+        MAKINE_LOG_INFO(log::DATABASE, "Database decrypted successfully");
     }
 #endif
 
@@ -309,7 +309,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         std::string error = sqlite3_errmsg(db_);
         sqlite3_close(db_);
         db_ = nullptr;
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to open database: {}", error);
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to open database: {}", error);
         return std::unexpected(Error{ErrorCode::IOError, fmt::format("Failed to open database: {}", error)});
     }
 
@@ -323,7 +323,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         auto errMsg = std::unique_ptr<char, decltype(&sqlite3_free)>(rawErr, sqlite3_free);
         if (rc != SQLITE_OK) {
             std::string error = rawErr ? rawErr : "Unknown error";
-            MAKINEAI_LOG_WARN(log::DATABASE, "Failed to enable foreign keys: {}", error);
+            MAKINE_LOG_WARN(log::DATABASE, "Failed to enable foreign keys: {}", error);
         }
     }
 
@@ -347,7 +347,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
         sqlite3_finalize(stmt);
     }
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Database version: {} (target: {})", userVersion, DATABASE_VERSION);
+    MAKINE_LOG_INFO(log::DATABASE, "Database version: {} (target: {})", userVersion, DATABASE_VERSION);
 
     // Create tables if new database
     if (userVersion == 0) {
@@ -371,7 +371,7 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
     sqlite3_exec(db_, setVersion.c_str(), nullptr, nullptr, nullptr);
 
     initialized_ = true;
-    MAKINEAI_LOG_INFO(log::DATABASE, "Database initialized successfully");
+    MAKINE_LOG_INFO(log::DATABASE, "Database initialized successfully");
     return {};
 }
 
@@ -394,15 +394,15 @@ void Database::close() {
                 // Also remove WAL and SHM journal files
                 fs::remove(fs::path(dbPath_.string() + "-wal"), ec);
                 fs::remove(fs::path(dbPath_.string() + "-shm"), ec);
-                MAKINEAI_LOG_INFO(log::DATABASE, "Database encrypted and plaintext removed");
+                MAKINE_LOG_INFO(log::DATABASE, "Database encrypted and plaintext removed");
             } else {
-                MAKINEAI_LOG_WARN(log::DATABASE,
+                MAKINE_LOG_WARN(log::DATABASE,
                     "Failed to encrypt database — plaintext file remains on disk");
             }
         }
 #endif
 
-        MAKINEAI_LOG_INFO(log::DATABASE, "Database closed");
+        MAKINE_LOG_INFO(log::DATABASE, "Database closed");
     }
 }
 
@@ -417,7 +417,7 @@ fs::path Database::getPath() const noexcept {
 // ============== TABLE CREATION ==============
 
 Result<void> Database::createTables() {
-    MAKINEAI_LOG_INFO(log::DATABASE, "Creating database tables (v{})...", DATABASE_VERSION);
+    MAKINE_LOG_INFO(log::DATABASE, "Creating database tables (v{})...", DATABASE_VERSION);
 
     // Games table
     auto result = execute(R"(
@@ -502,28 +502,28 @@ Result<void> Database::createTables() {
     for (const auto& sql : indexes) {
         result = execute(sql);
         if (!result) {
-            MAKINEAI_LOG_WARN(log::DATABASE, "Failed to create index: {}", sql);
+            MAKINE_LOG_WARN(log::DATABASE, "Failed to create index: {}", sql);
             // Continue with other indexes
         }
     }
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Database tables created successfully (v{})", DATABASE_VERSION);
+    MAKINE_LOG_INFO(log::DATABASE, "Database tables created successfully (v{})", DATABASE_VERSION);
     return {};
 }
 
 Result<void> Database::migrateToV2() {
-    MAKINEAI_LOG_INFO(log::DATABASE, "Migrating database to v2...");
+    MAKINE_LOG_INFO(log::DATABASE, "Migrating database to v2...");
 
     // v2 added backups table
 
     // These tables might not exist, create them
     auto result = createTables();
     if (!result) {
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Migration to v2 failed");
+        MAKINE_LOG_ERROR(log::DATABASE, "Migration to v2 failed");
         return result;
     }
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "v2 migration completed");
+    MAKINE_LOG_INFO(log::DATABASE, "v2 migration completed");
     return {};
 }
 
@@ -541,13 +541,13 @@ Result<void> Database::execute(const std::string& sql) {
     if (rc != SQLITE_OK) {
         std::string error = rawErr ? rawErr : "Unknown error";
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "SQL error: {}", error);
+        MAKINE_LOG_ERROR(log::DATABASE, "SQL error: {}", error);
         return std::unexpected(Error{ErrorCode::IOError, fmt::format("SQL error: {}", error)});
     }
 
     // Warn about slow queries (>100ms)
     if (m.elapsed().count() > 100) {
-        MAKINEAI_LOG_WARN(log::DATABASE, "Slow query detected ({}ms)", m.elapsed().count());
+        MAKINE_LOG_WARN(log::DATABASE, "Slow query detected ({}ms)", m.elapsed().count());
     }
 
     return {};
@@ -558,12 +558,12 @@ Result<Database::Statement> Database::prepare(const std::string& sql) {
     int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt.stmt, nullptr);
     if (rc != SQLITE_OK) {
         std::string error = sqlite3_errmsg(db_);
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to prepare statement: {}", error);
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to prepare statement: {}", error);
         Metrics::instance().increment("db_query_errors"); // no scoped timer needed here
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to prepare statement: {}", error)});
     }
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Prepared statement");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Prepared statement");
     return stmt;
 }
 
@@ -598,7 +598,7 @@ Result<void> Database::saveGame(const GameInfo& game) {
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Saving game: {}", game.name);
+    MAKINE_LOG_DEBUG(log::DATABASE, "Saving game: {}", game.name);
 
     const char* sql = R"(
         INSERT OR REPLACE INTO games (
@@ -655,12 +655,12 @@ Result<void> Database::saveGame(const GameInfo& game) {
 
     if (rc != SQLITE_DONE) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to save game: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to save game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to save game: {}", sqlite3_errmsg(db_))});
     }
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Game saved successfully: {}", game.name);
+    MAKINE_LOG_DEBUG(log::DATABASE, "Game saved successfully: {}", game.name);
     return {};
 }
 
@@ -668,7 +668,7 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Looking up game by Steam ID");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Looking up game by Steam ID");
 
     const char* sql = R"(
         SELECT id, steam_app_id, name, install_path, executable_path,
@@ -686,13 +686,13 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     int rc = sqlite3_step(stmt.stmt);
 
     if (rc == SQLITE_DONE) {
-        MAKINEAI_LOG_DEBUG(log::DATABASE, "Game not found by Steam ID");
+        MAKINE_LOG_DEBUG(log::DATABASE, "Game not found by Steam ID");
         return std::nullopt;  // Not found
     }
 
     if (rc != SQLITE_ROW) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to query game: {}", sqlite3_errmsg(db_))});
     }
@@ -711,7 +711,7 @@ Result<std::optional<GameInfo>> Database::getGameBySteamId(const std::string& st
     game.publisher = getTextColumn(stmt.stmt, 12);
     game.developer = getTextColumn(stmt.stmt, 13);
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found game: {}", game.name);
+    MAKINE_LOG_DEBUG(log::DATABASE, "Found game: {}", game.name);
     return game;
 }
 
@@ -719,7 +719,7 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Looking up game by ID");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Looking up game by ID");
 
     const char* sql = R"(
         SELECT id, steam_app_id, name, install_path, executable_path,
@@ -737,13 +737,13 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     int rc = sqlite3_step(stmt.stmt);
 
     if (rc == SQLITE_DONE) {
-        MAKINEAI_LOG_DEBUG(log::DATABASE, "Game not found by ID");
+        MAKINE_LOG_DEBUG(log::DATABASE, "Game not found by ID");
         return std::nullopt;
     }
 
     if (rc != SQLITE_ROW) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to query game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to query game: {}", sqlite3_errmsg(db_))});
     }
@@ -762,7 +762,7 @@ Result<std::optional<GameInfo>> Database::getGameById(const std::string& gameId)
     game.publisher = getTextColumn(stmt.stmt, 12);
     game.developer = getTextColumn(stmt.stmt, 13);
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Found game: {}", game.name);
+    MAKINE_LOG_DEBUG(log::DATABASE, "Found game: {}", game.name);
     return game;
 }
 
@@ -770,7 +770,7 @@ Result<std::vector<GameInfo>> Database::getAllGames() {
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting all games");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Getting all games");
 
     const char* sql = R"(
         SELECT id, steam_app_id, name, install_path, executable_path,
@@ -803,7 +803,7 @@ Result<std::vector<GameInfo>> Database::getAllGames() {
         games.push_back(std::move(game));
     }
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Retrieved {} games", games.size());
+    MAKINE_LOG_DEBUG(log::DATABASE, "Retrieved {} games", games.size());
     return games;
 }
 
@@ -811,7 +811,7 @@ Result<void> Database::deleteGame(const std::string& gameId) {
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Deleting game");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Deleting game");
 
     const char* sql = "DELETE FROM games WHERE id = ?";
 
@@ -825,12 +825,12 @@ Result<void> Database::deleteGame(const std::string& gameId) {
 
     if (rc != SQLITE_DONE) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to delete game: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to delete game: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to delete game: {}", sqlite3_errmsg(db_))});
     }
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Game deleted successfully");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Game deleted successfully");
     return {};
 }
 
@@ -840,7 +840,7 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Setting config key");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Setting config key");
 
     const char* sql = R"(
         INSERT OR REPLACE INTO settings (key, value, updated_at)
@@ -859,7 +859,7 @@ Result<void> Database::setSetting(const std::string& key, const std::string& val
 
     if (rc != SQLITE_DONE) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to set setting: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to set setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to set setting: {}", sqlite3_errmsg(db_))});
     }
@@ -871,7 +871,7 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting config key");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Getting config key");
 
     const char* sql = "SELECT value FROM settings WHERE key = ? LIMIT 1";
 
@@ -884,13 +884,13 @@ Result<std::optional<std::string>> Database::getSetting(const std::string& key) 
     int rc = sqlite3_step(stmt.stmt);
 
     if (rc == SQLITE_DONE) {
-        MAKINEAI_LOG_DEBUG(log::DATABASE, "Setting not found");
+        MAKINE_LOG_DEBUG(log::DATABASE, "Setting not found");
         return std::nullopt;
     }
 
     if (rc != SQLITE_ROW) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to get setting: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to get setting: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to get setting: {}", sqlite3_errmsg(db_))});
     }
@@ -902,7 +902,7 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting all settings");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Getting all settings");
 
     const char* sql = "SELECT key, value FROM settings";
 
@@ -918,7 +918,7 @@ Result<std::map<std::string, std::string>> Database::getAllSettings() {
         settings[key] = value;
     }
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Retrieved {} settings", settings.size());
+    MAKINE_LOG_DEBUG(log::DATABASE, "Retrieved {} settings", settings.size());
     return settings;
 }
 
@@ -928,7 +928,7 @@ Result<void> Database::addBackupRecord(const BackupRecord& backup) {
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Adding backup record for game");
+    MAKINE_LOG_INFO(log::DATABASE, "Adding backup record for game");
 
     const char* sql = R"(
         INSERT INTO backups (id, game_id, created_at, manifest, size_bytes, status)
@@ -956,12 +956,12 @@ Result<void> Database::addBackupRecord(const BackupRecord& backup) {
 
     if (rc != SQLITE_DONE) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add backup record: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to add backup record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to add backup record: {}", sqlite3_errmsg(db_))});
     }
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Backup record added successfully");
+    MAKINE_LOG_INFO(log::DATABASE, "Backup record added successfully");
     return {};
 }
 
@@ -1080,7 +1080,7 @@ Result<int64_t> Database::addPatchRecord(
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Adding patch record: type={}, status={}, strings={}",
+    MAKINE_LOG_INFO(log::DATABASE, "Adding patch record: type={}, status={}, strings={}",
                       patchType, status, stringsPatched);
 
     const char* sql = R"(
@@ -1117,12 +1117,12 @@ Result<int64_t> Database::addPatchRecord(
 
     if (rc != SQLITE_DONE) {
         m.markError();
-        MAKINEAI_LOG_ERROR(log::DATABASE, "Failed to add patch record: {}", sqlite3_errmsg(db_));
+        MAKINE_LOG_ERROR(log::DATABASE, "Failed to add patch record: {}", sqlite3_errmsg(db_));
         return std::unexpected(Error{ErrorCode::IOError,
             fmt::format("Failed to add patch record: {}", sqlite3_errmsg(db_))});
     }
 
-    MAKINEAI_LOG_INFO(log::DATABASE, "Patch record added successfully");
+    MAKINE_LOG_INFO(log::DATABASE, "Patch record added successfully");
     return sqlite3_last_insert_rowid(db_);
 }
 
@@ -1132,7 +1132,7 @@ Result<std::vector<std::map<std::string, std::string>>> Database::getPatchHistor
     std::lock_guard<std::mutex> lock(mutex_);
     ScopedMetrics m("db_query", "db_queries_total", "db_query_errors");
 
-    MAKINEAI_LOG_DEBUG(log::DATABASE, "Getting patch history");
+    MAKINE_LOG_DEBUG(log::DATABASE, "Getting patch history");
 
     const char* sql = R"(
         SELECT id, game_id, patch_type, status, backup_path,
@@ -1200,4 +1200,4 @@ Result<void> Database::markPatchReverted(int64_t patchId) {
     return {};
 }
 
-} // namespace makineai
+} // namespace makine

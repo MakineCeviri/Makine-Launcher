@@ -17,7 +17,7 @@
  *   - Gap penalty: -2 per gap character
  *   - Pattern coverage: bonus for matching larger fraction of name
  *
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "catalogproxymodel.h"
@@ -25,7 +25,7 @@
 
 #include <algorithm>
 
-namespace makineai {
+namespace makine {
 
 // =============================================================================
 // Turkish-aware normalization
@@ -489,4 +489,4 @@ void CatalogProxyModel::onSourceDataChanged(
     }
 }
 
-} // namespace makineai
+} // namespace makine

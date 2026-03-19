@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
-import MakineAI 1.0
+import MakineLauncher 1.0
 
 /**
  * Full-screen transparent Window for selecting a screen region.

@@ -2,18 +2,18 @@
  * @file test_game_detector.cpp
  * @brief Unit tests for GameDetector module
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <makineai/game_detector.hpp>
-#include <makineai/vdf_parser.hpp>
-#include <makineai/types.hpp>
+#include <makine/game_detector.hpp>
+#include <makine/vdf_parser.hpp>
+#include <makine/types.hpp>
 #include <fstream>
 #include <filesystem>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 class GameDetectorTest : public ::testing::Test {
@@ -22,7 +22,7 @@ protected:
     GameDetector detector_;
 
     void SetUp() override {
-        testDir_ = std::filesystem::temp_directory_path() / "makineai_test_games";
+        testDir_ = std::filesystem::temp_directory_path() / "makine_test_games";
         std::filesystem::create_directories(testDir_);
     }
 
@@ -390,4 +390,4 @@ TEST_F(GameDetectorTest, GameInfoDefaultValues) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

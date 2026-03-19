@@ -1,5 +1,5 @@
 import QtQuick
-import MakineAI 1.0
+import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**

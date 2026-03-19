@@ -2,17 +2,18 @@
  * @file test_async.cpp
  * @brief Unit tests for async.hpp — AsyncStatus, AsyncProgress, AsyncOperation, AsyncQueue
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/async.hpp>
+#include <makine/async.hpp>
 
 #include <chrono>
+#include <mutex>
 #include <string>
 #include <thread>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -422,4 +423,4 @@ TEST(AsyncQueueTest, FailedTask) {
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

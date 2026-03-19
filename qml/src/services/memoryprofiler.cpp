@@ -1,7 +1,7 @@
 /**
  * @file memoryprofiler.cpp
  * @brief Memory profiling implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "memoryprofiler.h"
@@ -12,7 +12,7 @@
 #include <psapi.h>
 #endif
 
-namespace makineai {
+namespace makine {
 
 static constexpr double kBytesToMB = 1.0 / (1024.0 * 1024.0);
 
@@ -60,4 +60,4 @@ QJsonObject MemoryProfiler::memoryReport() const
     return obj;
 }
 
-} // namespace makineai
+} // namespace makine

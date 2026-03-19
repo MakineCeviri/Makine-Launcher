@@ -1,10 +1,10 @@
 # Hızlı Başlangıç
 
-MakineAI'ye hoş geldiniz! Bu kılavuz, ilk Türkçe çevirinizi 2 dakikada yapmanızı sağlayacak.
+Makine-Launcher'a hoş geldiniz! Bu kılavuz, ilk Türkçe çevirinizi 2 dakikada yapmanızı sağlayacak.
 
-## MakineAI Nedir?
+## Makine-Launcher Nedir?
 
-MakineAI, Windows oyunlarını Türkçe'ye çevirmek için geliştirilmiş bir masaüstü uygulamasıdır. Oyunlarınızı otomatik olarak tespit eder ve tek tıkla Türkçe çeviri uygular.
+Makine-Launcher, Windows oyunlarını Türkçe'ye çevirmek için geliştirilmiş bir masaüstü uygulamasıdır. Oyunlarınızı otomatik olarak tespit eder ve tek tıkla Türkçe çeviri uygular.
 
 ### Temel Özellikler
 
@@ -17,9 +17,9 @@ MakineAI, Windows oyunlarını Türkçe'ye çevirmek için geliştirilmiş bir m
 
 ## İlk Çeviriniz
 
-### Adım 1: MakineAI'yi Başlat
+### Adım 1: Makine-Launcher'ı Başlat
 
-`MakineAI.exe` dosyasını çalıştırın. Uygulama açıldığında otomatik olarak bilgisayarınızdaki oyunları taramaya başlar.
+`Makine-Launcher.exe` dosyasını çalıştırın. Uygulama açıldığında otomatik olarak bilgisayarınızdaki oyunları taramaya başlar.
 
 ### Adım 2: Oyun Seç
 
@@ -46,7 +46,7 @@ Oyun detay ekranında:
 
 ## Nasıl Çalışır?
 
-MakineAI topluluk tarafından hazırlanan çeviri paketlerini oyunlara kurar:
+Makine-Launcher topluluk tarafından hazırlanan çeviri paketlerini oyunlara kurar:
 
 1. **Oyun tespiti** — Steam, Epic, GOG kütüphaneleriniz taranır
 2. **Motor tespiti** — Unity, Unreal, RPG Maker, vb. otomatik tespit edilir
@@ -63,7 +63,7 @@ MakineAI topluluk tarafından hazırlanan çeviri paketlerini oyunlara kurar:
 
 ```
 +--------------------------------------------------+
-|  [Logo]  MakineAI              [_] [□] [X]       |
+|  [Logo]  Makine-Launcher        [_] [□] [X]       |
 +--------------------------------------------------+
 |  [Ana Sayfa]  [Ayarlar]                          |
 +--------------------------------------------------+
@@ -93,7 +93,7 @@ MakineAI topluluk tarafından hazırlanan çeviri paketlerini oyunlara kurar:
 ## Sorun mu Yaşıyorsunuz?
 
 - [Discord Topluluğu](https://discord.com/invite/QDezpy4QtV)
-- [GitHub Issues](https://github.com/MakineCeviri/MakineAI-Launcher/issues)
+- [GitHub Issues](https://github.com/MakineCeviri/Makine-Launcher/issues)
 
 ---
 

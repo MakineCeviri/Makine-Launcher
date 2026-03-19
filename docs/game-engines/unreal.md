@@ -2,7 +2,7 @@
 
 Unreal Engine dosya yapısı ve çeviri yöntemi teknik referansı.
 
-> **Not:** Bu doküman teknik referanstır. MakineAI şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
+> **Not:** Bu doküman teknik referanstır. Makine-Launcher şu an motor bazlı işlem yapmamaktadır — sadece motor tespiti yapar. Bu bilgiler adaptasyon motoru tasarımında kullanılacaktır.
 
 ---
 
@@ -18,7 +18,7 @@ Unreal Engine dosya yapısı ve çeviri yöntemi teknik referansı.
 
 ## Nasıl Çalışır
 
-MakineAI Unreal oyunlarında PAK dosya sistemi kullanır:
+Makine-Launcher Unreal oyunlarında PAK dosya sistemi kullanır:
 
 1. Türkçe lokalizasyon PAK dosyası oluşturulur
 2. Engine öncelik sistemi ile üstüne yazma yapılır
@@ -46,7 +46,7 @@ Turkce Metin Goster
 
 ## Otomatik Algılama
 
-MakineAI Unreal oyunlarını şu dosyalardan tespit eder:
+Makine-Launcher Unreal oyunlarını şu dosyalardan tespit eder:
 
 | Dosya | Açıklama |
 |-------|----------|

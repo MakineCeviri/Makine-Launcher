@@ -1,7 +1,7 @@
 /**
  * @file settingsmanager.cpp
  * @brief Settings Manager Implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "settingsmanager.h"
@@ -21,11 +21,11 @@
 #include <dpapi.h>
 #endif
 
-namespace makineai {
+namespace makine {
 
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
-    , m_settings("MakineAI", "MakineAI")
+    , m_settings("MakineCeviri", "Makine-Launcher")
 {
     loadSettings();
 }
@@ -221,12 +221,12 @@ void SettingsManager::setAppLanguage(const QString& value)
         if (value != "tr") {
             auto translator = std::make_unique<QTranslator>();
             QString path = QCoreApplication::applicationDirPath() + "/i18n";
-            if (translator->load("makineai_" + value, path)) {
+            if (translator->load("makine_" + value, path)) {
                 app->installTranslator(translator.get());
                 currentTranslator = std::move(translator);
             } else {
                 // Try from qrc
-                if (translator->load(":/i18n/makineai_" + value)) {
+                if (translator->load(":/i18n/makine_" + value)) {
                     app->installTranslator(translator.get());
                     currentTranslator = std::move(translator);
                 }
@@ -458,13 +458,13 @@ void SettingsManager::setupAutoStart(bool enable)
 
     if (enable) {
         const QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
-        bootSettings.setValue("MakineAI", QString("\"%1\" --minimized").arg(appPath));
+        bootSettings.setValue("MakineLauncher", QString("\"%1\" --minimized").arg(appPath));
     } else {
-        bootSettings.remove("MakineAI");
+        bootSettings.remove("MakineLauncher");
     }
 #else
     Q_UNUSED(enable)
 #endif
 }
 
-} // namespace makineai
+} // namespace makine

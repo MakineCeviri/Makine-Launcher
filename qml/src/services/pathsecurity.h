@@ -1,7 +1,7 @@
 /**
  * @file pathsecurity.h
  * @brief Path security utilities — traversal prevention, safe join, validation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #pragma once
@@ -12,11 +12,11 @@
 #include <QLoggingCategory>
 
 static inline const QLoggingCategory &lcPathSecurity() {
-    static const QLoggingCategory category("makineai.security");
+    static const QLoggingCategory category("makine.security");
     return category;
 }
 
-namespace makineai::security {
+namespace makine::security {
 
 // Check that resolved fullPath stays within basePath directory
 inline bool isPathContained(const QString& basePath, const QString& fullPath) {
@@ -61,9 +61,9 @@ inline bool isPathSafe(const QString& path) {
     return true;
 }
 
-} // namespace makineai::security
+} // namespace makine::security
 
-namespace makineai::fileutils {
+namespace makine::fileutils {
 
 // Write data to path atomically: write .tmp then rename
 inline bool atomicWriteJson(const QString& path, const QByteArray& data) {
@@ -81,4 +81,4 @@ inline bool atomicWriteJson(const QString& path, const QByteArray& data) {
     return QFile::rename(tmpPath, path);
 }
 
-} // namespace makineai::fileutils
+} // namespace makine::fileutils

@@ -1,7 +1,7 @@
 /**
  * @file frametimer.cpp
  * @brief High-precision frame timing implementation
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  */
 
 #include "frametimer.h"
@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <numeric>
 
-namespace makineai {
+namespace makine {
 
 FrameTimer::FrameTimer(QObject* parent)
     : QObject(parent)
@@ -154,7 +154,7 @@ void FrameTimer::endInteraction()
     if (!m_inInteraction) return;
     m_inInteraction = false;
 
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
     if (m_interactionFrameCount > 0) {
         double avgMs = m_interactionFrameSum / m_interactionFrameCount;
         QString zoneName = QStringLiteral("Interaction::%1").arg(m_interactionName);
@@ -172,7 +172,7 @@ void FrameTimer::endInteraction()
 
 void FrameTimer::dumpStats()
 {
-#ifdef MAKINEAI_PERF_ACTIVE
+#ifdef MAKINE_PERF_ACTIVE
     if (m_frameCount == 0) return;
 
     auto& reporter = PerfReporter::instance();
@@ -189,4 +189,4 @@ void FrameTimer::dumpStats()
 #endif
 }
 
-} // namespace makineai
+} // namespace makine

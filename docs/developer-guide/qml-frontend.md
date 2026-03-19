@@ -1,12 +1,12 @@
 # QML Arayüz
 
-MakineAI Qt QML arayüzünün detaylı açıklaması.
+Makine-Launcher Qt QML arayüzünün detaylı açıklaması.
 
 ---
 
 ## Genel Bakış
 
-MakineAI, modern ve performanslı bir arayüz için Qt 6 QML kullanır.
+Makine-Launcher, modern ve performanslı bir arayüz için Qt 6 QML kullanır.
 
 **Teknolojiler:**
 - Qt 6.10+ Quick
@@ -267,7 +267,7 @@ signals:
 ### QML'de Kullanım
 
 ```qml
-import MakineAI 1.0
+import MakineLauncher 1.0
 
 Item {
     GameService {

@@ -38,7 +38,7 @@ We proved that **process memory scanning** can extract the decrypted translation
 
 ## Decision
 
-Build a **Memory Translation Extractor** as a core component of MakineAI's adaptation engine. This tool:
+Build a **Memory Translation Extractor** as a core component of the adaptation engine. This tool:
 
 1. Attaches to a running game process (read-only, no injection)
 2. Scans process memory for translation strings
@@ -181,7 +181,7 @@ Pre-Update State                Post-Update State
 - For story-dependent text: Instruct user to load save at key story points and scan multiple times
 - For anti-cheat: Most translations disable anti-cheat anyway (offline play)
 - For Windows-only: Target platform is Windows (primary gaming OS)
-- For admin rights: MakineAI already requests elevation for game file operations
+- For admin rights: Makine-Launcher already requests elevation for game file operations
 
 ## Related
 

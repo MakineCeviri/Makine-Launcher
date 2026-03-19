@@ -1,4 +1,4 @@
-# MakineAI Yol Haritasi
+# Makine-Launcher Yol Haritasi
 
 **Son Guncelleme:** 2026-03-12
 
@@ -181,4 +181,4 @@
 
 ---
 
-*MakineAI — 2026*
+*Makine-Launcher — 2026*

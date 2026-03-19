@@ -2,17 +2,17 @@
  * @file test_error.cpp
  * @brief Unit tests for error.hpp — Error, ErrorCode, ErrorCollector, retry, getSuggestions
  *
- * Copyright (c) 2026 MakineAI Team
+ * Copyright (c) 2026 MakineCeviri Team
  */
 
 #include <gtest/gtest.h>
-#include <makineai/error.hpp>
+#include <makine/error.hpp>
 
 #include <filesystem>
 #include <string>
 #include <vector>
 
-namespace makineai {
+namespace makine {
 namespace testing {
 
 // ===========================================================================
@@ -517,20 +517,20 @@ TEST(ErrorSuggestionTest, SuggestionHasDescription) {
 }
 
 // ===========================================================================
-// MAKINEAI_ERROR macro
+// MAKINE_ERROR macro
 // ===========================================================================
 
-TEST(ErrorMacroTest, MakineaiError) {
-    auto err = MAKINEAI_ERROR(FileNotFound, "test macro");
+TEST(ErrorMacroTest, MakineError) {
+    auto err = MAKINE_ERROR(FileNotFound, "test macro");
     EXPECT_EQ(err.code(), ErrorCode::FileNotFound);
     EXPECT_EQ(err.message(), "test macro");
 }
 
-TEST(ErrorMacroTest, MakineaiSuccess) {
-    auto err = MAKINEAI_SUCCESS;
+TEST(ErrorMacroTest, MakineSuccess) {
+    auto err = MAKINE_SUCCESS;
     EXPECT_EQ(err.code(), ErrorCode::Success);
     EXPECT_TRUE(err.isSuccess());
 }
 
 } // namespace testing
-} // namespace makineai
+} // namespace makine

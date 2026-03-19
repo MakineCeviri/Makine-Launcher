@@ -1,6 +1,6 @@
 # Çeviri Paketi Kurulumu — Kapsamlı Kılavuz
 
-Bu kılavuz, MakineAI çeviri paketlerini nasıl kurduğunu, güncellediğini ve kaldırdığını
+Bu kılavuz, Makine-Launcher çeviri paketlerini nasıl kurduğunu, güncellediğini ve kaldırdığını
 detaylı olarak açıklar. Olası hata durumlarını ve çözüm yollarını da kapsar.
 
 ---
@@ -21,7 +21,7 @@ detaylı olarak açıklar. Olası hata durumlarını ve çözüm yollarını da 
 
 ## Genel Bakış
 
-MakineAI, topluluk tarafından hazırlanan Türkçe çeviri paketlerini oyunlara uygular.
+Makine-Launcher, topluluk tarafından hazırlanan Türkçe çeviri paketlerini oyunlara uygular.
 Her çeviri paketi bir oyuna özeldir ve şunları içerebilir:
 
 - **Metin çevirileri** — diyalog, menü, alt yazı dosyaları
@@ -47,7 +47,7 @@ Her paketin detay sayfasında şu bilgileri görebilirsiniz:
 
 ## Kurulum Öncesi Kontroller
 
-MakineAI, dosyaları kopyalamaya başlamadan önce birkaç güvenlik kontrolü yapar.
+Makine-Launcher, dosyaları kopyalamaya başlamadan önce birkaç güvenlik kontrolü yapar.
 Bu kontroller kurulumun güvenli bir şekilde tamamlanmasını sağlar.
 
 ### 1. Oyun Klasörü Doğrulaması
@@ -75,7 +75,7 @@ korumalı dizinlerde bu kontrol önemlidir.
 > **Hata:** Bu klasöre yazma izni yok. Uygulamayı yönetici olarak çalıştırmayı deneyin.
 >
 > **Çözüm:**
-> - MakineAI simgesine sağ tık ve "Yönetici olarak çalıştır" ile açın
+> - Makine-Launcher simgesine sağ tık ve "Yönetici olarak çalıştır" ile açın
 > - Veya oyun klasörünün güvenlik izinlerini kontrol edin
 
 ### 4. Çeviri Dosyaları Kontrolü
@@ -90,7 +90,7 @@ korumalı dizinlerde bu kontrol önemlidir.
 
 ## Kurulum Türleri
 
-MakineAI, farklı oyun motorları ve çeviri türleri için çeşitli kurulum yöntemleri kullanır.
+Makine-Launcher, farklı oyun motorları ve çeviri türleri için çeşitli kurulum yöntemleri kullanır.
 Doğru yöntem otomatik olarak seçilir — kullanıcının bir şey yapmasına gerek yoktur.
 
 ### Overlay (Varsayılan)
@@ -125,7 +125,7 @@ Kurulum sırasında doğru varyantı seçmeniz istenir.
 ### Kullanıcı Dizini (userPath)
 
 Bazı oyunlar çeviri dosyalarını oyun klasörü yerine kullanıcı dizinine bekler
-(ör. %APPDATA%, Belgelerim). Bu durumda MakineAI dosyaları doğru konuma yönlendirir.
+(ör. %APPDATA%, Belgelerim). Bu durumda Makine-Launcher dosyaları doğru konuma yönlendirir.
 
 ### Script (Recipe)
 
@@ -153,7 +153,7 @@ Karmaşık kurulumlar için özel adımlar tanımlanabilir:
         |
 2. Kurtarma günlüğü başlatılır (journal kaydı)
         |
-3. Mevcut dosyalar yedeklenir (.makineai_backup)
+3. Mevcut dosyalar yedeklenir (.makine_backup)
         |
 4. Çeviri dosyaları kopyalanır
         |
@@ -188,7 +188,7 @@ Kaldırma işlemiyle temizleyebilirsiniz.
 
 ### Dosya Takibi
 
-MakineAI, kurduğu her dosyanın kaydını iki kategoride tutar:
+Makine-Launcher, kurduğu her dosyanın kaydını iki kategoride tutar:
 
 - **Eklenen dosyalar** — Oyunda bulunmayan, yeni oluşturulan dosyalar
 - **Değiştirilen dosyalar** — Oyunda zaten var olan, yedeklenip üzerine yazılan dosyalar
@@ -201,7 +201,7 @@ Bu ayrım, kaldırma sırasında doğru davranışı sağlar:
 
 ## Güncelleme
 
-Çeviri paketi güncellendiğinde (yeni sürüm), MakineAI akıllı güncelleme yapar:
+Çeviri paketi güncellendiğinde (yeni sürüm), Makine-Launcher akıllı güncelleme yapar:
 
 1. Eski kurulumun dosya listesi kontrol edilir
 2. Artık gerekmeyen dosyalar temizlenir
@@ -233,7 +233,7 @@ yalnızca değişen dosyaları işler.
 ### Güvenlik
 
 - **Yol geçişi koruması:** Dosya silme işlemi oyun klasörü dışına çıkamaz
-- **Yedek doğrulama:** Yalnızca MakineAI tarafından oluşturulan yedekler geri yüklenir
+- **Yedek doğrulama:** Yalnızca Makine-Launcher tarafından oluşturulan yedekler geri yüklenir
 
 ---
 
@@ -242,11 +242,11 @@ yalnızca değişen dosyaları işler.
 ### Otomatik Yedekleme
 
 Her kurulumda, üzerine yazılacak orijinal dosyalar otomatik olarak yedeklenir
-(.makineai_backup uzantısıyla). Bu yedekler kaldırma sırasında kullanılır.
+(.makine_backup uzantısıyla). Bu yedekler kaldırma sırasında kullanılır.
 
 ### Crash Recovery (Çökme Kurtarma)
 
-MakineAI, beklenmedik kapanmalara karşı **Operation Journal** sistemi kullanır:
+Makine-Launcher, beklenmedik kapanmalara karşı **Operation Journal** sistemi kullanır:
 
 **Nasıl Çalışır:**
 
@@ -307,9 +307,9 @@ Yukarıdaki çözümler işe yaramazsa bu adımları deneyin:
    Steam overlay, launcher gibi arka plan işlemlerini de kapatın.
 
 2. **Antivirüs istisnası ekleyin** — Bazı antivirüsler dosya kopyalamayı engelleyebilir.
-   Oyun klasörünü ve MakineAI klasörünü istisna olarak ekleyin.
+   Oyun klasörünü ve Makine-Launcher klasörünü istisna olarak ekleyin.
 
-3. **Yönetici olarak çalıştırın** — MakineAI simgesine sağ tık, ardından
+3. **Yönetici olarak çalıştırın** — Makine-Launcher simgesine sağ tık, ardından
    "Yönetici olarak çalıştır" ile açın. Özellikle C:\Program Files\ altındaki
    oyunlar için gereklidir.
 
@@ -325,14 +325,14 @@ Yukarıdaki çözümler işe yaramazsa bu adımları deneyin:
 
 ### Çeviri oyunumu bozar mı?
 
-**Hayır.** MakineAI, üzerine yazacağı her dosyayı önceden yedekler. Çeviriyi kaldırdığınızda
+**Hayır.** Makine-Launcher, üzerine yazacağı her dosyayı önceden yedekler. Çeviriyi kaldırdığınızda
 oyun orijinal haline döner. Ayrıca Steam "dosya doğrulama" özelliği her zaman orijinali
 geri yükleyebilir.
 
 ### Çeviri kuruluyken oyun güncellenirse ne olur?
 
 Oyun güncellemesi çeviri dosyalarını silebilir veya üzerine yazabilir. Bu durumda
-çeviriyi tekrar kurmanız yeterlidir. MakineAI güncelleme gerekip gerekmediğini
+çeviriyi tekrar kurmanız yeterlidir. Makine-Launcher güncelleme gerekip gerekmediğini
 tespit edebilir.
 
 ### Birden fazla çeviri seçeneği ne anlama geliyor?
@@ -345,7 +345,7 @@ Bazı oyunlarda (ör. Elden Ring) hem metin çevirisi hem de seslendirme ayrı a
 
 Bazı oyunların farklı sürümleri veya platform versiyonları farklı çeviri dosyaları
 gerektirir. Örneğin bir oyunun Steam ve Game Pass sürümleri farklı dosya yapısına
-sahip olabilir. MakineAI doğru varyantı otomatik tespit etmeye çalışır; edemezse
+sahip olabilir. Makine-Launcher doğru varyantı otomatik tespit etmeye çalışır; edemezse
 size sorar.
 
 ### Kurulum ne kadar sürer?
@@ -358,9 +358,9 @@ size sorar.
 **Evet.** Çeviriyi kaldırdıktan sonra istediğiniz zaman tekrar kurabilirsiniz.
 Paket dosyaları yerel önbellekte saklanır.
 
-### MakineAI çöktü, oyunuma bir şey oldu mu?
+### Makine-Launcher çöktü, oyunuma bir şey oldu mu?
 
-MakineAI crash recovery (çökme kurtarma) sistemine sahiptir. Bir sonraki açılışta
+Makine-Launcher crash recovery (çökme kurtarma) sistemine sahiptir. Bir sonraki açılışta
 yarıda kalan işlemi tespit eder ve oyunu tutarlı bir duruma geri getirir.
 Orijinal dosyalarınız yedekte korunur.
 
@@ -368,16 +368,16 @@ Orijinal dosyalarınız yedekte korunur.
 
 Bu hata genellikle oyun veya ilgili bir program (Steam overlay, launcher) dosyayı
 kullanırken oluşur. Oyunu ve ilgili tüm programları kapatıp tekrar deneyin.
-MakineAI kilitli dosyalarda otomatik olarak bir kez yeniden deneme yapar.
+Makine-Launcher kilitli dosyalarda otomatik olarak bir kez yeniden deneme yapar.
 
 ### Oyunum kurulu ama listede görünmüyor, ne yapmalıyım?
 
-MakineAI; Steam, Epic Games ve GOG gibi dijital mağazalardan yüklenen oyunları
+Makine-Launcher; Steam, Epic Games ve GOG gibi dijital mağazalardan yüklenen oyunları
 otomatik olarak tespit eder. Ancak CD/DVD ile kurulan veya mağaza dışı yollarla
 edinilen oyunlar otomatik taramada görünmez.
 
 Bu durumda ana ekrandaki **"Oyun Ekle"** butonuna basarak oyun klasörünü manuel
-olarak seçebilirsiniz. MakineAI, klasörü tarayarak oyun motorunu ve uyumlu
+olarak seçebilirsiniz. Makine-Launcher, klasörü tarayarak oyun motorunu ve uyumlu
 çeviri paketini otomatik olarak tespit edecektir.
 
 ---
@@ -385,5 +385,5 @@ olarak seçebilirsiniz. MakineAI, klasörü tarayarak oyun motorunu ve uyumlu
 ## Sonraki Adımlar
 
 - [Hızlı Başlangıç](getting-started.md) — İlk çevirinizi yapın
-- [Kurulum](installation.md) — MakineAI kurulumu
+- [Kurulum](installation.md) — Makine-Launcher kurulumu
 - [Discord Topluluğu](https://discord.com/invite/QDezpy4QtV) — Yardım ve destek

@@ -1,6 +1,6 @@
 # Kurulum
 
-Bu kılavuz MakineAI'nin kurulumunu adım adım anlatmaktadır.
+Bu kılavuz Makine-Launcher'ın kurulumunu adım adım anlatmaktadır.
 
 ---
 
@@ -32,7 +32,7 @@ Bu kılavuz MakineAI'nin kurulumunu adım adım anlatmaktadır.
 
 Son sürümü resmi web sitesinden indirin:
 
-[makineai.com](https://makineai.com)
+[makineceviri.net](https://makineceviri.net)
 
 ### Adım 2: Arşivi Açma
 
@@ -40,11 +40,11 @@ Son sürümü resmi web sitesinden indirin:
 2. "Tümünü ayıkla..." seçin
 3. İstediğiniz konuma çıkartın
 
-**Önerilen Konum:** `C:\Program Files\MakineAI\` veya `C:\Games\MakineAI\`
+**Önerilen Konum:** `C:\Program Files\MakineLauncher\` veya `C:\Games\MakineLauncher\`
 
 ### Adım 3: İlk Çalıştırma
 
-1. `MakineAI.exe` dosyasını çift tıklayın
+1. `Makine-Launcher.exe` dosyasını çift tıklayın
 2. Windows güvenlik uyarısı çıkarsa "Yine de çalıştır" seçin
 3. Uygulama açılır ve otomatik tarama başlar
 
@@ -52,7 +52,7 @@ Son sürümü resmi web sitesinden indirin:
 
 ## Otomatik Oyun Tespiti
 
-MakineAI aşağıdaki platformları otomatik tarar:
+Makine-Launcher aşağıdaki platformları otomatik tarar:
 
 ### Steam
 
@@ -78,7 +78,7 @@ Farklı konumdaki oyunlar için:
 
 1. Ana ekranda "+" butonuna basın
 2. Oyun klasörünü seçin
-3. MakineAI motoru otomatik tespit eder
+3. Makine-Launcher motoru otomatik tespit eder
 
 ---
 
@@ -112,7 +112,7 @@ Gelecek sürümlerde:
 
 Bazı antivirüsler yanlış pozitif verebilir:
 
-1. MakineAI klasörünü istisna olarak ekleyin
+1. Makine-Launcher klasörünü istisna olarak ekleyin
 2. Veya antivirüsü geçici olarak devre dışı bırakın
 
 ### DLL Hatası
@@ -125,11 +125,11 @@ Bazı antivirüsler yanlış pozitif verebilir:
 
 ## Kaldırma
 
-MakineAI'yi kaldırmak için:
+Makine-Launcher'ı kaldırmak için:
 
-1. MakineAI klasörünü silin
-2. Ayarlar: `%APPDATA%\MakineAI\` klasörünü silin (opsiyonel)
-3. Yedekler: Oyun klasörlerindeki `MakineAI_Backups` silin (opsiyonel)
+1. Makine-Launcher klasörünü silin
+2. Ayarlar: `%APPDATA%\MakineLauncher\` klasörünü silin (opsiyonel)
+3. Yedekler: Oyun klasörlerindeki `MakineLauncher_Backups` silin (opsiyonel)
 
 ---
 

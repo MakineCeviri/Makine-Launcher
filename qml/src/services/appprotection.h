@@ -1,14 +1,14 @@
 /**
  * @file appprotection.h
  * @brief Anti-reverse-engineering and tamper detection API
- * @copyright (c) 2026 MakineAI Team
+ * @copyright (c) 2026 MakineCeviri Team
  *
  * All checks are compiled out in debug builds (NDEBUG not defined).
  */
 
 #pragma once
 
-namespace makineai::protection {
+namespace makine::protection {
 
 /// Run all anti-debug / integrity checks once (call before QML load)
 void initialize();
@@ -22,11 +22,11 @@ bool isCompromised();
 /// React to a detected violation — delayed exit to obscure the trigger site
 void onViolation(int site);
 
-} // namespace makineai::protection
+} // namespace makine::protection
 
 /// Sprinkle in critical functions — no-op in debug builds
 #define INTEGRITY_GATE()                                         \
     do {                                                         \
-        if (::makineai::protection::isCompromised())             \
-            ::makineai::protection::onViolation(__LINE__);       \
+        if (::makine::protection::isCompromised())             \
+            ::makine::protection::onViolation(__LINE__);       \
     } while (0)

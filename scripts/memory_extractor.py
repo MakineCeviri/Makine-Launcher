@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MakineAI Memory Translation Extractor
+Makine Memory Translation Extractor
 General-purpose tool for extracting translation data from running game processes.
 
 Supports:
@@ -524,7 +524,7 @@ def extract(process_name: str, engine: str, output_dir: str,
     stats = ExtractionStats()
 
     print(f"{'='*60}")
-    print(f"MakineAI Memory Translation Extractor")
+    print(f"Makine Memory Translation Extractor")
     print(f"Engine: {engine}")
     print(f"{'='*60}")
 
@@ -631,7 +631,7 @@ def extract(process_name: str, engine: str, output_dir: str,
     # Complete database
     db = {
         'version': '1.0',
-        'tool': 'MakineAI Memory Translation Extractor',
+        'tool': 'Makine Memory Translation Extractor',
         'game': process_name,
         'engine': engine,
         'stats': asdict(stats),
@@ -682,7 +682,7 @@ def extract(process_name: str, engine: str, output_dir: str,
 # ──────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
-        description='MakineAI Memory Translation Extractor',
+        description='Makine Memory Translation Extractor',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
