@@ -37,8 +37,26 @@ void ImageCacheManager::ensureCacheDir()
 
 QString ImageCacheManager::localPath(const QString& appId) const
 {
-    // M-8: Sanitize appId to prevent path traversal (strip anything except alphanumeric/underscore)
-    // Static regex: compiled once, reused across all 260+ calls per session.
+    // M-8: Sanitize appId to prevent path traversal.
+    // Fast path: Steam appIds are purely numeric (e.g. "730", "570").
+    // Check all chars — if any non-[a-zA-Z0-9_-] found, fall back to copy+filter.
+    bool allSafe = true;
+    for (const QChar ch : appId) {
+        const char16_t c = ch.unicode();
+        if (!((c >= u'0' && c <= u'9') || (c >= u'a' && c <= u'z') ||
+              (c >= u'A' && c <= u'Z') || c == u'_' || c == u'-')) {
+            allSafe = false;
+            break;
+        }
+    }
+
+    if (allSafe) {
+        // Zero-allocation hot path — no copy, no regex engine
+        if (appId.isEmpty()) return {};
+        return m_cacheDir + QLatin1Char('/') + appId + QStringLiteral(".png");
+    }
+
+    // Slow path: filter unsafe characters (rare — non-Steam appIds)
     static const QRegularExpression kSanitizeRx(QStringLiteral("[^a-zA-Z0-9_-]"));
     QString safe = appId;
     safe.remove(kSanitizeRx);

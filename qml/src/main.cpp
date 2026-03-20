@@ -658,6 +658,17 @@ static void configureQtEnvironment()
     qputenv("QML_DISABLE_DISK_CACHE", "0");
 #endif
 
+    // === QML DISK CACHE ===
+    // Pin cache to a stable path so it survives Qt minor version updates.
+    // Without this, Qt writes to %TEMP% which may be cleaned between sessions,
+    // forcing full QML recompile on every cold start (~200-400ms penalty).
+    {
+        const QString cacheBase = QStandardPaths::writableLocation(
+            QStandardPaths::AppLocalDataLocation);
+        if (!cacheBase.isEmpty())
+            qputenv("QML_DISK_CACHE_PATH", (cacheBase + "/qml_cache").toUtf8());
+    }
+
     // Disable RHI debug/validation layers (saves ~10 MB + CPU)
     qputenv("QSG_RHI_DEBUG_LAYER", "0");
 
