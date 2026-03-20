@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <unordered_set>
 
 // Optional: efsw for filesystem watching
@@ -136,6 +137,33 @@ Result<std::vector<GameInfo>> GameDetector::scanAll(ProgressCallback progress) c
             allGames.push_back(std::move(game));
         }
     }
+
+    // Deduplicate cross-store entries by install path
+    {
+        std::unordered_map<std::string, size_t> pathMap;
+        std::vector<GameInfo> unique;
+        unique.reserve(allGames.size());
+
+        for (auto& g : allGames) {
+            std::string normPath = g.installPath.string();
+            std::transform(normPath.begin(), normPath.end(), normPath.begin(), ::tolower);
+
+            auto it = pathMap.find(normPath);
+            if (it != pathMap.end()) {
+                // Prefer Steam over Epic (Steam has AppID for catalog matching)
+                auto& existing = unique[it->second];
+                if (g.id.store == GameStore::Steam && existing.id.store != GameStore::Steam) {
+                    existing = std::move(g);
+                }
+                MAKINE_LOG_DEBUG(log::DETECTOR, "Dedup: Skipping duplicate '{}'", g.name);
+                continue;
+            }
+            pathMap[normPath] = unique.size();
+            unique.push_back(std::move(g));
+        }
+        allGames = std::move(unique);
+    }
+    MAKINE_LOG_INFO(log::DETECTOR, "After dedup: {} unique games", allGames.size());
 
     // Final progress callback
     if (progress) {
