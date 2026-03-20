@@ -1417,14 +1417,12 @@ int main(int argc, char *argv[])
     // Signals wired above — safe to sync now so catalogReady is never missed.
     manifestSync->syncCatalog();
     logToFile(QString("ManifestSync::syncCatalog() completed at %1 ms").arg(startupTimer.elapsed()));
-    logToFile(QString("Phase 7.5 ManifestSync: %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 8: QML engine loading (heaviest single operation) =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"Aray\u00FCz derleniyor...");
 #endif
     logToFile(QString("Phase 8 (QML load start) at %1 ms").arg(startupTimer.elapsed()));
-    logToFile(QString("Phase 8 QML-load-start: %1 ms").arg(startupTimer.elapsed()));
 
     // Use QQmlComponent for incremental loading — keeps splash alive
     QQmlComponent mainComponent(&engine);
@@ -1452,7 +1450,6 @@ int main(int argc, char *argv[])
     }
 
     logToFile(QString("Phase 8 (QML compiled) at %1 ms").arg(startupTimer.elapsed()));
-    logToFile(QString("Phase 8 QML-compiled: %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 9: Create root window =====
     // Note: QQmlIncubator::Asynchronous does NOT work for root objects
@@ -1479,7 +1476,6 @@ int main(int argc, char *argv[])
     engine.setObjectOwnership(rootObject, QQmlEngine::JavaScriptOwnership);
 
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
-    logToFile(QString("Phase 9 root-created: %1 ms").arg(startupTimer.elapsed()));
 
     // ===== Phase 10: Pre-render + finalize =====
     makine::CrashReporter::addBreadcrumb("startup", "Phase 10: Pre-render + finalize");
@@ -1501,7 +1497,6 @@ int main(int argc, char *argv[])
     setupPerfReporting(app, argc, argv);
 
     logToFile(QString("Total startup: %1 ms").arg(startupTimer.elapsed()));
-    logToFile(QString("TOTAL startup: %1 ms").arg(startupTimer.elapsed()));
     logToFile("Entering event loop...");
 
     // Anti-RE: periodic re-checks once event loop is running

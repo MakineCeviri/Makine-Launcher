@@ -12,18 +12,17 @@ Rectangle {
     property bool isApex: false
     property string apexTier: ""  // "pro" or "both"
 
-    // Filter out Apex translator names — computed once per contributors change
-    property var _filteredContributors: []
-    onContributorsChanged: _refilter()
-    function _refilter() {
-        if (!contributors || contributors.length === 0) { _filteredContributors = []; return }
-        var skip = {"Herald": 1, "Oracle": 1, "Profesyonel": 1, "PlayCeviri": 1}
-        var r = []
-        for (var i = 0; i < contributors.length; i++)
-            if (!skip[contributors[i].name]) r.push(contributors[i])
-        _filteredContributors = r
+    // Filter out Apex translator names from display
+    readonly property var _filteredContributors: {
+        if (!contributors || contributors.length === 0) return []
+        var skip = {"Herald": true, "Oracle": true, "Profesyonel": true, "PlayCeviri": true}
+        var result = []
+        for (var i = 0; i < contributors.length; i++) {
+            if (!skip[contributors[i].name])
+                result.push(contributors[i])
+        }
+        return result
     }
-    Component.onCompleted: _refilter()
 
     Layout.fillWidth: true
     implicitHeight: contentLayout.implicitHeight + 2 * _padding

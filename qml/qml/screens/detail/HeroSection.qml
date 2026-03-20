@@ -127,7 +127,7 @@ Item {
                 : heroRoot.vm.heroUrl
             fillMode: Image.PreserveAspectCrop
             verticalAlignment: Image.AlignTop
-            sourceSize: Qt.size(1280, 280)
+            sourceSize: Qt.size(width, height)
             asynchronous: true
             mipmap: true
             opacity: status === Image.Ready ? 1.0 : 0
