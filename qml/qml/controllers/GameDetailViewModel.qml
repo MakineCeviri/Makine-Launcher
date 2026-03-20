@@ -24,6 +24,8 @@ QtObject {
     property string editorsNote: ""
     property bool isManualGame: false
     property string externalUrl: ""
+    property bool isApex: false
+    property string apexTier: ""  // "pro" or "both"
 
     // ===== GAME INSTALL STATE =====
     property bool isGameInstalled: false
@@ -102,7 +104,7 @@ QtObject {
         gameId = ""; gameName = ""; steamAppId = ""; imageUrl = ""
         heroImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
-        isManualGame = false; externalUrl = ""; isGameInstalled = false; packageInstalled = false
+        isManualGame = false; externalUrl = ""; isApex = false; apexTier = ""; isGameInstalled = false; packageInstalled = false
         hasTranslationUpdate = false; autoInstall = false; fromLibrary = false
         description = ""; developers = []; publishers = []
         releaseDate = ""; genres = []; metacriticScore = 0
@@ -131,6 +133,8 @@ QtObject {
         hasTranslation = d.hasTranslation || false
         isManualGame = d.isManualGame || false
         externalUrl = d.externalUrl || ""
+        isApex = d.isApex || false
+        apexTier = d.apexTier || ""
         isGameInstalled = d.isGameInstalled || false
         packageInstalled = d.packageInstalled || false
         autoInstall = d.autoInstall || false

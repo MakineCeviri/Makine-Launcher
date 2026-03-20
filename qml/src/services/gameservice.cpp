@@ -762,6 +762,10 @@ QVariantList GameService::supportedGames() const
         QVariantMap entry = m_supportedGamesCache[i].toMap();
         const QString steamAppId = entry[QStringLiteral("steamAppId")].toString();
 
+        // Preserve catalog translation source before game source overwrites it
+        if (entry.contains(QStringLiteral("source")))
+            entry[QStringLiteral("translationSource")] = entry[QStringLiteral("source")];
+
         // Install status from local game list (O(1) via m_steamAppIdToIndex)
         auto gameIt = m_steamAppIdToIndex.constFind(steamAppId);
         if (gameIt != m_steamAppIdToIndex.constEnd()) {

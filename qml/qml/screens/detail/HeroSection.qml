@@ -445,10 +445,8 @@ Item {
             Layout.fillWidth: true
             contributors: heroRoot.vm.contributors
             externalUrl: heroRoot.vm.externalUrl
-            isApex: {
-                var cat = GameService.getCatalogEntry(heroRoot.vm.steamAppId || heroRoot.vm.gameId)
-                return cat && cat.source === "apex"
-            }
+            isApex: heroRoot.vm.isApex
+            apexTier: heroRoot.vm.apexTier
             opacity: heroRoot._contribOp
             transform: Translate { y: heroRoot._contribTY }
         }
