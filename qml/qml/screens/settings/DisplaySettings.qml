@@ -148,7 +148,7 @@ ColumnLayout {
                         rowSpacing: Dimensions.spacingLG
 
                         Repeater {
-                            model: SettingsManager.accentPresets()
+                            model: SettingsManager.accentPresets
 
                             Rectangle {
                                 required property var modelData

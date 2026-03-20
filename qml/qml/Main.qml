@@ -204,6 +204,7 @@ ApplicationWindow {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
             if (homeView) homeView.showHomePage()
+            else contentStackContainer._pendingHomePage = 0
         }
     }
     Shortcut {
@@ -213,6 +214,7 @@ ApplicationWindow {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
             if (homeView) homeView.showHomePage()
+            else contentStackContainer._pendingHomePage = 0
         }
     }
     Shortcut {
@@ -222,6 +224,7 @@ ApplicationWindow {
             window.currentNavIndex = 1
             contentStackContainer.navigateTo(0)
             if (homeView) homeView.showLibraryPage()
+            else contentStackContainer._pendingHomePage = 1
         }
     }
     Shortcut {
@@ -423,6 +426,7 @@ ApplicationWindow {
                 window.currentNavIndex = 0
                 contentStackContainer.navigateTo(0)
                 if (homeView) homeView.showHomePage()
+                else contentStackContainer._pendingHomePage = 0
             }
             onSettingsClicked: {
                 window.currentNavIndex = 2
@@ -432,6 +436,7 @@ ApplicationWindow {
                 window.currentNavIndex = 1
                 contentStackContainer.navigateTo(0)
                 if (homeView) homeView.showLibraryPage()
+                else contentStackContainer._pendingHomePage = 1
             }
         }
 
@@ -496,7 +501,7 @@ ApplicationWindow {
 
             function getPage(index) {
                 switch(index) {
-                    case 0: return homeLoader
+                    case 0: return homeLoader.item || homeLoader
                     case 1: return settingsLoader
                     case 2: return gameDetailLoader
                     default: return null
@@ -562,11 +567,22 @@ ApplicationWindow {
                 }
             }
 
+            // Pending sub-page request that arrived before homeLoader finished async load
+            property int _pendingHomePage: -1
+
             Loader {
                 id: homeLoader
                 anchors.fill: parent
                 asynchronous: true
                 active: true
+                onLoaded: {
+                    if (contentStackContainer._pendingHomePage >= 0) {
+                        var p = contentStackContainer._pendingHomePage
+                        contentStackContainer._pendingHomePage = -1
+                        if (p === 1) item.showLibraryPage()
+                        else item.showHomePage()
+                    }
+                }
                 sourceComponent: HomeScreen {
                     visible: contentStackContainer.homeVisible
                     animationsEnabled: window.animationsEnabled
@@ -639,10 +655,11 @@ ApplicationWindow {
                                 contentStackContainer.navigateTo(1)
                             } else {
                                 contentStackContainer.navigateTo(0)
-                                if (window.previousNavIndex === 1)
+                                if (window.previousNavIndex === 1) {
                                     if (homeView) homeView.showLibraryPage()
-                                else
+                                } else {
                                     if (homeView) homeView.showHomePage()
+                                }
                             }
                         }
                     }
