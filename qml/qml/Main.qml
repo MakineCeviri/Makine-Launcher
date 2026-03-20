@@ -609,7 +609,15 @@ ApplicationWindow {
                         }
                         onBackClicked: {
                             window.currentNavIndex = window.previousNavIndex
-                            contentStackContainer.navigateTo(window.previousNavIndex === 2 ? 1 : window.previousNavIndex)
+                            if (window.previousNavIndex === 2) {
+                                contentStackContainer.navigateTo(1)
+                            } else {
+                                contentStackContainer.navigateTo(0)
+                                if (window.previousNavIndex === 1)
+                                    homeView.showLibraryPage()
+                                else
+                                    homeView.showHomePage()
+                            }
                         }
                     }
                 }
