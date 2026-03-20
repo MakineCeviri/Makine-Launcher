@@ -33,54 +33,44 @@ Item {
         settingsEntryAnim.start()
     }
 
-    // Pre-computed category/source lists — no JS filter/concat in bindings
-    readonly property var _catBase: [
+    // Static categories + dynamic plugin categories
+    readonly property var _staticCategories: [
         { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın"), isPlugin: false },
-        { name: qsTr("Ekran"), description: qsTr("Tema, animasyon ve görüntü ayarları"), isPlugin: false }
-    ]
-    readonly property var _catDev: [
+        { name: qsTr("Ekran"), description: qsTr("Tema, animasyon ve görüntü ayarları"), isPlugin: false },
         { name: qsTr("Eklentiler"), description: qsTr("Eklenti yönetimi ve mağaza"), isPlugin: false }
     ]
-    readonly property var _catEnd: [
+    readonly property var _staticCategoriesEnd: [
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
-    readonly property var _srcBase: [
+    // Discover loaded plugins with settings — delegates to PluginManager C++
+    readonly property var _pluginCategories: {
+        if (!devToolsEnabled || !PluginManager) return []
+        return PluginManager.settingsCategories()
+    }
+
+    // Plugin pages go AFTER Hakkında (at the very bottom) — Eklentiler hidden in release
+    property var categories: {
+        var base = devToolsEnabled ? _staticCategories : _staticCategories.filter(function(c) { return c.name !== qsTr("Eklentiler") })
+        return base.concat(_staticCategoriesEnd).concat(_pluginCategories)
+    }
+
+    readonly property var _staticSources: [
         "screens/settings/GeneralSettings.qml",
-        "screens/settings/DisplaySettings.qml"
-    ]
-    readonly property var _srcDev: [
+        "screens/settings/DisplaySettings.qml",
         "screens/settings/PluginsSettings.qml"
     ]
-    readonly property var _srcEnd: [
+    readonly property var _staticSourcesEnd: [
         "screens/settings/AboutSettings.qml"
     ]
 
-    // Built once at load, rebuilt only when devToolsEnabled changes (rare)
-    property var categories: _buildCategories()
-    property var panelSources: _buildSources()
-
-    function _buildCategories() {
-        var c = _catBase.slice()
-        if (devToolsEnabled) c = c.concat(_catDev)
-        c = c.concat(_catEnd)
-        if (devToolsEnabled && PluginManager)
-            c = c.concat(PluginManager.settingsCategories())
-        return c
+    readonly property var panelSources: {
+        var base = devToolsEnabled ? _staticSources : _staticSources.filter(function(s) { return s.indexOf("Plugins") === -1 })
+        var sources = base.concat(_staticSourcesEnd)
+        for (var i = 0; i < _pluginCategories.length; i++)
+            sources.push("screens/settings/PluginSettingsPage.qml")
+        return sources
     }
-    function _buildSources() {
-        var s = _srcBase.slice()
-        if (devToolsEnabled) s = s.concat(_srcDev)
-        s = s.concat(_srcEnd)
-        if (devToolsEnabled && PluginManager) {
-            var pluginCats = PluginManager.settingsCategories()
-            for (var i = 0; i < pluginCats.length; i++)
-                s.push("screens/settings/PluginSettingsPage.qml")
-        }
-        return s
-    }
-
-    onDevToolsEnabledChanged: { categories = _buildCategories(); panelSources = _buildSources() }
 
     Rectangle {
         anchors.fill: parent

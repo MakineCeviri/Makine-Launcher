@@ -118,8 +118,7 @@ public:
     void setTranslationDataPath(const QString& value);
 
     // Q_INVOKABLE methods
-    Q_PROPERTY(QVariantList accentPresets READ accentPresets CONSTANT)
-    QVariantList accentPresets() const;
+    Q_INVOKABLE QVariantList accentPresets() const;
     Q_INVOKABLE void resetToDefaults();
     Q_INVOKABLE void clearCache();
     Q_INVOKABLE QString qtVersion() const;
