@@ -609,13 +609,15 @@ ApplicationWindow {
             // Lazy-loaded settings page (keep alive after first load)
             Loader {
                 id: settingsLoader
-                property bool _keepAlive: false
                 anchors.fill: parent
-                active: contentStackContainer.settingsVisible || _keepAlive || window._settingsPreload
+                active: contentStackContainer.settingsVisible || window._settingsPreload
                 visible: contentStackContainer.settingsVisible
                 asynchronous: true
                 onLoaded: {
-                    _keepAlive = true
+                    // Keep alive forever: once loaded, never deactivate.
+                    // Use _settingsPreload as the persistent flag to avoid
+                    // a binding loop (active → onLoaded → active cycle).
+                    window._settingsPreload = true
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("SettingsScreen")
                 }
@@ -633,13 +635,15 @@ ApplicationWindow {
             // Lazy-loaded game detail page (keep alive after first load)
             Loader {
                 id: gameDetailLoader
-                property bool _keepAlive: false
+                property bool _gameDetailKeepAlive: false
                 anchors.fill: parent
-                active: contentStackContainer.gameDetailVisible || _keepAlive
+                active: contentStackContainer.gameDetailVisible || _gameDetailKeepAlive
                 visible: contentStackContainer.gameDetailVisible
                 asynchronous: true
                 onLoaded: {
-                    _keepAlive = true
+                    // Set keep-alive on next event loop iteration to break
+                    // the binding loop (active → onLoaded → active cycle).
+                    Qt.callLater(function() { gameDetailLoader._gameDetailKeepAlive = true })
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("GameDetailScreen")
                 }

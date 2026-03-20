@@ -30,7 +30,7 @@ Item {
     Canvas {
         x: 0; y: parent.height
         width: Dimensions.radiusSection; height: Dimensions.radiusSection
-        Connections { target: navBarRoot; function on_BgColorChanged() { requestPaint() } }
+        Connections { target: navBarRoot; function on_BgColorChanged() { Qt.callLater(requestPaint) } }
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
@@ -48,7 +48,7 @@ Item {
     Canvas {
         x: parent.width - Dimensions.radiusSection; y: parent.height
         width: Dimensions.radiusSection; height: Dimensions.radiusSection
-        Connections { target: navBarRoot; function on_BgColorChanged() { requestPaint() } }
+        Connections { target: navBarRoot; function on_BgColorChanged() { Qt.callLater(requestPaint) } }
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
@@ -96,7 +96,7 @@ Item {
                 renderStrategy: Canvas.Cooperative
                 property color _base: Theme.accentBase
                 property color _dark: Theme.accentDark
-                on_BaseChanged: requestPaint()
+                on_BaseChanged: Qt.callLater(requestPaint)
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
@@ -243,7 +243,7 @@ Item {
                     }
                     Connections {
                         target: UpdateService
-                        function onProgressChanged() { progressRing.requestPaint() }
+                        function onProgressChanged() { Qt.callLater(progressRing.requestPaint) }
                     }
                 }
             }

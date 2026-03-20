@@ -785,8 +785,10 @@ static void configureApplication(QGuiApplication& app)
         qputenv("QSG_RHI_PIPELINE_CACHE_LOAD", (cacheDir + "/pipeline_cache.bin").toUtf8());
     }
 
-    // Reduce thread pool: default = CPU count, each thread = 1 MB stack
-    QThreadPool::globalInstance()->setMaxThreadCount(2);
+    // Thread pool: 4 threads balances async throughput vs memory (4 MB stack total).
+    // Default CPU count (8) is excessive; 2 was too constrained during startup
+    // when async Loaders + image downloads + CDN fetch all compete.
+    QThreadPool::globalInstance()->setMaxThreadCount(4);
 }
 
 static void configureEngine(QQmlApplicationEngine& engine)
@@ -1152,17 +1154,6 @@ static void setupRootWindow(
         window->setGraphicsConfiguration(gfxConfig);
     }
 
-    // Preload Settings page behind splash (~1.2s, hidden from user)
-#ifdef Q_OS_WIN
-    splash.setStatus(L"Sayfalar haz\u0131rlan\u0131yor...");
-    splash.pumpMessages();
-#endif
-    {
-        MAKINE_ZONE_NAMED("Preload::SettingsScreen");
-        rootObject->setProperty("_settingsPreload", true);
-    }
-    logToFile(QString("Settings preloaded at %1 ms").arg(startupTimer.elapsed()));
-
 #ifdef Q_OS_WIN
     // Release GPU resources + trim working set when hidden/minimized
     QObject::connect(window, &QWindow::visibilityChanged, [window](QWindow::Visibility v) {
@@ -1201,8 +1192,23 @@ static void setupRootWindow(
             gameService->initialize();
         }, Qt::QueuedConnection);
 
+    // Request first frame BEFORE preloading Settings — ensures the render
+    // pipeline starts immediately. Settings async Loader won't block the
+    // first frame because it runs on the QML thread pool, but requesting
+    // the update first guarantees minimum latency to splash close.
     window->requestUpdate();
     logToFile(QString("Phase 10 (callback registered) at %1 ms").arg(startupTimer.elapsed()));
+
+    // Preload Settings page AFTER requestUpdate — first frame render has priority.
+    // The async Loader runs on the thread pool, so this won't block the first frame,
+    // but ordering ensures the render pipeline gets the earliest possible start.
+    splash.setStatus(L"Sayfalar haz\u0131rlan\u0131yor...");
+    splash.pumpMessages();
+    {
+        MAKINE_ZONE_NAMED("Preload::SettingsScreen");
+        rootObject->setProperty("_settingsPreload", true);
+    }
+    logToFile(QString("Settings preloaded at %1 ms").arg(startupTimer.elapsed()));
 #endif
 
     // Tracy: frame boundary marker (one FrameMark per rendered frame)

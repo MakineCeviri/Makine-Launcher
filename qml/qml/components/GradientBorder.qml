@@ -58,9 +58,9 @@ Canvas {
         ctx.stroke()
     }
 
-    onWidthChanged: requestPaint()
-    onHeightChanged: requestPaint()
-    onTopColorChanged: requestPaint()
-    onMidColorChanged: requestPaint()
-    onBottomColorChanged: requestPaint()
+    onWidthChanged: Qt.callLater(requestPaint)
+    onHeightChanged: Qt.callLater(requestPaint)
+    onTopColorChanged: Qt.callLater(requestPaint)
+    onMidColorChanged: Qt.callLater(requestPaint)
+    onBottomColorChanged: Qt.callLater(requestPaint)
 }

@@ -14,11 +14,11 @@ Canvas {
     readonly property color _c2: Theme.accentLight
     readonly property color _c4: Theme.accentDark
 
-    on_C1Changed: requestPaint()
-    on_C2Changed: requestPaint()
-    on_C4Changed: requestPaint()
-    onWidthChanged: requestPaint()
-    onHeightChanged: requestPaint()
+    on_C1Changed: Qt.callLater(requestPaint)
+    on_C2Changed: Qt.callLater(requestPaint)
+    on_C4Changed: Qt.callLater(requestPaint)
+    onWidthChanged: Qt.callLater(requestPaint)
+    onHeightChanged: Qt.callLater(requestPaint)
 
     renderStrategy: Canvas.Cooperative
 
