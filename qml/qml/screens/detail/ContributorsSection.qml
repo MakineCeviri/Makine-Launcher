@@ -10,6 +10,19 @@ Rectangle {
     required property var contributors  // [{name, role}]
     property string externalUrl: ""
     property bool isApex: false
+    property string apexTier: ""  // "pro" or "both"
+
+    // Filter out Apex translator names from display
+    readonly property var _filteredContributors: {
+        if (!contributors || contributors.length === 0) return []
+        var skip = {"Herald": true, "Oracle": true, "Profesyonel": true, "PlayCeviri": true}
+        var result = []
+        for (var i = 0; i < contributors.length; i++) {
+            if (!skip[contributors[i].name])
+                result.push(contributors[i])
+        }
+        return result
+    }
 
     Layout.fillWidth: true
     implicitHeight: contentLayout.implicitHeight + 2 * _padding
@@ -36,9 +49,9 @@ Rectangle {
 
         SettingsDivider { variant: "section" }
 
-        // Contributors list (when available)
+        // Contributors list (filtered, non-Apex names only)
         Repeater {
-            model: contribRoot.contributors
+            model: contribRoot._filteredContributors
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true
@@ -68,10 +81,10 @@ Rectangle {
             }
         }
 
-        // Placeholder when no contributors
+        // Placeholder when no contributors (and not Apex)
         RowLayout {
             Layout.fillWidth: true
-            visible: contribRoot.contributors.length === 0
+            visible: contribRoot._filteredContributors.length === 0 && !contribRoot.isApex
             spacing: Dimensions.spacingLG
             Text {
                 textFormat: Text.PlainText
@@ -90,66 +103,40 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             visible: contribRoot.isApex
-            implicitHeight: apexCol.implicitHeight + 16
+            implicitHeight: apexRow.implicitHeight + 16
             radius: Dimensions.radiusMD
             color: "#15907575"
             border.color: "#30907575"; border.width: 1
 
-            ColumnLayout {
-                id: apexCol
+            RowLayout {
+                id: apexRow
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.margins: 12
-                spacing: 6
+                spacing: Dimensions.spacingSM
 
                 Text {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
-                    text: qsTr("Bu çeviri ApexYama tarafından sağlanmaktadır")
+                    text: contribRoot.apexTier === "pro"
+                        ? qsTr("Bu çeviri Apex Yama'da profesyonel olarak bulunmaktadır.")
+                        : qsTr("Bu çeviri Apex Yama'da profesyonel ve ücretsiz olarak bulunmaktadır.")
                     font.pixelSize: Dimensions.fontCaption
                     font.weight: Font.Medium
-                    color: "#c0907575"
+                    color: Theme.textSecondary
                 }
 
-                RowLayout {
-                    spacing: Dimensions.spacingMD
+                Text {
+                    textFormat: Text.PlainText
+                    text: "apexyama.com \u2192"
+                    font.pixelSize: Dimensions.fontCaption
+                    font.weight: Font.DemiBold
+                    color: "#d4a843"
 
-                    Rectangle {
-                        width: freeLabel.implicitWidth + 16; height: 22
-                        radius: 6; color: "#204ecdc4"; border.color: "#404ecdc4"; border.width: 1
-                        Text {
-                            id: freeLabel; anchors.centerIn: parent
-                            textFormat: Text.PlainText; text: qsTr("Ücretsiz Yama")
-                            font.pixelSize: Dimensions.fontCaption - 1; font.weight: Font.DemiBold
-                            color: "#4ecdc4"
-                        }
-                    }
-
-                    Rectangle {
-                        width: proLabel.implicitWidth + 16; height: 22
-                        radius: 6; color: "#20d4a843"; border.color: "#40d4a843"; border.width: 1
-                        Text {
-                            id: proLabel; anchors.centerIn: parent
-                            textFormat: Text.PlainText; text: qsTr("Profesyonel Yama")
-                            font.pixelSize: Dimensions.fontCaption - 1; font.weight: Font.DemiBold
-                            color: "#d4a843"
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: "apexyama.com \u2192"
-                        font.pixelSize: Dimensions.fontCaption
-                        font.weight: Font.DemiBold
-                        color: "#d4a843"
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Qt.openUrlExternally("https://apexyama.com")
-                        }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally("https://apexyama.com")
                     }
                 }
             }

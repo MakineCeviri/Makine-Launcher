@@ -123,6 +123,7 @@ private:
         QString dirName;        // filesystem directory name in translation_data
         QString externalUrl;    // External partner URL (opens browser instead of download)
         QString source;         // Origin: "apex" for partner translations
+        QString apexTier;       // "pro" = professional only, "both" = professional + free
     };
 
     QHash<QString, CatalogEntry> m_catalog;  // appId -> entry

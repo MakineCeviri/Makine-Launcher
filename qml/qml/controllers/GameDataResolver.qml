@@ -28,6 +28,8 @@ QtObject {
         // Check for external partner URL (e.g. ApexYama)
         var catalog = GameService.getCatalogEntry(resolvedSteamAppId || gameId)
         var externalUrl = (catalog && catalog.externalUrl) || ""
+        var isApex = (catalog && (catalog.translationSource === "apex" || catalog.source === "apex")) || false
+        var apexTier = (catalog && (catalog.apexTier || "")) || ""
 
         return {
             gameId: gameId,
@@ -40,6 +42,8 @@ QtObject {
             isManualGame: isManual,
             isGameInstalled: isInstalled,
             packageInstalled: pkgInstalled,
+            isApex: isApex,
+            apexTier: apexTier,
             autoInstall: forceAutoInstall || false,
             externalUrl: externalUrl
         }

@@ -177,6 +177,7 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
         ce.dirName = entry[QStringLiteral("dirName")].toString();
         ce.externalUrl = entry[QStringLiteral("externalUrl")].toString();
         ce.source = entry[QStringLiteral("source")].toString();
+        ce.apexTier = entry[QStringLiteral("apexTier")].toString();
         newCatalog.insert(it.key(), ce);
     }
 
@@ -229,6 +230,8 @@ QVariantList ManifestSyncService::catalog() const
             entry.insert(QStringLiteral("externalUrl"), ce.externalUrl);
         if (!ce.source.isEmpty())
             entry.insert(QStringLiteral("source"), ce.source);
+        if (!ce.apexTier.isEmpty())
+            entry.insert(QStringLiteral("apexTier"), ce.apexTier);
 
         result.append(entry);
     }
