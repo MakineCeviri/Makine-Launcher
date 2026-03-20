@@ -24,6 +24,7 @@
 #include "supportedgamesmodel.h"
 
 #include <algorithm>
+#include <vector>
 
 namespace makine {
 
@@ -385,6 +386,7 @@ void CatalogProxyModel::rebuild()
     const int oldExposedCount = m_exposedCount;
 
     m_slicedRows.clear();
+    m_sourceToProxy.clear();
     m_filteredCount = 0;
 
     if (!m_source || m_searchIndex.empty()) {
@@ -407,8 +409,11 @@ void CatalogProxyModel::rebuild()
             : qMin(m_rowLimit, srcCount - offset);
 
         m_slicedRows.reserve(limit);
-        for (int i = offset; i < offset + limit; ++i)
+        m_sourceToProxy.reserve(limit);
+        for (int i = offset; i < offset + limit; ++i) {
+            m_sourceToProxy[i] = m_slicedRows.size();
             m_slicedRows.append(i);
+        }
     } else {
         // Score all entries and collect matches
         std::vector<ScoredRow> scored;
@@ -436,8 +441,11 @@ void CatalogProxyModel::rebuild()
             : qMin(m_rowLimit, total - offset);
 
         m_slicedRows.reserve(limit);
-        for (int i = offset; i < offset + limit; ++i)
+        m_sourceToProxy.reserve(limit);
+        for (int i = offset; i < offset + limit; ++i) {
+            m_sourceToProxy[scored[i].sourceRow] = m_slicedRows.size();
             m_slicedRows.append(scored[i].sourceRow);
+        }
     }
 
     // Compute exposed count (wrapAround doubles the visible rows)
@@ -469,22 +477,24 @@ void CatalogProxyModel::onSourceDataChanged(
     const QModelIndex &topLeft, const QModelIndex &bottomRight,
     const QList<int> &roles)
 {
-    const int sliced = m_slicedRows.size();
-    if (sliced == 0)
+    // O(1) per source row via m_sourceToProxy reverse map.
+    // Previously O(n * m_slicedRows.size()) — ~67,600 comparisons for 260 games.
+    if (m_sourceToProxy.isEmpty())
         return;
 
+    const int sliced = m_slicedRows.size();
     for (int srcRow = topLeft.row(); srcRow <= bottomRight.row(); ++srcRow) {
-        for (int i = 0; i < sliced; ++i) {
-            if (m_slicedRows[i] == srcRow) {
-                QModelIndex proxyIdx = index(i, 0);
-                emit dataChanged(proxyIdx, proxyIdx, roles);
+        auto it = m_sourceToProxy.constFind(srcRow);
+        if (it == m_sourceToProxy.constEnd())
+            continue;
 
-                if (m_wrapAround) {
-                    QModelIndex mirrorIdx = index(i + sliced, 0);
-                    emit dataChanged(mirrorIdx, mirrorIdx, roles);
-                }
-                break;
-            }
+        const int proxyRow = it.value();
+        QModelIndex proxyIdx = index(proxyRow, 0);
+        emit dataChanged(proxyIdx, proxyIdx, roles);
+
+        if (m_wrapAround) {
+            QModelIndex mirrorIdx = index(proxyRow + sliced, 0);
+            emit dataChanged(mirrorIdx, mirrorIdx, roles);
         }
     }
 }
