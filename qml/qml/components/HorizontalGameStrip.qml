@@ -119,9 +119,11 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         clip: true
         readonly property int _minCardH: 100
-        height: strip.largeCards
+        readonly property real _hoverScale: 1.03
+        readonly property int _baseH: strip.largeCards
                     ? Math.min(parent.height, Math.round(Dimensions.cardHeight * 1.3))
                     : Math.max(_minCardH, Math.min(Dimensions.cardHeight, parent.height))
+        height: Math.ceil(_baseH * _hoverScale)
         orientation: ListView.Horizontal
         spacing: Dimensions.cardGap
         model: strip._isProxyModel ? strip.model : strip._viewModel
@@ -144,38 +146,52 @@ Item {
             }
         }
 
-        delegate: GameCard {
+        delegate: Item {
             required property var model
             required property int index
+            width: _gc.width
             height: ListView.view.height
-            gameId: model.gameId ?? model.id ?? ""
-            gameName: model.name ?? model.gameName ?? ""
-            steamAppId: model.steamAppId ?? ""
-            installPath: model.installPath ?? ""
-            onClicked: strip.gameClicked(
-                model.gameId ?? model.id ?? "",
-                model.name ?? model.gameName ?? "",
-                model.installPath ?? "", model.engine ?? ""
-            )
+
+            GameCard {
+                id: _gc
+                anchors.verticalCenter: parent.verticalCenter
+                height: view._baseH
+                gameId: model.gameId ?? model.id ?? ""
+                gameName: model.name ?? model.gameName ?? ""
+                steamAppId: model.steamAppId ?? ""
+                installPath: model.installPath ?? ""
+                onClicked: strip.gameClicked(
+                    model.gameId ?? model.id ?? "",
+                    model.name ?? model.gameName ?? "",
+                    model.installPath ?? "", model.engine ?? ""
+                )
+            }
         }
     }
 
-    // Edge fade gradients — smooth clip at left/right edges
+    // Edge fade — only visible when content overflows (4+ games)
+    readonly property bool _needsEdge: view.contentWidth > view.width
+    readonly property int _edgeW: Math.ceil(view._baseH * (view._hoverScale - 1.0)) + 16
+
     Rectangle {
-        anchors.left: view.left; anchors.top: view.top; anchors.bottom: view.bottom
-        width: 40; z: 10
+        visible: strip._needsEdge
+        anchors.left: parent.left; anchors.top: view.top; anchors.bottom: view.bottom
+        width: strip._edgeW; z: 10
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: Theme.bgPrimary }
+            GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.5) }
             GradientStop { position: 1.0; color: "transparent" }
         }
     }
     Rectangle {
-        anchors.right: view.right; anchors.top: view.top; anchors.bottom: view.bottom
-        width: 40; z: 10
+        visible: strip._needsEdge
+        anchors.right: parent.right; anchors.top: view.top; anchors.bottom: view.bottom
+        width: strip._edgeW; z: 10
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.5) }
             GradientStop { position: 1.0; color: Theme.bgPrimary }
         }
     }
