@@ -65,6 +65,10 @@ public:
     Q_INVOKABLE QString getPluginSetting(const QString& pluginId, const QString& key) const;
     Q_INVOKABLE void setPluginSetting(const QString& pluginId, const QString& key, const QString& value);
 
+    // Settings discovery (moved from SettingsScreen.qml JS loops)
+    Q_INVOKABLE QVariantList settingsCategories() const;
+    Q_INVOKABLE QVariantList pluginsWithSettings() const;
+
     // Community discovery (GitHub topic search)
     Q_INVOKABLE void fetchCommunityPlugins();
     Q_INVOKABLE void openCommunityPage();

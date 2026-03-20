@@ -115,6 +115,8 @@ set(BACKEND_SOURCES
     src/services/crashreporter.cpp
     src/services/pluginmanager.cpp
     src/services/ocrcontroller.cpp
+    src/services/translationstatemanager.cpp
+    src/services/installflowservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -147,6 +149,8 @@ set(BACKEND_HEADERS
     src/services/profiler.h
     src/services/pluginmanager.h
     src/services/ocrcontroller.h
+    src/services/translationstatemanager.h
+    src/services/installflowservice.h
 )
 
 

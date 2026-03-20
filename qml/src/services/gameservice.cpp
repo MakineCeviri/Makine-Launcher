@@ -5,6 +5,7 @@
  */
 
 #include "gameservice.h"
+#include "imagecachemanager.h"
 #include "steamdetailsservice.h"
 #include "backupmanager.h"
 #include "apppaths.h"
@@ -214,6 +215,11 @@ void GameService::setManifestSync(ManifestSyncService* sync)
             });
         });
     }
+}
+
+void GameService::setImageCache(ImageCacheManager* cache)
+{
+    m_imageCache = cache;
 }
 
 GameService* GameService::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
@@ -1426,6 +1432,125 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
     }
     qCDebug(lcGameService) << "GameService::getCatalogEntry: not found for" << steamAppId;
     return {};
+}
+
+QVariantMap GameService::resolveGameData(const QString& gameId,
+                                          const QString& gameName,
+                                          const QString& installPath,
+                                          const QString& engine,
+                                          bool forceAutoInstall) const
+{
+    const QVariantMap gameData = getGameById(gameId);
+    const bool hasGame = !gameData.isEmpty();
+
+    // Manual game detection
+    const bool isManual = (hasGame && gameData.value("source").toString() == QLatin1String("manual"))
+                          || gameId.startsWith(QLatin1String("manual_"));
+
+    const bool isInstalled = (hasGame && gameData.value("isInstalled").toBool())
+                             || !installPath.isEmpty();
+
+    // Resolve steamAppId: prefer gameData, fall back to gameId if numeric
+    QString resolvedSteamAppId = hasGame ? gameData.value("steamAppId").toString() : QString();
+    if (resolvedSteamAppId.isEmpty()) {
+        // Check if gameId is purely numeric (i.e. a Steam App ID itself)
+        bool isNumeric = !gameId.isEmpty();
+        for (const QChar& ch : gameId) {
+            if (!ch.isDigit()) { isNumeric = false; break; }
+        }
+        if (isNumeric)
+            resolvedSteamAppId = gameId;
+    }
+
+    // Image resolution via ImageCacheManager
+    const QString imageKey = resolvedSteamAppId.isEmpty() ? gameId : resolvedSteamAppId;
+    const QString resolvedImageUrl = m_imageCache ? m_imageCache->resolve(imageKey) : QString();
+
+    const bool hasTranslation = hasGame && gameData.value("hasTranslation").toBool();
+    const bool pkgInstalled = hasGame && gameData.value("packageInstalled").toBool();
+
+    // Catalog lookup for external URL / Apex flags
+    const QVariantMap catalog = getCatalogEntry(imageKey);
+    const bool hasCatalog = !catalog.isEmpty();
+    const QString externalUrl = hasCatalog ? catalog.value("externalUrl").toString() : QString();
+    const bool isApex = hasCatalog
+        && (catalog.value("translationSource").toString() == QLatin1String("apex")
+            || catalog.value("source").toString() == QLatin1String("apex"));
+    const QString apexTier = hasCatalog ? catalog.value("apexTier").toString() : QString();
+
+    return {
+        {"gameId",            gameId},
+        {"gameName",          gameName},
+        {"engine",            engine},
+        {"imageUrl",          resolvedImageUrl},
+        {"verified",          hasGame && gameData.value("isVerified").toBool()},
+        {"steamAppId",        resolvedSteamAppId},
+        {"hasTranslation",    hasTranslation},
+        {"isManualGame",      isManual},
+        {"isGameInstalled",   isInstalled},
+        {"packageInstalled",  pkgInstalled},
+        {"isApex",            isApex},
+        {"apexTier",          apexTier},
+        {"autoInstall",       forceAutoInstall},
+        {"externalUrl",       externalUrl}
+    };
+}
+
+// ── URL construction helpers (moved from GameDetailViewModel.qml) ──
+
+QString GameService::steamHeroUrl(const QString& steamAppId) const
+{
+    if (steamAppId.isEmpty())
+        return {};
+    return QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/")
+           + steamAppId + QStringLiteral("/library_hero.jpg");
+}
+
+QString GameService::steamCoverUrl(const QString& steamAppId) const
+{
+    if (steamAppId.isEmpty())
+        return {};
+    return QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/")
+           + steamAppId + QStringLiteral("/library_600x900_2x.jpg");
+}
+
+QString GameService::steamLogoUrl(const QString& steamAppId) const
+{
+    if (steamAppId.isEmpty())
+        return {};
+    return QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/")
+           + steamAppId + QStringLiteral("/logo.png");
+}
+
+QString GameService::formatDownloadProgress(qint64 received, qint64 total) const
+{
+    if (total <= 0)
+        return {};
+    const double receivedMB = static_cast<double>(received) / (1024.0 * 1024.0);
+    const double totalMB = static_cast<double>(total) / (1024.0 * 1024.0);
+    return QStringLiteral("%1 MB / %2 MB")
+        .arg(receivedMB, 0, 'f', 1)
+        .arg(totalMB, 0, 'f', 1);
+}
+
+bool GameService::shouldAutoInstall(const QString& gameId) const
+{
+    // A game should auto-install if it has a translation, is installed,
+    // and the package is not yet installed.
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd())
+        return false;
+    int idx = it.value();
+    if (idx < 0 || idx >= m_games.count())
+        return false;
+    const auto& game = m_games[idx];
+    if (!game.hasTranslation || !game.isInstalled)
+        return false;
+    // Check if package is already installed
+    const QString key = game.steamAppId.isEmpty() ? game.id : game.steamAppId;
+    if (m_coreBridge && m_coreBridge->isPackageInstalled(key))
+        return false;
+    return true;
 }
 
 void GameService::checkForUpdates()

@@ -263,7 +263,8 @@ Item {
         repeat: false
         onTriggered: {
             if (root.viewModel.hasTranslation && root.viewModel.isGameInstalled &&
-                !root.viewModel.packageInstalled && !root.viewModel.isInstallingTranslation) {
+                !root.viewModel.packageInstalled && !root.viewModel.isInstallingTranslation &&
+                !root.viewModel.externalUrl) {
                 root.translateClicked()
             }
         }

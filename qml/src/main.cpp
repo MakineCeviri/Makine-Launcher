@@ -559,6 +559,8 @@ void logToFile(const QString& msg) {
 #include "services/manifestsyncservice.h"
 #include "services/translationdownloader.h"
 #include "services/corebridge.h"
+#include "services/translationstatemanager.h"
+#include "services/installflowservice.h"
 #ifdef MAKINE_DEV_TOOLS
 #include "services/frametimer.h"
 #include "services/sceneprofiler.h"
@@ -868,6 +870,9 @@ static void createServices(
     translationDownloader->setDataPath(makine::AppPaths::packagesDir());
     engine.rootContext()->setContextProperty("TranslationDownloader", translationDownloader);
 
+    auto* translationStateManager = new makine::TranslationStateManager(&app);
+    engine.rootContext()->setContextProperty("TranslationStateManager", translationStateManager);
+
     // UpdateService registered as singleton instance in Phase 7 (below)
 
     // ===== Phase 3: Game library (construction only — data loads after QML) =====
@@ -877,6 +882,7 @@ static void createServices(
 #endif
     auto* gameService = new GameService(&app);
     gameService->setManifestSync(manifestSync);
+    gameService->setImageCache(imageCache);
     engine.rootContext()->setContextProperty("GameService", gameService);
     outGameService = gameService;
     // initialize() deferred to after first frame render (see Phase 10)
@@ -970,6 +976,12 @@ static void createServices(
     // Wire journal to CoreBridge
     CoreBridge::instance()->setJournal(journal);
     engine.rootContext()->setContextProperty("CoreBridge", CoreBridge::instance());
+
+    // Install flow state machine (depends on GameService, TranslationDownloader, ManifestSync, CoreBridge)
+    auto* installFlow = new makine::InstallFlowService(
+        gameService, translationDownloader, manifestSync,
+        CoreBridge::instance(), &app);
+    engine.rootContext()->setContextProperty("InstallFlowService", installFlow);
 
     logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN

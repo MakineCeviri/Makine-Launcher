@@ -87,11 +87,13 @@ QtObject {
     readonly property string impactLevel: updateImpact ? updateImpact.level : ""
     readonly property int progressPercent: Math.round(installProgress * 100)
 
-    // Pre-computed Steam CDN URLs — eliminates string concat in view bindings
-    readonly property string _steamBase: steamAppId !== "" ? "https://cdn.akamai.steamstatic.com/steam/apps/" + steamAppId : ""
-    readonly property string heroUrl: _steamBase !== "" ? _steamBase + "/library_hero.jpg" : heroImageUrl
-    readonly property string coverUrl: imageUrl !== "" ? imageUrl : (_steamBase !== "" ? _steamBase + "/library_600x900_2x.jpg" : "")
-    readonly property string logoUrl: _steamBase !== "" ? _steamBase + "/logo.png" : ""
+    // Pre-computed Steam CDN URLs — delegates to GameService C++ (no JS string concat)
+    readonly property string heroUrl: {
+        var url = GameService.steamHeroUrl(steamAppId)
+        return url !== "" ? url : heroImageUrl
+    }
+    readonly property string coverUrl: imageUrl !== "" ? imageUrl : GameService.steamCoverUrl(steamAppId)
+    readonly property string logoUrl: GameService.steamLogoUrl(steamAppId)
 
     // Pre-joined detail strings — eliminates .join() in view bindings
     readonly property string developersText: developers.join(", ")

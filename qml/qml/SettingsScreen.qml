@@ -44,21 +44,10 @@ Item {
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
-    // Discover loaded plugins with settings → appear at bottom of sidebar (dev only)
+    // Discover loaded plugins with settings — delegates to PluginManager C++
     readonly property var _pluginCategories: {
         if (!devToolsEnabled || !PluginManager) return []
-        var result = []
-        var all = PluginManager.plugins
-        for (var i = 0; i < all.length; i++) {
-            if (all[i].loaded && all[i].hasSettings)
-                result.push({
-                    name: all[i].name,
-                    description: all[i].description || qsTr("Eklenti ayarları"),
-                    isPlugin: true,
-                    pluginId: all[i].id
-                })
-        }
-        return result
+        return PluginManager.settingsCategories()
     }
 
     // Plugin pages go AFTER Hakkında (at the very bottom) — Eklentiler hidden in release

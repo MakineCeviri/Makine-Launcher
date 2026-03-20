@@ -21,6 +21,8 @@
 #include "steamdetailsservice.h"
 #include "supportedgamesmodel.h"
 
+namespace makine { class ImageCacheManager; }
+
 namespace makine {
 
 /**
@@ -92,6 +94,9 @@ public:
 
     /// Connect to ManifestSyncService for remote catalog data.
     void setManifestSync(ManifestSyncService* sync);
+
+    /// Connect to ImageCacheManager for image resolution.
+    void setImageCache(ImageCacheManager* cache);
 
     static GameService* create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
@@ -266,6 +271,51 @@ public:
     Q_INVOKABLE QVariantMap getCatalogEntry(const QString& steamAppId) const;
 
     /**
+     * @brief Resolve all game metadata needed for the detail screen.
+     *
+     * Consolidates: manual-game check, steamAppId resolution, catalog lookup,
+     * image resolve, translation status, external URL / Apex flags.
+     * Replaces the business logic previously in GameDataResolver.qml.
+     */
+    Q_INVOKABLE QVariantMap resolveGameData(const QString& gameId,
+                                             const QString& gameName,
+                                             const QString& installPath,
+                                             const QString& engine,
+                                             bool forceAutoInstall) const;
+
+    // ── URL construction helpers (moved from GameDetailViewModel.qml) ──
+
+    /**
+     * @brief Build Steam CDN hero image URL for a given Steam App ID
+     * @return Full URL to library_hero.jpg, or empty if steamAppId is empty
+     */
+    Q_INVOKABLE QString steamHeroUrl(const QString& steamAppId) const;
+
+    /**
+     * @brief Build Steam CDN cover image URL for a given Steam App ID
+     * @return Full URL to library_600x900_2x.jpg, or empty if steamAppId is empty
+     */
+    Q_INVOKABLE QString steamCoverUrl(const QString& steamAppId) const;
+
+    /**
+     * @brief Build Steam CDN logo URL for a given Steam App ID
+     * @return Full URL to logo.png, or empty if steamAppId is empty
+     */
+    Q_INVOKABLE QString steamLogoUrl(const QString& steamAppId) const;
+
+    /**
+     * @brief Format download progress as "X.X MB / Y.Y MB"
+     * @return Formatted progress string, or empty if total <= 0
+     */
+    Q_INVOKABLE QString formatDownloadProgress(qint64 received, qint64 total) const;
+
+    /**
+     * @brief Check whether a game should auto-install its translation
+     * Currently delegates to the forceAutoInstall flag from resolveGameData.
+     */
+    Q_INVOKABLE bool shouldAutoInstall(const QString& gameId) const;
+
+    /**
      * @brief Check for all updates (re-sync manifest + rescan libraries + check translations)
      */
     Q_INVOKABLE void checkForUpdates();
@@ -320,6 +370,7 @@ private:
 
     CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
     ManifestSyncService* m_manifestSync{nullptr};  // Non-owning. Set by setManifestSync().
+    ImageCacheManager* m_imageCache{nullptr};  // Non-owning. Set by setImageCache().
     SteamDetailsService* m_steamDetails{nullptr};
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;       // O(1) lookup by ID
