@@ -23,6 +23,7 @@ QtObject {
     property bool isEditorsPick: false
     property string editorsNote: ""
     property bool isManualGame: false
+    property string externalUrl: ""
 
     // ===== GAME INSTALL STATE =====
     property bool isGameInstalled: false
@@ -101,7 +102,7 @@ QtObject {
         gameId = ""; gameName = ""; steamAppId = ""; imageUrl = ""
         heroImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
-        isManualGame = false; isGameInstalled = false; packageInstalled = false
+        isManualGame = false; externalUrl = ""; isGameInstalled = false; packageInstalled = false
         hasTranslationUpdate = false; autoInstall = false; fromLibrary = false
         description = ""; developers = []; publishers = []
         releaseDate = ""; genres = []; metacriticScore = 0
@@ -129,6 +130,7 @@ QtObject {
         steamAppId = d.steamAppId || ""
         hasTranslation = d.hasTranslation || false
         isManualGame = d.isManualGame || false
+        externalUrl = d.externalUrl || ""
         isGameInstalled = d.isGameInstalled || false
         packageInstalled = d.packageInstalled || false
         autoInstall = d.autoInstall || false

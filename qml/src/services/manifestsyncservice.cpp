@@ -175,6 +175,8 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
         ce.dataUrl = entry[QStringLiteral("dataUrl")].toString();
         ce.checksum = entry[QStringLiteral("checksum")].toString();
         ce.dirName = entry[QStringLiteral("dirName")].toString();
+        ce.externalUrl = entry[QStringLiteral("externalUrl")].toString();
+        ce.source = entry[QStringLiteral("source")].toString();
         newCatalog.insert(it.key(), ce);
     }
 
@@ -223,6 +225,10 @@ QVariantList ManifestSyncService::catalog() const
             entry.insert(QStringLiteral("checksum"), ce.checksum);
         if (!ce.dirName.isEmpty())
             entry.insert(QStringLiteral("dirName"), ce.dirName);
+        if (!ce.externalUrl.isEmpty())
+            entry.insert(QStringLiteral("externalUrl"), ce.externalUrl);
+        if (!ce.source.isEmpty())
+            entry.insert(QStringLiteral("source"), ce.source);
 
         result.append(entry);
     }
