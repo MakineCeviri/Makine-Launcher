@@ -67,6 +67,13 @@ QtObject {
             console.warn("InstallFlowController: viewModel not set")
             return
         }
+
+        // External partner redirect (e.g. ApexYama)
+        if (viewModel.externalUrl && viewModel.externalUrl !== "") {
+            Qt.openUrlExternally(viewModel.externalUrl)
+            return
+        }
+
         // Pre-flight: Anti-cheat check
         var antiCheat = GameService.checkAntiCheat(gameId)
         if (antiCheat && antiCheat.hasAntiCheat && antiCheat.systems.length > 0) {
@@ -231,6 +238,14 @@ QtObject {
     function _doInstall(gameId, variant, selectedOptions) {
         _pendingDownload = null  // Clear any previous state
         _pendingUpdateFlow = false
+
+        // External source redirect — never download, open browser
+        var catalog = GameService.getCatalogEntry(gameId)
+        if (catalog && catalog.externalUrl && catalog.externalUrl !== "") {
+            Qt.openUrlExternally(catalog.externalUrl)
+            return
+        }
+
         // If local package already exists, install directly
         if (GameService.hasLocalPackage(gameId)) {
             GameService.installTranslation(gameId, variant, selectedOptions)
@@ -238,11 +253,10 @@ QtObject {
         }
 
         // Check catalog for dataUrl (R2 download)
-        var catalog = GameService.getCatalogEntry(gameId)
         var dataUrl = catalog ? (catalog.dataUrl || "") : ""
 
-        if (!dataUrl || dataUrl === "") {
-            // No remote package available, try local install anyway
+        if (!dataUrl || dataUrl === "" || !dataUrl.toString().startsWith("https://cdn.makineceviri.net")) {
+            // No valid CDN package — try local install
             GameService.installTranslation(gameId, variant, selectedOptions)
             return
         }
