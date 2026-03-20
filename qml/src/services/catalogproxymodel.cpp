@@ -39,8 +39,16 @@ QString CatalogProxyModel::normalize(const QString &input)
 
     for (const QChar ch : input) {
         const char16_t c = ch.unicode();
+
+        // Fast path: pure ASCII (covers the vast majority of game names)
+        // Avoids QChar::toLower() virtual dispatch for the common case.
+        if (c < 0x80) {
+            out += (c >= u'A' && c <= u'Z') ? QChar(char16_t(c + 32)) : ch;
+            continue;
+        }
+
+        // Turkish special characters → ASCII equivalents (sparse check)
         switch (c) {
-        // Turkish special characters → ASCII equivalents
         case 0x0131: out += u'i'; break;  // ı → i
         case 0x0130: out += u'i'; break;  // İ → i
         case 0x00F6: out += u'o'; break;  // ö → o
@@ -53,7 +61,6 @@ QString CatalogProxyModel::normalize(const QString &input)
         case 0x015E: out += u's'; break;  // Ş → s
         case 0x011F: out += u'g'; break;  // ğ → g
         case 0x011E: out += u'g'; break;  // Ğ → g
-        // Standard ASCII uppercase → lowercase
         default:
             out += ch.toLower();
             break;

@@ -187,6 +187,7 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
         auto old = m_catalog.constFind(it.key());
         if (old != m_catalog.constEnd() && old->version != it->version) {
             m_packageDetails.remove(it.key());
+            m_diskDetailCache.remove(it.key());
             QFile::remove(detailDir + QStringLiteral("/%1.json").arg(it.key()));
             qCDebug(lcManifestSync) << "ManifestSync: invalidated detail cache for" << it.key()
                      << "(version" << old->version << "->" << it->version << ")";
@@ -194,16 +195,23 @@ void ManifestSyncService::parseIndex(const QByteArray& data)
     }
 
     m_catalog = std::move(newCatalog);
+    m_catalogCacheValid = false;  // Invalidate catalog() cache on every parse
 }
 
 // ========== Catalog Query ==========
 
 QVariantList ManifestSyncService::catalog() const
 {
-    MAKINE_ZONE_NAMED("ManifestSync::catalog");
+    // Return cached result if catalog hasn't changed since last call.
+    // parseIndex() sets m_catalogCacheValid = false on every catalog update.
+    // Avoids: 260+ QVariantMap + QString key allocations per call.
+    if (m_catalogCacheValid)
+        return m_catalogCache;
 
-    QVariantList result;
-    result.reserve(m_catalog.size());
+    MAKINE_ZONE_NAMED("ManifestSync::catalog (rebuild)");
+
+    m_catalogCache.clear();
+    m_catalogCache.reserve(m_catalog.size());
 
     for (auto it = m_catalog.constBegin(); it != m_catalog.constEnd(); ++it) {
         const auto& ce = it.value();
@@ -233,10 +241,11 @@ QVariantList ManifestSyncService::catalog() const
         if (!ce.apexTier.isEmpty())
             entry.insert(QStringLiteral("apexTier"), ce.apexTier);
 
-        result.append(entry);
+        m_catalogCache.append(entry);
     }
 
-    return result;
+    m_catalogCacheValid = true;
+    return m_catalogCache;
 }
 
 bool ManifestSyncService::hasCatalogEntry(const QString& appId) const
@@ -334,11 +343,12 @@ void ManifestSyncService::onDetailFetched(const QString& appId, const QByteArray
     // Cache in memory
     m_packageDetails.insert(appId, doc.object().toVariantMap());
 
-    // Cache to disk
+    // Cache to disk + populate disk-existence set (avoids future QFile::exists calls)
     const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
     QFile file(cachePath);
     if (file.open(QIODevice::WriteOnly)) {
         file.write(data);
+        m_diskDetailCache.insert(appId);
     }
 
     emit packageDetailReady(appId);
@@ -351,12 +361,20 @@ QVariantMap ManifestSyncService::getPackageDetail(const QString& appId) const
 
 bool ManifestSyncService::hasPackageDetail(const QString& appId) const
 {
+    // Hot path: in-memory cache hit (O(1), no disk I/O)
     if (m_packageDetails.contains(appId))
         return true;
 
-    // Check disk cache
+    // Second hot path: previously confirmed disk hit (O(1), no syscall)
+    if (m_diskDetailCache.contains(appId))
+        return true;
+
+    // Cold path: actual disk check — populate m_diskDetailCache to avoid repeat syscalls
     const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
-    return QFile::exists(cachePath);
+    const bool exists = QFile::exists(cachePath);
+    if (exists)
+        const_cast<ManifestSyncService*>(this)->m_diskDetailCache.insert(appId);
+    return exists;
 }
 
 // ========== Local Cache Persistence ==========

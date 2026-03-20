@@ -128,6 +128,9 @@ private:
 
     QHash<QString, CatalogEntry> m_catalog;  // appId -> entry
     QHash<QString, QVariantMap> m_packageDetails;  // appId -> full detail (in-memory)
+    QSet<QString> m_diskDetailCache;               // appIds known to exist on disk (avoids QFile::exists per call)
+    mutable QVariantList m_catalogCache;           // Cached catalog() result
+    mutable bool m_catalogCacheValid{false};        // Invalidated on parseIndex
 
     bool m_syncing{false};
     bool m_offline{false};

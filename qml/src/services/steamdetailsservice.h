@@ -9,6 +9,7 @@
 #include <QObject>
 #include <QHash>
 #include <QSet>
+#include <QQueue>
 #include <QString>
 #include <QVariantMap>
 #include <QDateTime>
@@ -94,6 +95,7 @@ private:
 
     QNetworkAccessManager m_networkManager;
     QHash<QString, SteamDetails> m_steamDetailsCache;
+    QQueue<QString> m_insertionOrder;   // FIFO eviction order for O(1) cache trim
     QSet<QString> m_pendingFetches;
 };
 

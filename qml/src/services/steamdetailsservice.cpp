@@ -165,21 +165,19 @@ void SteamDetailsService::fetchDetails(const QString& steamAppId)
                 return;
             }
 
-            // Cache eviction (main thread — accesses m_steamDetailsCache)
+            // Cache eviction — O(1) FIFO: remove oldest entry when full.
+            // Previously O(n) linear scan for expired entries; now dequeue head.
             if (m_steamDetailsCache.size() >= kMaxSteamCache) {
-                QStringList expired;
-                for (auto it = m_steamDetailsCache.constBegin();
-                     it != m_steamDetailsCache.constEnd(); ++it) {
-                    if (it->isExpired())
-                        expired.append(it.key());
+                // Dequeue entries until we free a slot (skip already-removed keys)
+                while (!m_insertionOrder.isEmpty()
+                       && m_steamDetailsCache.size() >= kMaxSteamCache) {
+                    const QString oldest = m_insertionOrder.dequeue();
+                    m_steamDetailsCache.remove(oldest);
                 }
-                for (const auto& key : expired)
-                    m_steamDetailsCache.remove(key);
-                if (m_steamDetailsCache.size() >= kMaxSteamCache)
-                    m_steamDetailsCache.clear();
             }
 
             m_steamDetailsCache[steamAppId] = *result;
+            m_insertionOrder.enqueue(steamAppId);
             saveCache();
             emit detailsFetched(steamAppId, toVariantMap(*result));
         });
@@ -259,9 +257,11 @@ void SteamDetailsService::loadCache()
         for (const auto& v : obj["genres"].toArray())      details.genres.append(v.toString());
         for (const auto& v : obj["screenshots"].toArray()) details.screenshots.append(v.toString());
 
-        // Skip expired entries
-        if (!details.isExpired())
+        // Skip expired entries; track insertion order for O(1) eviction
+        if (!details.isExpired()) {
             m_steamDetailsCache[it.key()] = details;
+            m_insertionOrder.enqueue(it.key());
+        }
     }
 
     qCDebug(lcSteamDetails) << "Loaded" << m_steamDetailsCache.size() << "cached Steam details";

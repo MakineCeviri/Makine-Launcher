@@ -15,6 +15,9 @@ SectionContainer {
     property bool hasBackups: gameBackups.length > 0
     property var latestBackup: BackupManager.getLatestBackup(backupRoot.vm.gameId)
 
+    // Cached binding — vm.updateImpact.level evaluated once, not per-consumer
+    readonly property string _impactLevel: vm.updateImpact ? vm.updateImpact.level : ""
+
     Connections {
         target: BackupManager
         function onBackupsChanged() {
@@ -121,8 +124,8 @@ SectionContainer {
         // Stale backup warning
         Rectangle {
             Layout.fillWidth: true
-            visible: backupRoot.hasBackups && backupRoot.vm.updateImpact
-                     && (backupRoot.vm.updateImpact.level === "broken" || backupRoot.vm.updateImpact.level === "lost")
+            visible: backupRoot.hasBackups
+                     && (backupRoot._impactLevel === "broken" || backupRoot._impactLevel === "lost")
             implicitHeight: staleRow.height + 16
             radius: Dimensions.radiusSM
             color: Theme.warning08

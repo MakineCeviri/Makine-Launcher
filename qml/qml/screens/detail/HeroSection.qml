@@ -27,6 +27,9 @@ Item {
     property real _aboutOp: 0;  property real _aboutTY: 18
     property real _contribOp: 0; property real _contribTY: 18
 
+    // Cached binding — vm.updateImpact.level evaluated once, not per-consumer
+    readonly property string _impactLevel: vm.updateImpact ? vm.updateImpact.level : ""
+
     function replayEntryAnim() {
         _entrySeq.stop()
         if (!Dimensions.animNormal) {
@@ -282,11 +285,10 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             spacing: Dimensions.spacingMD
             opacity: heroRoot._titleOp
-            visible: (heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken") ||
-                     (heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "lost")
+            visible: heroRoot._impactLevel === "broken" || heroRoot._impactLevel === "lost"
 
             Rectangle {
-                visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "broken"
+                visible: heroRoot._impactLevel === "broken"
                 width: brokenRow.width + 20; height: 26
                 radius: Dimensions.radiusFull
                 color: Theme.error12
@@ -311,7 +313,7 @@ Item {
             }
 
             Rectangle {
-                visible: heroRoot.vm.updateImpact && heroRoot.vm.updateImpact.level === "lost"
+                visible: heroRoot._impactLevel === "lost"
                 width: lostRow.width + 20; height: 26
                 radius: Dimensions.radiusFull
                 color: Theme.warning12
