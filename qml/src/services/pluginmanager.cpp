@@ -1029,6 +1029,36 @@ int PluginManager::compareVersions(const QString& a, const QString& b) const
     return 0;
 }
 
+// ── Settings Discovery (moved from SettingsScreen.qml) ──
+
+QVariantList PluginManager::settingsCategories() const
+{
+    QVariantList result;
+    for (const auto& p : m_plugins) {
+        if (p.loaded && !p.settingsDefs.isEmpty()) {
+            result.append(QVariantMap{
+                {"name",        p.name},
+                {"description", p.description.isEmpty()
+                                    ? tr("Eklenti ayarları")
+                                    : p.description},
+                {"isPlugin",    true},
+                {"pluginId",    p.id}
+            });
+        }
+    }
+    return result;
+}
+
+QVariantList PluginManager::pluginsWithSettings() const
+{
+    QVariantList result;
+    for (const auto& p : m_plugins) {
+        if (p.loaded && !p.settingsDefs.isEmpty())
+            result.append(p.toVariantMap());
+    }
+    return result;
+}
+
 // ── Community Plugin Discovery (GitHub Topic Search) ──
 
 void PluginManager::fetchCommunityPlugins()

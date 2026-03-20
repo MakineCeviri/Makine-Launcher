@@ -5,47 +5,13 @@ pragma ComponentBehavior: Bound
 /**
  * GameDataResolver.qml - Resolves game metadata for detail screen navigation
  *
- * Consolidates the duplicate game data resolution logic from Main.qml
- * (onGameSelected and onInstallAndShowDetail handlers).
+ * All business logic moved to GameService.resolveGameData() (C++).
+ * This controller is a thin QML delegate.
  */
 QtObject {
     id: resolver
 
     function resolve(gameId, gameName, installPath, engine, forceAutoInstall) {
-        var gameData = GameService.getGameById(gameId)
-        var isManual = (gameData && gameData.source === "manual") || gameId.startsWith("manual_")
-        var isInstalled = (gameData && gameData.isInstalled) || installPath !== ""
-        var resolvedSteamAppId = (gameData && gameData.steamAppId) || ""
-
-        // For catalog-only games, gameId IS the steamAppId
-        if (resolvedSteamAppId === "" && /^\d+$/.test(gameId))
-            resolvedSteamAppId = gameId
-
-        var resolvedImageUrl = ImageCache.resolve(resolvedSteamAppId || gameId)
-        var hasTranslation = (gameData && gameData.hasTranslation) || false
-        var pkgInstalled = (gameData && gameData.packageInstalled) || false
-
-        // Check for external partner URL (e.g. ApexYama)
-        var catalog = GameService.getCatalogEntry(resolvedSteamAppId || gameId)
-        var externalUrl = (catalog && catalog.externalUrl) || ""
-        var isApex = (catalog && (catalog.translationSource === "apex" || catalog.source === "apex")) || false
-        var apexTier = (catalog && (catalog.apexTier || "")) || ""
-
-        return {
-            gameId: gameId,
-            gameName: gameName,
-            engine: engine,
-            imageUrl: resolvedImageUrl,
-            verified: (gameData && gameData.isVerified) || false,
-            steamAppId: resolvedSteamAppId,
-            hasTranslation: hasTranslation,
-            isManualGame: isManual,
-            isGameInstalled: isInstalled,
-            packageInstalled: pkgInstalled,
-            isApex: isApex,
-            apexTier: apexTier,
-            autoInstall: forceAutoInstall || false,
-            externalUrl: externalUrl
-        }
+        return GameService.resolveGameData(gameId, gameName, installPath, engine, forceAutoInstall)
     }
 }

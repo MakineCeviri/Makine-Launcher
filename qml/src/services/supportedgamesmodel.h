@@ -26,6 +26,7 @@ struct CatalogEntry {
     QString engine;
     QString imageUrl;
     QString dataUrl;
+    QString externalUrl;
     qint64 downloadSize{0};
     bool isInstalled{false};
     bool packageInstalled{false};
@@ -48,7 +49,8 @@ public:
         PackageInstalledRole,
         ImageUrlRole,
         DataUrlRole,
-        DownloadSizeRole
+        DownloadSizeRole,
+        ExternalUrlRole
     };
     Q_ENUM(Role)
 

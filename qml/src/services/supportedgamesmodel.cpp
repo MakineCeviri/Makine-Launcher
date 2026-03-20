@@ -37,6 +37,7 @@ QVariant SupportedGamesModel::data(const QModelIndex &index, int role) const
     case ImageUrlRole:        return e.imageUrl;
     case DataUrlRole:         return e.dataUrl;
     case DownloadSizeRole:    return e.downloadSize;
+    case ExternalUrlRole:     return e.externalUrl;
     default:                  return {};
     }
 }
@@ -55,6 +56,7 @@ QHash<int, QByteArray> SupportedGamesModel::roleNames() const
         {ImageUrlRole,         "imageUrl"},
         {DataUrlRole,          "dataUrl"},
         {DownloadSizeRole,     "downloadSize"},
+        {ExternalUrlRole,      "externalUrl"},
     };
 }
 
@@ -77,6 +79,7 @@ void SupportedGamesModel::resetFromCatalog(const QVariantList &catalogData)
         e.imageUrl      = map.value(QStringLiteral("imageUrl")).toString();
         e.dataUrl       = map.value(QStringLiteral("dataUrl")).toString();
         e.downloadSize  = map.value(QStringLiteral("downloadSize")).toLongLong();
+        e.externalUrl   = map.value(QStringLiteral("externalUrl")).toString();
         e.isInstalled   = map.value(QStringLiteral("isInstalled")).toBool();
         e.installPath   = map.value(QStringLiteral("installPath")).toString();
         e.packageInstalled = map.value(QStringLiteral("packageInstalled")).toBool();

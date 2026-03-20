@@ -27,20 +27,31 @@ Rectangle {
     border.width: _state === "installed" && _hovered ? 2 : 0
     border.color: Theme.error
 
-    // ── State resolution ──
-    readonly property string _state: {
-        if (actionBtn.vm.updateImpact && actionBtn.vm.updateImpact.level === "broken")
-            return "broken"
-        if (actionBtn.vm.installCompleted)
-            return "completed"
-        if (actionBtn.vm.isInstallingTranslation)
-            return "installing"
-        if (actionBtn.vm.hasTranslationUpdate)
-            return "update"
-        if (actionBtn.vm.packageInstalled)
-            return "installed"
-        return "download"
+    // ── State resolution (C++ TranslationStateManager) ──
+    readonly property string _state: TranslationStateManager.state
+
+    function _reevaluateState() {
+        TranslationStateManager.evaluate(
+            actionBtn.vm.hasTranslationUpdate,
+            actionBtn.vm.packageInstalled,
+            actionBtn.vm.isInstallingTranslation,
+            actionBtn.vm.installCompleted,
+            actionBtn.vm.impactLevel,
+            actionBtn.vm.externalUrl
+        )
     }
+
+    // Re-evaluate whenever any input changes
+    Connections {
+        target: actionBtn.vm
+        function onHasTranslationUpdateChanged() { actionBtn._reevaluateState() }
+        function onPackageInstalledChanged()      { actionBtn._reevaluateState() }
+        function onIsInstallingTranslationChanged(){ actionBtn._reevaluateState() }
+        function onInstallCompletedChanged()      { actionBtn._reevaluateState() }
+        function onImpactLevelChanged()           { actionBtn._reevaluateState() }
+        function onExternalUrlChanged()           { actionBtn._reevaluateState() }
+    }
+    Component.onCompleted: _reevaluateState()
 
     readonly property bool _hovered: actionMouse.containsMouse
     readonly property bool _interactive: _state !== "completed" && _state !== "installing"
@@ -58,6 +69,8 @@ Rectangle {
             return _hovered ? Theme.darken(Theme.warning, 0.12) : Theme.warning
         case "installed":
             return _hovered ? Theme.error : Theme.success12
+        case "external":
+            return _hovered ? Qt.darker("#907575", 1.15) : "#907575"
         case "download":
         default:
             return _hovered ? Theme.primaryHover : Theme.primary
@@ -163,6 +176,26 @@ Rectangle {
                 var cx = width / 2, cy = height / 2
 
                 switch (actionBtn._state) {
+                case "external":
+                    // External link icon (arrow going top-right from box)
+                    ctx.beginPath()
+                    ctx.moveTo(7, 4)
+                    ctx.lineTo(14, 4)
+                    ctx.lineTo(14, 11)
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.moveTo(14, 4)
+                    ctx.lineTo(6, 12)
+                    ctx.stroke()
+                    ctx.beginPath()
+                    ctx.moveTo(10, 4)
+                    ctx.lineTo(4, 4)
+                    ctx.lineTo(4, 14)
+                    ctx.lineTo(14, 14)
+                    ctx.lineTo(14, 11)
+                    ctx.stroke()
+                    break
+
                 case "download":
                 case "update":
                     // Down arrow + line (same icon for both states)
@@ -268,6 +301,8 @@ Rectangle {
                     if (actionBtn.vm.installProgress > 0)
                         return qsTr("Kuruluyor... %1%").arg(actionBtn.vm.progressPercent)
                     return actionBtn.vm.installStatus || qsTr("Hazırlanıyor...")
+                case "external":
+                    return qsTr("ApexYama'da İndir")
                 case "download":
                 default:
                     return qsTr("Türkçe Yama İndir")
@@ -276,11 +311,12 @@ Rectangle {
             font.pixelSize: Dimensions.fontMD
             font.weight: Font.DemiBold
             font.letterSpacing: actionBtn._state === "download" || actionBtn._state === "update"
-                                || actionBtn._state === "broken" ? 0.8 : 0.3
+                                || actionBtn._state === "broken" || actionBtn._state === "external" ? 0.8 : 0.3
             color: {
                 switch (actionBtn._state) {
                 case "installing": return Theme.textPrimary
                 case "installed":  return actionBtn._hovered ? Theme.textOnColor : Theme.success
+                case "external":   return "#ffcec6"
                 default:           return Theme.textOnColor
                 }
             }
@@ -333,6 +369,7 @@ Rectangle {
         case "installed":  return qsTr("Installed")
         case "broken":     return qsTr("Repair needed")
         case "completed":  return qsTr("Installation complete")
+        case "external":   return qsTr("Download from ApexYama")
         default:           return qsTr("Download Turkish Patch")
         }
     }
@@ -348,6 +385,7 @@ Rectangle {
             case "update":    actionBtn.updateClicked(); break
             case "installed": actionBtn.uninstallClicked(); break
             case "broken":    actionBtn.updateClicked(); break
+            case "external":  Qt.openUrlExternally(actionBtn.vm.externalUrl); break
             default:          actionBtn.translateClicked(); break
             }
         }
