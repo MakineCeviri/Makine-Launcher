@@ -87,7 +87,7 @@ Makine-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca ol
 | 6 | YUKSEK | Guvenlik | Sentry DSN, CMake build-time'da `$ENV{MAKINE_SENTRY_DSN}` olarak enjekte ediliyor (`qml/CMakeLists.txt:442`). Bu deger binary'nin `.rodata` section'inda plaintext kalir. | DSN leak (dusuk etki ama best practice degil) | Sentry client-key DSN zaten "dusuk yetkili" — kabul edilebilir. Alternatif: runtime `.env` okuma | Dusuk |
 | 7 | YUKSEK | CI/CD | GitHub Actions'da yalnizca `deploy-manifests.yml` mevcut (manifest sagligi). Build CI, test CI, CodeQL taramasi yok. | Regresyon CI tarafindan yakalanamaz | Build + test + CodeQL workflow ekle. `.github/workflows/ci.yml` | 1 gun |
 | 8 | YUKSEK | Guvenlik | `vcpkg.json` lisesinde `"license": "MIT"` yazili, ancak `LICENSE` dosyasi "Makine-Launcher Proprietary License". Tutarsizlik. | Lisans karisikligi | `vcpkg.json` icinde `"license": "LicenseRef-Proprietary"` yap | 5 dk |
-| 9 | ORTA | Gozlemlenebilirlik | `HealthChecker::checkNetwork()` placeholder — gercek network kontrolu yapmiyOr (`health.hpp:384-398`). CDN erisim kontrolu eksik. | Offline hata tespiti gecikir | CURL ile `cdn.makineceviri.net` HEAD istegi ekle | 2 saat |
+| 9 | ORTA | Gozlemlenebilirlik | `HealthChecker::checkNetwork()` placeholder — gercek network kontrolu yapmiyOr (`health.hpp:384-398`). CDN erisim kontrolu eksik. | Offline hata tespiti gecikir | CURL ile `cdn.makineceviri.org` HEAD istegi ekle | 2 saat |
 | 10 | ORTA | Kararlilik | `GameService::gameCount()` her cagirisinda `games().count()` calistirir (`gameservice.h:100`) — `games()` bir `QVariantList` kopyasi donduruyor. Hot path'te gereksiz kopya. | Performans (micro) | `return m_games.count()` kullan | 5 dk |
 | 11 | ORTA | i18n | `qml/i18n/` dizininde `makine_en.ts`, `makine_en.qm`, `makine_tr.ts` mevcut. Ancak `qml/CMakeLists.txt:516`'da sadece `makine_en.ts` kayitli — `_tr.ts` CMake'e dahil degil. | Turkce ceviriler uygulamaya yuklenmez | TS_FILES listesine `i18n/makine_tr.ts` ekle | 5 dk |
 | 12 | ORTA | UX | `EmptyState` componenti sadece 3 yerde kullaniliyor (BackupsSettings, GameSection, EmptyState.qml). Library ekrani, HomePage, ve GameDetailScreen'de bos durum gosterimi eksik olabilir. | Kullanici bosluklarda ne yapacagini bilemez | Tum veri-bagli ekranlarda EmptyState kullanildigini dogrula | 2 saat |
@@ -97,7 +97,7 @@ Makine-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca ol
 | 16 | DUSUK | Dokumantasyon | `docs/security/security-model.md` mevcut, ancak `docs/security-plan.md` (proje kokunde) ile caprazlanma mevcut. Iki farkli guvenlik dokumani. | Dokuman tutarsizligi | Birlestir veya cross-reference ekle | 30 dk |
 | 17 | DUSUK | Build | `justfile:21-22` setup recipe'de `simdjson`, `taskflow`, `concurrentqueue`, `simdutf` listeleniyOr ama `vcpkg.json` dependencies'de bunlar yok. Ayri/klasik mod farki olsa da tutarsiz. | Build karisikligi | Senkronize et | 15 dk |
 | 18 | DUSUK | Performans | `mkpkformat.h:213-214`: zstd decompress 10GB safety limit — makul. Ancak `zstd_decompress` streaming modunda `reserve(size * 4)` kullanir — buyuk dosyalarda fazla bellek ayirabilir. | Bellek spikesi | Streaming modda kademeli buyutme kullan | 1 saat |
-| 19 | DUSUK | Guvenlik | `selfupdater.h:43` `verifySignature` Authenticode dogrulamasi iceriyor — iyi. Ancak update JSON (`cdn.makineceviri.net/assets/update.json`) indirilirken SSL pinning'in aktif olup olmadigini dogrula. | MITM update saldirisi | `TranslationDownloader` ve `UpdateService` network islemlerinde SSL pin uygulamasini kontrol et | 1 saat |
+| 19 | DUSUK | Guvenlik | `selfupdater.h:43` `verifySignature` Authenticode dogrulamasi iceriyor — iyi. Ancak update JSON (`cdn.makineceviri.org/assets/update.json`) indirilirken SSL pinning'in aktif olup olmadigini dogrula. | MITM update saldirisi | `TranslationDownloader` ve `UpdateService` network islemlerinde SSL pin uygulamasini kontrol et | 1 saat |
 | 20 | DUSUK | UX | `OnboardingWizard.qml` 3 adimli (Welcome → Scan → Ready). Scan adiminda hata durumu (Steam bulunamadi, dizin erisim sorunu) icin kullanici geri bildirimi kontrol edilmeli. | Kullanici onboarding'de takilabilir | Error state handling'i ScanStep.qml'de dogrula | 30 dk |
 
 ---
@@ -165,7 +165,7 @@ Makine-Launcher, 258 oyun icin Turkce ceviri dagitim platformu olarak oldukca ol
 - [ ] Runtime log export (kullanicinin log paylasma ozelligi yok)
 
 ### Gate 6: Deployment Pipeline
-- [x] CDN: cdn.makineceviri.net (Cloudflare R2 custom domain)
+- [x] CDN: cdn.makineceviri.org (Cloudflare R2 custom domain)
 - [x] 258/258 .mkpkg paketi yuklenmis ve imzalanmis
 - [x] deploy.py + sign_packages.py + r2_upload.py pipeline
 - [x] GitHub Actions: `deploy-manifests.yml` (manifest health check)

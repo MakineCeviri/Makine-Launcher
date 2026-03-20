@@ -30,7 +30,7 @@ static std::atomic<int>  g_checkFailCount{0};
 // These are never referenced in real logic — they exist only to appear
 // in memory dumps and waste the reverser's time.
 [[maybe_unused]] static volatile const char* g_decoys[] = {
-    "https://api.makineceviri.net/v2/license/check",
+    "https://api.makineceviri.org/v2/license/check",
     "X-HWID-Signature",
     "AES-256-CBC",
     "remote_kill_endpoint",

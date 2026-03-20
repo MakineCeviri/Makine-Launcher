@@ -229,7 +229,7 @@ struct CoreConfig {
     std::string logsDirectory;
 
     /// API base URL for translation services
-    std::string apiBaseUrl = "https://api.makineceviri.net/v1";
+    std::string apiBaseUrl = "https://api.makineceviri.org/v1";
 
     /// Path to public key for package verification
     std::string publicKeyPath;

@@ -241,7 +241,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
 
     // Check catalog for R2 download URL
     QString dataUrl = catalog.value(QStringLiteral("dataUrl")).toString();
-    if (dataUrl.isEmpty() || !dataUrl.startsWith(QStringLiteral("https://cdn.makineceviri.net"))) {
+    if (dataUrl.isEmpty() || !dataUrl.startsWith(QStringLiteral("https://cdn.makineceviri.org"))) {
         // No valid CDN package — try local install
         m_gameService->installTranslation(gameId, variant, options);
         emit installStarted(gameId);

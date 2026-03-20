@@ -230,7 +230,7 @@ Anti-cheat tespit edildiğinde:
 
 Bir güvenlik açığı buldunuz mu?
 
-1. **Email:** security@makineceviri.net
+1. **Email:** security@makineceviri.org
 2. **Konu:** [SECURITY] Kısa açıklama
 3. **İçerik:**
    - Açıklamanın detayı

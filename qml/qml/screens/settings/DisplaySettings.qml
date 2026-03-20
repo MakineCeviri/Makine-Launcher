@@ -219,16 +219,6 @@ ColumnLayout {
                 }
             }
 
-            SettingsDivider {}
-
-            // Free resolution scaling (TODO — coming in a future update)
-            ToggleSetting {
-                opacity: 0.5
-                title: qsTr("G\u00f6r\u00fcnt\u00fc \u00d6l\u00e7eklemeyi Serbest B\u0131rak")
-                description: qsTr("Pencereyi serbestçe boyutland\u0131r ve tam ekran yap \u2014 Yak\u0131nda")
-                checked: false
-                enabled: false
-            }
         }
     }
 

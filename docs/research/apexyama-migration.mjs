@@ -68,7 +68,7 @@ async function main() {
   if (inputPath) {
     raw = await readFile(inputPath, "utf-8");
   } else {
-    const resp = await fetch("https://cdn.makineceviri.net/assets/index.json");
+    const resp = await fetch("https://cdn.makineceviri.org/assets/index.json");
     raw = await resp.text();
   }
 

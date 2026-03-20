@@ -68,7 +68,7 @@ Output: `com-github-username-my-plugin-0.1.0.makine`
 
 To get the "Approved" badge in the launcher:
 1. Keep your plugin open source
-2. Follow the [Plugin Guidelines](https://makineceviri.net/docs/plugin-guidelines)
+2. Follow the [Plugin Guidelines](https://makineceviri.org/docs/plugin-guidelines)
 3. Submit for review at [MakineCeviri/makine-plugins](https://github.com/MakineCeviri/makine-plugins/issues/new)
 
 ## License

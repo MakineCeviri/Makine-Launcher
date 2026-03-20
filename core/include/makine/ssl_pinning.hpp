@@ -31,7 +31,7 @@ namespace ssl {
  * in base64 format, prefixed with "sha256//".
  */
 struct CertPin {
-    std::string_view domain;     // Domain pattern (e.g. "api.makineceviri.net")
+    std::string_view domain;     // Domain pattern (e.g. "api.makineceviri.org")
     std::string_view pinHash;    // sha256//base64hash
     bool isBackup;               // true = backup pin (for rotation)
 };
@@ -48,23 +48,23 @@ struct CertPin {
  *   openssl dgst -sha256 -binary | openssl enc -base64
  */
 inline constexpr std::array<CertPin, 4> PINNED_CERTS = {{
-    // Primary: makineceviri.net (website + update endpoint)
-    {"makineceviri.net",
+    // Primary: makineceviri.org (website + update endpoint)
+    {"makineceviri.org",
      "sha256//mC/RiYlbhN0AdU/u23BPTNwoLlj5OTigvIL0IbnGppg=",
      false},
 
     // Backup: Cloudflare intermediate CA (survives leaf cert rotation)
-    {"makineceviri.net",
+    {"makineceviri.org",
      "sha256//kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
      true},
 
-    // Primary: cdn.makineceviri.net (package downloads + assets)
-    {"cdn.makineceviri.net",
+    // Primary: cdn.makineceviri.org (package downloads + assets)
+    {"cdn.makineceviri.org",
      "sha256//MNGoZIDCbt1ZzepaJUqaasJVrbMUfnnEl6FyLjMClrE=",
      false},
 
     // Backup: Cloudflare intermediate CA (survives leaf cert rotation)
-    {"cdn.makineceviri.net",
+    {"cdn.makineceviri.org",
      "sha256//kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=",
      true},
 }};
@@ -94,8 +94,8 @@ static_assert(!detail::pinsContainPlaceholder(),
  * All other domains use standard TLS verification only.
  */
 inline constexpr std::array<std::string_view, 2> PINNED_DOMAINS = {{
-    "makineceviri.net",
-    "cdn.makineceviri.net",
+    "makineceviri.org",
+    "cdn.makineceviri.org",
 }};
 
 // =============================================================================
@@ -126,8 +126,8 @@ bool applySslPinning(CURL* curl, const std::string& url);
 /**
  * @brief Extract hostname from a URL
  *
- * @param url Full URL (e.g. "https://api.makineceviri.net/v1/packages")
- * @return Hostname portion (e.g. "api.makineceviri.net"), empty if parse fails
+ * @param url Full URL (e.g. "https://api.makineceviri.org/v1/packages")
+ * @return Hostname portion (e.g. "api.makineceviri.org"), empty if parse fails
  */
 [[nodiscard]] std::string extractHost(const std::string& url);
 

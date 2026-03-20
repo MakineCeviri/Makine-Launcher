@@ -59,7 +59,7 @@ ColumnLayout {
             SettingsDivider {}
             InfoRow { label: qsTr("Geliştirici"); value: qsTr("Makine Çeviri") }
             SettingsDivider {}
-            InfoRow { label: qsTr("Lisans"); value: qsTr("Ücretsiz Lisans") }
+            InfoRow { label: qsTr("Lisans"); value: qsTr("AGPL-3.0 + Commons Clause") }
             SettingsDivider {}
             InfoRow { label: qsTr("Platform"); value: "Windows" }
         }
@@ -277,8 +277,8 @@ ColumnLayout {
 
             ClickableRow {
                 title: qsTr("Geri Bildirim")
-                subtitle: qsTr("Hata bildirimi ve öneriler için web sitemizi ziyaret edin")
-                onClicked: Qt.openUrlExternally("https://makineceviri.net/feedback")
+                subtitle: qsTr("Hata bildirimi ve öneriler için iletişim sayfamızı ziyaret edin")
+                onClicked: Qt.openUrlExternally("https://makineceviri.org/iletisim/")
             }
 
             SettingsDivider {}
@@ -286,7 +286,23 @@ ColumnLayout {
             ClickableRow {
                 title: qsTr("Aramıza Katıl")
                 subtitle: qsTr("MakineCeviri ekibine katılın")
-                onClicked: Qt.openUrlExternally("https://makineceviri.net")
+                onClicked: Qt.openUrlExternally("https://makineceviri.org/iletisim/")
+            }
+
+            SettingsDivider {}
+
+            ClickableRow {
+                title: qsTr("Gizlilik Politikası")
+                subtitle: qsTr("Kişisel verilerinizin nasıl işlendiğini öğrenin")
+                onClicked: Qt.openUrlExternally("https://makineceviri.org/gizlilik-politikasi/")
+            }
+
+            SettingsDivider {}
+
+            ClickableRow {
+                title: qsTr("Kullanım Koşulları")
+                subtitle: qsTr("Hizmet şartları ve kullanım kuralları")
+                onClicked: Qt.openUrlExternally("https://makineceviri.org/kullanim-kosullari/")
             }
         }
     }

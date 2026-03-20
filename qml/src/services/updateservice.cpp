@@ -242,7 +242,7 @@ void UpdateService::download()
     // Validate download URL domain against allowlist
     static const QStringList allowedHosts = {
         QString::fromLatin1(cdn::kDomain),
-        QStringLiteral("makineceviri.net"),
+        QStringLiteral("makineceviri.org"),
 #ifdef MAKINE_DEV_TOOLS
         QStringLiteral("localhost"),
         QStringLiteral("127.0.0.1"),

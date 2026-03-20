@@ -3,7 +3,7 @@
   "name": "makine-launcher",
   "version": "0.1.0",
   "description": "Turkish game translation launcher",
-  "homepage": "https://makineceviri.net",
+  "homepage": "https://makineceviri.org",
   "license": "LicenseRef-Proprietary",
   "supports": "windows & x64",
   "dependencies": [

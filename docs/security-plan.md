@@ -405,7 +405,7 @@ Asagidaki dosyalardaki placeholder'lar KASITLI olarak birakiliyor:
   - Sunucu altyapisi hazir oldugunda gercek degerlerle degistirilecek
 - `core/src/package_builder/package_builder.cpp:1006` — Placeholder signature
 
-Bu degerler sunucu altyapisi (api.makineceviri.net, cdn.makineceviri.net) hazir oldugunda
+Bu degerler sunucu altyapisi (api.makineceviri.org, cdn.makineceviri.org) hazir oldugunda
 gercek sertifika ve anahtar degerleriyle degistirilecek.
 
 ---

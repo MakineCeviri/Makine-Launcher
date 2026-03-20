@@ -53,7 +53,7 @@ Hybrid index + on-demand detail system:
 - **Startup:** `index.json` (93 KB) → lightweight catalog metadata
 - **On-demand:** `packages/{appId}.json` (~700 B) → install steps, contributors, variants
 - **Core:** `PackageCatalog::loadFromIndex()` + `enrichPackage()`
-- **Assets CDN:** `cdn.makineceviri.net` (Cloudflare R2 custom domain)
+- **Assets CDN:** `cdn.makineceviri.org` (Cloudflare R2 custom domain)
   - Config: `qml/src/services/cdnconfig.h` — all CDN URLs centralized here
   - Assets: `assets/` prefix (index.json + packages/ + images/ + banners/)
   - Data: `data/` prefix (.mkpkg encrypted packages)

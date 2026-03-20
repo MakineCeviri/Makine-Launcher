@@ -276,7 +276,7 @@ def main():
 
     # Load R2 config for public URL
     r2_config_path = SCRIPT_DIR / "r2_config.json"
-    r2_public_url = "https://cdn.makineceviri.net"
+    r2_public_url = "https://cdn.makineceviri.org"
     if r2_config_path.exists():
         r2_config = json.loads(r2_config_path.read_text(encoding="utf-8"))
         r2_public_url = r2_config.get("public_url", r2_public_url)

@@ -209,7 +209,6 @@ qt_add_qml_module(MakineLauncher
         # Screens - Settings Panels
         qml/screens/settings/GeneralSettings.qml
         qml/screens/settings/DisplaySettings.qml
-        qml/screens/settings/TranslationSettings.qml
         qml/screens/settings/BackupsSettings.qml
         qml/screens/settings/PluginsSettings.qml
         qml/screens/settings/PluginSettingsPage.qml

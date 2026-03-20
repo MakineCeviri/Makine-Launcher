@@ -763,7 +763,7 @@ static void configureApplication(QGuiApplication& app)
     app.setApplicationDisplayName(QStringLiteral("Makine \u00C7eviri - Makine Launcher"));
     app.setApplicationVersion(MAKINE_APP_VERSION);
     app.setOrganizationName("MakineCeviri");
-    app.setOrganizationDomain("makineceviri.net");
+    app.setOrganizationDomain("makineceviri.org");
     app.setWindowIcon(QIcon(":/qt/qml/MakineLauncher/resources/images/logo.png"));
     QQuickStyle::setStyle("Basic");
 

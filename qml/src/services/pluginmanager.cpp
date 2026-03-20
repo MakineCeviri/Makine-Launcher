@@ -600,7 +600,7 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
     bool trustedHost = host == QStringLiteral("github.com")
                     || host.endsWith(QStringLiteral(".github.com"))
                     || host.endsWith(QStringLiteral(".githubusercontent.com"))
-                    || host == QStringLiteral("cdn.makineceviri.net");
+                    || host == QStringLiteral("cdn.makineceviri.org");
     if (!trustedHost) {
         emit pluginError(pluginId, QStringLiteral("Untrusted download domain: ") + host);
         return;

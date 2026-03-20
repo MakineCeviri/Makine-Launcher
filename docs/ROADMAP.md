@@ -175,7 +175,7 @@
 - PII stripping eklendi (Windows kullanici adi redaction)
 
 ### 2026-03-01: R2 CDN custom domain + dagitim tamamlandi
-- cdn.makineceviri.net aktif
+- cdn.makineceviri.org aktif
 - 258/258 .mkpkg paketi R2'ye yuklendi
 - Code signing altyapisi kuruldu (self-signed + signtool)
 
