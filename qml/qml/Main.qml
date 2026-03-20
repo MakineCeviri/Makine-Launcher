@@ -21,6 +21,25 @@ ApplicationWindow {
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
+    // --- Aspect-ratio-locked resize ---
+    readonly property real _aspectRatio: Dimensions.minWindowWidth / Dimensions.minWindowHeight
+    property bool _lockingAspect: false
+
+    onWidthChanged: {
+        if (_lockingAspect) return
+        _lockingAspect = true
+        var h = Math.max(minimumHeight, Math.round(width / _aspectRatio))
+        if (height !== h) height = h
+        _lockingAspect = false
+    }
+    onHeightChanged: {
+        if (_lockingAspect) return
+        _lockingAspect = true
+        var w = Math.max(minimumWidth, Math.round(height * _aspectRatio))
+        if (width !== w) width = w
+        _lockingAspect = false
+    }
+
     // Window sizing + positioning handled in C++ (main.cpp) via Win32 API
     Component.onCompleted: {
         if (typeof SettingsManager !== "undefined")
@@ -906,4 +925,55 @@ ApplicationWindow {
         }
     }
 
+    // ===== WINDOW RESIZE HANDLES (frameless window) =====
+    readonly property int _rm: 5 // resize margin
+
+    // Right edge
+    MouseArea {
+        anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+        width: window._rm; cursorShape: Qt.SizeHorCursor
+        onPressed: window.startSystemResize(Qt.RightEdge)
+    }
+    // Bottom edge
+    MouseArea {
+        anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
+        height: window._rm; cursorShape: Qt.SizeVerCursor
+        onPressed: window.startSystemResize(Qt.BottomEdge)
+    }
+    // Left edge
+    MouseArea {
+        anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+        width: window._rm; cursorShape: Qt.SizeHorCursor
+        onPressed: window.startSystemResize(Qt.LeftEdge)
+    }
+    // Top edge
+    MouseArea {
+        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        height: window._rm; cursorShape: Qt.SizeVerCursor
+        onPressed: window.startSystemResize(Qt.TopEdge)
+    }
+    // Bottom-right corner
+    MouseArea {
+        anchors.right: parent.right; anchors.bottom: parent.bottom
+        width: window._rm * 2; height: window._rm * 2; cursorShape: Qt.SizeFDiagCursor
+        onPressed: window.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
+    }
+    // Bottom-left corner
+    MouseArea {
+        anchors.left: parent.left; anchors.bottom: parent.bottom
+        width: window._rm * 2; height: window._rm * 2; cursorShape: Qt.SizeBDiagCursor
+        onPressed: window.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
+    }
+    // Top-right corner
+    MouseArea {
+        anchors.right: parent.right; anchors.top: parent.top
+        width: window._rm * 2; height: window._rm * 2; cursorShape: Qt.SizeBDiagCursor
+        onPressed: window.startSystemResize(Qt.RightEdge | Qt.TopEdge)
+    }
+    // Top-left corner
+    MouseArea {
+        anchors.left: parent.left; anchors.top: parent.top
+        width: window._rm * 2; height: window._rm * 2; cursorShape: Qt.SizeFDiagCursor
+        onPressed: window.startSystemResize(Qt.LeftEdge | Qt.TopEdge)
+    }
 }

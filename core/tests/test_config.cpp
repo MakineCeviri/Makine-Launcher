@@ -101,7 +101,7 @@ TEST_F(DefaultConfigTest, DatabaseDefaults) {
 
 TEST_F(DefaultConfigTest, CoreConfigDefaults) {
     CoreConfig c;
-    EXPECT_EQ(c.apiBaseUrl, "https://api.makineceviri.net/v1");
+    EXPECT_EQ(c.apiBaseUrl, "https://api.makineceviri.org/v1");
     EXPECT_TRUE(c.autoUpdateRuntime);
     EXPECT_FALSE(c.enableAnalytics);
 }

@@ -313,7 +313,7 @@ TEST_F(ValidationTest, ValidateUrl_ValidHttp) {
 }
 
 TEST_F(ValidationTest, ValidateUrl_ValidHttps) {
-    auto result = validateUrl("https://cdn.makineceviri.net/data/pkg.makine");
+    auto result = validateUrl("https://cdn.makineceviri.org/data/pkg.makine");
     ASSERT_TRUE(result.has_value());
 }
 
@@ -343,7 +343,7 @@ TEST_F(ValidationTest, ValidateUrl_SuspiciousTraversal) {
 // =============================================================================
 
 TEST_F(ValidationTest, ValidateHttpsUrl_AcceptsHttps) {
-    auto result = validateHttpsUrl("https://cdn.makineceviri.net/index.json");
+    auto result = validateHttpsUrl("https://cdn.makineceviri.org/index.json");
     ASSERT_TRUE(result.has_value());
 }
 

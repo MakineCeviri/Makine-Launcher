@@ -30,7 +30,7 @@ jobs:
           python3 -c "
           import json, urllib.request, sys
 
-          CDN = 'https://cdn.makineceviri.net'
+          CDN = 'https://cdn.makineceviri.org'
           R2  = 'https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev'
 
           def fetch(url):
@@ -57,7 +57,7 @@ jobs:
 
           # Domain check
           bad_domain = [k for k,v in packages.items()
-                        if 'cdn.makineceviri.net' not in v.get('dataUrl','')]
+                        if 'cdn.makineceviri.org' not in v.get('dataUrl','')]
 
           # Required fields check
           required = ['name', 'dataUrl', 'checksum', 'size', 'dirName']
@@ -104,7 +104,7 @@ jobs:
         run: |
           npm install -g wrangler
 
-          CDN="https://cdn.makineceviri.net"
+          CDN="https://cdn.makineceviri.org"
           R2="https://pub-140c7bb439d7479b96e73779ff0a7c5f.r2.dev"
 
           # Download current index (try custom domain, fallback to R2)

@@ -296,7 +296,7 @@ CoreConfig CoreConfig::getDefaults() {
 #endif
 
     // API and runtime settings
-    config.apiBaseUrl = "https://api.makineceviri.net/v1";
+    config.apiBaseUrl = "https://api.makineceviri.org/v1";
     config.publicKeyPath = "";
     config.logLevel = spdlog::level::info;
     config.autoUpdateRuntime = true;

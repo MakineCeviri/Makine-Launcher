@@ -385,7 +385,7 @@ ColumnLayout {
             }
             Label {
                 textFormat: Text.PlainText
-                text: "makineceviri.net"
+                text: "makineceviri.org"
                 font.pixelSize: Dimensions.fontMini; font.weight: Font.DemiBold
                 color: Theme.accentLight
                 anchors.verticalCenter: parent.verticalCenter
@@ -401,7 +401,7 @@ ColumnLayout {
         MouseArea {
             id: secMa; anchors.fill: parent; hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: Qt.openUrlExternally("https://makineceviri.net")
+            onClicked: Qt.openUrlExternally("https://makineceviri.org")
         }
     }
 }

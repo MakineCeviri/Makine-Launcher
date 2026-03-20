@@ -78,11 +78,11 @@ TEST_F(SslPinningTest, ExtractHost_SchemeEndAtStringEnd) {
 // =========================================================================
 
 TEST_F(SslPinningTest, IsPinnedDomain_KnownDomain) {
-    EXPECT_TRUE(isPinnedDomain("https://makineceviri.net/api"));
+    EXPECT_TRUE(isPinnedDomain("https://makineceviri.org/api"));
 }
 
 TEST_F(SslPinningTest, IsPinnedDomain_CdnDomain) {
-    EXPECT_TRUE(isPinnedDomain("https://cdn.makineceviri.net/data/pkg.makine"));
+    EXPECT_TRUE(isPinnedDomain("https://cdn.makineceviri.org/data/pkg.makine"));
 }
 
 TEST_F(SslPinningTest, IsPinnedDomain_UnknownDomain) {
@@ -98,7 +98,7 @@ TEST_F(SslPinningTest, IsPinnedDomain_MalformedUrl) {
 }
 
 TEST_F(SslPinningTest, IsPinnedDomain_SubdomainNotPinned) {
-    EXPECT_FALSE(isPinnedDomain("https://sub.makineceviri.net/api"));
+    EXPECT_FALSE(isPinnedDomain("https://sub.makineceviri.org/api"));
 }
 
 // =========================================================================
@@ -106,7 +106,7 @@ TEST_F(SslPinningTest, IsPinnedDomain_SubdomainNotPinned) {
 // =========================================================================
 
 TEST_F(SslPinningTest, BuildPinString_ValidDomain) {
-    auto pins = buildPinString("makineceviri.net");
+    auto pins = buildPinString("makineceviri.org");
     EXPECT_FALSE(pins.empty());
     EXPECT_NE(pins.find("sha256//"), std::string::npos);
     // Two pins (primary + backup) separated by ';'
@@ -114,7 +114,7 @@ TEST_F(SslPinningTest, BuildPinString_ValidDomain) {
 }
 
 TEST_F(SslPinningTest, BuildPinString_CdnDomain) {
-    auto pins = buildPinString("cdn.makineceviri.net");
+    auto pins = buildPinString("cdn.makineceviri.org");
     EXPECT_FALSE(pins.empty());
     EXPECT_NE(pins.find("sha256//"), std::string::npos);
 }
@@ -134,7 +134,7 @@ TEST_F(SslPinningTest, BuildPinString_EmptyDomain) {
 // =========================================================================
 
 TEST_F(SslPinningTest, ApplySslPinning_NullCurlHandle) {
-    EXPECT_FALSE(applySslPinning(nullptr, "https://makineceviri.net/api"));
+    EXPECT_FALSE(applySslPinning(nullptr, "https://makineceviri.org/api"));
 }
 
 TEST_F(SslPinningTest, ApplySslPinning_EmptyUrl) {

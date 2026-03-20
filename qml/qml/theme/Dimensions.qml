@@ -20,8 +20,8 @@ QtObject {
     // =========================================================================
 
     readonly property string discordUrl: "https://discord.com/invite/QDezpy4QtV"
-    readonly property string websiteUrl: "https://makineceviri.net/"
-    readonly property string donatePageUrl: "https://makineceviri.net/destekci-ol"
+    readonly property string websiteUrl: "https://makineceviri.org/"
+    readonly property string donatePageUrl: "https://makineceviri.org/destekci-ol"
 
     // GitHub
     readonly property string githubOwner: "MakineCeviri"

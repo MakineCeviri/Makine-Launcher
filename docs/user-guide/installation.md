@@ -32,7 +32,7 @@ Bu kılavuz Makine-Launcher'ın kurulumunu adım adım anlatmaktadır.
 
 Son sürümü resmi web sitesinden indirin:
 
-[makineceviri.net](https://makineceviri.net)
+[makineceviri.org](https://makineceviri.org)
 
 ### Adım 2: Arşivi Açma
 

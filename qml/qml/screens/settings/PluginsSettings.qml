@@ -879,7 +879,7 @@ ColumnLayout {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Qt.openUrlExternally("https://makineceviri.net/docs/plugin-api")
+                        onClicked: Qt.openUrlExternally("https://makineceviri.org/docs/plugin-api")
                     }
                 }
             }

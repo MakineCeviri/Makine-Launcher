@@ -125,8 +125,8 @@ TEST_F(SandboxPolicyTest, FileAccessRuleEmptyDescription) {
 // =========================================================================
 
 TEST_F(SandboxPolicyTest, NetworkAccessRuleAllowHttps) {
-    auto rule = NetworkAccessRule::allowHttps("api.makineceviri.net", "API");
-    EXPECT_EQ(rule.hostPattern, "api.makineceviri.net");
+    auto rule = NetworkAccessRule::allowHttps("api.makineceviri.org", "API");
+    EXPECT_EQ(rule.hostPattern, "api.makineceviri.org");
     EXPECT_EQ(rule.portMin, 443);
     EXPECT_EQ(rule.portMax, 443);
     EXPECT_TRUE(rule.allow);

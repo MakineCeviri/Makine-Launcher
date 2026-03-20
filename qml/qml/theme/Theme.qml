@@ -19,7 +19,7 @@ QtObject {
     // BACKGROUND COLORS
     // =========================================================================
 
-    /// Ana arka plan — matches makineceviri.net
+    /// Ana arka plan — matches makineceviri.org
     readonly property color bgPrimary: darkMode ? "#07070a" : lightBackground
 
     /// İkincil arka plan
@@ -35,7 +35,7 @@ QtObject {
     // SURFACE COLORS (Cards, Panels)
     // =========================================================================
 
-    /// Normal surface — matches makineceviri.net
+    /// Normal surface — matches makineceviri.org
     readonly property color surface: darkMode ? "#121216" : lightSurface
 
     /// Light surface
@@ -138,7 +138,7 @@ QtObject {
     // METİN RENKLERİ
     // =========================================================================
 
-    /// Birincil metin — warm cream (matches makineceviri.net)
+    /// Birincil metin — warm cream (matches makineceviri.org)
     readonly property color textPrimary: darkMode ? "#dedad4" : lightTextPrimary
 
     /// Renkli/koyu arka plan üzerindeki beyaz metin
@@ -147,7 +147,7 @@ QtObject {
     /// İkincil metin
     readonly property color textSecondary: darkMode ? "#A1A1AA" : lightTextSecondary
 
-    /// Soluk metin — warm gray (matches makineceviri.net)
+    /// Soluk metin — warm gray (matches makineceviri.org)
     readonly property color textMuted: darkMode ? "#7d7a73" : lightTextMuted
 
     /// Devre dışı metin
@@ -157,7 +157,7 @@ QtObject {
     // BORDER / SEPARATOR COLORS
     // =========================================================================
 
-    /// Normal kenar — matches makineceviri.net
+    /// Normal kenar — matches makineceviri.org
     readonly property color border: darkMode ? "#1b1b21" : lightBorder
 
     /// Vurgulu kenar

@@ -5,7 +5,7 @@
  * @brief Centralized CDN URL configuration
  *
  * All Cloudflare R2 CDN endpoints in one place.
- * Domain: cdn.makineceviri.net (R2 custom domain via Cloudflare)
+ * Domain: cdn.makineceviri.org (R2 custom domain via Cloudflare)
  *
  * R2 bucket structure:
  *   assets/index.json           - Package catalog (258 entries)
@@ -19,16 +19,16 @@
 namespace makine::cdn {
 
 // Base domain — change this single line to migrate all endpoints
-inline constexpr auto kDomain     = "cdn.makineceviri.net";
-inline constexpr auto kBaseUrl    = "https://cdn.makineceviri.net";
+inline constexpr auto kDomain     = "cdn.makineceviri.org";
+inline constexpr auto kBaseUrl    = "https://cdn.makineceviri.org";
 
 // Asset endpoints
-inline constexpr auto kAssetsBase = "https://cdn.makineceviri.net/assets/";
-inline constexpr auto kImagesBase = "https://cdn.makineceviri.net/assets/images/";
-inline constexpr auto kUpdateJson = "https://cdn.makineceviri.net/assets/update.json";
-inline constexpr auto kBannersBase= "https://cdn.makineceviri.net/assets/banners/";
+inline constexpr auto kAssetsBase = "https://cdn.makineceviri.org/assets/";
+inline constexpr auto kImagesBase = "https://cdn.makineceviri.org/assets/images/";
+inline constexpr auto kUpdateJson = "https://cdn.makineceviri.org/assets/update.json";
+inline constexpr auto kBannersBase= "https://cdn.makineceviri.org/assets/banners/";
 
 // Data endpoint (encrypted .makine packages)
-inline constexpr auto kDataBase   = "https://cdn.makineceviri.net/data/";
+inline constexpr auto kDataBase   = "https://cdn.makineceviri.org/data/";
 
 } // namespace makine::cdn

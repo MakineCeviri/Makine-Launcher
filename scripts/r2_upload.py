@@ -286,7 +286,7 @@ def main():
     # Upload mode
     total = len(files)
     total_size = sum(f.stat().st_size for f in files)
-    public_url = config.get("public_url", "https://cdn.makineceviri.net")
+    public_url = config.get("public_url", "https://cdn.makineceviri.org")
 
     print(f"Uploading {total} packages to R2 ({total_size:,} bytes / {total_size / (1024**3):.2f} GB)")
     print(f"  Bucket: {bucket}")
