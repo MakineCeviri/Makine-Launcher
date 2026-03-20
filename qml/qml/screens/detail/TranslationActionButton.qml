@@ -167,14 +167,14 @@ Rectangle {
             Behavior on iconColor { ColorAnimation { duration: Dimensions.animFast } }
 
             onPaint: drawIcon()
-            onIconColorChanged: requestPaint()
             Component.onCompleted: requestPaint()
 
-            // Redraw when state changes
+            // Coalesce repaints — multiple triggers in same frame → single repaint
             property string _st: actionBtn._state
-            on_StChanged: requestPaint()
             property bool _h: actionBtn._hovered
-            on_HChanged: { if (actionBtn._state === "installed") requestPaint() }
+            onIconColorChanged: Qt.callLater(requestPaint)
+            on_StChanged: Qt.callLater(requestPaint)
+            on_HChanged: { if (actionBtn._state === "installed") Qt.callLater(requestPaint) }
 
             function drawIcon() {
                 var ctx = getContext("2d")
