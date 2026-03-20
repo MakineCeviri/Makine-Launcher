@@ -566,30 +566,50 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
         }
     }
 
-    // Tier 3: Substring match (either direction)
-    for (const auto& [appId, pkg] : packages_) {
-        const std::string dirLower  = toLower(pkg.dirName);
-        const std::string nameLower = toLower(pkg.gameName);
+    // Tier 3: Substring match — require minimum 5 chars to avoid false positives
+    if (normalized.size() >= 5) {
+        for (const auto& [appId, pkg] : packages_) {
+            const std::string dirLower  = toLower(pkg.dirName);
+            const std::string nameLower = toLower(pkg.gameName);
 
-        if (normalized.find(nameLower) != std::string::npos ||
-            nameLower.find(normalized) != std::string::npos ||
-            normalized.find(dirLower) != std::string::npos ||
-            dirLower.find(normalized) != std::string::npos)
-        {
-            return appId;
+            if ((nameLower.size() >= 5 && nameLower.find(normalized) != std::string::npos) ||
+                (nameLower.size() >= 5 && normalized.find(nameLower) != std::string::npos) ||
+                (dirLower.size() >= 5 && dirLower.find(normalized) != std::string::npos) ||
+                (dirLower.size() >= 5 && normalized.find(dirLower) != std::string::npos))
+            {
+                return appId;
+            }
         }
     }
 
     // Tier 4: Token-based similarity (handles word reordering, noise words)
     //   "Grand Theft Auto V" ↔ "GrandTheftAutoV"
     //   Requires >= 80% Jaccard similarity AND >= 2 matching tokens
-    const auto inputTokens = tokenize(normalized);
+
+    // Normalize Roman numerals for token comparison
+    static const std::vector<std::pair<std::string, std::string>> numerals = {
+        {"ii", "2"}, {"iii", "3"}, {"iv", "4"}, {"v", "5"},
+        {"vi", "6"}, {"vii", "7"}, {"viii", "8"}, {"ix", "9"}, {"x", "10"}
+    };
+
+    auto normalizeNumerals = [&](std::vector<std::string>& tokens) {
+        for (auto& t : tokens) {
+            for (const auto& [roman, arabic] : numerals) {
+                if (t == roman) { t = arabic; break; }
+            }
+        }
+    };
+
+    auto inputTokens = tokenize(normalized);
+    normalizeNumerals(inputTokens);
+
     if (inputTokens.size() >= 2) {
         std::string bestAppId;
         double bestScore = 0.0;
 
         for (const auto& [appId, pkg] : packages_) {
             auto nameTokens = tokenize(pkg.gameName);
+            normalizeNumerals(nameTokens);
             double score = tokenSimilarity(inputTokens, nameTokens);
             if (score > bestScore) {
                 bestScore = score;
@@ -597,6 +617,7 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
             }
 
             auto dirTokens = tokenize(pkg.dirName);
+            normalizeNumerals(dirTokens);
             score = tokenSimilarity(inputTokens, dirTokens);
             if (score > bestScore) {
                 bestScore = score;
@@ -820,8 +841,9 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
                 score += 15;
                 matchedBy += matchedBy.empty() ? "engine" : "+engine";
             } else if (fp.engineHint != "custom" && engineHint != "custom" && engineHint != "unknown") {
-                // Contradiction — only penalize if both are specific
-                score -= 20;
+                // Engine contradiction: reduce penalty (was -20, now -10)
+                // Some games report different engines depending on launcher version
+                score -= 10;
             }
         }
 
