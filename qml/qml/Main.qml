@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Dialogs
+import QtQuick.Effects
 import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
@@ -202,7 +203,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
+            if (homeView) homeView.showHomePage()
         }
     }
     Shortcut {
@@ -211,7 +212,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
+            if (homeView) homeView.showHomePage()
         }
     }
     Shortcut {
@@ -220,7 +221,7 @@ ApplicationWindow {
         onActivated: {
             window.currentNavIndex = 1
             contentStackContainer.navigateTo(0)
-            homeView.showLibraryPage()
+            if (homeView) homeView.showLibraryPage()
         }
     }
     Shortcut {
@@ -421,7 +422,7 @@ ApplicationWindow {
             onHomeClicked: {
                 window.currentNavIndex = 0
                 contentStackContainer.navigateTo(0)
-                homeView.showHomePage()
+                if (homeView) homeView.showHomePage()
             }
             onSettingsClicked: {
                 window.currentNavIndex = 2
@@ -430,7 +431,7 @@ ApplicationWindow {
             onLibraryClicked: {
                 window.currentNavIndex = 1
                 contentStackContainer.navigateTo(0)
-                homeView.showLibraryPage()
+                if (homeView) homeView.showLibraryPage()
             }
         }
 
@@ -495,7 +496,7 @@ ApplicationWindow {
 
             function getPage(index) {
                 switch(index) {
-                    case 0: return homeView
+                    case 0: return homeLoader
                     case 1: return settingsLoader
                     case 2: return gameDetailLoader
                     default: return null
@@ -561,27 +562,33 @@ ApplicationWindow {
                 }
             }
 
-            HomeScreen {
-                id: homeView
+            Loader {
+                id: homeLoader
                 anchors.fill: parent
-                visible: contentStackContainer.homeVisible
-                animationsEnabled: window.animationsEnabled
+                asynchronous: true
+                active: true
+                sourceComponent: HomeScreen {
+                    visible: contentStackContainer.homeVisible
+                    animationsEnabled: window.animationsEnabled
 
-                onGameSelected: function(gameId, gameName, installPath, engine) {
-                    detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, false))
-                    detailVM.fromLibrary = (homeView.currentPage === 1)
-                    window.previousNavIndex = window.currentNavIndex
-                    contentStackContainer.navigateTo(2)
-                }
-                onManualFolderRequested: manualFolderDialog.open()
+                    onGameSelected: function(gameId, gameName, installPath, engine) {
+                        detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, false))
+                        detailVM.fromLibrary = (homeView ? homeView.currentPage === 1 : false)
+                        window.previousNavIndex = window.currentNavIndex
+                        contentStackContainer.navigateTo(2)
+                    }
+                    onManualFolderRequested: manualFolderDialog.open()
 
-                onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
-                    detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
-                    detailVM.fromLibrary = (homeView.currentPage === 1)
-                    window.previousNavIndex = window.currentNavIndex
-                    contentStackContainer.navigateTo(2)
+                    onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
+                        detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
+                        detailVM.fromLibrary = (homeView ? homeView.currentPage === 1 : false)
+                        window.previousNavIndex = window.currentNavIndex
+                        contentStackContainer.navigateTo(2)
+                    }
                 }
             }
+            // Alias to preserve all external homeView references
+            readonly property var homeView: homeLoader.item
 
             // Lazy-loaded settings page (keep alive after first load)
             Loader {
@@ -633,9 +640,9 @@ ApplicationWindow {
                             } else {
                                 contentStackContainer.navigateTo(0)
                                 if (window.previousNavIndex === 1)
-                                    homeView.showLibraryPage()
+                                    if (homeView) homeView.showLibraryPage()
                                 else
-                                    homeView.showHomePage()
+                                    if (homeView) homeView.showHomePage()
                             }
                         }
                     }
@@ -663,7 +670,7 @@ ApplicationWindow {
             var gameName = (gameData && gameData.name) || ""
             var engine = (gameData && gameData.engine) || "Unknown"
             var installPath = (gameData && gameData.installPath) || ""
-            homeView.gameSelected(gameId, gameName, installPath, engine)
+            if (homeView) homeView.gameSelected(gameId, gameName, installPath, engine)
         }
     }
 
@@ -923,6 +930,18 @@ ApplicationWindow {
             else
                 regionSelector.hide()
         }
+    }
+
+    // ===== SHADER WARM-UP (pre-compile all effect variants during first frame) =====
+    Item {
+        id: _shaderWarmup
+        width: 2; height: 2; visible: false
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            shadowEnabled: true; shadowBlur: 0.5; shadowColor: "black"
+            blurEnabled: true; blur: 0.1
+        }
+        Component.onCompleted: Qt.callLater(function() { _shaderWarmup.destroy() })
     }
 
     // ===== WINDOW RESIZE HANDLES (frameless window) =====
