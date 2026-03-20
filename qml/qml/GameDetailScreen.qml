@@ -364,47 +364,72 @@ Item {
     Accessible.name: root.viewModel.gameName
 
     // =========================================================================
-    // BACK BUTTON — glassmorphic overlay, top-left corner
+    // BACK BUTTON — premium glassmorphic pill, top-left corner
     // =========================================================================
 
     Rectangle {
         x: Dimensions.marginML
         y: Dimensions.marginML
         z: 100
-        implicitWidth: _backRow.implicitWidth + 20
-        implicitHeight: 32
-        radius: Dimensions.radiusMD
-        color: _backMouse.containsMouse ? "#60202020" : "#40202020"
-        scale: _backMouse.pressed ? 0.95 : 1.0
-        Behavior on color { ColorAnimation { duration: 100 } }
-        Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+        implicitWidth: _backRow.implicitWidth + 28
+        implicitHeight: 36
+        radius: implicitHeight / 2
+        color: _backMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.08)
+        border.color: _backMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.12)
+        border.width: 1
+        scale: _backMouse.pressed ? 0.93 : (_backMouse.containsMouse ? 1.04 : 1.0)
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+        // Subtle top-lit gradient border
+        GradientBorder {
+            cornerRadius: parent.radius
+            topColor: Qt.rgba(1, 1, 1, 0.18)
+            midColor: Qt.rgba(1, 1, 1, 0.04)
+            bottomColor: Qt.rgba(1, 1, 1, 0.01)
+        }
 
         Row {
             id: _backRow
             anchors.centerIn: parent
-            spacing: Dimensions.spacingSM
+            spacing: Dimensions.spacingMD
 
-            Text {
-                textFormat: Text.PlainText
-                text: "\uE72B"
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 12
-                color: "#ffffff"
+            // Chevron arrow
+            Canvas {
+                width: 14; height: 14
                 anchors.verticalCenter: parent.verticalCenter
+                renderStrategy: Canvas.Cooperative
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.clearRect(0, 0, width, height)
+                    ctx.strokeStyle = "#ffffff"
+                    ctx.lineWidth = 1.8
+                    ctx.lineCap = "round"
+                    ctx.lineJoin = "round"
+                    ctx.beginPath()
+                    ctx.moveTo(9, 2)
+                    ctx.lineTo(4, 7)
+                    ctx.lineTo(9, 12)
+                    ctx.stroke()
+                }
             }
 
             Text {
                 text: qsTr("Geri")
                 font.pixelSize: Dimensions.fontBody
-                font.weight: Font.Medium
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.3
                 color: "#ffffff"
                 textFormat: Text.PlainText
+                anchors.verticalCenter: parent.verticalCenter
             }
         }
 
         MouseArea {
             id: _backMouse
             anchors.fill: parent
+            anchors.margins: -4
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.backClicked()

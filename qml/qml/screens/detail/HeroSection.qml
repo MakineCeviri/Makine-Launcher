@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
@@ -96,6 +97,16 @@ Item {
         }
     }
 
+    // Reset CDN fallback flags when game changes
+    Connections {
+        target: heroRoot.vm
+        function onSteamAppIdChanged() {
+            bannerImg._useCdnFallback = false
+            gameLogo._useCdnFallback = false
+            gameLogo._aspect = 0
+        }
+    }
+
     // =========================================================================
     // HERO BANNER (full width, 280px, multi-stop gradient fade)
     // =========================================================================
@@ -110,7 +121,10 @@ Item {
         Image {
             id: bannerImg
             anchors.fill: parent
-            source: heroRoot.vm.heroUrl
+            property bool _useCdnFallback: false
+            source: _useCdnFallback
+                ? "https://cdn.makineceviri.org/assets/banners/" + heroRoot.vm.steamAppId + ".jpg"
+                : heroRoot.vm.heroUrl
             fillMode: Image.PreserveAspectCrop
             verticalAlignment: Image.AlignTop
             sourceSize: Qt.size(width, height)
@@ -118,6 +132,10 @@ Item {
             mipmap: true
             opacity: status === Image.Ready ? 1.0 : 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+            onStatusChanged: {
+                if (status === Image.Error && !_useCdnFallback && heroRoot.vm.steamAppId !== "")
+                    _useCdnFallback = true
+            }
         }
 
         // Top vignette — subtle darkening for contrast
@@ -169,10 +187,16 @@ Item {
             transform: Translate { y: heroRoot._titleTY }
 
             // Game identity — title as placeholder, logo replaces when loaded
+            // Logo sizing: 10% of window width, clamped 60–140px, proportional
             Item {
                 id: gameIdentity
                 Layout.fillWidth: true
-                Layout.preferredHeight: gameLogo.ready ? Math.min(width * gameLogo._aspect, 80) : gameTitle.implicitHeight
+
+                readonly property real _clampedH: Math.max(60, Math.min(140, heroRoot.width * 0.10))
+
+                Layout.preferredHeight: gameLogo.ready
+                    ? Math.min(width * gameLogo._aspect, _clampedH)
+                    : gameTitle.implicitHeight
 
                 Text {
                     id: gameTitle
@@ -198,16 +222,33 @@ Item {
                     anchors.fill: parent
                     property real _aspect: 0
                     property bool ready: _aspect > 0
-                    onStatusChanged: if (status === Image.Ready && implicitWidth > 0)
-                        _aspect = implicitHeight / implicitWidth
+                    property bool _useCdnFallback: false
+                    onStatusChanged: {
+                        if (status === Image.Ready && implicitWidth > 0)
+                            _aspect = implicitHeight / implicitWidth
+                        if (status === Image.Error && !_useCdnFallback && heroRoot.vm.steamAppId !== "")
+                            _useCdnFallback = true
+                    }
                     visible: ready
-                    source: heroRoot.vm.logoUrl
+                    source: _useCdnFallback
+                        ? "https://cdn.makineceviri.org/assets/banners/" + heroRoot.vm.steamAppId + "_logo.png"
+                        : heroRoot.vm.logoUrl
                     asynchronous: true
                     mipmap: true
                     fillMode: Image.PreserveAspectFit
                     horizontalAlignment: Image.AlignHCenter
                     sourceSize.width: 500
                     opacity: ready ? 1 : 0
+                    layer.enabled: ready
+                    layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: "#ffffff"
+                        shadowBlur: 0.8
+                        shadowVerticalOffset: 0
+                        shadowHorizontalOffset: 0
+                        shadowOpacity: 0.5
+                        brightness: 0.15
+                    }
                     Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
             }
@@ -339,12 +380,13 @@ Item {
         }
 
         // =================================================================
-        // ACTION BUTTON
+        // ACTION BUTTON (right under title when available)
         // =================================================================
 
         Item {
             Layout.fillWidth: true
-            implicitHeight: actionCol.implicitHeight
+            visible: heroRoot.vm.hasTranslation && heroRoot.vm.isGameInstalled
+            implicitHeight: visible ? actionCol.implicitHeight : 0
             opacity: heroRoot._actionOp
             transform: Translate { y: heroRoot._actionTY }
 
@@ -418,7 +460,7 @@ Item {
         }
 
         // =================================================================
-        // INFO TILES BAR
+        // INFO TILES BAR (genre, metacritic, release — below action button)
         // =================================================================
 
         InfoTilesBar {

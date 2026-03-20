@@ -139,11 +139,23 @@ Rectangle {
         anchors.centerIn: parent
         spacing: Dimensions.spacingMD
 
+        // Apex logo (external state only) — embedded, sized to button height
+        Image {
+            visible: actionBtn._state === "external"
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredHeight: actionBtn.height * 1.06
+            Layout.preferredWidth: Layout.preferredHeight * (sourceSize.width / Math.max(1, sourceSize.height))
+            source: "qrc:/qt/qml/MakineLauncher/resources/images/apex_logo.svg"
+            sourceSize: Qt.size(128, 128)
+            fillMode: Image.PreserveAspectFit
+            mipmap: true
+        }
+
         // State icon (Canvas-rendered for crisp small sizes)
         Canvas {
             id: stateIcon
             width: 18; height: 18
-            visible: actionBtn._state !== "installing"
+            visible: actionBtn._state !== "installing" && actionBtn._state !== "external"
             Layout.alignment: Qt.AlignVCenter
             renderStrategy: Canvas.Cooperative
 
@@ -302,7 +314,7 @@ Rectangle {
                         return qsTr("Kuruluyor... %1%").arg(actionBtn.vm.progressPercent)
                     return actionBtn.vm.installStatus || qsTr("Hazırlanıyor...")
                 case "external":
-                    return qsTr("ApexYama'da İndir")
+                    return qsTr("İndir")
                 case "download":
                 default:
                     return qsTr("Türkçe Yama İndir")
