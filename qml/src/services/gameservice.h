@@ -97,7 +97,14 @@ public:
 
     // Properties
     QVariantList games() const;
-    int gameCount() const { return games().count(); }
+    int gameCount() const {
+        // Avoid calling games() which may trigger a full QVariantList rebuild.
+        // Count directly from the source list — installed + has-translation filter.
+        int n = 0;
+        for (const auto& g : m_games)
+            if (g.isInstalled && g.hasTranslation) ++n;
+        return n;
+    }
     bool isScanning() const { return m_isScanning; }
     QVariantList supportedGames() const;
     QVariantList installedTranslations() const;

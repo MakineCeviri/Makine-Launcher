@@ -803,16 +803,10 @@ QVariantList GameService::supportedGames() const
 
 int GameService::installedTranslationCount() const
 {
-    if (m_installedCacheValid)
-        return m_installedTranslationsCache.count();
-
-    if (!m_coreBridge) return 0;
-    int count = 0;
-    for (const auto& game : m_games) {
-        if (m_coreBridge->isPackageInstalled(game.id))
-            ++count;
-    }
-    return count;
+    // Reuse the already-populated installed translations cache.
+    // The old path re-iterated m_games calling isPackageInstalled() each time,
+    // bypassing the cache. installedTranslations() populates the cache once.
+    return installedTranslations().count();
 }
 
 int GameService::outdatedPatchCount() const

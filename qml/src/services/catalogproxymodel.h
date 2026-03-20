@@ -125,6 +125,9 @@ private:
 
     // Pre-computed mapping (rebuilt on filter/offset/limit change)
     QVector<int> m_slicedRows;
+    // Reverse map: sourceRow → proxy index in m_slicedRows (-1 if not visible).
+    // Built alongside m_slicedRows — enables O(1) onSourceDataChanged dispatch.
+    QHash<int, int> m_sourceToProxy;
     int m_filteredCount{0};
     int m_exposedCount{0};
 };
