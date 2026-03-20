@@ -169,10 +169,14 @@ Item {
         }
     }
 
-    // Edge fade — only visible when content overflows (4+ games)
+    // Edge fade — only when content overflows
     readonly property bool _needsEdge: view.contentWidth > view.width
     readonly property int _edgeW: Math.ceil(view._baseH * (view._hoverScale - 1.0)) + 16
 
+    // Strip-level hover
+    HoverHandler { id: stripHover }
+
+    // --- Left edge + nav chevron ---
     Rectangle {
         visible: strip._needsEdge
         anchors.left: parent.left; anchors.top: view.top; anchors.bottom: view.bottom
@@ -183,7 +187,30 @@ Item {
             GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.5) }
             GradientStop { position: 1.0; color: "transparent" }
         }
+
+        Canvas {
+            anchors.centerIn: parent; width: 16; height: 16
+            opacity: stripHover.hovered && view.contentX > view.originX + 10 ? 0.9 : 0
+            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            renderStrategy: Canvas.Cooperative
+            onPaint: {
+                var ctx = getContext("2d"); ctx.clearRect(0,0,width,height)
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.2
+                ctx.lineCap = "round"; ctx.lineJoin = "round"
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 8
+                ctx.beginPath(); ctx.moveTo(11,2); ctx.lineTo(5,8); ctx.lineTo(11,14); ctx.stroke()
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent; z: 20
+            cursorShape: Qt.PointingHandCursor
+            visible: stripHover.hovered && view.contentX > view.originX + 10
+            onClicked: { scrollAnim.stop(); scrollAnim.to = Math.max(view.originX, view.contentX - view.width * 0.6); scrollAnim.start() }
+        }
     }
+
+    // --- Right edge + nav chevron ---
     Rectangle {
         visible: strip._needsEdge
         anchors.right: parent.right; anchors.top: view.top; anchors.bottom: view.bottom
@@ -194,12 +221,33 @@ Item {
             GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.5) }
             GradientStop { position: 1.0; color: Theme.bgPrimary }
         }
+
+        Canvas {
+            anchors.centerIn: parent; width: 16; height: 16
+            opacity: stripHover.hovered && view.contentX < (view.contentWidth - view.width + view.originX - 10) ? 0.9 : 0
+            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            renderStrategy: Canvas.Cooperative
+            onPaint: {
+                var ctx = getContext("2d"); ctx.clearRect(0,0,width,height)
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.2
+                ctx.lineCap = "round"; ctx.lineJoin = "round"
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 8
+                ctx.beginPath(); ctx.moveTo(5,2); ctx.lineTo(11,8); ctx.lineTo(5,14); ctx.stroke()
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent; z: 20
+            cursorShape: Qt.PointingHandCursor
+            visible: stripHover.hovered && view.contentX < (view.contentWidth - view.width + view.originX - 10)
+            onClicked: { scrollAnim.stop(); scrollAnim.to = Math.min(view.contentWidth - view.width + view.originX, view.contentX + view.width * 0.6); scrollAnim.start() }
+        }
     }
 
     // Weighted drag — click only fires if movement < 8px
     MouseArea {
         anchors.fill: view
-        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+        cursorShape: _dragged ? Qt.ClosedHandCursor : Qt.ArrowCursor
 
         property real _startX: 0
         property real _startContentX: 0
@@ -250,7 +298,10 @@ Item {
             }
         }
 
+        property bool _wasDragged: false
+
         onReleased: {
+            _wasDragged = _dragged
             if (_dragged) {
                 strip._velocity = _releaseV * strip.dragWeight
                 if (Math.abs(strip._velocity) > 0.5) {
@@ -261,12 +312,16 @@ Item {
             } else {
                 if (typeof FrameTimer !== "undefined") FrameTimer.endInteraction()
             }
+            _dragged = false
         }
 
         onClicked: function(mouse) {
-            if (_dragged) return
+            if (_wasDragged) return
             var item = view.itemAt(view.contentX + mouse.x, mouse.y)
-            if (item) item.clicked()
+            if (!item) return
+            // Delegate is Item wrapper — find the GameCard child
+            if (typeof item.clicked === "function") item.clicked()
+            else if (item.children.length > 0 && typeof item.children[0].clicked === "function") item.children[0].clicked()
         }
     }
 

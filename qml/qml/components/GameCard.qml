@@ -57,14 +57,11 @@ Item {
         mipmap: true
     }
 
-    scale: cardMouse.containsMouse ? 1.03 : 1.0
+    scale: cardHover.hovered ? 1.03 : 1.0
     Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-    MouseArea {
-        id: cardMouse
-        anchors.fill: parent
-        hoverEnabled: true
+    HoverHandler {
+        id: cardHover
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
     }
 }
