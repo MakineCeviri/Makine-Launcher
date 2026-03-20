@@ -64,6 +64,18 @@ Result<std::vector<GameInfo>> EpicScanner::scan() const {
 
             const auto& manifest = *docResult;
 
+            // Skip DLC, add-ons, and non-executable content
+            bool isIncludedItem = manifest.getBool("bIsIncludedItem", false);
+            std::string mainGameId = manifest.getString("MainGameCatalogItemId");
+            bool isExecutable = manifest.getBool("bIsExecutable", true);
+
+            if (isIncludedItem || !mainGameId.empty() || !isExecutable) {
+                MAKINE_LOG_DEBUG(log::SCANNER, "Epic: Skipping DLC/content '{}' (included={}, mainGame={}, exe={})",
+                                 manifest.getString("DisplayName"), isIncludedItem, mainGameId, isExecutable);
+                metrics().increment("epic_dlc_skipped");
+                continue;
+            }
+
             GameInfo game;
             game.id.store = GameStore::EpicGames;
             game.id.storeId = manifest.getString("CatalogItemId");
@@ -84,6 +96,12 @@ Result<std::vector<GameInfo>> EpicScanner::scan() const {
             if (!launchExe.empty()) {
                 game.executablePath = game.installPath / launchExe;
             }
+
+            // Extract Epic-specific metadata for better matching
+            game.version = manifest.getString("AppVersionString");
+            std::string appName = manifest.getString("AppName");
+            if (!appName.empty() && game.name.empty())
+                game.name = appName;
 
             // Get size
             game.sizeBytes = manifest.getUint("InstallSize", 0);
