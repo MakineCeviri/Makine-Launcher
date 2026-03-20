@@ -117,6 +117,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+        clip: true
         readonly property int _minCardH: 100
         height: strip.largeCards
                     ? Math.min(parent.height, Math.round(Dimensions.cardHeight * 1.3))
@@ -156,6 +157,26 @@ Item {
                 model.name ?? model.gameName ?? "",
                 model.installPath ?? "", model.engine ?? ""
             )
+        }
+    }
+
+    // Edge fade gradients — smooth clip at left/right edges
+    Rectangle {
+        anchors.left: view.left; anchors.top: view.top; anchors.bottom: view.bottom
+        width: 40; z: 10
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: Theme.bgPrimary }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+    }
+    Rectangle {
+        anchors.right: view.right; anchors.top: view.top; anchors.bottom: view.bottom
+        width: 40; z: 10
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 1.0; color: Theme.bgPrimary }
         }
     }
 
