@@ -170,6 +170,16 @@ void GameService::setManifestSync(ManifestSyncService* sync)
                             && game.source != QLatin1String("steam")) {
                             QDir gameDir(game.installPath);
                             QString resolved = m_coreBridge->findMatchingAppId(gameDir.dirName());
+
+                            // For Epic games: also try matching by display name (not just folder name)
+                            if (resolved.isEmpty() && game.source == QLatin1String("epic")) {
+                                resolved = m_coreBridge->findMatchingAppId(game.name);
+                                if (!resolved.isEmpty()) {
+                                    qCInfo(lcGameService) << "Resolved Epic game" << game.name
+                                                          << "via display name:" << resolved;
+                                }
+                            }
+
                             if (!resolved.isEmpty()) {
                                 game.steamAppId = resolved;
                                 game.id = resolved;
