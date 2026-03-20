@@ -121,6 +121,8 @@ private:
         QString dataUrl;        // R2 download URL
         QString checksum;       // SHA-256 of .makine file
         QString dirName;        // filesystem directory name in translation_data
+        QString externalUrl;    // External partner URL (opens browser instead of download)
+        QString source;         // Origin: "apex" for partner translations
     };
 
     QHash<QString, CatalogEntry> m_catalog;  // appId -> entry

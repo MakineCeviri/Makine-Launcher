@@ -148,7 +148,7 @@ Item {
     ColumnLayout {
         id: mainColumn
         anchors.top: heroBanner.bottom
-        anchors.topMargin: -80
+        anchors.topMargin: -100
         anchors.left: parent.left
         anchors.leftMargin: Dimensions.marginXL
         anchors.right: parent.right
@@ -165,37 +165,48 @@ Item {
             opacity: heroRoot._titleOp
             transform: Translate { y: heroRoot._titleTY }
 
-            // Game logo (Steam) — centered
-            Image {
-                id: gameLogo
+            // Game identity — title as placeholder, logo replaces when loaded
+            Item {
+                id: gameIdentity
                 Layout.fillWidth: true
-                property real _aspect: 0
-                onStatusChanged: if (status === Image.Ready && implicitWidth > 0)
-                    _aspect = implicitHeight / implicitWidth
-                Layout.preferredHeight: _aspect > 0 ? Math.min(width * _aspect, 80) : 0
-                Layout.maximumHeight: 80
-                visible: _aspect > 0
-                source: heroRoot.vm.logoUrl
-                asynchronous: true
-                mipmap: true
-                fillMode: Image.PreserveAspectFit
-                horizontalAlignment: Image.AlignHCenter
-                sourceSize.width: 500
-            }
+                Layout.preferredHeight: gameLogo.ready ? Math.min(width * gameLogo._aspect, 80) : gameTitle.implicitHeight
 
-            // Game title — always visible, bold, centered
-            Text {
-                textFormat: Text.PlainText
-                Layout.fillWidth: true
-                text: heroRoot.vm.gameName
-                font.pixelSize: Dimensions.fontBanner
-                font.weight: Font.Bold
-                font.letterSpacing: -0.8
-                color: Theme.textPrimary
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignHCenter
+                Text {
+                    id: gameTitle
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !gameLogo.ready
+                    textFormat: Text.PlainText
+                    text: heroRoot.vm.gameName
+                    font.pixelSize: Dimensions.fontBanner
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.8
+                    color: Theme.textPrimary
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    opacity: gameLogo.ready ? 0 : 1
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                }
+
+                Image {
+                    id: gameLogo
+                    anchors.fill: parent
+                    property real _aspect: 0
+                    property bool ready: _aspect > 0
+                    onStatusChanged: if (status === Image.Ready && implicitWidth > 0)
+                        _aspect = implicitHeight / implicitWidth
+                    visible: ready
+                    source: heroRoot.vm.logoUrl
+                    asynchronous: true
+                    mipmap: true
+                    fillMode: Image.PreserveAspectFit
+                    horizontalAlignment: Image.AlignHCenter
+                    sourceSize.width: 500
+                    opacity: ready ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                }
             }
 
             // Developer name — centered
@@ -433,6 +444,11 @@ Item {
         ContributorsSection {
             Layout.fillWidth: true
             contributors: heroRoot.vm.contributors
+            externalUrl: heroRoot.vm.externalUrl
+            isApex: {
+                var cat = GameService.getCatalogEntry(heroRoot.vm.steamAppId || heroRoot.vm.gameId)
+                return cat && cat.source === "apex"
+            }
             opacity: heroRoot._contribOp
             transform: Translate { y: heroRoot._contribTY }
         }

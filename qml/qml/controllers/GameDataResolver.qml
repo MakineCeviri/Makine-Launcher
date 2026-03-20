@@ -25,6 +25,10 @@ QtObject {
         var hasTranslation = (gameData && gameData.hasTranslation) || false
         var pkgInstalled = (gameData && gameData.packageInstalled) || false
 
+        // Check for external partner URL (e.g. ApexYama)
+        var catalog = GameService.getCatalogEntry(resolvedSteamAppId || gameId)
+        var externalUrl = (catalog && catalog.externalUrl) || ""
+
         return {
             gameId: gameId,
             gameName: gameName,
@@ -36,7 +40,8 @@ QtObject {
             isManualGame: isManual,
             isGameInstalled: isInstalled,
             packageInstalled: pkgInstalled,
-            autoInstall: forceAutoInstall || false
+            autoInstall: forceAutoInstall || false,
+            externalUrl: externalUrl
         }
     }
 }
