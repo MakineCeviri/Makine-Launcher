@@ -1,22 +1,22 @@
-## Degisiklik Ozeti
+## Değişiklik Özeti
 
-<!-- Degisikliklerinizi kisaca aciklayin -->
+<!-- Değişikliklerinizi kısaca açıklayın -->
 
-## Ilgili Issue
+## İlgili Issue
 
-<!-- Ornek: closes #123 -->
+<!-- Örnek: closes #123 -->
 
-## Degisiklik Tipi
+## Değişiklik Tipi
 
 - [ ] Bug fix
-- [ ] Yeni ozellik
+- [ ] Yeni özellik
 - [ ] Refactor
-- [ ] Dokumantasyon
-- [ ] Diger
+- [ ] Dokümantasyon
+- [ ] Diğer
 
 ## Checklist
 
-- [ ] Build basariyla tamamlaniyor (`just dev`)
+- [ ] Build başarıyla tamamlanıyor (`just dev`)
 - [ ] Commit convention'a uygun (Conventional Commits)
-- [ ] Breaking change yok (varsa aciklayin)
-- [ ] Dokumantasyon guncellendi (gerekiyorsa)
+- [ ] Breaking change yok (varsa açıklayın)
+- [ ] Dokümantasyon güncellendi (gerekiyorsa)
