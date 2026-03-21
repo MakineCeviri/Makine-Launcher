@@ -10,10 +10,17 @@ import MakineLauncher 1.0
 Item {
     id: root
 
-    // Window drag
-    DragHandler {
-        target: null
-        onActiveChanged: if (active) root.Window.window?.startSystemMove()
+    // Window drag area (top 40px only — avoids blocking buttons)
+    Item {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 40
+        z: 5
+        DragHandler {
+            target: null
+            onActiveChanged: if (active) root.Window.window?.startSystemMove()
+        }
     }
 
     // Close button
