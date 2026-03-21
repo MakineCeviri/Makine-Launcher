@@ -62,18 +62,16 @@ Item {
         opacity: 0.03
     }
 
-    // Subtle noise texture via grid
-    Grid {
+    // Subtle grain overlay
+    Rectangle {
         anchors.fill: parent
-        columns: Math.ceil(parent.width / 3)
-        opacity: 0.015
-        Repeater {
-            model: Math.ceil(root.width / 3) * Math.ceil(root.height / 3)
-            Rectangle {
-                width: 3; height: 3
-                color: Math.random() > 0.5 ? "#ffffff" : "transparent"
-            }
-        }
+        color: "transparent"
+        opacity: 0.02
+        Rectangle { x: 10; y: 20; width: 2; height: 2; color: "#fff" }
+        Rectangle { x: 80; y: 60; width: 1; height: 1; color: "#fff" }
+        Rectangle { x: 200; y: 100; width: 2; height: 2; color: "#fff" }
+        Rectangle { x: 350; y: 40; width: 1; height: 1; color: "#fff" }
+        Rectangle { x: 150; y: 200; width: 2; height: 2; color: "#fff" }
     }
 
     // === CONTENT ===
@@ -94,7 +92,7 @@ Item {
             scale: 0.85
 
             NumberAnimation on opacity { to: 1; duration: 700; easing.type: Easing.OutCubic }
-            NumberAnimation on scale { to: 1; duration: 700; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+            NumberAnimation on scale { to: 1; duration: 700; easing.type: Easing.OutBack }
         }
 
         // Glow behind logo
@@ -194,13 +192,12 @@ Item {
 
                     background: Rectangle {
                         radius: 10
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: loginBtn.pressed ? "#0E7490" : loginBtn.hovered ? "#0891B2" : Theme.accent }
-                            GradientStop { position: 1.0; color: loginBtn.pressed ? "#0369A1" : loginBtn.hovered ? "#0284C7" : "#0EA5E9" }
+                        color: {
+                            if (!loginBtn.enabled) return Qt.rgba(0.024, 0.714, 0.831, 0.3)
+                            if (loginBtn.pressed) return "#0E7490"
+                            if (loginBtn.hovered) return "#0891B2"
+                            return Theme.accent
                         }
-                        opacity: loginBtn.enabled ? 1.0 : 0.3
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
                     }
                     contentItem: Text {
                         text: AuthService.state === AuthService.WaitingForBrowser
