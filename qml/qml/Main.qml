@@ -265,14 +265,10 @@ ApplicationWindow {
     }
 
     // Login screen — shown when not authenticated
-    Loader {
+    LoginScreen {
         anchors.fill: parent
-        active: !window._authReady
-        visible: active
+        visible: !window._authReady
         z: 100
-        sourceComponent: Component {
-            LoginScreen {}
-        }
     }
 
     ColumnLayout {

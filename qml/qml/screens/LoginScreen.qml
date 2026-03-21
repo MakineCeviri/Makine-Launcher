@@ -10,6 +10,13 @@ import MakineLauncher 1.0
 Item {
     id: root
 
+    // Block all mouse events from passing through to content behind
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        hoverEnabled: true
+    }
+
     // Window drag area (top 40px only — avoids blocking buttons)
     Item {
         anchors.left: parent.left
@@ -41,7 +48,10 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
-        onClicked: Qt.quit()
+        onClicked: {
+            console.log("[LoginScreen] Close button clicked")
+            Qt.quit()
+        }
     }
 
     // === BACKGROUND ===
@@ -217,7 +227,10 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    onClicked: AuthService.startLogin()
+                    onClicked: {
+                        console.log("[LoginScreen] Login button clicked, state:", AuthService.state)
+                        AuthService.startLogin()
+                    }
                 }
 
                 // Spinner
@@ -327,5 +340,14 @@ Item {
     Connections {
         target: AuthService
         function onLoginError(message) { errorText.text = message }
+        function onStateChanged() {
+            console.log("[LoginScreen] AuthService state:", AuthService.state,
+                        "isAuthenticated:", AuthService.isAuthenticated)
+        }
+    }
+
+    Component.onCompleted: {
+        console.log("[LoginScreen] Loaded. AuthService.state:", AuthService.state,
+                    "enabled button:", AuthService.state === AuthService.Unauthenticated)
     }
 }
