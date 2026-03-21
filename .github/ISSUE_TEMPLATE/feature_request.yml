@@ -1,0 +1,29 @@
+name: Ozellik Istegi
+description: Yeni bir ozellik onerin
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Ozellik Aciklamasi
+      description: Ne istediginizi aciklayin.
+      placeholder: Ozelligin detayli aciklamasi...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivasyon
+      description: Bu ozellik neden gerekli?
+      placeholder: Bu ozellik olmadan karsilastiginiz sorunlar...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatifler
+      description: Dusundugunuz alternatif cozumler varsa belirtin.
+    validations:
+      required: false

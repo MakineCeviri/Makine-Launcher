@@ -1,0 +1,66 @@
+name: Hata Raporu
+description: Bir hata bildirin
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Aciklama
+      description: Hatanin ne oldugunu aciklayin.
+      placeholder: Hatanin detayli aciklamasi...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden Uretme Adimlari
+      description: Hatayi yeniden uretmek icin adimlari yazin.
+      placeholder: |
+        1. '...' sayfasina gidin
+        2. '...' butonuna tiklayin
+        3. Hatayi gorun
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Beklenen Davranis
+      description: Ne olmasi gerektigini aciklayin.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Gerceklesen Davranis
+      description: Gercekte ne oldugunu aciklayin.
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows Surumu
+      description: "Ornek: Windows 11 23H2"
+      placeholder: Windows 11 23H2
+    validations:
+      required: true
+
+  - type: input
+    id: launcher-version
+    attributes:
+      label: Launcher Surumu
+      description: "Ornek: v0.1.0-alpha"
+      placeholder: v0.1.0-alpha
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Ekran Goruntuleri
+      description: Varsa ekran goruntuleri ekleyin.
+    validations:
+      required: false
