@@ -172,8 +172,6 @@ Item {
             color: Qt.rgba(1, 1, 1, 0.04)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.07)
-            opacity: 0
-            NumberAnimation on opacity { to: 1; duration: 500 }
 
             ColumnLayout {
                 id: cardContent
