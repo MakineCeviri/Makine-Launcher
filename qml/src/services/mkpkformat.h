@@ -280,18 +280,36 @@ inline int extract(
         return -1;
     }
 
-    // Helper: convert UTF-8 std::string to fs::path correctly on Windows.
-    // std::filesystem::path(std::string) uses ANSI codepage on Windows,
-    // corrupting non-ASCII chars like ü,ç in "Türkçe" → "T?rk?e".
-    // Use Win32 MultiByteToWideChar for reliable UTF-8 → UTF-16 conversion.
-    auto utf8path = [](const std::string& s) -> fs::path {
+    // Helper: convert tar header filename to fs::path on Windows.
+    // Tar archives may use UTF-8 OR the system's ANSI codepage (e.g. Windows-1254
+    // for Turkish). Try UTF-8 first with strict validation; if invalid, fall back
+    // to the system ANSI codepage (CP_ACP) which handles single-byte encodings
+    // like Latin-1/Windows-1254 correctly.
+    auto tarpath = [](const std::string& s) -> fs::path {
 #ifdef _WIN32
         if (s.empty()) return {};
-        int wlen = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
-        if (wlen <= 0) return fs::path(s); // fallback
-        std::wstring wide(static_cast<size_t>(wlen), L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), wide.data(), wlen);
-        return fs::path(wide);
+        const int len = static_cast<int>(s.size());
+
+        // Try 1: Strict UTF-8 (MB_ERR_INVALID_CHARS rejects non-UTF-8 bytes)
+        int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                       s.data(), len, nullptr, 0);
+        if (wlen > 0) {
+            std::wstring wide(static_cast<size_t>(wlen), L'\0');
+            MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                s.data(), len, wide.data(), wlen);
+            return fs::path(wide);
+        }
+
+        // Try 2: System ANSI codepage (CP_ACP — handles Turkish Windows-1254 etc.)
+        wlen = MultiByteToWideChar(CP_ACP, 0, s.data(), len, nullptr, 0);
+        if (wlen > 0) {
+            std::wstring wide(static_cast<size_t>(wlen), L'\0');
+            MultiByteToWideChar(CP_ACP, 0, s.data(), len, wide.data(), wlen);
+            return fs::path(wide);
+        }
+
+        // Fallback: use as-is (will likely fail but preserves original for error msg)
+        return fs::path(s);
 #else
         return fs::path(s);
 #endif
@@ -347,7 +365,7 @@ inline int extract(
         pos += 512; // Move past header
 
         // Security: prevent path traversal
-        fs::path target = dest / utf8path(fullname);
+        fs::path target = dest / tarpath(fullname);
         auto canonical_dest = fs::weakly_canonical(dest);
         auto canonical_target = fs::weakly_canonical(target);
         if (canonical_target.string().find(canonical_dest.string()) != 0) {
