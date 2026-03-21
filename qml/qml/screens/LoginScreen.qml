@@ -202,7 +202,7 @@ Item {
                     id: loginBtn
                     Layout.fillWidth: true
                     Layout.preferredHeight: 48
-                    enabled: AuthService.state === AuthService.Unauthenticated
+                    enabled: AuthService.state === AuthServiceType.Unauthenticated
                     hoverEnabled: true
 
                     background: Rectangle {
@@ -215,9 +215,9 @@ Item {
                         }
                     }
                     contentItem: Text {
-                        text: AuthService.state === AuthService.WaitingForBrowser
+                        text: AuthService.state === AuthServiceType.WaitingForBrowser
                               ? qsTr("Taray\u0131c\u0131dan yan\u0131t bekleniyor...")
-                              : AuthService.state === AuthService.Exchanging
+                              : AuthService.state === AuthServiceType.Exchanging
                                 ? qsTr("Do\u011Frulan\u0131yor...")
                                 : qsTr("Giri\u015F Yap")
                         color: "#FFFFFF"
@@ -238,9 +238,9 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
-                    running: AuthService.state === AuthService.WaitingForBrowser
-                             || AuthService.state === AuthService.Exchanging
-                             || AuthService.state === AuthService.Checking
+                    running: AuthService.state === AuthServiceType.WaitingForBrowser
+                             || AuthService.state === AuthServiceType.Exchanging
+                             || AuthService.state === AuthServiceType.Checking
                     visible: running
                     palette.dark: Theme.accent
                 }
@@ -348,6 +348,6 @@ Item {
 
     Component.onCompleted: {
         console.log("[LoginScreen] Loaded. AuthService.state:", AuthService.state,
-                    "enabled button:", AuthService.state === AuthService.Unauthenticated)
+                    "enabled button:", AuthService.state === AuthServiceType.Unauthenticated)
     }
 }
