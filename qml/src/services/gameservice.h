@@ -127,6 +127,21 @@ public:
     Q_INVOKABLE void addManualGame(const QString& path);
 
     /**
+     * @brief Add a custom directory to scan for games (persisted to settings)
+     */
+    Q_INVOKABLE void addCustomScanPath(const QString& path);
+
+    /**
+     * @brief Remove a custom scan directory
+     */
+    Q_INVOKABLE void removeCustomScanPath(const QString& path);
+
+    /**
+     * @brief Get all custom scan directories
+     */
+    Q_INVOKABLE QStringList customScanPaths() const;
+
+    /**
      * @brief Remove a game from the library (does NOT delete game files)
      * If a translation is installed, it must be uninstalled first.
      * Emits gameListChanged() and gameRemoved(gameId) on success.

@@ -93,6 +93,9 @@ public:
      */
     QList<DetectedGame> detectedGames() const { return m_detectedGames; }
 
+    void setCustomGamePaths(const QStringList& paths);
+    QStringList customGamePaths() const { return m_customGamePaths; }
+
     /**
      * @brief Get all supported games from package catalog, enriched with install status
      */
@@ -259,12 +262,18 @@ private:
     void doScanSteamReal(QList<DetectedGame>& outGames);
     void doScanEpicReal(QList<DetectedGame>& outGames);
     void doScanGogReal(QList<DetectedGame>& outGames);
+    void doScanFilesystemReal(QList<DetectedGame>& outGames,
+                              const QSet<QString>& knownPaths);
+    void doScanRegistryReal(QList<DetectedGame>& outGames,
+                            const QSet<QString>& knownPaths);
+    QStringList knownGameDirectories() const;
     QString detectEngineReal(const QString& gamePath);
     QString resolveToSteamAppId(const QString& gameId);
     void buildDetectedGameIndex();
     LocalPackageManager* m_localPkgManager{nullptr};  // Owned (lazy-init, Qt parent). Created in scanAllLibraries().
     OperationJournal* m_journal{nullptr};  // Non-owning. Set by setJournal().
     QHash<QString, int> m_steamAppIdToDetectedIndex;
+    QStringList m_customGamePaths;
 };
 
 } // namespace makine
