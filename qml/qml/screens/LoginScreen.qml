@@ -5,18 +5,18 @@ import QtQuick.Window
 import MakineLauncher 1.0
 
 /**
- * LoginScreen.qml — Apple-quality auth gate with frosted glass aesthetic
+ * LoginScreen.qml — Premium auth gate
  */
 Item {
     id: root
 
-    // Window drag area (full screen since TitleBar is hidden)
+    // Window drag
     DragHandler {
         target: null
         onActiveChanged: if (active) root.Window.window?.startSystemMove()
     }
 
-    // Close button (top-right)
+    // Close button
     Button {
         anchors.right: parent.right
         anchors.top: parent.top
@@ -25,159 +25,195 @@ Item {
         z: 10
         background: Rectangle {
             radius: 16
-            color: parent.hovered ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+            color: parent.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
         }
         contentItem: Text {
             text: "\u2715"
-            color: Theme.textSecondary
-            font.pixelSize: 14
+            color: Qt.rgba(1, 1, 1, 0.4)
+            font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
         onClicked: Qt.quit()
     }
 
-    // Background with subtle gradient
+    // === BACKGROUND ===
+    // Deep dark base
     Rectangle {
         anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.bgPrimary }
-            GradientStop { position: 0.5; color: Theme.bgSecondary }
-            GradientStop { position: 1.0; color: Theme.bgPrimary }
+        color: "#050508"
+    }
+
+    // Top-left accent blob
+    Rectangle {
+        x: -120; y: -80
+        width: 400; height: 400
+        radius: 200
+        color: Theme.accent
+        opacity: 0.04
+    }
+
+    // Bottom-right accent blob
+    Rectangle {
+        x: parent.width - 200; y: parent.height - 180
+        width: 350; height: 350
+        radius: 175
+        color: "#8B5CF6"
+        opacity: 0.03
+    }
+
+    // Subtle noise texture via grid
+    Grid {
+        anchors.fill: parent
+        columns: Math.ceil(parent.width / 3)
+        opacity: 0.015
+        Repeater {
+            model: Math.ceil(root.width / 3) * Math.ceil(root.height / 3)
+            Rectangle {
+                width: 3; height: 3
+                color: Math.random() > 0.5 ? "#ffffff" : "transparent"
+            }
         }
     }
 
-    // Subtle ambient glow behind logo (layered circles)
-    Rectangle {
-        anchors.centerIn: parent
-        anchors.verticalCenterOffset: -80
-        width: 200; height: 200
-        radius: 100
-        color: Theme.accent
-        opacity: 0.06
-    }
-    Rectangle {
-        anchors.centerIn: parent
-        anchors.verticalCenterOffset: -80
-        width: 120; height: 120
-        radius: 60
-        color: Theme.accent
-        opacity: 0.08
-    }
-
-    // Main content
+    // === CONTENT ===
     ColumnLayout {
         anchors.centerIn: parent
         spacing: 0
-        width: Math.min(360, parent.width - 80)
+        width: Math.min(380, parent.width - 60)
 
-        // Logo with entrance animation
+        // White logo
         Image {
-            id: logo
+            id: logoImg
             Layout.alignment: Qt.AlignHCenter
-            Layout.bottomMargin: 20
-            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo.png"
-            sourceSize: Qt.size(72, 72)
+            Layout.bottomMargin: 28
+            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo_white.png"
+            sourceSize: Qt.size(96, 96)
             fillMode: Image.PreserveAspectFit
             opacity: 0
-            scale: 0.8
+            scale: 0.85
 
-            NumberAnimation on opacity { to: 1; duration: 600; easing.type: Easing.OutCubic }
-            NumberAnimation on scale { to: 1; duration: 600; easing.type: Easing.OutBack }
+            NumberAnimation on opacity { to: 1; duration: 700; easing.type: Easing.OutCubic }
+            NumberAnimation on scale { to: 1; duration: 700; easing.type: Easing.OutBack; overshoot: 1.2 }
         }
 
-        // Title
-        Text {
+        // Glow behind logo
+        Rectangle {
             Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 160
+            Layout.preferredHeight: 160
+            Layout.topMargin: -160 - 28
+            Layout.bottomMargin: -160 + 28
+            radius: 80
+            color: Theme.accent
+            opacity: 0.07
+            z: -1
+        }
+
+        // MAKİNE ÇEVİRİ title with glow
+        Item {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: titleText.implicitWidth
+            Layout.preferredHeight: titleText.implicitHeight
             Layout.bottomMargin: 6
-            text: "Makine \u00C7eviri"
-            font.pixelSize: 26
-            font.weight: Font.DemiBold
-            font.letterSpacing: -0.5
-            color: Theme.textPrimary
+
+            // Glow layer
+            Text {
+                anchors.centerIn: parent
+                text: "MAK\u0130NE \u00C7EV\u0130R\u0130"
+                font.pixelSize: 28
+                font.weight: Font.Black
+                font.letterSpacing: 3
+                color: Theme.accent
+                opacity: 0.4
+                layer.enabled: true
+                layer.smooth: true
+            }
+
+            // Main text
+            Text {
+                id: titleText
+                anchors.centerIn: parent
+                text: "MAK\u0130NE \u00C7EV\u0130R\u0130"
+                font.pixelSize: 28
+                font.weight: Font.Black
+                font.letterSpacing: 3
+                color: "#FFFFFF"
+            }
+
             opacity: 0
-            NumberAnimation on opacity { to: 1; duration: 500; easing.type: Easing.OutCubic }
+            NumberAnimation on opacity { to: 1; duration: 600; easing.type: Easing.OutCubic }
         }
 
-        // Subtitle
+        // Tagline
         Text {
             Layout.alignment: Qt.AlignHCenter
-            Layout.bottomMargin: 36
-            text: qsTr("T\u00FCrk\u00E7e oyun \u00E7eviri platformu")
-            font.pixelSize: 13
+            Layout.bottomMargin: 40
+            text: qsTr("T\u00FCrk\u00E7e Oyun \u00C7eviri Platformu")
+            font.pixelSize: 12
             font.weight: Font.Normal
-            font.letterSpacing: 0.2
-            color: Theme.textMuted
+            font.letterSpacing: 1.5
+            color: Qt.rgba(1, 1, 1, 0.35)
             opacity: 0
-            NumberAnimation on opacity { to: 1; duration: 500; easing.type: Easing.OutCubic }
+            NumberAnimation on opacity { to: 1; duration: 600 }
         }
 
-        // Card container
+        // === CARD ===
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
-            Layout.preferredHeight: cardContent.implicitHeight + 48
-            radius: 16
-            color: Qt.rgba(Theme.bgSecondary.r, Theme.bgSecondary.g, Theme.bgSecondary.b, 0.6)
+            Layout.preferredHeight: cardContent.implicitHeight + 56
+            radius: 14
+            color: Qt.rgba(1, 1, 1, 0.04)
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.06)
+            border.color: Qt.rgba(1, 1, 1, 0.07)
             opacity: 0
-            NumberAnimation on opacity { to: 1; duration: 400; easing.type: Easing.OutCubic }
+            NumberAnimation on opacity { to: 1; duration: 500 }
 
             ColumnLayout {
                 id: cardContent
                 anchors.fill: parent
-                anchors.margins: 24
-                spacing: 16
+                anchors.margins: 28
+                spacing: 18
 
-                // Card title
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     text: qsTr("Devam etmek i\u00E7in giri\u015F yap\u0131n")
-                    font.pixelSize: 14
+                    font.pixelSize: 13
                     font.weight: Font.Medium
-                    color: Theme.textSecondary
+                    color: Qt.rgba(1, 1, 1, 0.5)
                 }
 
                 // Login button
                 Button {
                     id: loginBtn
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 46
+                    Layout.preferredHeight: 48
                     enabled: AuthService.state === AuthService.Unauthenticated
                     hoverEnabled: true
 
                     background: Rectangle {
                         radius: 10
-                        color: {
-                            if (!loginBtn.enabled) return Theme.bgTertiary
-                            if (loginBtn.pressed) return Theme.accentDark
-                            if (loginBtn.hovered) return Theme.accentHover
-                            return Theme.accent
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: loginBtn.pressed ? "#0E7490" : loginBtn.hovered ? "#0891B2" : Theme.accent }
+                            GradientStop { position: 1.0; color: loginBtn.pressed ? "#0369A1" : loginBtn.hovered ? "#0284C7" : "#0EA5E9" }
                         }
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        opacity: loginBtn.enabled ? 1.0 : 0.3
+                        Behavior on opacity { NumberAnimation { duration: 200 } }
                     }
-                    contentItem: Row {
-                        spacing: 8
-                        anchors.centerIn: parent
-                        Text {
-                            text: "\uD83C\uDF10"
-                            font.pixelSize: 15
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: AuthService.state === AuthService.Unauthenticated
-                        }
-                        Text {
-                            text: AuthService.state === AuthService.WaitingForBrowser
-                                  ? qsTr("Taray\u0131c\u0131dan yan\u0131t bekleniyor...")
-                                  : AuthService.state === AuthService.Exchanging
-                                    ? qsTr("Do\u011Frulan\u0131yor...")
-                                    : qsTr("Taray\u0131c\u0131 ile Giri\u015F Yap")
-                            color: Theme.textOnColor
-                            font.pixelSize: 14
-                            font.weight: Font.Medium
-                            font.letterSpacing: 0.1
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
+                    contentItem: Text {
+                        text: AuthService.state === AuthService.WaitingForBrowser
+                              ? qsTr("Taray\u0131c\u0131dan yan\u0131t bekleniyor...")
+                              : AuthService.state === AuthService.Exchanging
+                                ? qsTr("Do\u011Frulan\u0131yor...")
+                                : qsTr("Giri\u015F Yap")
+                        color: "#FFFFFF"
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.3
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: AuthService.startLogin()
                 }
@@ -185,12 +221,13 @@ Item {
                 // Spinner
                 BusyIndicator {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 28
-                    Layout.preferredHeight: 28
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
                     running: AuthService.state === AuthService.WaitingForBrowser
                              || AuthService.state === AuthService.Exchanging
                              || AuthService.state === AuthService.Checking
                     visible: running
+                    palette.dark: Theme.accent
                 }
 
                 // Error
@@ -199,9 +236,9 @@ Item {
                     Layout.preferredHeight: errorCol.implicitHeight + 20
                     visible: errorText.text.length > 0
                     radius: 8
-                    color: Theme.errorBg
+                    color: Qt.rgba(0.94, 0.27, 0.27, 0.08)
                     border.width: 1
-                    border.color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.2)
+                    border.color: Qt.rgba(0.94, 0.27, 0.27, 0.15)
 
                     ColumnLayout {
                         id: errorCol
@@ -212,7 +249,7 @@ Item {
                         Text {
                             id: errorText
                             Layout.fillWidth: true
-                            color: Theme.error
+                            color: "#F87171"
                             font.pixelSize: 12
                             wrapMode: Text.Wrap
                             horizontalAlignment: Text.AlignHCenter
@@ -221,7 +258,7 @@ Item {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: qsTr("Tekrar Dene")
-                            color: Theme.error
+                            color: "#F87171"
                             font.pixelSize: 12
                             font.weight: Font.Medium
                             opacity: retryMa.containsMouse ? 1.0 : 0.7
@@ -245,26 +282,25 @@ Item {
         // Divider
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 24
-            Layout.bottomMargin: 16
-            Layout.preferredWidth: 40
+            Layout.topMargin: 28
+            Layout.bottomMargin: 18
+            Layout.preferredWidth: 32
             Layout.preferredHeight: 1
             color: Qt.rgba(1, 1, 1, 0.08)
             opacity: 0
-            NumberAnimation on opacity { to: 1; duration: 600 }
+            NumberAnimation on opacity { to: 1; duration: 700 }
         }
 
         // Register link
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: qsTr("Hesab\u0131n\u0131z yok mu? <a href='https://makineceviri.org/hesap' style='color:%1;text-decoration:none'>Kay\u0131t olun</a>").arg(Theme.accent)
-            color: Theme.textMuted
+            text: qsTr("Hesab\u0131n\u0131z yok mu?  ") + "<a href='https://makineceviri.org/hesap' style='color:" + Theme.accent + ";text-decoration:none'>" + qsTr("Kay\u0131t olun") + "</a>"
+            color: Qt.rgba(1, 1, 1, 0.35)
             font.pixelSize: 12
-            font.letterSpacing: 0.1
             textFormat: Text.RichText
             onLinkActivated: link => Qt.openUrlExternally(link)
             opacity: 0
-            NumberAnimation on opacity { to: 1; duration: 500 }
+            NumberAnimation on opacity { to: 1; duration: 600 }
 
             MouseArea {
                 anchors.fill: parent
@@ -276,16 +312,16 @@ Item {
         // Version
         Text {
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 20
+            Layout.topMargin: 24
             text: "v0.1.0-alpha"
             font.pixelSize: 10
-            color: Qt.rgba(Theme.textMuted.r, Theme.textMuted.g, Theme.textMuted.b, 0.5)
+            font.letterSpacing: 0.5
+            color: Qt.rgba(1, 1, 1, 0.15)
             opacity: 0
             NumberAnimation on opacity { to: 1; duration: 800 }
         }
     }
 
-    // Error signal
     Connections {
         target: AuthService
         function onLoginError(message) { errorText.text = message }
