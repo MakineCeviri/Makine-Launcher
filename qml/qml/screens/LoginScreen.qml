@@ -47,21 +47,22 @@ Item {
         }
     }
 
-    // Subtle ambient glow behind logo
+    // Subtle ambient glow behind logo (layered circles)
     Rectangle {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: -80
-        width: 280; height: 280
-        radius: 140
-        color: "transparent"
-        opacity: 0.15
-        gradient: RadialGradient {
-            centerX: 140; centerY: 140
-            centerRadius: 140
-            focalX: centerX; focalY: centerY
-            GradientStop { position: 0.0; color: Theme.accent }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
+        width: 200; height: 200
+        radius: 100
+        color: Theme.accent
+        opacity: 0.06
+    }
+    Rectangle {
+        anchors.centerIn: parent
+        anchors.verticalCenterOffset: -80
+        width: 120; height: 120
+        radius: 60
+        color: Theme.accent
+        opacity: 0.08
     }
 
     // Main content
