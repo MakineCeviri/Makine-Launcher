@@ -23,12 +23,14 @@
 
 #include "encryption_key.h"
 
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <spdlog/fmt/fmt.h>
@@ -346,11 +348,21 @@ inline int extract(
 
             std::ofstream ofs(target, std::ios::binary);
             if (!ofs) {
-                if (err) *err = MkpkError("Cannot write file: " + target.string());
-                return -1;
+                // On Windows, file may be locked by the running game — retry once after 200ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                ofs.open(target, std::ios::binary);
+                if (!ofs) {
+                    if (err) *err = MkpkError("Cannot write file (locked?): " + target.string());
+                    return -1;
+                }
             }
 
             ofs.write(reinterpret_cast<const char*>(data + pos), static_cast<std::streamsize>(file_size));
+            if (!ofs.good()) {
+                ofs.close();
+                if (err) *err = MkpkError("Write failed (disk full?): " + target.string());
+                return -1;
+            }
             ofs.close();
 
             if (on_file)

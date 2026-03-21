@@ -13,6 +13,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QNetworkReply>
+#include <string>
 #include <QUrl>
 #include <QUuid>
 #include <QDateTime>
@@ -326,31 +327,52 @@ void TranslationDownloader::processDownloadedFile(
     auto future = QtConcurrent::run([tempPath, destDir]()
         -> std::pair<int, std::string>
     {
-        QFile file(tempPath);
-        if (!file.open(QIODevice::ReadOnly)) {
-            return {-1, "Cannot open downloaded file"};
+        try {
+            QFile file(tempPath);
+            if (!file.open(QIODevice::ReadOnly)) {
+                return {-1, "Cannot open downloaded file: " + tempPath.toStdString()};
+            }
+
+            const qint64 fileSize = file.size();
+            if (fileSize <= 0) {
+                file.close();
+                return {-1, "Downloaded file is empty"};
+            }
+
+            // Safety: reject files > 2 GB to prevent OOM
+            constexpr qint64 kMaxPackageSize = 2LL * 1024 * 1024 * 1024;
+            if (fileSize > kMaxPackageSize) {
+                file.close();
+                return {-1, "Package too large: " + std::to_string(fileSize / (1024*1024)) + " MB (max 2 GB)"};
+            }
+
+            const QByteArray rawData = file.readAll();
+            file.close();
+
+            if (rawData.isEmpty()) {
+                return {-1, "Failed to read downloaded file"};
+            }
+
+            mkpk::MkpkError err{""};
+            int fileCount = mkpk::process_mkpkg(
+                reinterpret_cast<const uint8_t*>(rawData.constData()),
+                static_cast<size_t>(rawData.size()),
+                destDir.toStdWString(),
+                &err);
+
+            if (fileCount < 0) {
+                return {-1, err.message};
+            }
+
+            QFile::remove(tempPath);
+            return {fileCount, ""};
+        } catch (const std::bad_alloc&) {
+            return {-1, "Out of memory during package extraction"};
+        } catch (const std::exception& e) {
+            return {-1, std::string("Extraction failed: ") + e.what()};
+        } catch (...) {
+            return {-1, "Unknown error during package extraction"};
         }
-
-        const QByteArray rawData = file.readAll();
-        file.close();
-
-        if (rawData.isEmpty()) {
-            return {-1, "Downloaded file is empty"};
-        }
-
-        mkpk::MkpkError err{""};
-        int fileCount = mkpk::process_mkpkg(
-            reinterpret_cast<const uint8_t*>(rawData.constData()),
-            static_cast<size_t>(rawData.size()),
-            destDir.toStdWString(),
-            &err);
-
-        if (fileCount < 0) {
-            return {-1, err.message};
-        }
-
-        QFile::remove(tempPath);
-        return {fileCount, ""};
     });
 
     auto* watcher = new QFutureWatcher<std::pair<int, std::string>>(this);
