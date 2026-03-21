@@ -828,6 +828,8 @@ static void configureEngine(QQmlApplicationEngine& engine)
     //  which --gc-sections strips in static builds.)
     qmlRegisterUncreatableType<makine::SupportedGamesModel>("MakineLauncher", 1, 0,
         "SupportedGamesModel", "Use GameService.supportedGamesModel");
+    qmlRegisterUncreatableType<makine::AuthService>("MakineLauncher", 1, 0,
+        "AuthServiceType", "Use AuthService context property");
     qmlRegisterType<makine::CatalogProxyModel>("MakineLauncher", 1, 0, "CatalogProxyModel");
 }
 
