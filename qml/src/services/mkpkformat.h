@@ -276,6 +276,15 @@ inline int extract(
         return -1;
     }
 
+    // Helper: convert UTF-8 std::string to fs::path correctly on Windows.
+    // std::filesystem::path(std::string) uses ANSI codepage on Windows,
+    // corrupting non-ASCII chars like ü,ç in "Türkçe". char8_t path
+    // constructor correctly interprets input as UTF-8.
+    auto utf8path = [](const std::string& s) -> fs::path {
+        return fs::path(reinterpret_cast<const char8_t*>(s.data()),
+                        reinterpret_cast<const char8_t*>(s.data() + s.size()));
+    };
+
     fs::create_directories(dest);
 
     int file_count = 0;
@@ -326,7 +335,7 @@ inline int extract(
         pos += 512; // Move past header
 
         // Security: prevent path traversal
-        fs::path target = dest / fullname;
+        fs::path target = dest / utf8path(fullname);
         auto canonical_dest = fs::weakly_canonical(dest);
         auto canonical_target = fs::weakly_canonical(target);
         if (canonical_target.string().find(canonical_dest.string()) != 0) {
