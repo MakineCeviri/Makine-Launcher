@@ -339,6 +339,18 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
     parseStoreIds(entry, doc, storeIdToSteamAppId_);
     parseFingerprint(entry, doc);
 
+    // Merge aliases (deduplicated)
+    if (doc.contains("aliases") && doc["aliases"].is_array()) {
+        for (const auto& alias : doc["aliases"]) {
+            if (alias.is_string()) {
+                std::string a = alias.get<std::string>();
+                if (std::find(entry.aliases.begin(), entry.aliases.end(), a) == entry.aliases.end()) {
+                    entry.aliases.push_back(std::move(a));
+                }
+            }
+        }
+    }
+
     // Auto-derive fingerprint if not explicit
     if (!entry.fingerprint.has_value())
         deriveFingerprint(entry);
@@ -393,6 +405,13 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
         info.gameName   = entry.value("name", "");
         info.version    = entry.value("v", "");
         info.dirName    = entry.value("dirName", "");
+        if (entry.contains("aliases") && entry["aliases"].is_array()) {
+            for (const auto& alias : entry["aliases"]) {
+                if (alias.is_string()) {
+                    info.aliases.push_back(alias.get<std::string>());
+                }
+            }
+        }
         info.sizeBytes  = entry.value("sizeBytes", static_cast<int64_t>(0));
         info.installType = "overlay";  // default, enriched later
         info.tier = "free";            // default, enriched later
@@ -543,7 +562,18 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
 
 std::string PackageCatalog::findMatchingAppId(const std::string& folderName) const
 {
-    const std::string normalized = toLower(trim(folderName));
+    // Strip common scene release tags before matching:
+    // "Death.Stranding.2.On.The.Beach-InsaneRamZes" → "Death.Stranding.2.On.The.Beach"
+    std::string cleaned = trim(folderName);
+    if (auto pos = cleaned.rfind('-'); pos != std::string::npos && pos > cleaned.size() / 2) {
+        // Only strip if the part after '-' looks like a scene tag (single word, no spaces)
+        std::string suffix = cleaned.substr(pos + 1);
+        if (!suffix.empty() && suffix.find(' ') == std::string::npos &&
+            suffix.find('.') == std::string::npos && suffix.size() >= 4) {
+            cleaned = cleaned.substr(0, pos);
+        }
+    }
+    const std::string normalized = toLower(trim(cleaned));
     if (normalized.empty()) return {};
 
     // Tier 1: Exact case-insensitive match against dirName or gameName
@@ -553,10 +583,36 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
         }
     }
 
+    // Tier 1.5: Check aliases (exact and alphanumeric-normalized)
+    const std::string alphaInput = alphaOnly(normalized);
+    for (const auto& [appId, pkg] : packages_) {
+        for (const auto& alias : pkg.aliases) {
+            if (toLower(alias) == normalized) {
+                return appId;
+            }
+            if (alphaOnly(alias) == alphaInput) {
+                return appId;
+            }
+        }
+    }
+
+    // Tier 1.5b: Alias substring match (bidirectional, min 5 chars)
+    if (normalized.size() >= 5) {
+        for (const auto& [appId, pkg] : packages_) {
+            for (const auto& alias : pkg.aliases) {
+                std::string aliasLower = toLower(alias);
+                if (aliasLower.size() >= 5 &&
+                    (aliasLower.find(normalized) != std::string::npos ||
+                     normalized.find(aliasLower) != std::string::npos)) {
+                    return appId;
+                }
+            }
+        }
+    }
+
     // Tier 2: Alphanumeric-normalized match (handles punctuation/spacing diffs)
     //   "Dave the Diver" ↔ "DaveTheDiver" ↔ "DAVE THE DIVER"
     //   "Elden Ring" ↔ "EldenRing" ↔ "ELDEN_RING"
-    const std::string alphaInput = alphaOnly(normalized);
     if (alphaInput.size() >= 3) {
         for (const auto& [appId, pkg] : packages_) {
             if (alphaOnly(pkg.dirName) == alphaInput ||
@@ -603,6 +659,52 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
     auto inputTokens = tokenize(normalized);
     normalizeNumerals(inputTokens);
 
+    // Helper: count matching tokens between two sets
+    auto countIntersection = [](const std::vector<std::string>& a,
+                                const std::vector<std::string>& b) -> int {
+        std::set<std::string> sb(b.begin(), b.end());
+        int count = 0;
+        for (const auto& t : a) {
+            if (sb.count(t)) ++count;
+        }
+        return count;
+    };
+
+    // Tier 3.5: Strong token overlap — catches trilogy sub-games and similar
+    // "Grand Theft Auto San Andreas Definitive Edition" ↔ "Grand Theft Auto The Trilogy The Definitive Edition"
+    // Intersection: {grand, theft, auto, definitive, edition} = 5 tokens, ratio 5/8 = 0.625
+    // Requires: intersection >= 4 AND ratio >= 0.55
+    if (inputTokens.size() >= 3) {
+        std::string bestAppId;
+        int bestIntersection = 0;
+        double bestRatio = 0.0;
+
+        for (const auto& [appId, pkg] : packages_) {
+            for (const auto* src : {&pkg.gameName, &pkg.dirName}) {
+                auto tokens = tokenize(*src);
+                normalizeNumerals(tokens);
+                if (tokens.size() < 3) continue;
+
+                int inter = countIntersection(inputTokens, tokens);
+                int unionSize = static_cast<int>(
+                    std::set<std::string>(inputTokens.begin(), inputTokens.end()).size() +
+                    std::set<std::string>(tokens.begin(), tokens.end()).size()) - inter;
+                double ratio = unionSize > 0 ? static_cast<double>(inter) / unionSize : 0.0;
+
+                if (inter >= 4 && ratio >= 0.55 && inter > bestIntersection) {
+                    bestIntersection = inter;
+                    bestRatio = ratio;
+                    bestAppId = appId;
+                }
+            }
+        }
+
+        if (!bestAppId.empty()) {
+            return bestAppId;
+        }
+    }
+
+    // Tier 4: Jaccard similarity — strict match for shorter names
     if (inputTokens.size() >= 2) {
         std::string bestAppId;
         double bestScore = 0.0;
@@ -625,7 +727,9 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
             }
         }
 
-        if (bestScore >= 0.8 && !bestAppId.empty()) {
+        // Adaptive threshold: lower for longer token sets (more words = more variation)
+        double threshold = (inputTokens.size() >= 5) ? 0.65 : 0.8;
+        if (bestScore >= threshold && !bestAppId.empty()) {
             return bestAppId;
         }
     }

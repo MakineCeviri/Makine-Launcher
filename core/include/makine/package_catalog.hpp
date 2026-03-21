@@ -121,6 +121,7 @@ struct PackageCatalogEntry {
     int fileCount{0};
     std::unordered_map<std::string, std::string> storeIds;  // store -> id
     std::string dirName;
+    std::vector<std::string> aliases;   // Alternative names for matching
     std::vector<std::string> variants;
     std::string variantType;  // "version" or "platform"
     std::vector<ContributorInfo> contributors;
