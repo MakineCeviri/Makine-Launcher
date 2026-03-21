@@ -93,6 +93,14 @@ void AuthService::checkStoredToken()
         setState(Unauthenticated);
         return;
     }
+
+    // Safety timeout: if refresh fails to respond within 5s, go to Unauthenticated
+    QTimer::singleShot(5000, this, [this]() {
+        if (m_state == Checking) {
+            qCWarning(lcAuth) << "Token refresh timed out — falling back to login";
+            setState(Unauthenticated);
+        }
+    });
     refreshAccessToken();
 }
 
