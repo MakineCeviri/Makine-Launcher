@@ -17,6 +17,7 @@
 #include <QSet>
 #include <QFileInfo>
 #include <QDirIterator>
+#include <QStorageInfo>
 
 #include "vdfparser.h"
 #include "localpackagemanager.h"
@@ -109,6 +110,30 @@ void CoreBridge::setJournal(OperationJournal* journal)
 }
 
 // ========== GAME SCANNING (Pure Qt) ==========
+
+namespace {
+// Check if a directory contains at least one .exe within maxDepth levels.
+// GTA SA DE has exe at Gameface/Binaries/Win64/SanAndreas.exe (depth 3).
+bool hasExecutable(const QString& dirPath, int maxDepth = 3)
+{
+    QDirIterator it(dirPath, {QStringLiteral("*.exe")}, QDir::Files,
+                    QDirIterator::Subdirectories);
+    QDir base(dirPath);
+    while (it.hasNext()) {
+        it.next();
+        QString rel = base.relativeFilePath(it.filePath());
+        int depth = rel.count(QLatin1Char('/')) + rel.count(QLatin1Char('\\'));
+        if (depth <= maxDepth)
+            return true;
+    }
+    return false;
+}
+} // namespace
+
+void CoreBridge::setCustomGamePaths(const QStringList& paths)
+{
+    m_customGamePaths = paths;
+}
 
 // ========== Steam Scanner ==========
 
@@ -468,6 +493,196 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
     return "Unknown";
 }
 
+// ========== Filesystem Scanner ==========
+
+QStringList CoreBridge::knownGameDirectories() const
+{
+    QStringList dirs;
+
+    // Enumerate all mounted drives dynamically
+    QStringList drives;
+    for (const auto& vol : QStorageInfo::mountedVolumes()) {
+        if (!vol.isReady() || vol.isReadOnly()) continue;
+        QString root = vol.rootPath();
+        if (root.size() >= 2) drives.append(root.left(2)); // "C:", "D:", etc.
+    }
+
+    static const QStringList knownFolders = {
+        QStringLiteral("Games"),
+        QStringLiteral("Oyunlar"),
+        QStringLiteral("Program Files/Rockstar Games"),
+    };
+
+    for (const auto& drive : drives) {
+        for (const auto& folder : knownFolders) {
+            QString path = QDir::cleanPath(drive + QLatin1Char('/') + folder);
+            if (QDir(path).exists())
+                dirs.append(path);
+        }
+    }
+
+    // User-configured additional paths
+    dirs.append(m_customGamePaths);
+
+    return dirs;
+}
+
+void CoreBridge::doScanFilesystemReal(QList<DetectedGame>& outGames,
+                                       const QSet<QString>& knownPaths)
+{
+    const QStringList gameDirs = knownGameDirectories();
+    if (gameDirs.isEmpty()) return;
+
+    qCDebug(lcCoreBridge) << "Filesystem scan: checking" << gameDirs.size() << "directories";
+
+    for (const QString& baseDir : gameDirs) {
+        QDir dir(baseDir);
+        if (!dir.exists()) continue;
+
+        const auto entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const QString& folderName : entries) {
+            QString fullPath = QDir::cleanPath(dir.absoluteFilePath(folderName));
+
+            // Skip if already detected by store scanners
+            if (knownPaths.contains(fullPath.toLower()))
+                continue;
+
+            // Must contain at least one .exe to qualify as a game
+            if (!hasExecutable(fullPath))
+                continue;
+
+            DetectedGame game;
+            game.name = folderName;
+            game.installPath = fullPath;
+            game.source = QStringLiteral("filesystem");
+
+            outGames.append(game);
+            qCDebug(lcCoreBridge) << "Filesystem: found" << folderName << "at" << fullPath;
+        }
+    }
+}
+
+// ========== Windows Registry Scanner ==========
+
+void CoreBridge::doScanRegistryReal(QList<DetectedGame>& outGames,
+                                     const QSet<QString>& knownPaths)
+{
+    // Scan both 64-bit and 32-bit uninstall registry paths
+    static const QStringList regPaths = {
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"),
+        QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"),
+    };
+
+    // Publisher patterns that indicate a game (case-insensitive substring match)
+    static const QStringList gamePublishers = {
+        QStringLiteral("rockstar"), QStringLiteral("2k games"), QStringLiteral("take-two"),
+        QStringLiteral("capcom"), QStringLiteral("square enix"), QStringLiteral("bandai namco"),
+        QStringLiteral("sega"), QStringLiteral("ubisoft"), QStringLiteral("electronic arts"),
+        QStringLiteral("bethesda"), QStringLiteral("cd projekt"), QStringLiteral("techland"),
+        QStringLiteral("fromsoftware"), QStringLiteral("devolver"), QStringLiteral("team17"),
+        QStringLiteral("paradox"), QStringLiteral("koei tecmo"), QStringLiteral("naughty dog"),
+        QStringLiteral("insomniac"), QStringLiteral("sucker punch"), QStringLiteral("guerrilla"),
+        QStringLiteral("remedy"), QStringLiteral("playdead"), QStringLiteral("annapurna"),
+        QStringLiteral("thq nordic"), QStringLiteral("deep silver"),
+        QStringLiteral("focus entertainment"), QStringLiteral("focus home"),
+        QStringLiteral("warner bros"), QStringLiteral("wb games"),
+        QStringLiteral("sony"), QStringLiteral("playstation pc"),
+        QStringLiteral("xbox game studios"), QStringLiteral("microsoft game studios"),
+        QStringLiteral("rare ltd"),
+    };
+
+    // Non-game patterns to skip (only when publisher is NOT a known game publisher)
+    static const QStringList skipPatterns = {
+        QStringLiteral("visual c++"), QStringLiteral("redistributable"),
+        QStringLiteral(".net framework"), QStringLiteral("directx"),
+        QStringLiteral("nvidia driver"), QStringLiteral("amd driver"),
+        QStringLiteral("intel driver"), QStringLiteral("update for"),
+        QStringLiteral("hotfix"), QStringLiteral("service pack"),
+        QStringLiteral("sdk"), QStringLiteral("runtime"),
+        QStringLiteral("chrome"), QStringLiteral("firefox"),
+        QStringLiteral("edge browser"), QStringLiteral("antivirus"),
+        QStringLiteral("office"), QStringLiteral("adobe"),
+        QStringLiteral("java runtime"), QStringLiteral("python"), QStringLiteral("node.js"),
+    };
+
+    int found = 0;
+
+    for (const QString& regPath : regPaths) {
+        QSettings reg(regPath, QSettings::NativeFormat);
+
+        for (const QString& group : reg.childGroups()) {
+            reg.beginGroup(group);
+
+            QString displayName = reg.value(QStringLiteral("DisplayName")).toString().trimmed();
+            QString installLocation = reg.value(QStringLiteral("InstallLocation")).toString().trimmed();
+            QString publisher = reg.value(QStringLiteral("Publisher")).toString().trimmed();
+
+            reg.endGroup();
+
+            // Must have both name and install path
+            if (displayName.isEmpty() || installLocation.isEmpty())
+                continue;
+
+            // Install location must exist
+            installLocation = QDir::cleanPath(installLocation);
+            if (!QDir(installLocation).exists())
+                continue;
+
+            // Skip if already known
+            if (knownPaths.contains(installLocation.toLower()))
+                continue;
+
+            // Filter: must be from a known game publisher or have game keywords
+            QString lowerPublisher = publisher.toLower();
+            QString lowerName = displayName.toLower();
+
+            bool isGamePublisher = false;
+            for (const auto& gp : gamePublishers) {
+                if (lowerPublisher.contains(gp)) {
+                    isGamePublisher = true;
+                    break;
+                }
+            }
+
+            bool hasGameKeyword = lowerName.contains(QLatin1String("game")) ||
+                                  lowerName.contains(QLatin1String("edition")) ||
+                                  lowerName.contains(QLatin1String("remastered")) ||
+                                  lowerName.contains(QLatin1String("definitive"));
+
+            if (!isGamePublisher && !hasGameKeyword)
+                continue;
+
+            // Skip non-games — only when publisher is NOT a known game publisher
+            if (!isGamePublisher) {
+                bool isSkipped = false;
+                for (const auto& sp : skipPatterns) {
+                    if (lowerName.contains(sp) || lowerPublisher.contains(sp)) {
+                        isSkipped = true;
+                        break;
+                    }
+                }
+                if (isSkipped) continue;
+            }
+
+            // Must contain an executable to be a game
+            if (!hasExecutable(installLocation))
+                continue;
+
+            DetectedGame game;
+            game.name = displayName;
+            game.installPath = installLocation;
+            game.source = QStringLiteral("registry");
+
+            outGames.append(game);
+            ++found;
+            qCDebug(lcCoreBridge) << "Registry: found" << displayName
+                     << "by" << publisher << "at" << installLocation;
+        }
+    }
+
+    qCDebug(lcCoreBridge) << "Registry scan: found" << found << "games";
+}
+
 // ========== Public API Methods ==========
 
 void CoreBridge::scanAllLibraries()
@@ -514,33 +729,105 @@ void CoreBridge::scanAllLibraries()
         // Collect games in a thread-local list to avoid data race on m_detectedGames
         QList<DetectedGame> games;
 
-        emit scanProgress(0.1, tr("Steam kütüphanesi taranıyor..."));
+        // ── Store scanners ──
+        emit scanProgress(0.10, tr("Steam kütüphanesi taranıyor..."));
         doScanSteamReal(games);
 
-        emit scanProgress(0.6, tr("Epic Games taranıyor..."));
+        emit scanProgress(0.45, tr("Epic Games taranıyor..."));
         doScanEpicReal(games);
 
-        emit scanProgress(0.75, tr("GOG Galaxy taranıyor..."));
+        emit scanProgress(0.60, tr("GOG Galaxy taranıyor..."));
         doScanGogReal(games);
 
-        // Detect engines for all found games
-        emit scanProgress(0.85, tr("Oyun motorları tespit ediliyor..."));
+        // ── Filesystem & Registry scanners ──
+        // Collect known install paths from store scanners (for dedup)
+        QSet<QString> knownPaths;
+        knownPaths.reserve(games.size());
+        for (const auto& g : games)
+            knownPaths.insert(QDir::cleanPath(g.installPath).toLower());
+
+        emit scanProgress(0.75, tr("Dosya sistemi taranıyor..."));
+        doScanFilesystemReal(games, knownPaths);
+
+        // Update knownPaths with filesystem results before registry scan
+        for (const auto& g : games)
+            knownPaths.insert(QDir::cleanPath(g.installPath).toLower());
+
+        emit scanProgress(0.82, tr("Kayıt defteri taranıyor..."));
+        doScanRegistryReal(games, knownPaths);
+
+        // ── Cross-scanner deduplication ──
+        // Priority: steam > epic > gog > registry > filesystem
+        {
+            QHash<QString, int> pathIndex;
+            QList<DetectedGame> unique;
+            unique.reserve(games.size());
+
+            auto sourcePriority = [](const QString& src) -> int {
+                if (src == QLatin1String("steam")) return 0;
+                if (src == QLatin1String("epic")) return 1;
+                if (src == QLatin1String("gog")) return 2;
+                if (src == QLatin1String("registry")) return 3;
+                if (src == QLatin1String("filesystem")) return 4;
+                return 5;
+            };
+
+            for (auto& game : games) {
+                QString normPath = QDir::cleanPath(game.installPath).toLower();
+                auto it = pathIndex.find(normPath);
+
+                if (it != pathIndex.end()) {
+                    auto& existing = unique[it.value()];
+                    if (sourcePriority(game.source) < sourcePriority(existing.source)) {
+                        existing = std::move(game);
+                    }
+                    continue;
+                }
+
+                pathIndex[normPath] = unique.size();
+                unique.append(std::move(game));
+            }
+
+            int removed = games.size() - unique.size();
+            games = std::move(unique);
+            if (removed > 0) {
+                qCDebug(lcCoreBridge) << "Dedup: removed" << removed << "duplicate entries";
+            }
+        }
+
+        // ── Engine detection + catalog matching ──
+        emit scanProgress(0.90, tr("Oyun motorları tespit ediliyor..."));
         for (auto& game : games) {
-            if (game.engine.isEmpty() || game.engine == "Unknown") {
+            if (game.engine.isEmpty() || game.engine == QLatin1String("Unknown")) {
                 game.engine = detectEngineReal(game.installPath);
             }
             // Check translation availability via ID resolution
             if (pkgMgr) {
                 QString resolved = resolveToSteamAppId(game.id);
 
-                // For non-Steam games (Epic/GOG), storeId reverse index may
+                // For non-Steam games, storeId reverse index may
                 // not be populated yet. Fall back to name-based matching.
                 if (resolved.isEmpty() && game.source != QLatin1String("steam")) {
                     QDir gameDir(game.installPath);
                     resolved = pkgMgr->findMatchingAppId(gameDir.dirName());
-                    // Also try the display name (e.g. "Dave the Diver" vs folder "DaveTheDiver")
+                    // Also try the display name
                     if (resolved.isEmpty() && !game.name.isEmpty()) {
                         resolved = pkgMgr->findMatchingAppId(game.name);
+                    }
+                    // Last resort: fingerprint-based file matching
+                    if (resolved.isEmpty() &&
+                        (game.source == QLatin1String("filesystem") ||
+                         game.source == QLatin1String("registry"))) {
+                        QVariantList candidates = findMatchingGamesFromFiles(game.installPath);
+                        if (!candidates.isEmpty()) {
+                            QVariantMap best = candidates.first().toMap();
+                            if (best.value(QStringLiteral("confidence")).toInt() >= 60) {
+                                resolved = best.value(QStringLiteral("steamAppId")).toString();
+                                qCDebug(lcCoreBridge) << "Fingerprint match for"
+                                         << game.name << "->" << resolved
+                                         << "confidence:" << best.value(QStringLiteral("confidence")).toInt();
+                            }
+                        }
                     }
                 }
 

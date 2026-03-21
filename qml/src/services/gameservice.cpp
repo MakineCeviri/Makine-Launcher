@@ -20,6 +20,7 @@
 #include <QTimer>
 #include <QLoggingCategory>
 #include <QtConcurrent>
+#include <algorithm>
 #include <QProcess>
 #include <optional>
 
@@ -319,6 +320,46 @@ void GameService::setupCoreBridge()
                 m_installingGameId.clear();
                 emit translationInstallCompleted(gameId, false, error);
             });
+
+    // Load user-configured scan paths
+    QStringList customPaths = QSettings().value(QStringLiteral("scan/customPaths")).toStringList();
+    if (!customPaths.isEmpty()) {
+        m_coreBridge->setCustomGamePaths(customPaths);
+        qCDebug(lcGameService) << "Loaded" << customPaths.size() << "custom scan paths";
+    }
+}
+
+void GameService::addCustomScanPath(const QString& path)
+{
+    QString cleanPath = QDir::cleanPath(path);
+    if (cleanPath.isEmpty() || !QDir(cleanPath).exists()) return;
+
+    QSettings settings;
+    QStringList paths = settings.value(QStringLiteral("scan/customPaths")).toStringList();
+    // Case-insensitive check on Windows (C:\Games == c:\games)
+    bool exists = std::any_of(paths.begin(), paths.end(), [&](const QString& p) {
+        return p.compare(cleanPath, Qt::CaseInsensitive) == 0;
+    });
+    if (!exists) {
+        paths.append(cleanPath);
+        settings.setValue(QStringLiteral("scan/customPaths"), paths);
+        if (m_coreBridge) m_coreBridge->setCustomGamePaths(paths);
+        qCDebug(lcGameService) << "Added custom scan path:" << cleanPath;
+    }
+}
+
+void GameService::removeCustomScanPath(const QString& path)
+{
+    QSettings settings;
+    QStringList paths = settings.value(QStringLiteral("scan/customPaths")).toStringList();
+    paths.removeAll(QDir::cleanPath(path));
+    settings.setValue(QStringLiteral("scan/customPaths"), paths);
+    if (m_coreBridge) m_coreBridge->setCustomGamePaths(paths);
+}
+
+QStringList GameService::customScanPaths() const
+{
+    return QSettings().value(QStringLiteral("scan/customPaths")).toStringList();
 }
 
 void GameService::onScanProgress(qreal progress, const QString& status)
