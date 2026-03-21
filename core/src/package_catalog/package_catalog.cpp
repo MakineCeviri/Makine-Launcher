@@ -623,18 +623,46 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
     }
 
     // Tier 3: Substring match — require minimum 5 chars to avoid false positives
+    // Guard: reject sequel mismatches where the only difference is a trailing number.
+    // e.g. "red dead redemption" should NOT match "red dead redemption 2"
+    auto isSequelMismatch = [](const std::string& shorter, const std::string& longer) -> bool {
+        if (shorter.size() >= longer.size()) return false;
+        auto pos = longer.find(shorter);
+        if (pos == std::string::npos) return false;
+        // Check what remains after the match
+        std::string remainder = longer.substr(pos + shorter.size());
+        // Trim leading spaces/punctuation
+        size_t start = remainder.find_first_not_of(" :-_.");
+        if (start == std::string::npos) return false;
+        remainder = remainder.substr(start);
+        // If remainder starts with a digit, it's a sequel
+        if (!remainder.empty() && std::isdigit(static_cast<unsigned char>(remainder[0])))
+            return true;
+        // Also check prefix (e.g. "2 red dead" unlikely but safe)
+        std::string prefix = longer.substr(0, pos);
+        size_t end = prefix.find_last_not_of(" :-_.");
+        if (end != std::string::npos) {
+            if (std::isdigit(static_cast<unsigned char>(prefix[end])))
+                return true;
+        }
+        return false;
+    };
+
     if (normalized.size() >= 5) {
         for (const auto& [appId, pkg] : packages_) {
             const std::string dirLower  = toLower(pkg.dirName);
             const std::string nameLower = toLower(pkg.gameName);
 
-            if ((nameLower.size() >= 5 && nameLower.find(normalized) != std::string::npos) ||
-                (nameLower.size() >= 5 && normalized.find(nameLower) != std::string::npos) ||
-                (dirLower.size() >= 5 && dirLower.find(normalized) != std::string::npos) ||
-                (dirLower.size() >= 5 && normalized.find(dirLower) != std::string::npos))
-            {
-                return appId;
-            }
+            // Check containment in both directions, skip sequel mismatches
+            bool nameContainsInput = nameLower.size() >= 5 && nameLower.find(normalized) != std::string::npos;
+            bool inputContainsName = nameLower.size() >= 5 && normalized.find(nameLower) != std::string::npos;
+            bool dirContainsInput  = dirLower.size() >= 5 && dirLower.find(normalized) != std::string::npos;
+            bool inputContainsDir  = dirLower.size() >= 5 && normalized.find(dirLower) != std::string::npos;
+
+            if (nameContainsInput && !isSequelMismatch(normalized, nameLower)) return appId;
+            if (inputContainsName && !isSequelMismatch(nameLower, normalized)) return appId;
+            if (dirContainsInput && !isSequelMismatch(normalized, dirLower)) return appId;
+            if (inputContainsDir && !isSequelMismatch(dirLower, normalized)) return appId;
         }
     }
 

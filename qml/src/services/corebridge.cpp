@@ -844,6 +844,53 @@ void CoreBridge::scanAllLibraries()
             }
         }
 
+        // ── Second dedup pass: by steamAppId ──
+        // After catalog matching, multiple folders may resolve to the same game.
+        // e.g. Steam RDR2 + D:\Games\Red Dead Redemption 2 → both steamAppId 1174180
+        // Keep highest priority source, drop duplicates.
+        {
+            QHash<QString, int> appIdIndex;
+            QList<DetectedGame> unique;
+            unique.reserve(games.size());
+
+            auto sourcePriority = [](const QString& src) -> int {
+                if (src == QLatin1String("steam")) return 0;
+                if (src == QLatin1String("epic")) return 1;
+                if (src == QLatin1String("gog")) return 2;
+                if (src == QLatin1String("registry")) return 3;
+                if (src == QLatin1String("filesystem")) return 4;
+                return 5;
+            };
+
+            for (auto& game : games) {
+                // Games without steamAppId always pass (can't dedup)
+                if (game.steamAppId.isEmpty()) {
+                    unique.append(std::move(game));
+                    continue;
+                }
+
+                auto it = appIdIndex.find(game.steamAppId);
+                if (it != appIdIndex.end()) {
+                    auto& existing = unique[it.value()];
+                    if (sourcePriority(game.source) < sourcePriority(existing.source)) {
+                        existing = std::move(game);
+                    }
+                    qCDebug(lcCoreBridge) << "AppID dedup: dropping duplicate for"
+                             << game.steamAppId;
+                    continue;
+                }
+
+                appIdIndex[game.steamAppId] = unique.size();
+                unique.append(std::move(game));
+            }
+
+            int removed = games.size() - unique.size();
+            games = std::move(unique);
+            if (removed > 0) {
+                qCDebug(lcCoreBridge) << "AppID dedup: removed" << removed << "duplicates";
+            }
+        }
+
         const int count = games.count();
 
         // Move results to main thread
