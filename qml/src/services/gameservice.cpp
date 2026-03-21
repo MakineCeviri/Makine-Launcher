@@ -12,6 +12,7 @@
 #include "profiler.h"
 #include "crashreporter.h"
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -1457,12 +1458,13 @@ bool GameService::hasLocalPackage(const QString& steamAppId) const
     QDir pkgDir(AppPaths::packagesDir() + QStringLiteral("/") + dirName);
     if (!pkgDir.exists()) return false;
 
-    // Guard: a previous crash may have left an empty directory.
-    // Check that the directory actually contains files.
-    if (pkgDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot).isEmpty()) {
-        qCWarning(lcGameService) << "Package directory is empty (broken extraction?):"
+    // Guard: a previous crash may have left an empty directory tree.
+    // Check for actual FILES recursively — empty subdirs don't count.
+    // Some packages legitimately have just 1 file, so any file = valid.
+    QDirIterator it(pkgDir.absolutePath(), QDir::Files, QDirIterator::Subdirectories);
+    if (!it.hasNext()) {
+        qCWarning(lcGameService) << "Package directory has no files (broken extraction?):"
                    << pkgDir.absolutePath() << "— will re-download";
-        // Remove the empty directory so the next download can proceed
         pkgDir.removeRecursively();
         return false;
     }
