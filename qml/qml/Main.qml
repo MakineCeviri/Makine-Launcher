@@ -270,7 +270,9 @@ ApplicationWindow {
         active: !window._authReady
         visible: active
         z: 100
-        source: "qrc:/qt/qml/MakineLauncher/qml/screens/LoginScreen.qml"
+        sourceComponent: Component {
+            LoginScreen {}
+        }
     }
 
     ColumnLayout {
