@@ -5,45 +5,45 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: Aciklama
-      description: Hatanin ne oldugunu aciklayin.
-      placeholder: Hatanin detayli aciklamasi...
+      label: Açıklama
+      description: Hatanın ne olduğunu açıklayın.
+      placeholder: Hatanın detaylı açıklaması...
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: Yeniden Uretme Adimlari
-      description: Hatayi yeniden uretmek icin adimlari yazin.
+      label: Yeniden Üretme Adımları
+      description: Hatayı yeniden üretmek için adımları yazın.
       placeholder: |
-        1. '...' sayfasina gidin
-        2. '...' butonuna tiklayin
-        3. Hatayi gorun
+        1. '...' sayfasına gidin
+        2. '...' butonuna tıklayın
+        3. Hatayı görün
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Beklenen Davranis
-      description: Ne olmasi gerektigini aciklayin.
+      label: Beklenen Davranış
+      description: Ne olması gerektiğini açıklayın.
     validations:
       required: true
 
   - type: textarea
     id: actual
     attributes:
-      label: Gerceklesen Davranis
-      description: Gercekte ne oldugunu aciklayin.
+      label: Gerçekleşen Davranış
+      description: Gerçekte ne olduğunu açıklayın.
     validations:
       required: true
 
   - type: input
     id: windows-version
     attributes:
-      label: Windows Surumu
-      description: "Ornek: Windows 11 23H2"
+      label: Windows Sürümü
+      description: "Örnek: Windows 11 23H2"
       placeholder: Windows 11 23H2
     validations:
       required: true
@@ -51,8 +51,8 @@ body:
   - type: input
     id: launcher-version
     attributes:
-      label: Launcher Surumu
-      description: "Ornek: v0.1.0-alpha"
+      label: Launcher Sürümü
+      description: "Örnek: v0.1.0-alpha"
       placeholder: v0.1.0-alpha
     validations:
       required: true
@@ -60,7 +60,7 @@ body:
   - type: textarea
     id: screenshots
     attributes:
-      label: Ekran Goruntuleri
-      description: Varsa ekran goruntuleri ekleyin.
+      label: Ekran Görüntüleri
+      description: Varsa ekran görüntüleri ekleyin.
     validations:
       required: false

@@ -1,13 +1,13 @@
-name: Ozellik Istegi
-description: Yeni bir ozellik onerin
+name: Özellik İsteği
+description: Yeni bir özellik önerin
 labels: ["enhancement"]
 body:
   - type: textarea
     id: description
     attributes:
-      label: Ozellik Aciklamasi
-      description: Ne istediginizi aciklayin.
-      placeholder: Ozelligin detayli aciklamasi...
+      label: Özellik Açıklaması
+      description: Ne istediğinizi açıklayın.
+      placeholder: Özelliğin detaylı açıklaması...
     validations:
       required: true
 
@@ -15,8 +15,8 @@ body:
     id: motivation
     attributes:
       label: Motivasyon
-      description: Bu ozellik neden gerekli?
-      placeholder: Bu ozellik olmadan karsilastiginiz sorunlar...
+      description: Bu özellik neden gerekli?
+      placeholder: Bu özellik olmadan karşılaştığınız sorunlar...
     validations:
       required: true
 
@@ -24,6 +24,6 @@ body:
     id: alternatives
     attributes:
       label: Alternatifler
-      description: Dusundugunuz alternatif cozumler varsa belirtin.
+      description: Düşündüğünüz alternatif çözümler varsa belirtin.
     validations:
       required: false
