@@ -94,7 +94,7 @@ Item {
             scale: 0.85
 
             NumberAnimation on opacity { to: 1; duration: 700; easing.type: Easing.OutCubic }
-            NumberAnimation on scale { to: 1; duration: 700; easing.type: Easing.OutBack; overshoot: 1.2 }
+            NumberAnimation on scale { to: 1; duration: 700; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
         }
 
         // Glow behind logo
