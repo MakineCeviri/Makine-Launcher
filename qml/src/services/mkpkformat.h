@@ -364,6 +364,16 @@ inline int extract(
 
         pos += 512; // Move past header
 
+        // Sanitize Windows-illegal characters in tar filenames.
+        // Some packaging tools corrupt non-ASCII chars to '?' which is
+        // illegal in Windows paths (wildcard). Replace with '_'.
+#ifdef _WIN32
+        for (char& c : fullname) {
+            if (c == '?' || c == '*' || c == '"' || c == '<' || c == '>' || c == '|')
+                c = '_';
+        }
+#endif
+
         // Security: prevent path traversal
         fs::path target = dest / tarpath(fullname);
         auto canonical_dest = fs::weakly_canonical(dest);
