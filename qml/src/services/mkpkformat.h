@@ -33,6 +33,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 #include <spdlog/fmt/fmt.h>
 
 #include <openssl/evp.h>
@@ -278,11 +282,19 @@ inline int extract(
 
     // Helper: convert UTF-8 std::string to fs::path correctly on Windows.
     // std::filesystem::path(std::string) uses ANSI codepage on Windows,
-    // corrupting non-ASCII chars like ü,ç in "Türkçe". char8_t path
-    // constructor correctly interprets input as UTF-8.
+    // corrupting non-ASCII chars like ü,ç in "Türkçe" → "T?rk?e".
+    // Use Win32 MultiByteToWideChar for reliable UTF-8 → UTF-16 conversion.
     auto utf8path = [](const std::string& s) -> fs::path {
-        return fs::path(reinterpret_cast<const char8_t*>(s.data()),
-                        reinterpret_cast<const char8_t*>(s.data() + s.size()));
+#ifdef _WIN32
+        if (s.empty()) return {};
+        int wlen = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
+        if (wlen <= 0) return fs::path(s); // fallback
+        std::wstring wide(static_cast<size_t>(wlen), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), wide.data(), wlen);
+        return fs::path(wide);
+#else
+        return fs::path(s);
+#endif
     };
 
     fs::create_directories(dest);
