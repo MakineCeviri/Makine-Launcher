@@ -1339,6 +1339,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     int current = 0;
     int errors = 0;
     QStringList installedFiles;
+    QStringList errorDetails;
 
     // canonicalPath() returns empty for non-existent paths; fall back to cleanPath
     QString canonGamePath = QDir(gamePath).canonicalPath();
@@ -1374,8 +1375,13 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                                           installedFiles);
         if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
             return;
-        if (outcome == StepOutcome::SoftError)
+        if (outcome == StepOutcome::SoftError) {
             errors++;
+            // Collect detail about what failed
+            QString detail = QStringLiteral("Adım %1: %2 %3")
+                .arg(current).arg(step.action, step.src);
+            errorDetails.append(detail);
+        }
     }
 
     if (errors == 0) {
@@ -1395,8 +1401,10 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             tr("%1 adım başarıyla tamamlandı").arg(total));
     } else {
         if (m_journal) m_journal->commitOperation();
-        emit installCompleted(false,
-            tr("%1/%2 adımda hata oluştu").arg(errors).arg(total));
+        QString msg = tr("%1/%2 adımda hata oluştu").arg(errors).arg(total);
+        if (!errorDetails.isEmpty())
+            msg += QStringLiteral("\n") + errorDetails.join(QStringLiteral("\n"));
+        emit installCompleted(false, msg);
     }
 }
 

@@ -1453,7 +1453,20 @@ bool GameService::hasLocalPackage(const QString& steamAppId) const
     // Metadata exists in manifest — check if package files are actually downloaded
     QString dirName = m_coreBridge->getPackageDirName(steamAppId);
     if (dirName.isEmpty()) return false;
-    return QDir(AppPaths::packagesDir() + QStringLiteral("/") + dirName).exists();
+
+    QDir pkgDir(AppPaths::packagesDir() + QStringLiteral("/") + dirName);
+    if (!pkgDir.exists()) return false;
+
+    // Guard: a previous crash may have left an empty directory.
+    // Check that the directory actually contains files.
+    if (pkgDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot).isEmpty()) {
+        qCWarning(lcGameService) << "Package directory is empty (broken extraction?):"
+                   << pkgDir.absolutePath() << "— will re-download";
+        // Remove the empty directory so the next download can proceed
+        pkgDir.removeRecursively();
+        return false;
+    }
+    return true;
 }
 
 QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
