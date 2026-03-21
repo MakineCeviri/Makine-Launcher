@@ -41,7 +41,13 @@ ApplicationWindow {
     }
 
     // Window sizing + positioning handled in C++ (main.cpp) via Win32 API
+    // Auth gate — blocks all content until authenticated
+    readonly property bool _authReady: typeof AuthService !== "undefined"
+                                       && AuthService.isAuthenticated
+
     Component.onCompleted: {
+        if (typeof AuthService !== "undefined")
+            AuthService.checkStoredToken()
         if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
     }
@@ -258,11 +264,20 @@ ApplicationWindow {
         z: -1
     }
 
+    // Login screen — shown when not authenticated
+    Loader {
+        anchors.fill: parent
+        active: !window._authReady
+        visible: active
+        z: 100
+        source: "qrc:/qt/qml/MakineLauncher/qml/screens/LoginScreen.qml"
+    }
+
     ColumnLayout {
         id: mainContent
         anchors.fill: parent
         spacing: 0
-        visible: !window._onboardingActive
+        visible: !window._onboardingActive && window._authReady
 
         // ===== TITLE BAR (32px) =====
         TitleBar {

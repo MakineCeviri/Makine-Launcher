@@ -117,6 +117,7 @@ set(BACKEND_SOURCES
     src/services/ocrcontroller.cpp
     src/services/translationstatemanager.cpp
     src/services/installflowservice.cpp
+    src/services/authservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -151,6 +152,7 @@ set(BACKEND_HEADERS
     src/services/ocrcontroller.h
     src/services/translationstatemanager.h
     src/services/installflowservice.h
+    src/services/authservice.h
 )
 
 
@@ -190,6 +192,9 @@ qt_add_qml_module(MakineLauncher
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
         qml/OnboardingWizard.qml
+
+        # Screens - Auth
+        qml/screens/LoginScreen.qml
 
         # Screens - Home Pages
         qml/screens/HomePage.qml

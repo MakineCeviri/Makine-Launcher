@@ -28,7 +28,11 @@
 #include <QJsonDocument>
 #include <QTimer>
 #include <QSettings>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QUrlQuery>
 #include "services/profiler.h"
+#include "services/authservice.h"
 #include "services/crashreporter.h"
 #include <QLoggingCategory>
 
@@ -575,6 +579,9 @@ using namespace makine;
 // Forward declarations of helper functions
 // -----------------------------------------------------------------------------
 
+// Register makine:// protocol handler in Windows registry.
+static void registerProtocolHandler();
+
 // Set Qt environment variables before QGuiApplication is constructed.
 static void configureQtEnvironment();
 
@@ -754,6 +761,21 @@ static bool acquireSingleInstance(bool isPostUpdate)
     }
 
     return false;
+}
+
+static void registerProtocolHandler()
+{
+#ifdef Q_OS_WIN
+    // Register makine:// protocol handler in current user registry.
+    // Windows replaces %1 with the invoked URL at runtime.
+    QString exePath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+    QSettings reg(QStringLiteral("HKEY_CURRENT_USER\\Software\\Classes\\makine"), QSettings::NativeFormat);
+    reg.setValue(QStringLiteral("Default"), QStringLiteral("Makine Launcher Auth"));
+    reg.setValue(QStringLiteral("URL Protocol"), QString());
+    QString cmd = QLatin1Char('"') + exePath + QStringLiteral("\" \"--auth-callback\" \"%1\"");
+    reg.setValue(QStringLiteral("shell/open/command/Default"), cmd);
+    qCDebug(lcApp) << "Protocol handler registered: makine://";
+#endif
 }
 
 static void configureApplication(QGuiApplication& app)
@@ -1327,13 +1349,28 @@ int main(int argc, char *argv[])
 {
     configureQtEnvironment();
 
-    // Parse --post-update before QGuiApplication (needed for single-instance retry)
+    // Parse command-line flags before QGuiApplication
     bool isPostUpdate = false;
+    QString authCallbackUrl;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--post-update") == 0) {
             isPostUpdate = true;
-            break;
+        } else if (strcmp(argv[i], "--auth-callback") == 0 && i + 1 < argc) {
+            authCallbackUrl = QString::fromLocal8Bit(argv[++i]);
         }
+    }
+
+    // If auth callback, try to send to running instance via IPC and exit
+    if (!authCallbackUrl.isEmpty()) {
+        QLocalSocket socket;
+        socket.connectToServer(QStringLiteral("MakineLauncher_AuthIPC"));
+        if (socket.waitForConnected(1000)) {
+            socket.write(authCallbackUrl.toUtf8());
+            socket.waitForBytesWritten(1000);
+            socket.disconnectFromServer();
+            return 0;
+        }
+        // No running instance — continue startup and handle after init
     }
 
     // Single-instance guard (must run before QGuiApplication on Windows)
@@ -1406,6 +1443,39 @@ int main(int argc, char *argv[])
         splash,
 #endif
         gameService, manifestSync, imageCache, trayManager, journal, processScanner);
+
+    // Auth service + protocol handler
+    auto* authService = new AuthService(&app);
+    engine.rootContext()->setContextProperty("AuthService", authService);
+    registerProtocolHandler();
+
+    // IPC server for auth callbacks from protocol handler
+    auto* authIpcServer = new QLocalServer(&app);
+    authIpcServer->setSocketOptions(QLocalServer::UserAccessOption);
+    authIpcServer->listen(QStringLiteral("MakineLauncher_AuthIPC"));
+    QObject::connect(authIpcServer, &QLocalServer::newConnection, [authService, authIpcServer]() {
+        auto* socket = authIpcServer->nextPendingConnection();
+        QObject::connect(socket, &QLocalSocket::disconnected, [authService, socket]() {
+            QUrl url(QString::fromUtf8(socket->readAll()));
+            QUrlQuery query(url);
+            QString code = query.queryItemValue(QStringLiteral("code"));
+            QString state = query.queryItemValue(QStringLiteral("state"));
+            if (!code.isEmpty())
+                authService->handleAuthCallback(code, state);
+            socket->deleteLater();
+        });
+    });
+
+    // Handle callback if this instance was launched with --auth-callback
+    if (!authCallbackUrl.isEmpty()) {
+        QTimer::singleShot(500, [authService, authCallbackUrl]() {
+            QUrl url(authCallbackUrl);
+            QUrlQuery query(url);
+            authService->handleAuthCallback(
+                query.queryItemValue(QStringLiteral("code")),
+                query.queryItemValue(QStringLiteral("state")));
+        });
+    }
 
     // Wire inter-service signal/slot connections
     wireSignals(app, gameService, manifestSync, trayManager, processScanner);
