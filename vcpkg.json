@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Turkish game translation launcher",
   "homepage": "https://makineceviri.org",
-  "license": "LicenseRef-Proprietary",
+  "license": "AGPL-3.0-only",
   "supports": "windows & x64",
   "dependencies": [
     "boost-filesystem",

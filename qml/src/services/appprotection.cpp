@@ -4,7 +4,7 @@
  * @copyright (c) 2026 MakineCeviri Team
  *
  * Release builds (NDEBUG): 8 anti-debug checks, periodic re-checks,
- * and delayed exit. Extended checks (RE tools, VM, DLL) in C:\cedra\security\.
+ * and delayed exit. Extended checks (RE tools, VM, DLL) in separate module.
  * Debug builds: every function is a harmless no-op.
  */
 

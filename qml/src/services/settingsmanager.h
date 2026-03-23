@@ -181,7 +181,7 @@ private:
     QString m_appLanguage{"tr"};
 
     // Paths
-    QString m_translationDataPath{"C:/cedra/translation_data"};
+    QString m_translationDataPath;
 };
 
 } // namespace makine
