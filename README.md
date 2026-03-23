@@ -4,7 +4,7 @@
 ---
 
 <p align="center">
-  <img src="qml/resources/images/logo.png" alt="Makine Launcher" width="128">
+  <img src="https://cdn.makineceviri.org/assets/images/logo.png" alt="Makine Launcher" width="128">
 </p>
 
 <h1 align="center">Makine Launcher</h1>
