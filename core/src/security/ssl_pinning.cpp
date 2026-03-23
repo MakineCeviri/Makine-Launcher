@@ -9,6 +9,7 @@
 
 #include <curl/curl.h>
 #include <algorithm>
+#include <string>
 
 namespace makine {
 namespace ssl {
@@ -113,11 +114,19 @@ bool applySslPinning(CURL* curl, const std::string& url) {
                                     pinString.c_str());
 
     if (res == CURLE_NOT_BUILT_IN || res == CURLE_UNKNOWN_OPTION) {
-        // CURL was built without pinning support — log but don't fail
+#ifdef NDEBUG
+        // Release builds MUST have pinning — refuse to connect without it
+        MAKINE_LOG_ERROR(log::NETWORK,
+            "CURL SSL pinning not supported in this build — "
+            "refusing connection to {} (security requirement)", host);
+        return false;
+#else
+        // Debug builds: warn but allow (for development flexibility)
         MAKINE_LOG_WARN(log::NETWORK,
             "CURL SSL pinning not supported in this build, "
             "falling back to standard TLS verification for {}", host);
         return false;
+#endif
     }
 
     if (res != CURLE_OK) {
