@@ -343,12 +343,12 @@ void SettingsManager::loadSettings()
             m_translationDataPath = QString::fromUtf8(decrypted);
         } else {
             // Decryption failed — use default
-            m_translationDataPath = QStringLiteral("C:/cedra/translation_data");
+            m_translationDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/translation_data");
         }
     } else {
         // Legacy plaintext or first run — load and migrate
         m_translationDataPath = m_settings.value("paths/translationData",
-            "C:/cedra/translation_data").toString();
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/translation_data")).toString();
 
         // Migrate to encrypted storage
         QByteArray encrypted = protectData(m_translationDataPath.toUtf8());
