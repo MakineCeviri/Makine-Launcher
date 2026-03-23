@@ -347,7 +347,7 @@ if (!encPath.isEmpty()) {
 } else {
     // Migration: eski plaintext'ten oku
     m_translationDataPath = m_settings.value("paths/translationData",
-        "C:/cedra/translation_data/mc-main").toString();
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/translation_data").toString();
 }
 ```
 
