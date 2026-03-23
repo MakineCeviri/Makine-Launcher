@@ -42,9 +42,26 @@ Q_LOGGING_CATEGORY(lcApp, "makine.app")
 #include <windows.h>
 #include <psapi.h>     // EmptyWorkingSet
 #include <dwmapi.h>    // DwmExtendFrameIntoClientArea
+#include <QAbstractNativeEventFilter>
 #include <cmath>
 #include <atomic>
 #include <mutex>
+
+// Eliminate DWM non-client border on frameless windows.
+// Without this, Windows adds an asymmetric invisible border (~8px left, ~0px right)
+// that shifts the contentItem and makes centered content appear off-center.
+class FramelessFilter : public QAbstractNativeEventFilter {
+public:
+    bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override {
+        if (eventType != "windows_generic_MSG") return false;
+        auto *msg = static_cast<MSG *>(message);
+        if (msg->message == WM_NCCALCSIZE && msg->wParam == TRUE) {
+            *result = 0;
+            return true;
+        }
+        return false;
+    }
+};
 
 // DWM window style — adapts to Windows version
 namespace {
@@ -1126,41 +1143,12 @@ static void setupRootWindow(
     // persisted to QSettings — it already accounts for auto-fit on small screens,
     // compact/large user preference, and the 0.80 floor.
     {
-        RECT workArea{};
-        SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0);
-        int waW = workArea.right - workArea.left;
-        int waH = workArea.bottom - workArea.top;
-
-        constexpr int refW = 1100;   // reference logical width (smaller default)
-        constexpr int refH = 700;    // reference logical height
-
-        // Effective scale (computed once at startup, includes auto-fit)
-        QSettings settings("MakineCeviri", "Makine-Launcher");
-        double scaleFactor = settings.value("appearance/_appliedScaleFactor", 1.0).toDouble();
-
-        // Window size = reference × effective scale (logical pixels, Qt handles DPI)
-        int w = static_cast<int>(refW * scaleFactor);
-        int h = static_cast<int>(refH * scaleFactor);
-
-        // Floor: at least 40 % of work area
-        w = qMax(w, waW * 40 / 100);
-        h = qMax(h, waH * 40 / 100);
-
-        // Ceiling: at most 85 % of work area
-        w = qMin(w, waW * 85 / 100);
-        h = qMin(h, waH * 85 / 100);
-
-        // Screen center
-        int cx = workArea.left + waW / 2;
-        int cy = workArea.top  + waH / 2;
-        int x  = cx - w / 2;
-        int y  = cy - h / 2;
-
+        // Window sizing is now handled in QML (Main.qml width/height/x/y).
+        // Only apply DWM style here — no MoveWindow to avoid resize cascade.
         HWND hwnd = reinterpret_cast<HWND>(window->winId());
-        MoveWindow(hwnd, x, y, w, h, TRUE);
-
-        // Apply OS-appropriate window style (Mica on W11, dark frame on W10)
         configureWindowStyle(hwnd);
+        SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     }
 #endif
 
@@ -1217,9 +1205,7 @@ static void setupRootWindow(
         }, Qt::QueuedConnection);
 
     // Request first frame BEFORE preloading Settings — ensures the render
-    // pipeline starts immediately. Settings async Loader won't block the
-    // first frame because it runs on the QML thread pool, but requesting
-    // the update first guarantees minimum latency to splash close.
+    // pipeline starts immediately.
     window->requestUpdate();
     logToFile(QString("Phase 10 (callback registered) at %1 ms").arg(startupTimer.elapsed()));
 
@@ -1393,6 +1379,12 @@ int main(int argc, char *argv[])
     singleInstanceGuard.create(1);
 
     QGuiApplication app(argc, argv);
+
+#ifdef Q_OS_WIN
+    // Eliminate asymmetric DWM border on frameless window
+    static FramelessFilter framelessFilter;
+    app.installNativeEventFilter(&framelessFilter);
+#endif
 
     // === Phase 0: Crash reporting (as early as possible after QApp) ===
     makine::CrashReporter::initialize();

@@ -98,21 +98,15 @@ Item {
         }
     }
 
-    // Full-window dimensions (bypass contentItem layout issues)
-    readonly property real winW: Window.window ? Window.window.width : width
-    readonly property real winH: Window.window ? Window.window.height : height
-
-    // === BACKGROUND — extended wave-bg with rich color palette ===
+    // === BACKGROUND ===
     Rectangle {
-        x: 0; y: 0
-        width: root.winW
-        height: root.winH
+        anchors.fill: parent
         color: "#0d1117"
         clip: true
 
         Rectangle {
-            width: root.winW * 6
-            height: root.winH
+            width: root.width * 6
+            height: root.height
 
             gradient: Gradient {
                 orientation: Gradient.Horizontal
@@ -133,17 +127,17 @@ Item {
 
             SequentialAnimation on x {
                 loops: Animation.Infinite
-                NumberAnimation { to: -root.winW * 5; duration: 25000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: -root.width * 5; duration: 25000; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0; duration: 25000; easing.type: Easing.InOutSine }
             }
         }
     }
 
-    // === CONTENT — explicit center using window dimensions ===
+    // === CONTENT ===
     ColumnLayout {
-        width: Math.min(Math.max(320, root.winW * 0.28), 400)
-        x: (root.winW - width) / 2
-        y: (root.winH - height) / 2
+        anchors.centerIn: parent
+        anchors.horizontalCenterOffset: -43
+        width: 380
         spacing: 0
 
         // Logo with dual neon glow
@@ -416,7 +410,6 @@ Item {
     }
 
     Component.onCompleted: {
-        console.log("[LoginScreen] Loaded. AuthService.state:", AuthService.state,
-                    "enabled button:", AuthService.state === AuthServiceType.Unauthenticated)
+        console.log("[LoginScreen] Loaded. AuthService.state:", AuthService.state)
     }
 }

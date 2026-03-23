@@ -18,7 +18,7 @@
 
 param(
     [string]$CertDir = "$PSScriptRoot\certs",
-    [string]$Password = "Makine-Dev-2026",
+    [Parameter(Mandatory=$true)][string]$Password,
     [switch]$Force
 )
 
