@@ -38,9 +38,15 @@ void InstallFlowService::startInstall(const QString& gameId, const QString& game
 {
     m_pendingUpdateFlow = false;
 
-    // External partner redirect (e.g. ApexYama)
+    // External partner redirect (e.g. ApexYama) — scheme-validated
     if (!externalUrl.isEmpty()) {
-        QDesktopServices::openUrl(QUrl(externalUrl));
+        QUrl url(externalUrl);
+        if (url.scheme() != QStringLiteral("https")) {
+            qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << externalUrl;
+            emit installError(gameId, tr("Invalid external URL"));
+            return;
+        }
+        QDesktopServices::openUrl(url);
         emit externalRedirect(externalUrl);
         return;
     }
@@ -223,11 +229,17 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
     m_pendingDownload.reset();
     m_pendingUpdateFlow = false;
 
-    // External source redirect
+    // External source redirect — scheme-validated
     QVariantMap catalog = m_gameService->getCatalogEntry(gameId);
     QString extUrl = catalog.value(QStringLiteral("externalUrl")).toString();
     if (!extUrl.isEmpty()) {
-        QDesktopServices::openUrl(QUrl(extUrl));
+        QUrl url(extUrl);
+        if (url.scheme() != QStringLiteral("https")) {
+            qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << extUrl;
+            emit installError(gameId, tr("Invalid external URL"));
+            return;
+        }
+        QDesktopServices::openUrl(url);
         emit externalRedirect(extUrl);
         return;
     }
@@ -270,11 +282,11 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
         return;
     }
 
-    // Need to download from R2
+    // Need to download from R2 — CDN domain validated
     QVariantMap catalog = m_gameService->getCatalogEntry(gameId);
     QString dataUrl = catalog.value(QStringLiteral("dataUrl")).toString();
 
-    if (dataUrl.isEmpty()) {
+    if (dataUrl.isEmpty() || !dataUrl.startsWith(QStringLiteral("https://cdn.makineceviri.org"))) {
         m_gameService->updateTranslation(gameId, variant, options);
         m_pendingUpdateFlow = false;
         return;
