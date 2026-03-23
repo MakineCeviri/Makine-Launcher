@@ -16,8 +16,14 @@ ApplicationWindow {
     minimumWidth: Dimensions.minWindowWidth
     minimumHeight: Dimensions.minWindowHeight
 
+    // Initial size — match screen proportions, centered (replaces C++ MoveWindow)
+    width: Math.min(Math.max(1100, Dimensions.minWindowWidth), Screen.width * 0.85)
+    height: Math.round(width / (Dimensions.minWindowWidth / Dimensions.minWindowHeight))
+    x: Math.round((Screen.width - width) / 2)
+    y: Math.round((Screen.height - height) / 2)
+
     title: "Makine \u00C7eviri - Makine Launcher"
-    color: Theme.bgPrimary
+    color: window._authReady ? Theme.bgPrimary : "#0d1117"
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
@@ -262,9 +268,10 @@ ApplicationWindow {
     AppBackground {
         anchors.fill: parent
         z: -1
+        visible: window._authReady
     }
 
-    // Login screen — shown when not authenticated
+    // Login screen
     LoginScreen {
         anchors.fill: parent
         visible: !window._authReady
