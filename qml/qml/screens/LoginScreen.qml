@@ -5,7 +5,7 @@ import QtQuick.Window
 import MakineLauncher 1.0
 
 /**
- * LoginScreen.qml — Premium auth gate
+ * LoginScreen.qml — Vice City neon auth gate
  */
 Item {
     id: root
@@ -17,10 +17,11 @@ Item {
         hoverEnabled: true
     }
 
-    // Window drag area (top 40px only — avoids blocking buttons)
+    // Window drag area — stops before window buttons
     Item {
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.rightMargin: 140
         anchors.top: parent.top
         height: 40
         z: 5
@@ -30,65 +31,105 @@ Item {
         }
     }
 
-    // Close button
-    Button {
+    // Window controls — tray, minimize, close
+    Row {
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 12
-        width: 32; height: 32
         z: 10
-        background: Rectangle {
-            radius: 16
-            color: parent.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+
+        // Tray
+        Rectangle {
+            width: 46; height: 32
+            color: trayMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "\uE70D"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 11
+                color: Qt.rgba(1, 1, 1, trayMa.containsMouse ? 0.7 : 0.35)
+            }
+            MouseArea {
+                id: trayMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.ArrowCursor
+                onClicked: root.Window.window?.hide()
+            }
         }
-        contentItem: Text {
-            text: "\u2715"
-            color: Qt.rgba(1, 1, 1, 0.4)
-            font.pixelSize: 13
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
+
+        // Minimize
+        Rectangle {
+            width: 46; height: 32
+            color: minMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "\uE921"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 11
+                color: Qt.rgba(1, 1, 1, minMa.containsMouse ? 0.7 : 0.35)
+            }
+            MouseArea {
+                id: minMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.ArrowCursor
+                onClicked: root.Window.window?.showMinimized()
+            }
         }
-        onClicked: {
-            console.log("[LoginScreen] Close button clicked")
-            Qt.quit()
+
+        // Close
+        Rectangle {
+            width: 46; height: 32
+            color: closeMa.containsMouse ? "#E81123" : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "\uE8BB"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 11
+                color: closeMa.containsMouse ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.35)
+            }
+            MouseArea {
+                id: closeMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.ArrowCursor
+                onClicked: root.Window.window?.close()
+            }
         }
     }
 
-    // === BACKGROUND ===
-    // Deep dark base
-    Rectangle {
+    // === BACKGROUND — extended wave-bg with rich color palette ===
+    Item {
         anchors.fill: parent
-        color: "#050508"
-    }
+        clip: true
 
-    // Top-left accent blob
-    Rectangle {
-        x: -120; y: -80
-        width: 400; height: 400
-        radius: 200
-        color: Theme.accent
-        opacity: 0.04
-    }
+        Rectangle {
+            width: parent.width * 6
+            height: parent.height
 
-    // Bottom-right accent blob
-    Rectangle {
-        x: parent.width - 200; y: parent.height - 180
-        width: 350; height: 350
-        radius: 175
-        color: "#8B5CF6"
-        opacity: 0.03
-    }
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.000; color: "#0a1628" }
+                GradientStop { position: 0.080; color: "#0e1a30" }
+                GradientStop { position: 0.160; color: "#150f2a" }
+                GradientStop { position: 0.240; color: "#1a0f2e" }
+                GradientStop { position: 0.320; color: "#1e0e30" }
+                GradientStop { position: 0.400; color: "#170d2a" }
+                GradientStop { position: 0.480; color: "#0f2a2e" }
+                GradientStop { position: 0.560; color: "#0a2428" }
+                GradientStop { position: 0.640; color: "#0d1820" }
+                GradientStop { position: 0.720; color: "#0d1117" }
+                GradientStop { position: 0.800; color: "#10131c" }
+                GradientStop { position: 0.880; color: "#0c1522" }
+                GradientStop { position: 1.000; color: "#0a1628" }
+            }
 
-    // Subtle grain overlay
-    Rectangle {
-        anchors.fill: parent
-        color: "transparent"
-        opacity: 0.02
-        Rectangle { x: 10; y: 20; width: 2; height: 2; color: "#fff" }
-        Rectangle { x: 80; y: 60; width: 1; height: 1; color: "#fff" }
-        Rectangle { x: 200; y: 100; width: 2; height: 2; color: "#fff" }
-        Rectangle { x: 350; y: 40; width: 1; height: 1; color: "#fff" }
-        Rectangle { x: 150; y: 200; width: 2; height: 2; color: "#fff" }
+            SequentialAnimation on x {
+                loops: Animation.Infinite
+                NumberAnimation { to: -parent.width * 5; duration: 25000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0; duration: 25000; easing.type: Easing.InOutSine }
+            }
+        }
     }
 
     // === CONTENT ===
@@ -97,63 +138,82 @@ Item {
         spacing: 0
         width: Math.min(380, parent.width - 60)
 
-        // White logo
-        Image {
-            id: logoImg
+        // Logo with dual neon glow
+        Item {
             Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 72
+            Layout.preferredHeight: 72
             Layout.bottomMargin: 28
-            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo_white.png"
-            sourceSize: Qt.size(96, 96)
-            fillMode: Image.PreserveAspectFit
+
+            Image {
+                anchors.fill: parent
+                source: "qrc:/qt/qml/MakineLauncher/resources/images/logo_white.png"
+                sourceSize: Qt.size(72, 72)
+                fillMode: Image.PreserveAspectFit
+            }
+
             opacity: 0
             scale: 0.85
-
             NumberAnimation on opacity { to: 1; duration: 700; easing.type: Easing.OutCubic }
             NumberAnimation on scale { to: 1; duration: 700; easing.type: Easing.OutBack }
         }
 
-        // Glow behind logo
-        Rectangle {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 160
-            Layout.preferredHeight: 160
-            Layout.topMargin: -160 - 28
-            Layout.bottomMargin: -160 + 28
-            radius: 80
-            color: Theme.accent
-            opacity: 0.07
-            z: -1
-        }
-
-        // MAKİNE ÇEVİRİ title with glow
+        // MAKİNE ÇEVİRİ — split brand title (web style)
         Item {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: titleText.implicitWidth
-            Layout.preferredHeight: titleText.implicitHeight
+            Layout.preferredWidth: titleRow.implicitWidth
+            Layout.preferredHeight: titleRow.implicitHeight
             Layout.bottomMargin: 6
 
             // Glow layer
-            Text {
+            Row {
                 anchors.centerIn: parent
-                text: "MAK\u0130NE \u00C7EV\u0130R\u0130"
-                font.pixelSize: 28
-                font.weight: Font.Black
-                font.letterSpacing: 3
-                color: Theme.accent
-                opacity: 0.4
-                layer.enabled: true
-                layer.smooth: true
+                spacing: 0
+                Text {
+                    text: "MAK\u0130NE "
+                    font.pixelSize: 22
+                    font.family: "Inter"
+                    font.weight: Font.Bold
+                    font.letterSpacing: 6
+                    color: "#FFFFFF"
+                    opacity: 0.25
+                    layer.enabled: true
+                    layer.smooth: true
+                }
+                Text {
+                    text: "\u00C7EV\u0130R\u0130"
+                    font.pixelSize: 22
+                    font.family: "Inter"
+                    font.weight: Font.Normal
+                    font.letterSpacing: 6
+                    color: "#FFFFFF"
+                    opacity: 0.15
+                    layer.enabled: true
+                    layer.smooth: true
+                }
             }
 
             // Main text
-            Text {
-                id: titleText
+            Row {
+                id: titleRow
                 anchors.centerIn: parent
-                text: "MAK\u0130NE \u00C7EV\u0130R\u0130"
-                font.pixelSize: 28
-                font.weight: Font.Black
-                font.letterSpacing: 3
-                color: "#FFFFFF"
+                spacing: 0
+                Text {
+                    text: "MAK\u0130NE "
+                    font.pixelSize: 22
+                    font.family: "Inter"
+                    font.weight: Font.Bold
+                    font.letterSpacing: 6
+                    color: "#FFFFFF"
+                }
+                Text {
+                    text: "\u00C7EV\u0130R\u0130"
+                    font.pixelSize: 22
+                    font.family: "Inter"
+                    font.weight: Font.Normal
+                    font.letterSpacing: 6
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                }
             }
 
             opacity: 0
@@ -164,11 +224,12 @@ Item {
         Text {
             Layout.alignment: Qt.AlignHCenter
             Layout.bottomMargin: 40
-            text: qsTr("T\u00FCrk\u00E7e Oyun \u00C7eviri Platformu")
-            font.pixelSize: 12
+            text: qsTr("K\u00E2r Amac\u0131 G\u00FCtmeyen T\u00FCrk\u00E7e Oyun Yerelle\u015Ftirme Platformu")
+            font.pixelSize: 11
+            font.family: "Inter"
             font.weight: Font.Normal
-            font.letterSpacing: 1.5
-            color: Qt.rgba(1, 1, 1, 0.35)
+            font.letterSpacing: 3
+            color: Qt.rgba(1, 1, 1, 0.25)
             opacity: 0
             NumberAnimation on opacity { to: 1; duration: 600 }
         }
@@ -179,9 +240,9 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: cardContent.implicitHeight + 56
             radius: 14
-            color: Qt.rgba(1, 1, 1, 0.04)
+            color: Qt.rgba(1, 1, 1, 0.03)
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.07)
+            border.color: Qt.rgba(1, 0.42, 0.62, 0.12)
 
             ColumnLayout {
                 id: cardContent
@@ -194,10 +255,10 @@ Item {
                     text: qsTr("Devam etmek i\u00E7in giri\u015F yap\u0131n")
                     font.pixelSize: 13
                     font.weight: Font.Medium
-                    color: Qt.rgba(1, 1, 1, 0.5)
+                    color: Qt.rgba(1, 1, 1, 0.45)
                 }
 
-                // Login button
+                // Login button — neon pink
                 Button {
                     id: loginBtn
                     Layout.fillWidth: true
@@ -208,10 +269,10 @@ Item {
                     background: Rectangle {
                         radius: 10
                         color: {
-                            if (!loginBtn.enabled) return Qt.rgba(0.024, 0.714, 0.831, 0.3)
-                            if (loginBtn.pressed) return "#0E7490"
-                            if (loginBtn.hovered) return "#0891B2"
-                            return Theme.accent
+                            if (!loginBtn.enabled) return Qt.rgba(0.9, 0.4, 0.6, 0.2)
+                            if (loginBtn.pressed) return "#B03070"
+                            if (loginBtn.hovered) return "#E04898"
+                            return "#D63D8C"
                         }
                     }
                     contentItem: Text {
@@ -242,7 +303,7 @@ Item {
                              || AuthService.state === AuthServiceType.Exchanging
                              || AuthService.state === AuthServiceType.Checking
                     visible: running
-                    palette.dark: Theme.accent
+                    palette.dark: "#22D3EE"
                 }
 
                 // Error
@@ -301,7 +362,7 @@ Item {
             Layout.bottomMargin: 18
             Layout.preferredWidth: 32
             Layout.preferredHeight: 1
-            color: Qt.rgba(1, 1, 1, 0.08)
+            color: Qt.rgba(1, 0.42, 0.62, 0.15)
             opacity: 0
             NumberAnimation on opacity { to: 1; duration: 700 }
         }
@@ -309,8 +370,8 @@ Item {
         // Register link
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: qsTr("Hesab\u0131n\u0131z yok mu?  ") + "<a href='https://makineceviri.org/hesap' style='color:" + Theme.accent + ";text-decoration:none'>" + qsTr("Kay\u0131t olun") + "</a>"
-            color: Qt.rgba(1, 1, 1, 0.35)
+            text: qsTr("Hesab\u0131n\u0131z yok mu?  ") + "<a href='https://makineceviri.org/hesap' style='color:#22D3EE;text-decoration:none'>" + qsTr("Kay\u0131t olun") + "</a>"
+            color: Qt.rgba(1, 1, 1, 0.30)
             font.pixelSize: 12
             textFormat: Text.RichText
             onLinkActivated: link => Qt.openUrlExternally(link)
@@ -331,7 +392,7 @@ Item {
             text: "v0.1.0-alpha"
             font.pixelSize: 10
             font.letterSpacing: 0.5
-            color: Qt.rgba(1, 1, 1, 0.15)
+            color: Qt.rgba(1, 1, 1, 0.12)
             opacity: 0
             NumberAnimation on opacity { to: 1; duration: 800 }
         }
