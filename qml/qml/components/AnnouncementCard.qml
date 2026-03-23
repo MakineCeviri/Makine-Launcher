@@ -27,9 +27,10 @@ Rectangle {
     }
 
     readonly property string _bannerUrl:
-        "https://cdn.makineceviri.org/assets/banners/announcement.png"
+        "https://cdn.makineceviri.org/assets/banners/announcement.png?v=" + Date.now()
 
     // Banner image (hidden — rendered via MultiEffect mask)
+    // cache: false — always fetch fresh from CDN (banner changes frequently)
     Image {
         id: bannerImg
         anchors.fill: parent
@@ -37,6 +38,7 @@ Rectangle {
         fillMode: Image.PreserveAspectCrop
         sourceSize: Qt.size(width, height)
         asynchronous: true
+        cache: false
         mipmap: true
         visible: false
     }
