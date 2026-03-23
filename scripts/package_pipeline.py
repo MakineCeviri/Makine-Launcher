@@ -249,7 +249,8 @@ def verify_package(app_id: str, output_dir: Path, data_dir: Path, key: bytes) ->
         # Compare with source directory
         source_dir = None
         # Find source dir from manifest
-        manifest_path = Path("C:/cedra/Makine-Assets/packages") / f"{app_id}.json"
+        assets_dir = Path(os.environ.get("MAKINE_ASSETS_DIR", Path(__file__).parent.parent / "Makine-Launcher-Assets" / "assets"))
+        manifest_path = assets_dir / "packages" / f"{app_id}.json"
         if manifest_path.exists():
             pkg = json.loads(manifest_path.read_text(encoding="utf-8"))
             dir_name = pkg.get("dirName", "")
@@ -366,13 +367,16 @@ def main():
     parser = argparse.ArgumentParser(
         description="Compress + encrypt translation packages for distribution"
     )
-    parser.add_argument("--manifest", default="C:/cedra/Makine-Assets/index.json",
+    default_data = os.environ.get("MAKINE_DATA_DIR", str(Path(__file__).parent.parent / "translation_data"))
+    default_assets = os.environ.get("MAKINE_ASSETS_DIR", str(Path(__file__).parent.parent / "Makine-Launcher-Assets" / "assets"))
+    default_output = os.environ.get("MAKINE_BUILD_DATA_DIR", str(Path(__file__).parent.parent / "build" / "data"))
+    parser.add_argument("--manifest", default=os.path.join(default_assets, "index.json"),
                         help="Path to index.json")
-    parser.add_argument("--packages-dir", default="C:/cedra/Makine-Assets/packages",
+    parser.add_argument("--packages-dir", default=os.path.join(default_assets, "packages"),
                         help="Path to per-game JSON directory")
-    parser.add_argument("--data", default="C:/cedra/translation_data",
+    parser.add_argument("--data", default=default_data,
                         help="Translation data root directory")
-    parser.add_argument("--output", default="C:/cedra/Makine-Assets-Build/data",
+    parser.add_argument("--output", default=default_output,
                         help="Output directory for .makine files")
     parser.add_argument("--key", default="scripts/.encryption_key",
                         help="Path to encryption key file")

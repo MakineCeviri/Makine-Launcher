@@ -6,10 +6,7 @@ Türkçe oyun çeviri platformuna hoş geldiniz!
 
 ## Proje Hakkında
 
-Makine-Launcher iki parçadan oluşur:
-
-- **Makine** — Çeviri dağıtım platformu (oyun tespit, paket kur/kaldır, yedekle)
-- **MakineAI** — Adaptasyon motoru (oyun güncelleme tespiti, otomatik çeviri uyarlama)
+Türk oyuncular için çeviri dağıtım platformu — oyun tespit, paket kur/kaldır, yedekle, güncelle.
 
 Detaylar: [Vizyon](VISION.md) | [Yol Haritası](ROADMAP.md)
 
@@ -25,7 +22,7 @@ Detaylar: [Vizyon](VISION.md) | [Yol Haritası](ROADMAP.md)
 ## Geliştirici Dokümantasyonu
 
 - [Geliştirme Ortamı](developer-guide/setup.md) - Kurulum ve araçlar
-- [Mimari](developer-guide/architecture.md) - Sistem tasarımı (Makine + MakineAI)
+- [Mimari](developer-guide/architecture.md) - Sistem tasarımı
 - [QML Arayüz](developer-guide/qml-frontend.md) - Tema, bileşenler, state yönetimi
 - [Build Sistemi](developer-guide/build-system.md) - CMake, vcpkg, preset'ler
 - [Test Yazma](developer-guide/testing.md) - GTest, CTest
@@ -52,8 +49,7 @@ Teknik referans — her motorun dosya yapısı ve çeviri yöntemi:
 | GameMaker | [gamemaker.md](game-engines/gamemaker.md) |
 | Bethesda | [bethesda.md](game-engines/bethesda.md) |
 
-> **Not:** Bu dokümanlar motor dosya formatları hakkında referans bilgi içerir.
-> Adaptasyon motoru bu bilgileri kullanarak güncelleme sonrası uyarlama yapacaktır.
+> **Not:** Bu dokümanlar motor dosya formatları hakkında teknik referans bilgi içerir.
 
 ---
 

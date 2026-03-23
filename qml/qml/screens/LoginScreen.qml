@@ -98,14 +98,21 @@ Item {
         }
     }
 
+    // Full-window dimensions (bypass contentItem layout issues)
+    readonly property real winW: Window.window ? Window.window.width : width
+    readonly property real winH: Window.window ? Window.window.height : height
+
     // === BACKGROUND — extended wave-bg with rich color palette ===
-    Item {
-        anchors.fill: parent
+    Rectangle {
+        x: 0; y: 0
+        width: root.winW
+        height: root.winH
+        color: "#0d1117"
         clip: true
 
         Rectangle {
-            width: parent.width * 6
-            height: parent.height
+            width: root.winW * 6
+            height: root.winH
 
             gradient: Gradient {
                 orientation: Gradient.Horizontal
@@ -126,17 +133,18 @@ Item {
 
             SequentialAnimation on x {
                 loops: Animation.Infinite
-                NumberAnimation { to: -parent.width * 5; duration: 25000; easing.type: Easing.InOutSine }
+                NumberAnimation { to: -root.winW * 5; duration: 25000; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 0; duration: 25000; easing.type: Easing.InOutSine }
             }
         }
     }
 
-    // === CONTENT ===
+    // === CONTENT — explicit center using window dimensions ===
     ColumnLayout {
-        anchors.centerIn: parent
+        width: Math.min(Math.max(320, root.winW * 0.28), 400)
+        x: (root.winW - width) / 2
+        y: (root.winH - height) / 2
         spacing: 0
-        width: Math.min(380, parent.width - 60)
 
         // Logo with dual neon glow
         Item {
@@ -396,7 +404,7 @@ Item {
             opacity: 0
             NumberAnimation on opacity { to: 1; duration: 800 }
         }
-    }
+    } // ColumnLayout
 
     Connections {
         target: AuthService

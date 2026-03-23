@@ -5,7 +5,6 @@
 Turkish game translation launcher + adaptation engine.
 
 - **Makine-Launcher** (this repo) — Launcher: game detection, package install/remove, patching, catalog UI
-- **MakineAI** (separate repo) — Türkçe AI model: tokenizer, corpus, Python/Rust pipeline
 
 ## Build Commands
 

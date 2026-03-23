@@ -241,14 +241,14 @@ profile-tracy duration="12":
     cmake --preset dev-profile
     cmake --build --preset dev-profile
     @echo "Starting Tracy capture + MakineLauncher ({{duration}}s)..."
-    C:/cedra/tools/tracy-0.13.1/tracy-capture.exe -o C:/cedra/tools/trace.tracy -s {{duration}} &
+    tracy-capture.exe -o build/trace.tracy -s {{duration}} &
     sleep 2 && ./build/dev-profile/Makine-Launcher.exe --profile-duration={{duration}}
     @echo ""
     @echo "=== Zone Statistics ==="
-    C:/cedra/tools/tracy-0.13.1/tracy-csvexport.exe C:/cedra/tools/trace.tracy
+    tracy-csvexport.exe build/trace.tracy
     @echo ""
-    @echo "Trace saved: C:/cedra/tools/trace.tracy"
-    @echo "Open in Tracy GUI: C:/cedra/tools/tracy-0.13.1/tracy-profiler.exe"
+    @echo "Trace saved: build/trace.tracy"
+    @echo "Open in Tracy GUI: tracy-profiler.exe"
 
 # Show latest performance report (markdown formatted)
 perf-report:
