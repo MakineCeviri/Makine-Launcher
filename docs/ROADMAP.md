@@ -12,13 +12,11 @@
 
 | Bolum | Tamamlanma | Durum |
 |-------|-----------|-------|
-| Makine: Oyun Tespit & Tarama | %82 | Steam iyi, Epic/GOG minimal, Xbox/GamePass yok |
-| Makine: Ceviri Paket Kurulumu | %90 | Yerel + R2 kurulum, yedek koruma, DPI scaling |
-| Makine: Dagitim Sistemi | %93 | 258/258 CDN'de, AES-256-GCM dogrulama, deploy pipeline |
-| MakineAI: Guncelleme Tespiti | %10 | UpdateDetection + FileIntegrity modulleri mevcut |
-| MakineAI: Adaptasyon Motoru | %5 | Memory Translation Extractor tasarlandi |
-| UI & Kullanici Deneyimi | %95 | 6 ekran, 32 component, 7 dialog; 5 feature devre disi |
-| CI/CD & DevOps | %75 | GitHub Actions release pipeline, lokal build+sign, sunucu CI kaldirildi |
+| Oyun Tespit & Tarama | %82 | Steam iyi, Epic/GOG minimal, Xbox/GamePass yok |
+| Ceviri Paket Kurulumu | %90 | Yerel + R2 kurulum, yedek koruma, DPI scaling |
+| Dagitim Sistemi | %95 | 273/273 CDN'de, AES-256-GCM dogrulama, deploy pipeline |
+| UI & Kullanici Deneyimi | %95 | 5 ekran, 36 component, 7 dialog; 5 feature devre disi |
+| CI/CD & DevOps | %75 | GitHub Actions release pipeline, lokal build+sign |
 | Guvenlik | %80 | AES-256-GCM (paket butunlugu), SSL pinning tamam; pin rotation eksik |
 
 ---
@@ -62,39 +60,7 @@
 
 ---
 
-## MakineAI — Adaptasyon Motoru
-
-### Faz A: Guncelleme Tespiti (%10)
-
-> **Gercek Sorun:** Oyun guncellendi -> Turkce yama bozuldu
-
-| Gorev | Durum | Aciklama |
-|-------|-------|----------|
-| Dosya hash kaydi | **Modul hazir** | FileIntegrity modulu mevcut |
-| Degisiklik tespiti | **Modul hazir** | UpdateDetection modulu mevcut |
-| Steam versiyon kontrolu | Baslanmadi | Steam API/VDF'den version al |
-| Kullanici bildirimi | Baslanmadi | "Oyun guncellendi" uyarisi |
-
-### Faz B: Analiz (%5)
-
-| Gorev | Durum | Aciklama |
-|-------|-------|----------|
-| Memory Translation Extractor | **Tasarlandi** | Process memory'den string cikarma |
-| Dosya diff sistemi | Baslanmadi | Eski vs yeni dosya karsilastirmasi |
-| String degisiklik haritasi | Baslanmadi | Hangi stringler eklendi/silindi/tasindi |
-
-### Faz C: Otomatik Uyarlama (%0)
-
-| Gorev | Durum | Aciklama |
-|-------|-------|----------|
-| Degismeyen dosyalari koru | Baslanmadi | Hash eslesen dosyalara dokunma |
-| Fuzzy string matching | Baslanmadi | Tasinan stringleri bul ve yeniden esle |
-| Akilli merge | Baslanmadi | Catisan dosyalari birlestir |
-| Adaptasyon dogrulama | Baslanmadi | Uyarlanan yamanin butunlugunu kontrol et |
-
----
-
-## Alpha Release Engelleri (2 kaldi)
+## Alpha Release Engelleri (1 kaldi)
 
 | Engel | Durum | Aciklama |
 |-------|-------|----------|
@@ -115,7 +81,7 @@
 | Font analizi | **Kapatildi** | Pratik degeri dusuk |
 | Engine Handler'lar | **Kaldirildi** | Stub interface'ler korundu (IEngineHandler) |
 | Translation Pipeline | **Kaldirildi** | Stub header'lar silindi (2026-02-25) |
-| Translation Memory | **Ertelendi** | Adaptasyon motoruna entegre edilecek |
+| Translation Memory | **Ertelendi** | Ayri proje (MakineAI) |
 | Glossary Service | **Ertelendi** | Stub header silindi (2026-02-25) |
 | QA Service | **Ertelendi** | Stub header silindi (2026-02-25) |
 | Gaming Companion AI | **v2.0+** | Oncelik degil |
@@ -125,17 +91,13 @@
 ## Oncelik Sirasi
 
 ```
-1. Alpha Release Hazirligi (Static Qt build + MSIX)
+1. Alpha Release Hazirligi (Static Qt build)
    |
-2. Microsoft Store Submission
+2. GitHub Releases pre-alpha yayini
    |
-3. MakineAI Faz A: Guncelleme tespiti (hash + versiyon)
+3. Delta guncelleme + Xbox/GamePass scanner
    |
-4. MakineAI Faz B: Analiz (Memory Extractor + diff)
-   |
-5. MakineAI Faz C: Otomatik uyarlama
-   |
-6. Makine Faz 3: Topluluk ozellikleri
+4. Topluluk ozellikleri
 ```
 
 ---

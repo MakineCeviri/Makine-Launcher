@@ -34,8 +34,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
 NPX = "npx.cmd" if sys.platform == "win32" else "npx"
-ASSETS_DIR = Path("C:/cedra/Makine-Assets")  # Local manifest cache
-BUILD_DIR = Path("C:/cedra/Makine-Assets-Build/data")
+ASSETS_DIR = Path(os.environ.get("MAKINE_ASSETS_DIR", SCRIPT_DIR.parent / "Makine-Launcher-Assets" / "assets"))
+BUILD_DIR = Path(os.environ.get("MAKINE_BUILD_DATA_DIR", SCRIPT_DIR.parent / "build" / "data"))
 R2_BUCKET = "makineai-translations"
 PYTHON = sys.executable
 

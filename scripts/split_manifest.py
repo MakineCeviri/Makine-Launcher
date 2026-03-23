@@ -6,9 +6,9 @@ Kullanım:
     python scripts/split_manifest.py [--manifest PATH] [--output DIR] [--data DIR]
 
 Varsayılan:
-    --manifest  C:/cedra/translation_data/manifest.json
-    --output    C:/cedra/Makine-Assets
-    --data      C:/cedra/translation_data
+    --manifest  $MAKINE_DATA_DIR/manifest.json  (veya ../translation_data/manifest.json)
+    --output    $MAKINE_ASSETS_DIR              (veya ../Makine-Launcher-Assets/assets)
+    --data      $MAKINE_DATA_DIR                (veya ../translation_data)
 
 Çıktı:
     {output}/index.json           — Lightweight katalog (~10-20KB)
@@ -65,11 +65,13 @@ def count_files(dir_path: Path) -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="Split monolithic manifest into index + per-game JSON files")
-    parser.add_argument("--manifest", default="C:/cedra/translation_data/manifest.json",
+    default_data = os.environ.get("MAKINE_DATA_DIR", str(Path(__file__).parent.parent / "translation_data"))
+    default_assets = os.environ.get("MAKINE_ASSETS_DIR", str(Path(__file__).parent.parent / "Makine-Launcher-Assets" / "assets"))
+    parser.add_argument("--manifest", default=os.path.join(default_data, "manifest.json"),
                         help="Path to monolithic manifest.json")
-    parser.add_argument("--output", default="C:/cedra/Makine-Assets",
+    parser.add_argument("--output", default=default_assets,
                         help="Output directory for split files")
-    parser.add_argument("--data", default="C:/cedra/translation_data",
+    parser.add_argument("--data", default=default_data,
                         help="Translation data directory (for size calculation)")
     parser.add_argument("--skip-sizes", action="store_true",
                         help="Skip directory size calculation (faster, but sizeBytes will be 0)")

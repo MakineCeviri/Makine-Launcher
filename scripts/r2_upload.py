@@ -33,7 +33,7 @@ except ImportError:
 
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_PATH = SCRIPT_DIR / "r2_config.json"
-DEFAULT_DATA_DIR = Path("C:/cedra/Makine-Assets-Build/data")
+DEFAULT_DATA_DIR = Path(os.environ.get("MAKINE_BUILD_DATA_DIR", SCRIPT_DIR.parent / "build" / "data"))
 R2_PREFIX = "data/"  # Object key prefix in bucket
 
 
