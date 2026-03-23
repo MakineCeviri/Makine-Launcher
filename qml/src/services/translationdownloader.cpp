@@ -286,8 +286,14 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
                 }
             }
 
-            // Checksum verification (non-blocking — AES auth tag is the real gate)
-            verifyChecksum(appId, state.tempPath, state.expectedChecksum);
+            // Checksum verification — abort on mismatch
+            if (!verifyChecksum(appId, state.tempPath, state.expectedChecksum)) {
+                QFile::remove(state.tempPath);
+                m_activeDownloads.remove(appId);
+                emit activeDownloadsChanged();
+                emit downloadError(appId, tr("Paket bütünlüğü doğrulanamadı — indirme iptal edildi"));
+                return;
+            }
 
             // Proceed to extraction
             emit extractionStarted(appId);
@@ -424,7 +430,7 @@ bool TranslationDownloader::verifyChecksum(
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         qCWarning(lcDownloader) << "cannot open file for checksum verification:" << appId;
-        return true; // Non-blocking — AES auth tag will catch real tampering
+        return false; // Cannot verify — treat as failure
     }
 
     QCryptographicHash hasher(QCryptographicHash::Sha256);
@@ -443,11 +449,9 @@ bool TranslationDownloader::verifyChecksum(
         qCWarning(lcDownloader) << "checksum mismatch for" << appId
                    << "expected:" << expectedChecksum
                    << "got:" << computed
-                   << "- proceeding anyway (AES auth tag will validate)";
+                   << "- aborting download (integrity violation)";
         CrashReporter::addBreadcrumb("download",
             QStringLiteral("checksumMismatch: %1").arg(appId).toUtf8().constData());
-        // Non-blocking: AES-256-GCM auth tag is the real integrity gate.
-        // Checksum mismatch usually means manifest is stale, not tampering.
         return false;
     }
 
