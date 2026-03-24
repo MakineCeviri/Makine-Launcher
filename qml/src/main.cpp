@@ -997,33 +997,12 @@ static void createServices(
     engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
     outProcessScanner = processScanner;
 
-    // ===== Phase 6: Security + integrity =====
-#ifdef Q_OS_WIN
-    splash.setStatus(L"B\u00FCt\u00FCnl\u00FCk do\u011Frulamas\u0131 yap\u0131l\u0131yor...");
-#endif
-    auto* integrityService = new IntegrityService(&app);
-    engine.rootContext()->setContextProperty("IntegrityService", integrityService);
-
-    auto* batchService = new BatchOperationService(&app);
-    engine.rootContext()->setContextProperty("BatchOperationService", batchService);
-
-    // ===== Phase 6b: Plugin system (dev builds only) =====
-#ifdef MAKINE_DEV_TOOLS
-    auto* pluginManager = new PluginManager(&app);
-    pluginManager->discoverPlugins();
-    pluginManager->loadEnabledPlugins();
-    pluginManager->checkForUpdates();
-    pluginManager->fetchCommunityPlugins();
-    engine.rootContext()->setContextProperty("PluginManager", pluginManager);
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
-
-    // OCR Controller
-    auto* ocrController = new OcrController(pluginManager, &app);
-    engine.rootContext()->setContextProperty("OcrController", ocrController);
-#else
+    // ===== Phase 6: Security + integrity (deferred — not needed for first frame) =====
+    // Register as nullptr now; real construction happens post-first-frame.
+    engine.rootContext()->setContextProperty("IntegrityService", nullptr);
+    engine.rootContext()->setContextProperty("BatchOperationService", nullptr);
     engine.rootContext()->setContextProperty("PluginManager", nullptr);
     engine.rootContext()->setContextProperty("OcrController", nullptr);
-#endif
 
     // ===== Phase 7: Update service + system tray =====
     makine::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
@@ -1239,6 +1218,31 @@ static void setupRootWindow(
             // Dispatch game library loading — results arrive on subsequent
             // event loop iterations, populating QML progressively.
             gameService->initialize();
+
+            // Tier 2 services: construct after first frame (not needed for login/home)
+            QTimer::singleShot(200, qApp, [&engine = *QQmlEngine::contextForObject(gameService)->engine()]() {
+                auto* ctx = engine.rootContext();
+
+                auto* integrity = new IntegrityService(qApp);
+                ctx->setContextProperty("IntegrityService", integrity);
+
+                auto* batch = new BatchOperationService(qApp);
+                ctx->setContextProperty("BatchOperationService", batch);
+
+#ifdef MAKINE_DEV_TOOLS
+                auto* pluginMgr = new PluginManager(qApp);
+                pluginMgr->discoverPlugins();
+                pluginMgr->loadEnabledPlugins();
+                pluginMgr->checkForUpdates();
+                pluginMgr->fetchCommunityPlugins();
+                ctx->setContextProperty("PluginManager", pluginMgr);
+                QObject::connect(qApp, &QCoreApplication::aboutToQuit, pluginMgr, &PluginManager::shutdownAll);
+
+                auto* ocr = new OcrController(pluginMgr, qApp);
+                ctx->setContextProperty("OcrController", ocr);
+#endif
+                qCDebug(lcApp) << "Tier 2 services initialized (deferred)";
+            });
         }, Qt::QueuedConnection);
 
     // Request first frame BEFORE preloading Settings — ensures the render
