@@ -303,6 +303,7 @@ qt_add_qml_module(MakineLauncher
         # PNG images
         resources/images/logo.png
         resources/images/logo_white.png
+        resources/images/onboarding_gradient.png
         resources/images/apex_logo.svg
         # Showcase images (validated game headers, embedded in binary)
         ${SHOWCASE_IMAGES}

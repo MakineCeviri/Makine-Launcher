@@ -47,26 +47,13 @@ Item {
         clip: true
     }
 
-    Rectangle {
+    // Scrolling gradient — pre-rendered 3840x1 strip stretched to fill
+    // Replaces 6x-wide runtime gradient (380 bytes vs per-frame GPU render)
+    Image {
         width: root.width * 6
         height: root.height
-
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.000; color: "#0a1628" }
-            GradientStop { position: 0.080; color: "#0e1a30" }
-            GradientStop { position: 0.160; color: "#150f2a" }
-            GradientStop { position: 0.240; color: "#1a0f2e" }
-            GradientStop { position: 0.320; color: "#1e0e30" }
-            GradientStop { position: 0.400; color: "#170d2a" }
-            GradientStop { position: 0.480; color: "#0f2a2e" }
-            GradientStop { position: 0.560; color: "#0a2428" }
-            GradientStop { position: 0.640; color: "#0d1820" }
-            GradientStop { position: 0.720; color: "#0d1117" }
-            GradientStop { position: 0.800; color: "#10131c" }
-            GradientStop { position: 0.880; color: "#0c1522" }
-            GradientStop { position: 1.000; color: "#0a1628" }
-        }
+        source: "qrc:/qt/qml/MakineLauncher/resources/images/onboarding_gradient.png"
+        fillMode: Image.Stretch
 
         SequentialAnimation on x {
             loops: Animation.Infinite
