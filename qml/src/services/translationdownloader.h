@@ -5,16 +5,13 @@
  *
  * Handles the complete flow:
  *   1. HTTP GET from Cloudflare R2 (with progress + resume)
- *   2. Optional SHA-256 checksum verification (from manifest)
- *   3. AES-256-GCM decryption (MKPK format — includes auth tag tamper detection)
- *   4. Zstandard decompression
- *   5. Tar extraction to local data directory
+ *   2. AES-256-GCM decryption (MKPK format — includes auth tag tamper detection)
+ *   3. Zstandard decompression
+ *   4. Tar extraction to local data directory
  *
  * Security model:
- *   - SHA-256 checksum (compressedChecksum) verifies the encrypted file on disk
- *     before decryption — blocks on mismatch to catch corruption/stale resume early
- *   - AES-256-GCM authentication tag is the secondary integrity gate
- *     (tampered data fails decryption automatically)
+ *   AES-256-GCM authentication tag is the sole integrity gate.
+ *   Tampered or corrupted data fails decryption automatically.
  */
 
 #pragma once
@@ -44,14 +41,12 @@ public:
      * @param appId     Steam App ID
      * @param dataUrl   R2 download URL (from manifest)
      * @param dirName   Target directory name under data path
-     * @param expectedChecksum  SHA-256 checksum from manifest (optional, "sha256:hex")
      *
-     * Flow: download → checksum verify → decrypt+decompress+extract → data/{dirName}/
+     * Flow: download → decrypt+decompress+extract → data/{dirName}/
      */
     Q_INVOKABLE void downloadPackage(const QString& appId,
                                      const QString& dataUrl,
-                                     const QString& dirName,
-                                     const QString& expectedChecksum = {});
+                                     const QString& dirName);
 
     /**
      * @brief Cancel an active download.
@@ -94,17 +89,6 @@ private:
     void processDownloadedFile(const QString& appId, const QString& tempPath,
                                const QString& dirName);
 
-    /**
-     * @brief Verify SHA-256 checksum of downloaded file against manifest value.
-     * @return true if checksum matches or if no checksum was provided
-     *
-     * On mismatch: logs a warning but does NOT block extraction.
-     * Manifest checksums may be stale after package re-generation;
-     * AES-256-GCM auth tag is the authoritative tamper gate.
-     */
-    bool verifyChecksum(const QString& appId, const QString& filePath,
-                        const QString& expectedChecksum);
-
     static constexpr int kMaxRetries = 2;  // total 3 attempts
     static constexpr int kRetryDelaysMs[kMaxRetries] = {2000, 5000};
     static bool shouldRetry(QNetworkReply::NetworkError err, int httpStatus);
@@ -113,11 +97,10 @@ private:
 
     struct DownloadState {
         QNetworkReply* reply{nullptr};
-        QString tempPath;       // UUID final temp (for verify)
+        QString tempPath;       // UUID final temp
         QString partPath;       // {appId}.makine.part — persistent partial file
         QString dirName;
         QString dataUrl;        // Stored for resume/retry
-        QString expectedChecksum; // SHA-256 from manifest (optional)
         bool cancelled{false};
         bool stallAborted{false};
         int retryCount{0};

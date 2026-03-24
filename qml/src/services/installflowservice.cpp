@@ -264,8 +264,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
     QString dirName = resolveDirName(gameId, catalog);
 
     m_pendingDownload = PendingDownload{gameId, variant, options};
-    m_downloader->downloadPackage(gameId, dataUrl, dirName,
-                                  catalog.value(QStringLiteral("checksum")).toString());
+    m_downloader->downloadPackage(gameId, dataUrl, dirName);
 }
 
 // ===== Download gate: update =====
@@ -294,8 +293,7 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
 
     QString dirName = resolveDirName(gameId, catalog);
     m_pendingDownload = PendingDownload{gameId, variant, options};
-    m_downloader->downloadPackage(gameId, dataUrl, dirName,
-                                  catalog.value(QStringLiteral("checksum")).toString());
+    m_downloader->downloadPackage(gameId, dataUrl, dirName);
 }
 
 // ===== Download callbacks =====
