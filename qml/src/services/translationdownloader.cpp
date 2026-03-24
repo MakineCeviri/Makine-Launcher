@@ -19,6 +19,7 @@
 #include <QUuid>
 #include <QDateTime>
 #include <QTimer>
+#include <QStorageInfo>
 #include <QLoggingCategory>
 
 #ifndef MAKINE_UI_ONLY
@@ -98,6 +99,16 @@ void TranslationDownloader::downloadPackage(
     emit downloadError(appId, tr("Bu sürümde indirme desteklenmiyor"));
     return;
 #else
+
+    // Check available disk space before downloading (need ~3x package size: download + decompress + extract)
+    const auto storageInfo = QStorageInfo(AppPaths::dataDir());
+    const qint64 availableBytes = storageInfo.bytesAvailable();
+    constexpr qint64 kMinFreeSpace = 500LL * 1024 * 1024; // 500 MB minimum free space
+    if (availableBytes > 0 && availableBytes < kMinFreeSpace) {
+        emit downloadError(appId, tr("Yetersiz disk alanı — en az 500 MB boş alan gerekli (%1 MB mevcut)")
+            .arg(availableBytes / (1024 * 1024)));
+        return;
+    }
 
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir().mkpath(tempDir);
@@ -344,26 +355,46 @@ void TranslationDownloader::processDownloadedFile(
                 return {-1, "Downloaded file is empty"};
             }
 
-            // Safety: reject files > 2 GB to prevent OOM
-            constexpr qint64 kMaxPackageSize = 2LL * 1024 * 1024 * 1024;
-            if (fileSize > kMaxPackageSize) {
+            // Safety: reject unreasonably large files
+            if (fileSize > makine::security::kMaxPackageBytes) {
                 file.close();
-                return {-1, "Package too large: " + std::to_string(fileSize / (1024*1024)) + " MB (max 2 GB)"};
+                return {-1, "Package too large: " + std::to_string(fileSize / (1024*1024)) + " MB"};
             }
 
-            const QByteArray rawData = file.readAll();
-            file.close();
+            // Memory-map the file instead of readAll() to avoid OOM on large packages.
+            // OS manages paging — no RAM allocation for the file contents.
+            uchar* mapped = file.map(0, fileSize);
+            if (!mapped) {
+                // Fallback: small files can still use readAll
+                if (fileSize > 256 * 1024 * 1024) {
+                    file.close();
+                    return {-1, "Failed to memory-map large package (" + std::to_string(fileSize / (1024*1024)) + " MB)"};
+                }
+                const QByteArray rawData = file.readAll();
+                file.close();
+                if (rawData.isEmpty())
+                    return {-1, "Failed to read downloaded file"};
 
-            if (rawData.isEmpty()) {
-                return {-1, "Failed to read downloaded file"};
+                mkpk::MkpkError err{""};
+                int fileCount = mkpk::process_mkpkg(
+                    reinterpret_cast<const uint8_t*>(rawData.constData()),
+                    static_cast<size_t>(rawData.size()),
+                    destDir.toStdWString(),
+                    &err);
+                if (fileCount < 0)
+                    return {-1, err.message};
+                QFile::remove(tempPath);
+                return {fileCount, ""};
             }
 
             mkpk::MkpkError err{""};
             int fileCount = mkpk::process_mkpkg(
-                reinterpret_cast<const uint8_t*>(rawData.constData()),
-                static_cast<size_t>(rawData.size()),
+                reinterpret_cast<const uint8_t*>(mapped),
+                static_cast<size_t>(fileSize),
                 destDir.toStdWString(),
                 &err);
+            file.unmap(mapped);
+            file.close();
 
             if (fileCount < 0) {
                 return {-1, err.message};
