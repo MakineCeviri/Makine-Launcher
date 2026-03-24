@@ -1443,6 +1443,25 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("AuthService", authService);
     registerProtocolHandler();
 
+    // Resolve auth state during splash — UI appears instantly interactive
+    authService->checkStoredToken();
+#ifdef Q_OS_WIN
+    splash.setStatus(L"Kimlik do\u011Frulan\u0131yor...");
+#endif
+    {
+        QElapsedTimer authWait;
+        authWait.start();
+        while (authService->state() == AuthService::Checking && authWait.elapsed() < 3000) {
+            app.processEvents(QEventLoop::AllEvents, 50);
+#ifdef Q_OS_WIN
+            splash.pumpMessages();
+#endif
+        }
+    }
+    logToFile(QString("Auth resolved (%1) at %2 ms")
+        .arg(authService->isAuthenticated() ? "authenticated" : "unauthenticated")
+        .arg(startupTimer.elapsed()));
+
     // IPC server for auth callbacks from protocol handler
     auto* authIpcServer = new QLocalServer(&app);
     authIpcServer->setSocketOptions(QLocalServer::UserAccessOption);
