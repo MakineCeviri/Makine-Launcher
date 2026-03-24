@@ -280,6 +280,20 @@ Item {
         color: Theme.bgPrimary
     }
 
+    // Navbar-to-content gradient overlay — smooth transition from navbar color
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: Dimensions.radiusSection * 3
+        z: 10
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.bgPrimary90 }
+            GradientStop { position: 0.6; color: Qt.rgba(Theme.bgPrimary90.r, Theme.bgPrimary90.g, Theme.bgPrimary90.b, 0.4) }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+    }
+
     // =========================================================================
     // MAIN CONTENT
     // =========================================================================
