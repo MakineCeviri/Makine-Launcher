@@ -27,26 +27,8 @@ ApplicationWindow {
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // --- Aspect-ratio-locked resize ---
-    readonly property real _aspectRatio: Dimensions.minWindowWidth / Dimensions.minWindowHeight
-    property bool _lockingAspect: false
-
-    onWidthChanged: {
-        if (_lockingAspect) return
-        _lockingAspect = true
-        var h = Math.max(minimumHeight, Math.round(width / _aspectRatio))
-        if (height !== h) height = h
-        _lockingAspect = false
-    }
-    onHeightChanged: {
-        if (_lockingAspect) return
-        _lockingAspect = true
-        var w = Math.max(minimumWidth, Math.round(height * _aspectRatio))
-        if (width !== w) width = w
-        _lockingAspect = false
-    }
-
-    // Window sizing + positioning handled in C++ (main.cpp) via Win32 API
+    // Aspect ratio lock handled natively via WM_SIZING in C++ (main.cpp)
+    // — zero recursive bindings, zero frame drops during resize
     // Auth gate — blocks all content until authenticated
     readonly property bool _authReady: typeof AuthService !== "undefined"
                                        && AuthService.isAuthenticated

@@ -53,13 +53,37 @@ Q_LOGGING_CATEGORY(lcApp, "makine.app")
 // that shifts the contentItem and makes centered content appear off-center.
 class FramelessFilter : public QAbstractNativeEventFilter {
 public:
+    static constexpr double kAspectRatio = 900.0 / 620.0; // minWidth / minHeight
+
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override {
         if (eventType != "windows_generic_MSG") return false;
         auto *msg = static_cast<MSG *>(message);
+
         if (msg->message == WM_NCCALCSIZE && msg->wParam == TRUE) {
             *result = 0;
             return true;
         }
+
+        // Native aspect ratio lock — zero QML bindings, zero stutter
+        if (msg->message == WM_SIZING) {
+            auto* rect = reinterpret_cast<RECT*>(msg->lParam);
+            int w = rect->right - rect->left;
+            int h = rect->bottom - rect->top;
+
+            switch (msg->wParam) {
+            case WMSZ_LEFT: case WMSZ_RIGHT:
+            case WMSZ_TOPLEFT: case WMSZ_TOPRIGHT:
+            case WMSZ_BOTTOMLEFT: case WMSZ_BOTTOMRIGHT:
+                rect->bottom = rect->top + static_cast<int>(w / kAspectRatio);
+                break;
+            case WMSZ_TOP: case WMSZ_BOTTOM:
+                rect->right = rect->left + static_cast<int>(h * kAspectRatio);
+                break;
+            }
+            *result = TRUE;
+            return true;
+        }
+
         return false;
     }
 };
