@@ -997,10 +997,14 @@ static void createServices(
     engine.rootContext()->setContextProperty("ProcessScanner", processScanner);
     outProcessScanner = processScanner;
 
-    // ===== Phase 6: Security + integrity (deferred — not needed for first frame) =====
-    // Register as nullptr now; real construction happens post-first-frame.
-    engine.rootContext()->setContextProperty("IntegrityService", nullptr);
-    engine.rootContext()->setContextProperty("BatchOperationService", nullptr);
+    // ===== Phase 6: Security + integrity =====
+    auto* integrityService = new IntegrityService(&app);
+    engine.rootContext()->setContextProperty("IntegrityService", integrityService);
+
+    auto* batchService = new BatchOperationService(&app);
+    engine.rootContext()->setContextProperty("BatchOperationService", batchService);
+
+    // PluginManager + OcrController deferred to post-first-frame (dev-only, heavy init)
     engine.rootContext()->setContextProperty("PluginManager", nullptr);
     engine.rootContext()->setContextProperty("OcrController", nullptr);
 
@@ -1219,17 +1223,10 @@ static void setupRootWindow(
             // event loop iterations, populating QML progressively.
             gameService->initialize();
 
-            // Tier 2 services: construct after first frame (not needed for login/home)
+            // Deferred: PluginManager + OcrController (dev-only, heavy init)
+#ifdef MAKINE_DEV_TOOLS
             QTimer::singleShot(200, qApp, [&engine = *QQmlEngine::contextForObject(gameService)->engine()]() {
                 auto* ctx = engine.rootContext();
-
-                auto* integrity = new IntegrityService(qApp);
-                ctx->setContextProperty("IntegrityService", integrity);
-
-                auto* batch = new BatchOperationService(qApp);
-                ctx->setContextProperty("BatchOperationService", batch);
-
-#ifdef MAKINE_DEV_TOOLS
                 auto* pluginMgr = new PluginManager(qApp);
                 pluginMgr->discoverPlugins();
                 pluginMgr->loadEnabledPlugins();
@@ -1240,9 +1237,9 @@ static void setupRootWindow(
 
                 auto* ocr = new OcrController(pluginMgr, qApp);
                 ctx->setContextProperty("OcrController", ocr);
-#endif
-                qCDebug(lcApp) << "Tier 2 services initialized (deferred)";
+                qCDebug(lcApp) << "PluginManager + OcrController initialized (deferred)";
             });
+#endif
         }, Qt::QueuedConnection);
 
     // Request first frame BEFORE preloading Settings — ensures the render
