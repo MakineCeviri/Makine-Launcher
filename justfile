@@ -8,6 +8,9 @@
 #   release = vcpkg, Release, full core integration
 #   core    = vcpkg, Release, core library only
 
+# Load .env for build-time variables (MAKINE_SENTRY_DSN, etc.)
+set dotenv-load
+
 # Default recipe - show help
 default:
     @just --list

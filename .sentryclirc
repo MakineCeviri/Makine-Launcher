@@ -1,6 +1,6 @@
 [defaults]
 org = makine-ceviri
-project = makine-launcher
+project = native
 url = https://makine-ceviri.sentry.io/
 
 [auth]
