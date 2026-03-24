@@ -1,6 +1,7 @@
 #include "pluginmanager.h"
 #include "apppaths.h"
 #include "cdnconfig.h"
+#include "networksecurity.h"
 
 #include <QDir>
 #include <QFile>
@@ -32,6 +33,7 @@ PluginManager::PluginManager(QObject* parent)
     : QObject(parent)
     , m_net(new QNetworkAccessManager(this))
 {
+    security::installTlsPinning(m_net);
 }
 
 PluginManager::~PluginManager()

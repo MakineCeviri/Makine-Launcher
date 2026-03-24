@@ -7,6 +7,7 @@
 #include "updateservice.h"
 #include "selfupdater.h"
 #include "cdnconfig.h"
+#include "networksecurity.h"
 #include "profiler.h"
 #include "apppaths.h"
 #include "crashreporter.h"
@@ -35,6 +36,7 @@ static constexpr qint64 kCheckIntervalSecs = 24 * 60 * 60;
 UpdateService::UpdateService(QObject *parent)
     : QObject(parent)
 {
+    security::installTlsPinning(&m_nam);
 }
 
 UpdateService::~UpdateService()

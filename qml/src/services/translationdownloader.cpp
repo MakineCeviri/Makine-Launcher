@@ -6,6 +6,7 @@
 
 #include "translationdownloader.h"
 #include "apppaths.h"
+#include "networksecurity.h"
 #include "profiler.h"
 #include "crashreporter.h"
 
@@ -32,6 +33,8 @@ namespace makine {
 TranslationDownloader::TranslationDownloader(QObject* parent)
     : QObject(parent)
 {
+    security::installTlsPinning(&m_nam);
+
     // Clean stale .part files older than 7 days
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir dir(tempDir);

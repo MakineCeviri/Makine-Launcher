@@ -7,6 +7,7 @@
 #include "imagecachemanager.h"
 #include "apppaths.h"
 #include "cdnconfig.h"
+#include "networksecurity.h"
 #include "profiler.h"
 
 #include <QDir>
@@ -24,6 +25,7 @@ static constexpr auto CDN_IMAGE_BASE = cdn::kImagesBase;
 ImageCacheManager::ImageCacheManager(QObject* parent)
     : QObject(parent)
 {
+    security::installTlsPinning(&m_nam);
     m_cacheDir = AppPaths::imageCacheDir();
     ensureCacheDir();
 }
