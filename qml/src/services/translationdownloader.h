@@ -11,10 +11,10 @@
  *   5. Tar extraction to local data directory
  *
  * Security model:
- *   - AES-256-GCM authentication tag is the primary integrity gate
+ *   - SHA-256 checksum (compressedChecksum) verifies the encrypted file on disk
+ *     before decryption — blocks on mismatch to catch corruption/stale resume early
+ *   - AES-256-GCM authentication tag is the secondary integrity gate
  *     (tampered data fails decryption automatically)
- *   - SHA-256 checksum from manifest catches download corruption early
- *     (warns but does not block — let AES auth tag be the final arbiter)
  */
 
 #pragma once
@@ -98,8 +98,9 @@ private:
      * @brief Verify SHA-256 checksum of downloaded file against manifest value.
      * @return true if checksum matches or if no checksum was provided
      *
-     * On mismatch: logs a warning but returns true (non-blocking).
-     * AES-256-GCM auth tag is the real tamper gate.
+     * On mismatch: returns false and blocks extraction.
+     * Catches download corruption and stale resume data early,
+     * before wasting resources on AES-256-GCM decryption.
      */
     bool verifyChecksum(const QString& appId, const QString& filePath,
                         const QString& expectedChecksum);

@@ -42,6 +42,7 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
         for (const auto& fi : entries) {
             if (fi.lastModified().toSecsSinceEpoch() < staleThreshold) {
                 QFile::remove(fi.absoluteFilePath());
+                QFile::remove(fi.absoluteFilePath() + QStringLiteral(".meta"));
                 qCDebug(lcDownloader) << "removed stale part file" << fi.fileName();
             }
         }
@@ -105,11 +106,19 @@ void TranslationDownloader::downloadPackage(
         .arg(appId, QUuid::createUuid().toString(QUuid::Id128).left(8));
     const QString partPath = tempDir + QStringLiteral("/%1.makine.part").arg(appId);
 
+    // Normalize legacy .mkpkg URLs to .makine (R2 uses .makine extension)
+    QString normalizedUrl = dataUrl;
+    if (normalizedUrl.endsWith(QStringLiteral(".mkpkg"))) {
+        normalizedUrl.chop(6);
+        normalizedUrl.append(QStringLiteral(".makine"));
+        qCDebug(lcDownloader) << "normalized .mkpkg URL to .makine for" << appId;
+    }
+
     DownloadState state;
     state.tempPath = tempPath;
     state.partPath = partPath;
     state.dirName = dirName;
-    state.dataUrl = dataUrl;
+    state.dataUrl = normalizedUrl;
     state.expectedChecksum = expectedChecksum;
     state.cancelled = false;
     state.retryCount = 0;
@@ -131,10 +140,44 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
     QFileInfo partInfo(state.partPath);
     if (partInfo.exists() && partInfo.size() > 0) {
-        state.resumeOffset = partInfo.size();
-        qCDebug(lcDownloader) << "resuming from offset" << state.resumeOffset << "for" << appId;
+        // Invalidate stale .part if checksum changed (package updated on CDN)
+        const QString metaPath = state.partPath + QStringLiteral(".meta");
+        QFile metaFile(metaPath);
+        bool stale = false;
+        if (!state.expectedChecksum.isEmpty()) {
+            if (metaFile.open(QIODevice::ReadOnly)) {
+                const QString savedChecksum = QString::fromUtf8(metaFile.readAll()).trimmed();
+                metaFile.close();
+                if (savedChecksum != state.expectedChecksum) {
+                    qCDebug(lcDownloader) << "part file stale (checksum changed) for" << appId;
+                    stale = true;
+                }
+            } else {
+                // No meta file — old .part from before this fix, discard
+                stale = true;
+            }
+        }
+
+        if (stale) {
+            QFile::remove(state.partPath);
+            QFile::remove(metaPath);
+            state.resumeOffset = 0;
+        } else {
+            state.resumeOffset = partInfo.size();
+            qCDebug(lcDownloader) << "resuming from offset" << state.resumeOffset << "for" << appId;
+        }
     } else {
         state.resumeOffset = 0;
+    }
+
+    // Save checksum meta alongside .part for future resume validation
+    if (!state.expectedChecksum.isEmpty() && state.resumeOffset == 0) {
+        const QString metaPath = state.partPath + QStringLiteral(".meta");
+        QFile metaFile(metaPath);
+        if (metaFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            metaFile.write(state.expectedChecksum.toUtf8());
+            metaFile.close();
+        }
     }
 
     QNetworkRequest req{QUrl{state.dataUrl}};
@@ -209,6 +252,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
             if (state.cancelled) {
                 QFile::remove(state.partPath);
+                QFile::remove(state.partPath + QStringLiteral(".meta"));
                 m_activeDownloads.remove(appId);
                 emit activeDownloadsChanged();
                 emit downloadCancelled(appId);
@@ -274,7 +318,8 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
             qCDebug(lcDownloader) << "download complete" << appId;
 
-            // Rename .part to final temp path
+            // Rename .part to final temp path and clean meta
+            QFile::remove(state.partPath + QStringLiteral(".meta"));
             if (!QFile::rename(state.partPath, state.tempPath)) {
                 if (QFile::copy(state.partPath, state.tempPath)) {
                     QFile::remove(state.partPath);
@@ -442,13 +487,17 @@ bool TranslationDownloader::verifyChecksum(
     }
     file.close();
 
-    const QString computed = QStringLiteral("sha256:")
-        + QString::fromLatin1(hasher.result().toHex());
+    const QString computedHex = QString::fromLatin1(hasher.result().toHex());
 
-    if (computed != expectedChecksum) {
+    // Normalize: strip "sha256:" prefix if present, compare plain hex
+    const QString expectedHex = expectedChecksum.startsWith(QStringLiteral("sha256:"))
+        ? expectedChecksum.mid(7)
+        : expectedChecksum;
+
+    if (computedHex != expectedHex) {
         qCWarning(lcDownloader) << "checksum mismatch for" << appId
-                   << "expected:" << expectedChecksum
-                   << "got:" << computed
+                   << "expected:" << expectedHex
+                   << "got:" << computedHex
                    << "- aborting download (integrity violation)";
         CrashReporter::addBreadcrumb("download",
             QStringLiteral("checksumMismatch: %1").arg(appId).toUtf8().constData());
