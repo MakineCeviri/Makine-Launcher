@@ -17,6 +17,7 @@
 #include <QTimer>
 #include <QVariantList>
 #include <QQmlEngine>
+#include <atomic>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -131,6 +132,7 @@ private:
     QHash<QString, QString> m_appIdToPath;     // appId -> install dir
 
     QVariantList m_heavyProcesses;  // [{name, pid}] GPU-using processes with visible windows
+    std::atomic<bool> m_scanInProgress{false};
 
     GameService* m_gameService{nullptr};
     LocalPackageManager* m_packageManager{nullptr};

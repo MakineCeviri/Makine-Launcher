@@ -1300,7 +1300,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         acfFile.close();
 
         // Replace "language" value in ACF key-value format:  \t"language"\t\t"english"\n
-        QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
+        static const QRegularExpression langRe(QStringLiteral(R"(("language"\s+")([^"]*)("))"));
         auto match = langRe.match(content);
         if (!match.hasMatch()) {
             qCWarning(lcPackageManager) << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
@@ -1637,7 +1637,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                     if (acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
                         QString content = QString::fromUtf8(acfFile.readAll());
                         acfFile.close();
-                        QRegularExpression langRe(R"(("language"\s+")([^"]*)("))");
+                        static const QRegularExpression langRe(QStringLiteral(R"(("language"\s+")([^"]*)("))"));
                         content.replace(langRe, "\\1" + origLang + "\\3");
                         if (acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
                             acfFile.write(content.toUtf8());

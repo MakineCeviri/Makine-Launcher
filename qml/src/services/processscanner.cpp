@@ -187,6 +187,9 @@ void ProcessScanner::performScan()
 
     // Snapshot running processes on a worker thread to avoid
     // CreateToolhelp32Snapshot blocking the main thread (~3.5ms).
+    if (m_scanInProgress.exchange(true))
+        return;  // Previous scan still running
+
     (void)QtConcurrent::run([this]() {
         MAKINE_ZONE_NAMED("ProcessScanner::getRunningProcesses (async)");
         QList<ProcessInfo> procs = getRunningProcesses();
@@ -194,6 +197,7 @@ void ProcessScanner::performScan()
         // Process matching + signal emission must happen on the main thread
         QMetaObject::invokeMethod(this, [this, procs = std::move(procs)]() {
             detectRunningGames(procs);
+            m_scanInProgress.store(false);
         }, Qt::QueuedConnection);
     });
 }

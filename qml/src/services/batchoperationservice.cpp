@@ -272,8 +272,8 @@ void BatchOperationService::onItemCompleted(const QString& gameId, bool success,
 
     qCDebug(lcBatchOps) << "Batch item" << (success ? "completed" : "failed") << ":" << item.gameName;
 
-    // Process next
-    QTimer::singleShot(50, this, &BatchOperationService::processNextItem);
+    // Yield to event loop (process pending UI updates) then continue
+    QTimer::singleShot(0, this, &BatchOperationService::processNextItem);
 }
 
 void BatchOperationService::finishBatch()

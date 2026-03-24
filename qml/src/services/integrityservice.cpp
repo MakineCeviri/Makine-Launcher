@@ -131,7 +131,8 @@ void IntegrityService::performCheck()
     QString expectedHash;
     if (hashFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         const QString line = QString::fromUtf8(hashFile.readLine()).trimmed();
-        expectedHash = line.split(QRegularExpression("\\s+")).first().toLower();
+        static const QRegularExpression kWhitespace(QStringLiteral("\\s+"));
+        expectedHash = line.split(kWhitespace).first().toLower();
         if (expectedHash.length() != 64) expectedHash.clear();
     }
 
