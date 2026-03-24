@@ -28,6 +28,7 @@
 │  │ AuthService   │ │ InstallFlow  │ │ TranslationState     │ │
 │  │ UpdateService │ │ BackupMgr    │ │ TranslationDownloader│ │
 │  │ SteamDetails  │ │ BatchOps     │ │ ManifestSync         │ │
+│  │ RenderGov    │ │              │ │ TranslationDownloader│ │
 │  └──────────────┘ └──────────────┘ └──────────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │                      C++ Core Library                       │
@@ -160,7 +161,7 @@ export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
 | Core | spdlog via `MAKINE_LOG_*` macros | `core/include/makine/logging.hpp` |
 | UI | `QLoggingCategory` | `qCDebug(lcXxx)` / `qCWarning(lcXxx)` |
 
-**UI categories:** `makine.app` · `makine.game` · `makine.bridge` · `makine.package` · `makine.download` · `makine.batch` · `makine.backup` · `makine.process` · `makine.integrity` · `makine.manifest` · `makine.journal` · `makine.steam` · `makine.update` · `makine.updater` · `makine.security`
+**UI categories:** `makine.app` · `makine.game` · `makine.bridge` · `makine.package` · `makine.download` · `makine.batch` · `makine.backup` · `makine.process` · `makine.integrity` · `makine.manifest` · `makine.journal` · `makine.steam` · `makine.update` · `makine.updater` · `makine.security` · `makine.render`
 
 ```bash
 QT_LOGGING_RULES="makine.*=true"          # Enable all
