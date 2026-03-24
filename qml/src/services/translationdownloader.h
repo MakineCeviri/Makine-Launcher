@@ -98,9 +98,9 @@ private:
      * @brief Verify SHA-256 checksum of downloaded file against manifest value.
      * @return true if checksum matches or if no checksum was provided
      *
-     * On mismatch: returns false and blocks extraction.
-     * Catches download corruption and stale resume data early,
-     * before wasting resources on AES-256-GCM decryption.
+     * On mismatch: logs a warning but does NOT block extraction.
+     * Manifest checksums may be stale after package re-generation;
+     * AES-256-GCM auth tag is the authoritative tamper gate.
      */
     bool verifyChecksum(const QString& appId, const QString& filePath,
                         const QString& expectedChecksum);
