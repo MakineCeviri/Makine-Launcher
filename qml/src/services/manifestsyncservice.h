@@ -105,6 +105,18 @@ private:
     void onIndexFetched(const QByteArray& data, const QString& etag);
     void onDetailFetched(const QString& appId, const QByteArray& data);
 
+    // Delta sync (Catalog API)
+    void fetchCatalogMeta();
+    void handleMetaResponse(const QByteArray& data);
+    void fetchCatalogDelta(int sinceVersion);
+    void handleDeltaResponse(const QByteArray& data);
+    void fetchFullCatalog();
+    void handleFullCatalogResponse(const QByteArray& data);
+    void fallbackToLegacySync();
+    void sendTelemetry();
+    int loadLocalCatalogVersion() const;
+    void saveLocalCatalogVersion(int version);
+
     static QString indexUrl();
     static QString packageUrl(const QString& appId);
 

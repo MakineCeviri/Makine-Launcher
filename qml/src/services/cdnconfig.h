@@ -31,4 +31,13 @@ inline constexpr auto kBannersBase= "https://cdn.makineceviri.org/assets/banners
 // Data endpoint (encrypted .makine packages)
 inline constexpr auto kDataBase   = "https://cdn.makineceviri.org/data/";
 
+// Catalog API (D1 + KV backed — faster than R2 static)
+inline constexpr auto kApiBase      = "https://makineceviri.org/api/v2/";
+inline constexpr auto kCatalogUrl   = "https://makineceviri.org/api/v2/catalog";
+inline constexpr auto kCatalogMeta  = "https://makineceviri.org/api/v2/catalog/meta";
+inline constexpr auto kCatalogDelta = "https://makineceviri.org/api/v2/catalog/delta";
+inline constexpr auto kGameDetail   = "https://makineceviri.org/api/v2/games/";
+inline constexpr auto kUpdateCheck  = "https://makineceviri.org/api/v2/update";
+inline constexpr auto kTelemetry    = "https://makineceviri.org/api/v2/telemetry";
+
 } // namespace makine::cdn

@@ -20,7 +20,9 @@
 #include <QNetworkReply>
 #include <QTimer>
 #include <QUrl>
+#include <QLocale>
 #include <QLoggingCategory>
+#include <QSysInfo>
 
 Q_LOGGING_CATEGORY(lcManifestSync, "makine.manifest")
 
@@ -56,7 +58,8 @@ QString ManifestSyncService::indexUrl()
 
 QString ManifestSyncService::packageUrl(const QString& appId)
 {
-    return QLatin1String(CDN_BASE) + QStringLiteral("packages/%1.json").arg(appId);
+    // Use new API endpoint (faster, KV cached) with CDN fallback
+    return QLatin1String(cdn::kGameDetail) + appId;
 }
 
 // ========== Catalog Sync ==========
@@ -72,22 +75,236 @@ void ManifestSyncService::syncCatalog()
     m_syncing = true;
     emit syncStatusChanged();
 
+    // Delta sync: first check meta endpoint (~100 bytes, <5ms)
+    fetchCatalogMeta();
+}
+
+// ========== Delta Sync Flow ==========
+
+void ManifestSyncService::fetchCatalogMeta()
+{
+    MAKINE_ZONE_NAMED("ManifestSync::fetchCatalogMeta");
+
+    QNetworkRequest req{QUrl{QLatin1String(cdn::kCatalogMeta)}};
+    req.setTransferTimeout(8000);
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Makine-Launcher/0.1"));
+
+    QNetworkReply* reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qCDebug(lcManifestSync) << "ManifestSync: API meta failed, falling back to legacy";
+            fallbackToLegacySync();
+            return;
+        }
+
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status >= 200 && status < 300) {
+            handleMetaResponse(reply->readAll());
+        } else {
+            fallbackToLegacySync();
+        }
+    });
+}
+
+void ManifestSyncService::handleMetaResponse(const QByteArray& data)
+{
+    const QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (!doc.isObject()) { fallbackToLegacySync(); return; }
+
+    const QJsonObject root = doc.object();
+    if (!root[QStringLiteral("success")].toBool()) { fallbackToLegacySync(); return; }
+
+    const QJsonObject meta = root[QStringLiteral("data")].toObject();
+    const int serverVersion = meta[QStringLiteral("version")].toInt();
+    const int localVersion = loadLocalCatalogVersion();
+
+    qCDebug(lcManifestSync) << "ManifestSync: server v" << serverVersion << "local v" << localVersion;
+
+    if (serverVersion <= localVersion && !m_catalog.isEmpty()) {
+        // Up to date — no download needed
+        qCDebug(lcManifestSync) << "ManifestSync: catalog is current";
+        m_syncing = false;
+        emit syncStatusChanged();
+        setOffline(false);
+        QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
+        sendTelemetry();
+        return;
+    }
+
+    if (localVersion > 0 && (serverVersion - localVersion) <= 50) {
+        // Delta sync — only changed games
+        fetchCatalogDelta(localVersion);
+    } else {
+        // Full catalog fetch
+        fetchFullCatalog();
+    }
+}
+
+void ManifestSyncService::fetchCatalogDelta(int sinceVersion)
+{
+    MAKINE_ZONE_NAMED("ManifestSync::fetchCatalogDelta");
+
+    const QString url = QLatin1String(cdn::kCatalogDelta) + QStringLiteral("?since=%1").arg(sinceVersion);
+    QNetworkRequest req{QUrl{url}};
+    req.setTransferTimeout(10000);
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Makine-Launcher/0.1"));
+
+    QNetworkReply* reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qCDebug(lcManifestSync) << "ManifestSync: delta failed, fetching full catalog";
+            fetchFullCatalog();
+            return;
+        }
+
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 410) {
+            // Too far behind — need full fetch
+            fetchFullCatalog();
+            return;
+        }
+        if (status >= 200 && status < 300) {
+            handleDeltaResponse(reply->readAll());
+        } else {
+            fetchFullCatalog();
+        }
+    });
+}
+
+void ManifestSyncService::handleDeltaResponse(const QByteArray& data)
+{
+    const QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (!doc.isObject()) { fetchFullCatalog(); return; }
+
+    const QJsonObject root = doc.object();
+    if (!root[QStringLiteral("success")].toBool()) { fetchFullCatalog(); return; }
+
+    const QJsonObject deltaData = root[QStringLiteral("data")].toObject();
+    const int toVersion = deltaData[QStringLiteral("toVersion")].toInt();
+    const QJsonArray changes = deltaData[QStringLiteral("changes")].toArray();
+
+    qCDebug(lcManifestSync) << "ManifestSync: delta —" << changes.size() << "changes";
+
+    const QString detailDir = AppPaths::packageDetailDir();
+
+    for (const QJsonValue& val : changes) {
+        const QJsonObject change = val.toObject();
+        const QString appId = change[QStringLiteral("appId")].toString();
+        const QString changeType = change[QStringLiteral("changeType")].toString();
+
+        if (changeType == QStringLiteral("delete")) {
+            m_catalog.remove(appId);
+            m_packageDetails.remove(appId);
+            m_diskDetailCache.remove(appId);
+            QFile::remove(detailDir + QStringLiteral("/%1.json").arg(appId));
+        } else {
+            // add or update
+            const QJsonObject entry = change[QStringLiteral("data")].toObject();
+            CatalogEntry ce;
+            ce.name = entry[QStringLiteral("name")].toString();
+            ce.version = entry[QStringLiteral("v")].toString();
+            ce.sizeBytes = static_cast<qint64>(entry[QStringLiteral("sizeBytes")].toDouble());
+            ce.downloadSize = static_cast<qint64>(entry[QStringLiteral("size")].toDouble());
+            ce.dataUrl = entry[QStringLiteral("dataUrl")].toString();
+            ce.checksum = entry[QStringLiteral("checksum")].toString();
+            ce.dirName = entry[QStringLiteral("dirName")].toString();
+            ce.externalUrl = entry[QStringLiteral("externalUrl")].toString();
+            ce.source = entry[QStringLiteral("source")].toString();
+            ce.apexTier = entry[QStringLiteral("apexTier")].toString();
+            m_catalog.insert(appId, ce);
+
+            // Invalidate detail cache for updated games
+            m_packageDetails.remove(appId);
+            m_diskDetailCache.remove(appId);
+            QFile::remove(detailDir + QStringLiteral("/%1.json").arg(appId));
+        }
+    }
+
+    m_catalogCacheValid = false;
+    saveLocalCatalogVersion(toVersion);
+
+    m_syncing = false;
+    emit syncStatusChanged();
+    setOffline(false);
+    QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
+    sendTelemetry();
+
+    qCDebug(lcManifestSync) << "ManifestSync: delta applied — now v" << toVersion << "with" << m_catalog.size() << "games";
+}
+
+void ManifestSyncService::fetchFullCatalog()
+{
+    MAKINE_ZONE_NAMED("ManifestSync::fetchFullCatalog");
+
+    QNetworkRequest req{QUrl{QLatin1String(cdn::kCatalogUrl)}};
+    req.setTransferTimeout(15000);
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Makine-Launcher/0.1"));
+
+    QNetworkReply* reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
+        if (received > 2 * 1024 * 1024) {
+            reply->abort();
+        }
+    });
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            qCDebug(lcManifestSync) << "ManifestSync: full catalog API failed, falling back to legacy";
+            fallbackToLegacySync();
+            return;
+        }
+
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status >= 200 && status < 300) {
+            handleFullCatalogResponse(reply->readAll());
+        } else {
+            fallbackToLegacySync();
+        }
+    });
+}
+
+void ManifestSyncService::handleFullCatalogResponse(const QByteArray& data)
+{
+    // API response wraps catalog directly (same format as legacy index.json)
+    parseIndex(data);
+
+    if (!m_catalog.isEmpty()) {
+        saveCachedIndex(data, QString());
+        const int version = m_catalogVersion;
+        if (version > 0)
+            saveLocalCatalogVersion(version);
+
+        qCDebug(lcManifestSync) << "ManifestSync: full catalog synced —" << m_catalog.size() << "packages, v" << version;
+        setOffline(false);
+        QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
+        sendTelemetry();
+    } else {
+        fallbackToLegacySync();
+    }
+}
+
+void ManifestSyncService::fallbackToLegacySync()
+{
+    qCDebug(lcManifestSync) << "ManifestSync: falling back to legacy CDN sync";
+
     QNetworkRequest req{QUrl{indexUrl()}};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(10000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1"));
 
-    // ETag conditional request — if unchanged, server returns 304
     if (!m_etag.isEmpty())
         req.setRawHeader("If-None-Match", m_etag.toUtf8());
 
     QNetworkReply* reply = m_nam.get(req);
-
-    // Abort if response exceeds 1 MB (index.json is ~93 KB normally)
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > 1 * 1024 * 1024) {
-            qCWarning(lcManifestSync) << "ManifestSync: index.json response too large, aborting";
             reply->abort();
         }
     });
@@ -98,20 +315,16 @@ void ManifestSyncService::syncCatalog()
         emit syncStatusChanged();
 
         if (reply->error() != QNetworkReply::NoError) {
-            // Network error — catalog stays as-is (from cache)
             if (m_catalog.isEmpty()) {
                 setOffline(true);
                 emit syncError(tr("Katalog indirilemedi: %1").arg(reply->errorString()));
             }
-            // If we have cached data, silently continue with it
             return;
         }
 
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
         if (status == 304) {
-            // Not modified — cached version is current
-            qCDebug(lcManifestSync) << "ManifestSync: 304 Not Modified — catalog is current";
             setOffline(false);
             QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             return;
@@ -126,6 +339,43 @@ void ManifestSyncService::syncCatalog()
 
         emit syncError(tr("Katalog alınamadı (HTTP %1)").arg(status));
     });
+}
+
+// ========== Telemetry ==========
+
+void ManifestSyncService::sendTelemetry()
+{
+    // Anonymous session telemetry — fire and forget
+    QJsonObject body;
+    body[QStringLiteral("version")] = QStringLiteral("0.1.0");
+    body[QStringLiteral("os")] = QSysInfo::prettyProductName();
+    body[QStringLiteral("locale")] = QLocale::system().name();
+    body[QStringLiteral("gamesInstalled")] = 0; // TODO: get from LocalPackageManager
+
+    QNetworkRequest req{QUrl{QLatin1String(cdn::kTelemetry)}};
+    req.setTransferTimeout(5000);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+
+    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);
+}
+
+// ========== Catalog Version Persistence ==========
+
+int ManifestSyncService::loadLocalCatalogVersion() const
+{
+    QFile f(AppPaths::cacheDir() + QStringLiteral("/catalog_version.txt"));
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return 0;
+    bool ok = false;
+    const int v = f.readAll().trimmed().toInt(&ok);
+    return ok ? v : 0;
+}
+
+void ManifestSyncService::saveLocalCatalogVersion(int version)
+{
+    QFile f(AppPaths::cacheDir() + QStringLiteral("/catalog_version.txt"));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+    f.write(QByteArray::number(version));
 }
 
 void ManifestSyncService::onIndexFetched(const QByteArray& data, const QString& etag)
