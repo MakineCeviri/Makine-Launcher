@@ -193,8 +193,7 @@ qt_add_qml_module(MakineLauncher
         qml/GameDetailScreen.qml
         qml/OnboardingWizard.qml
 
-        # Screens - Auth
-        qml/screens/LoginScreen.qml
+        # Screens - Auth (merged into OnboardingWizard/WelcomeLoginStep)
 
         # Screens - Home Pages
         qml/screens/HomePage.qml
@@ -221,7 +220,8 @@ qt_add_qml_module(MakineLauncher
         qml/screens/settings/AboutSettings.qml
 
         # Screens - Onboarding Steps
-        qml/screens/onboarding/WelcomeStep.qml
+        qml/screens/onboarding/WelcomeLoginStep.qml
+        qml/screens/onboarding/ThemeStep.qml
         qml/screens/onboarding/ScanStep.qml
         qml/screens/onboarding/ReadyStep.qml
 
