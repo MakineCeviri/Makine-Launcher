@@ -6,6 +6,7 @@
 
 #include "authservice.h"
 #include "apppaths.h"
+#include "networksecurity.h"
 #include "crashreporter.h"
 
 #include <QDesktopServices>
@@ -31,22 +32,6 @@ constexpr const char* AUTH_BASE_URL = "https://makineceviri.org/hesap";
 constexpr const char* API_BASE_URL = "https://makineceviri.org/api/auth";
 constexpr const char* CLIENT_ID = "makine-launcher";
 constexpr const char* CRED_KEY = "RefreshToken";
-
-// SPKI pin hashes for makineceviri.org (same as ssl_pinning.hpp)
-const QByteArray PINNED_SPKI_PRIMARY =
-    QByteArray::fromBase64("mC/RiYlbhN0AdU/u23BPTNwoLlj5OTigvIL0IbnGppg=");
-const QByteArray PINNED_SPKI_BACKUP =
-    QByteArray::fromBase64("kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=");
-
-bool verifyCertPin(const QList<QSslCertificate>& chain) {
-    for (const auto& cert : chain) {
-        QByteArray spki = QCryptographicHash::hash(
-            cert.publicKey().toDer(), QCryptographicHash::Sha256);
-        if (spki == PINNED_SPKI_PRIMARY || spki == PINNED_SPKI_BACKUP)
-            return true;
-    }
-    return false;
-}
 }
 
 namespace makine {
@@ -76,21 +61,8 @@ AuthService::AuthService(QObject* parent)
         }
     });
 
-    // TLS certificate pinning for QNAM — rejects MITM on auth traffic
-    connect(m_nam, &QNetworkAccessManager::sslErrors,
-            this, [](QNetworkReply* reply, const QList<QSslError>& errors) {
-        const auto host = reply->url().host();
-        if (!host.endsWith(QStringLiteral("makineceviri.org"))) {
-            return; // only pin our own domains
-        }
-        if (verifyCertPin(reply->sslConfiguration().peerCertificateChain())) {
-            reply->ignoreSslErrors(); // pin matched — allow
-        } else {
-            qCWarning(lcAuth) << "TLS pin verification FAILED for" << host
-                              << "— aborting (possible MITM)";
-            reply->abort(); // pin mismatch — block connection
-        }
-    });
+    // TLS certificate pinning — shared implementation for all domains
+    security::installTlsPinning(m_nam);
 }
 
 AuthService::~AuthService()

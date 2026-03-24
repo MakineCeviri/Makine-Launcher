@@ -7,6 +7,7 @@
 #include "manifestsyncservice.h"
 #include "apppaths.h"
 #include "cdnconfig.h"
+#include "networksecurity.h"
 #include "profiler.h"
 #include "crashreporter.h"
 
@@ -30,6 +31,8 @@ static constexpr auto CDN_BASE = cdn::kAssetsBase;
 ManifestSyncService::ManifestSyncService(QObject* parent)
     : QObject(parent)
 {
+    security::installTlsPinning(&m_nam);
+
     // Load cached index for instant offline catalog display
     loadCachedEtag();
     loadCachedIndex();

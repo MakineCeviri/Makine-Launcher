@@ -113,6 +113,7 @@ set(BACKEND_SOURCES
     src/services/supportedgamesmodel.cpp
     src/services/catalogproxymodel.cpp
     src/services/crashreporter.cpp
+    src/services/networksecurity.cpp
     src/services/pluginmanager.cpp
     src/services/ocrcontroller.cpp
     src/services/translationstatemanager.cpp
