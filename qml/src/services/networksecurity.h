@@ -140,10 +140,10 @@ inline bool canRefreshCatalog() {
 
 // ── Response Size Limits ──
 
-inline constexpr qint64 kMaxJsonResponseBytes   = 2 * 1024 * 1024;   // 2 MB
-inline constexpr qint64 kMaxPackageBytes         = 500 * 1024 * 1024; // 500 MB
-inline constexpr qint64 kMaxUpdateInstallerBytes = 200 * 1024 * 1024; // 200 MB
-inline constexpr qint64 kMaxDecompressedBytes    = 2LL * 1024 * 1024 * 1024; // 2 GB (zip bomb limit)
+inline constexpr qint64 kMaxJsonResponseBytes   = 2 * 1024 * 1024;          // 2 MB
+inline constexpr qint64 kMaxPackageBytes         = 3LL * 1024 * 1024 * 1024; // 3 GB (largest: ~1.6 GB)
+inline constexpr qint64 kMaxUpdateInstallerBytes = 200 * 1024 * 1024;       // 200 MB
+inline constexpr qint64 kMaxDecompressedBytes    = 5LL * 1024 * 1024 * 1024; // 5 GB (decompressed tar limit)
 
 /**
  * @brief Install a download size guard on a QNetworkReply.
