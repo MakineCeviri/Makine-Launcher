@@ -15,7 +15,6 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QCoreApplication>
-#include <QRegularExpression>
 #include <QSettings>
 #include <QDateTime>
 #include <QLoggingCategory>
@@ -185,7 +184,8 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
 
     // Parse version: strip "v" prefix, separate pre-release suffix
     QString remoteRaw = version;
-    remoteRaw.remove(QRegularExpression(QStringLiteral("^v")));
+    if (remoteRaw.startsWith(QLatin1Char('v')) || remoteRaw.startsWith(QLatin1Char('V')))
+        remoteRaw = remoteRaw.mid(1);
     QString currentRaw = QCoreApplication::applicationVersion();
 
     auto splitPreRelease = [](const QString& raw) -> std::pair<QString, QString> {
