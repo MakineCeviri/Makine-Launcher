@@ -52,8 +52,8 @@ ApplicationWindow {
                                        && AuthService.isAuthenticated
 
     Component.onCompleted: {
-        if (typeof AuthService !== "undefined")
-            AuthService.checkStoredToken()
+        // Auth token check moved to C++ splash phase (main.cpp) —
+        // state is already resolved by the time QML loads.
         if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
     }
