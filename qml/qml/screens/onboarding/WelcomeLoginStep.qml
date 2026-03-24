@@ -29,7 +29,6 @@ Item {
     // === CONTENT ===
     ColumnLayout {
         anchors.centerIn: parent
-        anchors.horizontalCenterOffset: -43
         width: 380
         spacing: 0
 
