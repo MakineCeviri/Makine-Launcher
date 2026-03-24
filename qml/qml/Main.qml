@@ -410,7 +410,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.navbarHeight
             currentIndex: window.currentNavIndex
-            showBottomLine: contentStackContainer.gameDetailVisible
+            showBottomLine: false
             animationsEnabled: window.animationsEnabled
 
             onHomeClicked: {
@@ -430,14 +430,17 @@ ApplicationWindow {
         }
 
         // ===== CONTENT STACK - Simple crossfade transitions =====
-        Item {
+        Rectangle {
             id: contentStackContainer
             Layout.fillWidth: true
             Layout.fillHeight: true
+            radius: Dimensions.radiusSection
+            color: Theme.bgPrimary
+            clip: true
 
             // Apple-style subtle edge border around content area
             GradientBorder {
-                cornerRadius: Dimensions.radiusLG
+                cornerRadius: Dimensions.radiusSection
                 topColor: Qt.rgba(1, 1, 1, 0.08)
                 midColor: Qt.rgba(1, 1, 1, 0.04)
                 bottomColor: Qt.rgba(1, 1, 1, 0.015)
