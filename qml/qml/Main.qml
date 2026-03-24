@@ -407,6 +407,7 @@ ApplicationWindow {
         // ===== NAV BAR =====
         NavBar {
             id: navBar
+            z: 1
             Layout.fillWidth: true
             Layout.preferredHeight: Dimensions.navbarHeight
             currentIndex: window.currentNavIndex
