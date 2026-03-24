@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.25)
+
+# UI service unit tests
+# Pure C++ tests (no Qt runtime needed): VDF parser, tar helpers, CDN config
+# Qt-dependent tests: version comparison, path security
+
+find_package(GTest REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+
+enable_testing()
+
+# Pure C++ tests (header-only, no vcpkg)
+add_executable(test_vdfparser test_vdfparser.cpp)
+target_include_directories(test_vdfparser PRIVATE ${CMAKE_SOURCE_DIR}/qml/src/services)
+target_link_libraries(test_vdfparser PRIVATE GTest::gtest GTest::gtest_main)
+add_test(NAME test_vdfparser COMMAND test_vdfparser)
+
+# Qt-dependent tests
+add_executable(test_updateservice test_updateservice.cpp)
+target_include_directories(test_updateservice PRIVATE ${CMAKE_SOURCE_DIR}/qml/src/services)
+target_link_libraries(test_updateservice PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_updateservice COMMAND test_updateservice)
+
+add_executable(test_pathsecurity test_pathsecurity.cpp)
+target_include_directories(test_pathsecurity PRIVATE ${CMAKE_SOURCE_DIR}/qml/src/services)
+target_link_libraries(test_pathsecurity PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_pathsecurity COMMAND test_pathsecurity)
+
+add_executable(test_cdnconfig test_cdnconfig.cpp)
+target_include_directories(test_cdnconfig PRIVATE ${CMAKE_SOURCE_DIR}/qml/src/services)
+target_link_libraries(test_cdnconfig PRIVATE GTest::gtest GTest::gtest_main)
+add_test(NAME test_cdnconfig COMMAND test_cdnconfig)
