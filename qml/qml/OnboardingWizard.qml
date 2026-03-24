@@ -1,167 +1,319 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import MakineLauncher 1.0
 import "screens/onboarding"
 pragma ComponentBehavior: Bound
 
 /**
- * OnboardingWizard.qml - First-launch experience
+ * OnboardingWizard.qml — Unified auth + onboarding experience
  *
- * 3-step wizard: Welcome → Library Scan → Ready
- * Emits wizardFinished() — parent handles settings persistence.
+ * Modes:
+ *   firstLaunch (!onboardingCompleted): 4 steps with dots
+ *   returningUser (onboardingCompleted): login only, no dots
+ *
+ * Background: LoginScreen's premium neon gradient (preserved pixel-perfect).
+ * Steps: WelcomeLoginStep → ThemeStep → ScanStep → ReadyStep
  */
-Rectangle {
+Item {
     id: root
-    color: Theme.bgPrimary
 
     signal wizardFinished()
 
+    // Mode detection
+    readonly property bool returningUser: typeof SettingsManager !== "undefined"
+                                          && SettingsManager.onboardingCompleted
+
     property int currentStep: 0
-    readonly property int totalSteps: 3
+    readonly property int totalSteps: 4
     readonly property bool isLastStep: currentStep === totalSteps - 1
 
-    // ===== WINDOW DRAG (replaces TitleBar while onboarding is active) =====
-    MouseArea {
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: closeBtn.left
-        height: 40
-        onPressed: root.Window.window?.startSystemMove()
-    }
-
-    // Close button (top-right)
-    Rectangle {
-        id: closeBtn
-        anchors.top: parent.top; anchors.right: parent.right
-        anchors.topMargin: 6; anchors.rightMargin: 6
-        width: 28; height: 28; radius: 6
-        color: closeMa.containsMouse ? Theme.danger20 : "transparent"
-
-        Text {
-            textFormat: Text.PlainText
-            anchors.centerIn: parent
-            text: "\u2715"
-            font.pixelSize: 12; color: closeMa.containsMouse ? Theme.danger : Theme.textMuted
-        }
-
-        MouseArea {
-            id: closeMa; anchors.fill: parent; hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: Qt.quit()
+    Component.onCompleted: {
+        // Crash recovery: if already authenticated but onboarding not done,
+        // skip to ThemeStep (step 1)
+        if (!returningUser && typeof AuthService !== "undefined"
+                && AuthService.isAuthenticated) {
+            currentStep = 1
         }
     }
 
-    // ===== BACKGROUND =====
-
-    // Subtle top gradient
+    // =========================================================================
+    // NEON GRADIENT BACKGROUND (from LoginScreen — DO NOT MODIFY)
+    // =========================================================================
     Rectangle {
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: parent.height * 0.5
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.primary03 }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
+        anchors.fill: parent
+        color: "#0d1117"
+        clip: true
     }
 
-    // Top brand line
     Rectangle {
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 2
+        width: root.width * 6
+        height: root.height
+
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: Theme.brandGold }
-            GradientStop { position: 0.25; color: Theme.brandCoral }
-            GradientStop { position: 0.5; color: Theme.brandPurple }
-            GradientStop { position: 0.75; color: Theme.brandBlue }
-            GradientStop { position: 1.0; color: Theme.brandGreen }
+            GradientStop { position: 0.000; color: "#0a1628" }
+            GradientStop { position: 0.080; color: "#0e1a30" }
+            GradientStop { position: 0.160; color: "#150f2a" }
+            GradientStop { position: 0.240; color: "#1a0f2e" }
+            GradientStop { position: 0.320; color: "#1e0e30" }
+            GradientStop { position: 0.400; color: "#170d2a" }
+            GradientStop { position: 0.480; color: "#0f2a2e" }
+            GradientStop { position: 0.560; color: "#0a2428" }
+            GradientStop { position: 0.640; color: "#0d1820" }
+            GradientStop { position: 0.720; color: "#0d1117" }
+            GradientStop { position: 0.800; color: "#10131c" }
+            GradientStop { position: 0.880; color: "#0c1522" }
+            GradientStop { position: 1.000; color: "#0a1628" }
+        }
+
+        SequentialAnimation on x {
+            loops: Animation.Infinite
+            NumberAnimation { to: -root.width * 5; duration: 25000; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 0; duration: 25000; easing.type: Easing.InOutSine }
         }
     }
 
-    // ===== MAIN CONTENT =====
-    ColumnLayout {
+    // =========================================================================
+    // BLOCK MOUSE EVENTS from passing through to content behind
+    // =========================================================================
+    MouseArea {
         anchors.fill: parent
-        anchors.topMargin: 48
-        anchors.bottomMargin: 40
-        anchors.leftMargin: 60
-        anchors.rightMargin: 60
-        spacing: 0
+        acceptedButtons: Qt.AllButtons
+        hoverEnabled: true
+    }
 
-        // ===== STEP CONTENT =====
-        StackLayout {
-            id: stepStack
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            currentIndex: root.currentStep
+    // =========================================================================
+    // WINDOW DRAG AREA — stops before window buttons
+    // =========================================================================
+    Item {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.rightMargin: 140
+        anchors.top: parent.top
+        height: 40
+        z: 5
+        DragHandler {
+            target: null
+            onActiveChanged: if (active) root.Window.window?.startSystemMove()
+        }
+    }
 
-            WelcomeStep {
-                onNextStep: root.currentStep = 1
+    // =========================================================================
+    // WINDOW CONTROLS — tray, minimize, close
+    // =========================================================================
+    Row {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        z: 10
+
+        // Tray — disabled on first launch (system tray not yet initialized)
+        Rectangle {
+            width: 46; height: 32
+            visible: root.returningUser
+            color: trayMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "\uE70D"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 11
+                color: Qt.rgba(1, 1, 1, trayMa.containsMouse ? 0.7 : 0.35)
             }
-
-            ScanStep {
-                onNextStep: root.currentStep = 2
-                onPreviousStep: root.currentStep = 0
-            }
-
-            ReadyStep {
-                onFinished: root.wizardFinished()
+            MouseArea {
+                id: trayMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.ArrowCursor
+                onClicked: root.Window.window?.hide()
             }
         }
 
-        // ===== BOTTOM: Step indicators + Skip =====
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 32
-            Layout.topMargin: 16
+        // Minimize
+        Rectangle {
+            width: 46; height: 32
+            color: minMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "\uE921"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 11
+                color: Qt.rgba(1, 1, 1, minMa.containsMouse ? 0.7 : 0.35)
+            }
+            MouseArea {
+                id: minMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.ArrowCursor
+                onClicked: root.Window.window?.showMinimized()
+            }
+        }
 
-            Item { Layout.fillWidth: true }
+        // Close
+        Rectangle {
+            width: 46; height: 32
+            color: closeMa.containsMouse ? "#E81123" : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "\uE8BB"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 11
+                color: closeMa.containsMouse ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.35)
+            }
+            MouseArea {
+                id: closeMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.ArrowCursor
+                onClicked: root.Window.window?.close()
+            }
+        }
+    }
 
-            // Step dots
-            Row {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 6
+    // =========================================================================
+    // STEP TRANSITION ANIMATIONS — crossfade + subtle slide
+    // =========================================================================
+    property int _previousStep: 0
 
-                Repeater {
-                    model: root.totalSteps
-                    Rectangle {
-                        required property int index
-                        width: index === root.currentStep ? 24 : 8
-                        height: 6
-                        radius: 3
-                        color: index === root.currentStep ? Theme.primary
-                             : index < root.currentStep ? Theme.success60
-                             : Theme.surfaceActive50
+    onCurrentStepChanged: {
+        if (_previousStep === currentStep) return
+        var outgoing = stepStack.children[_previousStep]
+        var incoming = stepStack.children[currentStep]
+        if (outgoing && incoming) {
+            outgoingAnim.target = outgoing
+            outgoingAnim.start()
+            incoming.opacity = 0
+            incoming.y = 16
+            incomingAnim.target = incoming
+            incomingAnim.start()
+        }
+        _previousStep = currentStep
+    }
 
+    ParallelAnimation {
+        id: outgoingAnim
+        property var target: null
+        NumberAnimation {
+            target: outgoingAnim.target; property: "opacity"
+            to: 0; duration: 180; easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: outgoingAnim.target; property: "y"
+            to: -12; duration: 180; easing.type: Easing.InCubic
+        }
+    }
+
+    ParallelAnimation {
+        id: incomingAnim
+        property var target: null
+        NumberAnimation {
+            target: incomingAnim.target; property: "opacity"
+            to: 1; duration: 250; easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: incomingAnim.target; property: "y"
+            to: 0; duration: 250; easing.type: Easing.OutCubic
+        }
+    }
+
+    // =========================================================================
+    // STEP CONTENT
+    // =========================================================================
+    StackLayout {
+        id: stepStack
+        anchors.fill: parent
+        anchors.topMargin: 40
+        anchors.bottomMargin: root.returningUser ? 0 : 56
+        currentIndex: root.currentStep
+
+        WelcomeLoginStep {
+            returningUser: root.returningUser
+            onLoginSuccess: {
+                if (root.returningUser) {
+                    // Returning user: reactive hide via _authReady becoming true.
+                    // Do NOT call wizardFinished — it would trigger scanAllLibraries.
+                } else {
+                    root.currentStep = 1
+                }
+            }
+        }
+
+        ThemeStep {
+            onNextStep: root.currentStep = 2
+        }
+
+        ScanStep {
+            onNextStep: root.currentStep = 3
+            onPreviousStep: root.currentStep = 1
+        }
+
+        ReadyStep {
+            onFinished: root.wizardFinished()
+        }
+    }
+
+    // =========================================================================
+    // BOTTOM: Step dots + Skip (first launch only)
+    // =========================================================================
+    RowLayout {
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 16
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: 60
+        anchors.rightMargin: 60
+        height: 32
+        visible: !root.returningUser
+
+        Item { Layout.fillWidth: true }
+
+        // Step dots
+        Row {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 6
+
+            Repeater {
+                model: root.totalSteps
+
+                Rectangle {
+                    required property int index
+                    width: index === root.currentStep ? 24 : 8
+                    height: 6
+                    radius: 3
+                    color: index === root.currentStep
+                        ? Theme.accentBase
+                        : index < root.currentStep
+                            ? Theme.success60
+                            : Qt.rgba(1, 1, 1, 0.15)
+
+                    Behavior on width {
+                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on color {
+                        ColorAnimation { duration: 200 }
                     }
                 }
             }
+        }
 
-            Item { Layout.fillWidth: true }
+        Item { Layout.fillWidth: true }
 
-            // Skip / continue link (right side)
-            Text {
-                textFormat: Text.PlainText
-                visible: !root.isLastStep
-                text: root.currentStep === 0 ? qsTr("Atla") : qsTr("Devam Et")
-                font.pixelSize: 13
-                color: skipMa.containsMouse ? Theme.textSecondary : Theme.textMuted
+        // Skip link — visible on steps 1-2 (after login, before ready)
+        Text {
+            textFormat: Text.PlainText
+            visible: root.currentStep > 0 && !root.isLastStep
+            text: qsTr("Atla")
+            font.pixelSize: 13
+            color: skipMa.containsMouse
+                ? Qt.rgba(1, 1, 1, 0.6)
+                : Qt.rgba(1, 1, 1, 0.3)
 
-                MouseArea {
-                    id: skipMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (root.currentStep === 0)
-                            root.wizardFinished()  // Skip wizard entirely
-                        else
-                            root.currentStep++  // Navigate to next step
-                    }
-                }
+            MouseArea {
+                id: skipMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.wizardFinished()
             }
         }
     }
