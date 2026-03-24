@@ -281,10 +281,9 @@ inline int extract(
     }
 
     // Helper: convert tar header filename to fs::path on Windows.
-    // Tar archives may use UTF-8 OR the system's ANSI codepage (e.g. Windows-1254
-    // for Turkish). Try UTF-8 first with strict validation; if invalid, fall back
-    // to the system ANSI codepage (CP_ACP) which handles single-byte encodings
-    // like Latin-1/Windows-1254 correctly.
+    // Tar archives may use UTF-8, Windows-1254 (Turkish), or another ANSI codepage.
+    // Try UTF-8 first, then Turkish codepage explicitly (Makine is a Turkish app),
+    // then system ANSI as last resort.
     auto tarpath = [](const std::string& s) -> fs::path {
 #ifdef _WIN32
         if (s.empty()) return {};
@@ -300,7 +299,18 @@ inline int extract(
             return fs::path(wide);
         }
 
-        // Try 2: System ANSI codepage (CP_ACP — handles Turkish Windows-1254 etc.)
+        // Try 2: Turkish codepage 1254 — explicit because CP_ACP may be UTF-8
+        // on modern Windows 11, which would fail for Windows-1254 encoded bytes.
+        // Covers: ü (0xFC), ç (0xE7), ş (0xFE), ğ (0xF0), ı (0xFD), ö (0xF6)
+        constexpr UINT CP_TURKISH = 1254;
+        wlen = MultiByteToWideChar(CP_TURKISH, 0, s.data(), len, nullptr, 0);
+        if (wlen > 0) {
+            std::wstring wide(static_cast<size_t>(wlen), L'\0');
+            MultiByteToWideChar(CP_TURKISH, 0, s.data(), len, wide.data(), wlen);
+            return fs::path(wide);
+        }
+
+        // Try 3: System ANSI codepage (CP_ACP — fallback for non-Turkish archives)
         wlen = MultiByteToWideChar(CP_ACP, 0, s.data(), len, nullptr, 0);
         if (wlen > 0) {
             std::wstring wide(static_cast<size_t>(wlen), L'\0');
