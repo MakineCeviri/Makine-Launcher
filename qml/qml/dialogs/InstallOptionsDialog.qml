@@ -87,6 +87,8 @@ BaseDialog {
                 Canvas {
                     anchors.centerIn: parent
                     width: 18; height: 18
+                    renderStrategy: Canvas.Cooperative
+                    renderTarget: Canvas.FramebufferObject
                     property color c: root.accentColor
                     property bool er: root.isEldenRing
                     onCChanged: requestPaint()
@@ -253,6 +255,8 @@ BaseDialog {
                         Canvas {
                             anchors.centerIn: parent
                             width: 12; height: 12
+                            renderStrategy: Canvas.Cooperative
+                            renderTarget: Canvas.FramebufferObject
                             visible: isChecked
                             onVisibleChanged: if (visible) requestPaint()
                             onPaint: {
@@ -277,6 +281,8 @@ BaseDialog {
                         Layout.preferredHeight: 16
                         Layout.alignment: Qt.AlignTop
                         Layout.topMargin: 1
+                        renderStrategy: Canvas.Cooperative
+                        renderTarget: Canvas.FramebufferObject
                         visible: optIcon.length > 0
                         property color c: isChecked ? root.accentColor : Theme.textMuted
                         property string ico: optIcon
