@@ -31,7 +31,7 @@ BaseDialog {
 
     background: Rectangle {
         radius: Dimensions.radiusMD
-        color: Theme.glassBackground
+        color: Theme.bgSecondary
         border.color: Theme.withAlpha(root.accentColor, 0.15)
         border.width: 1
 
