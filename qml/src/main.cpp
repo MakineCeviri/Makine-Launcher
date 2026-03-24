@@ -872,6 +872,7 @@ static void configureEngine(QQmlApplicationEngine& engine)
     engine.rootContext()->setContextProperty("devToolsEnabled", false);
 #endif
 
+
     // Register model types for QML.
     // Manual registration — works in both shared and static Qt builds.
     // (QML_ELEMENT/QML_SINGLETON relies on linker keeping registration code,
@@ -1373,10 +1374,13 @@ int main(int argc, char *argv[])
 
     // Parse command-line flags before QGuiApplication
     bool isPostUpdate = false;
+    bool startMinimized = false;
     QString authCallbackUrl;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--post-update") == 0) {
             isPostUpdate = true;
+        } else if (strcmp(argv[i], "--minimized") == 0) {
+            startMinimized = true;
         } else if (strcmp(argv[i], "--auth-callback") == 0 && i + 1 < argc) {
             authCallbackUrl = QString::fromLocal8Bit(argv[++i]);
         }
@@ -1606,6 +1610,12 @@ int main(int argc, char *argv[])
         , splash
 #endif
     );
+
+    // Hide window if launched with --minimized (Windows autostart → system tray)
+    if (startMinimized) {
+        if (auto* window = qobject_cast<QQuickWindow*>(rootObject))
+            window->setVisible(false);
+    }
 
     scheduleMemoryTrim();
 
