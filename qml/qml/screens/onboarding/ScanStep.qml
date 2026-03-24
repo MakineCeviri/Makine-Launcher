@@ -38,7 +38,7 @@ Item {
             font.pixelSize: 24
             font.weight: Font.Bold
             font.letterSpacing: -0.3
-            color: Theme.textPrimary
+            color: "#FFFFFF"
         }
 
         Item { Layout.preferredHeight: 8 }
@@ -48,7 +48,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("Kurulu oyunlar\u0131 tespit et")
             font.pixelSize: 14
-            color: Theme.textSecondary
+            color: Qt.rgba(1, 1, 1, 0.5)
         }
 
         Item { Layout.preferredHeight: 32 }
@@ -59,8 +59,8 @@ Item {
             Layout.preferredWidth: 360
             Layout.preferredHeight: scanContent.implicitHeight + 40
             radius: 12
-            color: Theme.surface50
-            border.color: Theme.glassBorder
+            color: Qt.rgba(1, 1, 1, 0.03)
+            border.color: Qt.rgba(1, 0.42, 0.62, 0.12)
             border.width: 1
 
             ColumnLayout {
@@ -80,7 +80,7 @@ Item {
                         Layout.alignment: Qt.AlignHCenter
                         text: qsTr("Steam, Epic ve GOG oyunlar\u0131n\u0131 arar.")
                         font.pixelSize: 13
-                        color: Theme.textSecondary
+                        color: Qt.rgba(1, 1, 1, 0.5)
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -95,31 +95,17 @@ Item {
                             text: qsTr("Taramay\u0131 Ba\u015flat")
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
-                            color: Theme.textOnColor
+                            color: "#FFFFFF"
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
 
                         background: Rectangle {
                             radius: 8
-                            color: parent.parent.hovered ? Theme.primaryHover : Theme.primary
+                            color: parent.parent.hovered ? "#E04898" : "#D63D8C"
                         }
 
-                        onClicked: {
-                            scanStep.isScanning = true
-                            scanStep.scanStage = 0
-                            scanStageTimer.start()
-                            scanTimeoutTimer.start()
-                            if (typeof GameService !== "undefined") {
-                                GameService.scanAllLibraries()
-                            } else {
-                                // GameService unavailable — complete scan with 0 results
-                                scanStep.isScanning = false
-                                scanStep.scanDone = true
-                                scanStep.foundGames = 0
-                                scanStageTimer.stop()
-                            }
-                        }
+                        onClicked: scanStep.startScan()
                     }
                 }
 
@@ -143,7 +129,7 @@ Item {
                               ? scanStep.scanStageTexts[scanStep.scanStage]
                               : scanStep.scanStageTexts[scanStep.scanStageTexts.length - 1]
                         font.pixelSize: 14
-                        color: Theme.textSecondary
+                        color: Qt.rgba(1, 1, 1, 0.5)
 
                         Behavior on text {
                             SequentialAnimation {
@@ -169,7 +155,7 @@ Item {
                               : qsTr("Oyun bulunamad\u0131")
                         font.pixelSize: 18
                         font.weight: Font.Bold
-                        color: scanStep.foundGames > 0 ? Theme.success : Theme.textSecondary
+                        color: scanStep.foundGames > 0 ? Theme.success : Qt.rgba(1, 1, 1, 0.5)
                     }
 
                     Text {
@@ -180,7 +166,7 @@ Item {
                               ? qsTr("Ana ekrandan T\u00fcrk\u00e7e \u00e7evirisi olanlar\u0131 g\u00f6rebilirsin.")
                               : qsTr("Sorun de\u011fil, ana ekrandan klas\u00f6r olarak da ekleyebilirsin.")
                         font.pixelSize: 13
-                        color: Theme.textSecondary
+                        color: Qt.rgba(1, 1, 1, 0.5)
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -204,14 +190,14 @@ Item {
                     textFormat: Text.PlainText
                     text: qsTr("Geri")
                     font.pixelSize: 14
-                    color: parent.hovered ? Theme.textPrimary : Theme.textSecondary
+                    color: parent.hovered ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.5)
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 background: Rectangle {
                     radius: 8
-                    color: parent.parent.hovered ? Theme.surface60 : "transparent"
+                    color: parent.parent.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
                 }
 
                 onClicked: scanStep.previousStep()
@@ -226,18 +212,42 @@ Item {
                     text: qsTr("Devam Et")
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
-                    color: Theme.textOnColor
+                    color: "#FFFFFF"
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 background: Rectangle {
                     radius: 8
-                    color: parent.parent.hovered ? Theme.primaryHover : Theme.primary
+                    color: parent.parent.hovered ? "#E04898" : "#D63D8C"
                 }
 
                 onClicked: scanStep.nextStep()
             }
+        }
+    }
+
+    // Scan logic — extracted to function, not triggered in Component.onCompleted
+    function startScan() {
+        isScanning = true
+        scanStage = 0
+        scanStageTimer.start()
+        scanTimeoutTimer.start()
+        if (typeof GameService !== "undefined") {
+            GameService.scanAllLibraries()
+        } else {
+            isScanning = false
+            scanDone = true
+            foundGames = 0
+            scanStageTimer.stop()
+        }
+    }
+
+    // Ensure timers stop when leaving this step
+    StackLayout.onIsCurrentItemChanged: {
+        if (!StackLayout.isCurrentItem) {
+            scanStageTimer.stop()
+            scanTimeoutTimer.stop()
         }
     }
 

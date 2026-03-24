@@ -24,8 +24,8 @@ Item {
             Layout.preferredWidth: 64
             Layout.preferredHeight: 64
             radius: 32
-            color: Theme.success10
-            border.color: Theme.success20
+            color: Qt.rgba(0.06, 0.73, 0.51, 0.1)
+            border.color: Qt.rgba(0.06, 0.73, 0.51, 0.2)
             border.width: 1
 
             Text {
@@ -47,7 +47,7 @@ Item {
             font.pixelSize: 28
             font.weight: Font.Bold
             font.letterSpacing: -0.5
-            color: Theme.textPrimary
+            color: "#FFFFFF"
         }
 
         Item { Layout.preferredHeight: 8 }
@@ -58,7 +58,7 @@ Item {
             Layout.maximumWidth: 380
             text: qsTr("Bir oyun se\u00e7, T\u00fcrk\u00e7e \u00e7evirisini y\u00fckle, oyna.")
             font.pixelSize: 15
-            color: Theme.textSecondary
+            color: Qt.rgba(1, 1, 1, 0.5)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             lineHeight: 1.4
@@ -78,7 +78,7 @@ Item {
                 text: qsTr("Ba\u015flayal\u0131m")
                 font.pixelSize: 16
                 font.weight: Font.DemiBold
-                color: Theme.textOnColor
+                color: "#FFFFFF"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
@@ -87,8 +87,8 @@ Item {
                 radius: 10
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: finishBtn.hovered ? Theme.primaryHover : Theme.primary }
-                    GradientStop { position: 1.0; color: finishBtn.hovered ? Theme.accentHover : Theme.accent }
+                    GradientStop { position: 0.0; color: finishBtn.hovered ? "#E04898" : "#D63D8C" }
+                    GradientStop { position: 1.0; color: finishBtn.hovered ? "#0891B2" : "#06B6D4" }
                 }
             }
 
