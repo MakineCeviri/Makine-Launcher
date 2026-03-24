@@ -1004,9 +1004,22 @@ static void createServices(
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
-    // PluginManager + OcrController deferred to post-first-frame (dev-only, heavy init)
+    // ===== Phase 6b: Plugin system (dev builds only) =====
+#ifdef MAKINE_DEV_TOOLS
+    auto* pluginManager = new PluginManager(&app);
+    pluginManager->discoverPlugins();
+    pluginManager->loadEnabledPlugins();
+    pluginManager->checkForUpdates();
+    pluginManager->fetchCommunityPlugins();
+    engine.rootContext()->setContextProperty("PluginManager", pluginManager);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
+
+    auto* ocrController = new OcrController(pluginManager, &app);
+    engine.rootContext()->setContextProperty("OcrController", ocrController);
+#else
     engine.rootContext()->setContextProperty("PluginManager", nullptr);
     engine.rootContext()->setContextProperty("OcrController", nullptr);
+#endif
 
     // ===== Phase 7: Update service + system tray =====
     makine::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
@@ -1223,23 +1236,6 @@ static void setupRootWindow(
             // event loop iterations, populating QML progressively.
             gameService->initialize();
 
-            // Deferred: PluginManager + OcrController (dev-only, heavy init)
-#ifdef MAKINE_DEV_TOOLS
-            QTimer::singleShot(200, qApp, [&engine = *QQmlEngine::contextForObject(gameService)->engine()]() {
-                auto* ctx = engine.rootContext();
-                auto* pluginMgr = new PluginManager(qApp);
-                pluginMgr->discoverPlugins();
-                pluginMgr->loadEnabledPlugins();
-                pluginMgr->checkForUpdates();
-                pluginMgr->fetchCommunityPlugins();
-                ctx->setContextProperty("PluginManager", pluginMgr);
-                QObject::connect(qApp, &QCoreApplication::aboutToQuit, pluginMgr, &PluginManager::shutdownAll);
-
-                auto* ocr = new OcrController(pluginMgr, qApp);
-                ctx->setContextProperty("OcrController", ocr);
-                qCDebug(lcApp) << "PluginManager + OcrController initialized (deferred)";
-            });
-#endif
         }, Qt::QueuedConnection);
 
     // Request first frame BEFORE preloading Settings — ensures the render
