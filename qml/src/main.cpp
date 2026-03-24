@@ -33,6 +33,7 @@
 #include <QUrlQuery>
 #include "services/profiler.h"
 #include "services/authservice.h"
+#include "services/rendergovernor.h"
 #include "services/crashreporter.h"
 #include <QLoggingCategory>
 
@@ -672,6 +673,14 @@ static void configureQtEnvironment()
     // "basic" = single-threaded, best idle efficiency but blocks main thread during render.
     qputenv("QSG_RENDER_LOOP", "threaded");
 
+    // === VSYNC (60 FPS CAP) ===
+    // swapInterval=1 locks to monitor refresh (60Hz=60fps, 144Hz capped by governor)
+    {
+        QSurfaceFormat fmt = QSurfaceFormat::defaultFormat();
+        fmt.setSwapInterval(1);
+        QSurfaceFormat::setDefaultFormat(fmt);
+    }
+
     // === GRAPHICS BACKEND ===
     // Qt RHI default: D3D11 on Windows, OpenGL on Linux, Metal on macOS.
     // No explicit setGraphicsApi() — let Qt pick the best available backend.
@@ -1174,6 +1183,10 @@ static void setupRootWindow(
             EmptyWorkingSet(GetCurrentProcess());
         }
     });
+
+    // FPS governor: active (60fps vsync) → idle (on-demand) → background (0fps)
+    auto* renderGovernor = new RenderGovernor(window, &app);
+    engine.rootContext()->setContextProperty("RenderGovernor", renderGovernor);
 
     logToFile(QString("Phase 10 (first-frame setup) at %1 ms").arg(startupTimer.elapsed()));
 

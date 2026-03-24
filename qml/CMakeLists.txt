@@ -117,6 +117,7 @@ set(BACKEND_SOURCES
     src/services/ocrcontroller.cpp
     src/services/translationstatemanager.cpp
     src/services/installflowservice.cpp
+    src/services/rendergovernor.cpp
     src/services/authservice.cpp
 )
 
