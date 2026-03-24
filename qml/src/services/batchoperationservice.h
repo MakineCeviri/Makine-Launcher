@@ -15,9 +15,9 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QTimer>
-#include <QThread>
 
 #include <atomic>
+#include <vector>
 
 #include "corebridge.h"
 

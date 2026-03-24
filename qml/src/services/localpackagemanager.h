@@ -10,8 +10,6 @@
  * Install/uninstall file operations stay in this QML service.
  */
 
-#pragma once
-
 #include <QObject>
 #include <QHash>
 #include <QString>
