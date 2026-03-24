@@ -30,6 +30,7 @@ Q_LOGGING_CATEGORY(lcPlugin, "makine.plugin")
 
 PluginManager::PluginManager(QObject* parent)
     : QObject(parent)
+    , m_net(new QNetworkAccessManager(this))
 {
 }
 
@@ -417,8 +418,7 @@ void PluginManager::checkForUpdates()
 {
     if (m_checking) return;
 
-    if (!m_net)
-        m_net = new QNetworkAccessManager(this);
+
 
     m_checking = true;
     emit checkingChanged();
@@ -501,8 +501,7 @@ void PluginManager::parsePluginIndex(const QByteArray& data)
 
 void PluginManager::fetchGitHubRelease(const QString& repo, const QString& pluginId)
 {
-    if (!m_net)
-        m_net = new QNetworkAccessManager(this);
+
 
     // Security: validate repo format and trusted org
     if (!repo.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/")) {
@@ -606,8 +605,7 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
         return;
     }
 
-    if (!m_net)
-        m_net = new QNetworkAccessManager(this);
+
 
     m_installing = true;
     m_installingPluginId = pluginId;
@@ -1065,8 +1063,7 @@ void PluginManager::fetchCommunityPlugins()
 {
     if (m_loadingCommunity) return;
 
-    if (!m_net)
-        m_net = new QNetworkAccessManager(this);
+
 
     m_loadingCommunity = true;
     emit loadingCommunityChanged();

@@ -5,6 +5,9 @@ pragma ComponentBehavior: Bound
 /**
  * AmbientGlow.qml - Reusable radial glow effect with rounded-rect clipping.
  * Supports hover mode (intensity changes on hover) and custom glow origin.
+ *
+ * Performance: Canvas paints once at full intensity; hover transitions use
+ * opacity animation instead of repeated Canvas repaints (~9 draws → 0).
  */
 Canvas {
     id: glow
@@ -28,21 +31,21 @@ Canvas {
     renderTarget: Canvas.FramebufferObject
     renderStrategy: Canvas.Cooperative
 
-    // Repaint only when geometry or visual parameters actually change.
-    // Hover state changes are handled via effectiveIntensity below.
-    onGlowColorChanged: requestPaint()
-    onWidthChanged: requestPaint()
-    onHeightChanged: requestPaint()
-    onPositionChanged: requestPaint()
-
-    // Smooth intensity transition on hover instead of instant repaint
-    property real effectiveIntensity: intensity
-    Behavior on effectiveIntensity {
+    // Paint once at max intensity; hover transitions via opacity (GPU-composited, no repaint)
+    readonly property real _paintIntensity: hoveredIntensity >= 0 ? Math.max(intensity, hoveredIntensity) : intensity
+    opacity: (hoveredIntensity >= 0)
+             ? (hovered ? hoveredIntensity / _paintIntensity : intensity / _paintIntensity)
+             : 1.0
+    Behavior on opacity {
         NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
     }
-    onHoveredChanged: effectiveIntensity = (hoveredIntensity >= 0 && hovered) ? hoveredIntensity : intensity
-    onIntensityChanged: effectiveIntensity = (hoveredIntensity >= 0 && hovered) ? hoveredIntensity : intensity
-    onEffectiveIntensityChanged: requestPaint()
+
+    // Repaint only when geometry or visual parameters actually change (not on hover)
+    onGlowColorChanged: Qt.callLater(requestPaint)
+    onWidthChanged: Qt.callLater(requestPaint)
+    onHeightChanged: Qt.callLater(requestPaint)
+    onPositionChanged: Qt.callLater(requestPaint)
+    on_PaintIntensityChanged: Qt.callLater(requestPaint)
 
     onPaint: {
         var ctx = getContext("2d")
@@ -81,10 +84,8 @@ Canvas {
             cy = 30
         }
 
-        // Effective intensity (already interpolated by Behavior)
-        var _i = effectiveIntensity
-
-        // Radial gradient
+        // Radial gradient at max intensity (opacity handles hover transitions)
+        var _i = _paintIntensity
         var r = Math.max(width, height) * spread
         var gc = glowColor
         var R = Math.round(gc.r * 255), G = Math.round(gc.g * 255), B = Math.round(gc.b * 255)

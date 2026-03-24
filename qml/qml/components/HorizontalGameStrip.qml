@@ -128,7 +128,7 @@ Item {
         spacing: Dimensions.cardGap
         model: strip._isProxyModel ? strip.model : strip._viewModel
         interactive: false
-        cacheBuffer: strip.wrapAround ? 0 : 100
+        cacheBuffer: strip.wrapAround ? 0 : 520
         displayMarginBeginning: 0
         displayMarginEnd: 0
         pixelAligned: true
