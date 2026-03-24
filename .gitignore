@@ -192,8 +192,4 @@ external/
 docs/ECOSYSTEM-REPORT*.md
 docs/superpowers/
 docs/perf-startup-analysis.md
-
-# Internal docs (not for public)
-docs/ECOSYSTEM-REPORT*.md
-docs/superpowers/
-docs/perf-startup-analysis.md
+docs/MakineAI-Temizlik-Plani.md
