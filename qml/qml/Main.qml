@@ -23,7 +23,7 @@ ApplicationWindow {
     y: Math.round((Screen.height - height) / 2)
 
     title: "Makine \u00C7eviri - Makine Launcher"
-    color: window._authReady ? Theme.bgPrimary : "#0d1117"
+    color: (window._authReady && !window._onboardingActive) ? Theme.bgPrimary : "#0d1117"
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
@@ -269,13 +269,6 @@ ApplicationWindow {
         anchors.fill: parent
         z: -1
         visible: window._authReady
-    }
-
-    // Login screen
-    LoginScreen {
-        anchors.fill: parent
-        visible: !window._authReady
-        z: 100
     }
 
     ColumnLayout {
@@ -808,22 +801,25 @@ ApplicationWindow {
         }
     }
 
-    // ===== ONBOARDING WIZARD OVERLAY (lazy: unloaded after completion) =====
+    // ===== ONBOARDING WIZARD OVERLAY (unified auth + onboarding gate) =====
     Loader {
         id: onboardingLoader
         anchors.fill: parent
-        active: window._onboardingActive
+        active: !window._authReady || window._onboardingActive
+        z: Dimensions.zOverlay
         sourceComponent: Component {
             OnboardingWizard {
-                z: Dimensions.zOverlay
                 onWizardFinished: {
+                    // Only scan + persist for first-launch (not returning users)
+                    if (window._onboardingActive) {
+                        if (typeof GameService !== "undefined" && GameService.gameCount === 0) {
+                            GameService.scanAllLibraries()
+                        }
+                        if (typeof SettingsManager !== "undefined") {
+                            SettingsManager.onboardingCompleted = true
+                        }
+                    }
                     window._onboardingActive = false
-                    if (typeof GameService !== "undefined" && GameService.gameCount === 0) {
-                        GameService.scanAllLibraries()
-                    }
-                    if (typeof SettingsManager !== "undefined") {
-                        SettingsManager.onboardingCompleted = true
-                    }
                 }
             }
         }
