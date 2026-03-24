@@ -1,120 +1,237 @@
-# Makine-Launcher - Claude Code Context
+# Makine-Launcher
 
-## Project Overview
+> Turkish game translation launcher & adaptation engine.
+> Qt 6 / QML + C++23 · MinGW 13.1 / MSVC 2022 · vcpkg · CMake
 
-Turkish game translation launcher + adaptation engine.
+| | |
+|---|---|
+| **Private (dev)** | `origin` → MakineCeviri/Makine-Launcher-Dev |
+| **Public (release)** | `public` → MakineCeviri/Makine-Launcher |
+| **Push** | `git push` → Dev · `git push public main` → Public |
 
-- **Makine-Launcher** (this repo) — Launcher: game detection, package install/remove, patching, catalog UI
+---
 
-## Build Commands
+## Architecture
 
-```bash
-# Quick dev build (MinGW, Core+UI, vcpkg required)
-just dev        # or: cmake --preset dev && cmake --build --preset dev
-
-# UI-only build (no vcpkg needed)
-just dev-ui     # or: cmake --preset dev-ui && cmake --build --preset dev-ui
-
-# Run after build
-just run        # or: ./build/dev/Makine-Launcher.exe
-
-# Core library only (MSVC)
-just core
-
-# Tests
-just test
-
-# Release (MSVC + vcpkg)
-just release
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        QML UI Layer                         │
+│  screens/  ·  components/  ·  dialogs/  ·  controllers/     │
+│  theme/    ·  utils/                                        │
+│  (PascalCase.qml — pure declarative UI, no JS logic)        │
+├─────────────────────────────────────────────────────────────┤
+│                    C++ Service Layer                         │
+│  qml/src/services/ — bridges Core ↔ UI                      │
+│                                                             │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐ │
+│  │ GameService   │ │ CoreBridge   │ │ PackageCatalog       │ │
+│  │ AuthService   │ │ InstallFlow  │ │ TranslationState     │ │
+│  │ UpdateService │ │ BackupMgr    │ │ TranslationDownloader│ │
+│  │ SteamDetails  │ │ BatchOps     │ │ ManifestSync         │ │
+│  └──────────────┘ └──────────────┘ └──────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│                      C++ Core Library                       │
+│  core/include/makine/ + core/src/                           │
+│                                                             │
+│  game_detector · patch_engine · package_catalog · security  │
+│  crypto_utils  · ssl_pinning · file_integrity  · sandbox    │
+│  vdf_parser    · database    · cache · async · parallel     │
+│  logging (spdlog) · validation · config · error handling    │
+└─────────────────────────────────────────────────────────────┘
+         │                              │
+         ▼                              ▼
+   cdn.makineceviri.org          Local Game Files
+   (Cloudflare R2)               (Steam, GOG, etc.)
 ```
 
-## PATH Setup (bash)
+### Package Catalog — Hybrid Model
 
-```bash
-export PATH="/c/Qt/Tools/CMake_64/bin:/c/Qt/Tools/mingw1310_64/bin:/c/Qt/Tools/Ninja:/c/Program Files/Git/usr/bin:$PATH"
-# For running (Qt DLLs):
-export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"
-```
+| Phase | Source | Purpose |
+|-------|--------|---------|
+| Startup | `index.json` (93 KB, 273 games) | Lightweight catalog metadata |
+| On-demand | `packages/{appId}.json` (~700 B) | Install steps, contributors, variants |
+
+- Entry points: `PackageCatalog::loadFromIndex()` + `enrichPackage()`
+- CDN config centralized in `qml/src/services/cdnconfig.h`
+- Asset prefix: `assets/` (index, packages, images, banners)
+- Data prefix: `data/` (encrypted `.makine` packages)
+
+---
 
 ## Project Structure
 
 ```
-qml/src/services/     — C++ backend services (GameService, CoreBridge, etc.)
-qml/qml/              — QML UI files (Main.qml, screens/, components/, dialogs/)
-qml/qml/controllers/  — QML logic controllers (InstallFlowController)
-core/src/              — C++ core library (asset_parser, game_detector, security, etc.)
-core/include/makine/  — Public headers (.hpp, snake_case)
+Makine-Launcher-Dev/
+├── core/                    C++ core library
+│   ├── include/makine/      Public headers (.hpp, snake_case)
+│   └── src/                 Implementation files
+├── qml/                     Qt/QML application
+│   ├── src/services/        C++ backend services (.h/.cpp, camelCase)
+│   └── qml/                 QML frontend
+│       ├── screens/         Top-level screens (HomePage, Library, LoginScreen)
+│       ├── components/      Reusable UI components (36 files)
+│       ├── dialogs/         Modal dialogs
+│       ├── controllers/     QML logic controllers
+│       ├── theme/           Theme definitions
+│       └── utils/           QML utility modules
+├── tests/                   Test suites
+│   └── plugins/             Plugin tests
+├── docs/                    Documentation
+│   ├── adr/                 Architecture Decision Records
+│   ├── api-reference/       API docs
+│   ├── developer-guide/     Developer guides
+│   ├── security/            Security documentation
+│   └── research/            Research notes
+├── infra/                   Infrastructure (Docker, Caddy)
+├── scripts/                 Build & utility scripts
+└── build/                   Build output (gitignored)
+    ├── dev/                 MinGW dev build
+    ├── debug/               Debug build
+    └── release/             MSVC release build
 ```
 
-### Package Catalog Architecture
+---
 
-Hybrid index + on-demand detail system:
-- **Startup:** `index.json` (93 KB) → lightweight catalog metadata
-- **On-demand:** `packages/{appId}.json` (~700 B) → install steps, contributors, variants
-- **Core:** `PackageCatalog::loadFromIndex()` + `enrichPackage()`
-- **Assets CDN:** `cdn.makineceviri.org` (Cloudflare R2 custom domain)
-  - Config: `qml/src/services/cdnconfig.h` — all CDN URLs centralized here
-  - Assets: `assets/` prefix (index.json + packages/ + images/ + banners/)
-  - Data: `data/` prefix (.mkpkg encrypted packages)
+## Build
+
+### Commands
+
+```bash
+just dev          # MinGW dev build (Core+UI, vcpkg required)
+just dev-ui       # UI-only build (no vcpkg needed)
+just run          # Run after build
+just test         # Run tests
+just core         # Core library only (MSVC)
+just release      # MSVC release build
+```
+
+### PATH (bash)
+
+```bash
+export PATH="/c/Qt/Tools/CMake_64/bin:/c/Qt/Tools/mingw1310_64/bin:/c/Qt/Tools/Ninja:/c/Program Files/Git/usr/bin:$PATH"
+export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
+```
+
+### Presets
+
+| Preset | Compiler | Use Case |
+|--------|----------|----------|
+| `dev` | MinGW + vcpkg | Daily development (Core+UI) |
+| `dev-ui` | MinGW | UI-only, no vcpkg (`MAKINE_UI_ONLY=ON`) |
+| `debug` | MinGW + vcpkg | Core+UI with debug symbols |
+| `release` | MSVC + vcpkg | Production release |
+| `release-static` | MinGW (static Qt) | Single EXE distribution |
+| `core` | MSVC + vcpkg | Core library only |
+
+---
 
 ## Coding Conventions
 
-- **C++23** standard, namespace `makine`
-- **QML/UI C++**: camelCase filenames, `.h`/`.cpp` — e.g. `gameservice.h`
-- **Core C++**: snake_case filenames, `.hpp`/`.cpp` — e.g. `game_detector.hpp`
-- **QML**: PascalCase filenames — e.g. `GameDetailScreen.qml`
-- Code comments in English
-- Prefer native C++ over Qt for business logic
-- Use `#pragma once` in headers
-- Classes: `PascalCase`, functions/variables: `camelCase`, constants: `UPPER_SNAKE_CASE`
+### File Naming
 
-## Build Presets
+| Layer | Extension | Style | Example |
+|-------|-----------|-------|---------|
+| Core C++ | `.hpp` / `.cpp` | `snake_case` | `game_detector.hpp` |
+| UI C++ | `.h` / `.cpp` | `camelCase` | `gameService.h` |
+| QML | `.qml` | `PascalCase` | `GameDetailScreen.qml` |
 
-| Preset | Compiler | Description |
-|--------|----------|-------------|
-| `dev` | MinGW+vcpkg | Core+UI, daily development |
-| `dev-ui` | MinGW | UI-only (`MAKINE_UI_ONLY=ON`), no vcpkg |
-| `debug` | MinGW+vcpkg | Core+UI with debug symbols |
-| `release` | MSVC+vcpkg | Full release |
-| `release-static` | MinGW (static Qt) | Single EXE, UI-only |
-| `core` | MSVC+vcpkg | Core library only |
+### Identifiers
+
+| Element | Style | Example |
+|---------|-------|---------|
+| Classes | `PascalCase` | `GameService` |
+| Functions & variables | `camelCase` | `loadFromIndex()` |
+| Constants | `UPPER_SNAKE_CASE` | `MAX_RETRY_COUNT` |
+| Namespace | `snake_case` | `makine` |
+
+### General Rules
+
+- **Standard:** C++23 · **Namespace:** `makine`
+- **Headers:** `#pragma once`
+- **Comments:** English
+- **Preference:** Native C++ over Qt for business logic
+
+---
+
+## Logging
+
+| Layer | System | Usage |
+|-------|--------|-------|
+| Core | spdlog via `MAKINE_LOG_*` macros | `core/include/makine/logging.hpp` |
+| UI | `QLoggingCategory` | `qCDebug(lcXxx)` / `qCWarning(lcXxx)` |
+
+**UI categories:** `makine.app` · `makine.game` · `makine.bridge` · `makine.package` · `makine.download` · `makine.batch` · `makine.backup` · `makine.process` · `makine.integrity` · `makine.manifest` · `makine.journal` · `makine.steam` · `makine.update` · `makine.updater` · `makine.security`
+
+```bash
+QT_LOGGING_RULES="makine.*=true"          # Enable all
+QT_LOGGING_RULES="makine.game=false"      # Disable specific
+```
+
+---
 
 ## Known Gotchas
 
-Full list with examples: `~/.claude/rules/compatibility-rules.md`
+> Full list with examples: `~/.claude/rules/compatibility-rules.md`
 
-- **MinGW GCC 13.1 `<regex>`**: Broken — files using it are excluded from build
-- **spdlog ADL**: `spdlog::info` may resolve to `makine::info` — use fully qualified calls
-- **`#include <set>`**: Must be explicit (implicit on MSVC, not on MinGW)
-- **vcpkg classic mode**: Use `--classic` flag and `-DVCPKG_MANIFEST_MODE=OFF`
-- **QML Theme**: Use `Theme.bgPrimary` (not `Theme.background` — doesn't exist)
-- **Forward declarations**: At file top level, not inside `#ifdef` blocks (AUTOMOC issues)
-- **QML `component X:`**: Local component definitions shadow shared components — avoid naming collisions
-- **QML `Behavior on readonly`**: Crashes at runtime — use non-readonly property
-- **QML `ApplicationWindow.visible`**: Defaults to `false` — do NOT remove `visible: true` from Main.qml
-- **QML `clip: true`**: Required in scroll containers (Flickable, ListView, ScrollView)
+### MinGW GCC 13.1
 
-## Important Rules
+| Issue | Workaround |
+|-------|------------|
+| `<regex>` is broken | Use `find()`, `starts_with()`, `ends_with()` |
+| `<set>` / `<map>` not implicit | Always `#include` explicitly |
+| spdlog ADL collision | Use fully qualified `spdlog::info()` |
+| Forward decls in `#ifdef` | Place at file top level (AUTOMOC) |
 
-- Do NOT touch UI animations, MultiEffect, or gradient designs — user explicitly preserves original look
-- Do NOT output build artifacts to Desktop
-- Commit convention: Conventional Commits (`feat(scope): message`)
-- Scopes: `core`, `ui`, `build`, `ci`, `docs`
-- Hookify rules active at `.claude/hookify.*.local.md` — block known anti-patterns, Desktop output, CEDRA/ writes
-- Hooks use dynamic git root (`git rev-parse --show-toplevel`) — worktree-compatible
-- Defense layers: hookify (PreToolUse blocks) → post-edit hook (PostToolUse warns) → pre-commit (commit blocks) → pre-push (push blocks)
+### QML
+
+| Issue | Rule |
+|-------|------|
+| `Theme.background` | Does not exist — use `Theme.bgPrimary` |
+| `ApplicationWindow.visible` | Defaults to `false` — keep `visible: true` |
+| `Behavior on readonly` | Runtime crash — use non-readonly property |
+| `component X:` shadows | Don't shadow shared component names |
+| `clip: true` in scrollables | Required for Flickable, ListView, ScrollView |
+
+### vcpkg
+
+- Classic mode only — set `VCPKG_MANIFEST_MODE=OFF`
+- Triplet: `x64-mingw-dynamic`
+
+---
 
 ## Deferred Features
 
 These modules are intentionally deferred — stub headers removed:
+
 - Translation Memory, Glossary Service, QA Service, Translation Pipeline
-- Engine Handlers (only interface `IEngineHandler` in `engine_handler.hpp`)
-- BepInEx/XUnity runtime system (fully removed — RuntimeManager is a stub)
+- Engine Handlers (only `IEngineHandler` interface in `engine_handler.hpp`)
+- BepInEx/XUnity runtime (fully removed — `RuntimeManager` is a stub)
 - Integration tests disabled until handlers are implemented
 
-## Logging
+---
 
-- **Core (C++)**: `MAKINE_LOG_*` macros via spdlog (see `core/include/makine/logging.hpp`)
-- **UI (Qt)**: `qCDebug(lcXxx)` / `qCWarning(lcXxx)` — categorized logging with `QLoggingCategory`
-  - Categories: `makine.app`, `makine.game`, `makine.bridge`, `makine.package`, `makine.download`, `makine.batch`, `makine.backup`, `makine.process`, `makine.integrity`, `makine.manifest`, `makine.journal`, `makine.steam`, `makine.update`, `makine.updater`, `makine.security`
-  - Filter at runtime: `QT_LOGGING_RULES="makine.*=true"` or `"makine.game=false"`
+## Rules
+
+### Do NOT
+
+- Touch UI animations, MultiEffect, or gradient designs
+- Output build artifacts to Desktop
+- Commit secrets (`.env`, `.key`, `.pfx`, `.pem`, `encryption_key.h`)
+- Commit build artifacts (`.exe`, `.dll`, `.obj`, `.lib`, `build/`)
+- Commit files > 5 MB — use CDN instead
+
+### Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/): `type(scope): description`
+
+**Types:** `feat` · `fix` · `refactor` · `build` · `ci` · `docs` · `test` · `chore`
+**Scopes:** `core` · `ui` · `build` · `ci` · `docs`
+
+### Defense Layers
+
+```
+hookify (PreToolUse) → post-edit (PostToolUse) → pre-commit → pre-push
+```
+
+Hookify rules: `.claude/hookify.*.local.md` — blocks anti-patterns, Desktop output, hardcoded paths.
+Hooks use dynamic git root (`git rev-parse --show-toplevel`) — worktree-compatible.
