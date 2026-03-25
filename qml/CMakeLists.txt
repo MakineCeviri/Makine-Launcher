@@ -109,6 +109,9 @@ set(BACKEND_SOURCES
     src/services/appprotection.cpp
     src/services/imagecachemanager.cpp
     src/services/manifestsyncservice.cpp
+    src/services/catalogstore.cpp
+    src/services/detailfetcher.cpp
+    src/services/telemetryservice.cpp
     src/services/translationdownloader.cpp
     src/services/supportedgamesmodel.cpp
     src/services/catalogproxymodel.cpp
@@ -143,6 +146,9 @@ set(BACKEND_HEADERS
     src/services/encryption_key.h
     src/services/imagecachemanager.h
     src/services/manifestsyncservice.h
+    src/services/catalogstore.h
+    src/services/detailfetcher.h
+    src/services/telemetryservice.h
     src/services/translationdownloader.h
     src/services/supportedgamesmodel.h
     src/services/catalogproxymodel.h
