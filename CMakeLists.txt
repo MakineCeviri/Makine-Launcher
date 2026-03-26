@@ -33,7 +33,7 @@ project(MakineLauncher
 )
 
 # Version suffix (change here only — propagates everywhere)
-set(MAKINE_VERSION_SUFFIX "pre-alpha" CACHE STRING "Version pre-release suffix (empty for stable)")
+set(MAKINE_VERSION_SUFFIX "beta" CACHE STRING "Version pre-release suffix (empty for stable)")
 if(MAKINE_VERSION_SUFFIX)
     set(MAKINE_VERSION_FULL "${PROJECT_VERSION}-${MAKINE_VERSION_SUFFIX}")
 else()
