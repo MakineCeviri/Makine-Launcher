@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "makine-launcher",
+  "version": "0.1.0",
+  "description": "Turkish game translation launcher",
+  "homepage": "https://makineceviri.org",
+  "license": "AGPL-3.0-only",
+  "supports": "windows & x64",
+  "dependencies": [
+    "boost-filesystem",
+    "openssl",
+    "curl",
+    "nlohmann-json",
+    "lz4",
+    "zlib",
+    "zstd",
+    "sqlite3",
+    "spdlog",
+    "bit7z",
+    "libarchive",
+    "efsw",
+    "mio",
+    "sqlitecpp",
+    "libsodium"
+  ],
+  "overrides": [],
+  "features": {
+    "tests": {
+      "description": "Build unit tests",
+      "dependencies": [
+        "gtest"
+      ]
+    }
+  }
+}

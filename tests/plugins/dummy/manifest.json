@@ -1,0 +1,16 @@
+{
+    "id": "com.makineceviri.dummy",
+    "name": "Dummy Test Plugin",
+    "version": "0.0.1",
+    "apiVersion": 1,
+    "category": "other",
+    "description": "Test plugin for verifying plugin system",
+    "author": "MakineCeviri Team",
+    "license": "GPL-3.0",
+    "entry": "makine-dummy.dll",
+    "dependencies": [],
+    "capabilities": [],
+    "features": ["Test Feature"],
+    "platforms": ["win64"],
+    "minLauncherVersion": "0.1.0"
+}

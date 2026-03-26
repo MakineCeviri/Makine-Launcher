@@ -1,0 +1,229 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "mingw-base",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "mingw-static",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64_static",
+        "CMAKE_EXE_LINKER_FLAGS": "-static -static-libgcc -static-libstdc++ -Wl,--gc-sections",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "vcpkg-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "vcpkg-mingw",
+      "hidden": true,
+      "inherits": "mingw-base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+        "VCPKG_MANIFEST_MODE": "OFF"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Development (Core + UI)",
+      "description": "Daily development build (MinGW, Release, Core integrated)",
+      "inherits": "vcpkg-mingw",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_DEV_TOOLS": "ON",
+        "MAKINE_CRASH_REPORTING": "ON",
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
+      }
+    },
+    {
+      "name": "dev-ui",
+      "displayName": "Development (UI-only)",
+      "description": "Fast UI-only build (MinGW, no vcpkg deps)",
+      "inherits": "mingw-base",
+      "binaryDir": "${sourceDir}/qml/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINE_UI_ONLY": "ON",
+        "MAKINE_DEV_TOOLS": "ON",
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug (Core + UI)",
+      "description": "Debug build for development (MinGW, Core integrated)",
+      "inherits": "vcpkg-mingw",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_DEV_TOOLS": "ON",
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (Super-Build)",
+      "description": "Full release: Core + QML in single pipeline (vcpkg)",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "$env{Qt6_DIR}",
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_RELEASE_VERIFIED": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "release-static",
+      "displayName": "Release Static (Single EXE)",
+      "description": "Fully static single-EXE release (Qt static + MinGW static)",
+      "inherits": "mingw-static",
+      "binaryDir": "${sourceDir}/build/release-static",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/mingw_64_static",
+        "MAKINE_UI_ONLY": "OFF",
+        "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
+        "VCPKG_MANIFEST_MODE": "OFF"
+      }
+    },
+    {
+      "name": "dev-profile",
+      "displayName": "Development + Tracy Profiler",
+      "description": "Dev build with Tracy profiler instrumentation enabled",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build/dev-profile",
+      "cacheVariables": {
+        "MAKINE_PROFILER": "ON"
+      }
+    },
+    {
+      "name": "core",
+      "displayName": "Core Library",
+      "description": "Build core library only (for CI/testing)",
+      "inherits": "vcpkg-mingw",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/core/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINE_CORE_ONLY": "ON",
+        "BUILD_TESTING": "ON",
+        "MAKINE_BUILD_TESTS": "ON",
+        "VCPKG_MANIFEST_MODE": "OFF",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+        "CMAKE_C_COMPILER_LAUNCHER": "",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "",
+        "VCPKG_APPLOCAL_DEPS": "OFF"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "dev-ui",
+      "configurePreset": "dev-ui"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "release-static",
+      "configurePreset": "release-static"
+    },
+    {
+      "name": "core",
+      "configurePreset": "core"
+    },
+    {
+      "name": "dev-profile",
+      "configurePreset": "dev-profile"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "core-tests",
+      "configurePreset": "core",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "environment": {
+        "PATH": "$penv{VCPKG_ROOT}/installed/x64-mingw-dynamic/bin;$penv{PATH}"
+      }
+    }
+  ]
+}

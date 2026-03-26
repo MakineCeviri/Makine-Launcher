@@ -1,0 +1,53 @@
+// Application icon
+IDI_ICON1 ICON "app_icon.ico"
+
+// Application manifest (DPI awareness, UTF-8, visual styles, segment heap)
+// RT_MANIFEST = 24
+1 24 "app.manifest"
+
+// Version information embedded in EXE properties
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,1,0,0
+PRODUCTVERSION  0,1,0,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        // Turkish (0x041F) — primary language
+        BLOCK "041F04B0"
+        BEGIN
+            VALUE "CompanyName",      "MakineCeviri Team"
+            VALUE "FileDescription",  "Makine \xC7eviri - Makine Launcher"
+            VALUE "FileVersion",      "0.1.0"
+            VALUE "InternalName",     "Makine-Launcher"
+            VALUE "LegalCopyright",   "\x00A9 2026 MakineCeviri Team. All rights reserved."
+            VALUE "OriginalFilename", "Makine-Launcher.exe"
+            VALUE "ProductName",      "Makine-Launcher"
+            VALUE "ProductVersion",   "0.1.0-pre-alpha"
+            VALUE "Comments",         "Turkish game translation launcher. Open source: github.com/MakineCeviri/Makine-Launcher"
+        END
+        // English (0x0409) — AV scanners often check this block
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "MakineCeviri Team"
+            VALUE "FileDescription",  "Makine \xC7eviri - Makine Launcher"
+            VALUE "FileVersion",      "0.1.0"
+            VALUE "InternalName",     "Makine-Launcher"
+            VALUE "LegalCopyright",   "\x00A9 2026 MakineCeviri Team. All rights reserved."
+            VALUE "OriginalFilename", "Makine-Launcher.exe"
+            VALUE "ProductName",      "Makine-Launcher"
+            VALUE "ProductVersion",   "0.1.0-pre-alpha"
+            VALUE "Comments",         "Turkish game translation launcher. Open source: github.com/MakineCeviri/Makine-Launcher"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x041F, 1200, 0x0409, 1200
+    END
+END
