@@ -24,7 +24,8 @@ jobs:
       - name: Generate encryption header
         env:
           MKPK_KEY: ${{ secrets.MKPK_KEY }}
-        run: python scripts/generate_encryption_header.py $env:MKPK_KEY
+        run: |
+          & "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe" scripts/generate_encryption_header.py $env:MKPK_KEY
 
       - name: Configure static build
         run: cmake --preset release-static
