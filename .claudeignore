@@ -1,0 +1,17 @@
+build/
+.cache/
+*.exe
+*.dll
+*.obj
+*.lib
+*.pdb
+*.o
+*.a
+*.ilk
+*.exp
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+.vs/
+*.user
+node_modules/

@@ -14,7 +14,6 @@
 
 #include <QFile>
 #include <QJsonDocument>
-#include <QJsonObject>
 #include <QJsonParseError>
 #include <QLoggingCategory>
 #include <QNetworkReply>
