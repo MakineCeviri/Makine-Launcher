@@ -13,9 +13,13 @@ jobs:
     runs-on: [self-hosted, Windows, X64, static-build]
 
     steps:
+      - name: Prepare git
+        run: git config --global --add safe.directory C:\actions-runner\_work\Makine-Launcher\Makine-Launcher
+
       - uses: actions/checkout@v4
         with:
           clean: false
+          set-safe-directory: false
 
       - name: Configure static build
         run: cmake --preset release-static
