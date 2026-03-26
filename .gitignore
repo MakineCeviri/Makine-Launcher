@@ -135,6 +135,7 @@ nul
 # Secrets
 .env
 .env.*
+!.env.example
 *.local
 secrets.*
 !secrets.example.*
@@ -187,14 +188,8 @@ external/
 .superpowers/
 .claude/worktrees/
 
-# Internal (not for public)
-infra/
-scripts/
-.sentryclirc
-.claudeignore
+# Internal docs (not for public)
 docs/ECOSYSTEM-REPORT*.md
 docs/superpowers/
 docs/perf-startup-analysis.md
 docs/MakineAI-Temizlik-Plani.md
-docs/release-packaging-guide.md
-docs/nsis-installer-notes.md

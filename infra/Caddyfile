@@ -1,0 +1,18 @@
+# Makine-Launcher Release File Server
+# Serves signed release artifacts over HTTPS
+
+:80 {
+	root * /srv/releases
+	file_server browse
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Cache-Control "public, max-age=3600"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
