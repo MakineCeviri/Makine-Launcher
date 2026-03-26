@@ -7,6 +7,9 @@ on:
         description: 'Release version (e.g. 0.1.0-beta)'
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   build-static:
     name: Static Build (Windows x64)
@@ -93,9 +96,9 @@ jobs:
           $exists = gh release view "v${{ inputs.version }}" 2>&1
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Release exists, updating assets..."
-            gh release delete-asset "v${{ inputs.version }}" "Makine-Launcher-v${{ inputs.version }}-win64.zip" --yes 2>$null
+            gh release delete-asset "v${{ inputs.version }}" "Makine-Launcher-v${{ inputs.version }}-win64.zip" --yes 2>&1 | Out-Null
             gh release upload "v${{ inputs.version }}" `
-              "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)"
+              "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)" --clobber
             gh release edit "v${{ inputs.version }}" --notes $body
           } else {
             Write-Host "Creating new release..."
