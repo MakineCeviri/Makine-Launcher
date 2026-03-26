@@ -1,0 +1,84 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0-beta)'
+        required: true
+
+jobs:
+  build-static:
+    name: Static Build (Windows x64)
+    runs-on: [self-hosted, windows, static-build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure static build
+        run: cmake --preset release-static
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64_static\bin;${{ env.PATH }}
+
+      - name: Build
+        run: cmake --build --preset release-static
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;${{ env.PATH }}
+
+      - name: Verify EXE
+        run: |
+          $exe = "build\release-static\Makine-Launcher.exe"
+          if (!(Test-Path $exe)) { throw "EXE not found" }
+          $size = (Get-Item $exe).Length / 1MB
+          Write-Host "EXE size: $([math]::Round($size, 1)) MB"
+
+      - name: Generate SHA256
+        run: |
+          $hash = (Get-FileHash "build\release-static\Makine-Launcher.exe" -Algorithm SHA256).Hash
+          $hash | Out-File -FilePath "build\release-static\SHA256SUMS.txt" -Encoding utf8
+          Write-Host "SHA256: $hash"
+
+      - name: Create ZIP
+        run: |
+          Compress-Archive -Path "build\release-static\Makine-Launcher.exe" -DestinationPath "Makine-Launcher-v${{ inputs.version }}-win64.zip" -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Makine-Launcher-v${{ inputs.version }}-win64
+          path: |
+            Makine-Launcher-v${{ inputs.version }}-win64.zip
+            build/release-static/SHA256SUMS.txt
+          retention-days: 90
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $hash = Get-Content "build\release-static\SHA256SUMS.txt" -Raw
+          $body = @"
+          ## Makine-Launcher v${{ inputs.version }}
+
+          Turkish game translation launcher and adaptation engine.
+
+          ### Download
+          | File | Description |
+          |------|-------------|
+          | ``Makine-Launcher-v${{ inputs.version }}-win64.zip`` | Single static EXE (Windows x64) |
+
+          ### Checksum
+          ``````
+          SHA256: $($hash.Trim())
+          ``````
+
+          ### Build Info
+          - Qt 6.10.1 (static) + MinGW 13.1 + LTO
+          - Built on: ${{ runner.name }}
+          - Commit: ${{ github.sha }}
+          "@
+
+          gh release create "v${{ inputs.version }}" `
+            "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)" `
+            --title "Makine-Launcher v${{ inputs.version }}" `
+            --notes $body `
+            --prerelease
