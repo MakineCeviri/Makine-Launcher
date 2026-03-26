@@ -21,6 +21,11 @@ jobs:
           clean: false
           set-safe-directory: false
 
+      - name: Generate encryption header
+        env:
+          MKPK_KEY: ${{ secrets.MKPK_KEY }}
+        run: python scripts/generate_encryption_header.py $env:MKPK_KEY
+
       - name: Configure static build
         run: cmake --preset release-static
         env:
