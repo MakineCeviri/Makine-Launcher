@@ -35,7 +35,7 @@ jobs:
       - name: Build
         run: cmake --build --preset release-static
         env:
-          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;${{ env.PATH }}
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Links;${{ env.PATH }}
 
       - name: Verify EXE
         run: |
