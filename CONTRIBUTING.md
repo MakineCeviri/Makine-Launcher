@@ -161,7 +161,7 @@ Hata veya öneri bildirmek için [GitHub Issues](https://github.com/MakineCeviri
 
 ## Lisans
 
-Bu projeye katkıda bulunarak, katkılarınızın projenin lisansı olan [AGPL-3.0 + Commons Clause](LICENSE) kapsamında lisanslanacağını kabul etmiş olursunuz.
+Bu projeye katkıda bulunarak, katkılarınızın projenin lisansı olan [AGPL-3.0](LICENSE) kapsamında lisanslanacağını kabul etmiş olursunuz.
 
 ---
 

@@ -43,4 +43,4 @@ just dev-ui
 
 ## Lisans
 
-[AGPL-3.0](LICENSE) + Commons Clause
+[AGPL-3.0](LICENSE)
