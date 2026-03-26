@@ -53,7 +53,7 @@ jobs:
             build/release-static/SHA256SUMS.txt
           retention-days: 90
 
-      - name: Create GitHub Release
+      - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -79,8 +79,19 @@ jobs:
           - Commit: ${{ github.sha }}
           "@
 
-          gh release create "v${{ inputs.version }}" `
-            "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)" `
-            --title "Makine-Launcher v${{ inputs.version }}" `
-            --notes $body `
-            --prerelease
+          # Check if release already exists
+          $exists = gh release view "v${{ inputs.version }}" 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release exists, updating assets..."
+            gh release delete-asset "v${{ inputs.version }}" "Makine-Launcher-v${{ inputs.version }}-win64.zip" --yes 2>$null
+            gh release upload "v${{ inputs.version }}" `
+              "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)"
+            gh release edit "v${{ inputs.version }}" --notes $body
+          } else {
+            Write-Host "Creating new release..."
+            gh release create "v${{ inputs.version }}" `
+              "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)" `
+              --title "Makine-Launcher v${{ inputs.version }}" `
+              --notes $body `
+              --prerelease
+          }
