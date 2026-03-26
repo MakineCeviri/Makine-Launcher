@@ -10,7 +10,7 @@ on:
 jobs:
   build-static:
     name: Static Build (Windows x64)
-    runs-on: [self-hosted, windows, static-build]
+    runs-on: [self-hosted, Windows, X64, static-build]
 
     steps:
       - uses: actions/checkout@v4
