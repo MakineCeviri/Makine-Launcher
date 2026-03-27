@@ -859,7 +859,7 @@ ColumnLayout {
                     Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                     Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Open SDK documentation")
+                    Accessible.name: qsTr("SDK belgelerini aç")
                     activeFocusOnTab: true
 
                     Text {

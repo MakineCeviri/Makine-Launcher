@@ -275,7 +275,7 @@ Dialog {
                 border.color: closeDialogMouse.containsMouse ? Theme.textPrimary20 : "transparent"
                 border.width: 1
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Close")
+                Accessible.name: qsTr("Kapat")
                 activeFocusOnTab: true
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
                 Keys.onSpacePressed: { root.cancelled(); root.close() }
@@ -571,7 +571,7 @@ Dialog {
                 Layout.preferredHeight: 48
                 radius: Dimensions.radiusStandard
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Cancel")
+                Accessible.name: qsTr("İptal")
                 activeFocusOnTab: true
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
                 Keys.onSpacePressed: { root.cancelled(); root.close() }
@@ -663,7 +663,7 @@ Dialog {
                     height: 48
                     radius: Dimensions.radiusStandard
                     Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Continue anyway")
+                    Accessible.name: qsTr("Yine de devam et")
                     activeFocusOnTab: true
                     Keys.onReturnPressed: { root.continueAnyway(); root.close() }
                     Keys.onSpacePressed: { root.continueAnyway(); root.close() }

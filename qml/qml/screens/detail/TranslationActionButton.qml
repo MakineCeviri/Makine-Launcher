@@ -348,7 +348,7 @@ Rectangle {
             Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
 
             Accessible.role: Accessible.Button
-            Accessible.name: qsTr("Cancel installation")
+            Accessible.name: qsTr("Kurulumu iptal et")
 
             Text {
                 textFormat: Text.PlainText
