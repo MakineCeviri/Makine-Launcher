@@ -904,8 +904,10 @@ static void createServices(
 #ifdef Q_OS_WIN
     splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
 #endif
+    AppPaths::migrateFromLegacyRoot();   // MakineLauncher → MakineCeviri/Makine-Launcher
     AppPaths::ensureDirectories();
     AppPaths::migrateFromFlatLayout();
+    AppPaths::cleanupLegacyDirs();       // Remove empty legacy dirs
 
     // Post-update cleanup (delegate to UpdateService)
     if (isPostUpdate) {

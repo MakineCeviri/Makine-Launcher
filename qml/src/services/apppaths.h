@@ -74,6 +74,33 @@ public:
             QDir().mkpath(d);
     }
 
+    /// Migrate data from legacy MakineLauncher directory to MakineCeviri/Makine-Launcher.
+    /// Safe to call multiple times — skips if source doesn't exist.
+    static void migrateFromLegacyRoot() {
+        const QString localData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+        const QString legacyRoot = localData + QStringLiteral("/MakineLauncher");
+        const QString newRoot = root();
+
+        if (legacyRoot == newRoot || !QDir(legacyRoot).exists())
+            return;
+
+        // Move all contents from legacy to new root
+        const QDir legacy(legacyRoot);
+        const auto entries = legacy.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const auto& entry : entries) {
+            const QString src = legacyRoot + "/" + entry;
+            const QString dst = newRoot + "/" + entry;
+            if (!QFile::exists(dst) && !QDir(dst).exists()) {
+                QDir().mkpath(QFileInfo(dst).absolutePath());
+                QDir().rename(src, dst);
+            }
+        }
+
+        // Remove legacy dir if empty
+        if (QDir(legacyRoot).isEmpty())
+            QDir().rmdir(legacyRoot);
+    }
+
     /// Migrate files from old flat layout to new organized layout.
     /// Safe to call multiple times — skips if source doesn't exist or dest already exists.
     static void migrateFromFlatLayout() {
@@ -94,6 +121,33 @@ public:
         moveIfNeeded("installed_packages.json",   installedPackagesFile());
         moveIfNeeded("pending_operation.json",    pendingOperationFile());
         // backups/ and update_detection/ stay in same location — no migration needed
+    }
+
+    /// Remove empty legacy directories left from older versions.
+    /// Cleans: MakineLauncher/, Makine-Launcher/ (if empty or only sentry-db)
+    static void cleanupLegacyDirs() {
+        const QString localData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+        const QStringList legacyDirs = {
+            localData + QStringLiteral("/MakineLauncher"),
+            localData + QStringLiteral("/Makine-Launcher"),
+        };
+
+        for (const auto& dir : legacyDirs) {
+            QDir d(dir);
+            if (!d.exists() || dir == root())
+                continue;
+
+            // Move sentry-db to correct location if found
+            const QString sentryDb = dir + QStringLiteral("/sentry-db");
+            const QString sentryDbNew = root() + QStringLiteral("/sentry-db");
+            if (QDir(sentryDb).exists() && !QDir(sentryDbNew).exists()) {
+                QDir().mkpath(root());
+                QDir().rename(sentryDb, sentryDbNew);
+            }
+
+            // Remove dir if empty (recursive rmdir only removes empty dirs)
+            d.removeRecursively();
+        }
     }
 };
 
