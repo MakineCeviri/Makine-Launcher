@@ -210,7 +210,6 @@ Item {
                         verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: {
-                        console.log("[WelcomeLoginStep] Login button clicked, state:", AuthService.state)
                         AuthService.startLogin()
                     }
                 }
@@ -311,7 +310,7 @@ Item {
         Text {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 24
-            text: "v0.1.0-alpha"
+            text: "v" + Qt.application.version
             font.pixelSize: 10
             font.letterSpacing: 0.5
             color: Qt.rgba(1, 1, 1, 0.12)
@@ -324,15 +323,9 @@ Item {
         target: AuthService
         function onLoginError(message) { errorText.text = message }
         function onStateChanged() {
-            console.log("[WelcomeLoginStep] AuthService state:", AuthService.state,
-                        "isAuthenticated:", AuthService.isAuthenticated)
             if (AuthService.isAuthenticated)
                 root.loginSuccess()
         }
     }
 
-    Component.onCompleted: {
-        console.log("[WelcomeLoginStep] Loaded. AuthService.state:", AuthService.state,
-                    "returningUser:", root.returningUser)
-    }
 }

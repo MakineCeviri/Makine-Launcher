@@ -53,7 +53,7 @@ Item {
                     color: !SettingsManager.isDarkMode ? Theme.primary : "transparent"
                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     Accessible.role: Accessible.RadioButton
-                    Accessible.name: qsTr("Light theme")
+                    Accessible.name: qsTr("Açık tema")
                     activeFocusOnTab: true
                     Keys.onReturnPressed: SettingsManager.isDarkMode = false
                     Keys.onSpacePressed: SettingsManager.isDarkMode = false
@@ -84,7 +84,7 @@ Item {
                     color: SettingsManager.isDarkMode ? Theme.primary : "transparent"
                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                     Accessible.role: Accessible.RadioButton
-                    Accessible.name: qsTr("Dark theme")
+                    Accessible.name: qsTr("Koyu tema")
                     activeFocusOnTab: true
                     Keys.onReturnPressed: SettingsManager.isDarkMode = true
                     Keys.onSpacePressed: SettingsManager.isDarkMode = true

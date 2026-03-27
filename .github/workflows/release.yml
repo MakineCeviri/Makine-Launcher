@@ -1,249 +1,111 @@
-name: Release Pipeline
+name: Release Build
 
-# Trigger: manual dispatch with version input
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 0.1.0-alpha)'
+        description: 'Release version (e.g. 0.1.0-beta)'
         required: true
-      skip_signing:
-        description: 'Skip code signing'
-        type: boolean
-        default: false
-      draft:
-        description: 'Create as draft release'
-        type: boolean
-        default: true
 
-env:
-  QT_VERSION: '6.10.1'
-  MINGW_DIR: 'C:/Qt/Tools/mingw1310_64'
-  VCPKG_ROOT: 'C:/vcpkg'
-  ARTIFACT_NAME: Makine-Launcher-v${{ github.event.inputs.version }}-win64
+permissions:
+  contents: write
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Job 1: Build + Sign (Windows)
-# Runs on GitHub-hosted Windows runner or self-hosted Windows PC
-# ═══════════════════════════════════════════════════════════════════════════
 jobs:
-  build:
-    name: "Build & Sign (Windows)"
-    runs-on: windows-latest
-    outputs:
-      archive_name: ${{ steps.package.outputs.archive_name }}
-      is_signed: ${{ steps.sign_status.outputs.is_signed }}
+  build-static:
+    name: Static Build (Windows x64)
+    runs-on: [self-hosted, Windows, X64, static-build]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Prepare git
+        run: git config --global --add safe.directory C:\actions-runner\_work\Makine-Launcher\Makine-Launcher
+
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          clean: false
+          set-safe-directory: false
 
-      # ─── Toolchain ─────────────────────────────────────────────────────
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          host: windows
-          target: desktop
-          arch: win64_mingw
-          dir: 'C:/Qt'
-          cache: true
-
-      - name: Install vcpkg packages
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git C:/vcpkg
-          C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
-          C:\vcpkg\vcpkg install fmt:x64-mingw-dynamic spdlog:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic
-        shell: cmd
-
-      # ─── Build ──────────────────────────────────────────────────────────
-      - name: Configure & Build
-        run: |
-          $env:PATH = "${{ env.MINGW_DIR }}\bin;C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\Ninja;$env:PATH"
-          cmake --preset dev
-          cmake --build --preset dev
-        shell: pwsh
-
-      - name: Verify binary
-        run: |
-          if (!(Test-Path "build/dev/Makine-Launcher.exe")) {
-            Write-Host "::error::Build output not found"; exit 1
-          }
-          $size = [math]::Round((Get-Item "build/dev/Makine-Launcher.exe").Length / 1MB, 1)
-          Write-Host "::notice::Makine-Launcher.exe built successfully ($size MB)"
-        shell: pwsh
-
-      # ─── Prepare dist ──────────────────────────────────────────────────
-      - name: Prepare distribution
-        run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "build/dev/Makine-Launcher.exe" dist/
-
-          $env:PATH = "C:/Qt/${{ env.QT_VERSION }}/mingw_64/bin;${{ env.MINGW_DIR }}/bin;$env:PATH"
-          windeployqt --qmldir qml/qml --release dist/Makine-Launcher.exe
-
-          # vcpkg runtime DLLs
-          $vcpkgBin = "${{ env.VCPKG_ROOT }}/installed/x64-mingw-dynamic/bin"
-          if (Test-Path $vcpkgBin) {
-            Copy-Item "$vcpkgBin/fmt.dll"    dist/ -ErrorAction SilentlyContinue
-            Copy-Item "$vcpkgBin/spdlog.dll" dist/ -ErrorAction SilentlyContinue
-          }
-        shell: pwsh
-
-      # ─── Code Signing ──────────────────────────────────────────────────
-      - name: Sign binaries
-        id: sign_status
+      - name: Generate encryption header
         env:
-          SIGNING_PFX_BASE64: ${{ secrets.SIGNING_PFX_BASE64 }}
-          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+          MKPK_KEY: ${{ secrets.MKPK_KEY }}
         run: |
-          $skip = "${{ inputs.skip_signing }}" -eq "true"
-          $hasCert = "$env:SIGNING_PFX_BASE64" -ne ""
+          & "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe" scripts/generate_encryption_header.py $env:MKPK_KEY
 
-          if ($skip) {
-            Write-Host "::warning::Signing skipped (user requested)"
-            echo "is_signed=false" >> $env:GITHUB_OUTPUT
-            return
-          }
-          if (!$hasCert) {
-            Write-Host "::warning::Signing skipped (SIGNING_PFX_BASE64 not set)"
-            echo "is_signed=false" >> $env:GITHUB_OUTPUT
-            return
-          }
+      - name: Configure static build
+        run: cmake --preset release-static
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64_static\bin;${{ env.PATH }}
+          MAKINE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-          # Decode PFX from secret
-          $pfx = "$env:RUNNER_TEMP\codesign.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+      - name: Build
+        run: cmake --build --preset release-static
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Links;${{ env.PATH }}
 
-          try {
-            $files = (Get-ChildItem dist/*.exe).FullName
-            powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 `
-              -Path $files -PfxFile $pfx -PfxPassword $env:SIGNING_PFX_PASSWORD
-            echo "is_signed=true" >> $env:GITHUB_OUTPUT
-          } finally {
-            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
-          }
-        shell: pwsh
-
-      # ─── Checksums & Package ────────────────────────────────────────────
-      - name: Generate checksums
+      - name: Verify EXE
         run: |
-          Push-Location dist
-          Get-ChildItem -File | ForEach-Object {
-            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($_.Name)"
-          } | Out-File -Encoding ascii ../checksums-sha256.txt
-          Pop-Location
-          Get-Content checksums-sha256.txt
-        shell: pwsh
+          $exe = "build\release-static\Makine-Launcher.exe"
+          if (!(Test-Path $exe)) { throw "EXE not found" }
+          $size = (Get-Item $exe).Length / 1MB
+          Write-Host "EXE size: $([math]::Round($size, 1)) MB"
 
-      - name: Create archive
-        id: package
+      - name: Generate SHA256
         run: |
-          $name = "${{ env.ARTIFACT_NAME }}.zip"
-          Compress-Archive -Path dist/* -DestinationPath $name -Force
-          $size = [math]::Round((Get-Item $name).Length / 1MB, 1)
-          Write-Host "::notice::$name ($size MB)"
-          echo "archive_name=$name" >> $env:GITHUB_OUTPUT
-        shell: pwsh
+          $hash = (Get-FileHash "build\release-static\Makine-Launcher.exe" -Algorithm SHA256).Hash
+          $hash | Out-File -FilePath "build\release-static\SHA256SUMS.txt" -Encoding utf8
+          Write-Host "SHA256: $hash"
+
+      - name: Create ZIP
+        run: |
+          Compress-Archive -Path "build\release-static\Makine-Launcher.exe" -DestinationPath "Makine-Launcher-v${{ inputs.version }}-win64.zip" -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          name: Makine-Launcher-v${{ inputs.version }}-win64
           path: |
-            ${{ steps.package.outputs.archive_name }}
-            checksums-sha256.txt
+            Makine-Launcher-v${{ inputs.version }}-win64.zip
+            build/release-static/SHA256SUMS.txt
           retention-days: 90
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Job 2: Deploy (Self-hosted Linux server via Portainer)
-  # Downloads build artifact → creates GitHub Release → syncs to file server
-  # ═══════════════════════════════════════════════════════════════════════════
-  deploy:
-    name: "Deploy (Server)"
-    needs: build
-    runs-on: [self-hosted, linux, deploy]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: scripts
-
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: release/
-
-      - name: Display artifact info
-        run: |
-          echo "=== Release Artifact ==="
-          ls -lh release/
-          echo ""
-          echo "=== Checksums ==="
-          cat release/checksums-sha256.txt
-
-      # ─── GitHub Release ─────────────────────────────────────────────────
-      - name: Create GitHub Release
+      - name: Upload to GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ inputs.version }}"
-          ARCHIVE="release/${{ needs.build.outputs.archive_name }}"
-          SIGNED="${{ needs.build.outputs.is_signed }}"
+          $hash = Get-Content "build\release-static\SHA256SUMS.txt" -Raw
+          $body = @"
+          ## Makine-Launcher v${{ inputs.version }}
 
-          if [ "$SIGNED" = "true" ]; then
-            SIGN_BADGE="Signed"
-          else
-            SIGN_BADGE="Unsigned — SmartScreen uyarisi verebilir"
-          fi
+          Turkish game translation launcher and adaptation engine.
 
-          DRAFT_FLAG=""
-          if [ "${{ inputs.draft }}" = "true" ]; then
-            DRAFT_FLAG="--draft"
-          fi
+          ### Download
+          | File | Description |
+          |------|-------------|
+          | ``Makine-Launcher-v${{ inputs.version }}-win64.zip`` | Single static EXE (Windows x64) |
 
-          gh release create "$TAG" \
-            --title "Makine-Launcher $TAG" \
-            $DRAFT_FLAG \
-            --notes "$(cat <<NOTES
-          ## Makine-Launcher $TAG
+          ### Checksum
+          ``````
+          SHA256: $($hash.Trim())
+          ``````
 
-          Turkce oyun ceviri platformu.
+          ### Build Info
+          - Qt 6.10.1 (static) + MinGW 13.1 + LTO
+          - Built on: ${{ runner.name }}
+          - Commit: ${{ github.sha }}
+          "@
 
-          ### Indirme
-          | Dosya | Durum |
-          |-------|-------|
-          | **${{ needs.build.outputs.archive_name }}** | $SIGN_BADGE |
-
-          ### SHA-256
-          \`\`\`
-          $(cat release/checksums-sha256.txt)
-          \`\`\`
-
-          ### Gereksinimler
-          - Windows 10 veya uzeri
-          - x64 islemci
-          NOTES
-          )" \
-            "$ARCHIVE" \
-            "release/checksums-sha256.txt"
-
-          echo "::notice::Release $TAG created"
-
-      # ─── Sync to file server (optional) ─────────────────────────────────
-      - name: Copy to release server
-        if: always()
-        run: |
-          RELEASE_DIR="/srv/releases/v${{ inputs.version }}"
-          if [ -d "/srv/releases" ]; then
-            mkdir -p "$RELEASE_DIR"
-            cp release/* "$RELEASE_DIR/"
-            echo "::notice::Artifacts copied to $RELEASE_DIR"
-          else
-            echo "::notice::/srv/releases not mounted — skipping file server sync"
-          fi
+          # Check if release already exists
+          $exists = gh release view "v${{ inputs.version }}" 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release exists, updating assets..."
+            gh release delete-asset "v${{ inputs.version }}" "Makine-Launcher-v${{ inputs.version }}-win64.zip" --yes 2>&1 | Out-Null
+            gh release upload "v${{ inputs.version }}" `
+              "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)" --clobber
+            gh release edit "v${{ inputs.version }}" --notes $body
+          } else {
+            Write-Host "Creating new release..."
+            gh release create "v${{ inputs.version }}" `
+              "Makine-Launcher-v${{ inputs.version }}-win64.zip#Makine-Launcher v${{ inputs.version }} (Windows x64)" `
+              --title "Makine-Launcher v${{ inputs.version }}" `
+              --notes $body `
+              --prerelease
+          }

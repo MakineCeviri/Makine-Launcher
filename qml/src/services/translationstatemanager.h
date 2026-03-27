@@ -27,7 +27,8 @@ public:
     Q_INVOKABLE void evaluate(bool hasUpdate, bool packageInstalled,
                                bool isInstalling, bool installCompleted,
                                const QString& impactLevel,
-                               const QString& externalUrl);
+                               const QString& externalUrl,
+                               const QString& source = QString());
 
     QString state() const;
     QString label() const;
@@ -41,10 +42,11 @@ private:
     QString m_stateStr{QStringLiteral("download")};
     QString m_label;
     QString m_accessibleText;
+    QString m_externalSource;
 
     static QString stateToString(State s);
-    static QString stateToLabel(State s);
-    static QString stateToAccessibleText(State s);
+    QString stateToLabel(State s) const;
+    QString stateToAccessibleText(State s) const;
 };
 
 } // namespace makine

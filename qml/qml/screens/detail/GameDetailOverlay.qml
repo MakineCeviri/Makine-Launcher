@@ -24,9 +24,7 @@ Item {
         opacity: visible ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 200 } }
 
-        // Subtle glow
-        layer.enabled: true
-        layer.effect: null
+        layer.enabled: false
 
         RowLayout {
             id: loadingRow; anchors.centerIn: parent; spacing: Dimensions.spacingLG
@@ -43,6 +41,7 @@ Item {
                         opacity: 0.3
 
                         SequentialAnimation on opacity {
+                            running: overlay.vm.isLoadingSteamDetails && !overlay.vm.hasSteamDetails
                             loops: Animation.Infinite
                             PauseAnimation { duration: index * 150 }
                             NumberAnimation { to: 1.0; duration: 400; easing.type: Easing.OutQuad }

@@ -61,7 +61,7 @@ public:
 
     /**
      * @brief Initialize database (call once at startup)
-     * @param dbPath Optional custom path (default: %LOCALAPPDATA%/MakineLauncher/makine.db)
+     * @param dbPath Optional custom path (default: %LOCALAPPDATA%/MakineCeviri/Makine-Launcher/makine.db)
      * @return Success or error
      */
     [[nodiscard]] Result<void> initialize(const std::optional<fs::path>& dbPath = std::nullopt);

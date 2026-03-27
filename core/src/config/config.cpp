@@ -274,7 +274,7 @@ CoreConfig CoreConfig::getDefaults() {
 #ifdef _WIN32
     const char* appData = std::getenv("LOCALAPPDATA");
     if (appData) {
-        fs::path base = fs::path(appData) / "MakineLauncher";
+        fs::path base = fs::path(appData) / "MakineCeviri" / "Makine-Launcher";
         config.dataDirectory = base.string();
         config.tempDirectory = (base / "temp").string();
         config.backupDirectory = (base / "backups").string();

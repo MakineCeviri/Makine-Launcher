@@ -717,6 +717,11 @@ static void configureQtEnvironment()
     qputenv("QML_DISABLE_DISK_CACHE", "0");
 #endif
 
+    // Set org/app names early so QStandardPaths resolves to the correct directory
+    // (MakineCeviri/Makine-Launcher) before any path queries.
+    QCoreApplication::setOrganizationName("MakineCeviri");
+    QCoreApplication::setApplicationName("Makine-Launcher");
+
     // === QML DISK CACHE ===
     // Pin cache to a stable path so it survives Qt minor version updates.
     // Without this, Qt writes to %TEMP% which may be cleaned between sessions,
@@ -904,8 +909,10 @@ static void createServices(
 #ifdef Q_OS_WIN
     splash.setStatus(L"Dizin yap\u0131s\u0131 haz\u0131rlan\u0131yor...");
 #endif
+    AppPaths::migrateFromLegacyRoot();   // MakineLauncher → MakineCeviri/Makine-Launcher
     AppPaths::ensureDirectories();
     AppPaths::migrateFromFlatLayout();
+    AppPaths::cleanupLegacyDirs();       // Remove empty legacy dirs
 
     // Post-update cleanup (delegate to UpdateService)
     if (isPostUpdate) {
