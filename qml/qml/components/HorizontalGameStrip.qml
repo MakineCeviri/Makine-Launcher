@@ -381,6 +381,8 @@ Item {
         running: strip.driftSpeed !== 0 && strip.wrapAround
                  && strip._jumpWidth > 0
                  && !momentumAnim.running
+                 && strip.visible
+                 && (typeof window === "undefined" || window.animationsEnabled)
         onTriggered: {
             var dt = Math.min(frameTime, 0.05)
             var displacement = strip.driftSpeed * dt

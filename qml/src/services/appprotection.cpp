@@ -18,6 +18,7 @@
 #include <cstdlib>
 
 #include <QCoreApplication>
+#include <QGuiApplication>
 #include <QTimer>
 
 #include <windows.h>
@@ -210,11 +211,21 @@ void makine::protection::schedulePeriodicChecks()
     timer->setTimerType(Qt::VeryCoarseTimer);
     QObject::connect(timer, &QTimer::timeout, []() {
         runAllChecks();
-        // If too many consecutive violations, exit immediately
         if (g_checkFailCount.load(std::memory_order_relaxed) > 5) {
             QCoreApplication::exit(0);
         }
     });
+
+    // Pause checks when app is inactive (minimized/tray) to save resources
+    QObject::connect(qApp, &QGuiApplication::applicationStateChanged, timer,
+        [timer, intervalMs](Qt::ApplicationState state) {
+            if (state == Qt::ApplicationActive) {
+                if (!timer->isActive()) timer->start(intervalMs);
+            } else {
+                timer->stop();
+            }
+        });
+
     timer->start(intervalMs);
 }
 
