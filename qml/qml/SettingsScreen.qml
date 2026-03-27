@@ -304,7 +304,10 @@ Item {
         message: qsTr("Uygulama önbellek dosyaları silinecek. İndirilen veriler etkilenmez.")
         confirmText: qsTr("Temizle")
         accentColor: Theme.warning
-        onConfirmed: SettingsManager.clearCache()
+        onConfirmed: {
+            SettingsManager.clearCache()
+            ManifestSync.syncCatalog()
+        }
     }
 
     ConfirmDialog {

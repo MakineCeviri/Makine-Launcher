@@ -417,12 +417,14 @@ ColumnLayout {
                     }
 
                     Rectangle {
+                        id: _clearCacheBtn
+                        property bool cleared: false
                         Layout.preferredWidth: _clearCacheLbl.width + 24
                         Layout.preferredHeight: 28
                         radius: Dimensions.radiusMD
-                        color: _clearCacheMouse.containsMouse
-                            ? Theme.warning20
-                            : Theme.warning10
+                        color: _clearCacheBtn.cleared
+                            ? Theme.success10
+                            : (_clearCacheMouse.containsMouse ? Theme.warning20 : Theme.warning10)
                         scale: _clearCacheMouse.pressed ? 0.94 : 1.0
                         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                         Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
@@ -431,18 +433,35 @@ ColumnLayout {
                             textFormat: Text.PlainText
                             id: _clearCacheLbl
                             anchors.centerIn: parent
-                            text: qsTr("Temizle")
+                            text: _clearCacheBtn.cleared ? qsTr("Temizlendi") : qsTr("Temizle")
                             font.pixelSize: Dimensions.fontSM
                             font.weight: Font.DemiBold
-                            color: Theme.warning
+                            color: _clearCacheBtn.cleared ? Theme.success : Theme.warning
+                        }
+
+                        Timer {
+                            id: _clearCacheResetTimer
+                            interval: 2500
+                            onTriggered: _clearCacheBtn.cleared = false
                         }
 
                         MouseArea {
                             id: _clearCacheMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                            cursorShape: _clearCacheBtn.cleared ? Qt.ArrowCursor : Qt.PointingHandCursor
+                            enabled: !_clearCacheBtn.cleared
                             onClicked: generalRoot.clearCacheRequested()
+                        }
+
+                        Connections {
+                            target: SettingsManager
+                            function onCacheClearCompleted(success, message) {
+                                if (success) {
+                                    _clearCacheBtn.cleared = true
+                                    _clearCacheResetTimer.restart()
+                                }
+                            }
                         }
                     }
                 }
