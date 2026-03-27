@@ -8,6 +8,7 @@
 #include "gameservice.h"
 #include "translationdownloader.h"
 #include "manifestsyncservice.h"
+#include "telemetryservice.h"
 #include "corebridge.h"
 
 #include <QDesktopServices>
@@ -265,6 +266,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
 
     m_pendingDownload = PendingDownload{gameId, variant, options};
     m_downloader->downloadPackage(gameId, dataUrl, dirName);
+    m_manifestSync->telemetry()->onDownload(gameId);
 }
 
 // ===== Download gate: update =====
@@ -313,8 +315,10 @@ void InstallFlowService::onDownloadReady(const QString& appId)
 
     if (isUpdate) {
         m_gameService->updateTranslation(pending.gameId, pending.variant, pending.selectedOptions);
+        m_manifestSync->telemetry()->onUpdate(pending.gameId);
     } else {
         m_gameService->installTranslation(pending.gameId, pending.variant, pending.selectedOptions);
+        m_manifestSync->telemetry()->onInstall(pending.gameId);
         emit installStarted(pending.gameId);
     }
 }

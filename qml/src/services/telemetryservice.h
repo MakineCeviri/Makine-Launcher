@@ -22,8 +22,12 @@ public:
     explicit TelemetryService(QObject* parent = nullptr);
 
     void onSyncComplete(int catalogVersion, int gameCount);
+    void onDownload(const QString& appId);
+    void onInstall(const QString& appId);
+    void onUpdate(const QString& appId);
 
 private:
+    void sendEvent(const QString& event, const QString& appId = {});
     QNetworkAccessManager m_nam;
 };
 

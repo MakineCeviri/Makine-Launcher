@@ -24,14 +24,15 @@ TelemetryService::TelemetryService(QObject* parent)
     security::installTlsPinning(&m_nam);
 }
 
-void TelemetryService::onSyncComplete(int catalogVersion, int gameCount)
+void TelemetryService::sendEvent(const QString& event, const QString& appId)
 {
     QJsonObject body;
-    body[QStringLiteral("version")] = QCoreApplication::applicationVersion();
+    body[QStringLiteral("event")] = event;
+    body[QStringLiteral("launcher_version")] = QCoreApplication::applicationVersion();
     body[QStringLiteral("os")] = QSysInfo::prettyProductName();
     body[QStringLiteral("locale")] = QLocale::system().name();
-    body[QStringLiteral("catalogVersion")] = catalogVersion;
-    body[QStringLiteral("gamesInstalled")] = gameCount;
+    if (!appId.isEmpty())
+        body[QStringLiteral("app_id")] = appId;
 
     QNetworkRequest req{QUrl{QLatin1String(cdn::kTelemetry)}};
     req.setTransferTimeout(5000);
@@ -39,6 +40,28 @@ void TelemetryService::onSyncComplete(int catalogVersion, int gameCount)
 
     QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);
+}
+
+void TelemetryService::onSyncComplete(int catalogVersion, int gameCount)
+{
+    Q_UNUSED(catalogVersion)
+    Q_UNUSED(gameCount)
+    sendEvent(QStringLiteral("sync"));
+}
+
+void TelemetryService::onDownload(const QString& appId)
+{
+    sendEvent(QStringLiteral("download"), appId);
+}
+
+void TelemetryService::onInstall(const QString& appId)
+{
+    sendEvent(QStringLiteral("install"), appId);
+}
+
+void TelemetryService::onUpdate(const QString& appId)
+{
+    sendEvent(QStringLiteral("update"), appId);
 }
 
 } // namespace makine

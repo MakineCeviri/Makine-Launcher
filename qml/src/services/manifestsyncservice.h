@@ -49,6 +49,8 @@ public:
     bool hasCatalogEntry(const QString& appId) const;
     QString catalogGameName(const QString& appId) const;
 
+    TelemetryService* telemetry() const { return m_telemetry; }
+
     bool isSyncing() const { return m_syncing; }
     bool isOffline() const { return m_offline; }
     int catalogCount() const;
