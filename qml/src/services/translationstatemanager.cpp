@@ -82,15 +82,15 @@ QString TranslationStateManager::stateToLabel(State s)
 QString TranslationStateManager::stateToAccessibleText(State s)
 {
     switch (s) {
-    case State::Broken:     return tr("Repair needed");
-    case State::Completed:  return tr("Installation complete");
-    case State::Update:     return tr("Update available");
-    case State::Installed:  return tr("Installed");
-    case State::Installing: return tr("Installing");
-    case State::External:   return tr("Download from ApexYama");
-    case State::Download:   return tr("Download Turkish Patch");
+    case State::Broken:     return tr("Onarım gerekli");
+    case State::Completed:  return tr("Kurulum tamamlandı");
+    case State::Update:     return tr("Güncelleme mevcut");
+    case State::Installed:  return tr("Kurulu");
+    case State::Installing: return tr("Kuruluyor");
+    case State::External:   return tr("ApexYama'dan indir");
+    case State::Download:   return tr("Türkçe Yama İndir");
     }
-    return tr("Download Turkish Patch");
+    return tr("Türkçe Yama İndir");
 }
 
 } // namespace makine
