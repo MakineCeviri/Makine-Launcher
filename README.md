@@ -4,7 +4,7 @@
 ---
 
 <p align="center">
-  <img src="qml/resources/images/logo.png" alt="Makine Launcher" width="128">
+  <img src="https://github.com/user-attachments/assets/1a6562ce-0be9-4b0a-91c0-8c0b9da0da75" alt="Makine Launcher" width="1024">
 </p>
 
 <h1 align="center">Makine Launcher</h1>
@@ -43,4 +43,4 @@ just dev-ui
 
 ## Lisans
 
-[AGPL-3.0](LICENSE) + Commons Clause
+[AGPL-3.0](LICENSE)

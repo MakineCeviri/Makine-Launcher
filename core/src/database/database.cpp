@@ -163,14 +163,14 @@ static fs::path getDefaultDbPath() {
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localAppData))) {
         fs::path path(localAppData);
         CoTaskMemFree(localAppData);
-        return path / "MakineLauncher" / DATABASE_NAME;
+        return path / "MakineCeviri" / "Makine-Launcher" / DATABASE_NAME;
     }
     // Fallback
-    return fs::path(std::getenv("LOCALAPPDATA")) / "MakineLauncher" / DATABASE_NAME;
+    return fs::path(std::getenv("LOCALAPPDATA")) / "MakineCeviri" / "Makine-Launcher" / DATABASE_NAME;
 #else
     const char* home = std::getenv("HOME");
     if (home) {
-        return fs::path(home) / ".local" / "share" / "MakineLauncher" / DATABASE_NAME;
+        return fs::path(home) / ".local" / "share" / "MakineCeviri" / "Makine-Launcher" / DATABASE_NAME;
     }
     return fs::path(".") / DATABASE_NAME;
 #endif

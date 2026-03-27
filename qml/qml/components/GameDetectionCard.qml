@@ -147,29 +147,12 @@ ColumnLayout {
                     }
                 }
 
-                // Turkish flag icon
+                // Turkish flag icon (crescent only)
                 Rectangle {
                     anchors.centerIn: parent; width: 24; height: 24
                     radius: 12; color: Theme.turkishRed
-                    Rectangle { x: 4; y: 7; width: 10; height: 10; radius: 5; color: "#FFFFFF" }
-                    Rectangle { x: 6.5; y: 8; width: 8; height: 8; radius: 4; color: Theme.turkishRed }
-                    Canvas {
-                        x: 13; y: 9; width: 6; height: 6
-                        renderStrategy: Canvas.Cooperative
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            var cx = 3, cy = 3, R = 2.8, r = R * 0.382
-                            ctx.beginPath()
-                            for (var i = 0; i < 5; i++) {
-                                var oa = i * 72 * Math.PI / 180
-                                var ia = (i * 72 + 36) * Math.PI / 180
-                                if (i === 0) ctx.moveTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
-                                else ctx.lineTo(cx - R * Math.cos(oa), cy - R * Math.sin(oa))
-                                ctx.lineTo(cx - r * Math.cos(ia), cy - r * Math.sin(ia))
-                            }
-                            ctx.closePath(); ctx.fillStyle = "white"; ctx.fill()
-                        }
-                    }
+                    Rectangle { x: 5.5; y: 5.5; width: 13; height: 13; radius: 6.5; color: "#FFFFFF" }
+                    Rectangle { x: 8.5; y: 6.5; width: 11; height: 11; radius: 5.5; color: Theme.turkishRed }
                 }
             }
 

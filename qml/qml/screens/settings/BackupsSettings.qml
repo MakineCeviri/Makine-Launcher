@@ -154,7 +154,7 @@ ColumnLayout {
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                             Accessible.role: Accessible.Button
-                            Accessible.name: qsTr("Restore backup")
+                            Accessible.name: qsTr("Yedeği geri yükle")
                             activeFocusOnTab: true
                             Keys.onReturnPressed: BackupManager.restoreBackup(modelData.id, modelData.originalPath)
                             Keys.onSpacePressed: BackupManager.restoreBackup(modelData.id, modelData.originalPath)
@@ -208,7 +208,7 @@ ColumnLayout {
                             Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
 
                             Accessible.role: Accessible.Button
-                            Accessible.name: qsTr("Delete backup")
+                            Accessible.name: qsTr("Yedeği sil")
                             activeFocusOnTab: true
                             Keys.onReturnPressed: BackupManager.deleteBackup(modelData.id)
                             Keys.onSpacePressed: BackupManager.deleteBackup(modelData.id)

@@ -143,7 +143,6 @@ set(BACKEND_HEADERS
     src/services/operationjournal.h
     src/services/appprotection.h
     src/services/obfstring.h
-    src/services/encryption_key.h
     src/services/imagecachemanager.h
     src/services/manifestsyncservice.h
     src/services/catalogstore.h
@@ -163,6 +162,10 @@ set(BACKEND_HEADERS
     src/services/authservice.h
 )
 
+# encryption_key.h is generated at build time (not in repo) — only needed for full builds
+if(NOT MAKINE_UI_ONLY)
+    list(APPEND BACKEND_HEADERS src/services/encryption_key.h)
+endif()
 
 # QML module
 qt_add_executable(MakineLauncher

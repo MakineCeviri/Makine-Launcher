@@ -32,7 +32,7 @@ namespace makine {
  */
 class CredentialStore {
 public:
-    static constexpr const char* PREFIX = "MakineLauncher/";
+    static constexpr const char* PREFIX = "MakineCeviri/Makine-Launcher/";
 
     /**
      * @brief Save a credential securely

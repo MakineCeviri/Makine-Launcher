@@ -144,7 +144,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
-        setError(QStringLiteral("JSON parse error: %1").arg(parseError.errorString()));
+        setError(QStringLiteral("Güncelleme bilgisi okunamadı: %1").arg(parseError.errorString()));
         setState(Idle);
         return;
     }
@@ -158,7 +158,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     const QString channel = obj.value(QStringLiteral("channel")).toString();
 
     if (version.isEmpty() || url.isEmpty()) {
-        setError(QStringLiteral("Invalid update.json: missing version or url"));
+        setError(QStringLiteral("Güncelleme verisi eksik veya hatalı"));
         setState(Idle);
         return;
     }
@@ -260,7 +260,7 @@ void UpdateService::download()
         }
     }
     if (!hostAllowed) {
-        setError(QStringLiteral("Download blocked: untrusted host '%1'").arg(host));
+        setError(QStringLiteral("İndirme engellendi: güvenilmeyen sunucu '%1'").arg(host));
         return;
     }
 
@@ -278,7 +278,7 @@ void UpdateService::download()
 
     m_downloadFile = std::make_unique<QFile>(m_installerPath);
     if (!m_downloadFile->open(QIODevice::WriteOnly)) {
-        setError(QStringLiteral("Cannot create file: %1").arg(m_downloadFile->errorString()));
+        setError(QStringLiteral("Dosya oluşturulamadı: %1").arg(m_downloadFile->errorString()));
         m_downloadFile.reset();
         return;
     }
@@ -290,7 +290,7 @@ void UpdateService::download()
 
     QUrl dlUrl{m_downloadUrl};
     QNetworkRequest request{dlUrl};
-    request.setRawHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1");
+    request.setRawHeader("User-Agent", QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/%1").arg(QCoreApplication::applicationVersion()).toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::SameOriginRedirectPolicy);
 
@@ -334,7 +334,7 @@ void UpdateService::download()
             verifyAndFinalize(m_installerPath);
         } else {
             // No checksum available — fail closed
-            setError(QStringLiteral("Integrity check unavailable: no checksum in update.json"));
+            setError(QStringLiteral("Bütünlük doğrulaması yapılamadı: checksum bilgisi eksik"));
             QFile::remove(m_installerPath);
             setState(Available);
         }
@@ -349,7 +349,7 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
     // SHA256 verification
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        setError(QStringLiteral("Cannot open downloaded file for verification"));
+        setError(QStringLiteral("İndirilen dosya doğrulama için açılamadı"));
         QFile::remove(filePath);
         setState(Available);
         return;
@@ -361,7 +361,7 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
     file.close();
 
     if (actualHash != m_expectedChecksum) {
-        setError(QStringLiteral("Checksum verification failed"));
+        setError(QStringLiteral("Dosya bütünlüğü doğrulanamadı"));
         QFile::remove(filePath);
         setState(Available);
         return;
@@ -371,7 +371,7 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
 #ifndef MAKINE_DEV_TOOLS
     // Verify Authenticode signature
     if (!SelfUpdater::verifySignature(filePath)) {
-        setError(QStringLiteral("Signature verification failed. The file may be tampered."));
+        setError(QStringLiteral("Dijital imza doğrulanamadı. Dosya değiştirilmiş olabilir."));
         QFile::remove(filePath);
         setState(Available);
         return;
@@ -396,7 +396,7 @@ void UpdateService::install()
         return;
 
     if (!QFile::exists(m_installerPath)) {
-        setError(QStringLiteral("Update file missing"));
+        setError(QStringLiteral("Güncelleme dosyası bulunamadı"));
         setState(Available);
         return;
     }

@@ -144,7 +144,7 @@ BaseDialog {
                 Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
 
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Cancel")
+                Accessible.name: qsTr("İptal")
                 activeFocusOnTab: true
                 Keys.onReturnPressed: { root.cancelled(); root.close() }
 
