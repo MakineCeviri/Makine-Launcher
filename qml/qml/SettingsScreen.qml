@@ -310,6 +310,7 @@ Item {
         }
     }
 
+
     ConfirmDialog {
         id: resetSettingsConfirm
         parent: Overlay.overlay

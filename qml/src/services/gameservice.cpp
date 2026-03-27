@@ -821,7 +821,7 @@ QVariantList GameService::supportedGames() const
             entry[QStringLiteral("isInstalled")] = game.isInstalled;
             entry[QStringLiteral("installPath")] = game.installPath;
             entry[QStringLiteral("id")] = game.id;
-            entry[QStringLiteral("source")] = game.source;
+            entry[QStringLiteral("gameSource")] = game.source;
             entry[QStringLiteral("engine")] = game.engine;
         } else {
             entry[QStringLiteral("isInstalled")] = false;
@@ -1525,13 +1525,20 @@ QVariantMap GameService::resolveGameData(const QString& gameId,
     const bool hasTranslation = hasGame && gameData.value("hasTranslation").toBool();
     const bool pkgInstalled = hasGame && gameData.value("packageInstalled").toBool();
 
-    // Catalog lookup for external URL / Apex flags
+    // Catalog lookup for external URL / Apex / Hangar flags
     const QVariantMap catalog = getCatalogEntry(imageKey);
     const bool hasCatalog = !catalog.isEmpty();
     const QString externalUrl = hasCatalog ? catalog.value("externalUrl").toString() : QString();
+    const QString sourceField = hasCatalog ? catalog.value("source").toString() : QString();
+    const QString translationSource = hasCatalog ? catalog.value("translationSource").toString() : QString();
     const bool isApex = hasCatalog
-        && (catalog.value("translationSource").toString() == QLatin1String("apex")
-            || catalog.value("source").toString() == QLatin1String("apex"));
+        && (translationSource == QLatin1String("apex")
+            || sourceField == QLatin1String("apex")
+            || sourceField == QLatin1String("hangar_apex"));
+    const bool isHangar = hasCatalog
+        && (translationSource == QLatin1String("hangar")
+            || sourceField == QLatin1String("hangar")
+            || sourceField == QLatin1String("hangar_apex"));
     const QString apexTier = hasCatalog ? catalog.value("apexTier").toString() : QString();
 
     return {
@@ -1546,6 +1553,7 @@ QVariantMap GameService::resolveGameData(const QString& gameId,
         {"isGameInstalled",   isInstalled},
         {"packageInstalled",  pkgInstalled},
         {"isApex",            isApex},
+        {"isHangar",          isHangar},
         {"apexTier",          apexTier},
         {"autoInstall",       forceAutoInstall},
         {"externalUrl",       externalUrl}

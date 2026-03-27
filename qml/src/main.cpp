@@ -717,6 +717,11 @@ static void configureQtEnvironment()
     qputenv("QML_DISABLE_DISK_CACHE", "0");
 #endif
 
+    // Set org/app names early so QStandardPaths resolves to the correct directory
+    // (MakineCeviri/Makine-Launcher) before any path queries.
+    QCoreApplication::setOrganizationName("MakineCeviri");
+    QCoreApplication::setApplicationName("Makine-Launcher");
+
     // === QML DISK CACHE ===
     // Pin cache to a stable path so it survives Qt minor version updates.
     // Without this, Qt writes to %TEMP% which may be cleaned between sessions,

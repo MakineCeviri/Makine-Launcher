@@ -2,7 +2,7 @@ import QtQuick
 import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
-// Scalable Turkish flag badge (crescent only, Canvas-rendered for crisp small sizes)
+// Scalable Turkish flag badge (crescent + star, Canvas-rendered for crisp small sizes)
 Rectangle {
     id: flagRoot
     property real flagWidth: 22
@@ -39,6 +39,23 @@ Rectangle {
             ctx.fillStyle = bgColor
             ctx.beginPath()
             ctx.arc(innerCx, cy, innerR, 0, Math.PI * 2)
+            ctx.fill()
+
+            // 5-pointed star
+            var starR = Math.max(1.5, h * 0.15)
+            var starCx = innerCx + innerR + starR + Math.max(0.5, gap * 0.3)
+
+            ctx.fillStyle = "white"
+            ctx.beginPath()
+            for (var i = 0; i < 10; i++) {
+                var angle = (i * Math.PI / 5) - Math.PI / 2
+                var r = i % 2 === 0 ? starR : starR * 0.38
+                var x = starCx + Math.cos(angle) * r
+                var y = cy + Math.sin(angle) * r
+                if (i === 0) ctx.moveTo(x, y)
+                else ctx.lineTo(x, y)
+            }
+            ctx.closePath()
             ctx.fill()
         }
     }

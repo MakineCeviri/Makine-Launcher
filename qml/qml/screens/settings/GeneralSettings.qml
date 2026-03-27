@@ -451,7 +451,10 @@ ColumnLayout {
                             hoverEnabled: true
                             cursorShape: _clearCacheBtn.cleared ? Qt.ArrowCursor : Qt.PointingHandCursor
                             enabled: !_clearCacheBtn.cleared
-                            onClicked: generalRoot.clearCacheRequested()
+                            onClicked: {
+                                SettingsManager.clearCache()
+                                ManifestSync.syncCatalog()
+                            }
                         }
 
                         Connections {

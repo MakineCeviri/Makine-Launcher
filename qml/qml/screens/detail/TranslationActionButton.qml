@@ -31,13 +31,15 @@ Rectangle {
     readonly property string _state: TranslationStateManager.state
 
     function _reevaluateState() {
+        var source = actionBtn.vm.isHangar ? "hangar" : (actionBtn.vm.isApex ? "apex" : "")
         TranslationStateManager.evaluate(
             actionBtn.vm.hasTranslationUpdate,
             actionBtn.vm.packageInstalled,
             actionBtn.vm.isInstallingTranslation,
             actionBtn.vm.installCompleted,
             actionBtn.vm.impactLevel,
-            actionBtn.vm.externalUrl
+            actionBtn.vm.externalUrl,
+            source
         )
     }
 
@@ -164,13 +166,10 @@ Rectangle {
                     return actionBtn._hovered ? Theme.textOnColor : Theme.success
                 return Theme.textOnColor
             }
-            Behavior on iconColor { ColorAnimation { duration: Dimensions.animFast } }
-
             onPaint: drawIcon()
-            onIconColorChanged: requestPaint()
             Component.onCompleted: requestPaint()
 
-            // Redraw when state changes
+            // Redraw only on state changes (not during color animation)
             property string _st: actionBtn._state
             on_StChanged: requestPaint()
             property bool _h: actionBtn._hovered

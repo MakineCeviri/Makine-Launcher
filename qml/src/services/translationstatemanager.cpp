@@ -18,9 +18,9 @@ TranslationStateManager::TranslationStateManager(QObject* parent)
 void TranslationStateManager::evaluate(bool hasUpdate, bool packageInstalled,
                                         bool isInstalling, bool installCompleted,
                                         const QString& impactLevel,
-                                        const QString& externalUrl)
+                                        const QString& externalUrl,
+                                        const QString& source)
 {
-    // Exact cascade from TranslationActionButton.qml lines 31-45
     State newState = State::Download;
 
     if (impactLevel == u"broken") {
@@ -37,7 +37,10 @@ void TranslationStateManager::evaluate(bool hasUpdate, bool packageInstalled,
         newState = State::External;
     }
 
-    if (newState == m_state)
+    const bool sourceChanged = (m_externalSource != source);
+    m_externalSource = source;
+
+    if (newState == m_state && !sourceChanged)
         return;
 
     m_state = newState;
@@ -65,7 +68,7 @@ QString TranslationStateManager::stateToString(State s)
     return QStringLiteral("download");
 }
 
-QString TranslationStateManager::stateToLabel(State s)
+QString TranslationStateManager::stateToLabel(State s) const
 {
     switch (s) {
     case State::Broken:     return tr("ONARIM GEREKL\u0130");
@@ -73,24 +76,30 @@ QString TranslationStateManager::stateToLabel(State s)
     case State::Update:     return tr("G\u00FCncelleme Mevcut");
     case State::Installed:  return tr("T\u00FCrk\u00E7e Yama Kurulu");
     case State::Installing: return tr("Haz\u0131rlan\u0131yor...");
-    case State::External:   return tr("ApexYama'da \u0130ndir");
+    case State::External:
+        if (m_externalSource.contains(QLatin1String("hangar")))
+            return tr("Hangar \u00C7eviri'de \u0130ndir");
+        return tr("ApexYama'da \u0130ndir");
     case State::Download:   return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
     }
     return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
 }
 
-QString TranslationStateManager::stateToAccessibleText(State s)
+QString TranslationStateManager::stateToAccessibleText(State s) const
 {
     switch (s) {
-    case State::Broken:     return tr("Onarım gerekli");
-    case State::Completed:  return tr("Kurulum tamamlandı");
-    case State::Update:     return tr("Güncelleme mevcut");
+    case State::Broken:     return tr("Onar\u0131m gerekli");
+    case State::Completed:  return tr("Kurulum tamamland\u0131");
+    case State::Update:     return tr("G\u00FCncelleme mevcut");
     case State::Installed:  return tr("Kurulu");
     case State::Installing: return tr("Kuruluyor");
-    case State::External:   return tr("ApexYama'dan indir");
-    case State::Download:   return tr("Türkçe Yama İndir");
+    case State::External:
+        if (m_externalSource.contains(QLatin1String("hangar")))
+            return tr("Hangar \u00C7eviri'den indir");
+        return tr("ApexYama'dan indir");
+    case State::Download:   return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
     }
-    return tr("Türkçe Yama İndir");
+    return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
 }
 
 } // namespace makine

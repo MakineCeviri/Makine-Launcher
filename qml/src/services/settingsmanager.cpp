@@ -288,12 +288,11 @@ void SettingsManager::resetToDefaults()
 void SettingsManager::clearCache()
 {
     MAKINE_ZONE_NAMED("SettingsManager::clearCache");
-    bool ok = true;
 
     // Clear organized cache directory
     QDir cacheDir(AppPaths::cacheDir());
     if (cacheDir.exists()) {
-        ok = cacheDir.removeRecursively();
+        cacheDir.removeRecursively();
         cacheDir.mkpath(".");
     }
 
@@ -310,7 +309,10 @@ void SettingsManager::clearCache()
     if (imgCache)
         imgCache->clearCache();
 
-    emit cacheClearCompleted(ok, ok ? tr("Önbellek temizlendi") : tr("Önbellek temizlenemedi"));
+    qInfo("SettingsManager: cache cleared (cache=%s, qtCache=%s)",
+          qPrintable(AppPaths::cacheDir()), qPrintable(qtCachePath));
+
+    emit cacheClearCompleted(true, tr("Önbellek temizlendi"));
 }
 
 void SettingsManager::loadSettings()

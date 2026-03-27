@@ -240,10 +240,11 @@ Item {
                     sourceSize.width: 500
                     opacity: ready ? 1 : 0
                     layer.enabled: ready
+                    layer.smooth: false
                     layer.effect: MultiEffect {
                         shadowEnabled: true
                         shadowColor: "#ffffff"
-                        shadowBlur: 0.8
+                        shadowBlur: 0.4
                         shadowVerticalOffset: 0
                         shadowHorizontalOffset: 0
                         shadowOpacity: 0.5
@@ -490,6 +491,7 @@ Item {
             contributors: heroRoot.vm.contributors
             externalUrl: heroRoot.vm.externalUrl
             isApex: heroRoot.vm.isApex
+            isHangar: heroRoot.vm.isHangar
             apexTier: heroRoot.vm.apexTier
             opacity: heroRoot._contribOp
             transform: Translate { y: heroRoot._contribTY }

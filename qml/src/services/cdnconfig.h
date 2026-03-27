@@ -32,7 +32,7 @@ inline constexpr auto kBannersBase= "https://cdn.makineceviri.org/assets/banners
 inline constexpr auto kDataBase   = "https://cdn.makineceviri.org/data/";
 
 // Catalog API (static JSON — served via Cloudflare Workers + Assets)
-inline constexpr auto kCatalogUrl   = "https://makineceviri.org/api/v2/catalog.json";
+inline constexpr auto kCatalogUrl   = "https://cdn.makineceviri.org/assets/index.json";
 inline constexpr auto kCatalogMeta  = "https://makineceviri.org/api/v2/catalog/meta";
 inline constexpr auto kCatalogDelta = "https://makineceviri.org/api/v2/catalog/delta";
 inline constexpr auto kGameDetail   = "https://makineceviri.org/api/v2/games/";
