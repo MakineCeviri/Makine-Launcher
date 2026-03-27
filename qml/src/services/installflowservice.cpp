@@ -43,7 +43,7 @@ void InstallFlowService::startInstall(const QString& gameId, const QString& game
         QUrl url(externalUrl);
         if (url.scheme() != QStringLiteral("https")) {
             qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << externalUrl;
-            emit installError(gameId, tr("Invalid external URL"));
+            emit installError(gameId, tr("Geçersiz harici bağlantı"));
             return;
         }
         QDesktopServices::openUrl(url);
@@ -236,7 +236,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
         QUrl url(extUrl);
         if (url.scheme() != QStringLiteral("https")) {
             qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << extUrl;
-            emit installError(gameId, tr("Invalid external URL"));
+            emit installError(gameId, tr("Geçersiz harici bağlantı"));
             return;
         }
         QDesktopServices::openUrl(url);
