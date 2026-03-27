@@ -9,16 +9,16 @@ namespace makine {
 /**
  * Centralized application path management.
  *
- * Directory layout under AppData/Local/MakineLauncher/:
+ * Directory layout under AppData/Local/MakineCeviri/Makine-Launcher/:
  *   logs/             - Debug and crash logs
  *   cache/            - Transient data (game cache, Steam details)
  *   data/             - Persistent state (installed packages, journal)
  *   backups/          - Game file backups before patching
- *   update_detection/ - Hash snapshots for update tracking
  *   crash-reports/    - Crash dumps and diagnostic info
+ *   sentry-db/        - Sentry crash reporting database
  *
  * Temp directory (AppData/Local/Temp/MakineLauncher/):
- *   images/           - Steam header image disk cache
+ *   images/           - Game cover image disk cache
  *   MakineLauncher-update/  - Downloaded installer files
  */
 class AppPaths {

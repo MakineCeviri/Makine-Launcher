@@ -210,7 +210,6 @@ Item {
                         verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: {
-                        console.log("[WelcomeLoginStep] Login button clicked, state:", AuthService.state)
                         AuthService.startLogin()
                     }
                 }
@@ -324,15 +323,9 @@ Item {
         target: AuthService
         function onLoginError(message) { errorText.text = message }
         function onStateChanged() {
-            console.log("[WelcomeLoginStep] AuthService state:", AuthService.state,
-                        "isAuthenticated:", AuthService.isAuthenticated)
             if (AuthService.isAuthenticated)
                 root.loginSuccess()
         }
     }
 
-    Component.onCompleted: {
-        console.log("[WelcomeLoginStep] Loaded. AuthService.state:", AuthService.state,
-                    "returningUser:", root.returningUser)
-    }
 }

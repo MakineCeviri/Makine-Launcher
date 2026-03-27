@@ -601,7 +601,7 @@ ColumnLayout {
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
                 Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Show more community plugins on GitHub")
+                Accessible.name: qsTr("GitHub'da daha fazla topluluk eklentisi görüntüle")
                 activeFocusOnTab: true
 
                 ColumnLayout {

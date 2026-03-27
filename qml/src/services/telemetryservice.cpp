@@ -8,6 +8,8 @@
 #include "cdnconfig.h"
 #include "networksecurity.h"
 
+#include <QCoreApplication>
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocale>
@@ -25,7 +27,7 @@ TelemetryService::TelemetryService(QObject* parent)
 void TelemetryService::onSyncComplete(int catalogVersion, int gameCount)
 {
     QJsonObject body;
-    body[QStringLiteral("version")] = QStringLiteral("0.1.0");
+    body[QStringLiteral("version")] = QCoreApplication::applicationVersion();
     body[QStringLiteral("os")] = QSysInfo::prettyProductName();
     body[QStringLiteral("locale")] = QLocale::system().name();
     body[QStringLiteral("catalogVersion")] = catalogVersion;
