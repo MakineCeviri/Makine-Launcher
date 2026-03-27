@@ -310,7 +310,7 @@ Item {
         Text {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 24
-            text: "v0.1.0-alpha"
+            text: "v" + Qt.application.version
             font.pixelSize: 10
             font.letterSpacing: 0.5
             color: Qt.rgba(1, 1, 1, 0.12)
