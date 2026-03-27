@@ -34,6 +34,7 @@ jobs:
         run: cmake --preset release-static
         env:
           PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64_static\bin;${{ env.PATH }}
+          MAKINE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
       - name: Build
         run: cmake --build --preset release-static
