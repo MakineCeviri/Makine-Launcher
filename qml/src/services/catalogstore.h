@@ -32,6 +32,7 @@ public:
         QString externalUrl;
         QString source;
         QString apexTier;
+        QVariantList contributors;  // [{name, role}] from index.json
     };
 
     CatalogStore();

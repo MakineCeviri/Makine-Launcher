@@ -18,6 +18,26 @@ Rectangle {
 
     readonly property int _padding: Dimensions.paddingXL
 
+    // Group contributors by role for display (filter out placeholder)
+    readonly property var _grouped: {
+        const groups = []
+        const map = {}
+        if (!contribRoot.contributors) return groups
+        for (let i = 0; i < contribRoot.contributors.length; ++i) {
+            const c = contribRoot.contributors[i]
+            if (!c || !c.name) continue
+            // Skip the static community placeholder — already shown above
+            if (c.name === "Türkiye Oyuncu Topluluğu") continue
+            const role = c.role || "Çevirmen"
+            if (!(role in map)) {
+                map[role] = groups.length
+                groups.push({ role: role, names: [] })
+            }
+            groups[map[role]].names.push(c.name)
+        }
+        return groups
+    }
+
     radius: Dimensions.radiusSection
     color: Theme.textPrimary03
     border.color: Theme.textPrimary06
@@ -54,6 +74,35 @@ Rectangle {
             TurkishFlagBadge {
                 Layout.alignment: Qt.AlignVCenter
                 flagWidth: 26; flagHeight: 17
+            }
+        }
+
+        // Contributors by role — minimal list
+        Repeater {
+            model: contribRoot._grouped
+
+            ColumnLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 4
+
+                Text {
+                    textFormat: Text.PlainText
+                    text: modelData.role
+                    font.pixelSize: Dimensions.fontCaption
+                    font.weight: Font.DemiBold
+                    color: Theme.textSecondary
+                    opacity: 0.7
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    text: modelData.names.join("  ·  ")
+                    font.pixelSize: Dimensions.fontCaption
+                    color: Theme.textMuted
+                    wrapMode: Text.WordWrap
+                }
             }
         }
 
