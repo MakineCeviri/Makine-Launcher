@@ -759,15 +759,22 @@ QVariantMap GameService::getGameDetails(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("GameService::getGameDetails");
 
-    // Contributors + install notes from package manifest
+    // Contributors: prefer CDN package detail (authoritative), fallback to local
     QVariantList contributors;
-    QString installNotes;
-    if (m_coreBridge) {
+    if (m_manifestSync && m_manifestSync->hasPackageDetail(gameId)) {
+        const QVariantMap detail = m_manifestSync->getPackageDetail(gameId);
+        contributors = detail.value(QStringLiteral("contributors")).toList();
+    }
+    if (contributors.isEmpty() && m_coreBridge) {
         auto pkg = m_coreBridge->getPackageForGame(gameId);
         if (pkg)
             contributors = pkg->contributors;
-        installNotes = m_coreBridge->getInstallNotesForGame(gameId);
     }
+
+    // Install notes from local package manifest
+    QString installNotes;
+    if (m_coreBridge)
+        installNotes = m_coreBridge->getInstallNotesForGame(gameId);
 
     return QVariantMap{
         {"contributors",  contributors},
@@ -1541,6 +1548,10 @@ QVariantMap GameService::resolveGameData(const QString& gameId,
             || sourceField == QLatin1String("hangar_apex"));
     const QString apexTier = hasCatalog ? catalog.value("apexTier").toString() : QString();
 
+    // Contributors from catalog (index.json) — available immediately, no async
+    const QVariantList catalogContribs = hasCatalog
+        ? catalog.value(QStringLiteral("contributors")).toList() : QVariantList{};
+
     return {
         {"gameId",            gameId},
         {"gameName",          gameName},
@@ -1556,7 +1567,8 @@ QVariantMap GameService::resolveGameData(const QString& gameId,
         {"isHangar",          isHangar},
         {"apexTier",          apexTier},
         {"autoInstall",       forceAutoInstall},
-        {"externalUrl",       externalUrl}
+        {"externalUrl",       externalUrl},
+        {"contributors",      catalogContribs}
     };
 }
 

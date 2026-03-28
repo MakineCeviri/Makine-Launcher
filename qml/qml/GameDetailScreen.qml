@@ -27,6 +27,7 @@ Item {
     signal translateClicked()
     signal backClicked()
 
+
     // ===== ENTRY ANIMATION =====
 
     function _replayEntryAnim() {

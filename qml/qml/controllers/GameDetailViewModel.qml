@@ -142,6 +142,7 @@ QtObject {
         isGameInstalled = d.isGameInstalled || false
         packageInstalled = d.packageInstalled || false
         autoInstall = d.autoInstall || false
+        contributors = d.contributors || []
 
         // Set gameId after other props so listeners see complete state
         gameId = d.gameId || ""
@@ -182,7 +183,7 @@ QtObject {
             SceneProfiler.screenLoaded("GameDetail")
 
         var d = GameService.getGameDetails(gameId)
-        contributors = d.contributors || []
+        // contributors come from catalog (index.json) via loadGame — don't touch here
         translationNotes = d.installNotes || ""
         isUnityGame = d.isUnityGame || false
         runtimeNeeded = d.runtimeNeeded || false

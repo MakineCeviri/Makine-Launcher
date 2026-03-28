@@ -61,6 +61,8 @@ QVariantList CatalogStore::catalog() const
             entry.insert(QStringLiteral("source"), ce.source);
         if (!ce.apexTier.isEmpty())
             entry.insert(QStringLiteral("apexTier"), ce.apexTier);
+        if (!ce.contributors.isEmpty())
+            entry.insert(QStringLiteral("contributors"), ce.contributors);
 
         m_catalogCache.append(entry);
     }
@@ -139,6 +141,18 @@ CatalogStore::CatalogEntry CatalogStore::parseCatalogEntry(const QJsonObject& en
     ce.externalUrl = entry[QStringLiteral("externalUrl")].toString();
     ce.source = entry[QStringLiteral("source")].toString();
     ce.apexTier = entry[QStringLiteral("apexTier")].toString();
+
+    // Parse inline contributors from index.json
+    const QJsonArray contribs = entry[QStringLiteral("contributors")].toArray();
+    for (const auto& c : contribs) {
+        if (!c.isObject()) continue;
+        const QJsonObject co = c.toObject();
+        ce.contributors.append(QVariantMap{
+            {QStringLiteral("name"), co[QStringLiteral("name")].toString()},
+            {QStringLiteral("role"), co[QStringLiteral("role")].toString()}
+        });
+    }
+
     return ce;
 }
 
