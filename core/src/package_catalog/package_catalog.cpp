@@ -351,7 +351,7 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
         }
     }
 
-    // Auto-derive fingerprint if not explicit
+    // Auto-derive fingerprint if not explicit (neither from index nor detail)
     if (!entry.fingerprint.has_value())
         deriveFingerprint(entry);
 
@@ -416,6 +416,20 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
         info.installType = "overlay";  // default, enriched later
         info.tier = "free";            // default, enriched later
         info.detailLoaded = false;
+
+        // Parse exe names from index for immediate fingerprint (no CDN round-trip)
+        if (entry.contains("exe") && entry["exe"].is_array()) {
+            GameFingerprint fp;
+            for (const auto& e : entry["exe"]) {
+                if (e.is_string()) fp.exeNames.push_back(e.get<std::string>());
+            }
+            if (!fp.exeNames.empty())
+                info.fingerprint = std::move(fp);
+        }
+
+        // Auto-derive fingerprint if not explicitly provided
+        if (!info.fingerprint.has_value())
+            deriveFingerprint(info);
 
         packages_[info.steamAppId] = std::move(info);
     }
