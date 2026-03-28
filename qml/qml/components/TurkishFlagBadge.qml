@@ -14,8 +14,8 @@ Rectangle {
 
     Canvas {
         anchors.fill: parent
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
+        onWidthChanged: Qt.callLater(requestPaint)
+        onHeightChanged: Qt.callLater(requestPaint)
 
         onPaint: {
             var ctx = getContext("2d")

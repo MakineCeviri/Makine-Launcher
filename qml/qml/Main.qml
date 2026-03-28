@@ -157,7 +157,7 @@ ApplicationWindow {
             if (!SettingsManager.autoDetectGames)
                 ProcessScanner.stopWatching()
             else
-                ProcessScanner.startWatching(windowActive ? 10000 : 60000)
+                ProcessScanner.startWatching(windowActive ? 30000 : 120000)
         }
     }
 
@@ -240,9 +240,13 @@ ApplicationWindow {
         if (window._onboardingActive) return
         if (!SettingsManager.autoDetectGames) return
         if (windowActive) {
-            ProcessScanner.startWatching(10000)
+            ProcessScanner.startWatching(30000)
+        } else if (!window.visible) {
+            // Window is hidden (tray) — stop scanning entirely, zero CPU
+            ProcessScanner.stopWatching()
         } else {
-            ProcessScanner.startWatching(60000)
+            // Minimized but still visible in taskbar — slow poll, 120s
+            ProcessScanner.startWatching(120000)
         }
     }
 

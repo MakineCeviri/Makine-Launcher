@@ -6,6 +6,7 @@
 
 #include "memoryprofiler.h"
 #include "imagecachemanager.h"
+#include <QGuiApplication>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -19,11 +20,20 @@ static constexpr double kBytesToMB = 1.0 / (1024.0 * 1024.0);
 MemoryProfiler::MemoryProfiler(QObject* parent)
     : QObject(parent)
 {
-    m_timer.setInterval(2000);
+    m_timer.setInterval(5000);
     connect(&m_timer, &QTimer::timeout, this, &MemoryProfiler::sample);
-    m_timer.start();
 
-    // Initial sample
+    // Pause sampling when app is inactive/minimized
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive) {
+            m_timer.setInterval(5000);
+            if (!m_timer.isActive()) m_timer.start();
+        } else {
+            m_timer.stop();
+        }
+    });
+
+    m_timer.start();
     sample();
 }
 

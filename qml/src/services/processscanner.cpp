@@ -8,6 +8,7 @@
 #include "gameservice.h"
 #include "localpackagemanager.h"
 #include "profiler.h"
+#include <QGuiApplication>
 #include <QLoggingCategory>
 #include <QDir>
 #include <QSet>
@@ -47,7 +48,19 @@ ProcessScanner::ProcessScanner(QObject *parent)
     : QObject(parent)
 {
     connect(&m_scanTimer, &QTimer::timeout, this, &ProcessScanner::performScan);
-    // No hardcoded processes — populated dynamically via rebuildProcessMap()
+
+    // Pause scanning when app goes inactive (minimize/tray)
+    connect(qApp, &QGuiApplication::applicationStateChanged, this,
+        [this](Qt::ApplicationState state) {
+            if (!m_isWatching) return;
+            if (state == Qt::ApplicationActive) {
+                m_scanTimer.start(30000);
+            } else if (state == Qt::ApplicationSuspended || state == Qt::ApplicationHidden) {
+                m_scanTimer.stop();
+            } else {
+                m_scanTimer.start(120000);
+            }
+        });
 }
 
 ProcessScanner::~ProcessScanner()

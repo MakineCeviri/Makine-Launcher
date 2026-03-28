@@ -1,0 +1,63 @@
+# Makine-Launcher EditorConfig
+# https://editorconfig.org
+
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# C++ source files
+[*.{cpp,hpp,h,cc,cxx,hxx}]
+indent_size = 4
+
+# CMake files
+[CMakeLists.txt]
+indent_size = 4
+
+[*.cmake]
+indent_size = 4
+
+# QML files
+[*.qml]
+indent_size = 4
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+
+# Shell scripts
+[*.sh]
+end_of_line = lf
+
+# PowerShell scripts
+[*.ps1]
+end_of_line = crlf
+
+# Windows batch files
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# Justfile
+[justfile]
+indent_size = 4
+
+# Git config files
+[.gitattributes]
+end_of_line = lf
+
+[.gitignore]
+end_of_line = lf
