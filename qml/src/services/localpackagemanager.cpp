@@ -1048,7 +1048,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         return StepOutcome::SoftError;
     };
 
-    if (step.action == "copy") {
+    if (step.action == "copy" || step.action == "copyFile") {
         QString srcPath  = QDir::cleanPath(packageDir + "/" + step.src);
         QString destPath = QDir::cleanPath(gamePath   + "/" + step.dest);
 
