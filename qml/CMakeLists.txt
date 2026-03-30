@@ -122,7 +122,6 @@ set(BACKEND_SOURCES
     src/services/translationstatemanager.cpp
     src/services/installflowservice.cpp
     src/services/rendergovernor.cpp
-    src/services/authservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -159,7 +158,6 @@ set(BACKEND_HEADERS
     src/services/ocrcontroller.h
     src/services/translationstatemanager.h
     src/services/installflowservice.h
-    src/services/authservice.h
 )
 
 # encryption_key.h is generated at build time (not in repo) — only needed for full builds
@@ -203,8 +201,6 @@ qt_add_qml_module(MakineLauncher
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
         qml/OnboardingWizard.qml
-
-        # Screens - Auth (merged into OnboardingWizard/WelcomeLoginStep)
 
         # Screens - Home Pages
         qml/screens/HomePage.qml
