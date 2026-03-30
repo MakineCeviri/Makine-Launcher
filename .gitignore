@@ -161,19 +161,25 @@ htmlcov/
 .coverage
 .pytest_cache/
 
-# Project specific
-translation_data/
+# Project specific — not for public repo
 .claude/
 CLAUDE.md
 .claude.local.md
-scripts/legacy/
+.superpowers/
 .wrangler/
+scripts/legacy/
 docs/_build/
 docs/html/
 docs/latex/
+docs/ECOSYSTEM-REPORT*.md
+docs/superpowers/
+docs/perf-startup-analysis.md
 dist/
 dist-static/
 scripts/showcase_validation.json
+infra/
+
+# Internal tooling
 *.ps1
 !scripts/**/*.ps1
 
@@ -185,15 +191,4 @@ list_backup_*/
 verify_backup/
 backup_restore/
 external/
-.superpowers/
 .claude/worktrees/
-
-# Internal docs (not for public)
-docs/ECOSYSTEM-REPORT*.md
-docs/superpowers/
-docs/perf-startup-analysis.md
-
-# Internal docs (not for public)
-docs/ECOSYSTEM-REPORT*.md
-docs/superpowers/
-docs/perf-startup-analysis.md

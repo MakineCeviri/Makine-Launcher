@@ -23,19 +23,14 @@ ApplicationWindow {
     y: Math.round((Screen.height - height) / 2)
 
     title: "Makine \u00C7eviri - Makine Launcher"
-    color: (window._authReady && !window._onboardingActive) ? Theme.bgPrimary : "#0d1117"
+    color: !window._onboardingActive ? Theme.bgPrimary : "#0d1117"
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
     // Aspect ratio lock handled natively via WM_SIZING in C++ (main.cpp)
     // — zero recursive bindings, zero frame drops during resize
-    // Auth gate — blocks all content until authenticated
-    readonly property bool _authReady: typeof AuthService !== "undefined"
-                                       && AuthService.isAuthenticated
 
     Component.onCompleted: {
-        // Auth token check moved to C++ splash phase (main.cpp) —
-        // state is already resolved by the time QML loads.
         if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
     }
@@ -254,14 +249,14 @@ ApplicationWindow {
     AppBackground {
         anchors.fill: parent
         z: -1
-        visible: window._authReady
+        visible: !window._onboardingActive
     }
 
     ColumnLayout {
         id: mainContent
         anchors.fill: parent
         spacing: 0
-        visible: !window._onboardingActive && window._authReady
+        visible: !window._onboardingActive
 
         // ===== TITLE BAR (32px) =====
         TitleBar {
@@ -795,7 +790,7 @@ ApplicationWindow {
     Loader {
         id: onboardingLoader
         anchors.fill: parent
-        active: !window._authReady || window._onboardingActive
+        active: window._onboardingActive
         z: Dimensions.zOverlay
         sourceComponent: Component {
             OnboardingWizard {
