@@ -1,0 +1,45 @@
+name: QML Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'qml/**/*.qml'
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qmllint:
+    name: QML Lint (self-hosted)
+    runs-on: [self-hosted, Windows, X64]
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+          set-safe-directory: false
+
+      - name: Run qmllint
+        run: |
+          $qmllint = "C:\Qt\6.10.1\mingw_64\bin\qmllint.exe"
+          if (!(Test-Path $qmllint)) {
+            Write-Host "qmllint not found, skipping"
+            exit 0
+          }
+          $files = Get-ChildItem -Path "qml" -Filter "*.qml" -Recurse | Select-Object -ExpandProperty FullName
+          $errors = 0
+          foreach ($f in $files) {
+            $result = & $qmllint $f 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "WARN: $f"
+              Write-Host $result
+              $errors++
+            }
+          }
+          Write-Host ""
+          Write-Host "QML lint complete — $errors file(s) with warnings (out of $($files.Count) total)"
+        env:
+          PATH: C:\Qt\6.10.1\mingw_64\bin;C:\Qt\Tools\CMake_64\bin;${{ env.PATH }}
