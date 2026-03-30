@@ -7,36 +7,19 @@ import "screens/onboarding"
 pragma ComponentBehavior: Bound
 
 /**
- * OnboardingWizard.qml — Unified auth + onboarding experience
+ * OnboardingWizard.qml — First-launch onboarding experience
  *
- * Modes:
- *   firstLaunch (!onboardingCompleted): 4 steps with dots
- *   returningUser (onboardingCompleted): login only, no dots
- *
- * Background: LoginScreen's premium neon gradient (preserved pixel-perfect).
- * Steps: WelcomeLoginStep → ThemeStep → ScanStep → ReadyStep
+ * 3 steps: ThemeStep → ScanStep → ReadyStep
+ * Background: Premium neon gradient (preserved pixel-perfect).
  */
 Item {
     id: root
 
     signal wizardFinished()
 
-    // Mode detection
-    readonly property bool returningUser: typeof SettingsManager !== "undefined"
-                                          && SettingsManager.onboardingCompleted
-
     property int currentStep: 0
     readonly property int totalSteps: 4
     readonly property bool isLastStep: currentStep === totalSteps - 1
-
-    Component.onCompleted: {
-        // Crash recovery: if already authenticated but onboarding not done,
-        // skip to ThemeStep (step 1)
-        if (!returningUser && typeof AuthService !== "undefined"
-                && AuthService.isAuthenticated) {
-            currentStep = 1
-        }
-    }
 
     // =========================================================================
     // NEON GRADIENT BACKGROUND (from LoginScreen — DO NOT MODIFY)
@@ -95,10 +78,10 @@ Item {
         anchors.top: parent.top
         z: 10
 
-        // Tray — disabled on first launch (system tray not yet initialized)
+        // Tray — disabled during onboarding (system tray not yet initialized)
         Rectangle {
             width: 46; height: 32
-            visible: root.returningUser
+            visible: false
             color: trayMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
             Text {
                 anchors.centerIn: parent
@@ -210,19 +193,11 @@ Item {
         id: stepStack
         anchors.fill: parent
         anchors.topMargin: 40
-        anchors.bottomMargin: root.returningUser ? 0 : 56
+        anchors.bottomMargin: 56
         currentIndex: root.currentStep
 
         WelcomeLoginStep {
-            returningUser: root.returningUser
-            onLoginSuccess: {
-                if (root.returningUser) {
-                    // Returning user: reactive hide via _authReady becoming true.
-                    // Do NOT call wizardFinished — it would trigger scanAllLibraries.
-                } else {
-                    root.currentStep = 1
-                }
-            }
+            onLoginSuccess: root.currentStep = 1
         }
 
         ThemeStep {
@@ -250,7 +225,7 @@ Item {
         anchors.leftMargin: 60
         anchors.rightMargin: 60
         height: 32
-        visible: !root.returningUser
+        visible: true
 
         Item { Layout.fillWidth: true }
 
