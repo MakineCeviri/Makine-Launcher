@@ -192,3 +192,6 @@ verify_backup/
 backup_restore/
 external/
 .claude/worktrees/
+
+# Updater runtime marker
+update.finished

@@ -1,0 +1,7 @@
+[defaults]
+org = makine-ceviri
+project = native
+url = https://makine-ceviri.sentry.io/
+
+[auth]
+# Token loaded from SENTRY_AUTH_TOKEN env var (see .env)
