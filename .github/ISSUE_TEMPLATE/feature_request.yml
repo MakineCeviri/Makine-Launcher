@@ -1,0 +1,29 @@
+name: Özellik İsteği
+description: Yeni bir özellik önerin
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Özellik Açıklaması
+      description: Ne istediğinizi açıklayın.
+      placeholder: Özelliğin detaylı açıklaması...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivasyon
+      description: Bu özellik neden gerekli?
+      placeholder: Bu özellik olmadan karşılaştığınız sorunlar...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatifler
+      description: Düşündüğünüz alternatif çözümler varsa belirtin.
+    validations:
+      required: false

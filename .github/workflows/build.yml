@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Dev Build (self-hosted)
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Prepare git
+        run: git config --global --add safe.directory C:\actions-runner\_work\Makine-Launcher\Makine-Launcher
+
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+          set-safe-directory: false
+
+      - name: Configure
+        run: cmake --preset dev
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64\bin;${{ env.PATH }}
+
+      - name: Build
+        run: cmake --build --preset dev
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64\bin;${{ env.PATH }}
+
+      - name: Report
+        if: always()
+        run: |
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Build OK — commit ${{ github.sha }}"
+          } else {
+            Write-Host "Build FAILED — see above for errors"
+            exit 1
+          }
