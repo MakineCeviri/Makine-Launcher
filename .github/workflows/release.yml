@@ -24,11 +24,14 @@ jobs:
           clean: false
           set-safe-directory: false
 
-      - name: Generate encryption header
-        env:
-          MKPK_KEY: ${{ secrets.MKPK_KEY }}
+      - name: Inject encryption header (preserve existing key)
         run: |
-          & "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe" scripts/generate_encryption_header.py $env:MKPK_KEY
+          $src = "C:\Workspace\Makine\Makine-Launcher-Dev\qml\src\services\encryption_key.h"
+          $dst = "qml\src\services\encryption_key.h"
+          if (!(Test-Path $src)) { throw "Reference encryption_key.h not found at $src" }
+          New-Item -ItemType Directory -Force -Path (Split-Path $dst) | Out-Null
+          Copy-Item $src $dst -Force
+          Write-Host "Encryption header injected from reference"
 
       - name: Configure static build
         run: cmake --preset release-static
