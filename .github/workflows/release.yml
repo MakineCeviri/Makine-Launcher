@@ -62,7 +62,7 @@ jobs:
           Compress-Archive -Path "build\release-static\Makine-Launcher.exe" -DestinationPath "Makine-Launcher-v${{ inputs.version }}-win64.zip" -Force
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Makine-Launcher-v${{ inputs.version }}-win64
           path: |
