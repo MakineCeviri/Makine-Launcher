@@ -166,7 +166,7 @@ Item {
             property real _pulse: 1.0
             opacity: UpdateService.state === UpdateService.Available ? _pulse : 1.0
             SequentialAnimation on _pulse {
-                running: UpdateService.state === UpdateService.Available
+                running: UpdateService.state === UpdateService.Available && navBarRoot.animationsEnabled
                 loops: Animation.Infinite
                 NumberAnimation { to: 0.65; duration: 1200; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 1.0; duration: 1200; easing.type: Easing.InOutSine }
