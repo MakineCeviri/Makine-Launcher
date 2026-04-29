@@ -688,6 +688,14 @@ static void setupPerfReporting(QGuiApplication& app, int argc, char* argv[]);
 
 static void configureQtEnvironment()
 {
+    // === HIGH-DPI ROUNDING POLICY ===
+    // PassThrough preserves fractional DPI scale (e.g. 125%, 150%) instead
+    // of rounding to integer. This prevents layout jumps and font metric
+    // shifts when the window crosses between monitors with different DPI
+    // (e.g. 4K @ 150% ↔ 1080p @ 100%). Must be set before QGuiApplication.
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
     // === RENDER LOOP ===
     // "threaded" = render on separate thread, overlaps CPU+GPU work.
     // "basic" = single-threaded, best idle efficiency but blocks main thread during render.

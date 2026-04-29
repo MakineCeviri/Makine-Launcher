@@ -31,8 +31,30 @@ ApplicationWindow {
     // — zero recursive bindings, zero frame drops during resize
 
     Component.onCompleted: {
+        // Freeze geometry — assigning the current value back breaks the
+        // Screen.width / Screen.height bindings above, so dragging the
+        // window to another monitor will not resize or recenter it.
+        const w = window.width, h = window.height, xx = window.x, yy = window.y
+        window.width = w
+        window.height = h
+        window.x = xx
+        window.y = yy
+
         if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
+    }
+
+    // Cross-monitor refresh — when the window crosses to a screen with a
+    // different DPI or refresh rate, briefly nudge the width to force the
+    // QML scene graph to re-evaluate font metrics, layouts and atlas
+    // textures with the new pixel ratio. Without this, the user can see
+    // stale glyph rendering or one-frame layout glitches at the boundary.
+    onScreenChanged: {
+        Qt.callLater(function() {
+            const w = window.width
+            window.width = w + 1
+            window.width = w
+        })
     }
 
     property int currentNavIndex: 0
@@ -218,15 +240,19 @@ ApplicationWindow {
         onActivated: GameService.checkForUpdates()
     }
 
-    // GPU Optimization: Disable animations only when minimized or hidden.
-    // Animations keep running when window loses focus (e.g. user switches app
-    // during install) so shimmer/glow still shows the app is alive.
+    // GPU/CPU Optimization: Pause animations whenever the app is not the
+    // active foreground application. This keeps idle background draw cost
+    // near zero — users reported the launcher consuming resources while
+    // they were focused on other apps. Background work (downloads, installs,
+    // manifest sync) continues independently in the C++ services layer.
     readonly property bool animationsEnabled: SettingsManager.enableAnimations &&
                                               window.visible &&
                                               window.visibility !== Window.Minimized &&
-                                              window.visibility !== Window.Hidden
+                                              window.visibility !== Window.Hidden &&
+                                              Qt.application.state === Qt.ApplicationActive
 
-    // Visibility-aware resource management
+    // Visibility-aware resource management (used by ProcessScanner watcher
+    // below — keeps the slow-poll path when minimized but still in taskbar).
     readonly property bool windowActive: window.visible &&
                                          window.visibility !== Window.Minimized &&
                                          window.visibility !== Window.Hidden
