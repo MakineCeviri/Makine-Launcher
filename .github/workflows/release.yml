@@ -54,7 +54,8 @@ jobs:
       - name: Generate SHA256
         run: |
           $hash = (Get-FileHash "build\release-static\Makine-Launcher.exe" -Algorithm SHA256).Hash
-          $hash | Out-File -FilePath "build\release-static\SHA256SUMS.txt" -Encoding utf8
+          # ASCII keeps the file BOM-free across PowerShell 5/7 runners — hex hash is ASCII-safe
+          $hash | Out-File -FilePath "build\release-static\SHA256SUMS.txt" -Encoding ascii
           Write-Host "SHA256: $hash"
 
       - name: Create ZIP
@@ -75,6 +76,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $hash = Get-Content "build\release-static\SHA256SUMS.txt" -Raw
+          # Strip a UTF-8 BOM if a previous run wrote one — keeps the release-notes hash clean
+          $hash = $hash.TrimStart([char]0xFEFF)
           $body = @"
           ## Makine-Launcher v${{ inputs.version }}
 
