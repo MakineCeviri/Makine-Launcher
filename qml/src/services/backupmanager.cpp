@@ -141,6 +141,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
         const QString canonGamePath = QDir(gamePath).canonicalPath();
         qint64 totalSize = 0;
         int copiedFiles = 0;
+        int failedFiles = 0;
         int total = filesToOverwrite.size();
         QSet<QString> createdDirs;
 
@@ -164,6 +165,10 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             if (QFile::copy(sourceFile, destFile)) {
                 totalSize += QFileInfo(destFile).size();
                 copiedFiles++;
+            } else {
+                failedFiles++;
+                qCWarning(lcBackup) << "Backup copy failed:" << sourceFile
+                                    << "->" << destFile;
             }
 
             // Throttle progress
@@ -173,6 +178,12 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
                     emit backupProgress(progress, tr("Yedekleniyor: %1/%2").arg(i + 1).arg(total));
                 }, Qt::QueuedConnection);
             }
+        }
+
+        if (failedFiles > 0) {
+            qCWarning(lcBackup) << "Selective backup partial:" << gameId
+                                << copiedFiles << "/" << total << "copied,"
+                                << failedFiles << "failed";
         }
 
         // Save backup info on main thread
