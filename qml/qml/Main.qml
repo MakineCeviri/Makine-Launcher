@@ -794,6 +794,7 @@ ApplicationWindow {
         z: Dimensions.zOverlay
         sourceComponent: Component {
             OnboardingWizard {
+                animationsEnabled: window.animationsEnabled
                 onWizardFinished: {
                     // Only scan + persist for first-launch (not returning users)
                     if (window._onboardingActive) {

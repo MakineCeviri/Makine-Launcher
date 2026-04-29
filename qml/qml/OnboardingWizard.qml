@@ -20,6 +20,8 @@ Item {
     property int currentStep: 0
     readonly property int totalSteps: 4
     readonly property bool isLastStep: currentStep === totalSteps - 1
+    // Pause idle animations when window is minimized/hidden to save GPU
+    property bool animationsEnabled: true
 
     // =========================================================================
     // NEON GRADIENT BACKGROUND (from LoginScreen — DO NOT MODIFY)
@@ -39,6 +41,7 @@ Item {
         fillMode: Image.Stretch
 
         SequentialAnimation on x {
+            running: root.visible && root.animationsEnabled
             loops: Animation.Infinite
             NumberAnimation { to: -root.width * 5; duration: 25000; easing.type: Easing.InOutSine }
             NumberAnimation { to: 0; duration: 25000; easing.type: Easing.InOutSine }
