@@ -738,6 +738,8 @@ void UpdateService::downloadGitHubAsset()
 
     auto *reply = m_nam.get(request);
     connect(reply, &QNetworkReply::redirected, this, [this, reply](const QUrl &url) {
+        // Mark so the parallel finished-handler skips this reply (B2-06 race)
+        reply->setProperty("makineRedirected", true);
         reply->deleteLater();
 
         // Step 2: Follow redirect to presigned S3 URL (no auth needed)
@@ -812,6 +814,10 @@ void UpdateService::downloadGitHubAsset()
 
     // Handle case where GitHub doesn't redirect (error)
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        // The redirected lambda already owns this reply lifetime; bail out so
+        // we don't double-deleteLater or race against the new download reply.
+        if (reply->property("makineRedirected").toBool())
+            return;
         if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 302) {
             if (m_state == Downloading) {
                 setError(QStringLiteral("GitHub asset download failed: %1").arg(reply->errorString()));
