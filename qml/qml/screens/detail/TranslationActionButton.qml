@@ -123,7 +123,9 @@ Rectangle {
         color: "transparent"
         property real pos: 0
         NumberAnimation on pos {
-            running: shimmer.visible && actionBtn.visible
+            running: shimmer.visible && actionBtn.visible &&
+                     SettingsManager.enableAnimations &&
+                     Qt.application.state === Qt.ApplicationActive
             from: -0.3; to: 1.3; duration: Dimensions.animLoadingCycle
             loops: Animation.Infinite
         }
