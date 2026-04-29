@@ -41,7 +41,9 @@ Item {
                         opacity: 0.3
 
                         SequentialAnimation on opacity {
-                            running: overlay.vm.isLoadingSteamDetails && !overlay.vm.hasSteamDetails
+                            running: overlay.vm.isLoadingSteamDetails && !overlay.vm.hasSteamDetails &&
+                                     SettingsManager.enableAnimations &&
+                                     Qt.application.state === Qt.ApplicationActive
                             loops: Animation.Infinite
                             PauseAnimation { duration: index * 150 }
                             NumberAnimation { to: 1.0; duration: 400; easing.type: Easing.OutQuad }

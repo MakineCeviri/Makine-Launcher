@@ -116,9 +116,14 @@ ColumnLayout {
                             Rectangle { width: 8; height: 8; radius: 4
                                 color: OcrController.ocrActive ? Theme.error : Theme.success
                                 anchors.verticalCenter: parent.verticalCenter
-                                SequentialAnimation on opacity { running: OcrController.processing; loops: Animation.Infinite
+                                SequentialAnimation on opacity {
+                                    running: OcrController.processing &&
+                                             SettingsManager.enableAnimations &&
+                                             Qt.application.state === Qt.ApplicationActive
+                                    loops: Animation.Infinite
                                     NumberAnimation { to: 0.3; duration: 400 }
-                                    NumberAnimation { to: 1.0; duration: 400 } } }
+                                    NumberAnimation { to: 1.0; duration: 400 }
+                                } }
                             Text { textFormat: Text.PlainText
                                 text: OcrController.ocrActive ? qsTr("Durdur") : qsTr("Ba\u015Flat")
                                 font.pixelSize: Dimensions.fontSM; font.weight: Font.Medium
