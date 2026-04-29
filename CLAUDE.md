@@ -95,11 +95,19 @@ Makine-Launcher-Dev/
 
 ## Build
 
+### First-time Setup
+
+`encryption_key.h` is gitignored. Generate it once after fresh clone (required for non-`dev-ui` builds):
+
+```bash
+python scripts/generate_key_header.py   # reads scripts/.encryption_key → qml/src/services/encryption_key.h
+```
+
 ### Commands
 
 ```bash
 just dev          # MinGW dev build (Core+UI, vcpkg required)
-just dev-ui       # UI-only build (no vcpkg needed)
+just dev-ui       # UI-only build (no vcpkg needed, encryption_key.h not required)
 just run          # Run after build
 just test         # Run tests
 just core         # Core library only (MSVC)
