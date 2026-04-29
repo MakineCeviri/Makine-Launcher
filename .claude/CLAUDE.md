@@ -1,10 +1,12 @@
 # Makine-Launcher — Claude Context
 
 > **Qt6/QML + C++23 oyun çeviri launcher**
-> **Repo:** `origin` → Makine-Launcher-Dev (private) · `public` → Makine-Launcher (public)
-> **Durum:** v0.1.0-alpha ~%92 | Blockers: Static Qt build, MSIX signing
+> **Repo:** `origin` → Makine-Launcher-Dev (private, canonical) · `public` → Makine-Launcher (public, SignPath.io trust)
+> **Durum:** v0.1.0-beta | Kod dev↔public sync (gerçek fark sadece `.gitignore` + `release.yml`)
+> **Blockers:** Static build (`release-static` 0 byte), MSIX signing, Apex CDN geçişi (3 zip bekliyor)
 >
 > Build, conventions, gotchas → **`CLAUDE.md`** (proje kökü)
+> Beta hazırlık akışı, key üretim, repo sync detayları → memory dosyaları (`~/.claude/projects/.../memory/`)
 
 ---
 
