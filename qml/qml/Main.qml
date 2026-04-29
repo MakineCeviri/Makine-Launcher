@@ -857,7 +857,7 @@ ApplicationWindow {
 
             SequentialAnimation on x {
                 id: loadingShimmerAnim
-                running: globalLoadingBar.visible
+                running: globalLoadingBar.visible && root.animationsEnabled
                 loops: Animation.Infinite
                 NumberAnimation {
                     from: -globalLoadingBar.width * 0.3
