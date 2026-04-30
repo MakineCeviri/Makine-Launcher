@@ -134,19 +134,8 @@ ApplicationWindow {
         }
     }
 
-    // ===== TRANSLATION DOWNLOADER: route signals to InstallFlowController =====
-    Connections {
-        target: TranslationDownloader
-        function onPackageReady(appId, dirName) {
-            installFlow.onDownloadReady(appId)
-        }
-        function onDownloadError(appId, error) {
-            installFlow.onDownloadFailed(appId, error)
-        }
-        function onDownloadCancelled(appId) {
-            installFlow.onDownloadFailed(appId, "")
-        }
-    }
+    // TranslationDownloader → InstallFlowService is wired natively in
+    // main.cpp (B2-03) so the install pipeline survives QML reload/GC.
 
     // ===== GAME SERVICE: anti-cheat + translation impact signals =====
     Connections {
