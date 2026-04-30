@@ -47,8 +47,24 @@ bool SelfUpdater::swapExecutable(const QString& newExePath)
     if (!MoveFileW(wNewPath.c_str(), wAppPath.c_str())) {
         DWORD err = GetLastError();
         qCWarning(lcSelfUpdater) << "SelfUpdater: Failed to move new EXE, error:" << err;
-        // Rollback: restore the original
-        MoveFileW(wOldPath.c_str(), wAppPath.c_str());
+        // Rollback: restore the original. If this also fails, the app EXE
+        // is missing — drop a marker so swapAndRestart can surface the brick.
+        if (!MoveFileW(wOldPath.c_str(), wAppPath.c_str())) {
+            DWORD rollbackErr = GetLastError();
+            qCCritical(lcSelfUpdater) << "SelfUpdater: ROLLBACK FAILED — app EXE missing!"
+                                      << "Backup at:" << oldPath
+                                      << "Rollback error:" << rollbackErr;
+            QFile marker(appPath + QStringLiteral(".rollback_failed"));
+            if (marker.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                const QByteArray msg = QStringLiteral(
+                    "Makine Launcher self-update rollback failed.\n"
+                    "Original EXE preserved at: %1\n"
+                    "Move/Win32 error code: %2\n").arg(oldPath).arg(rollbackErr).toUtf8();
+                marker.write(msg);
+            }
+        } else {
+            qCWarning(lcSelfUpdater) << "SelfUpdater: rolled back to original EXE";
+        }
         return false;
     }
 
@@ -136,6 +152,20 @@ void SelfUpdater::swapAndRestart(const QString& newExePath)
 
     if (!swapExecutable(newExePath)) {
         qCWarning(lcSelfUpdater) << "SelfUpdater: swap failed, aborting restart";
+#ifdef Q_OS_WIN
+        const QString appPath = QCoreApplication::applicationFilePath();
+        const QString markerPath = appPath + QStringLiteral(".rollback_failed");
+        if (QFile::exists(markerPath)) {
+            const QString backupPath = appPath + QStringLiteral(".old");
+            const std::wstring wTitle = L"Makine Launcher — Update Failed";
+            const std::wstring wMsg = QStringLiteral(
+                "Self-update failed and rollback could not restore the original EXE.\n\n"
+                "The launcher is currently broken. Manual restore:\n"
+                "1) Close this dialog.\n"
+                "2) Rename:\n      %1\n   back to:\n      %2\n").arg(backupPath, appPath).toStdWString();
+            MessageBoxW(nullptr, wMsg.c_str(), wTitle.c_str(), MB_ICONERROR | MB_OK);
+        }
+#endif
         // Cannot return from [[noreturn]] — force exit
         ::_exit(1);
     }
