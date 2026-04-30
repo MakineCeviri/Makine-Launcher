@@ -1050,6 +1050,19 @@ static void createServices(
         CoreBridge::instance(), &app);
     engine.rootContext()->setContextProperty("InstallFlowService", installFlow);
 
+    // B2-03: route TranslationDownloader signals natively so the install
+    // pipeline cannot stall when the QML controller is reloaded or GC'd.
+    QObject::connect(translationDownloader, &makine::TranslationDownloader::packageReady,
+                     installFlow, [installFlow](const QString& appId, const QString& /*dirName*/) {
+                         installFlow->onDownloadReady(appId);
+                     });
+    QObject::connect(translationDownloader, &makine::TranslationDownloader::downloadError,
+                     installFlow, &makine::InstallFlowService::onDownloadFailed);
+    QObject::connect(translationDownloader, &makine::TranslationDownloader::downloadCancelled,
+                     installFlow, [installFlow](const QString& appId) {
+                         installFlow->onDownloadFailed(appId, QString{});
+                     });
+
     logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN
     splash.pumpMessages();
