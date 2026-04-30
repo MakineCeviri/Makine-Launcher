@@ -219,8 +219,13 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
     connect(reply, &QNetworkReply::finished, this,
         [this, reply, partFile, appId]() {
-            reply->deleteLater();
+            // B2-08: flush before close so the tail of the last
+            // buffered chunk persists even if NAM/reply is torn down at
+            // shutdown — the implicit QFile destructor close() does not
+            // guarantee the bytes the resume logic later trusts.
+            partFile->flush();
             partFile->close();
+            reply->deleteLater();
 
             auto it = m_activeDownloads.find(appId);
             if (it == m_activeDownloads.end()) return;
