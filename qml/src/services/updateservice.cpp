@@ -368,8 +368,9 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
     }
 
 #ifdef Q_OS_WIN
-#ifndef MAKINE_DEV_TOOLS
-    // Verify Authenticode signature
+#ifdef MAKINE_RELEASE_VERIFIED
+    // Verify Authenticode signature (gated on RELEASE_VERIFIED so DEV_TOOLS,
+    // which controls UI/perf surfaces, can never disable signature checks)
     if (!SelfUpdater::verifySignature(filePath)) {
         setError(QStringLiteral("Dijital imza doğrulanamadı. Dosya değiştirilmiş olabilir."));
         QFile::remove(filePath);
@@ -377,7 +378,7 @@ void UpdateService::verifyAndFinalize(const QString& filePath)
         return;
     }
 #else
-    qCDebug(lcUpdateService) << "UpdateService: Skipping Authenticode check (dev build)";
+    qCWarning(lcUpdateService) << "UpdateService: Skipping Authenticode check (build without MAKINE_RELEASE_VERIFIED)";
 #endif
 #endif
 
