@@ -150,7 +150,8 @@
         "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
         "VCPKG_MANIFEST_MODE": "OFF",
-        "MAKINE_CRASH_REPORTING": "ON"
+        "MAKINE_CRASH_REPORTING": "ON",
+        "MAKINE_RELEASE_VERIFIED": "ON"
       }
     },
     {

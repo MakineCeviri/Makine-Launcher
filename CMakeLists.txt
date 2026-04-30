@@ -108,6 +108,20 @@ if(MAKINE_RELEASE_VERIFIED)
     add_compile_definitions(MAKINE_RELEASE_VERIFIED)
     message(STATUS "Release verification: ENABLED (SSL pin check + integrity service)")
 endif()
+
+# Invariant: a distribution-shaped build (Release type, no DEV_TOOLS) without
+# RELEASE_VERIFIED skips Authenticode + SSL pin + integrity service. Dev
+# builds use DEV_TOOLS so they bypass this. Release/release-static must
+# always set RELEASE_VERIFIED=ON — surface the gap loudly if they don't.
+if(CMAKE_BUILD_TYPE STREQUAL "Release"
+   AND NOT MAKINE_RELEASE_VERIFIED
+   AND NOT MAKINE_DEV_TOOLS)
+    message(WARNING
+        "Distribution-shaped build (Release, no DEV_TOOLS) without "
+        "MAKINE_RELEASE_VERIFIED=ON. Authenticode signature checks and "
+        "SSL pin validation are DISABLED. This must NEVER be used for "
+        "public distribution.")
+endif()
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "====================================")
 message(STATUS "")
