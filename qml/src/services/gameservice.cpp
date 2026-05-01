@@ -1284,8 +1284,19 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                 emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
 
                 connect(bm, &BackupManager::selectiveBackupCompleted, this,
-                    [this, gameId, installPath, variant, selectedOptions](const QString& backupGameId, bool /*success*/) {
+                    [this, gameId, installPath, variant, selectedOptions](const QString& backupGameId, bool success) {
                         if (backupGameId != gameId) return;
+                        if (!success) {
+                            // Without a backup we cannot offer safe rollback, and the patch
+                            // would silently destroy the originals on the next uninstall.
+                            qCWarning(lcGameService) << "Selective backup failed for" << gameId
+                                                      << "— aborting install to protect originals";
+                            m_installingGameId.clear();
+                            emit translationInstallCompleted(gameId, false,
+                                tr("Yedek oluşturulamadı, kurulum iptal edildi. "
+                                   "Disk alanı veya yazma iznini kontrol edin."));
+                            return;
+                        }
                         qCDebug(lcGameService) << "Installing translation for" << gameId
                                  << "variant:" << (variant.isEmpty() ? "(none)" : variant)
                                  << "options:" << selectedOptions
