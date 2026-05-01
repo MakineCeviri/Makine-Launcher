@@ -375,42 +375,57 @@ QString LocalPackageManager::installedStatePath() const
 LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
     const QString& src, const QString& dest)
 {
-    // Remove existing dest first; if removal fails, classify immediately
-    if (QFile::exists(dest)) {
-        if (!QFile::remove(dest)) {
-            // dest exists but cannot be removed — probe why
-            QFile probe(dest);
-            if (!probe.open(QIODevice::WriteOnly)) {
-                auto fe = probe.error();
-                if (fe == QFileDevice::PermissionsError)
-                    return {false, CopyError::PermissionDenied};
-                if (fe == QFileDevice::ResourceError)
-                    return {false, CopyError::DiskFull};
+    // Single attempt: try the copy and classify the failure mode.
+    auto attempt = [&]() -> CopyResult {
+        // Remove existing dest first; if removal fails, classify immediately
+        if (QFile::exists(dest)) {
+            if (!QFile::remove(dest)) {
+                QFile probe(dest);
+                if (!probe.open(QIODevice::WriteOnly)) {
+                    auto fe = probe.error();
+                    if (fe == QFileDevice::PermissionsError)
+                        return {false, CopyError::PermissionDenied};
+                    if (fe == QFileDevice::ResourceError)
+                        return {false, CopyError::DiskFull};
+                }
+                return {false, CopyError::FileLocked};
             }
-            // Most likely locked by another process
-            return {false, CopyError::FileLocked};
         }
-    }
 
-    if (QFile::copy(src, dest)) return {true, CopyError::None};
+        if (QFile::copy(src, dest)) return {true, CopyError::None};
 
-    // Copy failed — classify by probing destination writability
-    QFile probe(dest);
-    if (!probe.open(QIODevice::WriteOnly)) {
-        auto fe = probe.error();
-        if (fe == QFileDevice::PermissionsError)
-            return {false, CopyError::PermissionDenied};
-        if (fe == QFileDevice::ResourceError)
-            return {false, CopyError::DiskFull};
-        // OpenError is generic (dir, path too long, lock, etc.) — treat as FileLocked
-        // only if dest parent dir exists (otherwise it is a path issue = Other)
-        if (fe == QFileDevice::OpenError && QFileInfo(dest).absoluteDir().exists())
-            return {false, CopyError::FileLocked};
-    } else {
-        probe.close();
-        probe.remove();
+        QFile probe(dest);
+        if (!probe.open(QIODevice::WriteOnly)) {
+            auto fe = probe.error();
+            if (fe == QFileDevice::PermissionsError)
+                return {false, CopyError::PermissionDenied};
+            if (fe == QFileDevice::ResourceError)
+                return {false, CopyError::DiskFull};
+            if (fe == QFileDevice::OpenError && QFileInfo(dest).absoluteDir().exists())
+                return {false, CopyError::FileLocked};
+        } else {
+            probe.close();
+            probe.remove();
+        }
+        return {false, CopyError::Other};
+    };
+
+    // First try — the common case where the destination is free.
+    CopyResult result = attempt();
+    if (result.ok || result.error != CopyError::FileLocked)
+        return result;
+
+    // FileLocked: antivirus / Steam scanner / Game Bar may hold the file
+    // for several seconds. Back off exponentially before giving up.
+    static constexpr int kBackoffMs[] = {150, 500, 2000, 5000}; // ~7.6s total
+    for (int delay : kBackoffMs) {
+        if (isCancelled()) return result;
+        QThread::msleep(delay);
+        result = attempt();
+        if (result.ok || result.error != CopyError::FileLocked)
+            return result;
     }
-    return {false, CopyError::Other};
+    return result;
 }
 
 LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
@@ -429,11 +444,18 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     }
     result.started = true;
 
-    constexpr int kPollMs = 3000;
-    constexpr int kMaxMs  = 1800000; // 30 minutes
+    constexpr int kPollMs = 1000;        // Poll faster so cancel feels responsive
+    constexpr int kMaxMs  = 1800000;     // 30 minutes hard cap
     int elapsed = 0;
 
     while (!proc.waitForFinished(kPollMs)) {
+        if (isCancelled()) {
+            qCInfo(lcPackageManager) << "Process cancelled by user:" << exePath;
+            proc.kill();
+            proc.waitForFinished(2000);
+            result.cancelled = true;
+            return result;
+        }
         elapsed += kPollMs;
         if (elapsed >= kMaxMs) {
             qCWarning(lcPackageManager) << "Process timeout:" << exePath;
@@ -1236,6 +1258,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                         .arg(secs, 2, 10, QChar('0')));
             });
 
+        if (result.cancelled) return StepOutcome::Cancelled;
         if (!result.started || result.timedOut) {
             return StepOutcome::SoftError;
         }
@@ -1392,8 +1415,12 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                                           progress, current, total,
                                           QString{}, pkg.steamAppId,
                                           installedFiles);
-        if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
+        if (outcome == StepOutcome::FatalError) return; // fatal() already emitted
+        if (outcome == StepOutcome::Cancelled) {
+            if (m_journal) m_journal->abortOperation();
+            emit installCompleted(false, tr("Kurulum iptal edildi"));
             return;
+        }
         if (outcome == StepOutcome::SoftError) {
             errors++;
             // Collect detail about what failed
@@ -1505,8 +1532,12 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                                               progress, current, totalSteps,
                                               prefix, pkg.steamAppId,
                                               installedFiles);
-            if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
+            if (outcome == StepOutcome::FatalError) return;
+            if (outcome == StepOutcome::Cancelled) {
+                if (m_journal) m_journal->abortOperation();
+                emit installCompleted(false, tr("Kurulum iptal edildi"));
                 return;
+            }
             if (outcome == StepOutcome::SoftError)
                 errors++;
         }
@@ -1523,8 +1554,12 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                                               progress, current, totalSteps,
                                               QString{}, pkg.steamAppId,
                                               installedFiles);
-            if (outcome == StepOutcome::FatalError || outcome == StepOutcome::Cancelled)
+            if (outcome == StepOutcome::FatalError) return;
+            if (outcome == StepOutcome::Cancelled) {
+                if (m_journal) m_journal->abortOperation();
+                emit installCompleted(false, tr("Kurulum iptal edildi"));
                 return;
+            }
             if (outcome == StepOutcome::SoftError)
                 errors++;
         }

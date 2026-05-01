@@ -195,6 +195,7 @@ private:
     struct ProcessResult {
         bool started = false;
         bool timedOut = false;
+        bool cancelled = false;
         int exitCode = -1;
         QByteArray output;
     };
