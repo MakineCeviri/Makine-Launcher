@@ -360,6 +360,67 @@ bool TranslationDownloader::isDownloading(const QString& appId) const
     return m_activeDownloads.contains(appId);
 }
 
+// Map raw extraction error messages to user-friendly Turkish.
+// Keeps technical detail (paths, byte counts) out of the dialog.
+static QString categorizeExtractError(const QString& raw)
+{
+    if (raw.contains(QLatin1String("authentication tag mismatch")) ||
+        raw.startsWith(QLatin1String("Decryption failed")))
+        return TranslationDownloader::tr(
+            "Paket bozuk veya kurcalanmış (kimlik doğrulama başarısız). "
+            "Tekrar indirmeyi deneyin.");
+
+    if (raw.contains(QLatin1String("Invalid MKPK")) ||
+        raw.contains(QLatin1String("File too small")) ||
+        raw.contains(QLatin1String("Tar truncated")) ||
+        raw.contains(QLatin1String("Tar data too small")))
+        return TranslationDownloader::tr(
+            "Paket dosyası bozuk veya eksik indirildi. Tekrar deneyin.");
+
+    if (raw.contains(QLatin1String("zstd")) ||
+        raw.contains(QLatin1String("Not valid zstd")))
+        return TranslationDownloader::tr(
+            "Paket çözümleme hatası — dosya bozuk olabilir. Tekrar indirmeyi deneyin.");
+
+    if (raw.contains(QLatin1String("Unsupported MKPK version")))
+        return TranslationDownloader::tr(
+            "Paket sürümü desteklenmiyor — uygulamayı güncellemeniz gerekiyor.");
+
+    if (raw.contains(QLatin1String("Path traversal")))
+        return TranslationDownloader::tr(
+            "Güvenlik hatası: paket geçersiz dosya yolu içeriyor.");
+
+    if (raw.contains(QLatin1String("locked")))
+        return TranslationDownloader::tr(
+            "Dosya kilitli — oyun açıksa kapatıp tekrar deneyin.");
+
+    if (raw.contains(QLatin1String("disk full")) ||
+        raw.contains(QLatin1String("Write failed")))
+        return TranslationDownloader::tr(
+            "Disk alanı yetersiz — boş alanı kontrol edip tekrar deneyin.");
+
+    if (raw.contains(QLatin1String("Out of memory")) ||
+        raw.contains(QLatin1String("memory-map")))
+        return TranslationDownloader::tr(
+            "Bellek yetersiz — diğer uygulamaları kapatıp tekrar deneyin.");
+
+    if (raw.contains(QLatin1String("Package too large")))
+        return TranslationDownloader::tr(
+            "Paket boyutu güvenlik sınırını aşıyor.");
+
+    if (raw.contains(QLatin1String("Cannot clean stale")))
+        return TranslationDownloader::tr(
+            "Önceki kurulum kalıntıları temizlenemedi — uygulamayı yeniden başlatın.");
+
+    if (raw.contains(QLatin1String("Cannot open")) ||
+        raw.contains(QLatin1String("empty")) ||
+        raw.contains(QLatin1String("read")))
+        return TranslationDownloader::tr(
+            "İndirilen dosya okunamadı. Tekrar deneyin.");
+
+    return TranslationDownloader::tr("Paket açma hatası: %1").arg(raw);
+}
+
 void TranslationDownloader::processDownloadedFile(
     const QString& appId,
     const QString& tempPath,
@@ -374,6 +435,25 @@ void TranslationDownloader::processDownloadedFile(
         -> std::pair<int, std::string>
     {
         try {
+            // Clean stale extraction from a previous crashed install.
+            // If the dir has any entries, the prior run died mid-extract and
+            // tar would either refuse to overwrite existing files or leave a
+            // mixed-version directory. Either way we must start fresh.
+            QDir destDirObj(destDir);
+            if (destDirObj.exists()) {
+                const auto staleEntries = destDirObj.entryList(
+                    QDir::NoDotAndDotDot | QDir::AllEntries);
+                if (!staleEntries.isEmpty()) {
+                    qCWarning(lcDownloader)
+                        << "stale extraction found at" << destDir
+                        << "with" << staleEntries.size() << "entries — cleaning";
+                    if (!destDirObj.removeRecursively()) {
+                        return {-1, "Cannot clean stale extraction directory: "
+                                + destDir.toStdString()};
+                    }
+                }
+            }
+
             QFile file(tempPath);
             if (!file.open(QIODevice::ReadOnly)) {
                 return {-1, "Cannot open downloaded file: " + tempPath.toStdString()};
@@ -453,8 +533,10 @@ void TranslationDownloader::processDownloadedFile(
 
             if (fileCount < 0) {
                 QFile::remove(tempPath);
-                emit downloadError(appId,
-                    tr("Paket açma hatası: %1").arg(QString::fromStdString(errorMsg)));
+                const QString rawErr = QString::fromStdString(errorMsg);
+                qCWarning(lcDownloader) << "extraction failed for" << appId
+                                         << "raw:" << rawErr;
+                emit downloadError(appId, categorizeExtractError(rawErr));
                 return;
             }
 
