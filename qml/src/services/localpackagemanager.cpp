@@ -725,6 +725,15 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
             QDir().mkpath(targetPath);
 
+            // Begin crash recovery journal so a mid-install crash can replay/undo.
+            if (m_journal) {
+                JournalEntry je;
+                je.type = OpType::Install;
+                je.gameId = steamAppId;
+                je.gamePath = targetPath;
+                m_journal->beginOperation(je);
+            }
+
             QList<QPair<QString, QString>> filesToCopy;
             QDirIterator it(sourcePath, QDir::Files, QDirIterator::Subdirectories);
             while (it.hasNext()) {
@@ -742,6 +751,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
             for (const auto& [srcPath, relPath] : filesToCopy) {
                 if (isCancelled()) {
+                    if (m_journal) m_journal->abortOperation();
                     emit installCompleted(false, tr("Kurulum iptal edildi"));
                     return;
                 }
@@ -756,17 +766,23 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 if (copyOk) {
                     copied++;
                     installedFiles.append(relPath);
+                    if (m_journal) m_journal->recordFileModified(relPath);
                 } else if (copyErr == CopyError::DiskFull) {
+                    if (m_journal) m_journal->commitOperation();
                     emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
                     return;
                 } else if (copyErr == CopyError::PermissionDenied) {
+                    if (m_journal) m_journal->commitOperation();
                     emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
                     return;
                 } else if (copyErr == CopyError::FileLocked) {
                     QThread::msleep(150);
                     auto [ok2, err2] = tryCopyFile(srcPath, destPath);
-                    if (ok2) { copied++; installedFiles.append(relPath); }
-                    else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
+                    if (ok2) {
+                        copied++;
+                        installedFiles.append(relPath);
+                        if (m_journal) m_journal->recordFileModified(relPath);
+                    } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
                         if (m_journal) m_journal->commitOperation();
                         emit installCompleted(false, err2 == CopyError::DiskFull
                             ? tr("Disk alanı doldu, kurulum durduruluyor")
@@ -793,9 +809,11 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     state.installedAt = QDateTime::currentSecsSinceEpoch();
                     m_catalog.markInstalled(steamAppId.toStdString(), state);
                     saveCatalogInstalledState(m_catalog, installedStatePath());
+                    if (m_journal) m_journal->commitOperation();
                 }, Qt::QueuedConnection);
                 emit installCompleted(true, tr("%1 dosya başarıyla kuruldu").arg(copied));
             } else {
+                if (m_journal) m_journal->commitOperation();
                 emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı").arg(errors).arg(total));
             }
         });
@@ -1054,8 +1072,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destPath = QDir::cleanPath(gamePath   + "/" + step.dest);
 
         if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-            qCWarning(lcPackageManager) << "Path traversal blocked in copy:" << step.dest;
-            return StepOutcome::SoftError;
+            qCCritical(lcPackageManager) << "Path traversal blocked in copy:" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama dosya hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
         if (!QFile::exists(srcPath)) {
             qCWarning(lcPackageManager) << "Copy source not found:" << srcPath;
@@ -1076,8 +1094,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destDir = QDir::cleanPath(gamePath   + "/" + step.dest);
 
         if (!destDir.startsWith(canonGamePath)) {
-            qCWarning(lcPackageManager) << "Path traversal blocked in copyDir:" << step.dest;
-            return StepOutcome::SoftError;
+            qCCritical(lcPackageManager) << "Path traversal blocked in copyDir:" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama klasör hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
         if (!QDir(srcDir).exists()) {
             qCWarning(lcPackageManager) << "copyDir source not found:" << srcDir;
@@ -1107,8 +1125,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
         if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
-            qCWarning(lcPackageManager) << "Path traversal blocked in delete:" << step.dest;
-            return StepOutcome::SoftError;
+            qCCritical(lcPackageManager) << "Path traversal blocked in delete:" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama silme hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
         emit installProgress(progress,
             tr("%1Adım %2/%3: Siliniyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
@@ -1256,8 +1274,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
         if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
-            qCWarning(lcPackageManager) << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
-            return StepOutcome::SoftError;
+            qCCritical(lcPackageManager) << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama yeniden adlandırma hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
         emit installProgress(progress,
             tr("%1Adım %2/%3: Yeniden adlandırılıyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
