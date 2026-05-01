@@ -500,42 +500,137 @@ void BackupManager::updateOriginalPaths(const QString& gameId, const QString& ne
 void BackupManager::loadBackups()
 {
     MAKINE_ZONE_NAMED("BackupManager::loadBackups");
-    const QString metadataPath = getBackupsDirectory() + "/backups.json";
+    const QString backupsDir = getBackupsDirectory();
+    const QString metadataPath = backupsDir + "/backups.json";
     QFile file(metadataPath);
 
+    bool needsRecovery = false;
+    QJsonDocument doc;
+
     if (!file.open(QIODevice::ReadOnly)) {
-        return;
+        // No metadata yet — but if backup folders exist on disk, we likely
+        // crashed before the first save. Reconstruct rather than orphan.
+        QDir root(backupsDir);
+        const auto gameDirs = root.exists()
+            ? root.entryList(QDir::Dirs | QDir::NoDotAndDotDot)
+            : QStringList{};
+        if (!gameDirs.isEmpty()) {
+            qCWarning(lcBackup) << "backups.json missing but"
+                                << gameDirs.size()
+                                << "backup dirs exist — reconstructing";
+            needsRecovery = true;
+        } else {
+            return;
+        }
+    } else {
+        const QByteArray data = file.readAll();
+        file.close();
+        QJsonParseError parseError;
+        doc = QJsonDocument::fromJson(data, &parseError);
+        if (parseError.error != QJsonParseError::NoError) {
+            qCWarning(lcBackup) << "backups.json parse error:"
+                                << parseError.errorString()
+                                << "at offset" << parseError.offset
+                                << "— attempting recovery from disk";
+            needsRecovery = true;
+        } else if (!doc.isArray()) {
+            qCWarning(lcBackup) << "backups.json not an array — recovering";
+            needsRecovery = true;
+        }
     }
 
-    try {
-        const QByteArray data = file.readAll();
-        const QJsonDocument doc = QJsonDocument::fromJson(data);
-
-        if (!doc.isArray()) return;
-
-        for (const auto& value : doc.array()) {
-            const QJsonObject obj = value.toObject();
-            BackupInfo backup;
-            backup.id = obj["id"].toString();
-            backup.gameId = obj["gameId"].toString();
-            backup.gameName = obj["gameName"].toString();
-            backup.backupPath = obj["backupPath"].toString();
-            backup.originalPath = obj["originalPath"].toString();
-            backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
-            backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
-            backup.fileCount = obj["fileCount"].toInt();
-            backup.gameStoreVersion = obj["gameStoreVersion"].toString();
-            backup.patchVersion = obj["patchVersion"].toString();
-            backup.isValid = QDir(backup.backupPath).exists();
-            m_backups.append(backup);
+    if (!needsRecovery) {
+        try {
+            for (const auto& value : doc.array()) {
+                const QJsonObject obj = value.toObject();
+                BackupInfo backup;
+                backup.id = obj["id"].toString();
+                backup.gameId = obj["gameId"].toString();
+                backup.gameName = obj["gameName"].toString();
+                backup.backupPath = obj["backupPath"].toString();
+                backup.originalPath = obj["originalPath"].toString();
+                backup.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODate);
+                backup.sizeBytes = obj["sizeBytes"].toVariant().toLongLong();
+                backup.fileCount = obj["fileCount"].toInt();
+                backup.gameStoreVersion = obj["gameStoreVersion"].toString();
+                backup.patchVersion = obj["patchVersion"].toString();
+                backup.isValid = QDir(backup.backupPath).exists();
+                m_backups.append(backup);
+            }
+        } catch (const std::exception& e) {
+            qCWarning(lcBackup) << "Failed to parse backups metadata:" << e.what()
+                                << "— attempting recovery from disk";
+            m_backups.clear();
+            needsRecovery = true;
         }
-    } catch (const std::exception& e) {
-        qCWarning(lcBackup) << "Failed to load backups metadata:" << e.what();
-        return;
+    }
+
+    if (needsRecovery) {
+        reconstructBackupsFromDisk();
     }
 
     rebuildBackupIndex();
     emit backupsChanged();
+}
+
+void BackupManager::reconstructBackupsFromDisk()
+{
+    MAKINE_ZONE_NAMED("BackupManager::reconstructBackupsFromDisk");
+    const QString backupsDir = getBackupsDirectory();
+    QDir root(backupsDir);
+    if (!root.exists()) return;
+
+    int recovered = 0;
+    const auto gameDirs = root.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString& gameId : gameDirs) {
+        QDir gameDir(backupsDir + "/" + gameId);
+        const auto backupDirs = gameDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const QString& backupId : backupDirs) {
+            const QString backupPath = backupsDir + "/" + gameId + "/" + backupId;
+
+            qint64 totalSize = 0;
+            int fileCount = 0;
+            QDirIterator it(backupPath,
+                            QDir::Files | QDir::NoDotAndDotDot,
+                            QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                it.next();
+                totalSize += it.fileInfo().size();
+                ++fileCount;
+            }
+
+            // Skip empty leftovers — would just confuse the UI.
+            if (fileCount == 0) {
+                qCDebug(lcBackup) << "Skipping empty backup dir during recovery:"
+                                  << backupPath;
+                continue;
+            }
+
+            BackupInfo backup;
+            backup.id = backupId;
+            backup.gameId = gameId;
+            // gameName/originalPath/versions only existed in metadata —
+            // leave blank so the UI's "gameName - date" fallback degrades
+            // gracefully to just "- date" rather than showing fake data.
+            backup.gameName = QString();
+            backup.backupPath = backupPath;
+            backup.originalPath = QString();
+            backup.createdAt = QFileInfo(backupPath).lastModified();
+            backup.sizeBytes = totalSize;
+            backup.fileCount = fileCount;
+            backup.isValid = true;
+            m_backups.append(backup);
+            ++recovered;
+        }
+    }
+
+    if (recovered > 0) {
+        qCInfo(lcBackup) << "Recovered" << recovered
+                         << "backup(s) from disk scan — saving rebuilt metadata";
+        // Persist the reconstructed list so the next launch is fast and
+        // future saveBackups() calls don't lose this work.
+        saveBackups();
+    }
 }
 
 void BackupManager::saveBackups()

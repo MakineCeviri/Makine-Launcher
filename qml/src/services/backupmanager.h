@@ -149,6 +149,15 @@ private:
     QString generateBackupId();
     QString getBackupsDirectory();
 
+    /**
+     * @brief Best-effort reconstruction of backups list from on-disk folders.
+     * Called when backups.json is missing or corrupt to avoid losing the
+     * actual backup data — gameName/originalPath/version fields are blank
+     * since they only existed in the metadata, but the files themselves
+     * are still restorable through an explicit target path.
+     */
+    void reconstructBackupsFromDisk();
+
     static BackupManager* s_instance;
 
     void rebuildBackupIndex();
