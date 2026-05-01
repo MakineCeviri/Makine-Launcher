@@ -378,6 +378,14 @@ void GameService::setupCoreBridge()
 
                         }
                     }
+                    emit translationInstallCompleted(gameId, success, message);
+                    return;
+                }
+                // Fail with a known game: try to roll back to the pre-install
+                // state so the user is not left with a half-patched game.
+                if (!gameId.isEmpty()) {
+                    performInstallRollback(gameId, message);
+                    return;
                 }
                 emit translationInstallCompleted(gameId, success, message);
             });
@@ -387,7 +395,11 @@ void GameService::setupCoreBridge()
                 m_installTimeoutTimer->stop();
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
-                emit translationInstallCompleted(gameId, false, error);
+                if (!gameId.isEmpty()) {
+                    performInstallRollback(gameId, error);
+                } else {
+                    emit translationInstallCompleted(gameId, false, error);
+                }
             });
 
     // Load user-configured scan paths
@@ -1389,6 +1401,17 @@ void GameService::uninstallTranslation(const QString& gameId)
                     if (restoredGameId != gameId) return;
                     finalizeUninstall(gameId, gamePath, idx);
                 }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+            // Partial restore: refuse to run uninstallPackage afterwards. Removing
+            // patched-but-not-restored files would leave the game with holes;
+            // surface the reason and let the user run Steam's "Verify Integrity"
+            // (or unlock the file manually) instead.
+            connect(bm, &BackupManager::backupRestoreFailed, this,
+                [this, gameId](const QString& failedGameId, const QString& reason) {
+                    if (failedGameId != gameId) return;
+                    qCWarning(lcGameService) << "Backup restore failed for" << gameId
+                                              << "— skipping uninstall to avoid mixed state";
+                    emit translationUninstalled(gameId, false, reason);
+                }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
             bool started = bm->restoreBackup(latest["id"].toString(), game.installPath);
             if (!started) {
                 disconnect(restoreConn);
@@ -1401,6 +1424,64 @@ void GameService::uninstallTranslation(const QString& gameId)
     }
 
     finalizeUninstall(gameId, game.installPath, *it);
+}
+
+void GameService::performInstallRollback(const QString& gameId, const QString& originalError)
+{
+    MAKINE_ZONE_NAMED("GameService::performInstallRollback");
+    BackupManager* bm = BackupManager::instance();
+    if (!bm || !bm->hasBackup(gameId)) {
+        // No backup exists — nothing safe to roll back to. Surface the
+        // original error and let the user decide (often a Steam Verify is
+        // their best path forward).
+        emit translationInstallCompleted(gameId, false, originalError);
+        return;
+    }
+
+    auto latest = bm->getLatestBackup(gameId);
+    if (latest.isEmpty() || !latest.contains(QStringLiteral("id"))) {
+        emit translationInstallCompleted(gameId, false, originalError);
+        return;
+    }
+
+    auto idxIt = m_gameIdToIndex.constFind(gameId);
+    QString gamePath;
+    if (idxIt != m_gameIdToIndex.constEnd() && *idxIt >= 0 && *idxIt < m_games.count())
+        gamePath = m_games[*idxIt].installPath;
+    if (gamePath.isEmpty()) {
+        emit translationInstallCompleted(gameId, false, originalError);
+        return;
+    }
+
+    qCWarning(lcGameService) << "Install failed for" << gameId
+                              << "— rolling back via backup:" << originalError;
+
+    // Restore success: also clean up any added files via uninstallPackage,
+    // so the game directory is truly back to its pre-install layout.
+    connect(bm, &BackupManager::backupRestored, this,
+        [this, gameId, gamePath, originalError](const QString& restoredGameId) {
+            if (restoredGameId != gameId) return;
+            if (m_coreBridge) m_coreBridge->uninstallPackage(gameId, gamePath);
+            qCInfo(lcGameService) << "Install rollback complete for" << gameId;
+            emit translationInstallCompleted(gameId, false,
+                tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
+                    .arg(originalError));
+        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+
+    // Restore failure: surface both errors. The user will need to verify
+    // the game files via Steam (or whichever store) — our own restore
+    // cannot guarantee a clean state at this point.
+    connect(bm, &BackupManager::backupRestoreFailed, this,
+        [this, gameId, originalError](const QString& failedGameId, const QString& reason) {
+            if (failedGameId != gameId) return;
+            qCCritical(lcGameService) << "Install rollback failed for" << gameId
+                                       << "— restore reported errors:" << reason;
+            emit translationInstallCompleted(gameId, false,
+                tr("Kurulum başarısız oldu ve oyun tam olarak eski haline döndürülemedi.\n"
+                   "Kurulum hatası: %1\n%2").arg(originalError, reason));
+        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+
+    bm->restoreBackup(latest[QStringLiteral("id")].toString(), gamePath);
 }
 
 void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex)
