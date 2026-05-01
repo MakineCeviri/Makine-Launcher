@@ -150,8 +150,26 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
     QFileInfo partInfo(state.partPath);
     if (partInfo.exists() && partInfo.size() > 0) {
-        state.resumeOffset = partInfo.size();
-        qCDebug(lcDownloader) << "resuming from offset" << state.resumeOffset << "for" << appId;
+        // Cross-session resume is risky: if the CDN updated the package
+        // after the user's prior partial download, appending fresh bytes
+        // to stale prefix produces a corrupt file that fails AES-GCM auth
+        // tag verification. The user then sees "Paket bozuk" and can be
+        // stuck retrying until the constructor's 7-day cleanup kicks in.
+        // 1 hour comfortably covers network-blip retries (the legitimate
+        // resume use case) without exposing the staleness window.
+        const qint64 ageSec = partInfo.lastModified()
+                              .secsTo(QDateTime::currentDateTime());
+        constexpr qint64 kMaxResumeAgeSec = 3600;  // 1 hour
+        if (ageSec > kMaxResumeAgeSec) {
+            qCDebug(lcDownloader) << "stale .part for" << appId
+                                  << "(" << ageSec << "s old) — discarding";
+            QFile::remove(state.partPath);
+            state.resumeOffset = 0;
+        } else {
+            state.resumeOffset = partInfo.size();
+            qCDebug(lcDownloader) << "resuming from offset"
+                                  << state.resumeOffset << "for" << appId;
+        }
     } else {
         state.resumeOffset = 0;
     }
