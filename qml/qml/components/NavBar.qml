@@ -280,6 +280,52 @@ Item {
             }
         }
 
+        // Donate — Kreosus support link
+        Item {
+            id: donateItem
+            Layout.preferredWidth: 36; Layout.preferredHeight: 36
+            Layout.alignment: Qt.AlignVCenter
+
+            property bool hovered: donateMouse.containsMouse
+
+            scale: hovered ? 1.15 : 1.0
+            Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+
+            Text {
+                id: heartIcon
+                anchors.centerIn: parent
+                textFormat: Text.PlainText
+                text: ""
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 17
+                color: donateItem.hovered ? Theme.accent : Theme.textMuted
+                opacity: donateItem.hovered ? 1.0 : 0.7
+                Behavior on color { ColorAnimation { duration: 200 } }
+                Behavior on opacity { NumberAnimation { duration: 200 } }
+
+                // Subtle heartbeat — only idle + animations enabled
+                SequentialAnimation on scale {
+                    running: !donateItem.hovered && navBarRoot.animationsEnabled
+                    loops: Animation.Infinite
+                    NumberAnimation { from: 1.0; to: 1.10; duration: 380; easing.type: Easing.OutQuad }
+                    NumberAnimation { from: 1.10; to: 1.0;  duration: 220; easing.type: Easing.InQuad }
+                    PauseAnimation  { duration: 1400 }
+                }
+            }
+
+            StyledToolTip {
+                visible: donateItem.hovered
+                delay: 400
+                text: qsTr("Kreosus")
+            }
+
+            MouseArea {
+                id: donateMouse; anchors.fill: parent
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: Qt.openUrlExternally("https://kreosus.com/makineceviri/")
+            }
+        }
+
         // Settings
         Item {
             id: settingsItem
