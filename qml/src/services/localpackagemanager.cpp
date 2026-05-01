@@ -33,6 +33,7 @@
 #include <QtConcurrent>
 
 #include <functional>
+#include <set>
 #include <map>
 #include <optional>
 #include <set>
@@ -1549,6 +1550,14 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
         ? gamePath
         : QString::fromStdString(coreState.gamePath);
 
+    // Files we REPLACED at install time — BackupManager::restoreBackup
+    // copies the originals back over them in the uninstall flow. Deleting
+    // them again here would leave a void and break the game, so the plain
+    // relPath loop must skip them. (Files we only ADDED, prefix entries,
+    // and other categories are still removed below.)
+    const std::set<std::string> replacedSet(coreState.replacedFiles.begin(),
+                                            coreState.replacedFiles.end());
+
     // Begin crash recovery journal
     if (m_journal) {
         JournalEntry je;
@@ -1675,6 +1684,12 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
         // Prevent path traversal: ensure resolved path stays within game directory
         if (!fullPath.startsWith(canonBase)) {
             qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
+            continue;
+        }
+        // Skip originals we replaced — restoreBackup put the originals back
+        // over them; removing here would leave a hole the game expects.
+        if (replacedSet.count(relPathStd) > 0) {
+            qCDebug(lcPackageManager) << "Preserving restored original:" << relPath;
             continue;
         }
         if (QFile::exists(fullPath)) {
