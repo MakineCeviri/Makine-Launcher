@@ -364,6 +364,11 @@ private:
     void finalizeManualGame(const QString& path, const QString& folderName,
                             const QString& engine, const QString& matchedAppId);
     void finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex);
+
+    // Restores originals from the most recent selective backup and clears
+    // any added files when packageInstallCompleted reports failure mid-install.
+    // Falls back to the original error message if no backup exists.
+    void performInstallRollback(const QString& gameId, const QString& originalError);
     void invalidateGameListCache();
     void invalidateTranslationCache();
     void invalidateSupportedCache();

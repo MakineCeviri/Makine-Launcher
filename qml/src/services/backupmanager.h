@@ -134,6 +134,11 @@ signals:
     void maxBackupsPerGameChanged();
     void backupCreated(const QString& gameId);
     void backupRestored(const QString& gameId);
+    // Emitted when restoreBackup finishes but at least one file could not be
+    // copied back. Consumer (GameService::uninstallTranslation) MUST treat
+    // this as failure — running uninstallPackage afterwards would leave the
+    // game with a mix of patched and original files.
+    void backupRestoreFailed(const QString& gameId, const QString& reason);
     void backupDeleted(const QString& backupId);
     void backupError(const QString& error);
 
