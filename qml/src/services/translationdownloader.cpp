@@ -199,8 +199,21 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
         });
 
     connect(reply, &QNetworkReply::readyRead, this,
-        [reply, partFile]() {
-            partFile->write(reply->readAll());
+        [this, reply, partFile, appId]() {
+            const QByteArray chunk = reply->readAll();
+            if (chunk.isEmpty()) return;
+            const qint64 written = partFile->write(chunk);
+            if (written != chunk.size()) {
+                // Disk full or filesystem error — mark fatal so the finished
+                // slot reports the real cause instead of letting the partial
+                // .part bubble up later as a confusing decrypt failure.
+                qCWarning(lcDownloader)
+                    << "partFile write short:" << written << "of" << chunk.size()
+                    << "for" << appId << "—" << partFile->errorString();
+                auto it = m_activeDownloads.find(appId);
+                if (it != m_activeDownloads.end()) it->writeError = true;
+                reply->abort();
+            }
         });
 
     // Stall timeout: abort if no data for 60 seconds
@@ -236,6 +249,18 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
                 m_activeDownloads.remove(appId);
                 emit activeDownloadsChanged();
                 emit downloadCancelled(appId);
+                return;
+            }
+
+            // Surface disk-full / write errors as themselves rather than
+            // letting the truncated .part advance to decrypt and confuse
+            // the user with "Paket açma hatası".
+            if (state.writeError) {
+                QFile::remove(state.partPath);
+                m_activeDownloads.remove(appId);
+                emit activeDownloadsChanged();
+                emit downloadError(appId,
+                    tr("Disk alanı doldu veya yazma hatası — boş alanı kontrol edip tekrar deneyin"));
                 return;
             }
 
