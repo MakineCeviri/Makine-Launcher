@@ -180,10 +180,23 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             }
         }
 
+        // Reject partial backups outright. A backup that is missing files
+        // would silently let install proceed and uninstall later restore an
+        // incomplete game. We'd rather refuse the install entirely so the
+        // user can free disk / unlock files / retry from a known-good state.
         if (failedFiles > 0) {
             qCWarning(lcBackup) << "Selective backup partial:" << gameId
                                 << copiedFiles << "/" << total << "copied,"
-                                << failedFiles << "failed";
+                                << failedFiles << "failed → rejecting";
+            QDir(backupDir).removeRecursively();
+            QMetaObject::invokeMethod(this, [this, gameId, copiedFiles, total, failedFiles]() {
+                if (m_journal) m_journal->abortOperation();
+                emit backupError(tr("Yedek alma yarıda kaldı (%1/%2 başarılı, %3 dosya kopyalanamadı). "
+                                    "Diskte yer açın veya dosya kilidini kontrol edip tekrar deneyin.")
+                                 .arg(copiedFiles).arg(total).arg(failedFiles));
+                emit selectiveBackupCompleted(gameId, false);
+            }, Qt::QueuedConnection);
+            return;
         }
 
         // Save backup info on main thread
@@ -226,6 +239,16 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
 {
     MAKINE_ZONE_NAMED("BackupManager::restoreBackup");
     INTEGRITY_GATE();
+
+    // Refuse to start a second restore while one is running. Two concurrent
+    // restores would race on the same target files (lock spam, partial
+    // restore, journal entries clobbering each other).
+    if (m_isRestoring) {
+        qCWarning(lcBackup) << "restoreBackup refused — another restore is in progress";
+        emit backupError(tr("Yedek geri yükleme zaten devam ediyor"));
+        return false;
+    }
+
     auto idxIt = m_backupIdToIndex.constFind(backupId);
     if (idxIt == m_backupIdToIndex.constEnd()) {
         emit backupError(tr("Yedek bulunamadı: %1").arg(backupId));
@@ -286,6 +309,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
 
         // Restore files from backup to target directory
         int restoredCount = 0;
+        int failedCount = 0;
         const QString canonRestoreDir = QDir(restoreDir).canonicalPath();
         QDirIterator it2(backupDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
         QSet<QString> createdDirs;
@@ -298,6 +322,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
             // Prevent path traversal: ensure destination stays within restore directory
             if (!security::isPathContained(canonRestoreDir, destFile)) {
                 qCWarning(lcBackup) << "Path traversal blocked during restore:" << relativePath;
+                ++failedCount;
                 continue;
             }
 
@@ -327,18 +352,32 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
                 }
             } else {
                 qCWarning(lcBackup) << "Failed to restore file:" << destFile;
+                ++failedCount;
             }
         }
 
-        // Finish restore
-        QMetaObject::invokeMethod(this, [this, restoredCount, gameId]() {
+        // Finish restore — partial restore must NOT report success: the
+        // caller (GameService) would otherwise proceed to uninstallPackage
+        // and leave the game with a mix of patched and original files.
+        QMetaObject::invokeMethod(this, [this, restoredCount, failedCount, totalFiles, gameId]() {
             m_isRestoring = false;
             m_restoreStatus = tr("%1 dosya geri yüklendi").arg(restoredCount);
             emit isRestoringChanged();
             emit restoreStatusChanged();
-            if (m_journal) m_journal->commitOperation();
-            emit backupRestored(gameId);
-            qCDebug(lcBackup) << "Backup restored:" << gameId << "-" << restoredCount << "files";
+            if (failedCount > 0) {
+                if (m_journal) m_journal->abortOperation();
+                qCWarning(lcBackup) << "Backup restore partial:" << gameId
+                                     << restoredCount << "/" << totalFiles
+                                     << "restored," << failedCount << "failed";
+                emit backupRestoreFailed(gameId,
+                    tr("Yedek tamamen geri yüklenemedi (%1/%2 başarılı, %3 dosya hata verdi). "
+                       "Steam üzerinden \"Oyun dosyalarının bütünlüğünü doğrula\" çalıştırın.")
+                    .arg(restoredCount).arg(totalFiles).arg(failedCount));
+            } else {
+                if (m_journal) m_journal->commitOperation();
+                emit backupRestored(gameId);
+                qCDebug(lcBackup) << "Backup restored:" << gameId << "-" << restoredCount << "files";
+            }
         }, Qt::QueuedConnection);
     });
 
