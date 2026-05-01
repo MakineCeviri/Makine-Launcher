@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -76,11 +77,27 @@ GameService::GameService(QObject *parent)
     : QObject(parent)
     , m_steamDetails(new SteamDetailsService(this))
     , m_supportedGamesModel(new SupportedGamesModel(this))
+    , m_installTimeoutTimer(new QTimer(this))
 {
     connect(m_steamDetails, &SteamDetailsService::detailsFetched,
             this, &GameService::steamDetailsFetched);
     connect(m_steamDetails, &SteamDetailsService::detailsFetchError,
             this, &GameService::steamDetailsFetchError);
+
+    // 30 minutes is the run-step ceiling in LocalPackageManager + a safety
+    // margin. If the core never reports completion (hang, crash without
+    // signal, deadlock) the slot would otherwise stay stuck and every
+    // subsequent install would hit "Zaten bir kurulum devam ediyor".
+    m_installTimeoutTimer->setSingleShot(true);
+    m_installTimeoutTimer->setInterval(30 * 60 * 1000);
+    connect(m_installTimeoutTimer, &QTimer::timeout, this, [this]() {
+        if (m_installingGameId.isEmpty()) return;
+        const QString stuck = m_installingGameId;
+        m_installingGameId.clear();
+        qCWarning(lcGameService) << "Install timed out — clearing slot for" << stuck;
+        emit translationInstallCompleted(stuck, false,
+            tr("Kurulum yanıt vermiyor — uygulamayı yeniden başlatıp tekrar deneyin"));
+    });
 }
 
 void GameService::initialize()
@@ -339,6 +356,7 @@ void GameService::setupCoreBridge()
 
     connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
             this, [this](bool success, const QString& message) {
+                m_installTimeoutTimer->stop();
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
                 if (success && !gameId.isEmpty()) {
@@ -366,6 +384,7 @@ void GameService::setupCoreBridge()
 
     connect(m_coreBridge, &CoreBridge::packageInstallError,
             this, [this](const QString& error) {
+                m_installTimeoutTimer->stop();
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
                 emit translationInstallCompleted(gameId, false, error);
@@ -997,9 +1016,16 @@ void GameService::saveCachedGames()
                 array.append(obj);
             }
 
-            QFile file(cachePath);
+            // Atomic write: QSaveFile writes to a sibling temp file and renames
+            // on commit, so a crash mid-write leaves the previous cache intact
+            // instead of producing a 0-byte file that fails to parse next launch.
+            QSaveFile file(cachePath);
             if (file.open(QIODevice::WriteOnly)) {
                 file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
+                if (!file.commit())
+                    qCWarning(lcGameService) << "Failed to commit games cache:" << file.errorString();
+            } else {
+                qCWarning(lcGameService) << "Failed to open games cache for write:" << file.errorString();
             }
         } catch (const std::exception& e) {
             qCWarning(lcGameService) << "Failed to save games cache:" << e.what();
@@ -1237,6 +1263,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
 
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
+    m_installTimeoutTimer->start();
     emit translationInstallStarted(gameId);
     emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
 
@@ -1253,6 +1280,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             watcher->deleteLater();
 
             if (!runningExe.isEmpty()) {
+                m_installTimeoutTimer->stop();
                 m_installingGameId.clear();
                 emit translationInstallCompleted(gameId, false, runningMsg.arg(runningExe));
                 return;
@@ -1291,6 +1319,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                             // would silently destroy the originals on the next uninstall.
                             qCWarning(lcGameService) << "Selective backup failed for" << gameId
                                                       << "— aborting install to protect originals";
+                            m_installTimeoutTimer->stop();
                             m_installingGameId.clear();
                             emit translationInstallCompleted(gameId, false,
                                 tr("Yedek oluşturulamadı, kurulum iptal edildi. "
