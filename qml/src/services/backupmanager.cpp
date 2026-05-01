@@ -17,6 +17,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QStorageInfo>
 #include <QUuid>
 #include <QDirIterator>
 #include <QSet>
@@ -120,8 +121,50 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
         return;
     }
 
+    // Pre-flight disk space check. Sum the on-disk size of files we're
+    // about to copy so we can fail fast before half-filling a near-full
+    // drive and leaving a partial backup that we'd then have to clean up
+    // anyway. The QFileInfo stat calls are cheap relative to the copies
+    // they gate; for a 10k-file patch this is a few hundred ms at worst.
+    qint64 estimatedSize = 0;
+    int existingFiles = 0;
+    for (const QString& relPath : filesToOverwrite) {
+        const QFileInfo fi(QDir::cleanPath(gamePath + "/" + relPath));
+        if (fi.exists()) {
+            estimatedSize += fi.size();
+            ++existingFiles;
+        }
+    }
+
+    if (existingFiles == 0) {
+        // Nothing to back up — none of the listed files exist (e.g. patch
+        // adds new files only). Treat as success without creating a dir.
+        emit selectiveBackupCompleted(gameId, true);
+        return;
+    }
+
+    const QString backupsRoot = getBackupsDirectory();
+    QDir().mkpath(backupsRoot);  // ensure mount point exists for QStorageInfo
+    const QStorageInfo storage(backupsRoot);
+    const qint64 availableBytes = storage.bytesAvailable();
+    constexpr qint64 kSafetyMarginBytes = 100LL * 1024 * 1024;  // 100 MB headroom
+    const qint64 requiredBytes = estimatedSize + kSafetyMarginBytes;
+
+    if (availableBytes > 0 && availableBytes < requiredBytes) {
+        qCWarning(lcBackup) << "Pre-backup disk check failed for" << gameId
+                            << "— need" << requiredBytes
+                            << "have" << availableBytes;
+        emit backupError(tr("Yedekleme için yeterli disk alanı yok "
+                            "(gerekli: %1, mevcut: %2). "
+                            "Boş alan açıp tekrar deneyin.")
+                         .arg(BackupInfo::formatSize(requiredBytes),
+                              BackupInfo::formatSize(availableBytes)));
+        emit selectiveBackupCompleted(gameId, false);
+        return;
+    }
+
     const QString backupId = generateBackupId();
-    const QString backupDir = getBackupsDirectory() + "/" + gameId + "/" + backupId;
+    const QString backupDir = backupsRoot + "/" + gameId + "/" + backupId;
 
     (void)QtConcurrent::run([this, gameId, gameName, gamePath, filesToOverwrite, backupId, backupDir,
                               gameStoreVersion, patchVersion]() {
@@ -277,6 +320,26 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
                             "Oyun kaldırılmış veya taşınmış olabilir.")
                          .arg(restoreDir));
         return false;
+    }
+
+    // Validate the backup actually has content. An empty backup folder can
+    // happen if the user manually deleted files, AV quarantined the backup,
+    // or a previous crash left the metadata pointing at a wiped dir.
+    // Without this check, restoreBackup would emit backupRestored after
+    // 0 files copied — uninstallTranslation would then proceed to delete
+    // patched files and leave the user with a broken game.
+    {
+        QDirIterator probe(backupDir,
+                           QDir::Files | QDir::NoDotAndDotDot,
+                           QDirIterator::Subdirectories);
+        if (!probe.hasNext()) {
+            qCWarning(lcBackup) << "Backup folder empty:" << backupDir
+                                << "— refusing restore for" << gameId;
+            emit backupRestoreFailed(gameId,
+                tr("Yedek klasörü boş — yedek dosyaları silinmiş veya bozuk. "
+                   "Steam üzerinden \"Oyun dosyalarının bütünlüğünü doğrula\" çalıştırın."));
+            return false;
+        }
     }
 
     // Set restoring state
