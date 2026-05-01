@@ -103,6 +103,7 @@ private:
         QString dataUrl;        // Stored for resume/retry
         bool cancelled{false};
         bool stallAborted{false};
+        bool writeError{false};   // Set when partFile->write() returns short — disk full / FS error
         int retryCount{0};
         qint64 resumeOffset{0};
     };
