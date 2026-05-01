@@ -17,6 +17,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QLoggingCategory>
@@ -29,6 +30,44 @@ Q_LOGGING_CATEGORY(lcGameService, "makine.game")
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
+
+// Normalize a game name for comparison: lowercase + drop non-alphanumeric.
+QString normalizeGameName(const QString& s)
+{
+    QString out;
+    out.reserve(s.size());
+    for (QChar ch : s) {
+        if (ch.isLetterOrNumber()) out.append(ch.toLower());
+        else if (ch.isSpace() && !out.isEmpty() && !out.endsWith(QLatin1Char(' '))) out.append(QLatin1Char(' '));
+    }
+    return out.trimmed();
+}
+
+// Reject catalog matches where the locally detected game name has
+// nothing to do with the catalog name. Crack/repack ACFs sometimes
+// reuse a known appid (e.g. Little Nightmares' 424840) for a
+// completely different game (e.g. The Genesis Order), which would
+// otherwise offer the wrong translation.
+bool gameNamesLikelyMatch(const QString& localName, const QString& catalogName)
+{
+    const QString a = normalizeGameName(localName);
+    const QString b = normalizeGameName(catalogName);
+    if (a.isEmpty() || b.isEmpty()) return true;       // can't decide → trust catalog
+    if (a.contains(b) || b.contains(a)) return true;   // substring either direction
+
+    const auto tokensA = a.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    const auto tokensB = b.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (tokensA.isEmpty() || tokensB.isEmpty()) return true;
+
+    QSet<QString> setB(tokensB.begin(), tokensB.end());
+    int common = 0;
+    for (const auto& t : tokensA)
+        if (setB.contains(t)) ++common;
+
+    const int minTokens = std::min(tokensA.size(), tokensB.size());
+    return common >= std::max(1, minTokens / 2);
+}
+
 } // namespace
 
 namespace makine {
@@ -195,6 +234,16 @@ void GameService::setManifestSync(ManifestSyncService* sync)
                         // Step 2: Refresh hasTranslation for ALL games
                         if (!game.steamAppId.isEmpty()) {
                             bool hasTrans = m_coreBridge->hasTranslationPackage(game.steamAppId);
+                            if (hasTrans) {
+                                // Reject ID-spoofed cracks: catalog name must resemble local name
+                                auto pkg = m_coreBridge->getPackageForGame(game.steamAppId);
+                                if (pkg && !gameNamesLikelyMatch(game.name, pkg->gameName)) {
+                                    qCWarning(lcGameService) << "Game name mismatch — appId" << game.steamAppId
+                                                              << "local:" << game.name << "catalog:" << pkg->gameName
+                                                              << "→ rejecting catalog match";
+                                    hasTrans = false;
+                                }
+                            }
                             if (game.hasTranslation != hasTrans) {
                                 game.hasTranslation = hasTrans;
                                 changed = true;
@@ -413,6 +462,19 @@ void GameService::onScanCompleted(int count)
         game.steamAppId = det.steamAppId;
         game.isInstalled = true;
         game.hasTranslation = det.hasTranslation;  // Already set by worker thread
+
+        // Reject ID-spoofed cracks: appid match alone isn't enough — verify
+        // the catalog name resembles the locally detected game name.
+        if (game.hasTranslation && !game.steamAppId.isEmpty() && m_coreBridge) {
+            auto pkg = m_coreBridge->getPackageForGame(game.steamAppId);
+            if (pkg && !gameNamesLikelyMatch(game.name, pkg->gameName)) {
+                qCWarning(lcGameService) << "Game name mismatch — appId" << game.steamAppId
+                                          << "local:" << game.name << "catalog:" << pkg->gameName
+                                          << "→ rejecting catalog match";
+                game.hasTranslation = false;
+            }
+        }
+
         game.isVerified = game.hasTranslation;
 
         m_games.append(game);
