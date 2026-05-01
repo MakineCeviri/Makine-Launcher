@@ -21,6 +21,7 @@
 #include "steamdetailsservice.h"
 #include "supportedgamesmodel.h"
 
+class QTimer;
 namespace makine { class ImageCacheManager; }
 
 namespace makine {
@@ -395,6 +396,9 @@ private:
     QString m_scanStatus;
     qreal m_scanProgress{0};
     QString m_installingGameId;  // Track which game is being installed
+    QTimer* m_installTimeoutTimer{nullptr};  // Frees the install slot if the
+                                             // core never reports completion
+                                             // (hang, deadlock, lost signal).
 
     // Cache for QVariantList conversions
     mutable QVariantList m_gamesCache;
