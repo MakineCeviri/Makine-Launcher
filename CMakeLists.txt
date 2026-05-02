@@ -91,6 +91,11 @@ if(NOT MAKINE_CORE_ONLY)
     add_subdirectory(qml)
 endif()
 
+# UI integration tests (require both core lib and qml services source)
+if(MAKINE_BUILD_TESTS AND NOT MAKINE_UI_ONLY AND NOT MAKINE_CORE_ONLY)
+    add_subdirectory(tests/integration)
+endif()
+
 # Configuration summary
 message(STATUS "")
 message(STATUS "=== MakineLauncher Build Configuration ===")
