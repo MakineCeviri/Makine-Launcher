@@ -135,6 +135,15 @@ public:
      */
     Q_INVOKABLE void cancelCurrentBackup();
 
+    /**
+     * @brief Cancel the in-flight restoreBackup, if any.
+     * Stops between files. The game directory is left mixed (some files
+     * already restored, others still patched) so backupRestoreFailed is
+     * emitted with a "verify integrity" hint — the caller MUST treat
+     * this as a failure and not proceed with uninstallPackage (BM-08).
+     */
+    Q_INVOKABLE void cancelCurrentRestore();
+
 signals:
     void backupProgress(double progress, const QString& status);
     void selectiveBackupCompleted(const QString& gameId, bool success);
@@ -184,6 +193,8 @@ private:
     // so the worker thread keeps it alive after cancelCurrentBackup() resets
     // the member (BM-03).
     std::shared_ptr<std::atomic_bool> m_currentBackupCancel;
+    // Same pattern for restoreBackup (BM-08).
+    std::shared_ptr<std::atomic_bool> m_currentRestoreCancel;
 };
 
 } // namespace makine
