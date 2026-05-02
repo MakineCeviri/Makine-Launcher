@@ -25,7 +25,7 @@ jobs:
           set-safe-directory: false
 
       - name: Configure
-        run: cmake --preset dev
+        run: cmake --preset dev -DMAKINE_BUILD_TESTS=ON
         env:
           PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64\bin;${{ env.PATH }}
 
@@ -34,12 +34,17 @@ jobs:
         env:
           PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64\bin;${{ env.PATH }}
 
+      - name: Test
+        run: ctest --preset dev-tests
+        env:
+          PATH: C:\Qt\Tools\CMake_64\bin;C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\Ninja;C:\Qt\6.10.1\mingw_64\bin;${{ env.PATH }}
+
       - name: Report
         if: always()
         run: |
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Build OK — commit ${{ github.sha }}"
+            Write-Host "Build + tests OK — commit ${{ github.sha }}"
           } else {
-            Write-Host "Build FAILED — see above for errors"
+            Write-Host "Build or tests FAILED — see above for errors"
             exit 1
           }
