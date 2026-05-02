@@ -15,7 +15,7 @@
 #include <QStringList>
 #include <QVariantMap>
 #include <QVariantList>
-#include <optional>
+#include <QHash>
 
 namespace makine {
 
@@ -81,13 +81,15 @@ private:
     QString m_pendingGameName;
     bool m_pendingUpdateFlow{false};
 
-    // Pending download state for R2 packages
+    // Pending download state for R2 packages — keyed by gameId so concurrent
+    // installs don't trample each other's PendingDownload slot (B2-04).
     struct PendingDownload {
         QString gameId;
         QString variant;
         QStringList selectedOptions;
+        bool isUpdate;
     };
-    std::optional<PendingDownload> m_pendingDownload;
+    QHash<QString, PendingDownload> m_pendingDownloads;
 
     // Pending install options (for onOptionsConfirmed callback)
     QVariantMap m_pendingInstallOptionsData;

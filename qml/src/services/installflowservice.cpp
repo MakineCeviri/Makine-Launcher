@@ -227,7 +227,9 @@ void InstallFlowService::onVariantCancelled()
 void InstallFlowService::doInstall(const QString& gameId, const QString& variant,
                                     const QStringList& options)
 {
-    m_pendingDownload.reset();
+    // Don't drop other in-flight downloads here — only this gameId's slot
+    // gets replaced when we register below (B2-04).
+    m_pendingDownloads.remove(gameId);
     m_pendingUpdateFlow = false;
 
     // External source redirect — scheme-validated
@@ -265,7 +267,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
     QString dirName = resolveDirName(gameId, catalog);
     const qint64 expectedSize = catalog.value(QStringLiteral("size")).toLongLong();
 
-    m_pendingDownload = PendingDownload{gameId, variant, options};
+    m_pendingDownloads.insert(gameId, PendingDownload{gameId, variant, options, /*isUpdate=*/false});
     m_downloader->downloadPackage(gameId, dataUrl, dirName, expectedSize);
     m_manifestSync->telemetry()->onDownload(gameId);
 }
@@ -275,7 +277,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
 void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
                                    const QStringList& options)
 {
-    m_pendingDownload.reset();
+    m_pendingDownloads.remove(gameId);
     m_pendingUpdateFlow = true;
 
     if (m_gameService->hasLocalPackage(gameId)) {
@@ -296,7 +298,7 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
 
     QString dirName = resolveDirName(gameId, catalog);
     const qint64 expectedSize = catalog.value(QStringLiteral("size")).toLongLong();
-    m_pendingDownload = PendingDownload{gameId, variant, options};
+    m_pendingDownloads.insert(gameId, PendingDownload{gameId, variant, options, /*isUpdate=*/true});
     m_downloader->downloadPackage(gameId, dataUrl, dirName, expectedSize);
 }
 
@@ -304,18 +306,17 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
 
 void InstallFlowService::onDownloadReady(const QString& appId)
 {
-    if (!m_pendingDownload || m_pendingDownload->gameId != appId)
+    auto it = m_pendingDownloads.find(appId);
+    if (it == m_pendingDownloads.end())
         return;
 
-    PendingDownload pending = *m_pendingDownload;
-    bool isUpdate = m_pendingUpdateFlow;
-    m_pendingDownload.reset();
-    m_pendingUpdateFlow = false;
+    PendingDownload pending = it.value();
+    m_pendingDownloads.erase(it);
 
     // Reload LocalPackageManager so CoreBridge picks up the new package
     m_coreBridge->refreshPackageManifest();
 
-    if (isUpdate) {
+    if (pending.isUpdate) {
         m_gameService->updateTranslation(pending.gameId, pending.variant, pending.selectedOptions);
         m_manifestSync->telemetry()->onUpdate(pending.gameId);
     } else {
@@ -327,12 +328,12 @@ void InstallFlowService::onDownloadReady(const QString& appId)
 
 void InstallFlowService::onDownloadFailed(const QString& appId, const QString& error)
 {
-    if (!m_pendingDownload || m_pendingDownload->gameId != appId)
+    auto it = m_pendingDownloads.find(appId);
+    if (it == m_pendingDownloads.end())
         return;
 
-    QString gameId = m_pendingDownload->gameId;
-    m_pendingDownload.reset();
-    m_pendingUpdateFlow = false;
+    QString gameId = it.value().gameId;
+    m_pendingDownloads.erase(it);
     emit installError(gameId, error);
 }
 
