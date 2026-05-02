@@ -264,6 +264,19 @@ void UpdateService::download()
         return;
     }
 
+    // Localhost in dev: require explicit port in 8000-9999 range so a
+    // random local service (browser dev server, malware sidecar) can't
+    // intercept the update request just by listening on port 80/443 (B2-07).
+#ifdef MAKINE_DEV_TOOLS
+    if (host == QLatin1String("localhost") || host == QLatin1String("127.0.0.1")) {
+        int port = dlUrlCheck.port();
+        if (port < 8000 || port > 9999) {
+            setError(QStringLiteral("İndirme engellendi: dev sunucusu portu 8000-9999 aralığında olmalı"));
+            return;
+        }
+    }
+#endif
+
     // Prepare temp directory
     QString tempDir = AppPaths::updateTempDir();
     QDir().mkpath(tempDir);
