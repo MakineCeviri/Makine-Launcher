@@ -62,6 +62,13 @@ public:
 signals:
     void syncStatusChanged();
     void catalogReady();
+    /**
+     * @brief Stale-While-Revalidate refresh notification.
+     * Emitted after a sync that actually changed cached entries (added or
+     * version-bumped). Lets the UI surface a 3 sn corner badge without
+     * intruding on the user's flow. See docs/specs/swr-cache.md.
+     */
+    void catalogRefreshed(int totalCount, int changedCount);
     void packageDetailReady(const QString& appId);
     void syncError(const QString& error);
     void offlineChanged();
@@ -79,6 +86,9 @@ private:
     void fallbackToLegacySync();
     void finishSync();
     void invalidateChangedDetails();
+    /// SWR helper: peek changedCount, drain via invalidateChangedDetails,
+    /// then emit catalogRefreshed when count > 0.
+    void invalidateAndNotifyRefresh();
 
     static QString indexUrl();
 
