@@ -103,6 +103,22 @@ void TranslationDownloader::downloadPackage(
         return;
     }
 
+    // Already-queued duplicate (user double-clicked Install).
+    for (const auto& q : m_pendingDownloads) {
+        if (q.appId == appId) {
+            qCDebug(lcDownloader) << "already queued" << appId;
+            return;
+        }
+    }
+
+    // Serialise concurrent installs — defer to the queue if a slot isn't free.
+    if (m_activeDownloads.size() >= kMaxConcurrentDownloads) {
+        qCDebug(lcDownloader) << "queueing download" << appId
+                              << "— active:" << m_activeDownloads.size();
+        m_pendingDownloads.enqueue({appId, dataUrl, dirName, expectedSize});
+        return;
+    }
+
 #ifdef MAKINE_UI_ONLY
     emit downloadError(appId, tr("Bu sürümde indirme desteklenmiyor"));
     return;
@@ -222,6 +238,7 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
         reply->abort();
         m_activeDownloads.remove(appId);
         emit activeDownloadsChanged();
+        startNextQueuedDownload();
         emit downloadError(appId,
             tr("Geçici dosya oluşturulamadı: %1").arg(state.partPath));
         return;
@@ -380,8 +397,30 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 #endif // !MAKINE_UI_ONLY
 }
 
+void TranslationDownloader::startNextQueuedDownload()
+{
+    if (m_pendingDownloads.isEmpty())
+        return;
+    if (m_activeDownloads.size() >= kMaxConcurrentDownloads)
+        return;
+
+    const QueuedDownload next = m_pendingDownloads.dequeue();
+    qCDebug(lcDownloader) << "promoting queued download" << next.appId
+                          << "— remaining queue:" << m_pendingDownloads.size();
+    downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize);
+}
+
 void TranslationDownloader::cancelDownload(const QString& appId)
 {
+    // Drop from the queue if it hasn't been promoted yet.
+    for (auto qIt = m_pendingDownloads.begin(); qIt != m_pendingDownloads.end(); ++qIt) {
+        if (qIt->appId == appId) {
+            m_pendingDownloads.erase(qIt);
+            emit downloadCancelled(appId);
+            return;
+        }
+    }
+
     auto it = m_activeDownloads.find(appId);
     if (it == m_activeDownloads.end())
         return;

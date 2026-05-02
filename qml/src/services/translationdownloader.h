@@ -18,7 +18,9 @@
 
 #include <QObject>
 #include <QHash>
+#include <QQueue>
 #include <QString>
+#include <QStringList>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QTimer>
@@ -123,6 +125,19 @@ private:
     QNetworkAccessManager m_nam;
     QHash<QString, DownloadState> m_activeDownloads;
     QString m_dataPath;
+
+    // Serialise concurrent installs. Two CDN downloads in parallel split
+    // a residential ~10 Mbps line both ways and add disk thrash during
+    // memory-mapped extract — order them instead (TD-13).
+    static constexpr int kMaxConcurrentDownloads = 1;
+    struct QueuedDownload {
+        QString appId;
+        QString dataUrl;
+        QString dirName;
+        qint64  expectedSize;
+    };
+    QQueue<QueuedDownload> m_pendingDownloads;
+    void startNextQueuedDownload();
 };
 
 } // namespace makine
