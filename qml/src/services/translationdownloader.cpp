@@ -36,16 +36,21 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
 {
     security::installTlsPinning(&m_nam);
 
-    // Clean stale .part files older than 7 days
+    // Clean stale temp files older than 7 days. Both .part (interrupted
+    // download) and final .makine (extraction crashed before QFile::remove
+    // ran) get orphaned; otherwise they accumulate forever and chew through
+    // the user's drive over months of crashes/cancels (TD-08).
     const QString tempDir = AppPaths::tempRoot() + QStringLiteral("/downloads");
     QDir dir(tempDir);
     if (dir.exists()) {
-        const auto entries = dir.entryInfoList({QStringLiteral("*.makine.part")}, QDir::Files);
+        const auto entries = dir.entryInfoList(
+            {QStringLiteral("*.makine.part"), QStringLiteral("*.makine")},
+            QDir::Files);
         const qint64 staleThreshold = QDateTime::currentSecsSinceEpoch() - 7 * 24 * 3600;
         for (const auto& fi : entries) {
             if (fi.lastModified().toSecsSinceEpoch() < staleThreshold) {
                 QFile::remove(fi.absoluteFilePath());
-                qCDebug(lcDownloader) << "removed stale part file" << fi.fileName();
+                qCDebug(lcDownloader) << "removed stale temp file" << fi.fileName();
             }
         }
     }
