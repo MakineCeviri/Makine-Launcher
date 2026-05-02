@@ -43,3 +43,9 @@ target_link_libraries(test_operationjournal_recover_integration PRIVATE
 )
 add_test(NAME test_operationjournal_recover_integration
          COMMAND test_operationjournal_recover_integration)
+
+# NOTE: BackupManager / TranslationDownloader / SelfUpdater integration
+# tests need the qml services compiled as a separate object library
+# (their headers transitively reach QQmlEngine/QGuiApplication/etc.,
+# which would drag the Qt Gui module into a headless test binary).
+# Tracked under B4-01 follow-up — see docs/development/integration-coverage.md.
