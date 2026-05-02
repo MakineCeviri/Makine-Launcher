@@ -14,6 +14,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QNetworkReply>
+#include <atomic>
+#include <memory>
 #include <string>
 #include <QUrl>
 #include <QUuid>
@@ -150,6 +152,7 @@ void TranslationDownloader::downloadPackage(
     state.cancelled = false;
     state.retryCount = 0;
     state.resumeOffset = 0;
+    state.cancelFlag = std::make_shared<std::atomic_bool>(false);
     m_activeDownloads.insert(appId, state);
     emit activeDownloadsChanged();
 
@@ -384,6 +387,10 @@ void TranslationDownloader::cancelDownload(const QString& appId)
         return;
 
     it->cancelled = true;
+    // Trip the atomic flag too — the extraction worker (which already
+    // released the network reply by the time it runs) only sees this (TD-10).
+    if (it->cancelFlag)
+        it->cancelFlag->store(true);
 
     if (it->reply) {
         it->reply->abort();
@@ -466,7 +473,13 @@ void TranslationDownloader::processDownloadedFile(
 
     const QString destDir = m_dataPath + QStringLiteral("/") + dirName;
 
-    auto future = QtConcurrent::run([tempPath, destDir]()
+    // Snapshot the cancel flag now (still under the GUI thread); the lambda
+    // captures the shared_ptr by value so it stays valid even if cancelDownload
+    // removes the DownloadState before the worker finishes.
+    std::shared_ptr<std::atomic_bool> cancelFlag =
+        m_activeDownloads.value(appId).cancelFlag;
+
+    auto future = QtConcurrent::run([tempPath, destDir, cancelFlag]()
         -> std::pair<int, std::string>
     {
         try {
@@ -521,28 +534,38 @@ void TranslationDownloader::processDownloadedFile(
                     return {-1, "Failed to read downloaded file"};
 
                 mkpk::MkpkError err{""};
+                auto cancelCheck = [cancelFlag]() {
+                    return cancelFlag && cancelFlag->load();
+                };
                 int fileCount = mkpk::process_mkpkg(
                     reinterpret_cast<const uint8_t*>(rawData.constData()),
                     static_cast<size_t>(rawData.size()),
                     destDir.toStdWString(),
-                    &err);
+                    &err,
+                    nullptr,
+                    cancelCheck);
                 if (fileCount < 0)
-                    return {-1, err.message};
+                    return {fileCount, err.message};
                 QFile::remove(tempPath);
                 return {fileCount, ""};
             }
 
             mkpk::MkpkError err{""};
+            auto cancelCheck = [cancelFlag]() {
+                return cancelFlag && cancelFlag->load();
+            };
             int fileCount = mkpk::process_mkpkg(
                 reinterpret_cast<const uint8_t*>(mapped),
                 static_cast<size_t>(fileSize),
                 destDir.toStdWString(),
-                &err);
+                &err,
+                nullptr,
+                cancelCheck);
             file.unmap(mapped);
             file.close();
 
             if (fileCount < 0) {
-                return {-1, err.message};
+                return {fileCount, err.message};
             }
 
             QFile::remove(tempPath);
@@ -565,6 +588,17 @@ void TranslationDownloader::processDownloadedFile(
             emit activeDownloadsChanged();
 
             auto [fileCount, errorMsg] = watcher->result();
+
+            if (fileCount == -2) {
+                // Cancelled mid-extract — drop the .makine temp and any
+                // partial destDir, then notify the UI via the cancel
+                // signal rather than the error path (TD-10).
+                QFile::remove(tempPath);
+                QDir(m_dataPath + QStringLiteral("/") + dirName).removeRecursively();
+                qCDebug(lcDownloader) << "extraction cancelled for" << appId;
+                emit downloadCancelled(appId);
+                return;
+            }
 
             if (fileCount < 0) {
                 QFile::remove(tempPath);

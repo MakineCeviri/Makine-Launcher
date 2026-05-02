@@ -262,16 +262,21 @@ inline bool is_zero_block(const uint8_t* block)
 }
 
 /// Extract tar archive from memory to filesystem.
-/// @param data     Raw tar data
-/// @param size     Size of tar data
-/// @param dest     Destination directory (created if needed)
-/// @param on_file  Optional callback (filename, bytes_written) for progress
-/// @return Number of files extracted, or -1 on error
+/// @param data         Raw tar data
+/// @param size         Size of tar data
+/// @param dest         Destination directory (created if needed)
+/// @param err          Optional error sink
+/// @param on_file      Optional callback (filename, bytes_written) for progress
+/// @param should_cancel Optional polled cancel callback. Checked between
+///                      tar entries; when it returns true the loop bails out
+///                      with -2 and "Extraction cancelled" in err (TD-10).
+/// @return Number of files extracted, -1 on error, -2 on cancellation
 inline int extract(
     const uint8_t* data, size_t size,
     const std::filesystem::path& dest,
     MkpkError* err = nullptr,
-    std::function<void(const std::string&, size_t)> on_file = nullptr)
+    std::function<void(const std::string&, size_t)> on_file = nullptr,
+    std::function<bool()> should_cancel = nullptr)
 {
     namespace fs = std::filesystem;
 
@@ -331,6 +336,13 @@ inline int extract(
     size_t pos = 0;
 
     while (pos + 512 <= size) {
+        // Cancel between tar entries — large packages can spend minutes here,
+        // and the user clicking "İptal" expects something to happen (TD-10).
+        if (should_cancel && should_cancel()) {
+            if (err) *err = MkpkError("Extraction cancelled");
+            return -2;
+        }
+
         const uint8_t* header = data + pos;
 
         // Two consecutive zero blocks = end of archive
@@ -457,7 +469,8 @@ inline int process_mkpkg(
     const uint8_t* mkpk_data, size_t mkpk_size,
     const std::filesystem::path& dest_dir,
     MkpkError* err = nullptr,
-    std::function<void(const std::string&, size_t)> on_file = nullptr)
+    std::function<void(const std::string&, size_t)> on_file = nullptr,
+    std::function<bool()> should_cancel = nullptr)
 {
     // Validate minimum size (magic + version)
     if (mkpk_size < 5) {
@@ -500,7 +513,8 @@ inline int process_mkpkg(
     compressed.shrink_to_fit();
 
     // Step 3: Extract
-    return tar::extract(tar_data.data(), tar_data.size(), dest_dir, err, std::move(on_file));
+    return tar::extract(tar_data.data(), tar_data.size(), dest_dir, err,
+                        std::move(on_file), std::move(should_cancel));
 }
 
 /// Process a v2 (unencrypted) .makine file. Convenience wrapper for plugins.
