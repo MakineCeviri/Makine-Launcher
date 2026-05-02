@@ -22,6 +22,8 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QTimer>
+#include <atomic>
+#include <memory>
 
 namespace makine {
 
@@ -112,6 +114,10 @@ private:
         bool writeError{false};   // Set when partFile->write() returns short — disk full / FS error
         int retryCount{0};
         qint64 resumeOffset{0};
+        // Atomic flag the extraction worker polls between tar entries.
+        // shared_ptr so the QtConcurrent task keeps it alive even after
+        // m_activeDownloads.remove() drops the DownloadState (TD-10).
+        std::shared_ptr<std::atomic_bool> cancelFlag;
     };
 
     QNetworkAccessManager m_nam;
