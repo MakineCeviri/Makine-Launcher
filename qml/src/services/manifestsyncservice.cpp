@@ -233,7 +233,7 @@ void ManifestSyncService::handleDeltaResponse(const QByteArray& data)
     }
 
     m_store->saveLocalCatalogVersion(toVersion);
-    invalidateChangedDetails();
+    invalidateAndNotifyRefresh();
     finishSync();
 
     qCDebug(lcManifestSync) << "ManifestSync: delta applied — now v" << toVersion
@@ -286,7 +286,7 @@ void ManifestSyncService::handleFullCatalogResponse(const QByteArray& data)
         qCDebug(lcManifestSync) << "ManifestSync: full catalog synced —"
                                 << m_store->catalogCount() << "packages, v"
                                 << m_store->catalogVersion();
-        invalidateChangedDetails();
+        invalidateAndNotifyRefresh();
         finishSync();
     } else {
         fallbackToLegacySync();
@@ -346,7 +346,7 @@ void ManifestSyncService::fallbackToLegacySync()
                 m_store->setEtag(etag);
                 qCDebug(lcManifestSync) << "ManifestSync: legacy catalog synced —"
                                         << m_store->catalogCount() << "packages";
-                invalidateChangedDetails();
+                invalidateAndNotifyRefresh();
                 setOffline(false);
                 QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             } else {
@@ -376,6 +376,18 @@ void ManifestSyncService::invalidateChangedDetails()
     const QStringList changed = m_store->takeChangedAppIds();
     for (const QString& appId : changed) {
         m_detailFetcher->invalidate(appId);
+    }
+}
+
+void ManifestSyncService::invalidateAndNotifyRefresh()
+{
+    // SWR badge: peek before drain so we know whether to surface a UI hint
+    // (docs/specs/swr-cache.md). takeChangedAppIds inside
+    // invalidateChangedDetails clears the list — peek first.
+    const int beforeRefresh = m_store->changedCount();
+    invalidateChangedDetails();
+    if (beforeRefresh > 0) {
+        emit catalogRefreshed(m_store->catalogCount(), beforeRefresh);
     }
 }
 

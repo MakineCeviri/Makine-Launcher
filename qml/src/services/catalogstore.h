@@ -70,6 +70,9 @@ public:
 
     // --- Changed tracking (consumed by orchestrator for detail invalidation) ---
     QStringList takeChangedAppIds();
+    /// Peek-only count of pending changes; used by ManifestSyncService to
+    /// emit catalogRefreshed *before* takeChangedAppIds drains the list.
+    int changedCount() const { return m_changedAppIds.size(); }
 
 private:
     QHash<QString, CatalogEntry> m_catalog;

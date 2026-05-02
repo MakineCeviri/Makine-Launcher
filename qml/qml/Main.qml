@@ -895,6 +895,15 @@ ApplicationWindow {
         id: gameToast
     }
 
+    // ===== SWR CATALOG REFRESH BADGE =====
+    RefreshIndicator {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 24
+        anchors.bottomMargin: 24
+        z: Dimensions.zOverlay
+    }
+
     Connections {
         target: ProcessScanner
         function onGameDetected(gameId, gameName) {

@@ -264,6 +264,7 @@ qt_add_qml_module(MakineLauncher
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         qml/components/RegionSelector.qml         # Full-screen rubber-band OCR region selector
         qml/components/TranslationOverlay.qml     # Frameless overlay window for OCR results
+        qml/components/RefreshIndicator.qml       # SWR catalog refresh corner badge
         #
         # ── Internal Components (settings/detail screens only) ──
         #
