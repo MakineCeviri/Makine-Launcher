@@ -48,12 +48,22 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
         syncCatalog();
     });
 
-    // Safety timeout: reset m_syncing if sync hangs for 30s
+    // Safety timeout: abort the in-flight reply if sync hangs for 30s. Just
+    // flipping m_syncing wasn't enough — the orphaned reply would still fire
+    // its finished handler later and race a fresh syncCatalog() kicked off
+    // by the retry timer (B2-10). Aborting routes the reply through its
+    // normal error path so finishSync() / fallbackToLegacySync() runs once.
     m_syncTimeoutTimer.setSingleShot(true);
     m_syncTimeoutTimer.setInterval(30000);
     connect(&m_syncTimeoutTimer, &QTimer::timeout, this, [this]() {
-        if (m_syncing) {
-            qCWarning(lcManifestSync) << "ManifestSync: sync timeout (30s) — resetting state";
+        if (!m_syncing)
+            return;
+        qCWarning(lcManifestSync) << "ManifestSync: sync timeout (30s) — aborting reply";
+        if (m_currentSyncReply) {
+            m_currentSyncReply->abort();
+        } else {
+            // No tracked reply (shouldn't happen): clear flag so the next
+            // syncCatalog() attempt can run.
             m_syncing = false;
             emit syncStatusChanged();
         }
@@ -116,6 +126,7 @@ void ManifestSyncService::fetchCatalogMeta()
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
 
     QNetworkReply* reply = m_nam.get(req);
+    m_currentSyncReply = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
 
@@ -171,6 +182,7 @@ void ManifestSyncService::fetchCatalogDelta(int sinceVersion)
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
 
     QNetworkReply* reply = m_nam.get(req);
+    m_currentSyncReply = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
 
@@ -237,6 +249,7 @@ void ManifestSyncService::fetchFullCatalog()
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
 
     QNetworkReply* reply = m_nam.get(req);
+    m_currentSyncReply = reply;
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > 2 * 1024 * 1024) {
             reply->abort();
@@ -294,6 +307,7 @@ void ManifestSyncService::fallbackToLegacySync()
         req.setRawHeader("If-None-Match", m_store->etag().toUtf8());
 
     QNetworkReply* reply = m_nam.get(req);
+    m_currentSyncReply = reply;
     connect(reply, &QNetworkReply::downloadProgress, this, [reply](qint64 received, qint64) {
         if (received > 1 * 1024 * 1024) {
             reply->abort();

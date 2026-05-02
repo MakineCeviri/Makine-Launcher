@@ -19,7 +19,10 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QNetworkAccessManager>
+#include <QPointer>
 #include <QTimer>
+
+class QNetworkReply;
 
 namespace makine {
 
@@ -90,6 +93,10 @@ private:
     bool m_offline{false};
     QTimer m_retryTimer;
     QTimer m_syncTimeoutTimer;
+    // Tracks the in-flight sync reply so the timeout can abort it instead
+    // of just clearing m_syncing — that previously left a zombie reply
+    // racing the next sync attempt (B2-10).
+    QPointer<QNetworkReply> m_currentSyncReply;
 };
 
 } // namespace makine
