@@ -456,19 +456,28 @@ bool BackupManager::deleteBackup(const QString& backupId)
     }
 
     const int idx = *idxIt;
+    const QString backupPath = m_backups[idx].backupPath;
 
-    // Delete backup directory
-    QDir backupDir(m_backups[idx].backupPath);
-    if (backupDir.exists()) {
-        backupDir.removeRecursively();
-    }
-
+    // Update in-memory state and notify the UI synchronously so the
+    // backup disappears from the list right away.
     m_backups.removeAt(idx);
     rebuildBackupIndex();
     saveBackups();
-
     emit backupsChanged();
     emit backupDeleted(backupId);
+
+    // Disk removal can take several seconds on large backups (10k+ files
+    // for big games); run it on a worker thread so the UI doesn't freeze
+    // while removeRecursively walks the tree (BM-14).
+    if (!backupPath.isEmpty()) {
+        (void)QtConcurrent::run([backupPath]() {
+            QDir backupDir(backupPath);
+            if (backupDir.exists() && !backupDir.removeRecursively()) {
+                qCWarning(lcBackup) << "deleteBackup: removeRecursively failed for"
+                                    << backupPath;
+            }
+        });
+    }
 
     return true;
 }
