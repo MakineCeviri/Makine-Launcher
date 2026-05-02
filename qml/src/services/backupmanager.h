@@ -13,6 +13,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QQmlEngine>
+#include <atomic>
+#include <memory>
 
 namespace makine {
 
@@ -125,6 +127,14 @@ public:
                                      const QString& gameStoreVersion = {},
                                      const QString& patchVersion = {});
 
+    /**
+     * @brief Cancel the in-flight selective backup, if any.
+     * Trips an atomic flag the worker polls between files; the partial
+     * backup directory is removed and selectiveBackupCompleted(gameId,
+     * false) is emitted along with backupCancelled(gameId) (BM-03).
+     */
+    Q_INVOKABLE void cancelCurrentBackup();
+
 signals:
     void backupProgress(double progress, const QString& status);
     void selectiveBackupCompleted(const QString& gameId, bool success);
@@ -140,6 +150,7 @@ signals:
     // game with a mix of patched and original files.
     void backupRestoreFailed(const QString& gameId, const QString& reason);
     void backupDeleted(const QString& backupId);
+    void backupCancelled(const QString& gameId);
     void backupError(const QString& error);
 
 private:
@@ -168,6 +179,11 @@ private:
     QString m_restoreStatus;
     int m_maxBackupsPerGame{3};
     OperationJournal* m_journal{nullptr};
+
+    // Atomic cancellation flag for the in-flight selective backup. shared_ptr
+    // so the worker thread keeps it alive after cancelCurrentBackup() resets
+    // the member (BM-03).
+    std::shared_ptr<std::atomic_bool> m_currentBackupCancel;
 };
 
 } // namespace makine

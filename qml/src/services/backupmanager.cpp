@@ -24,6 +24,8 @@
 #include <QLoggingCategory>
 #include <QtConcurrent>
 #include <algorithm>
+#include <atomic>
+#include <memory>
 
 Q_LOGGING_CATEGORY(lcBackup, "makine.backup")
 
@@ -166,8 +168,13 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
     const QString backupId = generateBackupId();
     const QString backupDir = backupsRoot + "/" + gameId + "/" + backupId;
 
+    // Refresh the cancellation flag for this run; older flags belong to
+    // already-finished workers and would be stale.
+    m_currentBackupCancel = std::make_shared<std::atomic_bool>(false);
+    auto cancelFlag = m_currentBackupCancel;
+
     (void)QtConcurrent::run([this, gameId, gameName, gamePath, filesToOverwrite, backupId, backupDir,
-                              gameStoreVersion, patchVersion]() {
+                              gameStoreVersion, patchVersion, cancelFlag]() {
         QDir().mkpath(backupDir);
 
         // Begin crash recovery journal
@@ -189,6 +196,22 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
         QSet<QString> createdDirs;
 
         for (int i = 0; i < total; ++i) {
+            // Cancellation point — large backups (10k+ files) need a way out
+            // when the user clicks Cancel. Same atomic-flag pattern the
+            // extractor uses (TD-10) so the partial backupDir is removed
+            // and the journal aborted in a known state (BM-03).
+            if (cancelFlag && cancelFlag->load()) {
+                qCWarning(lcBackup) << "Selective backup cancelled:" << gameId
+                                    << "after" << copiedFiles << "/" << total << "files";
+                QDir(backupDir).removeRecursively();
+                QMetaObject::invokeMethod(this, [this, gameId]() {
+                    if (m_journal) m_journal->abortOperation();
+                    emit backupCancelled(gameId);
+                    emit selectiveBackupCompleted(gameId, false);
+                }, Qt::QueuedConnection);
+                return;
+            }
+
             const QString& relPath = filesToOverwrite[i];
             const QString sourceFile = QDir::cleanPath(gamePath + "/" + relPath);
 
@@ -276,6 +299,12 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             emit selectiveBackupCompleted(gameId, true);
         }, Qt::QueuedConnection);
     });
+}
+
+void BackupManager::cancelCurrentBackup()
+{
+    if (m_currentBackupCancel)
+        m_currentBackupCancel->store(true);
 }
 
 bool BackupManager::restoreBackup(const QString& backupId, const QString& targetPath)
