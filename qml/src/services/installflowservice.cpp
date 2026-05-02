@@ -263,9 +263,10 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
 
     // Resolve dirName and start download
     QString dirName = resolveDirName(gameId, catalog);
+    const qint64 expectedSize = catalog.value(QStringLiteral("size")).toLongLong();
 
     m_pendingDownload = PendingDownload{gameId, variant, options};
-    m_downloader->downloadPackage(gameId, dataUrl, dirName);
+    m_downloader->downloadPackage(gameId, dataUrl, dirName, expectedSize);
     m_manifestSync->telemetry()->onDownload(gameId);
 }
 
@@ -294,8 +295,9 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
     }
 
     QString dirName = resolveDirName(gameId, catalog);
+    const qint64 expectedSize = catalog.value(QStringLiteral("size")).toLongLong();
     m_pendingDownload = PendingDownload{gameId, variant, options};
-    m_downloader->downloadPackage(gameId, dataUrl, dirName);
+    m_downloader->downloadPackage(gameId, dataUrl, dirName, expectedSize);
 }
 
 // ===== Download callbacks =====

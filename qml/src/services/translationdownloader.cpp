@@ -79,7 +79,8 @@ bool TranslationDownloader::shouldRetry(QNetworkReply::NetworkError err, int htt
 void TranslationDownloader::downloadPackage(
     const QString& appId,
     const QString& dataUrl,
-    const QString& dirName)
+    const QString& dirName,
+    qint64 expectedSize)
 {
     MAKINE_ZONE_NAMED("TranslationDownloader::downloadPackage");
     CrashReporter::addBreadcrumb("download",
@@ -100,12 +101,23 @@ void TranslationDownloader::downloadPackage(
     return;
 #else
 
-    // Check available disk space before downloading (need ~3x package size: download + decompress + extract)
+    // Check available disk space before downloading. The flat 500 MB minimum
+    // misses large packages (>250 MB compressed needs >750 MB end-to-end:
+    // .part + decrypt buffer + extracted dir). When the catalog gives us
+    // expectedSize, scale to ~3x + 200 MB safety; otherwise keep the
+    // 500 MB floor for unknown-size paths (TD-02).
     const auto storageInfo = QStorageInfo(AppPaths::dataDir());
     const qint64 availableBytes = storageInfo.bytesAvailable();
-    constexpr qint64 kMinFreeSpace = 500LL * 1024 * 1024; // 500 MB minimum free space
-    if (availableBytes > 0 && availableBytes < kMinFreeSpace) {
-        emit downloadError(appId, tr("Yetersiz disk alanı — en az 500 MB boş alan gerekli (%1 MB mevcut)")
+    constexpr qint64 kMinFreeSpace = 500LL * 1024 * 1024;
+    qint64 requiredBytes = kMinFreeSpace;
+    if (expectedSize > 0) {
+        const qint64 scaled = expectedSize * 3 + 200LL * 1024 * 1024;
+        if (scaled > requiredBytes)
+            requiredBytes = scaled;
+    }
+    if (availableBytes > 0 && availableBytes < requiredBytes) {
+        emit downloadError(appId, tr("Yetersiz disk alanı — yaklaşık %1 MB boş alan gerekli (%2 MB mevcut)")
+            .arg(requiredBytes / (1024 * 1024))
             .arg(availableBytes / (1024 * 1024)));
         return;
     }

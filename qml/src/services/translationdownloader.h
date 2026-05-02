@@ -43,10 +43,16 @@ public:
      * @param dirName   Target directory name under data path
      *
      * Flow: download → decrypt+decompress+extract → data/{dirName}/
+     *
+     * @param expectedSize  Compressed package size in bytes from the catalog,
+     *                      used to compute a packageSize-aware free-space check
+     *                      (~3x the size for download + decompress + extract).
+     *                      Pass 0 to fall back to the static 500 MB minimum.
      */
     Q_INVOKABLE void downloadPackage(const QString& appId,
                                      const QString& dataUrl,
-                                     const QString& dirName);
+                                     const QString& dirName,
+                                     qint64 expectedSize = 0);
 
     /**
      * @brief Cancel an active download.
