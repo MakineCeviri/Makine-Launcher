@@ -608,6 +608,15 @@ void UpdateService::onGitHubCheckFinished(QNetworkReply* reply)
 {
     reply->deleteLater();
 
+    // Reset GitHub metadata up front; success path repopulates below.
+    // Without this, any early return leaves stale m_githubAssetId that
+    // download() picks up next time and routes a non-GitHub URL through
+    // the GitHub asset branch (B2-05).
+    m_githubAssetId = 0;
+    m_totalBytes = 0;
+    m_expectedChecksum.clear();
+    m_releaseNotes.clear();
+
     if (reply->error() != QNetworkReply::NoError) {
         qCDebug(lcUpdateService) << "UpdateService: GitHub API failed:" << reply->errorString();
         setError(reply->errorString());
