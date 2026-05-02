@@ -307,6 +307,12 @@ void BackupManager::cancelCurrentBackup()
         m_currentBackupCancel->store(true);
 }
 
+void BackupManager::cancelCurrentRestore()
+{
+    if (m_currentRestoreCancel)
+        m_currentRestoreCancel->store(true);
+}
+
 bool BackupManager::restoreBackup(const QString& backupId, const QString& targetPath)
 {
     MAKINE_ZONE_NAMED("BackupManager::restoreBackup");
@@ -387,8 +393,12 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
         m_journal->beginOperation(je);
     }
 
+    // Refresh cancellation flag for this restore.
+    m_currentRestoreCancel = std::make_shared<std::atomic_bool>(false);
+    auto cancelFlag = m_currentRestoreCancel;
+
     // Run restore operation async
-    (void)QtConcurrent::run([this, backupDir, restoreDir, backupId, gameId]() {
+    (void)QtConcurrent::run([this, backupDir, restoreDir, backupId, gameId, cancelFlag]() {
         QDir sourceDir(backupDir);
 
         // Count total files first
@@ -407,6 +417,28 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
         QSet<QString> createdDirs;
 
         while (it2.hasNext()) {
+            // Cancel between files. The game directory is left half-restored
+            // on cancel — surface that explicitly via backupRestoreFailed so
+            // GameService::uninstallTranslation skips uninstallPackage and
+            // points the user at Steam Verify Integrity (BM-08).
+            if (cancelFlag && cancelFlag->load()) {
+                qCWarning(lcBackup) << "Restore cancelled:" << gameId
+                                    << "after" << restoredCount << "/" << totalFiles
+                                    << "files";
+                QMetaObject::invokeMethod(this, [this, gameId]() {
+                    m_isRestoring = false;
+                    m_restoreStatus = tr("Geri yükleme iptal edildi");
+                    emit isRestoringChanged();
+                    emit restoreStatusChanged();
+                    if (m_journal) m_journal->abortOperation();
+                    emit backupRestoreFailed(gameId,
+                        tr("Geri yükleme iptal edildi — oyun yarı yüklü "
+                           "durumda olabilir. Steam üzerinden \"Oyun "
+                           "dosyalarının bütünlüğünü doğrula\" çalıştırın."));
+                }, Qt::QueuedConnection);
+                return;
+            }
+
             const QString backupFile = it2.next();
             const QString relativePath = sourceDir.relativeFilePath(backupFile);
             const QString destFile = QDir::cleanPath(restoreDir + "/" + relativePath);
