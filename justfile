@@ -213,6 +213,18 @@ release-zip-signed version: release-signed
     powershell -Command "Compress-Archive -Path 'build/release-static/Makine-Launcher.exe' -DestinationPath 'Makine-Launcher-v{{version}}-win64.zip' -Force"
     @echo "Signed release ready: Makine-Launcher-v{{version}}-win64.zip + SHA256SUMS.txt"
 
+# Regenerate the MSIX tile/logo PNGs from qml/resources/images/logo.png
+msix-assets:
+    python scripts/gen_msix_assets.py
+
+# Build the Microsoft Store MSIX (unsigned). identity/publisher come from
+# Microsoft Partner Center > App identity (publisher == signing cert CN).
+# Version is 4-part (Store requires the .0 revision).
+# Usage: just msix 0.1.0.0 MakineCeviri.MakineLauncher "CN=ABCD1234-..."
+msix version identity publisher: release-static
+    powershell -ExecutionPolicy Bypass -File scripts/make_msix.ps1 -Version "{{version}}" -IdentityName "{{identity}}" -Publisher "{{publisher}}"
+    @echo "Next (owner): signtool sign /fd SHA256 /f <cert.pfx> /p <pwd> dist/Makine-Launcher-v{{version}}.msix"
+
 # ============================================================================
 # PROFILING (Tracy)
 # ============================================================================

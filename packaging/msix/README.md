@@ -41,30 +41,32 @@ manifest alone does not rename an app already reserved as "MakineAI".
 -DMSIX_VERSION=0.1.0.0          # 4-part; Store requires revision .0
 ```
 
-Then package the existing static EXE:
+## Build pipeline (wired — 2026-05-19)
+
+Everything except the two Partner Center values + signing is ready:
 
 ```
-makeappx pack /d <staging-with-exe+Assets> /p Makine-Launcher.msix
-# sign with the SAME cert as scripts/sign_exe.ps1 (Publisher must match):
-signtool sign /fd SHA256 /a Makine-Launcher.msix
+just release-static                                  # current static EXE
+just msix <X.Y.Z.0> <IdentityName> "<CN=Publisher>"  # -> dist/Makine-Launcher-v<ver>.msix
+# owner only (cert in scripts/certs/, not in CI):
+signtool sign /fd SHA256 /f <cert.pfx> /p <pwd> dist/Makine-Launcher-v<ver>.msix
 ```
 
-Add this as a step in the local release tooling (a `just msix` recipe / a
-packaging script) after `just release-zip-signed`. The manifest lives in the
-canonical dev repo and is cherry-picked to public like the rest of the code.
+- `scripts/gen_msix_assets.py` (`just msix-assets`) generates the 7 tile
+  PNGs into `Assets/` from `qml/resources/images/logo.png` — **done, committed**.
+- `scripts/make_msix.ps1` (`just msix`) substitutes `@MSIX_*@` into the
+  manifest, stages exe+Assets+manifest, runs `makeappx pack`. It **refuses
+  placeholder Identity/Publisher** so a bad package can't reach the Store.
+- `Version` is 4-part, Store requires the `.0` revision (e.g. `0.1.0.0`).
 
-## Required logo assets (not yet created)
+## What is still owner-only (hard blockers, not code)
 
-`makeappx` needs PNGs under `Assets\` referenced by the manifest:
+| Need | Where | Why |
+|------|-------|-----|
+| Identity **Name** + **Publisher** (`CN=…`) | Partner Center → App identity | MSIX `Identity` must match the reservation or submission is rejected |
+| Reserve name **`Makine Launcher`** | Partner Center → Manage app names | Store display name comes from the reservation, not the manifest |
+| Sign the `.msix` | `scripts/certs/` cert (cert subject **==** Publisher) | unsigned packages are not Store-submittable |
 
-| File | Size |
-|------|------|
-| `StoreLogo.png` | 50×50 |
-| `Square44x44Logo.png` | 44×44 |
-| `Square71x71Logo.png` | 71×71 |
-| `Square150x150Logo.png` | 150×150 |
-| `Square310x310Logo.png` | 310×310 |
-| `Wide310x150Logo.png` | 310×150 |
-| `SplashScreen.png` | 620×300 |
-
-Generate from `qml/resources/images/logo.png` / `resources/app_icon.ico`.
+Generated `Assets/` PNGs:
+`StoreLogo` 50² · `Square44x44` · `Square71x71` · `Square150x150` ·
+`Square310x310` · `Wide310x150` · `SplashScreen` 620×300.
