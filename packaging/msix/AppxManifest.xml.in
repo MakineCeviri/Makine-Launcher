@@ -28,7 +28,7 @@
   <Properties>
     <!-- Shown in Microsoft Store, Start menu, Settings > Apps. -->
     <DisplayName>Makine Launcher</DisplayName>
-    <PublisherDisplayName>MakineCeviri Team</PublisherDisplayName>
+    <PublisherDisplayName>Makine Çeviri</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
