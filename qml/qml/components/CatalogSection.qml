@@ -18,6 +18,12 @@ Rectangle {
         catalogContentFade.start()
     }
 
+    // Ctrl+F (from Main.qml) → focus the search box
+    function focusSearch() {
+        searchInput.forceActiveFocus()
+        searchInput.selectAll()
+    }
+
     Layout.fillWidth: true
     Layout.fillHeight: true
 
@@ -25,6 +31,21 @@ Rectangle {
     radius: Dimensions.radiusSection
 
     GradientBorder { cornerRadius: parent.radius }
+
+    // Click anywhere outside the search box (empty catalog / header
+    // space) blurs it so it collapses. A QML TextInput keeps active
+    // focus until something else takes it — without this the box never
+    // closed (had to restart the app). Sits beneath the content so
+    // cards, strips and the search box still receive their own clicks.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton
+        onPressed: (mouse) => {
+            if (searchInput.activeFocus)
+                searchInput.focus = false
+            mouse.accepted = false
+        }
+    }
 
     // Internal state
     readonly property real contentPadding: 16

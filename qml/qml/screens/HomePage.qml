@@ -43,6 +43,9 @@ Item {
         entryAnim.start()
     }
 
+    // Ctrl+F → focus the catalog search box
+    function focusSearch() { catalogSection.focusSearch() }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.topMargin: homePage.gap
