@@ -173,6 +173,7 @@ docs/html/
 docs/latex/
 dist/
 dist-static/
+packaging/msix/_stage/
 scripts/showcase_validation.json
 *.ps1
 !scripts/**/*.ps1
