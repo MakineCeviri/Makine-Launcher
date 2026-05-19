@@ -45,6 +45,13 @@ Item {
     function showHomePage() { currentPage = 0 }
     function showLibraryPage() { currentPage = 1 }
 
+    // Ctrl+F → switch to Home sub-page and focus the catalog search
+    function focusSearch() {
+        currentPage = 0
+        if (homePageLoader.item)
+            homePageLoader.item.focusSearch()
+    }
+
     // Sub-pages share the same slot, switched by visibility
     // Async-loaded: defers heavyweight creation (GameDetectionCard,
     // AnnouncementCard, CatalogSection with 2× strip) until after first frame.
