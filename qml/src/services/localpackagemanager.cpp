@@ -507,6 +507,125 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
     return sourcePath;
 }
 
+// Strip mis-packaged top-level wrapper directories so overlay files land
+// in the game root instead of game/<wrapper>/. Many patches ship wrapped
+// in a human-named folder — "Türkçe Yama/", the game's own name
+// ("Watch Dogs Legion/"), a source tag ("Apex/"), etc. Copying that
+// wrapper verbatim drops the translation one level too deep: the game
+// never reads it, yet every file copy succeeds, so the install reports a
+// silent false success ("yama kuruldu ama dil değişmiyor").
+//
+// Strips iteratively (collapses nested wrappers like
+// "Apex/Watch Dogs Legion/…") while EVERY file shares one top dir AND
+// that dir is a wrapper, where "wrapper" means:
+//   (A) its name matches a known TR-patch keyword, OR
+//   (B) no entry of that name exists in the real game install — a
+//       structurally-rooted package always targets a path the game
+//       already has (paks/, Content/, data_win64/, …), so a top dir
+//       absent from the game is packaging noise, not real structure.
+// The existence check (B) naturally halts at the first real game dir, so
+// legitimately-rooted packages are never over-stripped, and the result
+// is correct under ANY packaging layout (it never relies on guessing a
+// specific package's internals). gamePath empty ⇒ can't verify ⇒ fall
+// back to keyword-only (zero regression). Fixes all existing/future
+// mis-wrapped overlay packages at install time, no re-packaging.
+static void stripWrapperPrefix(QList<QPair<QString, QString>>& files,
+                               const QString& gamePath)
+{
+    if (files.isEmpty())
+        return;
+
+    auto topDir = [](const QString& rel) -> QString {
+        const int slash = rel.indexOf('/');
+        return slash < 0 ? QString() : rel.left(slash);
+    };
+
+    static const QStringList kWrapperNames = {
+        "turkceyama", "turkce", "turkishpatch", "turkish",
+        "tryama", "yama", "ceviri", "turkishtranslation", "patch"
+    };
+
+    // Iterate so nested wrappers collapse fully; hard cap guards against
+    // pathological deep nesting.
+    for (int guard = 0; guard < 8; ++guard) {
+        const QString wrapper = topDir(files.first().second);
+        if (wrapper.isEmpty())
+            return;  // at package root — nothing (more) wrapped
+        for (const auto& f : files) {
+            if (topDir(f.second) != wrapper)
+                return;  // files span multiple top dirs — not one wrapper
+        }
+
+        // (A) Known TR-patch keyword? Normalize: lower-case +
+        // transliterate Turkish letters + drop spaces/_/- so
+        // "Türkçe Yama", "TURKCE_YAMA", "turkish-patch" all match.
+        QString norm = wrapper.toLower();
+        norm.replace(QChar(0x00E7), QChar('c'))   // ç
+            .replace(QChar(0x011F), QChar('g'))   // ğ
+            .replace(QChar(0x0131), QChar('i'))   // ı
+            .replace(QChar(0x00F6), QChar('o'))   // ö
+            .replace(QChar(0x015F), QChar('s'))   // ş
+            .replace(QChar(0x00FC), QChar('u'));  // ü
+        norm.remove(QChar(' ')).remove(QChar('_')).remove(QChar('-'));
+        const bool knownName = kWrapperNames.contains(norm);
+
+        // (B) Does the game install actually contain this top entry? If
+        // it does, the package is correctly rooted here — stop. If not
+        // (or we can't check), treat as wrapper only when (A) failed too.
+        const bool existsInGame = !gamePath.isEmpty()
+            && QFileInfo::exists(QDir::cleanPath(gamePath + "/" + wrapper));
+        if (!knownName && (existsInGame || gamePath.isEmpty()))
+            return;  // real game subdir (or unverifiable) — leave it
+
+        const int cut = wrapper.length() + 1;  // remove "<wrapper>/"
+        for (auto& f : files)
+            f.second = f.second.mid(cut);
+
+        qCInfo(lcPackageManager) << "stripWrapperPrefix: removed wrapper folder"
+                                 << wrapper << (knownName ? "(known-name)" : "(absent-in-game)")
+                                 << "from" << files.size() << "files";
+    }
+}
+
+// Resolve a recipe-relative source against the package dir, tolerant of a
+// single wrapper/sub-directory packages are (in)consistently wrapped in
+// (e.g. "Türkçe Yama/"). Used by EVERY step source lookup so no install
+// path (recipe or options, copy/copyFile/copyDir) can hard-fail with
+// "Adım N hata" just because the package nesting differs from the recipe.
+// Strict path always wins (zero regression); the one-level fallback only
+// engages when strict is missing AND exactly one unambiguous candidate
+// exists — never guesses. Returns strict on miss so the caller's existing
+// not-found handling/message is unchanged.
+static QString resolvePackageSource(const QString& packageDir, const QString& relSrc)
+{
+    const QString strict = QDir::cleanPath(packageDir + "/" + relSrc);
+    if (QFileInfo::exists(strict))
+        return strict;
+
+    QString found;
+    const auto subs = QDir(packageDir).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString& sub : subs) {
+        const QString cand = QDir::cleanPath(packageDir + "/" + sub + "/" + relSrc);
+        if (QFileInfo::exists(cand)) {
+            if (!found.isEmpty())
+                return strict;          // ambiguous — do not guess
+            found = cand;
+        }
+    }
+    if (!found.isEmpty())
+        qCInfo(lcPackageManager) << "resolvePackageSource: resolved" << relSrc
+                                 << "via wrapper ->" << found;
+    return found.isEmpty() ? strict : found;
+}
+
+// Install methods that are genuinely a structure-preserving overlay copy:
+// no installMethod / empty type, "direct" (copy package contents into the
+// game dir) and "overlay". EVERY other non-empty type needs a dedicated
+// handler or a recipe — overlay-copying its payload and reporting success
+// is the silent "yama kuruldu ama dil değişmiyor" lie. Single source of
+// truth shared by the install honesty gate and the update re-dispatch.
+static const QStringList kOverlaySafeTypes = { "", "direct", "overlay" };
+
 LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
     const QList<QPair<QString, QString>>& filesToCopy,
     const QString& gamePath,
@@ -562,12 +681,21 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             if (m_journal) m_journal->recordFileModified(relPath);
         } else if (copyErr == CopyError::DiskFull) {
             if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+            emit installCompleted(false, tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
+                "yamayı tekrar kurun."));
             result.errors = -1;
             return result;
         } else if (copyErr == CopyError::PermissionDenied) {
             if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+            emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                "1) Oyunu ve Steam'i tamamen kapatın\n"
+                "2) Makine Launcher'ı yönetici olarak çalıştırın "
+                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "3) Antivirüs / Windows Defender'da oyun klasörünü "
+                "istisnaya ekleyin\n"
+                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                "Sonra yamayı tekrar kurun."));
             result.errors = -1;
             return result;
         } else if (copyErr == CopyError::FileLocked) {
@@ -584,8 +712,17 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
                 if (m_journal) m_journal->commitOperation();
                 emit installCompleted(false, err2 == CopyError::DiskFull
-                    ? tr("Disk alanı doldu, kurulum durduruluyor")
-                    : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    ? tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
+                "yamayı tekrar kurun.")
+                    : tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                "1) Oyunu ve Steam'i tamamen kapatın\n"
+                "2) Makine Launcher'ı yönetici olarak çalıştırın "
+                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "3) Antivirüs / Windows Defender'da oyun klasörünü "
+                "istisnaya ekleyin\n"
+                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                "Sonra yamayı tekrar kurun."));
                 result.errors = -1;
                 return result;
             } else {
@@ -660,7 +797,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     // Retrieve package info (works in both build modes)
     auto maybePkg = getPackage(steamAppId);
     if (!maybePkg) {
-        emit installCompleted(false, tr("Yükleme paketi bulunamadı"));
+        emit installCompleted(false, tr("Yama paketi bulunamadı. İndirme tamamlanmamış olabilir. "
+                "Çözüm: yamayı yeniden indirin, disk alanını ve internet "
+                "bağlantınızı kontrol edin."));
         return;
     }
 
@@ -702,7 +841,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     {
         QString variantDir = m_dataPath + "/" + pkg.dirName + "/" + variant;
         if (!QDir(variantDir).exists()) {
-            emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
+            emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
+                "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
+                "kaldırıp yeniden indirin.").arg(pkg.gameName));
             return;
         }
         // Build a temporary PackageInfo with variant-specific options
@@ -721,7 +862,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     if (pkg.installMethodType == "options" && !selectedOptions.isEmpty()) {
         QString baseDir = m_dataPath + "/" + pkg.dirName;
         if (!QDir(baseDir).exists()) {
-            emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
+            emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
+                "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
+                "kaldırıp yeniden indirin.").arg(pkg.gameName));
             return;
         }
         (void)QtConcurrent::run([this, steamAppId, gamePath, baseDir, pkg, selectedOptions]() {
@@ -733,7 +876,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     const QString sourcePath = resolveSourcePath(pkg, variant);
 
     if (sourcePath.isEmpty()) {
-        emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
+        emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
+                "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
+                "kaldırıp yeniden indirin.").arg(pkg.gameName));
         return;
     }
 
@@ -766,6 +911,20 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 filesToCopy.append({it.filePath(), relPath});
             }
 
+            // Root fix: same wrapper generalization as the overlay path —
+            // a mis-packaged top folder would otherwise drop the files at
+            // target/<wrapper>/ instead of the real userPath target, the
+            // silent "kuruldu ama dil değişmiyor" bug. targetPath is freshly
+            // created/empty so any single top dir is packaging noise here.
+            stripWrapperPrefix(filesToCopy, targetPath);
+            if (filesToCopy.isEmpty()) {
+                if (m_journal) m_journal->abortOperation();
+                emit installCompleted(false, tr("Kurulacak dosya bulunamadı. Yama paketi boş veya bozuk "
+                "olabilir. Çözüm: yamayı kaldırıp yeniden indirin, internet "
+                "bağlantınızı kontrol edin."));
+                return;
+            }
+
             int total = filesToCopy.size();
             int copied = 0;
             int errors = 0;
@@ -791,11 +950,20 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     if (m_journal) m_journal->recordFileModified(relPath);
                 } else if (copyErr == CopyError::DiskFull) {
                     if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Disk alanı doldu, kurulum durduruluyor"));
+                    emit installCompleted(false, tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
+                "yamayı tekrar kurun."));
                     return;
                 } else if (copyErr == CopyError::PermissionDenied) {
                     if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                    emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                "1) Oyunu ve Steam'i tamamen kapatın\n"
+                "2) Makine Launcher'ı yönetici olarak çalıştırın "
+                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "3) Antivirüs / Windows Defender'da oyun klasörünü "
+                "istisnaya ekleyin\n"
+                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                "Sonra yamayı tekrar kurun."));
                     return;
                 } else if (copyErr == CopyError::FileLocked) {
                     QThread::msleep(150);
@@ -807,8 +975,17 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
                         if (m_journal) m_journal->commitOperation();
                         emit installCompleted(false, err2 == CopyError::DiskFull
-                            ? tr("Disk alanı doldu, kurulum durduruluyor")
-                            : tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                            ? tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
+                "yamayı tekrar kurun.")
+                            : tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                "1) Oyunu ve Steam'i tamamen kapatın\n"
+                "2) Makine Launcher'ı yönetici olarak çalıştırın "
+                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "3) Antivirüs / Windows Defender'da oyun klasörünü "
+                "istisnaya ekleyin\n"
+                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                "Sonra yamayı tekrar kurun."));
                         return;
                     } else { errors++; }
                 } else {
@@ -836,7 +1013,11 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 emit installCompleted(true, tr("%1 dosya başarıyla kuruldu").arg(copied));
             } else {
                 if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı").arg(errors).arg(total));
+                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun açık, "
+                "antivirüs engelliyor veya yazma izni yok. Çözüm: oyunu ve "
+                "Steam'i kapatın, Makine Launcher'ı yönetici olarak "
+                "çalıştırın, antivirüste oyun klasörünü izinli yapın, sonra "
+                "tekrar deneyin.").arg(errors).arg(total));
             }
         });
         return;
@@ -844,7 +1025,23 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
     // Unity bundle patching is handled by the Makine engine (not launcher)
     if (pkg.installMethodType == "unityPatch") {
-        emit installCompleted(false, tr("Unity patch kurulumu henüz desteklenmiyor"));
+        emit installCompleted(false, tr("Bu yama Unity bundle yaması "
+            "gerektiriyor; Makine Launcher bunu henüz otomatik kuramıyor. "
+            "Çözüm: yamayı apexyama.com sayfasındaki adımları izleyerek elle "
+            "kurun."));
+        return;
+    }
+
+    // Forge-archive injection (AC Odyssey/Valhalla …) needs the QuickBMS/c1
+    // forge toolchain the launcher does not bundle. Fail loudly instead of
+    // silently overlay-copying the tool files and reporting success — that
+    // produced the "yama kuruldu ama oyun İngilizce" false-success bug.
+    if (pkg.installMethodType == "forge_inject") {
+        emit installCompleted(false, tr("Bu yama, oyunun .forge "
+            "arşivlerine enjeksiyon gerektirdiği için otomatik kurulamıyor. "
+            "Çözüm: apexyama.com adresinde bu oyunu açın, yamayı indirin ve "
+            "sayfadaki adımları izleyin (genelde yama aracını çalıştırıp oyun "
+            "klasörünü göstermeniz yeterli)."));
         return;
     }
 
@@ -854,6 +1051,50 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             executeInstallSteps(pkg, gamePath, sourcePath);
         });
         return;
+    }
+
+    // Honesty gate. Every method that genuinely installs by a structure-
+    // preserving copy has an EMPTY type (no installMethod / "direct") or
+    // "overlay". Any OTHER non-empty type that reached here has no recipe
+    // steps and no dedicated handler — "external" (hosted elsewhere),
+    // "installer" (runs an .exe), "workshop" (Steam subscription),
+    // "paradox-mod"/"d2r_mod" (mod-manager path), or a future unknown.
+    // Overlay-copying their payload and reporting success is exactly the
+    // silent "yama kuruldu ama dil değişmiyor" lie. Fail loud with
+    // guidance so the user uses the real source instead of being deceived.
+    {
+        if (!kOverlaySafeTypes.contains(pkg.installMethodType)) {
+            qCWarning(lcPackageManager)
+                << "No handler for install method" << pkg.installMethodType
+                << "— refusing silent overlay for" << pkg.gameName;
+            const QString& m = pkg.installMethodType;
+            QString guide;
+            if (m == "external")
+                guide = tr("Bu yamanın çevirisi harici bir kaynaktan gelir, "
+                    "otomatik kurulamıyor. Çözüm: apexyama.com adresinde bu "
+                    "oyunu açın, yamayı indirin ve sayfadaki kurulum "
+                    "talimatını izleyin.");
+            else if (m == "installer")
+                guide = tr("Bu yama kendi kurulum sihirbazıyla gelir. Çözüm: "
+                    "yama arşivini açın, içindeki kurulum (.exe) dosyasını "
+                    "çalıştırın ve istendiğinde oyun klasörünü seçin.");
+            else if (m == "workshop")
+                guide = tr("Bu çeviri Steam Workshop üzerinden dağıtılıyor. "
+                    "Çözüm: Steam'de oyunun Workshop sayfasını açın, Türkçe "
+                    "yama öğesine abone olun; Steam otomatik indirip "
+                    "etkinleştirir.");
+            else if (m == "paradox-mod")
+                guide = tr("Bu çeviri bir Paradox modudur. Çözüm: yamayı "
+                    "Belgeler/Paradox Interactive/<oyun>/mod klasörüne "
+                    "çıkarın, oyun başlatıcısında mod listesinden "
+                    "etkinleştirin.");
+            else
+                guide = tr("Bu yama otomatik kurulamıyor (kurulum yöntemi: "
+                    "%1). Çözüm: apexyama.com üzerinden ya da yamanın kendi "
+                    "kaynağından, sayfadaki adımları izleyerek kurun.").arg(m);
+            emit installCompleted(false, guide);
+            return;
+        }
     }
 
     // Default overlay: copy all files preserving directory structure
@@ -878,9 +1119,14 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             filesToCopy.append({it.filePath(), relPath});
         }
 
+        // Root fix: drop a mis-packaged "Türkçe Yama/"-style wrapper folder
+        stripWrapperPrefix(filesToCopy, gamePath);
+
         if (filesToCopy.isEmpty()) {
             if (m_journal) m_journal->abortOperation();
-            emit installCompleted(false, tr("Kurulacak dosya bulunamadı"));
+            emit installCompleted(false, tr("Kurulacak dosya bulunamadı. Yama paketi boş veya bozuk "
+                "olabilir. Çözüm: yamayı kaldırıp yeniden indirin, internet "
+                "bağlantınızı kontrol edin."));
             return;
         }
 
@@ -902,7 +1148,11 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         } else {
             if (m_journal) m_journal->commitOperation();
             emit installCompleted(false,
-                tr("%1/%2 dosya kopyalanamadı").arg(result.errors).arg(filesToCopy.size()));
+                tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun açık, "
+                "antivirüs engelliyor veya yazma izni yok. Çözüm: oyunu ve "
+                "Steam'i kapatın, Makine Launcher'ı yönetici olarak "
+                "çalıştırın, antivirüste oyun klasörünü izinli yapın, sonra "
+                "tekrar deneyin.").arg(result.errors).arg(filesToCopy.size()));
         }
     });
 }
@@ -923,7 +1173,9 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
 
     auto maybePkg = getPackage(steamAppId);
     if (!maybePkg) {
-        emit installCompleted(false, tr("Yükleme paketi bulunamadı"));
+        emit installCompleted(false, tr("Yama paketi bulunamadı. İndirme tamamlanmamış olabilir. "
+                "Çözüm: yamayı yeniden indirin, disk alanını ve internet "
+                "bağlantınızı kontrol edin."));
         return;
     }
 
@@ -932,12 +1184,22 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
     // Must already be installed to update
     auto oldState = m_catalog.getInstalledState(steamAppId.toStdString());
     if (!oldState) {
-        emit installCompleted(false, tr("Yama kurulu değil, güncelleme yapılamaz"));
+        emit installCompleted(false, tr("Yama kurulu değil, güncelleme "
+            "yapılamaz. Çözüm: önce 'Kur' ile yamayı kurun, sonra "
+            "güncelleyebilirsiniz."));
         return;
     }
 
-    // Handle recipe-based packages: clean old added files, re-run recipe
-    if (!pkg.installSteps.isEmpty() || pkg.installMethodType == "options") {
+    // Re-dispatch anything that is not a plain overlay (recipe, options,
+    // userPath, unityPatch, forge_inject, external, installer, …) through
+    // installPackage — the single authority that applies it correctly or
+    // fails loud. Without this, a non-overlay method silently fell through
+    // to "Default overlay update" below: the same "kuruldu/güncellendi ama
+    // dil değişmiyor" lie, on the update path. Stale-file cleanup is a
+    // harmless no-op for methods that never added files under gamePath.
+    const bool overlaySafeUpdate = pkg.installSteps.isEmpty()
+                                 && kOverlaySafeTypes.contains(pkg.installMethodType);
+    if (!overlaySafeUpdate) {
         // Collect old addedFiles for cleanup
         QStringList oldAdded;
         for (const auto& f : oldState->addedFiles)
@@ -961,7 +1223,9 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
     const QString sourcePath = resolveSourcePath(pkg, variant);
 
     if (sourcePath.isEmpty()) {
-        emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1").arg(pkg.gameName));
+        emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
+                "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
+                "kaldırıp yeniden indirin.").arg(pkg.gameName));
         return;
     }
 
@@ -990,9 +1254,14 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
             filesToCopy.append({it.filePath(), relPath});
         }
 
+        // Root fix: drop a mis-packaged "Türkçe Yama/"-style wrapper folder
+        stripWrapperPrefix(filesToCopy, gamePath);
+
         if (filesToCopy.isEmpty()) {
             if (m_journal) m_journal->abortOperation();
-            emit installCompleted(false, tr("Kurulacak dosya bulunamadı"));
+            emit installCompleted(false, tr("Kurulacak dosya bulunamadı. Yama paketi boş veya bozuk "
+                "olabilir. Çözüm: yamayı kaldırıp yeniden indirin, internet "
+                "bağlantınızı kontrol edin."));
             return;
         }
 
@@ -1071,17 +1340,35 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         auto [ok, err] = tryCopyFile(src, dst);
         if (ok) return StepOutcome::Ok;
         if (err == CopyError::DiskFull)
-            return fatal(tr("Disk alanı doldu, kurulum durduruluyor"));
+            return fatal(tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
+                "yamayı tekrar kurun."));
         if (err == CopyError::PermissionDenied)
-            return fatal(tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+            return fatal(tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                "1) Oyunu ve Steam'i tamamen kapatın\n"
+                "2) Makine Launcher'ı yönetici olarak çalıştırın "
+                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "3) Antivirüs / Windows Defender'da oyun klasörünü "
+                "istisnaya ekleyin\n"
+                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                "Sonra yamayı tekrar kurun."));
         if (err == CopyError::FileLocked) {
             QThread::msleep(150);
             auto [ok2, err2] = tryCopyFile(src, dst);
             if (ok2) return StepOutcome::Ok;
             if (err2 == CopyError::DiskFull)
-                return fatal(tr("Disk alanı doldu, kurulum durduruluyor"));
+                return fatal(tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
+                "yamayı tekrar kurun."));
             if (err2 == CopyError::PermissionDenied)
-                return fatal(tr("Dosya yazma izni yok — oyun klasörünün erişim iznini kontrol edin"));
+                return fatal(tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                "1) Oyunu ve Steam'i tamamen kapatın\n"
+                "2) Makine Launcher'ı yönetici olarak çalıştırın "
+                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "3) Antivirüs / Windows Defender'da oyun klasörünü "
+                "istisnaya ekleyin\n"
+                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                "Sonra yamayı tekrar kurun."));
             qCWarning(lcPackageManager) << logLabel << "failed (locked):" << src << "->" << dst;
             return StepOutcome::SoftError;
         }
@@ -1090,7 +1377,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
     };
 
     if (step.action == "copy" || step.action == "copyFile") {
-        QString srcPath  = QDir::cleanPath(packageDir + "/" + step.src);
+        QString srcPath  = resolvePackageSource(packageDir, step.src);
         QString destPath = QDir::cleanPath(gamePath   + "/" + step.dest);
 
         if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
@@ -1112,10 +1399,10 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         return outcome;
 
     } else if (step.action == "copyDir") {
-        QString srcDir  = QDir::cleanPath(packageDir + "/" + step.src);
+        QString srcDir  = resolvePackageSource(packageDir, step.src);
         QString destDir = QDir::cleanPath(gamePath   + "/" + step.dest);
 
-        if (!destDir.startsWith(canonGamePath)) {
+        if (!destDir.startsWith(canonGamePath) && !destDir.startsWith(cleanGamePath)) {
             qCCritical(lcPackageManager) << "Path traversal blocked in copyDir:" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama klasör hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
@@ -1450,6 +1737,10 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         QString msg = tr("%1/%2 adımda hata oluştu").arg(errors).arg(total);
         if (!errorDetails.isEmpty())
             msg += QStringLiteral("\n") + errorDetails.join(QStringLiteral("\n"));
+        msg += QStringLiteral("\n\n") + tr("Çözüm: oyunu ve Steam'i kapatın, "
+            "Makine Launcher'ı yönetici olarak çalıştırın, antivirüste oyun "
+            "klasörünü izinli yapın. Sorun sürerse yamayı kaldırıp yeniden "
+            "indirin.");
         emit installCompleted(false, msg);
     }
 }
@@ -1477,7 +1768,9 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         totalSteps += pkg.combinedSteps[combinedKey].size();
 
     if (totalSteps == 0) {
-        emit installCompleted(false, tr("Seçilen seçenekler için kurulum adımı bulunamadı"));
+        emit installCompleted(false, tr("Seçilen seçenekler için kurulum "
+            "adımı yok. Çözüm: farklı bir kurulum seçeneği belirleyin ya da "
+            "yamayı kaldırıp yeniden indirin."));
         return;
     }
 
@@ -1505,9 +1798,20 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     for (const InstallOptionQt& opt : pkg.installOptions) {
         if (!selectedOptions.contains(opt.id)) continue;
 
+        // Resolve the option source dir tolerantly. The recipe declares a
+        // subDir (e.g. "Türkçe Yama") but packages are not always wrapped in
+        // it (repackaging / wrapper-strip inconsistency). When the strict
+        // path is missing, fall back to the package root so step sources are
+        // still found — this was the dominant cause of "1 adımda hata oluştu"
+        // (e.g. Elden Ring), independent of any game-side mod.
         QString optionDir = QDir::cleanPath(basePackageDir + "/" + opt.subDir);
+        if (!opt.subDir.isEmpty() && !QDir(optionDir).exists()) {
+            qCWarning(lcPackageManager) << "Option subDir not found, falling back to package root:"
+                                        << optionDir;
+            optionDir = QDir::cleanPath(basePackageDir);
+        }
         if (!QDir(optionDir).exists()) {
-            qCWarning(lcPackageManager) << "Option subDir not found:" << optionDir;
+            qCWarning(lcPackageManager) << "Option source dir not found:" << optionDir;
             errors++;
             continue;
         }
@@ -1581,7 +1885,10 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         emit installCompleted(true, tr("Kurulum başarıyla tamamlandı"));
     } else {
         if (m_journal) m_journal->commitOperation();
-        emit installCompleted(false, tr("%1 adımda hata oluştu").arg(errors));
+        emit installCompleted(false, tr("%1 adımda hata oluştu. Çözüm: oyunu "
+            "ve Steam'i kapatın, Makine Launcher'ı yönetici olarak çalıştırın, "
+            "antivirüste oyun klasörünü izinli yapın; sürerse yamayı kaldırıp "
+            "yeniden indirin.").arg(errors));
     }
 }
 
