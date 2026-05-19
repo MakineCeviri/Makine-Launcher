@@ -58,7 +58,7 @@ Item {
     }
 
     scale: cardHover.hovered ? 1.03 : 1.0
-    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Dimensions.easeStandard } }
 
     HoverHandler {
         id: cardHover

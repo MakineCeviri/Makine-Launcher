@@ -20,6 +20,8 @@ Item {
 
     // Called from Main.qml when Settings becomes visible
     function resetScroll() {
+        // Always reopen on the "Genel" tab — don't resume the last category
+        root.selectedCategory = 0
         pageContainer.updateHeight()
         _playEntryAnim()
     }
@@ -248,6 +250,15 @@ Item {
                                         if (cat && cat.isPlugin && item && "pluginId" in item)
                                             item.pluginId = cat.pluginId
 
+                                        // Wire GeneralSettings (page 0) signals here.
+                                        // itemAt() is not bindable, so the old
+                                        // Connections target never resolved and the
+                                        // "Ayarları Sıfırla" button was dead.
+                                        if (index === 0 && item) {
+                                            item.clearCacheRequested.connect(function() { clearCacheConfirm.open() })
+                                            item.resetSettingsRequested.connect(function() { resetSettingsConfirm.open() })
+                                        }
+
                                         if (root.selectedCategory === index) {
                                             pageContainer.updateHeight()
                                             contentEntryAnim.restart()
@@ -258,16 +269,8 @@ Item {
                                 }
                             }
 
-                            // Route GeneralSettings signals (page 0)
-                            Connections {
-                                target: {
-                                    var loader = pageRepeater.itemAt(0)
-                                    return (loader && loader.item) ? loader.item : null
-                                }
-                                ignoreUnknownSignals: true
-                                function onClearCacheRequested() { clearCacheConfirm.open() }
-                                function onResetSettingsRequested() { resetSettingsConfirm.open() }
-                            }
+                            // GeneralSettings (page 0) signals are connected in the
+                            // Loader's onLoaded above — itemAt() is not bindable.
                         }
 
                         Item { Layout.preferredHeight: 32 }
