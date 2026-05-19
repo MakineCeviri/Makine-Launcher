@@ -80,9 +80,17 @@ Item {
             id: errorCol; anchors.centerIn: parent; spacing: Dimensions.spacingMD
             Text {
                 textFormat: Text.PlainText
-                text: qsTr("Oyun bilgileri alınamadı")
+                // Steam store metadata is optional enrichment. Epic-only /
+                // non-Steam games (e.g. Alan Wake 2) have no Steam page so
+                // the fetch always "fails" — present it calmly, not as a
+                // breakage. Title, contributors and translation install all
+                // come from the catalog and work regardless.
+                text: qsTr("Steam mağaza bilgileri yok (Epic/diğer mağaza). Yamayı kurmayı etkilemez.")
                 font.pixelSize: Dimensions.fontBody
                 color: Theme.textMuted
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                Layout.maximumWidth: 300
                 Layout.alignment: Qt.AlignHCenter
             }
             Rectangle {

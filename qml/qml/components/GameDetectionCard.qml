@@ -147,12 +147,38 @@ ColumnLayout {
                     }
                 }
 
-                // Turkish flag icon (crescent only)
+                // Turkish flag icon (crescent + star)
                 Rectangle {
                     anchors.centerIn: parent; width: 24; height: 24
                     radius: 12; color: Theme.turkishRed
                     Rectangle { x: 5.5; y: 5.5; width: 13; height: 13; radius: 6.5; color: "#FFFFFF" }
                     Rectangle { x: 8.5; y: 6.5; width: 11; height: 11; radius: 5.5; color: Theme.turkishRed }
+
+                    // Five-pointed star — nestled in the crescent opening,
+                    // white on red, ~1/2 the crescent disc (official Ay-Yıldız ratio)
+                    Canvas {
+                        anchors.fill: parent
+                        renderStrategy: Canvas.Cooperative
+                        Component.onCompleted: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+                            var cx = 16.7, cy = 12.0
+                            var outerR = 3.1, innerR = outerR * 0.382
+                            ctx.beginPath()
+                            for (var i = 0; i < 10; i++) {
+                                var ang = i * Math.PI / 5 - Math.PI / 2
+                                var r = (i % 2 === 0) ? outerR : innerR
+                                var px = cx + Math.cos(ang) * r
+                                var py = cy + Math.sin(ang) * r
+                                if (i === 0) ctx.moveTo(px, py)
+                                else ctx.lineTo(px, py)
+                            }
+                            ctx.closePath()
+                            ctx.fillStyle = "#FFFFFF"
+                            ctx.fill()
+                        }
+                    }
                 }
             }
 

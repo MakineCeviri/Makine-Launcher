@@ -76,8 +76,11 @@ ColumnLayout {
 
             readonly property var shortcuts: [
                 { key: "Ctrl+F", desc: qsTr("Oyun ara") },
-                { key: "Ctrl+R", desc: qsTr("Uygulamayı yeniden başlat") },
-                { key: "Alt+F4", desc: qsTr("Uygulamayı kapat") }
+                { key: "Ctrl+H", desc: qsTr("Ana sayfa") },
+                { key: "Ctrl+,", desc: qsTr("Ayarlar") },
+                { key: "Ctrl+R", desc: qsTr("Güncellemeleri denetle") },
+                { key: "Ctrl+Q", desc: qsTr("Uygulamadan çık") },
+                { key: "Alt+F4", desc: qsTr("Pencereyi kapat") }
             ]
 
             Item {
@@ -269,7 +272,7 @@ ColumnLayout {
 
             ClickableRow {
                 title: qsTr("Discord Desteği")
-                subtitle: qsTr("Topluluk ve yardım için Discord sunucumuza katılın")
+                subtitle: qsTr("Yardım ve iletişim için Discord topluluğumuza katılın")
                 onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
             }
 
@@ -285,7 +288,7 @@ ColumnLayout {
 
             ClickableRow {
                 title: qsTr("Aramıza Katıl")
-                subtitle: qsTr("MakineCeviri ekibine katılın")
+                subtitle: qsTr("Makine Çeviri ekibine katılın!")
                 onClicked: Qt.openUrlExternally("https://makineceviri.org/iletisim/")
             }
 
