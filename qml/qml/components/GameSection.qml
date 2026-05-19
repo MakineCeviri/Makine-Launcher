@@ -26,9 +26,11 @@ SectionContainer {
     Layout.fillWidth: true
     Layout.fillHeight: true
 
-    // Header row
+    // Header row — fixed height so the title never shifts when the
+    // refresh button (24px) is swapped for the BusyIndicator on refresh
     RowLayout {
         Layout.fillWidth: true
+        Layout.preferredHeight: 24
         spacing: Dimensions.spacingSM
 
         Rectangle {
@@ -43,18 +45,23 @@ SectionContainer {
             font.pixelSize: Dimensions.fontLG
             font.weight: Font.DemiBold
             color: Theme.textPrimary
+            Layout.alignment: Qt.AlignVCenter
         }
 
         BusyIndicator {
             visible: section.loading
             running: section.loading
+            Layout.alignment: Qt.AlignVCenter
             Layout.preferredWidth: 14
             Layout.preferredHeight: 14
         }
 
         Item { Layout.fillWidth: true }
 
-        // Refresh button
+        // Refresh button — hover: spins in place; press: spins while it
+        // shrinks then springs back to full size. Durations come from
+        // Dimensions tokens so the "Uygulama Animasyonları" preference
+        // (enableAnimations) governs it like everything else.
         Rectangle {
             visible: section.refreshable && !section.loading
             Layout.alignment: Qt.AlignVCenter
@@ -63,15 +70,43 @@ SectionContainer {
             radius: 12
             color: _refreshMouse.containsMouse ? Theme.surfaceLight : "transparent"
 
-            Behavior on color { ColorAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
             Text {
+                id: refreshIcon
                 textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: "↻"
                 font.pixelSize: 16
                 font.weight: Font.Light
-                color: Theme.textMuted
+                color: _refreshMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                // Continuous in-place spin on hover (render thread = smooth);
+                // stays alive through the click pulse so the press spins too.
+                RotationAnimator {
+                    target: refreshIcon
+                    from: 0; to: 360
+                    duration: 900
+                    loops: Animation.Infinite
+                    running: SettingsManager.enableAnimations
+                             && (_refreshMouse.containsMouse || pressPulse.running)
+                }
+
+                // Press: shrink, then spring back to full size while spinning.
+                SequentialAnimation {
+                    id: pressPulse
+                    NumberAnimation {
+                        target: refreshIcon; property: "scale"
+                        to: 0.6; duration: Dimensions.animFast
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        target: refreshIcon; property: "scale"
+                        to: 1.0; duration: Dimensions.animMedium
+                        easing.type: Easing.OutBack
+                    }
+                }
             }
 
             MouseArea {
@@ -79,7 +114,7 @@ SectionContainer {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: section.refreshClicked()
+                onClicked: { pressPulse.restart(); section.refreshClicked() }
 
                 ToolTip.visible: containsMouse
                 ToolTip.delay: 400
