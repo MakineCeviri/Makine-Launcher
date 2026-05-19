@@ -228,6 +228,15 @@ ApplicationWindow {
         enabled: !window._onboardingActive
         onActivated: GameService.checkForUpdates()
     }
+    Shortcut {
+        sequence: "Ctrl+F"
+        enabled: !window._onboardingActive
+        onActivated: {
+            window.currentNavIndex = 0
+            contentStackContainer.navigateTo(0)
+            homeView.focusSearch()
+        }
+    }
 
     // GPU/CPU Optimization: Pause animations whenever the app is not the
     // active foreground application. This keeps idle background draw cost
