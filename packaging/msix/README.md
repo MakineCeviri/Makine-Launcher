@@ -1,8 +1,10 @@
 # MSIX Packaging — Makine Launcher
 
-Status: **scaffold** (B5-01). The launcher ships today as a signed static EXE +
-ZIP (`release.yml`). There is **no** MSIX/Store path yet — this directory is the
-code side of it.
+Status: **scaffold** (B5-01). The launcher ships as a signed static EXE + ZIP
+built **locally** (`just release-zip-signed <version>`). GitHub Actions / the
+self-hosted CI runner were removed 2026-05-19 — there is no CI; releases are
+produced on the maintainer machine. There is **no** MSIX/Store path yet — this
+directory is the code side of it.
 
 ## Why the Store shows "MakineAI"
 
@@ -47,9 +49,9 @@ makeappx pack /d <staging-with-exe+Assets> /p Makine-Launcher.msix
 signtool sign /fd SHA256 /a Makine-Launcher.msix
 ```
 
-Add this as a step in `release.yml` after the static build (release.yml is the
-known dev↔public divergence; the manifest itself lives in the canonical dev
-repo and syncs to public, so the runner build picks it up).
+Add this as a step in the local release tooling (a `just msix` recipe / a
+packaging script) after `just release-zip-signed`. The manifest lives in the
+canonical dev repo and is cherry-picked to public like the rest of the code.
 
 ## Required logo assets (not yet created)
 

@@ -162,7 +162,7 @@ package: deploy
 package-static: release-static
     @echo "Creating static release package..."
     powershell -Command "New-Item -ItemType Directory -Force -Path dist-static | Out-Null"
-    powershell -Command "Copy-Item qml/build/release-static/Makine-Launcher.exe dist-static/"
+    powershell -Command "Copy-Item build/release-static/Makine-Launcher.exe dist-static/"
     powershell -Command "Compress-Archive -Path dist-static/* -DestinationPath Makine-Launcher-static.zip -Force"
     @echo "Done: Makine-Launcher-static.zip (single EXE)"
 
@@ -187,35 +187,31 @@ sign-file path:
 # Build static + sign (release pipeline)
 release-signed: release-static
     @echo "Signing release..."
-    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 -Path "qml/build/release-static/Makine-Launcher.exe"
+    powershell -ExecutionPolicy Bypass -File scripts/sign_exe.ps1 -Path "build/release-static/Makine-Launcher.exe"
     @echo "Done: signed single EXE ready for distribution"
 
 # ============================================================================
-# RELEASE PUBLISHING (GitHub Actions CI/CD)
+# RELEASE PUBLISHING (local — no CI; GitHub Actions removed 2026-05-19)
 # ============================================================================
 
-# Publish a release — triggers GitHub Actions pipeline (build + sign + deploy)
-# Usage: just release-publish 0.1.0-alpha
-release-publish version:
-    @echo "Triggering release pipeline for v{{version}}..."
-    gh workflow run release.yml -f version={{version}} -f draft=true
-    @echo ""
-    @echo "Release pipeline started!"
-    @echo "  Dashboard: https://github.com/MakineCeviri/Makine-Launcher/actions"
-    @echo "  Version:   v{{version}} (draft)"
+# Build + verify + checksum + versioned ZIP, fully local. Reproduces what
+# the removed release.yml did, on this machine. Unsigned.
+# Usage: just release-zip 0.1.0-beta
+release-zip version: release-static
+    @echo "Packaging release v{{version}} (unsigned)..."
+    powershell -Command "$e='build/release-static/Makine-Launcher.exe'; if(!(Test-Path $e) -or (Get-Item $e).Length -eq 0){throw 'release-static EXE missing or 0 bytes'}; Write-Host ('EXE: '+[math]::Round((Get-Item $e).Length/1MB,1)+' MB')"
+    powershell -Command "(Get-FileHash 'build/release-static/Makine-Launcher.exe' -Algorithm SHA256).Hash | Out-File 'build/release-static/SHA256SUMS.txt' -Encoding ascii"
+    powershell -Command "Compress-Archive -Path 'build/release-static/Makine-Launcher.exe' -DestinationPath 'Makine-Launcher-v{{version}}-win64.zip' -Force"
+    @echo "Done: Makine-Launcher-v{{version}}-win64.zip + SHA256SUMS.txt"
+    @echo "Sign with `just release-zip-signed {{version}}` (owner, needs cert), then: gh release create v{{version}} Makine-Launcher-v{{version}}-win64.zip --title ... --notes ..."
 
-# Publish a final (non-draft) release
-release-publish-final version:
-    @echo "Triggering FINAL release pipeline for v{{version}}..."
-    gh workflow run release.yml -f version={{version}} -f draft=false
-    @echo ""
-    @echo "Release pipeline started!"
-    @echo "  Dashboard: https://github.com/MakineCeviri/Makine-Launcher/actions"
-    @echo "  Version:   v{{version}} (public)"
-
-# Check release pipeline status
-publish-status:
-    gh run list --workflow=release.yml --limit 5
+# Build + SIGN + checksum + versioned ZIP (owner only — needs scripts/certs/).
+# Usage: just release-zip-signed 0.1.0-beta
+release-zip-signed version: release-signed
+    @echo "Packaging SIGNED release v{{version}}..."
+    powershell -Command "(Get-FileHash 'build/release-static/Makine-Launcher.exe' -Algorithm SHA256).Hash | Out-File 'build/release-static/SHA256SUMS.txt' -Encoding ascii"
+    powershell -Command "Compress-Archive -Path 'build/release-static/Makine-Launcher.exe' -DestinationPath 'Makine-Launcher-v{{version}}-win64.zip' -Force"
+    @echo "Signed release ready: Makine-Launcher-v{{version}}-win64.zip + SHA256SUMS.txt"
 
 # ============================================================================
 # PROFILING (Tracy)
