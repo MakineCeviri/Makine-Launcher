@@ -710,10 +710,23 @@ static void configureQtEnvironment()
     }
 
     // === GRAPHICS BACKEND ===
-    // Qt RHI default: D3D11 on Windows, OpenGL on Linux, Metal on macOS.
-    // No explicit setGraphicsApi() — let Qt pick the best available backend.
-    // Override: QSG_RHI_BACKEND env var always takes precedence.
-    // No special alpha buffer needed — QML renders the background directly.
+    // Apply the user-selected RHI backend (Settings -> Ekran -> Grafik API).
+    // Must run before any QQuickWindow is created. Without this, Qt always
+    // fell back to its platform default (D3D11 on Windows) regardless of the
+    // saved preference, so the "Aktif: ..." label and real rendering never
+    // matched the selection. QSG_RHI_BACKEND env override still wins.
+    if (qEnvironmentVariableIsEmpty("QSG_RHI_BACKEND")) {
+        QSettings gfxSettings("MakineCeviri", "Makine-Launcher");
+        const QString gfxBackend =
+            gfxSettings.value("performance/graphicsBackend", "vulkan").toString();
+        if (gfxBackend == "vulkan")
+            QQuickWindow::setGraphicsApi(QSGRendererInterface::VulkanRhi);
+        else if (gfxBackend == "d3d11")
+            QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11Rhi);
+        else if (gfxBackend == "opengl")
+            QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGLRhi);
+        // "auto"/unknown -> leave Qt's platform default
+    }
 
     // === RELEASE SECURITY ===
 #ifdef NDEBUG

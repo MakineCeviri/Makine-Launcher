@@ -14,16 +14,10 @@ ColumnLayout {
     signal clearCacheRequested()
     signal resetSettingsRequested()
 
-    // Settings state - bound to SettingsManager
-    property bool autoDetectGames: SettingsManager.autoDetectGames
-    property bool startWithWindows: SettingsManager.startWithWindows
-    property bool minimizeToTray: SettingsManager.minimizeToTray
-    property bool disableAnimations: !SettingsManager.enableAnimations
-
-    onAutoDetectGamesChanged: SettingsManager.autoDetectGames = autoDetectGames
-    onStartWithWindowsChanged: SettingsManager.startWithWindows = startWithWindows
-    onMinimizeToTrayChanged: SettingsManager.minimizeToTray = minimizeToTray
-    onDisableAnimationsChanged: SettingsManager.enableAnimations = !disableAnimations
+    // Controls bind DIRECTLY to SettingsManager — no mirror properties.
+    // An imperative write to a `property: SettingsManager.x` intermediate
+    // breaks that binding, so resetToDefaults()/external changes never
+    // showed up ("ayarlar aynı kalıyor"). Direct bindings always reflect.
 
     SettingsCard {
         Layout.fillWidth: true
@@ -35,9 +29,9 @@ ColumnLayout {
             ToggleSetting {
                 title: qsTr("Otomatik Oyun Tespiti")
                 description: qsTr("Oyunları otomatik olarak tespit et")
-                checked: generalRoot.autoDetectGames
-                disableAnimations: generalRoot.disableAnimations
-                onToggled: generalRoot.autoDetectGames = !generalRoot.autoDetectGames
+                checked: SettingsManager.autoDetectGames
+                disableAnimations: !SettingsManager.enableAnimations
+                onToggled: SettingsManager.autoDetectGames = !SettingsManager.autoDetectGames
             }
 
             SettingsDivider {}
@@ -45,9 +39,9 @@ ColumnLayout {
             ToggleSetting {
                 title: qsTr("Windows ile Başlat")
                 description: qsTr("Bilgisayar açıldığında otomatik başlat")
-                checked: generalRoot.startWithWindows
-                disableAnimations: generalRoot.disableAnimations
-                onToggled: generalRoot.startWithWindows = !generalRoot.startWithWindows
+                checked: SettingsManager.startWithWindows
+                disableAnimations: !SettingsManager.enableAnimations
+                onToggled: SettingsManager.startWithWindows = !SettingsManager.startWithWindows
             }
 
             SettingsDivider {}
@@ -55,9 +49,9 @@ ColumnLayout {
             ToggleSetting {
                 title: qsTr("Sistem Tepsisine Küçült")
                 description: qsTr("Kapatıldığında arka planda çalışır")
-                checked: generalRoot.minimizeToTray
-                disableAnimations: generalRoot.disableAnimations
-                onToggled: generalRoot.minimizeToTray = !generalRoot.minimizeToTray
+                checked: SettingsManager.minimizeToTray
+                disableAnimations: !SettingsManager.enableAnimations
+                onToggled: SettingsManager.minimizeToTray = !SettingsManager.minimizeToTray
             }
 
         }
