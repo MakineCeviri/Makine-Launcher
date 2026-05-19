@@ -237,7 +237,8 @@ ColumnLayout {
                 title: qsTr("Uygulama Animasyonlar\u0131")
                 description: qsTr("Aray\u00fcz animasyonlar\u0131n\u0131 etkinle\u015Ftir")
                 checked: SettingsManager.enableAnimations
-                onToggled: SettingsManager.enableAnimations = checked
+                disableAnimations: !SettingsManager.enableAnimations
+                onToggled: SettingsManager.enableAnimations = !SettingsManager.enableAnimations
             }
 
             SettingsDivider {}

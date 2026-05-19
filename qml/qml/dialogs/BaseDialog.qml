@@ -45,7 +45,11 @@ Dialog {
 
     background: Rectangle {
         radius: Dimensions.radiusMD
-        color: Theme.glassBackground
+        // Solid elevated surface — Theme.glassBackground is rgba(1,1,1,0.05)
+        // which, with no backdrop blur, rendered the whole dialog see-through
+        // ("transparan ekran"). An opaque surface keeps it readable and gives
+        // proper elevation over the dimmed background.
+        color: Theme.surfaceLight
         border.color: Theme.withAlpha(root.accentColor, 0.15)
         border.width: 1
 
