@@ -176,6 +176,7 @@ docs/superpowers/
 docs/perf-startup-analysis.md
 dist/
 dist-static/
+packaging/msix/_stage/
 scripts/showcase_validation.json
 infra/
 
