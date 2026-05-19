@@ -133,6 +133,22 @@ QtObject {
     readonly property int animPageIn: _animEnabled ? 240 : 0
 
     // =========================================================================
+    // EASING VOCABULARY — one motion language for the whole app.
+    // Prefer these over inline Easing.* so timing/feel stays consistent.
+    //   easeStandard  : default — entrances, hovers, fades (smooth decel)
+    //   easeMove      : symmetric position/size changes (in-out)
+    //   easeEntrance  : strong, refined arrival decel
+    //   easeExit      : quick, decisive disappearance
+    //   easeEmphasized: playful spring/overshoot — accents only, sparingly
+    // =========================================================================
+
+    readonly property int easeStandard:  Easing.OutCubic
+    readonly property int easeMove:       Easing.InOutQuad
+    readonly property int easeEntrance:   Easing.OutQuint
+    readonly property int easeExit:       Easing.InCubic
+    readonly property int easeEmphasized: Easing.OutBack
+
+    // =========================================================================
     // FONT SIZES
     // =========================================================================
 
