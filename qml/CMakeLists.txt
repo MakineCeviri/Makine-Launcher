@@ -185,11 +185,14 @@ endif()
 set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/theme/Dimensions.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-# Showcase images (validated game headers, embedded in binary)
-file(GLOB SHOWCASE_IMAGES CONFIGURE_DEPENDS
-    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    "resources/showcase/*.jpg"
-)
+# Showcase images (resources/showcase/*.jpg) were embedded here but are
+# referenced by NOTHING in the codebase — game headers come from the Steam
+# CDN via GameService::steamHeroUrl/steamCoverUrl. The 146-file / ~24 MB
+# embed generated a ~132 MB qrc .cpp that MinGW cc1plus -O3 could not
+# compile (OOM, ~2 GB single allocation), blocking every MinGW build, and
+# bloated the EXE for zero functional gain. Removed: build unblock + binary
+# slim-down. Files remain on disk; if a real consumer is ever added, embed
+# them via a dedicated qt_add_resources(... BIG_RESOURCES) target instead.
 
 qt_add_qml_module(MakineLauncher
     URI MakineLauncher
@@ -313,8 +316,6 @@ qt_add_qml_module(MakineLauncher
         resources/images/logo_white.png
         resources/images/onboarding_gradient.png
         resources/images/apex_logo.svg
-        # Showcase images (validated game headers, embedded in binary)
-        ${SHOWCASE_IMAGES}
         # Fonts (Inter - Google Fonts)
         resources/fonts/Inter-Regular.ttf
         resources/fonts/Inter-Medium.ttf
