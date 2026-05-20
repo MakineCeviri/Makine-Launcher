@@ -324,12 +324,7 @@ void SettingsManager::loadSettings()
     m_hardwareAcceleration = m_settings.value("performance/hardwareAcceleration", true).toBool();
     m_useGlobalCache = m_settings.value("performance/useGlobalCache", true).toBool();
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
-    m_graphicsBackend = m_settings.value("performance/graphicsBackend", "vulkan").toString();
-    // Migrate: "auto" from earlier versions → vulkan
-    if (m_graphicsBackend == "auto") {
-        m_graphicsBackend = "vulkan";
-        m_settings.setValue("performance/graphicsBackend", m_graphicsBackend);
-    }
+    m_graphicsBackend = m_settings.value("performance/graphicsBackend", "auto").toString();
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
     m_accentPreset = m_settings.value("appearance/accentPreset", "purple").toString();
@@ -398,10 +393,11 @@ QString SettingsManager::qtVersion() const
 QString SettingsManager::activeGraphicsApi() const
 {
     switch (QQuickWindow::graphicsApi()) {
-    case QSGRendererInterface::VulkanRhi:  return QStringLiteral("Vulkan");
-    case QSGRendererInterface::Direct3D11Rhi: return QStringLiteral("Direct3D 11");
-    case QSGRendererInterface::OpenGLRhi:  return QStringLiteral("OpenGL");
-    case QSGRendererInterface::MetalRhi:   return QStringLiteral("Metal");
+    case QSGRendererInterface::Vulkan:     return QStringLiteral("Vulkan");
+    case QSGRendererInterface::Direct3D11: return QStringLiteral("Direct3D 11");
+    case QSGRendererInterface::Direct3D12: return QStringLiteral("Direct3D 12");
+    case QSGRendererInterface::OpenGL:     return QStringLiteral("OpenGL");
+    case QSGRendererInterface::Metal:      return QStringLiteral("Metal");
     default: return QStringLiteral("Unknown");
     }
 }
