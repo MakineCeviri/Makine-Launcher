@@ -1,9 +1,10 @@
 # Makine-Launcher — Claude Context
 
 > **Qt6/QML + C++23 oyun çeviri launcher**
-> **Repo:** `origin` → Makine-Launcher-Dev (private, canonical) · `public` → Makine-Launcher (public, SignPath.io trust)
-> **Durum:** v0.1.0-beta | Kod dev↔public sync (gerçek fark sadece `.gitignore` + `release.yml`)
-> **Blockers:** Static build (`release-static` 0 byte), MSIX signing, Apex CDN geçişi (3 zip bekliyor)
+> **Repo:** `origin` → MakineCeviri/Makine-Launcher (public, tek repo) · branches: `main` (stable, release-ready) + `dev` (WIP, daily driver)
+> **Eski:** Makine-Launcher-Dev archived (read-only yedek, 2026-05-20)
+> **Durum:** v0.1.0-beta | Vulkan default → D3D11 fix (5870b22, dev) + cherry-pick main (439ab92)
+> **Blockers:** MSIX submit (sonraki sürüm), Sentry 7 unresolved fatal (token erişim sorunu)
 >
 > Build, conventions, gotchas → **`CLAUDE.md`** (proje kökü)
 > Beta hazırlık akışı, key üretim, repo sync detayları → memory dosyaları (`~/.claude/projects/.../memory/`)
