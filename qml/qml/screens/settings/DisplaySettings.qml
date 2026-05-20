@@ -305,9 +305,10 @@ ColumnLayout {
 
                             Repeater {
                                 model: [
-                                    { id: "opengl", label: "OpenGL" },
+                                    { id: "auto", label: "Otomatik" },
                                     { id: "d3d11", label: "D3D11" },
-                                    { id: "vulkan", label: "Vulkan" }
+                                    { id: "vulkan", label: "Vulkan" },
+                                    { id: "opengl", label: "OpenGL" }
                                 ]
 
                                 Rectangle {
