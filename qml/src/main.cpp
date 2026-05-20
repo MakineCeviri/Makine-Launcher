@@ -717,15 +717,29 @@ static void configureQtEnvironment()
     // matched the selection. QSG_RHI_BACKEND env override still wins.
     if (qEnvironmentVariableIsEmpty("QSG_RHI_BACKEND")) {
         QSettings gfxSettings("MakineCeviri", "Makine-Launcher");
+        // Force D3D11 unless the user explicitly opted into another backend.
+        // Qt 6 picks Vulkan on its own when a Vulkan ICD is present, which
+        // crashes ("Failed to initialize graphics backend for Vulkan") on
+        // machines whose ICD is missing or broken — common on older Intel
+        // iGPUs and freshly-installed Windows boxes. D3D11 ships with every
+        // Windows 10+ install, so it is the safe default. Users can opt
+        // into Vulkan from Settings -> Performans -> Grafik API.
+        //
+        // We set QSG_RHI_BACKEND (the authoritative override) AND call
+        // setGraphicsApi(); the env var is what Qt's scene graph actually
+        // honors, the setter is belt-and-suspenders for API consistency.
         const QString gfxBackend =
-            gfxSettings.value("performance/graphicsBackend", "vulkan").toString();
-        if (gfxBackend == "vulkan")
+            gfxSettings.value("performance/graphicsBackend", "auto").toString();
+        if (gfxBackend == "vulkan") {
+            qputenv("QSG_RHI_BACKEND", "vulkan");
             QQuickWindow::setGraphicsApi(QSGRendererInterface::VulkanRhi);
-        else if (gfxBackend == "d3d11")
-            QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11Rhi);
-        else if (gfxBackend == "opengl")
+        } else if (gfxBackend == "opengl") {
+            qputenv("QSG_RHI_BACKEND", "opengl");
             QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGLRhi);
-        // "auto"/unknown -> leave Qt's platform default
+        } else {  // "auto", "d3d11", or unknown -> D3D11
+            qputenv("QSG_RHI_BACKEND", "d3d11");
+            QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11Rhi);
+        }
     }
 
     // === RELEASE SECURITY ===
