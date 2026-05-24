@@ -28,6 +28,7 @@
 #include <QAbstractListModel>
 #include <QVector>
 #include <QString>
+#include <QTimer>
 
 #include <vector>
 
@@ -107,6 +108,11 @@ private:
     void connectSource();
     void disconnectSource();
     void rebuild();
+    /// Coalesces back-to-back setter calls into a single rebuild on the
+    /// next event-loop tick. Prevents 3x beginReset/endReset cascades when
+    /// searchFilter + rowLimit + wrapAround all flip together (crash source
+    /// while typing).
+    void scheduleRebuild();
     void onSourceDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight,
                              const QList<int> &roles);
 
@@ -130,6 +136,7 @@ private:
     QHash<int, int> m_sourceToProxy;
     int m_filteredCount{0};
     int m_exposedCount{0};
+    bool m_rebuildPending{false};
 };
 
 } // namespace makine

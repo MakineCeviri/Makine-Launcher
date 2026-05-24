@@ -287,15 +287,15 @@ void CatalogProxyModel::connectSource()
     // Full rebuild on structural changes (rare: catalog load/reload)
     connect(m_source, &QAbstractItemModel::modelReset, this, [this]() {
         buildSearchIndex();
-        rebuild();
+        scheduleRebuild();
     });
     connect(m_source, &QAbstractItemModel::rowsInserted, this, [this]() {
         buildSearchIndex();
-        rebuild();
+        scheduleRebuild();
     });
     connect(m_source, &QAbstractItemModel::rowsRemoved, this, [this]() {
         buildSearchIndex();
-        rebuild();
+        scheduleRebuild();
     });
 
     // Granular forwarding for data changes (frequent: install/package status)
@@ -321,7 +321,7 @@ void CatalogProxyModel::setSearchFilter(const QString &filter)
     m_searchFilter = filter;
     m_normalizedFilter = normalize(filter);
     emit searchFilterChanged();
-    rebuild();
+    scheduleRebuild();
 }
 
 void CatalogProxyModel::setRowOffset(int offset)
@@ -330,7 +330,7 @@ void CatalogProxyModel::setRowOffset(int offset)
         return;
     m_rowOffset = offset;
     emit rowOffsetChanged();
-    rebuild();
+    scheduleRebuild();
 }
 
 void CatalogProxyModel::setRowLimit(int limit)
@@ -339,7 +339,7 @@ void CatalogProxyModel::setRowLimit(int limit)
         return;
     m_rowLimit = limit;
     emit rowLimitChanged();
-    rebuild();
+    scheduleRebuild();
 }
 
 void CatalogProxyModel::setWrapAround(bool wrap)
@@ -348,7 +348,24 @@ void CatalogProxyModel::setWrapAround(bool wrap)
         return;
     m_wrapAround = wrap;
     emit wrapAroundChanged();
-    rebuild();
+    scheduleRebuild();
+}
+
+// Coalesce: collapse N property setter calls in the same event-loop tick
+// into a single rebuild(). Without this, typing one character into the
+// search box triggered 3 back-to-back rebuilds (searchFilter + rowLimit +
+// wrapAround all change when _isSearching flips), each emitting
+// beginResetModel/endResetModel on a busy ListView delegate cycle — that
+// race was the crash source under rapid keystrokes.
+void CatalogProxyModel::scheduleRebuild()
+{
+    if (m_rebuildPending)
+        return;
+    m_rebuildPending = true;
+    QTimer::singleShot(0, this, [this]() {
+        m_rebuildPending = false;
+        rebuild();
+    });
 }
 
 // =============================================================================
