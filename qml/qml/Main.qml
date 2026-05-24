@@ -904,6 +904,54 @@ ApplicationWindow {
         id: gameToast
     }
 
+    // ===== UPDATE CHECK TOAST =====
+    // While UpdateService is in the Checking state we surface progress in
+    // a translucent bottom-right toast instead of colouring the top-bar
+    // badge. Auto-shows on state entry, fades out when the check resolves.
+    // 50% opacity per UX request — visible but never blocks content.
+    // bottomMargin: 72 keeps clear of the SWR RefreshIndicator below.
+    Rectangle {
+        id: updateCheckToast
+        readonly property bool _checking: UpdateService.state === UpdateService.Checking
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 24
+        anchors.bottomMargin: 72
+        width: _toastRow.implicitWidth + 28
+        height: 38
+        radius: 19
+        color: Qt.rgba(0.06, 0.06, 0.06, 0.85)
+        border.color: Theme.primary20
+        border.width: 1
+        opacity: _checking ? 0.5 : 0
+        visible: opacity > 0
+        z: Dimensions.zToast
+        Behavior on opacity {
+            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        }
+
+        Row {
+            id: _toastRow
+            anchors.centerIn: parent
+            spacing: 10
+
+            BusyIndicator {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16; height: 16
+                running: updateCheckToast.visible
+                palette.dark: Theme.primary
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                textFormat: Text.PlainText
+                text: qsTr("Güncellemeler denetleniyor...")
+                font.pixelSize: Dimensions.fontXS
+                color: Theme.textPrimary
+            }
+        }
+    }
+
     // ===== SWR CATALOG REFRESH BADGE =====
     RefreshIndicator {
         anchors.right: parent.right

@@ -154,10 +154,19 @@ Item {
             Layout.preferredWidth: _badgeRow.width + 16
             Layout.preferredHeight: 26
             radius: 13
-            color: UpdateService.indicatorVisible
+            // Checking used to colour the badge background (primary06/15),
+            // which read as an "off-topic" tint in the top bar while the
+            // user was just waiting on a network check. We now leave the
+            // badge transparent during Checking — a translucent toast in
+            // Main.qml handles that ephemeral signal. Persistent
+            // informational states (Available / Ready / Downloading /
+            // Verifying / error) still get the coloured pill.
+            readonly property bool _showBg: UpdateService.indicatorVisible
+                                          && UpdateService.state !== UpdateService.Checking
+            color: _showBg
                    ? (_statusMouse.containsMouse ? Theme.primary15 : Theme.primary06)
                    : "transparent"
-            border.width: UpdateService.indicatorVisible ? 1 : 0
+            border.width: _showBg ? 1 : 0
             border.color: Theme.primary20
 
             Behavior on color { ColorAnimation { duration: 150 } }
