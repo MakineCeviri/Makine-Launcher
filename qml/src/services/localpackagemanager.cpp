@@ -1800,6 +1800,20 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     int current = 0;
     int errors = 0;
     QStringList installedFiles;
+    // Mirror executeInstallSteps: collect per-step failure context so the
+    // user (and we, when triaging reports) can see which option/action
+    // actually failed instead of a bare "%1 adımda hata oluştu". This was
+    // the root cause behind the "Elden Ring 2 adımda hata" report — no way
+    // to tell if the failure was a missing source, an AV-blocked run, a
+    // copyToDesktop permission issue, etc.
+    QStringList errorDetails;
+    auto recordSoftError = [&](const InstallStep& step, const QString& prefix) {
+        const QString target = step.dest.isEmpty()
+            ? (step.src.isEmpty() ? step.exe : step.src)
+            : step.dest;
+        errorDetails.append(QStringLiteral("%1Adım %2: %3 %4")
+            .arg(prefix).arg(current).arg(step.action, target));
+    };
 
     emit installProgress(0.0, tr("Kurulum seçenekleri hazırlanıyor..."));
 
@@ -1822,6 +1836,8 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         if (!QDir(optionDir).exists()) {
             qCWarning(lcPackageManager) << "Option source dir not found:" << optionDir;
             errors++;
+            errorDetails.append(QStringLiteral("%1 — %2: %3")
+                .arg(opt.label, tr("kaynak klasör yok"), optionDir));
             continue;
         }
 
@@ -1851,8 +1867,10 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 emit installCompleted(false, tr("Kurulum iptal edildi"));
                 return;
             }
-            if (outcome == StepOutcome::SoftError)
+            if (outcome == StepOutcome::SoftError) {
                 errors++;
+                recordSoftError(step, prefix);
+            }
         }
     }
 
@@ -1873,8 +1891,10 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                 emit installCompleted(false, tr("Kurulum iptal edildi"));
                 return;
             }
-            if (outcome == StepOutcome::SoftError)
+            if (outcome == StepOutcome::SoftError) {
                 errors++;
+                recordSoftError(step, QString{});
+            }
         }
     }
 
@@ -1894,10 +1914,15 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         emit installCompleted(true, tr("Kurulum başarıyla tamamlandı"));
     } else {
         if (m_journal) m_journal->commitOperation();
-        emit installCompleted(false, tr("%1 adımda hata oluştu. Çözüm: oyunu "
-            "ve Steam'i kapatın, Makine Launcher'ı yönetici olarak çalıştırın, "
-            "antivirüste oyun klasörünü izinli yapın; sürerse yamayı kaldırıp "
-            "yeniden indirin.").arg(errors));
+        QString msg = tr("%1 adımda hata oluştu").arg(errors);
+        if (!errorDetails.isEmpty())
+            msg += QStringLiteral("\n") + errorDetails.join(QStringLiteral("\n"));
+        msg += QStringLiteral("\n\n") + tr("Çözüm: oyunu ve Steam'i kapatın, "
+            "Makine Launcher'ı yönetici olarak çalıştırın, antivirüste oyun "
+            "klasörünü izinli yapın. 'run' adımı başarısız oluyorsa antivirüs "
+            "yamanın .exe dosyasını engelliyor olabilir — istisnaya ekleyip "
+            "tekrar deneyin. Sorun sürerse yamayı kaldırıp yeniden indirin.");
+        emit installCompleted(false, msg);
     }
 }
 
