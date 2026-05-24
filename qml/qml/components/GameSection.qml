@@ -48,77 +48,101 @@ SectionContainer {
             Layout.alignment: Qt.AlignVCenter
         }
 
-        BusyIndicator {
-            visible: section.loading
-            running: section.loading
-            Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: 14
-            Layout.preferredHeight: 14
-        }
-
         Item { Layout.fillWidth: true }
 
-        // Refresh button — hover: spins in place; press: spins while it
-        // shrinks then springs back to full size. Durations come from
-        // Dimensions tokens so the "Uygulama Animasyonları" preference
-        // (enableAnimations) governs it like everything else.
-        Rectangle {
-            visible: section.refreshable && !section.loading
+        // Fixed 24x24 action slot — refresh button and BusyIndicator
+        // share the same slot via opacity swap, never via visible: false.
+        // Previously the BusyIndicator (Qt Controls implicit ~48x48,
+        // even with preferredWidth/Height: 14) and refresh-button
+        // visible-swap caused a one-frame Row implicit-height bump on
+        // loading toggle — the "Kurulu Oyunlar" title visibly bounced
+        // down and back. With a stable slot size the row baseline is
+        // pinned and nothing shifts during refresh.
+        Item {
+            id: actionSlot
+            visible: section.refreshable
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredWidth: 24
             Layout.preferredHeight: 24
-            radius: 12
-            color: _refreshMouse.containsMouse ? Theme.surfaceLight : "transparent"
+            Layout.maximumWidth: 24
+            Layout.maximumHeight: 24
 
-            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-            Text {
-                id: refreshIcon
-                textFormat: Text.PlainText
-                anchors.centerIn: parent
-                text: "↻"
-                font.pixelSize: 16
-                font.weight: Font.Light
-                color: _refreshMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+            // Refresh button — hover: spins in place; press: spins while it
+            // shrinks then springs back to full size. Durations come from
+            // Dimensions tokens so the "Uygulama Animasyonları" preference
+            // (enableAnimations) governs it like everything else.
+            Rectangle {
+                id: refreshBtn
+                anchors.fill: parent
+                radius: 12
+                color: _refreshMouse.containsMouse ? Theme.surfaceLight : "transparent"
+                opacity: section.loading ? 0 : 1
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: 120 } }
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                // Continuous in-place spin on hover (render thread = smooth);
-                // stays alive through the click pulse so the press spins too.
-                RotationAnimator {
-                    target: refreshIcon
-                    from: 0; to: 360
-                    duration: 900
-                    loops: Animation.Infinite
-                    running: SettingsManager.enableAnimations
-                             && (_refreshMouse.containsMouse || pressPulse.running)
+                Text {
+                    id: refreshIcon
+                    textFormat: Text.PlainText
+                    anchors.centerIn: parent
+                    text: "↻"
+                    font.pixelSize: 16
+                    font.weight: Font.Light
+                    color: _refreshMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
+                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+                    // Continuous in-place spin on hover (render thread = smooth);
+                    // stays alive through the click pulse so the press spins too.
+                    RotationAnimator {
+                        target: refreshIcon
+                        from: 0; to: 360
+                        duration: 900
+                        loops: Animation.Infinite
+                        running: SettingsManager.enableAnimations
+                                 && (_refreshMouse.containsMouse || pressPulse.running)
+                    }
+
+                    // Press: shrink, then spring back to full size while spinning.
+                    SequentialAnimation {
+                        id: pressPulse
+                        NumberAnimation {
+                            target: refreshIcon; property: "scale"
+                            to: 0.6; duration: Dimensions.animFast
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: refreshIcon; property: "scale"
+                            to: 1.0; duration: Dimensions.animMedium
+                            easing.type: Easing.OutBack
+                        }
+                    }
                 }
 
-                // Press: shrink, then spring back to full size while spinning.
-                SequentialAnimation {
-                    id: pressPulse
-                    NumberAnimation {
-                        target: refreshIcon; property: "scale"
-                        to: 0.6; duration: Dimensions.animFast
-                        easing.type: Easing.OutCubic
-                    }
-                    NumberAnimation {
-                        target: refreshIcon; property: "scale"
-                        to: 1.0; duration: Dimensions.animMedium
-                        easing.type: Easing.OutBack
-                    }
+                MouseArea {
+                    id: _refreshMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: { pressPulse.restart(); section.refreshClicked() }
+
+                    ToolTip.visible: containsMouse
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("Yenile")
                 }
             }
 
-            MouseArea {
-                id: _refreshMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: { pressPulse.restart(); section.refreshClicked() }
-
-                ToolTip.visible: containsMouse
-                ToolTip.delay: 400
-                ToolTip.text: qsTr("Yenile")
+            // BusyIndicator overlays the refresh button at a fixed 14px
+            // visual size. Explicit width/height pin its layout footprint
+            // so its implicit size (which Qt Controls reports as ~48)
+            // never bleeds into the row's height calculation.
+            BusyIndicator {
+                anchors.centerIn: parent
+                width: 14
+                height: 14
+                running: section.loading
+                opacity: section.loading ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: 120 } }
             }
         }
 
