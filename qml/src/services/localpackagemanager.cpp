@@ -651,11 +651,26 @@ static QString resolvePackageSource(const QString& packageDir, const QString& re
 
 // Install methods that are genuinely a structure-preserving overlay copy:
 // no installMethod / empty type, "direct" (copy package contents into the
-// game dir) and "overlay". EVERY other non-empty type needs a dedicated
-// handler or a recipe — overlay-copying its payload and reporting success
-// is the silent "yama kuruldu ama dil değişmiyor" lie. Single source of
-// truth shared by the install honesty gate and the update re-dispatch.
-static const QStringList kOverlaySafeTypes = { "", "direct", "overlay" };
+// game dir), "overlay", and "copy". EVERY other non-empty type needs a
+// dedicated handler or a recipe — overlay-copying its payload and
+// reporting success is the silent "yama kuruldu ama dil değişmiyor" lie.
+// Single source of truth shared by the install honesty gate and the
+// update re-dispatch.
+//
+// "copy" was previously rejected by the honesty gate as unknown, which
+// failed Alien Isolation (214490) and MGS Snake Eater (2417610) at
+// install time. Their package JSON shape is:
+//   "installMethod": { "type": "copy", "targetPath": "DATA",
+//                      "steps": ["DATA klasörünü oyun dizinine
+//                                  kopyalayın", ...] }
+// The "steps" entries are human prose, not structured InstallStep
+// objects — the launcher can't execute them. The real intended
+// behaviour is identical to overlay/direct: drop the package payload
+// onto gamePath (the package already contains the DATA/ subtree). So
+// "copy" is semantically overlay-safe and goes here. If a future
+// package author wants a recipe, they should use "script"/"copyDir"/
+// "copyFile" with structured step objects.
+static const QStringList kOverlaySafeTypes = { "", "direct", "overlay", "copy" };
 
 LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
     const QList<QPair<QString, QString>>& filesToCopy,
