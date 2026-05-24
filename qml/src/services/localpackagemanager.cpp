@@ -587,35 +587,66 @@ static void stripWrapperPrefix(QList<QPair<QString, QString>>& files,
     }
 }
 
-// Resolve a recipe-relative source against the package dir, tolerant of a
-// single wrapper/sub-directory packages are (in)consistently wrapped in
-// (e.g. "Türkçe Yama/"). Used by EVERY step source lookup so no install
-// path (recipe or options, copy/copyFile/copyDir) can hard-fail with
-// "Adım N hata" just because the package nesting differs from the recipe.
-// Strict path always wins (zero regression); the one-level fallback only
-// engages when strict is missing AND exactly one unambiguous candidate
-// exists — never guesses. Returns strict on miss so the caller's existing
-// not-found handling/message is unchanged.
+// Helper: collect every path under `root` (recursively, up to targetDepth
+// levels of wrapper directories) at which `<dir>/<relSrc>` exists. Used
+// by resolvePackageSource() for iterative-deepening search — kept as a
+// separate function so we can early-exit on ambiguity per depth level.
+static QStringList collectAtDepth(const QString& root, const QString& relSrc,
+                                  int targetDepth)
+{
+    if (targetDepth == 0) {
+        const QString cand = QDir::cleanPath(root + "/" + relSrc);
+        return QFileInfo::exists(cand) ? QStringList{cand} : QStringList{};
+    }
+    QStringList results;
+    const auto subs = QDir(root).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString& sub : subs) {
+        results.append(collectAtDepth(
+            QDir::cleanPath(root + "/" + sub), relSrc, targetDepth - 1));
+        if (results.size() > 1)
+            return results;          // ambiguity at this depth — stop early
+    }
+    return results;
+}
+
+// Resolve a recipe-relative source against the package dir, tolerant of
+// however many wrapper/sub-directories the package is (in)consistently
+// nested in. The most common cases are one wrapper ("Türkçe Yama/...")
+// or two ("<Game Name>/Türkçe Yama/...", which is how some .makine
+// archives — e.g. Elden Ring — extract). Used by EVERY step source lookup
+// so no install path (recipe or options, copy/copyFile/copyDir, run,
+// copyToDesktop) can hard-fail with "Adım N hata" just because the
+// package nesting differs from the recipe.
+//
+// Strategy: iterative deepening. The strict path always wins (zero
+// regression). Otherwise search depth=1, then depth=2, then depth=3,
+// returning the first depth at which exactly ONE unambiguous candidate
+// exists. Ambiguity at a depth → strict (we never guess between
+// equally-shallow matches). Returns strict on total miss so the caller's
+// existing not-found handling/message is unchanged.
 static QString resolvePackageSource(const QString& packageDir, const QString& relSrc)
 {
     const QString strict = QDir::cleanPath(packageDir + "/" + relSrc);
     if (QFileInfo::exists(strict))
         return strict;
 
-    QString found;
-    const auto subs = QDir(packageDir).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QString& sub : subs) {
-        const QString cand = QDir::cleanPath(packageDir + "/" + sub + "/" + relSrc);
-        if (QFileInfo::exists(cand)) {
-            if (!found.isEmpty())
-                return strict;          // ambiguous — do not guess
-            found = cand;
+    constexpr int kMaxWrapperDepth = 3;
+    for (int depth = 1; depth <= kMaxWrapperDepth; ++depth) {
+        const QStringList found = collectAtDepth(packageDir, relSrc, depth);
+        if (found.size() == 1) {
+            qCInfo(lcPackageManager) << "resolvePackageSource: resolved" << relSrc
+                                     << "at wrapper depth" << depth
+                                     << "->" << found.first();
+            return found.first();
+        }
+        if (found.size() > 1) {
+            qCWarning(lcPackageManager) << "resolvePackageSource: ambiguous at depth"
+                                        << depth << "for" << relSrc
+                                        << "(candidates:" << found.size() << ")";
+            return strict;          // never guess between same-depth matches
         }
     }
-    if (!found.isEmpty())
-        qCInfo(lcPackageManager) << "resolvePackageSource: resolved" << relSrc
-                                 << "via wrapper ->" << found;
-    return found.isEmpty() ? strict : found;
+    return strict;
 }
 
 // Install methods that are genuinely a structure-preserving overlay copy:
@@ -1492,18 +1523,22 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         return StepOutcome::Ok;
 
     } else if (step.action == "run") {
-        // Resolve executable: game dir first, then package dir, then fallback
+        // Resolve executable: game dir first, then package dir (wrapper-
+        // tolerant), then fallback. Going through resolvePackageSource
+        // for the package side means ".makine archives that nest the exe
+        // under a wrapper (<game>/Türkçe Yama/ERING_TR.exe) still resolve
+        // — without it the step silently soft-failed.
         QString exePath;
-        QString gameExe = QDir::cleanPath(gamePath    + "/" + step.exe);
-        QString pkgExe  = QDir::cleanPath(packageDir  + "/" + step.exe);
+        QString gameExe = QDir::cleanPath(gamePath + "/" + step.exe);
 
-        if      (QFile::exists(gameExe)) exePath = gameExe;
-        else if (QFile::exists(pkgExe))  exePath = pkgExe;
+        if      (QFile::exists(gameExe))                 exePath = gameExe;
+        else if (QString c = resolvePackageSource(packageDir, step.exe);
+                 QFile::exists(c))                       exePath = c;
         else if (!step.fallback.isEmpty()) {
-            QString gameFb = QDir::cleanPath(gamePath   + "/" + step.fallback);
-            QString pkgFb  = QDir::cleanPath(packageDir + "/" + step.fallback);
-            if      (QFile::exists(gameFb)) exePath = gameFb;
-            else if (QFile::exists(pkgFb))  exePath = pkgFb;
+            QString gameFb = QDir::cleanPath(gamePath + "/" + step.fallback);
+            if      (QFile::exists(gameFb))              exePath = gameFb;
+            else if (QString c = resolvePackageSource(packageDir, step.fallback);
+                     QFile::exists(c))                   exePath = c;
         }
         if (exePath.isEmpty()) {
             qCWarning(lcPackageManager) << "Run: executable not found:" << step.exe;
@@ -1567,7 +1602,11 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         return StepOutcome::Ok;
 
     } else if (step.action == "copyToDesktop") {
-        QString srcPath = QDir::cleanPath(packageDir + "/" + step.src);
+        // Wrapper-tolerant package lookup, then game-dir fallback. Same
+        // motivation as the "run" branch — copyToDesktop frequently
+        // targets a file ("ERING_TR.exe") that lives inside the nested
+        // wrapper directory of an extracted .makine archive.
+        QString srcPath = resolvePackageSource(packageDir, step.src);
         if (!QFile::exists(srcPath))
             srcPath = QDir::cleanPath(gamePath + "/" + step.src);
         if (!QFile::exists(srcPath)) {
