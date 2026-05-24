@@ -32,19 +32,19 @@ Rectangle {
 
     GradientBorder { cornerRadius: parent.radius }
 
-    // Click anywhere outside the search box (empty catalog / header
-    // space) blurs it so it collapses. A QML TextInput keeps active
-    // focus until something else takes it — without this the box never
-    // closed (had to restart the app). Sits beneath the content so
-    // cards, strips and the search box still receive their own clicks.
-    MouseArea {
-        anchors.fill: parent
+    // Click anywhere outside the search box (header, dividers, empty
+    // space, or game strips) blurs it so it collapses. TapHandler is
+    // preferred over MouseArea here because it is a passive pointer
+    // handler — it does NOT consume the press. The HorizontalGameStrip's
+    // own drag MouseArea below still receives every event, and clicks on
+    // game cards still fire. A QML TextInput keeps active focus until
+    // something else takes it — without this the box never closed (user
+    // had to restart the app, since the prior MouseArea was being
+    // shadowed by the strip's anchors.fill MouseArea).
+    TapHandler {
         acceptedButtons: Qt.LeftButton
-        onPressed: (mouse) => {
-            if (searchInput.activeFocus)
-                searchInput.focus = false
-            mouse.accepted = false
-        }
+        gesturePolicy: TapHandler.DragThreshold
+        onTapped: if (searchInput.activeFocus) searchInput.focus = false
     }
 
     // Internal state
