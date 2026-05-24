@@ -1023,25 +1023,33 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         return;
     }
 
-    // Unity bundle patching is handled by the Makine engine (not launcher)
+    // Unity bundle patching is handled by the Makine engine (not launcher).
+    // The .makine package has already been downloaded and extracted into
+    // sourcePath — point the user there so they can run the bundled
+    // installer/instructions themselves, instead of bouncing them off to a
+    // third-party site.
     if (pkg.installMethodType == "unityPatch") {
         emit installCompleted(false, tr("Bu yama Unity bundle yaması "
             "gerektiriyor; Makine Launcher bunu henüz otomatik kuramıyor. "
-            "Çözüm: yamayı apexyama.com sayfasındaki adımları izleyerek elle "
-            "kurun."));
+            "Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
+            "Klasörün içindeki kurulum aracını (UnityEX / UABEA) "
+            "çalıştırın ve talimatları izleyin.").arg(sourcePath));
         return;
     }
 
-    // Forge-archive injection (AC Odyssey/Valhalla …) needs the QuickBMS/c1
+    // Forge-archive injection (AC Odyssey/Valhalla …) needs a QuickBMS/c1
     // forge toolchain the launcher does not bundle. Fail loudly instead of
     // silently overlay-copying the tool files and reporting success — that
     // produced the "yama kuruldu ama oyun İngilizce" false-success bug.
+    // The package itself was downloaded into sourcePath; surface that path
+    // so the user can run the included tool, rather than being redirected
+    // off-launcher.
     if (pkg.installMethodType == "forge_inject") {
         emit installCompleted(false, tr("Bu yama, oyunun .forge "
             "arşivlerine enjeksiyon gerektirdiği için otomatik kurulamıyor. "
-            "Çözüm: apexyama.com adresinde bu oyunu açın, yamayı indirin ve "
-            "sayfadaki adımları izleyin (genelde yama aracını çalıştırıp oyun "
-            "klasörünü göstermeniz yeterli)."));
+            "Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
+            "Klasörün içindeki kurulum aracını çalıştırın ve istendiğinde "
+            "oyun klasörünüzü gösterin.").arg(sourcePath));
         return;
     }
 
@@ -1070,10 +1078,10 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             const QString& m = pkg.installMethodType;
             QString guide;
             if (m == "external")
-                guide = tr("Bu yamanın çevirisi harici bir kaynaktan gelir, "
-                    "otomatik kurulamıyor. Çözüm: apexyama.com adresinde bu "
-                    "oyunu açın, yamayı indirin ve sayfadaki kurulum "
-                    "talimatını izleyin.");
+                guide = tr("Bu yamanın çevirisi harici bir kurulum aracıyla "
+                    "uygulanır, Makine Launcher tarafından otomatik "
+                    "kurulamıyor. Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
+                    "Klasördeki kurulum talimatını izleyin.").arg(sourcePath);
             else if (m == "installer")
                 guide = tr("Bu yama kendi kurulum sihirbazıyla gelir. Çözüm: "
                     "yama arşivini açın, içindeki kurulum (.exe) dosyasını "
@@ -1090,8 +1098,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     "etkinleştirin.");
             else
                 guide = tr("Bu yama otomatik kurulamıyor (kurulum yöntemi: "
-                    "%1). Çözüm: apexyama.com üzerinden ya da yamanın kendi "
-                    "kaynağından, sayfadaki adımları izleyerek kurun.").arg(m);
+                    "%1). Yama dosyaları şu klasöre çıkarıldı:\n%2\n"
+                    "Klasördeki kurulum talimatını izleyin.")
+                    .arg(m, sourcePath);
             emit installCompleted(false, guide);
             return;
         }
