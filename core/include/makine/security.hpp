@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file security.hpp
  * @brief Security, cryptography, and signature verification
@@ -10,6 +13,9 @@
 #include "error.hpp"
 
 #include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace makine {
 

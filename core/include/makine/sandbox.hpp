@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file sandbox.hpp
  * @brief Sandboxing preparation for file and network access control
@@ -25,6 +28,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
