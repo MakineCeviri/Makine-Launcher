@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_archive_utils.cpp
  * @brief Unit tests for archive_utils.hpp — Format detection, formatToString, backends

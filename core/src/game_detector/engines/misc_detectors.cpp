@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file misc_detectors.cpp
  * @brief Miscellaneous engine detectors: Bethesda, Godot, GameMaker, Source,

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file imagecachemanager.h
  * @brief Disk-based image cache for game images from R2 CDN

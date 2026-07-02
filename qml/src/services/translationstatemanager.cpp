@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file translationstatemanager.cpp
  * @brief Translation button 7-state resolver implementation

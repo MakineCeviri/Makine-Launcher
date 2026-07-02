@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file mkpkformat.h
  * @brief MKPK binary format: decrypt (AES-256-GCM) + decompress (zstd) + tar extract

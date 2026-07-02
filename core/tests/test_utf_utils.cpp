@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_utf_utils.cpp
  * @brief Unit tests for utf_utils.hpp — UTF validation, conversion, encoding detection

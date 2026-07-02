@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file systemtraymanager.h
  * @brief System tray icon using native Win32 APIs (no Qt6Widgets dependency)

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file fuzz_json_parser.cpp
  * @brief Fuzzer for JSON parsing (simdjson/nlohmann abstraction)

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file archive_utils.hpp
  * @brief Archive extraction utilities with multiple backend support

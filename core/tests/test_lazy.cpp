@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_lazy.cpp
  * @brief Unit tests for lazy.hpp — Lazy<T>, LazyFile, LazyJson, LazyResource

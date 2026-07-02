@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file integrityservice.cpp
  * @brief Binary self-integrity verification — thin Qt wrapper

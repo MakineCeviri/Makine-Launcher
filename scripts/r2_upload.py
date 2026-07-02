@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Makine Çeviri
+
 """
 r2_upload.py -- Upload .makine files to Cloudflare R2.
 

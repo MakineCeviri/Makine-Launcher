@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file gamemaker_data.hpp
  * @brief GameMaker data.win IFF format structures

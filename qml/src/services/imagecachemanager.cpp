@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file imagecachemanager.cpp
  * @brief Disk-based image cache — downloads from Cloudflare R2 CDN
