@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_rpa_parser.cpp
  * @brief Unit tests for Ren'Py RPA archive parser and pickle decoder

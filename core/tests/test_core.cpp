@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_core.cpp
  * @brief Unit tests for core.hpp -- InitOptions, InitResult, Core singleton basics

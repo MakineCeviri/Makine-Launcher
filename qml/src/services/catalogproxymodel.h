@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file catalogproxymodel.h
  * @brief High-performance fuzzy search proxy with fzf-style scoring

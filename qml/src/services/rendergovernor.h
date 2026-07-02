@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file rendergovernor.h
  * @brief FPS governance: 60fps active, on-demand idle, zero background

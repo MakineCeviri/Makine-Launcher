@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file manifestsyncservice.h
  * @brief Catalog sync orchestrator — facade over CatalogStore, DetailFetcher, TelemetryService

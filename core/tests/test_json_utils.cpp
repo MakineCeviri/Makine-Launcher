@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_json_utils.cpp
  * @brief Unit tests for JSON utility classes (JsonValue, JsonDocument, ArrayIterator)

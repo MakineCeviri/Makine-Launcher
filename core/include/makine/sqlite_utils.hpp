@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file sqlite_utils.hpp
  * @brief SQLite utilities with optional SQLiteCpp wrapper

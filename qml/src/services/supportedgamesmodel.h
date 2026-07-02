@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file supportedgamesmodel.h
  * @brief QAbstractListModel for the 258-game supported catalog

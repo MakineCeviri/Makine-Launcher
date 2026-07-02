@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file package_catalog.hpp
  * @brief Local translation package catalog — pure C++ business logic

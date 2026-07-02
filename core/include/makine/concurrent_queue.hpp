@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file concurrent_queue.hpp
  * @brief Lock-free concurrent queue with optional moodycamel backend

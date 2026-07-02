@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 Makine Çeviri
+
 """Generate the MSIX tile/logo PNG assets from the app logo.
 
 Each asset is the brand logo, aspect-preserved and centred on a fully

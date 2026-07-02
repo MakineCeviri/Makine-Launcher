@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file utf_utils.hpp
  * @brief UTF encoding utilities with optional SIMDUTF acceleration

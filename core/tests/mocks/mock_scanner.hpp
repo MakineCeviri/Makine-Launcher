@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file mock_scanner.hpp
  * @brief Mock implementations of game scanner interfaces for testing

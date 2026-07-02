@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file bench_json_parsing.cpp
  * @brief Benchmark: JSON parsing performance comparison

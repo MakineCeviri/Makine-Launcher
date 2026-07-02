@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
 /**
  * @file test_string_pool.cpp
  * @brief Unit tests for string_pool.hpp — StringPool, ObjectPool, BufferPool, GlobalPools
