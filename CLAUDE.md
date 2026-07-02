@@ -5,9 +5,9 @@
 
 | | |
 |---|---|
-| **Private (dev)** | `origin` → MakineCeviri/Makine-Launcher-Dev |
-| **Public (release)** | `public` → MakineCeviri/Makine-Launcher |
-| **Push** | `git push` → Dev · `git push public main` → Public |
+| **Repo** | `origin` → MakineCeviri/Makine-Launcher (public, single repo) |
+| **Branches** | `main` (stable, release-ready) · `dev` (active development) |
+| **Push** | `git push` → origin/dev · release: merge dev → main |
 
 ---
 
