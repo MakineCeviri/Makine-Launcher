@@ -30,6 +30,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QTimer>
+#include <QEventLoop>
 #include <QSettings>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -731,6 +732,20 @@ static void configureQtEnvironment()
         // We set QSG_RHI_BACKEND (the authoritative override) AND call
         // setGraphicsApi(); the env var is what Qt's scene graph actually
         // honors, the setter is belt-and-suspenders for API consistency.
+        //
+        // One-time migration: builds up to v0.1.0-beta rewrote a stored "auto"
+        // into "vulkan" and persisted it, so every machine that ever ran an
+        // older build carries an explicit "vulkan" on disk. The "auto" default
+        // below only applies when the key is absent, so without this reset the
+        // D3D11 fix would never reach existing users — precisely the cohort
+        // whose launcher fails to start on a missing/broken Vulkan ICD.
+        // Runs once; choosing Vulkan again from Settings afterwards sticks.
+        if (!gfxSettings.value("performance/graphicsBackendReset", false).toBool()) {
+            if (gfxSettings.value("performance/graphicsBackend").toString() == "vulkan")
+                gfxSettings.setValue("performance/graphicsBackend", "auto");
+            gfxSettings.setValue("performance/graphicsBackendReset", true);
+        }
+
         const QString gfxBackend =
             gfxSettings.value("performance/graphicsBackend", "auto").toString();
         if (gfxBackend == "vulkan") {
@@ -1412,16 +1427,28 @@ int main(int argc, char *argv[])
     // Parse command-line flags before QGuiApplication
     bool isPostUpdate = false;
     bool startMinimized = false;
+    bool scanSelfTest = false;
+#ifdef MAKINE_DEV_TOOLS
+    bool telemetrySelfTest = false;
+#endif
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--post-update") == 0) {
             isPostUpdate = true;
         } else if (strcmp(argv[i], "--minimized") == 0) {
             startMinimized = true;
+        } else if (strcmp(argv[i], "--selftest-scan") == 0) {
+            scanSelfTest = true;
+#ifdef MAKINE_DEV_TOOLS
+        } else if (strcmp(argv[i], "--selftest-telemetry") == 0) {
+            telemetrySelfTest = true;
+#endif
         }
     }
 
-    // Single-instance guard (must run before QGuiApplication on Windows)
-    if (!acquireSingleInstance(isPostUpdate)) {
+    // Single-instance guard (must run before QGuiApplication on Windows).
+    // The scan self-test is a diagnostic that must run while the app is open —
+    // that is exactly when a user is looking at a library missing their game.
+    if (!scanSelfTest && !acquireSingleInstance(isPostUpdate)) {
 #ifdef Q_OS_WIN
         MessageBoxW(nullptr,
             L"Makine Launcher zaten \u00e7al\u0131\u015f\u0131yor.\n\n"
@@ -1448,6 +1475,75 @@ int main(int argc, char *argv[])
     // === Phase 0: Crash reporting (as early as possible after QApp) ===
     makine::CrashReporter::initialize();
     makine::CrashReporter::installQtMessageHandler();
+
+#ifdef MAKINE_DEV_TOOLS
+    // Telemetry self-test (dev builds only, opt-in via --selftest-telemetry).
+    //
+    // Reporting can be broken in ways that compile perfectly: the DSN is passed
+    // through the MAKINE_SENTRY_DSN environment variable at configure time, so
+    // building without loading .env yields SENTRY_DSN="" and every report
+    // silently goes nowhere. "It builds" is not evidence that reports arrive.
+    //
+    // This sends one event through the real path — same initialize(), same
+    // reportFailure(), same transport — then flushes and exits, so the chain
+    // can be verified on demand instead of assumed.
+    if (telemetrySelfTest) {
+        makine::CrashReporter::reportFailure(
+            "selftest", QStringLiteral("telemetry"),
+            QStringLiteral("telemetry self-test event: DSN, init and transport reachable"));
+        makine::CrashReporter::shutdown();   // flushes queued envelopes
+        qInfo("telemetry self-test event dispatched");
+        return 0;
+    }
+#endif
+
+    // Scan self-test (--selftest-scan): runs the real library scan, prints a
+    // one-line summary, exits.
+    //
+    // Detection is the one subsystem where "works on my machine" proves nothing:
+    // the outcome depends entirely on which stores, folders and games that
+    // particular machine has. Without a way to run the scan and read the result,
+    // a "my game is not found" report cannot be turned into evidence. This calls
+    // the same scanAllLibraries() the UI calls, so there is no second code path
+    // that could drift from what users actually run.
+    if (scanSelfTest) {
+        auto* bridge = makine::CoreBridge::instance();
+        QEventLoop loop;
+        int detected = -1;
+        QObject::connect(bridge, &makine::CoreBridge::scanCompleted, &loop,
+                         [&](int n) { detected = n; loop.quit(); });
+        QTimer::singleShot(180000, &loop, &QEventLoop::quit);  // never hang
+        bridge->scanAllLibraries();
+        loop.exec();
+
+        // Results cross thread boundaries via a queued call; let it settle.
+        QCoreApplication::processEvents();
+
+        if (detected < 0) {
+            fprintf(stderr, "scan self-test: TIMEOUT - scan did not complete\n");
+            return 1;
+        }
+
+        const QVariantList catalog = bridge->allSupportedGames();
+        QStringList lines;
+        for (const QVariant& v : catalog) {
+            const QVariantMap e = v.toMap();
+            if (!e.value(QStringLiteral("isInstalled")).toBool())
+                continue;
+            lines << QStringLiteral("  %1 [%2] %3")
+                         .arg(e.value(QStringLiteral("gameName")).toString(),
+                              e.value(QStringLiteral("source")).toString(),
+                              e.value(QStringLiteral("installPath")).toString());
+        }
+        printf("scan self-test: detected=%d catalog=%d matched=%d\n",
+               detected, static_cast<int>(catalog.size()), lines.size());
+        // The path matters as much as the count: a match pointing at the wrong
+        // folder installs the patch next to the game instead of into it.
+        for (const QString& l : lines)
+            printf("%s\n", l.toUtf8().constData());
+        fflush(stdout);
+        return 0;
+    }
 
     // Anti-RE: run all checks before anything else (no-op in debug builds)
     makine::protection::initialize();

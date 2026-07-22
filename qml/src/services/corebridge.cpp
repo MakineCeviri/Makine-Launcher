@@ -18,6 +18,7 @@
 #include <QThread>
 #include <QStandardPaths>
 #include <QSet>
+#include <QMap>
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QStorageInfo>
@@ -88,6 +89,13 @@ CoreBridge::CoreBridge(QObject *parent)
     s_instance = this;
     // Core library init deferred to first use (scanAllLibraries)
     // to avoid blocking startup
+
+    // A scan failure means the library comes up empty, which users report as
+    // "oyunumu bulamıyor" — indistinguishable from a genuine detection gap
+    // unless the underlying error is visible.
+    connect(this, &CoreBridge::scanError, this, [](const QString& error) {
+        CrashReporter::reportFailure("scan", QString(), error);
+    });
 }
 
 CoreBridge::~CoreBridge()
@@ -336,6 +344,17 @@ void CoreBridge::doScanEpicReal(QList<DetectedGame>& outGames)
         if (displayName.isEmpty() || installLocation.isEmpty()) continue;
         if (!QDir(installLocation).exists()) continue;
 
+        // Epic writes a manifest for DLC, soundtracks and bundled extras too.
+        // They share the base game's InstallLocation, so without this filter the
+        // same folder is listed several times under different names and the
+        // library fills with entries that are not games.
+        if (obj["bIsIncludedItem"].toBool(false) ||
+            !obj["MainGameCatalogItemId"].toString().isEmpty() ||
+            !obj["bIsExecutable"].toBool(true)) {
+            qCDebug(lcCoreBridge) << "Epic: skipping non-game entry" << displayName;
+            continue;
+        }
+
         DetectedGame game;
         game.id = "epic_" + catalogItemId;
         game.name = displayName;
@@ -510,10 +529,27 @@ QStringList CoreBridge::knownGameDirectories() const
         if (root.size() >= 2) drives.append(root.left(2)); // "C:", "D:", etc.
     }
 
+    // Container folders whose immediate children are individual games.
+    // The store scanners above already cover the healthy case; these catch the
+    // installs whose manifest or registry entry is missing — a library moved to
+    // another drive, a reinstalled client, a store that never registered itself.
     static const QStringList knownFolders = {
+        // User-made folders
         QStringLiteral("Games"),
         QStringLiteral("Oyunlar"),
+        QStringLiteral("Oyun"),
+        // Store defaults
+        QStringLiteral("SteamLibrary"),
+        QStringLiteral("XboxGames"),
+        QStringLiteral("GOG Games"),
+        QStringLiteral("GOG Galaxy/Games"),
+        QStringLiteral("Program Files/Epic Games"),
         QStringLiteral("Program Files/Rockstar Games"),
+        QStringLiteral("Program Files (x86)/Rockstar Games"),
+        QStringLiteral("Program Files/EA Games"),
+        QStringLiteral("Program Files (x86)/EA Games"),
+        QStringLiteral("Program Files (x86)/Origin Games"),
+        QStringLiteral("Program Files (x86)/Ubisoft/Ubisoft Game Launcher/games"),
     };
 
     for (const auto& drive : drives) {
@@ -554,9 +590,22 @@ void CoreBridge::doScanFilesystemReal(QList<DetectedGame>& outGames,
             if (!hasExecutable(fullPath))
                 continue;
 
+            // Microsoft Store / Game Pass wraps every title as
+            // "XboxGames/<Game>/Content/<game>.exe". The game root is Content —
+            // pointing the install path one level higher would drop the patch
+            // next to the wrapper instead of next to the executable.
+            QString gameRoot = fullPath;
+            if (QDir(fullPath).entryList({QStringLiteral("*.exe")}, QDir::Files).isEmpty() &&
+                QDir(fullPath + QStringLiteral("/Content")).exists() &&
+                !QDir(fullPath + QStringLiteral("/Content"))
+                     .entryList({QStringLiteral("*.exe")}, QDir::Files).isEmpty()) {
+                gameRoot = fullPath + QStringLiteral("/Content");
+                qCDebug(lcCoreBridge) << "Filesystem: using Content subfolder for" << folderName;
+            }
+
             DetectedGame game;
             game.name = folderName;
-            game.installPath = fullPath;
+            game.installPath = gameRoot;
             game.source = QStringLiteral("filesystem");
 
             outGames.append(game);
@@ -817,10 +866,14 @@ void CoreBridge::scanAllLibraries()
                     if (resolved.isEmpty() && !game.name.isEmpty()) {
                         resolved = pkgMgr->findMatchingAppId(game.name);
                     }
-                    // Last resort: fingerprint-based file matching
-                    if (resolved.isEmpty() &&
-                        (game.source == QLatin1String("filesystem") ||
-                         game.source == QLatin1String("registry"))) {
+                    // Last resort: fingerprint-based file matching.
+                    // Applies to every non-Steam source, Epic and GOG included.
+                    // Epic installs under its internal code name — "TWDTTDS" for
+                    // The Walking Dead: The Telltale Definitive Series — so neither
+                    // the folder name nor the display name can match the catalog,
+                    // and the game reads as unsupported even though its package
+                    // exists. The executable inside is the one reliable signal.
+                    if (resolved.isEmpty()) {
                         QVariantList candidates = findMatchingGamesFromFiles(game.installPath);
                         if (!candidates.isEmpty()) {
                             QVariantMap best = candidates.first().toMap();
@@ -894,7 +947,39 @@ void CoreBridge::scanAllLibraries()
             }
         }
 
+        // ── Scan summary ──
+        // Detection quality is invisible without this. "My game is not found"
+        // gives us nothing to act on; a match ratio we can compare across
+        // releases does. Aggregate counts only — no game names and no paths, so
+        // the privacy promise in docs/telemetry.md still holds.
         const int count = games.count();
+        QMap<QString, int> perSource;
+        int matched = 0;
+        for (const auto& g : games) {
+            ++perSource[g.source];
+            if (!g.steamAppId.isEmpty()) ++matched;
+        }
+        QStringList breakdown;
+        for (auto it = perSource.cbegin(); it != perSource.cend(); ++it)
+            breakdown << QStringLiteral("%1=%2").arg(it.key()).arg(it.value());
+
+        const int catalogSize = pkgMgr ? pkgMgr->packageCount() : 0;
+        const QString summary = QStringLiteral("games=%1 matched=%2 catalog=%3 [%4]")
+                                    .arg(count).arg(matched).arg(catalogSize)
+                                    .arg(breakdown.join(QLatin1Char(' ')));
+        qCInfo(lcCoreBridge) << "Scan summary:" << summary;
+        CrashReporter::addBreadcrumb("scan", summary.toUtf8().constData());
+
+        // Two outcomes are outright failures rather than "few supported games":
+        // an empty catalog means the index never synced, and zero games on a
+        // machine that has a game store installed means every scanner missed.
+        if (catalogSize == 0) {
+            CrashReporter::reportFailure("scan", QStringLiteral("catalog"),
+                tr("Çeviri kataloğu boş — indeks eşitlemesi tamamlanmamış"));
+        } else if (count == 0) {
+            CrashReporter::reportFailure("scan", QStringLiteral("empty"),
+                tr("Hiçbir tarayıcı oyun bulamadı (%1)").arg(summary));
+        }
 
         // Move results to main thread
         QMetaObject::invokeMethod(this, [this, games = std::move(games)]() mutable {
@@ -1170,7 +1255,8 @@ QString CoreBridge::getVariantSpecialDialogForGame(const QString& gameId, const 
     return getSpecialDialogForGame(gameId);
 }
 
-QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString& variant)
+QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString& variant,
+                                            const QString& gamePath)
 {
     MAKINE_ZONE_NAMED("CoreBridge::getPackageFileList");
     if (!m_localPkgManager) return {};
@@ -1178,7 +1264,7 @@ QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString&
     QString resolved = resolveToSteamAppId(gameId);
     if (resolved.isEmpty()) return {};
 
-    return m_localPkgManager->getPackageFileList(resolved, variant);
+    return m_localPkgManager->getPackageFileList(resolved, variant, gamePath);
 }
 
 QString CoreBridge::findMatchingAppId(const QString& folderName)
@@ -1196,6 +1282,18 @@ QVariantList CoreBridge::findMatchingGamesFromFiles(const QString& gamePath)
     QDir dir(gamePath);
     if (!dir.exists()) return {};
 
+    // Skip known non-game executables
+    auto isGameExe = [](const QString& lowerName) {
+        return !lowerName.contains(QStringLiteral("launcher")) &&
+               !lowerName.contains(QStringLiteral("crash")) &&
+               !lowerName.contains(QStringLiteral("unins")) &&
+               !lowerName.contains(QStringLiteral("redist")) &&
+               !lowerName.contains(QStringLiteral("setup")) &&
+               !lowerName.contains(QStringLiteral("dxsetup")) &&
+               !lowerName.contains(QStringLiteral("vcredist")) &&
+               !lowerName.contains(QStringLiteral("dotnet"));
+    };
+
     // Collect exe names and top-level entries from the game folder
     QStringList exeNames;
     QStringList topEntries;
@@ -1204,17 +1302,40 @@ QVariantList CoreBridge::findMatchingGamesFromFiles(const QString& gamePath)
         topEntries.append(info.fileName());
         if (info.isFile() && info.suffix().toLower() == QStringLiteral("exe")) {
             const QString name = info.fileName().toLower();
-            // Skip known non-game executables
-            if (!name.contains(QStringLiteral("launcher")) &&
-                !name.contains(QStringLiteral("crash")) &&
-                !name.contains(QStringLiteral("unins")) &&
-                !name.contains(QStringLiteral("redist")) &&
-                !name.contains(QStringLiteral("setup")) &&
-                !name.contains(QStringLiteral("dxsetup")) &&
-                !name.contains(QStringLiteral("vcredist")) &&
-                !name.contains(QStringLiteral("dotnet"))) {
+            if (isGameExe(name))
                 exeNames.append(name);
-            }
+        }
+    }
+
+    // Nothing at the root: many installs keep the real executable nested —
+    // Unreal ships "<Game>/Binaries/Win64/Game.exe", and Epic layouts often
+    // add another level (e.g. "TWDTTDS/…/wdc.exe"). A root-only scan hands
+    // the matcher an empty exe list, so fingerprint matching can never fire
+    // and the game looks unsupported even when its package exists. Walk a
+    // few levels deeper, bounded in depth and in entries visited so a large
+    // install directory cannot stall detection.
+    if (exeNames.isEmpty()) {
+        constexpr int kMaxDepth = 3;
+        constexpr int kMaxVisited = 4000;
+        constexpr int kMaxExes = 12;
+        const QDir rootDir(gamePath);
+        QDirIterator it(gamePath, {QStringLiteral("*.exe")}, QDir::Files,
+                        QDirIterator::Subdirectories);
+        int visited = 0;
+        while (it.hasNext() && visited < kMaxVisited && exeNames.size() < kMaxExes) {
+            it.next();
+            ++visited;
+            const QString rel = rootDir.relativeFilePath(it.filePath());
+            if (rel.count(QLatin1Char('/')) > kMaxDepth)
+                continue;
+            const QString name = it.fileName().toLower();
+            if (isGameExe(name) && !exeNames.contains(name))
+                exeNames.append(name);
+        }
+        if (!exeNames.isEmpty()) {
+            qCDebug(lcCoreBridge) << "findMatchingGamesFromFiles: no exe at root,"
+                                  << "nested scan found" << exeNames.size()
+                                  << "candidate(s) in" << gamePath;
         }
     }
 
