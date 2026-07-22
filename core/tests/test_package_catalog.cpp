@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <string>
 
 namespace makine {
 namespace testing {
