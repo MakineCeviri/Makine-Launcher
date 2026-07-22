@@ -180,7 +180,8 @@ public:
     /**
      * @brief Get list of files in the translation package (relative paths)
      */
-    QStringList getPackageFileList(const QString& gameId, const QString& variant = {});
+    QStringList getPackageFileList(const QString& gameId, const QString& variant = {},
+                                    const QString& gamePath = {});
 
     /**
      * @brief Match a folder name against the package catalog
