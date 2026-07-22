@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Build a Makine Launcher MSIX from the static EXE + generated assets.
 
@@ -26,7 +26,12 @@ param(
   [Parameter(Mandatory)] [string]$IdentityName,   # Partner Center Identity Name
   [Parameter(Mandatory)] [string]$Publisher,      # Partner Center Publisher == cert CN
   [string]$ExePath = "build/release-static/Makine-Launcher.exe",
-  [string]$OutDir  = "dist"
+  [string]$OutDir  = "dist",
+  # Set for a dynamically linked build: runs windeployqt against the staged EXE
+  # and copies the runtime DLLs sitting next to it. Static Qt is not available
+  # as a prebuilt kit (it has to be compiled from source), and an MSIX is a
+  # container anyway — it may carry DLLs, so static linking buys nothing here.
+  [string]$QtBinDir = ""
 )
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
@@ -43,7 +48,10 @@ if ($Publisher -notmatch '^CN=') {
   throw "Publisher must be an X.500 subject starting with 'CN=' (matches the signing cert subject) — got '$Publisher'"
 }
 if (-not (Test-Path $ExePath) -or (Get-Item $ExePath).Length -eq 0) {
-  throw "Static EXE missing/0 bytes: $ExePath  (run 'just release-static' first)"
+  throw "EXE missing/0 bytes: $ExePath  (build it first, or pass -ExePath)"
+}
+if ($QtBinDir -and -not (Test-Path (Join-Path $QtBinDir "windeployqt.exe"))) {
+  throw "windeployqt.exe not found in -QtBinDir: $QtBinDir"
 }
 
 $tpl    = Join-Path $repo "packaging/msix/AppxManifest.xml.in"
@@ -69,6 +77,28 @@ New-Item -ItemType Directory -Force (Join-Path $stage "Assets") | Out-Null
 
 Copy-Item (Join-Path $assets "*.png") (Join-Path $stage "Assets") -Force
 Copy-Item $ExePath (Join-Path $stage "Makine-Launcher.exe") -Force
+
+# --- runtime dependencies (dynamic builds only) ------------------------
+if ($QtBinDir) {
+  $stagedExe = Join-Path $stage "Makine-Launcher.exe"
+
+  # Runtime DLLs already sitting next to the built EXE (vcpkg applocal output).
+  # Copied before windeployqt so it can see the full dependency set.
+  $srcDir = Split-Path (Resolve-Path $ExePath) -Parent
+  $dlls = Get-ChildItem $srcDir -Filter *.dll -EA SilentlyContinue
+  if ($dlls) {
+    Copy-Item $dlls.FullName -Destination $stage -Force
+    Write-Host "Copied $($dlls.Count) runtime DLL(s) from $srcDir"
+  }
+
+  & (Join-Path $QtBinDir "windeployqt.exe") `
+      --release --no-translations --no-system-d3d-compiler `
+      --qmldir (Join-Path $repo "qml/qml") $stagedExe
+  if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
+
+  $n = (Get-ChildItem $stage -Recurse -File).Count
+  Write-Host "Staged $n file(s) after windeployqt"
+}
 
 # --- locate makeappx ---------------------------------------------------
 $makeappx = (Get-Command makeappx -EA SilentlyContinue).Source

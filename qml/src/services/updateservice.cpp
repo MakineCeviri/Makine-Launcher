@@ -27,9 +27,42 @@
 #include <QCryptographicHash>
 #include <memory>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <appmodel.h>
+#endif
+
 Q_LOGGING_CATEGORY(lcUpdateService, "makine.update")
 
 namespace makine {
+
+namespace {
+
+/// True when this process runs from an MSIX package (Microsoft Store install).
+///
+/// A packaged app cannot update itself: its install directory lives under
+/// C:\Program Files\WindowsApps, owned by TrustedInstaller and read-only, so
+/// SelfUpdater's "rename the running EXE, move the new one in" sequence fails
+/// with ACCESS_DENIED. Windows delivers updates for packaged apps instead —
+/// running our own updater would download tens of megabytes on every launch,
+/// fail silently, and repeat. Store policy also frowns on apps shipping their
+/// own update mechanism.
+bool runningInsideMsixPackage()
+{
+#ifdef Q_OS_WIN
+    // Resolved once: package identity cannot change during a process lifetime.
+    static const bool packaged = []() {
+        UINT32 length = 0;
+        const LONG rc = ::GetCurrentPackageFullName(&length, nullptr);
+        return rc != APPMODEL_ERROR_NO_PACKAGE;
+    }();
+    return packaged;
+#else
+    return false;
+#endif
+}
+
+} // namespace
 
 static constexpr const char* kUpdateJsonUrl = cdn::kUpdateJson;
 
@@ -87,6 +120,16 @@ void UpdateService::check()
     CrashReporter::addBreadcrumb("update", "UpdateService::check");
     if (m_state == Checking || m_state == Downloading)
         return;
+
+    // Store builds: Windows owns the update. Checking would find a version we
+    // cannot install anyway — see runningInsideMsixPackage().
+    if (runningInsideMsixPackage()) {
+        qCInfo(lcUpdateService)
+            << "UpdateService: packaged (MSIX) build — updates are delivered by"
+            << "the Microsoft Store, skipping self-update check";
+        setState(Idle);
+        return;
+    }
 
     setState(Checking);
     setError({});
