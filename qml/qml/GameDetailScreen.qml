@@ -64,6 +64,21 @@ Item {
         if (root.viewModel.gameId !== "") {
             mainFlick.contentY = 0
             root._replayEntryAnim()
+            root._verifyInstalledPatch()
+        }
+    }
+
+    // A patch recorded as installed can be gone from disk without the launcher
+    // knowing: a store integrity check deletes it, a game update overwrites it,
+    // antivirus quarantines it hours later. The library keeps saying "installed"
+    // while the game runs untranslated. Check when the user opens the page —
+    // that is when they are looking for the answer.
+    function _verifyInstalledPatch() {
+        if (!root.viewModel.packageInstalled) return
+        var r = GameService.checkPatchIntegrity(root.viewModel.gameId)
+        if (r && r.installed && !r.ok && r.message) {
+            root.viewModel.installErrorMessage = r.message
+            installErrorTimer.restart()
         }
     }
 
@@ -75,6 +90,7 @@ Item {
             if (root.viewModel.gameId === "") return
             mainFlick.contentY = 0
             root._replayEntryAnim()
+            root._verifyInstalledPatch()
         }
         function onAutoInstallChanged() {
             if (root.viewModel.autoInstall && root.viewModel.hasTranslation &&

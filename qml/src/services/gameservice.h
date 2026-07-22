@@ -250,6 +250,27 @@ public:
     Q_INVOKABLE void repairGameFiles(const QString& gameId);
 
     /**
+     * @brief Check whether an installed patch's files are still on disk.
+     *
+     * Installation is recorded once and then trusted forever, but the files can
+     * disappear afterwards without the launcher ever noticing:
+     *   - Steam's "verify integrity of game files" deletes anything it did not
+     *     ship, which is exactly what a patch is
+     *   - a game update overwrites the patched files
+     *   - real-time antivirus quarantines proxy DLLs and .asi plugins hours
+     *     after a clean install
+     *   - the user moves or reinstalls the game
+     *
+     * In every one of those cases the launcher keeps reporting "installed" while
+     * the game runs untranslated — indistinguishable, from the user's side, from
+     * a patch that never worked. This turns that silent state into a fact.
+     *
+     * Returns { installed, ok, missing, total, message }. Emits
+     * patchIntegrityChecked() with the same verdict.
+     */
+    Q_INVOKABLE QVariantMap checkPatchIntegrity(const QString& gameId);
+
+    /**
      * @brief Recover a broken translation: uninstall + reinstall
      */
     Q_INVOKABLE void recoverTranslation(const QString& gameId);
@@ -374,6 +395,10 @@ signals:
     // Result of repairGameFiles(): whether the store's verification was handed
     // off successfully, plus a message to show the user.
     void gameRepairStarted(const QString& gameId, bool started, const QString& message);
+
+    // Verdict from checkPatchIntegrity(): false when files recorded at install
+    // time are no longer on disk.
+    void patchIntegrityChecked(const QString& gameId, bool ok, const QString& message);
     void antiCheatWarningNeeded(const QString& gameId, const QVariantMap& antiCheatData);
 
 private:
