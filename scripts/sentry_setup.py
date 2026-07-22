@@ -32,7 +32,10 @@ except ImportError:
 
 SENTRY_BASE_URL = "https://sentry.io/api/0"
 SENTRY_ORG = "makine-ceviri"
-SENTRY_PROJECT = "makine-launcher"
+# Project slug as it exists in Sentry (see .sentryclirc). Not the repo name —
+# pointing this at "makine-launcher" silently targets a project that does not
+# exist, so every API call 404s and no rule is ever created.
+SENTRY_PROJECT = "native"
 GITHUB_ORG = "MakineCeviri"
 GITHUB_REPO = "Makine-Launcher"
 
@@ -212,6 +215,33 @@ def setup_alert_rules(dry_run: bool = False) -> bool:
         })
     else:
         print("  Rule 'Regression Detected' already exists")
+
+    # Rule 3: Widespread failure → Notify
+    # The install/uninstall telemetry reports failures as message events, which
+    # rarely trip Sentry's "high priority" heuristic on their own. This rule
+    # catches the case that actually matters: a defect reaching many users at
+    # once — a bad package or a broken release — rather than one user's disk
+    # being full.
+    if "Widespread Failure" not in existing_names:
+        rules_to_create.append({
+            "name": "Widespread Failure",
+            "actionMatch": "all",
+            "filterMatch": "all",
+            "conditions": [
+                {"id": "sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition",
+                 "interval": "1h", "value": 10}
+            ],
+            "filters": [
+                {"id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
+                 "key": "failure.side", "match": "eq", "value": "system"}
+            ],
+            "actions": [
+                {"id": "sentry.rules.actions.notify_event.NotifyEventAction"}
+            ],
+            "frequency": 60,
+        })
+    else:
+        print("  Rule 'Widespread Failure' already exists")
 
     if not rules_to_create:
         print("  All alert rules already configured")
