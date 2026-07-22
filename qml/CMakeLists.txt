@@ -469,8 +469,36 @@ if(MAKINE_CRASH_REPORTING AND TARGET sentry)
     if(DEFINED ENV{MAKINE_SENTRY_DSN} AND NOT "$ENV{MAKINE_SENTRY_DSN}" STREQUAL "")
         set(_sentry_dsn "$ENV{MAKINE_SENTRY_DSN}")
     else()
-        message(WARNING "MAKINE_SENTRY_DSN not set — Sentry crash reporting will be disabled at runtime")
-        set(_sentry_dsn "")
+        # Fall back to .env. Only `just` loads that file, so building with a
+        # bare `cmake --preset dev` silently produced SENTRY_DSN="" — the app
+        # started, sentry_init succeeded, and every report went nowhere. The
+        # build looked perfectly healthy while telemetry was dead, which is the
+        # worst possible failure mode for a diagnostics feature. Reading the
+        # file here makes the DSN independent of how the build was invoked.
+        set(_dotenv "${CMAKE_CURRENT_SOURCE_DIR}/../.env")
+        if(EXISTS "${_dotenv}")
+            file(STRINGS "${_dotenv}" _dsn_lines REGEX "^MAKINE_SENTRY_DSN=")
+            if(_dsn_lines)
+                list(GET _dsn_lines 0 _dsn_line)
+                string(REGEX REPLACE "^MAKINE_SENTRY_DSN=" "" _sentry_dsn "${_dsn_line}")
+                string(REGEX REPLACE "^[\"']|[\"']$" "" _sentry_dsn "${_sentry_dsn}")
+                string(STRIP "${_sentry_dsn}" _sentry_dsn)
+            endif()
+        endif()
+    endif()
+
+    if(_sentry_dsn STREQUAL "")
+        # Loud, because a quiet warning here is exactly what got missed before.
+        message(WARNING
+            "================================================================\n"
+            "  SENTRY DSN BULUNAMADI — telemetri CALISMAYACAK.\n"
+            "  Kod derlenir, uygulama acilir, raporlar hicbir yere gitmez.\n"
+            "  Cozum: .env dosyasina MAKINE_SENTRY_DSN=... ekleyin\n"
+            "         veya ortam degiskeni olarak tanimlayin.\n"
+            "  Dogrulama: Makine-Launcher.exe --selftest-telemetry\n"
+            "================================================================")
+    else()
+        message(STATUS "MakineLauncher: Sentry DSN configured (telemetry active)")
     endif()
 
     target_compile_definitions(MakineLauncher PRIVATE
