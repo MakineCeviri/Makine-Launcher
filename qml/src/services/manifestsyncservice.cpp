@@ -39,6 +39,13 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
 {
     security::installTlsPinning(&m_nam);
 
+    // A failed catalog sync makes every game look unsupported, which users
+    // report as "hiçbir şey inmiyor" rather than as a sync problem. Capturing
+    // it separates a CDN/network outage from a per-package defect.
+    connect(this, &ManifestSyncService::syncError, this, [](const QString& error) {
+        CrashReporter::reportFailure("sync", QString(), error);
+    });
+
     // Load cached data for instant offline catalog display
     m_store->loadCachedEtag();
     m_store->loadCachedIndex();
