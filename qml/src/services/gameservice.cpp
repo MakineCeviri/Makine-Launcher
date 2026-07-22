@@ -14,15 +14,18 @@
 #include "apppaths.h"
 #include "profiler.h"
 #include "crashreporter.h"
+#include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QUrl>
 #include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSet>
 #include <QStandardPaths>
+#include <QTemporaryFile>
 #include <QTimer>
 #include <QLoggingCategory>
 #include <QtConcurrent>
@@ -386,6 +389,7 @@ void GameService::setupCoreBridge()
                 }
                 // Fail with a known game: try to roll back to the pre-install
                 // state so the user is not left with a half-patched game.
+                reportOperationFailure("install", gameId, message);
                 if (!gameId.isEmpty()) {
                     performInstallRollback(gameId, message);
                     return;
@@ -398,6 +402,7 @@ void GameService::setupCoreBridge()
                 m_installTimeoutTimer->stop();
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
+                reportOperationFailure("install", gameId, error);
                 if (!gameId.isEmpty()) {
                     performInstallRollback(gameId, error);
                 } else {
@@ -1301,6 +1306,33 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                 return;
             }
 
+            // Fail fast when the game directory cannot be written to. The
+            // launcher runs asInvoker on purpose (elevating raises antivirus
+            // false positives), so installs under C:\Program Files — where the
+            // Epic launcher puts games by default — cannot be written without
+            // elevation. Discovering that only at the copy step means the user
+            // waits through the whole download, extraction and backup first,
+            // then gets a permission error with nothing to show for it.
+            if (!isGameDirWritable(installPath)) {
+                qCWarning(lcGameService) << "game directory not writable:" << installPath;
+                m_installTimeoutTimer->stop();
+                m_installingGameId.clear();
+                const QString msg =
+                    tr("Oyun klasörüne yazma izni yok:\n%1\n\n"
+                       "Bu klasör genelde yönetici izni gerektirir "
+                       "(örn. C:\\Program Files altındaki kurulumlar).\n\n"
+                       "Çözüm:\n"
+                       "1) Makine Launcher'ı kapatın\n"
+                       "2) Kısayola sağ tıklayıp \"Yönetici olarak çalıştır\" deyin\n"
+                       "3) Yamayı tekrar kurun\n\n"
+                       "Alternatif: oyunu Program Files dışında bir klasöre taşıyın.")
+                        .arg(installPath);
+                reportOperationFailure("install", gameId,
+                    QStringLiteral("game directory not writable: %1").arg(installPath));
+                emit translationInstallCompleted(gameId, false, msg);
+                return;
+            }
+
             if (mode == InstallMode::Update) {
                 // No backup step for updates — go straight to update
                 qCDebug(lcGameService) << "Updating translation for" << gameId
@@ -1321,7 +1353,11 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
 
             BackupManager* bm = BackupManager::instance();
-            QStringList filesToOverwrite = m_coreBridge->getPackageFileList(gameId, variant);
+            // installPath matters: it lets the wrapper-stripping check verify a
+            // package's top-level folder against the real game install, so the
+            // backup list matches the files the install will actually overwrite.
+            QStringList filesToOverwrite =
+                m_coreBridge->getPackageFileList(gameId, variant, installPath);
 
             if (bm && !filesToOverwrite.isEmpty() && !alreadyInstalled) {
                 emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
@@ -1413,20 +1449,140 @@ void GameService::uninstallTranslation(const QString& gameId)
                     if (failedGameId != gameId) return;
                     qCWarning(lcGameService) << "Backup restore failed for" << gameId
                                               << "— skipping uninstall to avoid mixed state";
+                    reportOperationFailure("uninstall/restore", gameId, reason);
                     emit translationUninstalled(gameId, false, reason);
                 }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
             bool started = bm->restoreBackup(latest["id"].toString(), game.installPath);
             if (!started) {
                 disconnect(restoreConn);
-                qCWarning(lcGameService) << "Backup restoration failed for" << gameId
-                           << "- proceeding with uninstall anyway";
+                // Restore never started. LocalPackageManager::uninstallPackage skips
+                // replacedFiles because it assumes restore puts the originals back,
+                // so running it now would leave the patched files in place while we
+                // report success. Only safe when the install added files only.
+                if (translationReplacedOriginalFiles(gameId)) {
+                    qCCritical(lcGameService) << "Backup restore could not start for" << gameId
+                               << "- refusing uninstall, originals would stay patched";
+                    reportOperationFailure("uninstall", gameId,
+                        QStringLiteral("restore could not start; originals would stay patched"));
+                    emit translationUninstalled(gameId, false,
+                        tr("Yama kaldırılamadı: yedek geri yüklenemediği için oyunun "
+                           "değiştirilen dosyaları eski haline döndürülemiyor.\n"
+                           "Oyun dosyalarını mağaza üzerinden doğrulayın (Steam: oyuna sağ tık > "
+                           "Özellikler > Yüklü Dosyalar > Oyun dosyalarının bütünlüğünü doğrula)."));
+                    return;
+                }
+                qCWarning(lcGameService) << "Backup restore could not start for" << gameId
+                           << "- install only added files, uninstall is still safe";
                 finalizeUninstall(gameId, game.installPath, *it);
             }
             return;
         }
     }
 
+    // No usable backup. Same reasoning as above: with no restore pass, the
+    // overwritten originals stay patched and the game keeps running the
+    // translation the user was told had been removed.
+    if (translationReplacedOriginalFiles(gameId)) {
+        qCCritical(lcGameService) << "No backup available for" << gameId
+                   << "- refusing uninstall, originals would stay patched";
+        reportOperationFailure("uninstall", gameId,
+            QStringLiteral("no backup available; originals would stay patched"));
+        emit translationUninstalled(gameId, false,
+            tr("Yama kaldırılamadı: bu yama oyunun orijinal dosyalarının üzerine yazmış "
+               "ve geri yüklenecek bir yedek bulunamadı.\n"
+               "Oyun dosyalarını mağaza üzerinden doğrulayın (Steam: oyuna sağ tık > "
+               "Özellikler > Yüklü Dosyalar > Oyun dosyalarının bütünlüğünü doğrula)."));
+        return;
+    }
+
     finalizeUninstall(gameId, game.installPath, *it);
+}
+
+bool GameService::isGameDirWritable(const QString& gamePath)
+{
+    if (gamePath.isEmpty())
+        return false;
+    QDir dir(gamePath);
+    if (!dir.exists())
+        return false;
+
+    // Actually create a file rather than trusting QFileInfo::isWritable().
+    // On Windows that flag reflects the read-only attribute, not the effective
+    // ACL, so a directory under C:\Program Files reports "writable" for a
+    // non-elevated process right up until the write fails. Probing is the only
+    // answer that matches what the install will experience.
+    QTemporaryFile probe(dir.filePath(QStringLiteral("makine-write-probe-XXXXXX.tmp")));
+    probe.setAutoRemove(true);
+    if (!probe.open())
+        return false;
+    const bool wrote = probe.write("makine", 6) == 6;
+    probe.close();
+    return wrote;
+}
+
+bool GameService::translationReplacedOriginalFiles(const QString& gameId)
+{
+    if (!m_coreBridge) return false;
+    const auto info = m_coreBridge->getInstalledInfo(gameId);
+    return info.has_value() && !info->replacedFiles.isEmpty();
+}
+
+void GameService::repairGameFiles(const QString& gameId)
+{
+    MAKINE_ZONE_NAMED("GameService::repairGameFiles");
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
+        emit gameRepairStarted(gameId, false, tr("Oyun bulunamadı"));
+        return;
+    }
+
+    const GameInfo& game = m_games[*it];
+    const bool isSteam =
+        game.source.compare(QStringLiteral("steam"), Qt::CaseInsensitive) == 0;
+
+    if (isSteam && !game.steamAppId.isEmpty()) {
+        const QUrl url(QStringLiteral("steam://validate/%1").arg(game.steamAppId));
+        if (QDesktopServices::openUrl(url)) {
+            qCInfo(lcGameService) << "Requested Steam file verification for" << gameId;
+            emit gameRepairStarted(gameId, true,
+                tr("Steam'de dosya doğrulama başlatıldı. Steam eksik veya değiştirilmiş "
+                   "dosyaları indirip oyunu orijinal haline döndürecek. İşlem bitince "
+                   "oyunu çalıştırıp kontrol edin."));
+            return;
+        }
+        qCWarning(lcGameService) << "Failed to hand off steam://validate for" << gameId;
+    }
+
+    // GOG Galaxy and the Epic launcher expose no verification URL scheme, so
+    // the best we can do is tell the user exactly where the button lives.
+    emit gameRepairStarted(gameId, false,
+        tr("Bu oyun için doğrulama otomatik başlatılamıyor. Oyunu mağaza "
+           "uygulamasından onarın:\n"
+           "• Steam: Kitaplık > oyuna sağ tık > Özellikler > Yüklü Dosyalar > "
+           "Oyun dosyalarının bütünlüğünü doğrula\n"
+           "• Epic: Kitaplık > oyunun yanındaki ... > Yönet > Doğrula\n"
+           "• GOG Galaxy: oyun > Ayarlar > Yönet > Doğrula / onar"));
+}
+
+void GameService::reportOperationFailure(const char* operation, const QString& gameId,
+                                          const QString& message)
+{
+    QString gameName;
+    auto it = m_gameIdToIndex.constFind(gameId);
+    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.count())
+        gameName = m_games[*it].name;
+
+    // Tag with the game so failures group per title in Sentry; the catalog
+    // supplies the install method for any appId when triaging.
+    CrashReporter::setGameContext(gameId, gameName);
+
+    // Delegates to the shared reporter so these share the user/system severity
+    // split with download, backup, sync and scan failures — one classification
+    // rule for the whole application.
+    const QString subject = gameName.isEmpty()
+        ? gameId
+        : QStringLiteral("%1 (%2)").arg(gameId, gameName);
+    CrashReporter::reportFailure(operation, subject, message);
 }
 
 void GameService::performInstallRollback(const QString& gameId, const QString& originalError)
@@ -1501,6 +1657,10 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         emit translationStatusChanged();
 
     }
+
+    if (!success)
+        reportOperationFailure("uninstall", gameId,
+            QStringLiteral("uninstallPackage returned false"));
 
     emit translationUninstalled(gameId, success,
         success ? tr("Yama başarıyla kaldırıldı")

@@ -235,6 +235,21 @@ public:
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
 
     /**
+     * @brief Ask the game's store to restore the original files.
+     *
+     * The safety net for the one case our own backup cannot cover: the game was
+     * patched by a build that took no backup, or the backup was cleared, so
+     * uninstall has nothing to restore and refuses. Steam can rebuild the
+     * original files on its own via steam://validate/<appid>, which turns a
+     * dead end into one click instead of walking the user through
+     * Library → Properties → Installed Files → Verify.
+     *
+     * Emits gameRepairStarted() with the outcome. Non-Steam stores expose no
+     * comparable URL scheme, so those report false with an explanation.
+     */
+    Q_INVOKABLE void repairGameFiles(const QString& gameId);
+
+    /**
      * @brief Recover a broken translation: uninstall + reinstall
      */
     Q_INVOKABLE void recoverTranslation(const QString& gameId);
@@ -355,6 +370,10 @@ signals:
     void translationInstallProgress(const QString& gameId, double progress, const QString& status);
     void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
+
+    // Result of repairGameFiles(): whether the store's verification was handed
+    // off successfully, plus a message to show the user.
+    void gameRepairStarted(const QString& gameId, bool started, const QString& message);
     void antiCheatWarningNeeded(const QString& gameId, const QVariantMap& antiCheatData);
 
 private:
@@ -367,6 +386,26 @@ private:
     void finalizeManualGame(const QString& path, const QString& folderName,
                             const QString& engine, const QString& matchedAppId);
     void finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex);
+
+    // True when the install overwrote original game files. LocalPackageManager::
+    // uninstallPackage deliberately skips those paths because restoreBackup is
+    // expected to put the originals back; without a usable backup, uninstalling
+    // would leave the patched files in place and the game broken.
+    bool translationReplacedOriginalFiles(const QString& gameId);
+
+    // True when a file can actually be created in `gamePath`. Probes by writing
+    // rather than reading QFileInfo::isWritable(), which on Windows reports the
+    // read-only attribute instead of the effective ACL.
+    static bool isGameDirWritable(const QString& gamePath);
+
+    // Report an install/uninstall failure to Sentry as an event. These are by
+    // far the most reported user problems, yet they only ever reached the local
+    // log: qCWarning becomes a breadcrumb, which is attached to crashes but
+    // never sent on its own. As a result every "yama kurulamadı" report arrived
+    // without the message the user actually saw. Paths in `message` are redacted
+    // downstream by CrashReporter::captureMessage.
+    void reportOperationFailure(const char* operation, const QString& gameId,
+                                const QString& message);
 
     // Restores originals from the most recent selective backup and clears
     // any added files when packageInstallCompleted reports failure mid-install.

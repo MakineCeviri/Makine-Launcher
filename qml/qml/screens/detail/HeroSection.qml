@@ -434,6 +434,35 @@ Item {
                     Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
                 }
 
+                // Store verification shortcut, shown with any install/uninstall
+                // error. When the patch left the game in a mixed state and we
+                // have no backup to restore, letting the store re-download its
+                // own files is the only recovery that always works — otherwise
+                // the user is told to hunt through store menus by hand.
+                Rectangle {
+                    visible: heroRoot.vm.installErrorMessage !== ""
+                    Layout.fillWidth: true
+                    implicitHeight: 40
+                    radius: Dimensions.radiusMD
+                    color: _repairHover.hovered ? Theme.error08 : "transparent"
+                    border.color: Theme.error20; border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: qsTr("Oyun dosyalarını doğrula / onar")
+                        font.pixelSize: Dimensions.fontSM
+                        color: Theme.error
+                    }
+
+                    HoverHandler { id: _repairHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: GameService.repairGameFiles(heroRoot.vm.gameId)
+                    }
+
+                    opacity: visible ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
+                }
+
                 // No translation notice (manual games)
                 Rectangle {
                     visible: heroRoot.vm.isManualGame && !heroRoot.vm.hasTranslation

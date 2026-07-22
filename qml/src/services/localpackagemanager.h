@@ -130,7 +130,11 @@ public:
     QString getVariantType(const QString& steamAppId) const;
 
     // Get list of relative file paths in the translation package
-    QStringList getPackageFileList(const QString& steamAppId, const QString& variant = {}) const;
+    // gamePath lets the wrapper-stripping heuristic verify a top-level folder
+    // against the real game install, so the returned paths match exactly what
+    // the install will overwrite. Pass it whenever the target is known.
+    QStringList getPackageFileList(const QString& steamAppId, const QString& variant = {},
+                                    const QString& gamePath = {}) const;
 
     // Match a folder name against package catalog (case-insensitive, matches gameName or dirName)
     QString findMatchingAppId(const QString& folderName) const;

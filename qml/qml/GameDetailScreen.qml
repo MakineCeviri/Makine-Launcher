@@ -128,6 +128,13 @@ Item {
                 installErrorTimer.restart()
             }
         }
+        function onGameRepairStarted(gId, started, message) {
+            if (gId !== root.viewModel.gameId) return
+            // Reuse the error banner: it is the surface the user is already
+            // looking at when they reach for repair, and it auto-clears.
+            root.viewModel.installErrorMessage = message
+            installErrorTimer.restart()
+        }
         function onTranslationInstallStarted(gId) {
             if (gId === root.viewModel.gameId) {
                 root.viewModel.isInstallingTranslation = true
