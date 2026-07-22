@@ -75,11 +75,7 @@ Item {
     // that is when they are looking for the answer.
     function _verifyInstalledPatch() {
         if (!root.viewModel.packageInstalled) return
-        var r = GameService.checkPatchIntegrity(root.viewModel.gameId)
-        if (r && r.installed && !r.ok && r.message) {
-            root.viewModel.installErrorMessage = r.message
-            installErrorTimer.restart()
-        }
+        GameService.checkPatchIntegrity(root.viewModel.gameId)
     }
 
     // ===== VIEWMODEL WATCHERS =====
@@ -143,6 +139,11 @@ Item {
                 root.viewModel.installErrorMessage = message || qsTr("Yama kaldırılamadı")
                 installErrorTimer.restart()
             }
+        }
+        function onPatchIntegrityChecked(gId, ok, message) {
+            if (gId !== root.viewModel.gameId || ok || !message) return
+            root.viewModel.installErrorMessage = message
+            installErrorTimer.restart()
         }
         function onGameRepairStarted(gId, started, message) {
             if (gId !== root.viewModel.gameId) return

@@ -1446,9 +1446,12 @@ int main(int argc, char *argv[])
     }
 
     // Single-instance guard (must run before QGuiApplication on Windows).
-    // The scan self-test is a diagnostic that must run while the app is open —
-    // that is exactly when a user is looking at a library missing their game.
-    if (!scanSelfTest && !acquireSingleInstance(isPostUpdate)) {
+    // The scan self-test stays behind it: initializing Core decrypts the
+    // database to disk and re-encrypts it on shutdown, so a second process
+    // doing that while the app is running would race the live instance over
+    // the same file. A diagnostic must not be able to corrupt user data —
+    // the user closes the launcher first.
+    if (!acquireSingleInstance(isPostUpdate)) {
 #ifdef Q_OS_WIN
         MessageBoxW(nullptr,
             L"Makine Launcher zaten \u00e7al\u0131\u015f\u0131yor.\n\n"
@@ -1550,7 +1553,8 @@ int main(int argc, char *argv[])
                               patch);
         }
         printf("scan self-test: detected=%d catalog=%d matched=%d\n",
-               detected, static_cast<int>(catalog.size()), lines.size());
+               detected, static_cast<int>(catalog.size()),
+               static_cast<int>(lines.size()));
         // The path matters as much as the count: a match pointing at the wrong
         // folder installs the patch next to the game instead of into it.
         for (const QString& l : lines)
