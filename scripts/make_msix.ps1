@@ -69,11 +69,26 @@ if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null
 New-Item -ItemType Directory -Force (Join-Path $stage "Assets") | Out-Null
 
-(Get-Content $tpl -Raw).
+# Read/write through the .NET API with an explicit encoding.
+#
+# Get-Content/Set-Content are NOT safe here: Windows PowerShell 5.1 reads a
+# BOM-less file as cp1252, so "Makine Çeviri" (C3 87) came back as "Makine Ã‡eviri"
+# (C3 83 E2 80 A1) and was written out that way. Partner Center rejects the
+# package because PublisherDisplayName no longer matches the account. pwsh 7
+# defaults to UTF-8 and hides the bug — the script must work under both.
+$manifestPath = Join-Path $stage "AppxManifest.xml"
+$xml = [System.IO.File]::ReadAllText($tpl, [System.Text.Encoding]::UTF8).
   Replace('@MSIX_IDENTITY_NAME@', $IdentityName).
   Replace('@MSIX_PUBLISHER@',     $Publisher).
-  Replace('@MSIX_VERSION@',       $Version) |
-  Set-Content (Join-Path $stage "AppxManifest.xml") -Encoding UTF8
+  Replace('@MSIX_VERSION@',       $Version)
+[System.IO.File]::WriteAllText($manifestPath, $xml, (New-Object System.Text.UTF8Encoding($false)))
+
+# Fail loudly if any non-ASCII text did not survive the round trip. A mangled
+# display name only surfaces days later as a Store submission rejection.
+$written = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8)
+if ($written -match 'Ã|Â|â€') {
+  throw "Manifest encoding got mangled (found mojibake in $manifestPath). Template must be UTF-8."
+}
 
 Copy-Item (Join-Path $assets "*.png") (Join-Path $stage "Assets") -Force
 Copy-Item $ExePath (Join-Path $stage "Makine-Launcher.exe") -Force
