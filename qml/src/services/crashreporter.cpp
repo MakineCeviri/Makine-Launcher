@@ -9,6 +9,9 @@
 
 #include "crashreporter.h"
 
+#include <QString>
+#include <QStringList>
+
 #ifdef MAKINE_HAS_SENTRY
 #include <sentry.h>
 #include <QSysInfo>
@@ -17,6 +20,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <string>
 
 namespace {
 
@@ -54,19 +58,25 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
 }
 
 // Strip Windows username from file paths (SEC-14: PII stripping)
+// Replaces EVERY occurrence, not just the first: stack frame values hold a
+// single path, but captured messages (install/uninstall failures) can quote
+// several — one partially-sanitized message would still leak the username.
 static std::string sanitizePath(const char* raw) {
     if (!raw) return {};
     std::string path(raw);
+    static const std::string kRedacted = "[redacted]";
     // Replace C:\Users\<username>\ with C:\Users\[redacted]\ (both slash styles)
     for (const auto& sep : {std::string("Users\\"), std::string("Users/")}) {
-        auto pos = path.find(sep);
-        if (pos != std::string::npos) {
-            auto nameStart = pos + sep.size();
-            char slashChar = sep.back();
-            auto nameEnd = path.find(slashChar, nameStart);
-            if (nameEnd != std::string::npos)
-                path.replace(nameStart, nameEnd - nameStart, "[redacted]");
-            break;
+        std::string::size_type pos = 0;
+        while ((pos = path.find(sep, pos)) != std::string::npos) {
+            const auto nameStart = pos + sep.size();
+            const char slashChar = sep.back();
+            const auto nameEnd = path.find(slashChar, nameStart);
+            if (nameEnd == std::string::npos)
+                break;
+            if (path.compare(nameStart, nameEnd - nameStart, kRedacted) != 0)
+                path.replace(nameStart, nameEnd - nameStart, kRedacted);
+            pos = nameStart + kRedacted.size();
         }
     }
     return path;
@@ -244,11 +254,67 @@ void CrashReporter::captureMessage(const char* message, const char* level)
     else if (qstrcmp(level, "fatal") == 0)    sentryLevel = SENTRY_LEVEL_FATAL;
     else if (qstrcmp(level, "debug") == 0)    sentryLevel = SENTRY_LEVEL_DEBUG;
 
-    sentry_capture_event(sentry_value_new_message_event(sentryLevel, "makine", message));
+    // Captured messages routinely quote filesystem paths (install/uninstall
+    // failures surface the extracted package folder), so they need the same
+    // PII stripping the stack frames get in beforeSend — that hook only walks
+    // exception frames and never touches the message body.
+    const std::string safe = sanitizePath(message);
+    sentry_capture_event(sentry_value_new_message_event(sentryLevel, "makine", safe.c_str()));
 #else
     Q_UNUSED(message)
     Q_UNUSED(level)
 #endif
+}
+
+bool CrashReporter::isUserActionable(const QString& message)
+{
+    // Conditions the user resolves on their own machine. Classified from the
+    // message because the same failure surfaces through several code paths, and
+    // the wording is what actually distinguishes "your disk is full" from "our
+    // package is broken". Turkish keywords match the user-facing strings; the
+    // English ones cover messages coming up from the core layer.
+    static const QStringList kUserPatterns = {
+        // disk / space
+        QStringLiteral("disk"), QStringLiteral("yer açın"), QStringLiteral("yetersiz"),
+        QStringLiteral("boş alan"), QStringLiteral("space"),
+        // permissions / locks
+        QStringLiteral("izin"), QStringLiteral("yönetici"), QStringLiteral("erişim"),
+        QStringLiteral("salt okunur"), QStringLiteral("permission"), QStringLiteral("denied"),
+        // game or store busy
+        QStringLiteral("çalışıyor"), QStringLiteral("kapatın"), QStringLiteral("kilitli"),
+        // connectivity
+        QStringLiteral("internet"), QStringLiteral("bağlantı"), QStringLiteral("ağ "),
+        QStringLiteral("network"), QStringLiteral("timeout"), QStringLiteral("zaman aşımı"),
+        // user-initiated
+        QStringLiteral("iptal"), QStringLiteral("cancel"),
+    };
+    for (const QString& p : kUserPatterns) {
+        if (message.contains(p, Qt::CaseInsensitive))
+            return true;
+    }
+    return false;
+}
+
+void CrashReporter::reportFailure(const char* operation, const QString& subject,
+                                   const QString& message)
+{
+    const bool userSide = isUserActionable(message);
+
+    // Tag before capturing so the event carries them: "which operation fails
+    // most" and "which game fails most" are the two questions this exists to
+    // answer without asking users for logs.
+    setContext("operation", QString::fromLatin1(operation));
+    if (!subject.isEmpty())
+        setContext("subject", subject);
+    setContext("failure.side", userSide ? QStringLiteral("user") : QStringLiteral("system"));
+
+    const QByteArray payload =
+        QStringLiteral("%1 failed [%2]: %3")
+            .arg(QString::fromLatin1(operation),
+                 subject.isEmpty() ? QStringLiteral("-") : subject,
+                 message)
+            .toUtf8();
+    captureMessage(payload.constData(), userSide ? "warning" : "error");
 }
 
 void CrashReporter::setGameContext(const QString& gameId, const QString& gameName)

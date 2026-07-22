@@ -41,6 +41,14 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
 {
     security::installTlsPinning(&m_nam);
 
+    // Route every download/extract failure to Sentry from one place. Binding to
+    // the signal instead of the ~9 emit sites keeps this in sync automatically
+    // when new failure paths are added, and cannot drift out of date.
+    connect(this, &TranslationDownloader::downloadError, this,
+            [](const QString& appId, const QString& error) {
+                CrashReporter::reportFailure("download", appId, error);
+            });
+
     // Clean stale temp files older than 7 days. Both .part (interrupted
     // download) and final .makine (extraction crashed before QFile::remove
     // ran) get orphaned; otherwise they accumulate forever and chew through
@@ -380,6 +388,26 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
             }
 
             qCDebug(lcDownloader) << "download complete" << appId;
+
+            // A 200 response with an empty body is a real case, not a defensive
+            // hypothetical: several catalog entries point at 0-byte objects on
+            // the CDN. Letting an empty file continue means it fails GCM
+            // decryption during extraction and the user is told the package is
+            // corrupt — which invites them to retry a download that can never
+            // succeed. Name the actual problem and stop the flow here.
+            const qint64 downloadedBytes = QFileInfo(state.partPath).size();
+            if (downloadedBytes <= 0) {
+                qCWarning(lcDownloader) << "empty download body for" << appId
+                                        << "- server returned 200 with 0 bytes";
+                QFile::remove(state.partPath);
+                m_activeDownloads.remove(appId);
+                emit activeDownloadsChanged();
+                emit downloadError(appId,
+                    tr("Bu yamanın dosyası sunucuda bulunamadı (boş dosya geldi). "
+                       "Yama henüz yüklenmemiş veya kaldırılmış olabilir. "
+                       "Tekrar denemek sonucu değiştirmez; durumu bize bildirin."));
+                return;
+            }
 
             // Rename .part to final temp path
             if (!QFile::rename(state.partPath, state.tempPath)) {

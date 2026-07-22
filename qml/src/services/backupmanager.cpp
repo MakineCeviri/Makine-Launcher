@@ -8,6 +8,7 @@
  */
 
 #include "backupmanager.h"
+#include "crashreporter.h"
 #include "profiler.h"
 #include "operationjournal.h"
 #include "pathsecurity.h"
@@ -41,6 +42,23 @@ BackupManager::BackupManager(QObject *parent)
 {
     s_instance = this;
     loadBackups();
+
+    // Backup/restore failures decide whether a broken game can be recovered at
+    // all, so they matter more than the install error that usually precedes
+    // them. Bound at the signals rather than the individual emit sites.
+    connect(this, &BackupManager::backupError, this, [](const QString& error) {
+        CrashReporter::reportFailure("backup", QString(), error);
+    });
+    connect(this, &BackupManager::backupRestoreFailed, this,
+            [](const QString& gameId, const QString& reason) {
+                CrashReporter::reportFailure("restore", gameId, reason);
+            });
+    connect(this, &BackupManager::selectiveBackupCompleted, this,
+            [](const QString& gameId, bool success) {
+                if (!success)
+                    CrashReporter::reportFailure("backup", gameId,
+                        QStringLiteral("selective backup failed; install aborted"));
+            });
 }
 
 BackupManager::~BackupManager()
