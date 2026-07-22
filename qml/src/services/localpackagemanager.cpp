@@ -47,6 +47,13 @@ Q_LOGGING_CATEGORY(lcPackageManager, "makine.package")
 
 namespace makine {
 
+// Defined further below, next to the overlay install path. Declared here so
+// getPackageFileList() can apply the exact same wrapper stripping the install
+// performs: the pre-install backup must cover the paths that actually get
+// overwritten, not the wrapped paths as they sit inside the package.
+static void stripWrapperPrefix(QList<QPair<QString, QString>>& files,
+                               const QString& gamePath);
+
 // =============================================================================
 // CONSTRUCTION / LOADING
 // =============================================================================
@@ -271,14 +278,31 @@ QString LocalPackageManager::getVariantType(const QString& steamAppId) const
     return QString::fromStdString(m_catalog.getVariantType(steamAppId.toStdString()));
 }
 
-QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId, const QString& variant) const
+QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
+                                                     const QString& variant,
+                                                     const QString& gamePath) const
 {
     auto files = m_catalog.getPackageFileList(steamAppId.toStdString(), variant.toStdString());
+
+    // The catalog lists paths as they sit inside the package. The overlay
+    // install strips mis-packaged wrapper folders ("Türkçe Yama/", the game's
+    // own name, "Apex/", …) before copying, so files land in the game root.
+    // Backing up the unstripped paths would target "<wrapper>/file" — which
+    // the game does not have — while the install overwrites "file". The backup
+    // then looks successful but holds nothing, and uninstall has no original
+    // to restore, leaving the game patched forever. Strip here with the same
+    // rules so both sides describe the same destinations.
+    QList<QPair<QString, QString>> pairs;
+    pairs.reserve(static_cast<int>(files.size()));
+    for (const auto& f : files)
+        pairs.append({QString(), QString::fromStdString(f)});
+
+    stripWrapperPrefix(pairs, gamePath);
+
     QStringList result;
-    result.reserve(static_cast<int>(files.size()));
-    for (const auto& f : files) {
-        result.append(QString::fromStdString(f));
-    }
+    result.reserve(pairs.size());
+    for (const auto& p : pairs)
+        result.append(p.second);
     return result;
 }
 
@@ -673,7 +697,59 @@ static QString resolvePackageSource(const QString& packageDir, const QString& re
 // "copy" is semantically overlay-safe and goes here. If a future
 // package author wants a recipe, they should use "script"/"copyDir"/
 // "copyFile" with structured step objects.
-static const QStringList kOverlaySafeTypes = { "", "direct", "overlay", "copy" };
+//
+// "file-replace" joins for the same reason. All three shipping packages of
+// this type were unpacked and inspected before adding it — every one is a
+// plain structure-preserving payload rooted at the game directory, with no
+// wrapper folder and no step recipe:
+//   Darkest Dungeon II (1940340) — "Darkest Dungeon II_Data/StreamingAssets/…"
+//   DOOM 2016 (379720)           — "base/…", "Mods/…"
+//   Dark Souls: Remastered (570940) — "font/…", "menu/…", "msg/…"
+// The name only describes that the payload overwrites existing files, which
+// is precisely what the overlay path does (and what replacedFiles records).
+static const QStringList kOverlaySafeTypes = { "", "direct", "overlay", "copy", "file-replace" };
+
+// Post-install verification: which of the files we just wrote are no longer on
+// disk?
+//
+// A successful QFile::copy only means the write was accepted. Real-time
+// antivirus scans the result immediately afterwards and routinely quarantines
+// exactly what game patches ship — dinput8.dll proxies, *.asi plugins,
+// ScriptHook*.dll — so the copy succeeds, the file vanishes milliseconds later,
+// and the install still reports success. The user then sees the game fail to
+// start with no explanation, which is indistinguishable from a broken patch.
+//
+// Checking existence right after the copy turns that silent loss into a
+// specific, actionable message. Entries beginning with '_' are pseudo-paths
+// (_desktop:, _font:, _rename:, _steamlang:) that do not live under gamePath.
+static QStringList missingAfterInstall(const QString& gamePath, const QStringList& relPaths)
+{
+    QStringList missing;
+    for (const QString& rel : relPaths) {
+        if (rel.startsWith(QLatin1Char('_')))
+            continue;
+        if (!QFileInfo::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
+            missing.append(rel);
+    }
+    return missing;
+}
+
+// Shared message for the case above. Kept in one place so the install and
+// update paths cannot drift apart in what they tell the user.
+static QString quarantineGuidance(int missingCount, int totalCount)
+{
+    return LocalPackageManager::tr(
+        "Kurulum tamamlandı ancak yazılan %1 dosyadan %2 tanesi oyun klasöründe "
+        "bulunamadı. En olası neden: bir antivirüs yazılımı (çoğunlukla Windows "
+        "Defender) dosyaları kopyalandıktan hemen sonra karantinaya aldı.\n\n"
+        "Çözüm:\n"
+        "1) Windows Güvenliği > Virüs ve tehdit koruması > Ayarları yönet > "
+        "Dışlamalar bölümüne oyun klasörünü ekleyin\n"
+        "2) Karantinadaki dosyaları geri yükleyin (Koruma geçmişi)\n"
+        "3) Yamayı yeniden kurun\n\n"
+        "Yama dosyaları oyunun çalışması için gereklidir; eksik hâlde oyun "
+        "açılmayabilir.").arg(totalCount).arg(missingCount);
+}
 
 LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
     const QList<QPair<QString, QString>>& filesToCopy,
@@ -1141,10 +1217,14 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     "yama öğesine abone olun; Steam otomatik indirip "
                     "etkinleştirir.");
             else if (m == "paradox-mod")
-                guide = tr("Bu çeviri bir Paradox modudur. Çözüm: yamayı "
-                    "Belgeler/Paradox Interactive/<oyun>/mod klasörüne "
-                    "çıkarın, oyun başlatıcısında mod listesinden "
-                    "etkinleştirin.");
+                // Without the extracted path the user has nowhere to copy from:
+                // the download is an encrypted .makine blob they cannot find or
+                // open. Every other guide surfaces sourcePath; this one must too.
+                guide = tr("Bu çeviri bir Paradox modudur, oyun klasörüne "
+                    "kurulmaz. Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
+                    "Bu klasörün içindekileri Belgeler/Paradox Interactive/"
+                    "<oyun>/mod klasörüne kopyalayın, ardından oyun "
+                    "başlatıcısında mod listesinden etkinleştirin.").arg(sourcePath);
             else
                 guide = tr("Bu yama otomatik kurulamıyor (kurulum yöntemi: "
                     "%1). Yama dosyaları şu klasöre çıkarıldı:\n%2\n"
@@ -1199,6 +1279,20 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         if (result.errors < 0) return;
 
         if (result.errors == 0) {
+            const QStringList missing = missingAfterInstall(gamePath, result.installedFiles);
+            if (!missing.isEmpty()) {
+                qCCritical(lcPackageManager)
+                    << "post-install verification failed for" << steamAppId << "-"
+                    << missing.size() << "of" << result.installedFiles.size()
+                    << "files are gone from disk (antivirus quarantine?)";
+                // Record what we did write so a later uninstall can still clean
+                // up, then report the loss instead of a false success.
+                saveInstallState(steamAppId, gamePath, pkg,
+                                 result.installedFiles, result.addedFiles, result.replacedFiles);
+                emit installCompleted(false,
+                    quarantineGuidance(missing.size(), result.installedFiles.size()));
+                return;
+            }
             saveInstallState(steamAppId, gamePath, pkg,
                              result.installedFiles, result.addedFiles, result.replacedFiles);
             emit installCompleted(true,
@@ -1354,6 +1448,18 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         if (result.errors < 0) return;
 
         if (result.errors == 0) {
+            const QStringList missing = missingAfterInstall(gamePath, result.installedFiles);
+            if (!missing.isEmpty()) {
+                qCCritical(lcPackageManager)
+                    << "post-update verification failed for" << steamAppId << "-"
+                    << missing.size() << "of" << result.installedFiles.size()
+                    << "files are gone from disk (antivirus quarantine?)";
+                saveInstallState(steamAppId, gamePath, pkg,
+                                 result.installedFiles, result.addedFiles, result.replacedFiles);
+                emit installCompleted(false,
+                    quarantineGuidance(missing.size(), result.installedFiles.size()));
+                return;
+            }
             saveInstallState(steamAppId, gamePath, pkg,
                              result.installedFiles, result.addedFiles, result.replacedFiles);
             emit installCompleted(true,
