@@ -129,7 +129,7 @@ Program Files "yazılabilir" görünüp yazma anında başarısız olabilir.
 |---|---|---|
 | **Paket önbelleği sınırsız büyür** | Çıkarılmış paketler `...\packages\` altında kalıyor; boyut sınırı yok. Ayarlardaki "önbellek temizle" yalnızca **görsel** önbelleği siliyor. Çok yama kuran kullanıcıda GB'larca yer | 🔴 Açık |
 | **Oyun güncellemesi yamayı bozar** | ScriptHook/ASI yükleyiciler oyun sürümüne bağlı; Steam güncellemesi sonrası oyun açılmaz. Pakette hedef sürüm bilgisi yok | 🔴 Açık (şema işi) |
-| **Steam dosya doğrulaması yamayı siler** | Kullanıcı "bütünlüğü doğrula" yaparsa yama dosyaları kaldırılır — beklenen davranış ama kurulum durumu güncellenmez | 🟠 İzlenmeli |
+| **Steam dosya doğrulaması yamayı siler** | Kullanıcı "bütünlüğü doğrula" yaparsa yama dosyaları kaldırılır. Artık tespit ediliyor: detay ekranı açıldığında kurulu dosyalar diskte aranıyor, eksikse kullanıcıya sebebe göre yönerge veriliyor ve olay Sentry'ye `operation:integrity` ile gidiyor | 🟢 Çözüldü |
 | **`paradox-mod` handler'ı yok** | Stellaris elle kurulum gerektiriyor (mesaja klasör yolu eklendi) | 🟠 Kısmi |
 
 ---

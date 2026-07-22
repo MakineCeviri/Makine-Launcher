@@ -34,7 +34,8 @@ kapsanır, güncelliğini yitiremez.
 | `restore` | `BackupManager::backupRestoreFailed` | Geri yükleme |
 | `backup` | `BackupManager::backupError`, `selectiveBackupCompleted(false)` | Yedekleme |
 | `sync` | `ManifestSyncService::syncError` | Katalog senkronu |
-| `scan` | `CoreBridge::scanError` | Kütüphane taraması |
+| `scan` | `CoreBridge::scanError` + tarama özeti | Kütüphane taraması; katalog boş veya hiç oyun bulunamadı |
+| `integrity` | `GameService::checkPatchIntegrity` | **Kurulu yamanın dosyaları kaybolmuş** — mağaza doğrulaması, oyun güncellemesi veya antivirüs karantinası |
 
 **Özellikle değerli:** `install` yolu, dürüstlük kapısına takılan paketleri de yakalar.
 Yani *"hangi oyunun handler'ı ne sıklıkla isteniyor"* sorusu artık veriyle cevaplanabilir —
