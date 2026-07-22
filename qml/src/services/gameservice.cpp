@@ -1527,72 +1527,77 @@ bool GameService::translationReplacedOriginalFiles(const QString& gameId)
     return info.has_value() && !info->replacedFiles.isEmpty();
 }
 
-QVariantMap GameService::checkPatchIntegrity(const QString& gameId)
+void GameService::checkPatchIntegrity(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("GameService::checkPatchIntegrity");
-    QVariantMap out{{QStringLiteral("installed"), false},
-                    {QStringLiteral("ok"), true},
-                    {QStringLiteral("missing"), 0},
-                    {QStringLiteral("total"), 0}};
+    if (!m_coreBridge) return;
 
-    if (!m_coreBridge) return out;
     const auto info = m_coreBridge->getInstalledInfo(gameId);
-    if (!info.has_value()) return out;      // not installed — nothing to verify
-
-    out[QStringLiteral("installed")] = true;
+    if (!info.has_value()) return;          // not installed — nothing to verify
 
     // The game folder itself going missing is a different problem from the
     // patch being stripped, and needs different advice.
     if (info->gamePath.isEmpty() || !QDir(info->gamePath).exists()) {
-        const QString msg = tr("Oyun klasörü bulunamadı. Oyun taşınmış veya "
-                               "kaldırılmış olabilir. Kütüphaneyi yenileyin.");
-        out[QStringLiteral("ok")] = false;
-        out[QStringLiteral("message")] = msg;
-        emit patchIntegrityChecked(gameId, false, msg);
-        return out;
+        emit patchIntegrityChecked(gameId, false,
+            tr("Oyun klasörü bulunamadı. Oyun taşınmış veya kaldırılmış "
+               "olabilir. Kütüphaneyi yenileyin."));
+        return;
     }
 
-    int total = 0;
+    // Snapshot the file list here, on the main thread. A library scan can reload
+    // the catalog underneath us, so the worker must not reach back into it.
+    const QString gamePath = info->gamePath;
+    QStringList rels;
+    rels.reserve(info->installedFiles.size());
     for (const QString& rel : info->installedFiles) {
-        if (!rel.startsWith(QLatin1Char('_'))) ++total;
+        if (!rel.startsWith(QLatin1Char('_'))) rels.append(rel);
     }
-    auto* pkgMgr = m_coreBridge->packageManager();
-    const int missing = pkgMgr ? pkgMgr->missingInstalledFiles(gameId).size() : 0;
-
-    out[QStringLiteral("missing")] = missing;
-    out[QStringLiteral("total")] = total;
-
-    if (missing == 0 || total == 0) {
+    if (rels.isEmpty()) {
         emit patchIntegrityChecked(gameId, true, QString());
-        return out;
+        return;
     }
 
-    // All gone versus some gone points at different causes, so the advice
-    // differs: a wholesale removal is a store verification or a game update,
-    // a partial one is almost always antivirus taking individual payloads.
-    const bool allGone = (missing == total);
-    const QString msg = allGone
-        ? tr("Yama dosyalarının tamamı oyun klasöründen silinmiş. Bu genellikle "
-             "mağazada \"dosya bütünlüğünü doğrula\" çalıştırıldığında veya oyun "
-             "güncellendiğinde olur. Yamayı yeniden kurun.")
-        : tr("Yama dosyalarının %1 tanesi (toplam %2) eksik. Bir güvenlik yazılımı "
-             "dosyaları karantinaya almış olabilir. Yamayı kaldırıp yeniden kurun; "
-             "sorun sürerse Makine Launcher'ı antivirüs dışlamalarına ekleyin.")
-              .arg(missing).arg(total);
+    (void)QtConcurrent::run([this, gameId, gamePath, rels]() {
+        MAKINE_THREAD_NAME("Worker-Integrity");
+        int missing = 0;
+        for (const QString& rel : rels) {
+            if (!QFileInfo::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
+                ++missing;
+        }
+        const int total = rels.size();
 
-    qCWarning(lcGameService) << "Patch integrity failed for" << gameId
-                             << missing << "of" << total << "files missing";
+        QMetaObject::invokeMethod(this, [this, gameId, missing, total]() {
+            if (missing == 0) {
+                emit patchIntegrityChecked(gameId, true, QString());
+                return;
+            }
 
-    // System-side by definition: the user did not do anything wrong, and this is
-    // the signal that tells us how often patches quietly disappear in the field.
-    CrashReporter::reportFailure(
-        "integrity", gameId,
-        QStringLiteral("installed patch files missing: %1/%2").arg(missing).arg(total));
+            // All gone versus some gone points at different causes, so the
+            // advice differs: a wholesale removal is a store verification or a
+            // game update, a partial one is almost always antivirus taking
+            // individual payloads.
+            const QString msg = (missing == total)
+                ? tr("Yama dosyalarının tamamı oyun klasöründen silinmiş. Bu genellikle "
+                     "mağazada \"dosya bütünlüğünü doğrula\" çalıştırıldığında veya oyun "
+                     "güncellendiğinde olur. Yamayı yeniden kurun.")
+                : tr("Yama dosyalarının %1 tanesi (toplam %2) eksik. Bir güvenlik yazılımı "
+                     "dosyaları karantinaya almış olabilir. Yamayı kaldırıp yeniden kurun; "
+                     "sorun sürerse Makine Launcher'ı antivirüs dışlamalarına ekleyin.")
+                      .arg(missing).arg(total);
 
-    out[QStringLiteral("ok")] = false;
-    out[QStringLiteral("message")] = msg;
-    emit patchIntegrityChecked(gameId, false, msg);
-    return out;
+            qCWarning(lcGameService) << "Patch integrity failed for" << gameId
+                                     << missing << "of" << total << "files missing";
+
+            // System-side by definition: the user did nothing wrong, and this is
+            // the signal that tells us how often patches quietly disappear.
+            CrashReporter::reportFailure(
+                "integrity", gameId,
+                QStringLiteral("installed patch files missing: %1/%2")
+                    .arg(missing).arg(total));
+
+            emit patchIntegrityChecked(gameId, false, msg);
+        }, Qt::QueuedConnection);
+    });
 }
 
 void GameService::repairGameFiles(const QString& gameId)

@@ -265,10 +265,12 @@ public:
      * the game runs untranslated — indistinguishable, from the user's side, from
      * a patch that never worked. This turns that silent state into a fact.
      *
-     * Returns { installed, ok, missing, total, message }. Emits
-     * patchIntegrityChecked() with the same verdict.
+     * Runs off the UI thread — the largest packages record ~9000 files, and
+     * stat-ing them all on a cold disk would freeze the detail page. The result
+     * arrives via patchIntegrityChecked(); nothing is emitted when the game has
+     * no patch installed.
      */
-    Q_INVOKABLE QVariantMap checkPatchIntegrity(const QString& gameId);
+    Q_INVOKABLE void checkPatchIntegrity(const QString& gameId);
 
     /**
      * @brief Recover a broken translation: uninstall + reinstall
