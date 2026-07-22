@@ -238,6 +238,24 @@ std::optional<InstalledPackageInfo> LocalPackageManager::getInstalledInfo(const 
     return info;
 }
 
+QStringList LocalPackageManager::missingInstalledFiles(const QString& steamAppId) const
+{
+    auto state = m_catalog.getInstalledState(steamAppId.toStdString());
+    if (!state) return {};
+
+    const QString gamePath = QString::fromStdString(state->gamePath);
+    if (gamePath.isEmpty()) return {};
+
+    QStringList missing;
+    for (const auto& f : state->installedFiles) {
+        const QString rel = QString::fromStdString(f);
+        if (rel.startsWith(QLatin1Char('_'))) continue;
+        if (!QFileInfo::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
+            missing.append(rel);
+    }
+    return missing;
+}
+
 void LocalPackageManager::updateInstalledStoreVersion(const QString& steamAppId,
                                                         const QString& storeVersion,
                                                         const QString& source)

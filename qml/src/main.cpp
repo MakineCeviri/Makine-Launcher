@@ -1524,16 +1524,30 @@ int main(int argc, char *argv[])
             return 1;
         }
 
+        auto* pkgMgr = bridge->packageManager();
         const QVariantList catalog = bridge->allSupportedGames();
         QStringList lines;
         for (const QVariant& v : catalog) {
             const QVariantMap e = v.toMap();
             if (!e.value(QStringLiteral("isInstalled")).toBool())
                 continue;
-            lines << QStringLiteral("  %1 [%2] %3")
+            const QString appId = e.value(QStringLiteral("steamAppId")).toString();
+
+            // An installed patch whose files are gone is the failure users
+            // describe as "the patch stopped working" — the launcher still says
+            // installed, the game runs untranslated. Surface it here, since this
+            // is the command support will ask them to run.
+            QString patch;
+            if (pkgMgr && pkgMgr->isInstalled(appId)) {
+                const int gone = pkgMgr->missingInstalledFiles(appId).size();
+                patch = gone > 0 ? QStringLiteral("  YAMA BOZUK (%1 dosya eksik)").arg(gone)
+                                 : QStringLiteral("  yama tam");
+            }
+            lines << QStringLiteral("  %1 [%2] %3%4")
                          .arg(e.value(QStringLiteral("gameName")).toString(),
                               e.value(QStringLiteral("source")).toString(),
-                              e.value(QStringLiteral("installPath")).toString());
+                              e.value(QStringLiteral("installPath")).toString(),
+                              patch);
         }
         printf("scan self-test: detected=%d catalog=%d matched=%d\n",
                detected, static_cast<int>(catalog.size()), lines.size());

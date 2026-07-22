@@ -110,6 +110,12 @@ public:
 
     bool isInstalled(const QString& steamAppId) const;
     std::optional<InstalledPackageInfo> getInstalledInfo(const QString& steamAppId) const;
+
+    /// Files recorded at install time that are no longer on disk, as paths
+    /// relative to the game folder. Empty when the patch is intact or when
+    /// nothing is installed. Directive entries ("_font:", "_desktop:") are
+    /// skipped — they do not name files inside the game folder.
+    QStringList missingInstalledFiles(const QString& steamAppId) const;
     void updateInstalledStoreVersion(const QString& steamAppId, const QString& storeVersion,
                                       const QString& source);
 
