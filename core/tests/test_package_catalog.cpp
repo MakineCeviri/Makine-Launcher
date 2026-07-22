@@ -46,7 +46,8 @@ protected:
     void writeSyntheticIndex() {
         json index;
         index["packages"] = {
-            {"1245620", {{"name", "Elden Ring"}, {"v", "1.0.0"}, {"dirName", "elden-ring"}, {"sizeBytes", 1024}}},
+            {"1245620", {{"name", "Elden Ring"}, {"v", "1.0.0"}, {"dirName", "elden-ring"}, {"sizeBytes", 1024},
+                         {"exe", json::array({"eldenring.exe"})}}},
             {"1716740", {{"name", "Disco Elysium"}, {"v", "2.0.0"}, {"dirName", "disco-elysium"}, {"sizeBytes", 2048}}},
             {"391540",  {{"name", "Undertale"}, {"v", "1.0.0"}, {"dirName", "undertale"}, {"sizeBytes", 512}}}
         };
@@ -185,6 +186,33 @@ TEST_F(PackageCatalogTest, EnrichPackageSetsDetailLoaded) {
     EXPECT_EQ(pkg->contributors.size(), 1u);
     EXPECT_EQ(pkg->contributors[0].name, "Test");
     EXPECT_EQ(pkg->contributors[0].role, "translator");
+}
+
+// Detail files routinely ship a partial fingerprint — keyFiles and an engine
+// hint, no exeNames — while the index always carries executable names. If enrich
+// replaced the fingerprint outright, the executable list vanished the moment a
+// user opened the game's detail page. That list is the only signal an Epic or
+// GOG install can match on, since those stores name folders after internal code
+// names ("TWDTTDS", "indianaepicgamestore-win64-shipping.exe").
+TEST_F(PackageCatalogTest, EnrichPreservesIndexExeNames) {
+    catalog_.loadFromIndex(indexPath_, cachePath_);
+
+    auto before = catalog_.getPackage("1245620");
+    ASSERT_TRUE(before.has_value());
+    ASSERT_TRUE(before->fingerprint.has_value());
+    ASSERT_EQ(before->fingerprint->exeNames.size(), 1u);
+    EXPECT_EQ(before->fingerprint->exeNames[0], "eldenring.exe");
+
+    json detail;
+    detail["fingerprint"] = {{"keyFiles", json::array({"Game"})}};
+    EXPECT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+
+    auto after = catalog_.getPackage("1245620");
+    ASSERT_TRUE(after.has_value());
+    ASSERT_TRUE(after->fingerprint.has_value());
+    EXPECT_EQ(after->fingerprint->exeNames, before->fingerprint->exeNames);
+    ASSERT_EQ(after->fingerprint->keyFiles.size(), 1u);
+    EXPECT_EQ(after->fingerprint->keyFiles[0], "Game");
 }
 
 TEST_F(PackageCatalogTest, EnrichPackageNonexistentAppId) {
