@@ -271,6 +271,19 @@ void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
         }
     }
     gfp.engineHint = fp.value("engineHint", "");
+
+    // Merge, do not replace. Detail files often carry a partial fingerprint —
+    // keyFiles and an engine hint but no exeNames — while the index always ships
+    // executable names. Overwriting wholesale drops the one signal that lets a
+    // non-Steam install match its package: Epic and GOG folders are named after
+    // internal code names, so the executable is all we have to go on.
+    if (entry.fingerprint.has_value()) {
+        const GameFingerprint& prev = *entry.fingerprint;
+        if (gfp.exeNames.empty())   gfp.exeNames   = prev.exeNames;
+        if (gfp.keyFiles.empty())   gfp.keyFiles   = prev.keyFiles;
+        if (gfp.engineHint.empty()) gfp.engineHint = prev.engineHint;
+    }
+
     entry.fingerprint = std::move(gfp);
 }
 
