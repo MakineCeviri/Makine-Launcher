@@ -20,6 +20,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <algorithm>   // std::min — not pulled in implicitly on MinGW
 #include <string>
 
 namespace {
@@ -70,12 +71,21 @@ static std::string sanitizePath(const char* raw) {
         std::string::size_type pos = 0;
         while ((pos = path.find(sep, pos)) != std::string::npos) {
             const auto nameStart = pos + sep.size();
-            const char slashChar = sep.back();
-            const auto nameEnd = path.find(slashChar, nameStart);
-            if (nameEnd == std::string::npos)
+            // Look for either separator, not just the one that opened the
+            // match: paths reach us mixed ("C:\Users\Ahmet/AppData/…") and
+            // searching only for the opening style would find nothing.
+            const auto nameEnd = std::min(path.find('\\', nameStart),
+                                          path.find('/', nameStart));
+            // A message can end at the user name — "klasör: C:\Users\Ahmet"
+            // carries no trailing separator, and bailing out here left the
+            // name in place. Redact to the end of the string in that case.
+            const auto nameLen = (nameEnd == std::string::npos)
+                                     ? path.size() - nameStart
+                                     : nameEnd - nameStart;
+            if (nameLen == 0)
                 break;
-            if (path.compare(nameStart, nameEnd - nameStart, kRedacted) != 0)
-                path.replace(nameStart, nameEnd - nameStart, kRedacted);
+            if (path.compare(nameStart, nameLen, kRedacted) != 0)
+                path.replace(nameStart, nameLen, kRedacted);
             pos = nameStart + kRedacted.size();
         }
     }
@@ -175,8 +185,10 @@ void CrashReporter::initialize()
     // beforeSend callback
     sentry_options_set_before_send(options, beforeSend, nullptr);
 
-    // Max breadcrumbs
-    sentry_options_set_max_breadcrumbs(options, 50);
+    // Max breadcrumbs. Live events arrive with 41-45 crumbs, so 50 was about
+    // to start dropping the oldest ones — and the oldest ones are the startup
+    // phases, which is exactly the context a crash report needs.
+    sentry_options_set_max_breadcrumbs(options, 100);
 
     int result = sentry_init(options);
     if (result != 0) {
@@ -213,7 +225,13 @@ void CrashReporter::addBreadcrumb(const char* category, const char* message,
                                    const char* level)
 {
 #ifdef MAKINE_HAS_SENTRY
-    sentry_value_t crumb = sentry_value_new_breadcrumb("default", message);
+    // Breadcrumbs are attached to every event, and the qCWarning lines routed
+    // here quote absolute paths — live events carried "C:/Users/<name>/AppData/…"
+    // through untouched while the message body next to them was correctly
+    // redacted. beforeSend only walks exception stack frames and never sees
+    // breadcrumbs, so this is the only place the redaction can happen.
+    const std::string safe = sanitizePath(message);
+    sentry_value_t crumb = sentry_value_new_breadcrumb("default", safe.c_str());
     sentry_value_set_by_key(crumb, "category", sentry_value_new_string(category));
     sentry_value_set_by_key(crumb, "level", sentry_value_new_string(level));
     sentry_add_breadcrumb(crumb);
@@ -288,8 +306,22 @@ bool CrashReporter::isUserActionable(const QString& message)
         // user-initiated
         QStringLiteral("iptal"), QStringLiteral("cancel"),
     };
+    // Classify on the failure text only. Install failures append a remedy
+    // paragraph — "Çözüm: oyunu ve Steam'i kapatın, … yönetici olarak
+    // çalıştırın, antivirüste … izinli yapın" — whose wording matches the
+    // patterns above. Every message carrying that paragraph was therefore
+    // filed as `failure.side:user` no matter what actually broke, and that is
+    // the exact tag the "Widespread Failure" alert filters on: a real defect
+    // hitting many users was classified as their environment and never fired.
+    // ELDEN RING's failure (a mangled Turkish path in our own code) arrived
+    // tagged `user` for this reason.
+    //
+    // left() returns the whole string when indexOf() finds nothing, so
+    // messages without the paragraph are classified exactly as before.
+    const QString cause = message.left(message.indexOf(QStringLiteral("\n\nÇözüm:")));
+
     for (const QString& p : kUserPatterns) {
-        if (message.contains(p, Qt::CaseInsensitive))
+        if (cause.contains(p, Qt::CaseInsensitive))
             return true;
     }
     return false;
