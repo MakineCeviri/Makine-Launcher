@@ -1491,9 +1491,19 @@ int main(int argc, char *argv[])
     // reportFailure(), same transport — then flushes and exits, so the chain
     // can be verified on demand instead of assumed.
     if (telemetrySelfTest) {
+        // Breadcrumbs travel with the event and used to carry paths verbatim,
+        // so a live event leaked the Windows user name while the message body
+        // next to it was correctly redacted. Planting a known name here makes
+        // the redaction verifiable end to end: the event in Sentry must show
+        // "[redacted]" and must not contain "selftest_user_name".
+        makine::CrashReporter::addBreadcrumb(
+            "selftest",
+            "breadcrumb path check: C:\\Users\\selftest_user_name\\AppData\\Local\\pkg",
+            "warning");
         makine::CrashReporter::reportFailure(
             "selftest", QStringLiteral("telemetry"),
-            QStringLiteral("telemetry self-test event: DSN, init and transport reachable"));
+            QStringLiteral("telemetry self-test event: DSN, init and transport reachable; "
+                           "message path check: C:\\Users\\selftest_user_name\\AppData"));
         makine::CrashReporter::shutdown();   // flushes queued envelopes
         qInfo("telemetry self-test event dispatched");
         return 0;
