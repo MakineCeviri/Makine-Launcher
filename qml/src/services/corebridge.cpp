@@ -772,7 +772,8 @@ void CoreBridge::scanAllLibraries()
 
         // Load translation packages from index (lightweight catalog)
         emit scanProgress(0.0, tr("Çeviri paketleri yükleniyor..."));
-        if (QFile::exists(indexPath)) {
+        const bool hadCachedIndex = QFile::exists(indexPath);
+        if (hadCachedIndex) {
             pkgMgr->loadFromIndex(indexPath, packageCache);
         } else {
             qCDebug(lcCoreBridge) << "CoreBridge: No cached index yet, waiting for sync...";
@@ -971,11 +972,22 @@ void CoreBridge::scanAllLibraries()
         CrashReporter::addBreadcrumb("scan", summary.toUtf8().constData());
 
         // Two outcomes are outright failures rather than "few supported games":
-        // an empty catalog means the index never synced, and zero games on a
-        // machine that has a game store installed means every scanner missed.
-        if (catalogSize == 0) {
+        // a catalog that stayed empty despite having an index on disk, and zero
+        // games on a machine that has a game store installed.
+        //
+        // An empty catalog with NO index on disk is not a failure — it is every
+        // user's first launch, before the background sync has written
+        // index.json. GameService reloads the catalog on catalogReady and
+        // re-evaluates the games, so the state resolves itself within seconds.
+        // Reporting it filed one error per new user (5 events, 5 distinct
+        // users, one each) and made a genuine sync failure indistinguishable
+        // from a normal first run.
+        if (catalogSize == 0 && hadCachedIndex) {
             CrashReporter::reportFailure("scan", QStringLiteral("catalog"),
-                tr("Çeviri kataloğu boş — indeks eşitlemesi tamamlanmamış"));
+                tr("Çeviri kataloğu boş — indeks dosyası var ama hiçbir paket okunamadı"));
+        } else if (catalogSize == 0) {
+            CrashReporter::addBreadcrumb("scan",
+                "catalog empty: no cached index yet (first launch, sync pending)");
         } else if (count == 0) {
             CrashReporter::reportFailure("scan", QStringLiteral("empty"),
                 tr("Hiçbir tarayıcı oyun bulamadı (%1)").arg(summary));
