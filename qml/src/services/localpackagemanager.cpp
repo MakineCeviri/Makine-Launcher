@@ -484,7 +484,18 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
 
     ProcessResult result;
     if (!proc.waitForStarted(10000)) {
-        qCWarning(lcPackageManager) << "Process failed to start:" << exePath;
+        // Record WHY. "failed to start" on its own cannot be triaged: the same
+        // line covers a missing file, a binary blocked by antivirus, a denied
+        // permission and a wrong architecture — and the user is told to check
+        // their antivirus in every case. Eight users hit this on Elden Ring
+        // with nothing in the report to tell the causes apart.
+        const QFileInfo info(exePath);
+        qCWarning(lcPackageManager)
+            << "Process failed to start:" << exePath
+            << "| error:" << static_cast<int>(proc.error()) << proc.errorString()
+            << "| exists:" << info.exists() << "size:" << info.size()
+            << "| workDir:" << workDir
+            << "| workDirExists:" << QDir(workDir).exists();
         return result;
     }
     result.started = true;
@@ -550,6 +561,27 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
         return {};
 
     return sourcePath;
+}
+
+// Mirror of the filename substitution mkpkformat.h performs while extracting.
+//
+// Packaging tools that lose non-ASCII characters write them into the tar as
+// '?', and '?' is a wildcard Windows refuses inside a path — so the extractor
+// rewrites it, along with the other Windows-illegal characters, to '_'. The
+// recipe still carries the original name, so "Türkçe Yama" exists on disk as
+// "T_rk_e Yama". Any comparison between a recipe name and a name on disk has
+// to pass both sides through this same substitution, or it silently misses.
+static QString extractorMangledName(const QString& name)
+{
+    QString out;
+    out.reserve(name.size());
+    for (const QChar c : name) {
+        const bool illegal = c.unicode() > 127
+            || c == u'?' || c == u'*' || c == u'"'
+            || c == u'<' || c == u'>' || c == u'|';
+        out += illegal ? QLatin1Char('_') : c;
+    }
+    return out;
 }
 
 // Strip mis-packaged top-level wrapper directories so overlay files land
@@ -2010,9 +2042,36 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         // (e.g. Elden Ring), independent of any game-side mod.
         QString optionDir = QDir::cleanPath(basePackageDir + "/" + opt.subDir);
         if (!opt.subDir.isEmpty() && !QDir(optionDir).exists()) {
-            qCWarning(lcPackageManager) << "Option subDir not found, falling back to package root:"
-                                        << optionDir;
-            optionDir = QDir::cleanPath(basePackageDir);
+            // Before giving up, try matching through the extractor's own
+            // substitution: the directory is on disk as "T_rk_e Yama" while the
+            // recipe says "Türkçe Yama", so a literal match cannot find it.
+            //
+            // This was the real cause behind Elden Ring's "1 adımda hata
+            // oluştu" (48 events, 8 users). optionDir is what executeStep
+            // receives as packageDir, so falling back to the package root also
+            // moved the run step's working directory — ERING_TR.exe was being
+            // launched from the wrong place, and the user was told to check
+            // their antivirus.
+            const QString wanted = extractorMangledName(opt.subDir);
+            QString matched;
+            const auto entries =
+                QDir(basePackageDir).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+            for (const QString& entry : entries) {
+                if (extractorMangledName(entry).compare(wanted, Qt::CaseInsensitive) == 0) {
+                    matched = entry;
+                    break;
+                }
+            }
+
+            if (!matched.isEmpty()) {
+                optionDir = QDir::cleanPath(basePackageDir + "/" + matched);
+                qCInfo(lcPackageManager) << "Option subDir matched through extractor mangling:"
+                                         << opt.subDir << "->" << matched;
+            } else {
+                qCWarning(lcPackageManager) << "Option subDir not found, falling back to package root:"
+                                            << optionDir;
+                optionDir = QDir::cleanPath(basePackageDir);
+            }
         }
         if (!QDir(optionDir).exists()) {
             qCWarning(lcPackageManager) << "Option source dir not found:" << optionDir;
