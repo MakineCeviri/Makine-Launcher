@@ -131,16 +131,36 @@ publish-dry app-id:
     python scripts/deploy.py --app-id {{app-id}} --dry-run
 
 # ============================================================================
-# SENTRY (one-time setup)
+# SENTRY / TELEMETRY
 # ============================================================================
 
-# Configure Sentry GitHub integration + alert rules
+# Configure Sentry GitHub integration + alert rules, then read the result back
 sentry-setup:
     python scripts/sentry_setup.py
 
 # Preview Sentry setup (no changes)
 sentry-setup-dry:
     python scripts/sentry_setup.py --dry-run
+
+# Ranked triage: what fails most, which handler is most demanded, regressions
+triage:
+    python scripts/sentry_triage.py
+
+# Which failure signals never reach Sentry (non-zero exit on a gap)
+telemetry-coverage:
+    python scripts/telemetry_coverage.py --strict
+
+# Send one event through the real path and prove it arrived, paths redacted
+telemetry-selftest:
+    python scripts/telemetry_selftest.py
+
+# Everything that can go silently wrong with telemetry, in one command:
+# uncovered signals, alert rules that notify nobody, resolved-but-active issues.
+# Run after any change that touches reporting — "it builds" proves nothing here.
+telemetry-check:
+    python scripts/telemetry_coverage.py --strict
+    python scripts/telemetry_selftest.py
+    python scripts/sentry_triage.py --fail-on-dead-alert
 
 # ============================================================================
 # DEPLOYMENT
