@@ -1449,7 +1449,15 @@ void GameService::uninstallTranslation(const QString& gameId)
                     if (failedGameId != gameId) return;
                     qCWarning(lcGameService) << "Backup restore failed for" << gameId
                                               << "— skipping uninstall to avoid mixed state";
-                    reportOperationFailure("uninstall/restore", gameId, reason);
+                    // Tagged "uninstall", not "uninstall/restore": operation is
+                    // a fixed set (download, install, uninstall, backup,
+                    // restore, sync, scan, integrity) and a value outside it
+                    // splits the grouping. BackupManager already reports the
+                    // same signal as "restore" — the reason it matters here is
+                    // the consequence, so that is what this message carries.
+                    reportOperationFailure("uninstall", gameId,
+                        QStringLiteral("restore failed, uninstall aborted to avoid mixed state: %1")
+                            .arg(reason));
                     emit translationUninstalled(gameId, false, reason);
                 }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
             bool started = bm->restoreBackup(latest["id"].toString(), game.installPath);
@@ -1485,8 +1493,18 @@ void GameService::uninstallTranslation(const QString& gameId)
     if (translationReplacedOriginalFiles(gameId)) {
         qCCritical(lcGameService) << "No backup available for" << gameId
                    << "- refusing uninstall, originals would stay patched";
+
+        // Say WHICH kind of "no backup" this is. No record at all means the
+        // patch was installed before this game ever had a backup taken;
+        // records that exist but are all invalid mean a backup was made and
+        // then lost or corrupted. Those need different answers, and the
+        // report carried neither — three users reached this dead end with
+        // nothing to distinguish their cases.
+        BackupManager* bm = BackupManager::instance();
+        const int records = bm ? bm->getBackupsForGame(gameId).size() : -1;
         reportOperationFailure("uninstall", gameId,
-            QStringLiteral("no backup available; originals would stay patched"));
+            QStringLiteral("no backup available; originals would stay patched "
+                           "(backup records for game: %1, none usable)").arg(records));
         emit translationUninstalled(gameId, false,
             tr("Yama kaldırılamadı: bu yama oyunun orijinal dosyalarının üzerine yazmış "
                "ve geri yüklenecek bir yedek bulunamadı.\n"
