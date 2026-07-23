@@ -1,7 +1,19 @@
 # Telemetri — Sentry ile Uzaktan Teşhis
 
 > **Amaç:** Kullanıcı geri bildirimi beklemeden sorunları görmek.
-> **Proje:** `makine-ceviri / native` · **Durum:** 2026-07-21 itibarıyla kapsam genişletildi
+> **Proje:** `makine-ceviri / native` · **Durum:** 2026-07-23 — beta verisi geldi, denetim otomatikleşti
+
+## Komutlar
+
+| Komut | Ne yapar |
+|---|---|
+| `just telemetry-check` | Tümü: kapsam denetimi + canlı öz-test + ölü alarm kontrolü |
+| `just telemetry-coverage` | Hangi hata sinyali Sentry'ye ulaşmıyor (kapsam varsa çıkış kodu ≠ 0) |
+| `just telemetry-selftest` | Gerçek yoldan bir olay gönderir, Sentry'de varlığını **ve** yol temizliğini doğrular |
+| `just triage` | Sıralı iş listesi: en çok başarısız operasyon, en çok istenen handler, regresyon |
+| `just sentry-setup` | Alarm kurallarını kurar/onarır, sonucu sunucudan geri okuyup doğrular |
+
+Telemetriye dokunan her değişiklikten sonra `just telemetry-check`. Derleme başarısı kanıt değildir.
 
 ---
 
@@ -60,6 +72,25 @@ kendisi.
 
 Sentry'de filtre: `failure.side:system` → yalnızca bizim sorunlarımız.
 
+### Çözüm metni sınıflandırmayı bozuyordu (2026-07-23 düzeltildi)
+
+Kurulum hataları mesajın sonuna bir öneri paragrafı ekliyor:
+
+> *Çözüm: oyunu ve Steam'i kapatın, Makine Launcher'ı **yönetici** olarak çalıştırın,
+> antivirüste oyun klasörünü **izinli** yapın…*
+
+`isUserActionable()` mesajın tamamına baktığı için bu paragraftaki "kapatın",
+"yönetici", "izin" kelimeleri kullanıcı-taraflı desenlere çarpıyordu. Sonuç: **öneri
+paragrafı taşıyan her kurulum hatası, gerçekte ne kırılmış olursa olsun
+`failure.side:user` etiketleniyordu.**
+
+Bu, "Widespread Failure" alarmının filtrelediği etiket. Yani kendi kodumuzdaki bir
+kusur birçok kullanıcıya ulaşsa bile alarm çalmıyordu. ELDEN RING vakası tam olarak
+böyle kaçtı: kök neden bizim yol kodumuzdaki Türkçe karakter bozulması, etiket `user`.
+
+Düzeltme: sınıflandırma yalnızca `\n\nÇözüm:` **öncesindeki** metne bakıyor. Öneri
+paragrafı olmayan mesajlar önceki gibi sınıflanıyor.
+
 ---
 
 ## Etiketler
@@ -89,12 +120,32 @@ telemetriyi açmak Windows kullanıcı adını sızdırma riski taşıyordu.
 | Önlem | Durum |
 |---|---|
 | Yığın çerçevelerinde yol temizliği (`beforeSend`) | Önceden vardı |
-| **Mesaj gövdesinde yol temizliği** (`captureMessage`) | **Bu oturumda eklendi** |
-| `sanitizePath` tüm eşleşmeleri değiştiriyor | **Düzeltildi** (önceden ilkinde duruyordu) |
+| Mesaj gövdesinde yol temizliği (`captureMessage`) | 2026-07-21 |
+| `sanitizePath` tüm eşleşmeleri değiştiriyor | 2026-07-21 |
+| **Breadcrumb'larda yol temizliği** (`addBreadcrumb`) | **2026-07-23 — sızıntı canlı veride görüldü** |
+| **Mesaj sonunda biten yol** (`C:\Users\Ad`, ayraçsız) | **2026-07-23** |
+| **Karışık ayraçlı yol** (`C:\Users\Ad/AppData`) | **2026-07-23** |
 | Anonim kullanıcı kimliği (makine ID'sinin SHA-256'sı, ilk 16 hane) | Önceden vardı |
 | Debug/info mesajları gönderilmiyor | Önceden vardı |
 
 Kullanıcı adı, e-posta, oyun kütüphanesi listesi veya dosya içeriği **gönderilmez**.
+
+### Breadcrumb sızıntısı — nasıl kaçtı
+
+`beforeSend` yalnızca **exception yığın çerçevelerini** dolaşır; breadcrumb'lara hiç
+dokunmaz. `addBreadcrumb` ise temizlik uygulamıyordu. `qCWarning` satırları breadcrumb'a
+dönüştüğü ve breadcrumb'lar her olaya iliştirildiği için, mesaj gövdesi düzgün
+maskelenirken hemen yanındaki breadcrumb ham yolu taşıyordu:
+
+```
+[makine.package] Process failed to start: "C:/Users/Win_11/AppData/Local/…"
+[default] Could not open pipeline cache 'C:/Users/gadaroksa/AppData/Local/…'
+```
+
+Beta kullanıcılarının Windows hesap adları bu yoldan Sentry'ye ulaştı. Artık
+`addBreadcrumb` de `sanitizePath`'ten geçiyor ve `just telemetry-selftest` bunu her
+çalıştırmada uçtan uca doğruluyor — öz-test bilinen bir kullanıcı adı ekiyor, olayın
+içinde o adın **bulunmadığını** kanıtlıyor.
 
 ---
 
@@ -164,45 +215,146 @@ Ortam değişkeni **tanımsızken** temiz yapılandırma da doğrulandı:
 | GitHub entegrasyonu (`MakineCeviri`) | ✅ aktif |
 | Release takibi (`deploy.py` → `sentry-cli releases`) | ✅ mevcut |
 | Debug sembolleri yükleme (`deploy.py`) | ✅ mevcut |
-| Uyarı kuralı | ⚠️ **yalnızca 1** — "high priority issues" → e-posta (30 dk) |
+| Uyarı kuralları | ✅ 4 kural, **dördü de bildirim gönderiyor** (2026-07-23 onarıldı) |
 
-### Önerilen ek uyarı kuralları
+### Alarm kuralları sessizce ölüydü (2026-07-23)
 
-Mevcut tek kural yalnızca yüksek öncelikli olayları yakalıyor; yeni telemetriyle gelen
-`failure.side:system` olayları büyük ihtimalle bu eşiğin altında kalır.
+Dört kural da "aktif" görünüyordu ama üçünün `actions` listesi **boştu** — koşullar
+değerlendiriliyor, hiçbir bildirim gitmiyordu.
 
-1. **Yeni sistem hatası** — `failure.side:system` etiketli ilk görülen issue → bildirim
-2. **Yaygınlaşan hata** — bir issue 1 saatte 10+ kullanıcıya ulaşırsa → bildirim
-3. **Regresyon** — çözülmüş bir issue yeniden olay alırsa → bildirim + GitHub issue
+Sebep: `sentry_setup.py` aksiyon olarak `NotifyEventAction` ("legacy entegrasyonlar
+üzerinden bildir") kullanıyordu. Sentry bu id'yi kabul edip kuralı kaydediyor, ama
+kurulu legacy entegrasyon olmadığı için aksiyonu **sessizce düşürüyor**. API 200
+döndüğü için script başarı raporluyordu.
 
-`scripts/sentry_setup.py` bu kuralları API üzerinden kurmak için hazır; çalıştırmadan
-önce e-posta trafiği açısından gözden geçirilmeli.
+Bu, telemetride ikinci kez görülen aynı arıza sınıfı: her şey sağlıklı görünürken
+hiçbir şey çalışmıyor. Alınan önlemler:
+
+| Önlem | Nasıl |
+|---|---|
+| Çalışan aksiyon | `NotifyEmailAction` — entegrasyon gerektirmez |
+| Onarım, sadece oluşturma değil | Kural varsa ve bozuksa `PUT` ile düzeltilir; "ismi varsa atla" yetmiyordu |
+| Sunucudan geri okuma | `verify_alert_rules()` kuralları tekrar çeker, aksiyonsuz kalan varsa çıkış kodu ≠ 0 |
+| Sürekli denetim | `just telemetry-check` ölü kural bulursa hata verir |
+
+Aktif kurallar:
+
+| Kural | Koşul | Eşik |
+|---|---|---|
+| New Crash → GitHub Issue | ilk görülen issue, seviye ≥ error | günde 1 |
+| Regression Detected | çözülmüş issue yeniden olay alırsa | 30 dk |
+| Widespread Failure | `failure.side:system` + 1 saatte **3+** kullanıcı | 60 dk |
+| High priority issues | Sentry'nin kendi önceliklendirmesi | 30 dk |
+
+> Eşik 10'dan **3'e** indirildi: projedeki en yaygın kusur (`.forge` enjeksiyonu) en
+> yüksek noktada 8 kullanıcıya ulaştı — 10'luk kapı en büyük sorunumuzda hiç açılmazdı.
 
 ---
 
-## Bilinen Durum (2026-07-21)
+## Bilinen Durum (2026-07-23)
 
-Projede 3 issue var, üçü de Windows heap bozulması imzası taşıyor:
+`0.1.2-beta` dağıtıldı ve telemetri beklendiği gibi çalıştı: **36 issue · 536 olay**.
+Genişletmeden önce toplam 3 issue vardı — yani kapsam sorunu değil, görünürlük sorunuydu.
 
-| Issue | Olay | Kullanıcı | Son görülme | Durum |
-|---|---|---|---|---|
-| `RtlpHpSegReAlloc` | 43 | 2 | 2026-07-13 | **"resolved" ama olay almaya devam etmiş** |
-| `memset$thunk$…` | 1 | 1 | 2026-07-16 | unresolved |
-| `RtlCompactHeap` | 1 | 1 | 2026-07-05 | unresolved |
+Operasyon dağılımı: `install` 425 · `backup` 30 · `uninstall` 18 · `scan` 8.
 
-Üçü de aynı sınıf (heap bozulması) — muhtemelen **tek bir kök nedenin** farklı yerlerde
-patlaması. `RtlpHpSegReAlloc` kapatılmış olmasına rağmen aylarca olay almış; kapatma
-kararı gözden geçirilmeli.
+### En büyük sorun bir hata değil, eksik bir özellik
 
-**Not:** Toplam olay sayısının bu kadar düşük olması sorunların az olduğunu değil,
-telemetrinin kapsamının dar olduğunu gösteriyordu. Bu oturumdaki genişletmeden sonraki
-ilk sürümle birlikte gerçek hata dağılımı görünür hale gelecek.
+Olayların çoğunluğu "kurulamıyor, çünkü bu kurulum yöntemi desteklenmiyor" diyor.
+Telemetrinin kurulma amacı buydu — hangi handler'ı önce yazacağımızı varsayımla değil
+talep sayısıyla belirlemek:
+
+| Eksik handler | Olay | Oyun | Örnekler |
+|---|---|---|---|
+| `.forge` enjeksiyonu | 243 | 2 | AC Odyssey (201), AC Valhalla (42) |
+| `script` kurulumu | 123 | 12 | RE7, Mafia DE, Brothers, Road 96, Wolf Among Us, AC Mirage… |
+| `paradox` modu | 2 | 1 | Stellaris |
+
+`.forge` iki oyunda yoğunlaşıyor ama olay sayısı en yüksek; `script` daha az olay
+üretiyor, buna karşılık **12 ayrı oyuna** yayılıyor. Kapsam mı, yoğunluk mu önce —
+bu artık bir ürün kararı, tahmin değil.
+
+### ELDEN RING — "1 adımda hata oluştu" (kök neden bulundu, düzeltildi)
+
+48 olay / 8 kullanıcı, tek satırlık bilgisiz bir başlık. Gövde ve breadcrumb'lar kök
+nedeni veriyordu:
+
+```
+Türkçe Yama — Adım 3: run ERING_TR.exe
+[makine.package] Option subDir not found, falling back to package root: ".../Elden Ring/Türkçe Yama"
+[makine.package] Process failed to start:  ".../Elden Ring/T_rk_e Yama/ERING_TR.exe"
+```
+
+Zincir:
+
+1. Paketleme aracı, tar'a yazarken ASCII olmayan karakterleri `?` yapıyor —
+   `Türkçe Yama` arşivde `T?rk?e Yama` oluyor.
+2. `mkpkformat.h` çıkarırken `?` karakterini `_` ile değiştiriyor, çünkü Windows onu
+   joker olarak reddeder. Diskte **`T_rk_e Yama`** oluşuyor. Bu bilinçli bir davranış.
+3. Reçete hâlâ orijinal adı taşıyor (`"subDir": "Türkçe Yama"`), ve `installWithOptions`
+   birebir eşleştirme yapıyordu → **bulunamıyor**.
+4. Kod paket köküne düşüyordu. `optionDir`, `executeStep`'e `packageDir` olarak geçtiği
+   için bu aynı zamanda **çalışma dizinini** de kaydırıyordu: `ERING_TR.exe` yanlış
+   yerden başlatılıyordu.
+5. Kullanıcı "1 adımda hata oluştu" ve **antivirüsünü kontrol etmesini** söyleyen bir
+   öneri görüyordu.
+
+**Düzeltme (launcher tarafı):** karşılaştırmanın her iki tarafı da çıkarıcının kendi
+dönüşümünden geçiriliyor (`extractorMangledName`). Launcher zaten `?`→`_` dönüşümünü
+yapıyordu ama arama tarafında bunu unutuyordu — asimetri buradaydı. Paketleri yeniden
+üretmeye gerek yok; doğru paketlenmiş arşivler de aynı yoldan eşleşmeye devam ediyor
+(8/8 birim testi).
+
+> **Kalıcı çözüm paketleme tarafında:** tar'ı UTF-8 adlarla üretmek gerekir. Launcher
+> düzeltmesi mevcut bozuk paketleri kurtarır, bozulmayı ortadan kaldırmaz.
+
+**Ayrıca:** `runProcess` başlatma hatasının sebebini kaydetmiyordu. "Process failed to
+start" satırı eksik dosyayı, engellenen ikiliyi ve reddedilen izni aynı şekilde
+gösteriyordu. Artık `QProcess::error()`, `errorString()`, dosya varlığı/boyutu ve
+çalışma dizini raporlanıyor.
+
+### Katalog boş açılıyor — yanlış pozitifti
+
+5 olay / 5 ayrı kullanıcı, her birinde bir kez. Sebep: `scanAllLibraries` katalog
+boyutunu ölçerken `index.json` henüz indirilmemiş oluyordu. Kod bunu zaten biliyordu
+("No cached index yet, waiting for sync…") ama 200 satır aşağıda aynı durum `error`
+olarak raporlanıyordu.
+
+Gerçek arıza değil: `catalogReady` gelince `refreshPackageManifest()` kataloğu yüklüyor
+ve oyunlar yeniden değerlendiriliyor. Yani her yeni kullanıcının ilk açılışı bir hata
+üretiyordu — ve gerçek bir senkron arızası bundan ayırt edilemiyordu.
+
+Artık ayrılıyor: **indeks dosyası diskte var ama katalog boş** → gerçek arıza, raporlanır.
+**İndeks henüz yok** → breadcrumb, rapor yok.
+
+### Diğer açık başlıklar
+
+| Bulgu | Olay / kullanıcı | Not |
+|---|---|---|
+| `scan failed [catalog]: Çeviri kataloğu boş` | 5 olay / **5 ayrı kullanıcı** | `catalog=0` ile açılıyor; `syncError` hiç tetiklenmemiş — senkron sessizce başarısız |
+| `No backup available — refusing uninstall` | 10 olay / 3 kullanıcı | Kullanıcı yamayı kaldıramıyor |
+| `selective backup failed; install aborted` | 15 olay / 1 kullanıcı | 277/1269 dosya kopyalandı, Epic klasöründe kilit |
+| `RtlpHpSegReAlloc` (fatal) | 43 olay / 2 kullanıcı | **resolved işaretli ama 2 ay olay almış** — regresyon alarmı o dönemde ölüydü |
+| `WideCharToMultiByte` (fatal) | 1 olay | 2026-07-23, yeni; heap ailesinin devamı olabilir |
 
 ---
 
 ## Açık İşler
 
-- [ ] Uyarı kurallarını genişlet (`sentry_setup.py`)
+**Launcher — çözüldü (2026-07-23):**
+- [x] ELDEN RING: bozuk klasör adı eşleştirmesi (`extractorMangledName`)
+- [x] `run` adımı başlatma hatasının sebebi kaydediliyor
+- [x] Katalog boş açılma yanlış pozitifi ayrıldı
+- [x] Yedeksiz kaldırmada kayıt sayısı raporlanıyor (hangi tür "yedek yok" olduğu)
+
+**Ürün — telemetrinin işaret ettiği (launcher dışı):**
+- [ ] `.forge` enjeksiyon handler'ı (243 olay, en yoğun)
+- [ ] `script` kurulum handler'ı (123 olay, 12 oyuna yayılmış)
+- [ ] Paketleme: tar adlarını UTF-8 üret — `?` bozulmasının kaynağı burası
+- [ ] Yedeksiz kaldırma çıkmazı: sonraki sürümün verisine göre karar (kayıt hiç yok mu,
+      geçersiz mi)
+
+**Telemetri altyapısı:**
 - [ ] Kurulum **başarı** oranı ölçümü — şu an yalnızca hatalar toplanıyor, oran hesaplanamıyor
-- [ ] `RtlpHpSegReAlloc` kapatma kararını gözden geçir
-- [ ] İlk sürümden sonra: `failure.side:system` dağılımına göre handler önceliklendirmesi
+- [ ] `RtlpHpSegReAlloc` kapatma kararını gözden geçir (regresyon alarmı artık çalışıyor)
+- [ ] `just telemetry-check`'i pre-push kancasına bağla
