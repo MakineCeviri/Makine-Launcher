@@ -13,6 +13,7 @@
 #include "manifestsyncservice.h"
 #include "telemetryservice.h"
 #include "corebridge.h"
+#include "crashreporter.h"
 
 #include <QDesktopServices>
 #include <QUrl>
@@ -47,6 +48,14 @@ void InstallFlowService::startInstall(const QString& gameId, const QString& game
         QUrl url(externalUrl);
         if (url.scheme() != QStringLiteral("https")) {
             qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << externalUrl;
+            // Our catalog shipped a non-HTTPS partner link, so this game cannot
+            // be installed at all while the user only sees "Geçersiz harici
+            // bağlantı". The defect is in our data, so it has to reach us —
+            // reported here rather than on the signal, because the third emit
+            // site behind installError is a downloadError forward that
+            // TranslationDownloader already reports.
+            CrashReporter::reportFailure("install", gameId,
+                QStringLiteral("catalog holds a non-HTTPS external URL; install blocked"));
             emit installError(gameId, tr("Geçersiz harici bağlantı"));
             return;
         }
@@ -242,6 +251,8 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
         QUrl url(extUrl);
         if (url.scheme() != QStringLiteral("https")) {
             qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << extUrl;
+            CrashReporter::reportFailure("install", gameId,
+                QStringLiteral("catalog holds a non-HTTPS external URL; update blocked"));
             emit installError(gameId, tr("Geçersiz harici bağlantı"));
             return;
         }
