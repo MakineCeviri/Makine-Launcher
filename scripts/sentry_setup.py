@@ -24,6 +24,15 @@ import os
 import sys
 from pathlib import Path
 
+# The Windows console defaults to cp1252, which cannot encode the check mark
+# this script prints on success. That raised UnicodeEncodeError mid-run and
+# killed the process right after the GitHub integration check — so the alert
+# rule setup below never executed and nobody noticed, because the failure
+# looked like a crash in an unrelated step.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 try:
     import requests
 except ImportError:
@@ -164,23 +173,31 @@ def setup_code_mapping(integration_id: int, dry_run: bool = False) -> bool:
         return False
 
 
-def setup_alert_rules(dry_run: bool = False) -> bool:
-    """Create alert rules for crash → GitHub issue."""
-    print("\n  Setting up alert rules...")
+# Every rule needs at least one action that actually reaches a person.
+#
+# The previous version used NotifyEventAction ("send a notification via legacy
+# integrations"). Sentry accepts that id, stores the rule — and then drops the
+# action, because no legacy integration is installed. The result was three
+# active rules with `actions: []`: conditions evaluated, nothing was ever sent.
+# A rule that fires into the void is worse than no rule, because the project
+# looks monitored.
+#
+# Mail is the one channel that needs no integration, so it is the baseline.
+NOTIFY_EMAIL = {
+    "id": "sentry.mail.actions.NotifyEmailAction",
+    "targetType": "IssueOwners",
+    "fallthroughType": "ActiveMembers",
+    "targetIdentifier": "",
+}
 
-    # List existing rules
-    r = requests.get(
-        f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
-        headers=sentry_headers(), timeout=10
-    )
-    existing_rules = r.json() if r.status_code == 200 else []
-    existing_names = {rule.get("name", "") for rule in existing_rules}
 
-    rules_to_create = []
-
-    # Rule 1: New crash → GitHub issue
-    if "New Crash → GitHub Issue" not in existing_names:
-        rules_to_create.append({
+def desired_rules() -> list[dict]:
+    """The alert rules this project is supposed to have."""
+    return [
+        # New system-side defect appears. Level >= error already excludes the
+        # user-actionable warnings (disk full, game running), so this fires on
+        # things we have to fix.
+        {
             "name": "New Crash → GitHub Issue",
             "actionMatch": "all",
             "filterMatch": "all",
@@ -191,80 +208,166 @@ def setup_alert_rules(dry_run: bool = False) -> bool:
                 {"id": "sentry.rules.filters.level.LevelFilter",
                  "match": "gte", "level": "40"}  # ERROR and above
             ],
-            "actions": [
-                {"id": "sentry.rules.actions.notify_event.NotifyEventAction"}
-            ],
+            "actions": [NOTIFY_EMAIL],
             "frequency": 1440,  # Once per day per issue
-        })
-    else:
-        print("  Rule 'New Crash → GitHub Issue' already exists")
-
-    # Rule 2: Regression → Notify
-    if "Regression Detected" not in existing_names:
-        rules_to_create.append({
+        },
+        # A resolved issue starts receiving events again. RtlpHpSegReAlloc was
+        # closed and then collected 43 events over two months with nobody
+        # informed — exactly what this is meant to catch.
+        {
             "name": "Regression Detected",
             "actionMatch": "all",
             "filterMatch": "all",
             "conditions": [
                 {"id": "sentry.rules.conditions.regression_event.RegressionEventCondition"}
             ],
-            "actions": [
-                {"id": "sentry.rules.actions.notify_event.NotifyEventAction"}
-            ],
+            "filters": [],
+            "actions": [NOTIFY_EMAIL],
             "frequency": 30,
-        })
-    else:
-        print("  Rule 'Regression Detected' already exists")
-
-    # Rule 3: Widespread failure → Notify
-    # The install/uninstall telemetry reports failures as message events, which
-    # rarely trip Sentry's "high priority" heuristic on their own. This rule
-    # catches the case that actually matters: a defect reaching many users at
-    # once — a bad package or a broken release — rather than one user's disk
-    # being full.
-    if "Widespread Failure" not in existing_names:
-        rules_to_create.append({
+        },
+        # A defect reaching several users at once — a bad package or a broken
+        # release — rather than one user's disk being full.
+        #
+        # The threshold is 3, not 10. With the beta's actual user count the
+        # worst defect in the project (the .forge injection failure) peaked at
+        # 8 unique users, so a 10-user gate would never have fired on the single
+        # most reported problem we have.
+        {
             "name": "Widespread Failure",
             "actionMatch": "all",
             "filterMatch": "all",
             "conditions": [
                 {"id": "sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition",
-                 "interval": "1h", "value": 10}
+                 "interval": "1h", "value": 3}
             ],
             "filters": [
                 {"id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
                  "key": "failure.side", "match": "eq", "value": "system"}
             ],
-            "actions": [
-                {"id": "sentry.rules.actions.notify_event.NotifyEventAction"}
-            ],
+            "actions": [NOTIFY_EMAIL],
             "frequency": 60,
-        })
-    else:
-        print("  Rule 'Widespread Failure' already exists")
+        },
+    ]
 
-    if not rules_to_create:
-        print("  All alert rules already configured")
-        return True
 
-    if dry_run:
-        for rule in rules_to_create:
-            print(f"  [DRY RUN] Would create rule: {rule['name']}")
-        return True
+def _rule_needs_repair(existing: dict, wanted: dict) -> list[str]:
+    """Return the reasons `existing` diverges from `wanted` (empty = healthy)."""
+    reasons = []
+
+    if not existing.get("actions"):
+        reasons.append("no actions (fires into the void)")
+    elif not any(
+        a.get("id") == NOTIFY_EMAIL["id"] for a in existing.get("actions", [])
+    ):
+        reasons.append("no mail action")
+
+    if existing.get("status") != "active":
+        reasons.append(f"status={existing.get('status')}")
+
+    # Compare condition thresholds — the user-frequency gate is the one we tune.
+    for want_c in wanted.get("conditions", []):
+        match = next(
+            (c for c in existing.get("conditions", []) if c.get("id") == want_c["id"]),
+            None,
+        )
+        if match is None:
+            reasons.append(f"missing condition {want_c['id'].rsplit('.', 1)[-1]}")
+            continue
+        for key in ("value", "interval"):
+            if key in want_c and str(match.get(key)) != str(want_c[key]):
+                reasons.append(f"{key}={match.get(key)} (want {want_c[key]})")
+
+    return reasons
+
+
+def setup_alert_rules(dry_run: bool = False) -> bool:
+    """Create missing alert rules and repair existing ones that cannot notify.
+
+    Idempotent by design: "create only if the name is absent" was not enough,
+    because the rules existed and were still broken.
+    """
+    print("\n  Setting up alert rules...")
+
+    r = requests.get(
+        f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
+        headers=sentry_headers(), timeout=10
+    )
+    existing_rules = r.json() if r.status_code == 200 else []
+    by_name = {rule.get("name", ""): rule for rule in existing_rules}
 
     success = True
-    for rule in rules_to_create:
-        r = requests.post(
-            f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
-            headers=sentry_headers(), json=rule, timeout=10
+    for wanted in desired_rules():
+        name = wanted["name"]
+        existing = by_name.get(name)
+
+        if existing is None:
+            if dry_run:
+                print(f"  [DRY RUN] Would create rule: {name}")
+                continue
+            resp = requests.post(
+                f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
+                headers=sentry_headers(), json=wanted, timeout=15
+            )
+            if resp.status_code in (200, 201):
+                print(f"  + Alert rule created: {name}")
+            else:
+                print(f"  WARNING: create '{name}' failed: "
+                      f"{resp.status_code} {resp.text[:200]}")
+                success = False
+            continue
+
+        reasons = _rule_needs_repair(existing, wanted)
+        if not reasons:
+            print(f"  = Rule OK: {name}")
+            continue
+
+        print(f"  ! Rule broken: {name} -> {', '.join(reasons)}")
+        if dry_run:
+            print(f"  [DRY RUN] Would repair rule: {name}")
+            continue
+
+        payload = dict(wanted)
+        payload["id"] = existing.get("id")
+        resp = requests.put(
+            f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/"
+            f"{existing.get('id')}/",
+            headers=sentry_headers(), json=payload, timeout=15
         )
-        if r.status_code in (200, 201):
-            print(f"  ✓ Alert rule created: {rule['name']}")
+        if resp.status_code in (200, 201, 202):
+            print(f"  ~ Alert rule repaired: {name}")
         else:
-            print(f"  WARNING: Failed to create '{rule['name']}': {r.status_code} {r.text[:200]}")
+            print(f"  WARNING: repair '{name}' failed: "
+                  f"{resp.status_code} {resp.text[:200]}")
             success = False
 
     return success
+
+
+def verify_alert_rules() -> bool:
+    """Re-read the rules from Sentry and confirm each one can notify someone.
+
+    Configuring is not the same as configured: the API accepted the old
+    actions and silently discarded them. This reads the server's own view back
+    and is the only thing that counts as proof.
+    """
+    print("\n  Verifying alert rules (server state)...")
+    r = requests.get(
+        f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
+        headers=sentry_headers(), timeout=15
+    )
+    if r.status_code != 200:
+        print(f"  ERROR: could not read rules back (HTTP {r.status_code})")
+        return False
+
+    ok = True
+    for rule in r.json():
+        actions = [a.get("id", "").rsplit(".", 1)[-1] for a in rule.get("actions", [])]
+        if actions:
+            print(f"  OK   {rule.get('name')}: {', '.join(actions)}")
+        else:
+            print(f"  DEAD {rule.get('name')}: no actions — nobody is notified")
+            ok = False
+    return ok
 
 
 def main():
@@ -307,11 +410,26 @@ def main():
         print("  → Then re-run this script for code mappings")
 
     # Step 4: Alert rules
-    setup_alert_rules(args.dry_run)
+    configured = setup_alert_rules(args.dry_run)
+
+    # Step 5: Read the result back from Sentry. The whole reason this script
+    # needed fixing is that it reported success for rules the server had
+    # quietly stripped, so "we sent the request" is not an acceptable outcome.
+    verified = True
+    if not args.dry_run:
+        verified = verify_alert_rules()
 
     print("\n" + "=" * 70)
-    print("  Setup complete!")
+    if configured and verified:
+        print("  Setup complete — every rule can reach someone.")
+    else:
+        print("  Setup INCOMPLETE — see warnings above.")
     print("=" * 70)
+
+    # Non-zero exit so a pipeline or scheduled run fails loudly instead of
+    # printing a warning nobody reads.
+    if not (configured and verified):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
