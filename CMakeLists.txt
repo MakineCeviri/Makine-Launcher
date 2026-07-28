@@ -27,7 +27,7 @@ if(NOT MAKINE_UI_ONLY)
 endif()
 
 project(MakineLauncher
-    VERSION 0.1.3.0
+    VERSION 0.1.4.0
     DESCRIPTION "Turkish Game Translation Platform"
     LANGUAGES CXX
 )
