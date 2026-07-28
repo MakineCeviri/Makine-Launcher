@@ -315,7 +315,7 @@ Ayrıştırma gerekiyor.
 
 | Alt madde | Teşhis |
 |---|---|
-| **a)** Kütüphanede yok | **Yes Your Grace katalogda hiç yok.** 239 paket tarandı, eşleşme sıfır. Yama mevcut değil. |
+| **a)** Kütüphanede yok | Katalogda yok — **ve olmaması doğru.** Ekip tablosunda kaydı `Tamamlandı / Sinnerclown`, ancak Sinnerclown ile anlaşma sağlanamadığı için o ekibin tüm yamaları katalogdan kaldırıldı (Calypso ile aynı gerekçe). Yani çeviri bir zamanlar tamamlanmıştı, dağıtım hakkı yok. Kullanıcıya "yama mevcut değil" demek doğru; eksik olan tek şey **nedenini** söyleyecek bir mesaj. Denetim: `just catalog-check <tablo.xlsx>` |
 | **b)** 2 harf girince çöküyor | 🟡 `71343e8` — `CatalogProxyModel` yeniden oluşturma çağrıları birleştirildi. Sentry'deki `RtlpHpSegReAlloc` heap bozulmasıyla (43 event) örtüşüyor. Kodda çözülü, **yayınlanmamış**. |
 | **c)** Oto tarama bulamıyor | (a)'nın sonucu — katalogda olmayan oyun taramada da eşleşmez. |
 
