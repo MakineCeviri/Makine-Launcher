@@ -162,6 +162,24 @@ telemetry-check:
     python scripts/telemetry_selftest.py
     python scripts/sentry_triage.py --fail-on-dead-alert
 
+# Planning sheet vs. what users can actually install. Catches the three states
+# no one sees by eye: a cancelled patch still installable, a finished patch that
+# was never published, a package nobody tracks. Pass the team sheet:
+#   just catalog-check ~/Downloads/MakineAI_data.xlsx
+catalog-check sheet:
+    python scripts/catalog_reconcile.py --sheet "{{sheet}}"
+
+# Validate the published catalog against what the launcher can actually run:
+# extractor-mangled folder names, unimplemented step actions, steps whose
+# required field is empty, installMethod given as a string, missing payloads.
+# Every rule mirrors real launcher code and exists because a user hit it.
+catalog-validate:
+    python scripts/catalog_validate.py
+
+# Same, as a gate — non-zero exit when a finding would break an install.
+catalog-gate:
+    python scripts/catalog_validate.py --strict
+
 # ============================================================================
 # DEPLOYMENT
 # ============================================================================
