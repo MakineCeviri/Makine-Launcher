@@ -141,9 +141,12 @@ Item {
             }
         }
         function onPatchIntegrityChecked(gId, ok, message) {
-            if (gId !== root.viewModel.gameId || ok || !message) return
-            root.viewModel.installErrorMessage = message
-            installErrorTimer.restart()
+            if (gId !== root.viewModel.gameId || ok) return
+            // Recorded files are gone from disk. Surface it as a "lost" update
+            // impact so the action button flips to the amber "Onar" state —
+            // reusing the same repair path as post-update breakage, instead of
+            // a transient banner over a misleading "Kurulu" button.
+            root.viewModel.updateImpact = { "level": "lost", "summary": message }
         }
         function onGameRepairStarted(gId, started, message) {
             if (gId !== root.viewModel.gameId) return
@@ -475,6 +478,57 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.backClicked()
+        }
+    }
+
+    // =========================================================================
+    // "NOT DETECTED" BADGE — same pill as the back button but darker, so it
+    // reads as a notification over the hero art. Centered at the top of the
+    // nav bar. Shown only when the game is not found on the user's PC — the
+    // state that silently blocks install/repair and confuses users.
+    // =========================================================================
+
+    Rectangle {
+        visible: !root.viewModel.isGameInstalled
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Dimensions.marginML
+        z: 100
+        implicitWidth: _notDetectedRow.implicitWidth + 28
+        implicitHeight: 36
+        radius: implicitHeight / 2
+        color: Qt.rgba(0, 0, 0, 0.55)
+        border.color: Qt.rgba(1, 1, 1, 0.15)
+        border.width: 1
+
+        // Same top-lit gradient edge as the back button, kept subtle
+        GradientBorder {
+            cornerRadius: parent.radius
+            topColor: Qt.rgba(1, 1, 1, 0.16)
+            midColor: Qt.rgba(1, 1, 1, 0.03)
+            bottomColor: Qt.rgba(1, 1, 1, 0.01)
+        }
+
+        Row {
+            id: _notDetectedRow
+            anchors.centerIn: parent
+            spacing: Dimensions.spacingMD
+
+            // Amber attention dot — "heads up" cue without pulling in an icon font
+            Rectangle {
+                width: 8; height: 8; radius: 4
+                color: "#f5a623"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: qsTr("Bu oyun bilgisayarınızda tespit edilemedi")
+                font.pixelSize: Dimensions.fontBody
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.3
+                color: "#ffffff"
+                textFormat: Text.PlainText
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 }

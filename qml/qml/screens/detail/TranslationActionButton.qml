@@ -22,6 +22,7 @@ Rectangle {
     signal translateClicked()
     signal updateClicked()
     signal uninstallClicked()
+    signal repairClicked()
 
     Layout.fillWidth: true
     Layout.preferredHeight: 52
@@ -65,7 +66,7 @@ Rectangle {
     color: {
         switch (_state) {
         case "broken":
-            return _hovered ? Theme.darken(Theme.error, 0.15) : Theme.error
+            return _hovered ? Theme.darken(Theme.warning, 0.15) : Theme.warning
         case "completed":
             return Theme.success
         case "installing":
@@ -94,7 +95,7 @@ Rectangle {
             switch (actionBtn._state) {
             case "installing": return Qt.rgba(1, 1, 1, 0.08)
             case "installed":  return actionBtn._hovered ? Qt.rgba(1, 0.3, 0.3, 0.2) : Qt.rgba(1, 1, 1, 0.10)
-            case "broken":     return Qt.rgba(1, 0.4, 0.4, 0.25)
+            case "broken":     return Qt.rgba(1, 0.78, 0.35, 0.25)
             case "update":    return Qt.rgba(1, 0.85, 0.3, 0.2)
             default:           return Qt.rgba(1, 1, 1, 0.18)
             }
@@ -146,9 +147,13 @@ Rectangle {
         anchors.centerIn: parent
         spacing: Dimensions.spacingMD
 
-        // Apex logo (external state only) — embedded, sized to button height
+        // Apex logo — ONLY for genuinely Apex-only games. A Hangar game (or a
+        // hangar_apex whose link points elsewhere) must not wear the Apex badge
+        // and then open hangarceviri.com — that mismatch is what users report as
+        // "Apex yama çıkıyor ama basınca Hangar'a atıyor".
         Image {
             visible: actionBtn._state === "external"
+                     && actionBtn.vm.isApex && !actionBtn.vm.isHangar
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredHeight: actionBtn.height * 1.06
             Layout.preferredWidth: Layout.preferredHeight * (sourceSize.width / Math.max(1, sourceSize.height))
@@ -162,7 +167,11 @@ Rectangle {
         Canvas {
             id: stateIcon
             width: 18; height: 18
-            visible: actionBtn._state !== "installing" && actionBtn._state !== "external"
+            // Show the external-link glyph for external targets that are NOT the
+            // Apex-only case (Hangar or ambiguous), where the Apex logo is hidden.
+            visible: actionBtn._state !== "installing"
+                     && !(actionBtn._state === "external"
+                          && actionBtn.vm.isApex && !actionBtn.vm.isHangar)
             Layout.alignment: Qt.AlignVCenter
             renderStrategy: Canvas.Cooperative
 
@@ -318,7 +327,11 @@ Rectangle {
                         return qsTr("Kuruluyor... %1%").arg(actionBtn.vm.progressPercent)
                     return actionBtn.vm.installStatus || qsTr("Hazırlanıyor...")
                 case "external":
-                    return qsTr("İndir")
+                    if (actionBtn.vm.isHangar && !actionBtn.vm.isApex)
+                        return qsTr("Hangar Çeviri (dış site)")
+                    if (actionBtn.vm.isApex && !actionBtn.vm.isHangar)
+                        return qsTr("ApexYama (dış site)")
+                    return qsTr("Dış siteden indir")
                 case "download":
                 default:
                     return qsTr("Türkçe Yama İndir")
@@ -400,7 +413,7 @@ Rectangle {
             switch (actionBtn._state) {
             case "update":    actionBtn.updateClicked(); break
             case "installed": actionBtn.uninstallClicked(); break
-            case "broken":    actionBtn.updateClicked(); break
+            case "broken":    actionBtn.vm.impactLevel === "lost" ? actionBtn.repairClicked() : actionBtn.updateClicked(); break
             case "external":  Qt.openUrlExternally(actionBtn.vm.externalUrl); break
             default:          actionBtn.translateClicked(); break
             }

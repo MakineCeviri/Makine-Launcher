@@ -26,7 +26,10 @@ void TranslationStateManager::evaluate(bool hasUpdate, bool packageInstalled,
 {
     State newState = State::Download;
 
-    if (impactLevel == u"broken") {
+    if (impactLevel == u"broken" || impactLevel == u"lost") {
+        // "broken" = a game update mangled the patch; "lost" = recorded files
+        // are gone from disk (deleted, Steam "verify", overwritten). Both mean
+        // "installed but not actually working" — surface repair, not "Kurulu".
         newState = State::Broken;
     } else if (installCompleted) {
         newState = State::Completed;

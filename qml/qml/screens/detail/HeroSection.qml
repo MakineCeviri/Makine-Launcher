@@ -404,6 +404,7 @@ Item {
                     onTranslateClicked: heroRoot.translateClicked()
                     onUpdateClicked: heroRoot.updateClicked()
                     onUninstallClicked: heroRoot.uninstallClicked()
+                    onRepairClicked: GameService.repairGameFiles(heroRoot.vm.gameId)
                 }
 
                 // Install error message
