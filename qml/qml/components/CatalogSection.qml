@@ -74,7 +74,13 @@ Rectangle {
     CatalogProxyModel {
         id: row2Proxy
         sourceModel: catalog._row2Ready ? GameService.supportedGamesModel : null
-        searchFilter: catalog.searchQuery
+        // The strip below is hidden while searching (visible: !_isSearching), yet
+        // this binding still rebuilt it on every keystroke. That second, invisible
+        // beginResetModel/endResetModel raced with row1's reuseItems ListView
+        // relayout and corrupted the heap (surfaced as WideCharToMultiByte /
+        // RtlpHpSegReAlloc crashes when typing). Freeze the filter to "" while
+        // searching so the hidden strip never rebuilds — one reset per keystroke.
+        searchFilter: catalog._isSearching ? "" : catalog.searchQuery
         rowOffset: catalog._half
         rowLimit: -1
         wrapAround: true
