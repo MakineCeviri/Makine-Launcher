@@ -202,7 +202,19 @@ std::unordered_map<std::string, std::vector<InstallStep>> parseCombinedSteps(con
 
 void parseInstallMethod(PackageCatalogEntry& entry, const json& obj)
 {
-    if (!obj.contains("installMethod") || !obj["installMethod"].is_object()) return;
+    if (!obj.contains("installMethod")) return;
+
+    // Some catalog entries carry installMethod as a bare string instead of an
+    // object: "file-replace" (DOOM, Dark Souls: Remastered), "modengine"
+    // (Dark Souls II). Requiring is_object() dropped those silently — the type
+    // stayed empty, the honesty gate read empty as overlay-safe, and the
+    // package was installed by plain file copy. For "modengine" that is a wrong
+    // install reported to the user as success.
+    if (obj["installMethod"].is_string()) {
+        entry.installMethodType = obj["installMethod"].get<std::string>();
+        return;
+    }
+    if (!obj["installMethod"].is_object()) return;
 
     const auto& im = obj["installMethod"];
     entry.installMethodType   = im.value("type", "");
