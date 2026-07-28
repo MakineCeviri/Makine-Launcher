@@ -1,0 +1,4 @@
+#include <windows.h>
+
+// CREATEPROCESS_MANIFEST_RESOURCE_ID — makes Windows raise UAC for this binary.
+1 RT_MANIFEST "makine_elevate.manifest"
