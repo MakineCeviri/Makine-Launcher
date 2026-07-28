@@ -27,7 +27,7 @@ if(NOT MAKINE_UI_ONLY)
 endif()
 
 project(MakineLauncher
-    VERSION 0.1.2
+    VERSION 0.1.3.0
     DESCRIPTION "Turkish Game Translation Platform"
     LANGUAGES CXX
 )
@@ -89,6 +89,36 @@ endif()
 # Qt/QML application
 if(NOT MAKINE_CORE_ONLY)
     add_subdirectory(qml)
+endif()
+
+# Elevated file helper. Separate binary on purpose: the launcher stays
+# asInvoker (elevating the whole app changes its antivirus profile), and only
+# this tiny, independently signed executable is raised through UAC to write
+# into directories such as C:\Program Files. Without it, games installed there
+# cannot be patched at all from the Store build, which has no
+# "Run as administrator".
+if(WIN32 AND NOT MAKINE_CORE_ONLY)
+    enable_language(RC)
+    add_executable(makine-elevate
+        tools/elevate/makine_elevate.cpp
+        tools/elevate/makine_elevate.rc)
+    set_target_properties(makine-elevate PROPERTIES
+        OUTPUT_NAME "makine-elevate"
+        WIN32_EXECUTABLE OFF
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON)
+    if(MINGW)
+        # wmain needs the unicode entry point; keep the binary free of the C++
+        # runtime DLLs so it can be dropped next to the launcher unchanged.
+        target_link_options(makine-elevate PRIVATE
+            -municode -static -static-libgcc -static-libstdc++)
+    endif()
+endif()
+
+# UI service unit tests. These were never wired into any build, so nothing in
+# tests/ui had ever compiled or run — ctest reported "No tests were found".
+if(MAKINE_BUILD_TESTS AND NOT MAKINE_CORE_ONLY)
+    add_subdirectory(tests/ui)
 endif()
 
 # UI integration tests (require both core lib and qml services source)
