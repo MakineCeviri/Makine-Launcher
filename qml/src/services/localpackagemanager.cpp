@@ -13,6 +13,8 @@
  */
 
 #include "localpackagemanager.h"
+#include "installsteprules.h"
+#include "elevatedops.h"
 #include "profiler.h"
 #include "operationjournal.h"
 #include "pathsecurity.h"
@@ -34,6 +36,13 @@
 #include <QStorageInfo>
 #include <QThread>
 #include <QtConcurrent>
+#include <QSet>
+
+#ifdef Q_OS_WIN
+#  include <windows.h>
+#  include <shellapi.h>
+#  include <objbase.h>
+#endif
 
 #include <functional>
 #include <set>
@@ -473,10 +482,86 @@ LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
     return result;
 }
 
+#ifdef Q_OS_WIN
+namespace {
+
+struct ElevatedRun {
+    bool   started  = false;
+    bool   declined = false;   // user dismissed the UAC prompt
+    DWORD  lastError = 0;
+    HANDLE process  = nullptr;
+};
+
+// Start a binary through the shell with the "runas" verb.
+//
+// CreateProcess — and therefore QProcess — cannot start an executable whose
+// manifest asks for requireAdministrator: it fails with
+// ERROR_ELEVATION_REQUIRED (740) and no amount of retrying helps. Translation
+// patchers ship as exactly such binaries (ERING_TR.exe), which is why the
+// step failed for 78 users with "İstenen işlem için yükseltme gerekiyor".
+//
+// Relaunching the launcher elevated is not an option: the shipped build is an
+// MSIX package, and Store apps have no "Run as administrator". Raising the UAC
+// prompt for the child is the only path that works there.
+//
+// Trade-off against QProcess: an elevated child cannot inherit our pipes, so
+// stdout is not captured. Exit code and cancellation still work via the handle.
+ElevatedRun startElevated(const QString& exePath, const QStringList& args,
+                          const QString& workDir)
+{
+    ElevatedRun out;
+    const QString nativeExe = QDir::toNativeSeparators(exePath);
+    const QString nativeDir = QDir::toNativeSeparators(workDir);
+
+    QStringList quoted;
+    quoted.reserve(args.size());
+    for (const QString& a : args) {
+        quoted << (a.contains(QLatin1Char(' '))
+                       ? QStringLiteral("\"") + a + QStringLiteral("\"")
+                       : a);
+    }
+    const QString params = quoted.join(QLatin1Char(' '));
+
+    // ShellExecuteEx expects COM on the calling thread; install steps run on a
+    // QtConcurrent worker where it is not initialised.
+    const HRESULT hr = CoInitializeEx(
+        nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const bool ownsCom = SUCCEEDED(hr);
+
+    SHELLEXECUTEINFOW info{};
+    info.cbSize       = sizeof(info);
+    info.fMask        = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC
+                        | SEE_MASK_FLAG_NO_UI;
+    info.lpVerb       = L"runas";
+    info.lpFile       = reinterpret_cast<LPCWSTR>(nativeExe.utf16());
+    info.lpParameters = params.isEmpty()
+                            ? nullptr
+                            : reinterpret_cast<LPCWSTR>(params.utf16());
+    info.lpDirectory  = reinterpret_cast<LPCWSTR>(nativeDir.utf16());
+    info.nShow        = SW_SHOWNORMAL;
+
+    if (ShellExecuteExW(&info)) {
+        out.started = true;
+        out.process = info.hProcess;
+    } else {
+        out.lastError = GetLastError();
+        out.declined  = (out.lastError == ERROR_CANCELLED);
+    }
+
+    if (ownsCom) CoUninitialize();
+    return out;
+}
+
+} // namespace
+#endif // Q_OS_WIN
+
 LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     const QString& exePath, const QStringList& args, const QString& workDir,
     std::function<void(int elapsedMs)> progressCallback)
 {
+    constexpr int kPollMs = 1000;        // Poll faster so cancel feels responsive
+    constexpr int kMaxMs  = 1800000;     // 30 minutes hard cap
+
     QProcess proc;
     proc.setWorkingDirectory(workDir);
     proc.setProcessChannelMode(QProcess::MergedChannels);
@@ -496,12 +581,64 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
             << "| exists:" << info.exists() << "size:" << info.size()
             << "| workDir:" << workDir
             << "| workDirExists:" << QDir(workDir).exists();
+
+#ifdef Q_OS_WIN
+        // A binary that requires elevation cannot be started any other way.
+        // Retry through the shell so Windows can raise the UAC prompt; without
+        // this the step is unfixable by the user, because the Store build of
+        // the launcher cannot itself be run as administrator.
+        if (info.exists() && proc.error() == QProcess::FailedToStart) {
+            const ElevatedRun run = startElevated(exePath, args, workDir);
+            if (run.declined) {
+                qCWarning(lcPackageManager)
+                    << "Elevated start declined by user:" << exePath;
+                result.elevationDeclined = true;
+                return result;
+            }
+            if (!run.started) {
+                qCWarning(lcPackageManager)
+                    << "Elevated start failed:" << exePath
+                    << "| win32:" << static_cast<int>(run.lastError);
+                return result;
+            }
+            qCInfo(lcPackageManager) << "Started elevated:" << exePath;
+            result.started = true;
+
+            int elevElapsed = 0;
+            for (;;) {
+                if (WaitForSingleObject(run.process, kPollMs) == WAIT_OBJECT_0)
+                    break;
+                if (isCancelled()) {
+                    TerminateProcess(run.process, 1);
+                    CloseHandle(run.process);
+                    qCInfo(lcPackageManager)
+                        << "Elevated process cancelled by user:" << exePath;
+                    result.cancelled = true;
+                    return result;
+                }
+                elevElapsed += kPollMs;
+                if (elevElapsed >= kMaxMs) {
+                    TerminateProcess(run.process, 1);
+                    CloseHandle(run.process);
+                    qCWarning(lcPackageManager)
+                        << "Elevated process timeout:" << exePath;
+                    result.timedOut = true;
+                    return result;
+                }
+                if (progressCallback) progressCallback(elevElapsed);
+            }
+            DWORD code = 0;
+            GetExitCodeProcess(run.process, &code);
+            CloseHandle(run.process);
+            result.exitCode = static_cast<int>(code);
+            // Elevated children cannot share our pipes, so there is no output.
+            return result;
+        }
+#endif
         return result;
     }
     result.started = true;
 
-    constexpr int kPollMs = 1000;        // Poll faster so cancel feels responsive
-    constexpr int kMaxMs  = 1800000;     // 30 minutes hard cap
     int elapsed = 0;
 
     while (!proc.waitForFinished(kPollMs)) {
@@ -539,6 +676,33 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
         sourcePath = !variant.isEmpty()
             ? m_dataPath + "/" + pkg.dirName + "/" + variant
             : m_dataPath + "/" + pkg.dirName;
+    }
+
+    // Variant folders inside a .makine archive are not named exactly like the
+    // declared variant string. Hollow Knight declares "1.5.78"/"1.5.80" but
+    // ships "v1.5.78.11833"/"1.5.80": the exact path resolves one variant and
+    // misses the other, so the recipe falls back to the package root, finds two
+    // equally-plausible copies of "hollow_knight_Data/resources.assets" and
+    // refuses to guess ("ambiguous at depth 1"). Match tolerantly — ignore a
+    // leading "v" and allow a longer build suffix — but require a UNIQUE hit,
+    // because copying the wrong game version's assets breaks the game.
+    if (!variant.isEmpty() && !pkg.dirName.isEmpty()
+        && !sourcePath.isEmpty() && !QDir(sourcePath).exists())
+    {
+        const QDir base(m_dataPath + "/" + pkg.dirName);
+        QStringList hits;
+        for (const QString& sub : base.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (steprules::variantFolderMatches(variant, sub))
+                hits << sub;
+        }
+        if (hits.size() == 1) {
+            sourcePath = base.filePath(hits.constFirst());
+            qCInfo(lcPackageManager) << "resolveSourcePath: variant" << variant
+                                     << "matched archive folder" << hits.constFirst();
+        } else if (hits.size() > 1) {
+            qCWarning(lcPackageManager) << "resolveSourcePath: variant" << variant
+                << "matches multiple folders" << hits << "— refusing to guess";
+        }
     }
 
     // Fall back to legacy pak/ format if game-name dir doesn't exist
@@ -759,6 +923,34 @@ static QString resolvePackageSource(const QString& packageDir, const QString& re
 // is precisely what the overlay path does (and what replacedFiles records).
 static const QStringList kOverlaySafeTypes = { "", "direct", "overlay", "copy", "file-replace" };
 
+// Every reason this recipe cannot be run as written, de-duplicated. Callers
+// pre-flight against this and refuse the whole recipe before mutating the game:
+// a half-applied recipe (valid steps done, then one that cannot execute) leaves
+// the game in the silent "kuruldu ama çalışmıyor" corruption class.
+//
+// An empty action is a human-text string step (documentation inside a "copy"-
+// type package); it is tolerated and falls through to the overlay path,
+// matching kOverlaySafeTypes above.
+//
+// The rules themselves live in installsteprules.h so they can be unit-tested.
+static QStringList unexecutableSteps(const QList<InstallStep>& steps)
+{
+    QStringList out;
+    for (const InstallStep& s : steps) {
+        if (s.action.isEmpty()) continue;               // string-step doc noise
+        QString defect;
+        if (!steprules::isKnownAction(s.action))
+            defect = s.action;
+        else if (const QString field = steprules::missingField(
+                     s.action, s.src, s.dest, s.exe, s.language);
+                 !field.isEmpty())
+            defect = s.action + " (" + field + ")";
+        if (!defect.isEmpty() && !out.contains(defect))
+            out << defect;
+    }
+    return out;
+}
+
 // Post-install verification: which of the files we just wrote are no longer on
 // disk?
 //
@@ -811,6 +1003,14 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
     const int total = filesToCopy.size();
     int lastReported = 0;
 
+    // Files the normal (asInvoker) path may not write — typically a game under
+    // C:\Program Files. Instead of aborting the whole install, they are queued
+    // and replayed once through the elevated helper, so the user sees at most
+    // one UAC prompt and only when it is genuinely needed.
+    struct Deferred { QString relPath; bool destExisted; };
+    QList<Deferred> deferred;
+    QList<ElevatedOps::Op> elevatedOps;
+
     QString canonGamePath = QDir(gamePath).canonicalPath();
     const QString cleanGamePath = QDir::cleanPath(gamePath);
     if (canonGamePath.isEmpty())
@@ -835,15 +1035,22 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             continue;
         }
 
-        // Ensure destination directory exists
+        bool destExists = QFile::exists(destPath);
+
+        // Ensure destination directory exists. A failure here is usually the
+        // same permission wall as the copy itself, so defer rather than count
+        // it as an error — the helper creates parent directories for us.
         QFileInfo destInfo(destPath);
         if (!QDir().mkpath(destInfo.absolutePath())) {
             qCWarning(lcPackageManager) << "Failed to create directory:" << destInfo.absolutePath();
-            result.errors++;
+            if (ElevatedOps::available()) {
+                deferred.append({relPath, destExists});
+                elevatedOps.append({ElevatedOps::Kind::Copy, srcPath, relPath});
+            } else {
+                result.errors++;
+            }
             continue;
         }
-
-        bool destExists = QFile::exists(destPath);
 
         auto [copyOk, copyErr] = tryCopyFile(srcPath, destPath);
         if (copyOk) {
@@ -862,17 +1069,24 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             result.errors = -1;
             return result;
         } else if (copyErr == CopyError::PermissionDenied) {
-            if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
-                "1) Oyunu ve Steam'i tamamen kapatın\n"
-                "2) Makine Launcher'ı yönetici olarak çalıştırın "
-                "(sağ tık → Yönetici olarak çalıştır)\n"
-                "3) Antivirüs / Windows Defender'da oyun klasörünü "
-                "istisnaya ekleyin\n"
-                "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
-                "Sonra yamayı tekrar kurun."));
-            result.errors = -1;
-            return result;
+            // Defer instead of aborting: the launcher runs asInvoker and cannot
+            // itself be elevated in the Store build, so this is exactly the
+            // case makine-elevate exists for. Only if the helper is missing do
+            // we fall back to failing the install outright.
+            if (ElevatedOps::available()) {
+                deferred.append({relPath, destExists});
+                elevatedOps.append({ElevatedOps::Kind::Copy, srcPath, relPath});
+            } else {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                    "1) Oyunu ve Steam'i tamamen kapatın\n"
+                    "2) Antivirüs / Windows Defender'da oyun klasörünü "
+                    "istisnaya ekleyin\n"
+                    "3) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
+                    "Sonra yamayı tekrar kurun."));
+                result.errors = -1;
+                return result;
+            }
         } else if (copyErr == CopyError::FileLocked) {
             QThread::msleep(150);
             auto [ok2, err2] = tryCopyFile(srcPath, destPath);
@@ -917,6 +1131,51 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             emit installProgress(progress,
                 tr("%1 %2/%3: %4").arg(progressPrefix).arg(result.copied).arg(total)
                     .arg(QFileInfo(relPath).fileName()));
+        }
+    }
+
+    // Replay everything the unprivileged pass could not write, in one elevated
+    // batch. One UAC prompt for the whole install rather than per file.
+    if (!elevatedOps.isEmpty()) {
+        emit installProgress(0.98, tr("Yönetici izni bekleniyor (%1 dosya)...")
+                                       .arg(elevatedOps.size()));
+        QString elevErr;
+        QList<int> failedIdx;
+        const bool ok = ElevatedOps::run(gamePath, elevatedOps, &elevErr, &failedIdx);
+        const QSet<int> failed(failedIdx.begin(), failedIdx.end());
+
+        for (int i = 0; i < deferred.size(); ++i) {
+            if (!ok && (failed.contains(i) || failed.isEmpty())) {
+                result.errors++;
+                continue;
+            }
+            const Deferred& d = deferred.at(i);
+            result.copied++;
+            result.installedFiles.append(d.relPath);
+            if (fileClassifier(d.relPath, d.destExisted))
+                result.replacedFiles.append(d.relPath);
+            else
+                result.addedFiles.append(d.relPath);
+            if (m_journal) m_journal->recordFileModified(d.relPath);
+        }
+
+        if (!ok) {
+            qCWarning(lcPackageManager)
+                << "Elevated copy pass incomplete:" << elevErr
+                << "(" << elevatedOps.size() << "queued )";
+            if (ElevatedOps::lastRunDeclined()) {
+                if (m_journal) m_journal->commitOperation();
+                emit installCompleted(false, tr(
+                    "Bu oyun yönetici izni gereken bir klasörde kurulu "
+                    "(%1).\n\nYama dosyalarını yazabilmek için izin penceresinde "
+                    "\"Evet\" demeniz gerekiyor. Tekrar deneyip onaylayın.")
+                        .arg(gamePath));
+                result.errors = -1;
+                return result;
+            }
+        } else {
+            qCInfo(lcPackageManager) << "Elevated copy pass wrote"
+                                     << elevatedOps.size() << "files";
         }
     }
 
@@ -1886,6 +2145,22 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 {
     MAKINE_ZONE_NAMED("LPM::executeInstallSteps");
     INTEGRITY_GATE();
+
+    // Pre-flight: refuse a recipe we cannot fully execute BEFORE touching the
+    // game. A half-applied recipe (valid steps done, then an unknown action
+    // failing mid-way) is the silent-corruption class guarded against in the
+    // install-state flow. Fail loud with the extracted path instead.
+    if (const QStringList bad = unexecutableSteps(pkg.installSteps); !bad.isEmpty()) {
+        qCWarning(lcPackageManager) << "Recipe has unexecutable steps"
+            << bad << "— refusing install for" << pkg.gameName;
+        emit installCompleted(false, tr("Bu yama, uygulamanın şu an "
+            "desteklemediği bir kurulum adımı içeriyor (%1). Otomatik "
+            "kurulamıyor.\nYama dosyaları şu klasöre çıkarıldı:\n%2\n"
+            "Klasördeki kurulum talimatını izleyin.")
+            .arg(bad.join(QStringLiteral(", ")), packageDir));
+        return;
+    }
+
     const int total = pkg.installSteps.size();
     int current = 0;
     int errors = 0;
@@ -1959,10 +2234,12 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         QString msg = tr("%1/%2 adımda hata oluştu").arg(errors).arg(total);
         if (!errorDetails.isEmpty())
             msg += QStringLiteral("\n") + errorDetails.join(QStringLiteral("\n"));
+        // See installWithOptions(): "run as administrator" is not reachable in
+        // the Store build, so it must not be offered as the remedy.
         msg += QStringLiteral("\n\n") + tr("Çözüm: oyunu ve Steam'i kapatın, "
-            "Makine Launcher'ı yönetici olarak çalıştırın, antivirüste oyun "
-            "klasörünü izinli yapın. Sorun sürerse yamayı kaldırıp yeniden "
-            "indirin.");
+            "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin. "
+            "Windows yönetici izni isterse açılan pencerede 'Evet' deyin. "
+            "Sorun sürerse yamayı kaldırıp yeniden indirin.");
         emit installCompleted(false, msg);
     }
 }
@@ -1994,6 +2271,25 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             "adımı yok. Çözüm: farklı bir kurulum seçeneği belirleyin ya da "
             "yamayı kaldırıp yeniden indirin."));
         return;
+    }
+
+    // Pre-flight: same guard as executeInstallSteps — refuse recipes with
+    // actions we cannot execute before mutating the game directory. Collect the
+    // steps actually selected (per-option + the combined recipe, if any).
+    {
+        QList<InstallStep> preflight;
+        for (const InstallOptionQt& opt : pkg.installOptions)
+            if (selectedOptions.contains(opt.id)) preflight += opt.steps;
+        if (pkg.combinedSteps.contains(combinedKey))
+            preflight += pkg.combinedSteps[combinedKey];
+        if (const QStringList bad = unexecutableSteps(preflight); !bad.isEmpty()) {
+            qCWarning(lcPackageManager) << "Options recipe has unexecutable steps"
+                << bad << "— refusing install for" << pkg.gameName;
+            emit installCompleted(false, tr("Bu yama, uygulamanın şu an "
+                "desteklemediği bir kurulum adımı içeriyor (%1). Otomatik "
+                "kurulamıyor.").arg(bad.join(QStringLiteral(", "))));
+            return;
+        }
     }
 
     // Begin crash recovery journal
@@ -2157,11 +2453,15 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         QString msg = tr("%1 adımda hata oluştu").arg(errors);
         if (!errorDetails.isEmpty())
             msg += QStringLiteral("\n") + errorDetails.join(QStringLiteral("\n"));
+        // Do not tell the user to run the launcher as administrator: the
+        // shipped build is an MSIX package and Store apps have no such option,
+        // so that advice sent 78 Elden Ring users down a dead end. Steps that
+        // need elevation now raise a UAC prompt for the tool itself.
         msg += QStringLiteral("\n\n") + tr("Çözüm: oyunu ve Steam'i kapatın, "
-            "Makine Launcher'ı yönetici olarak çalıştırın, antivirüste oyun "
-            "klasörünü izinli yapın. 'run' adımı başarısız oluyorsa antivirüs "
-            "yamanın .exe dosyasını engelliyor olabilir — istisnaya ekleyip "
-            "tekrar deneyin. Sorun sürerse yamayı kaldırıp yeniden indirin.");
+            "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin. "
+            "Yama bir kurulum aracı çalıştırıyorsa Windows yönetici izni "
+            "isteyebilir — açılan pencerede 'Evet' deyin. Sorun sürerse "
+            "yamayı kaldırıp yeniden indirin.");
         emit installCompleted(false, msg);
     }
 }
