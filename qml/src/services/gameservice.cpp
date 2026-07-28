@@ -14,6 +14,7 @@
 #include "apppaths.h"
 #include "profiler.h"
 #include "crashreporter.h"
+#include "elevatedops.h"
 #include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
@@ -1264,6 +1265,19 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         return;
     }
 
+    // Ghost-folder guard: Steam/Epic create the install directory the moment a
+    // download is queued, so exists() above passes even for a game whose files
+    // never arrived (download cancelled, disk full, game moved away). Patching an
+    // empty folder only yields a cryptic engine error deep in the copy step, so
+    // catch the partial install here with a cause the user can act on.
+    if (QDir(game.installPath).isEmpty(QDir::AllEntries | QDir::NoDotAndDotDot)) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Oyun klasörü boş: %1\n\n"
+               "Oyun mağazada hâlâ indiriliyor veya kaldırılmış olabilir. "
+               "Oyunun tamamen kurulduğundan emin olup tekrar deneyin.").arg(game.installPath));
+        return;
+    }
+
     if (mode == InstallMode::Update) {
         // Safety: backup must exist — if not, fall back to Install mode
         BackupManager* bm = BackupManager::instance();
@@ -1314,23 +1328,35 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             // waits through the whole download, extraction and backup first,
             // then gets a permission error with nothing to show for it.
             if (!isGameDirWritable(installPath)) {
-                qCWarning(lcGameService) << "game directory not writable:" << installPath;
-                m_installTimeoutTimer->stop();
-                m_installingGameId.clear();
-                const QString msg =
-                    tr("Oyun klasörüne yazma izni yok:\n%1\n\n"
-                       "Bu klasör genelde yönetici izni gerektirir "
-                       "(örn. C:\\Program Files altındaki kurulumlar).\n\n"
-                       "Çözüm:\n"
-                       "1) Makine Launcher'ı kapatın\n"
-                       "2) Kısayola sağ tıklayıp \"Yönetici olarak çalıştır\" deyin\n"
-                       "3) Yamayı tekrar kurun\n\n"
-                       "Alternatif: oyunu Program Files dışında bir klasöre taşıyın.")
-                        .arg(installPath);
-                reportOperationFailure("install", gameId,
-                    QStringLiteral("game directory not writable: %1").arg(installPath));
-                emit translationInstallCompleted(gameId, false, msg);
-                return;
+                // With the elevated helper present this is no longer fatal:
+                // the copy pass queues whatever it cannot write and replays it
+                // through UAC once. Only without the helper is there nothing
+                // left to try — and even then the old advice ("run the launcher
+                // as administrator") is unusable in the Store build, which has
+                // no such option, so it must not be offered.
+                if (ElevatedOps::available()) {
+                    qCInfo(lcGameService)
+                        << "game directory needs elevation, will use helper:"
+                        << installPath;
+                } else {
+                    qCWarning(lcGameService) << "game directory not writable:" << installPath;
+                    m_installTimeoutTimer->stop();
+                    m_installingGameId.clear();
+                    const QString msg =
+                        tr("Oyun klasörüne yazma izni yok:\n%1\n\n"
+                           "Bu klasör yönetici izni gerektiriyor "
+                           "(örn. C:\\Program Files altındaki kurulumlar) ve "
+                           "gerekli yardımcı bileşen bulunamadı.\n\n"
+                           "Çözüm: uygulamayı Microsoft Store üzerinden "
+                           "güncelleyin, ya da oyunu Program Files dışında bir "
+                           "klasöre taşıyın.")
+                            .arg(installPath);
+                    reportOperationFailure("install", gameId,
+                        QStringLiteral("game directory not writable and no elevate helper: %1")
+                            .arg(installPath));
+                    emit translationInstallCompleted(gameId, false, msg);
+                    return;
+                }
             }
 
             if (mode == InstallMode::Update) {
@@ -1505,11 +1531,16 @@ void GameService::uninstallTranslation(const QString& gameId)
         reportOperationFailure("uninstall", gameId,
             QStringLiteral("no backup available; originals would stay patched "
                            "(backup records for game: %1, none usable)").arg(records));
+        // Tell the user WHICH "no backup" this is — the telemetry already
+        // separates the two above, so the advice they see should too.
+        const QString cause = (records <= 0)
+            ? tr("bu yama yedek alınmadan kurulduğu için")
+            : tr("alınan yedek kaybolduğu veya bozulduğu için");
         emit translationUninstalled(gameId, false,
-            tr("Yama kaldırılamadı: bu yama oyunun orijinal dosyalarının üzerine yazmış "
-               "ve geri yüklenecek bir yedek bulunamadı.\n"
+            tr("Yama kaldırılamadı: %1 oyunun değiştirilen dosyaları eski haline "
+               "döndürülemiyor.\n"
                "Oyun dosyalarını mağaza üzerinden doğrulayın (Steam: oyuna sağ tık > "
-               "Özellikler > Yüklü Dosyalar > Oyun dosyalarının bütünlüğünü doğrula)."));
+               "Özellikler > Yüklü Dosyalar > Oyun dosyalarının bütünlüğünü doğrula).").arg(cause));
         return;
     }
 
