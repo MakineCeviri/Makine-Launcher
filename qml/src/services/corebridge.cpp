@@ -259,6 +259,7 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
             QString appId = QString::fromStdString(appState->getString("appid"));
             QString name = QString::fromStdString(appState->getString("name"));
             QString installDir = QString::fromStdString(appState->getString("installdir"));
+            QString stateFlagsStr = QString::fromStdString(appState->getString("StateFlags"));
 
             // Skip empty or redistributable entries
             if (appId.isEmpty() || name.isEmpty() || installDir.isEmpty()) {
@@ -283,6 +284,19 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
             if (!QDir(installPath).exists()) {
                 processed++;
                 continue;
+            }
+
+            // Steam StateFlags bit 0x4 (StateFullyInstalled) is Steam's own signal
+            // that the game files are complete. When it is clear the folder exists
+            // but the download is still in progress. We do NOT filter on it — the
+            // flag's exact semantics vary across update/validate states and a wrong
+            // filter would hide a playable game — but we surface it so partial
+            // installs can be correlated with install failures in telemetry.
+            bool stateKnown = false;
+            const int stateFlags = stateFlagsStr.toInt(&stateKnown);
+            if (stateKnown && (stateFlags & 0x4) == 0) {
+                qCInfo(lcCoreBridge) << "Steam game not fully installed (StateFlags="
+                    << stateFlags << "):" << name << "appId" << appId;
             }
 
             DetectedGame game;
@@ -1440,9 +1454,56 @@ void CoreBridge::refreshPackageManifest()
         qCDebug(lcCoreBridge) << "CoreBridge::refreshPackageManifest: No cached index available";
     }
 
+    const QString detailDir = AppPaths::packageDetailDir();
+
+    // Drop cached per-game details when the catalog index changes.
+    //
+    // ensurePackageDetail() returns the on-disk copy unconditionally and only
+    // goes to the network when the file is ABSENT, so a detail cached once was
+    // previously kept forever. When a recipe is corrected on the CDN, every
+    // user who had already opened that game kept running the old one: Wasteland
+    // 3 and Thief still reported "kurulum yöntemi: script" on 0.1.3.0 days
+    // after that field had been removed from the catalog, and Alan Wake 2 kept
+    // executing a recipe ("copyFile AW2.exe") that no longer exists anywhere.
+    // index.json carries a monotonic "version", so a change to it is the signal
+    // that every cached detail may be stale. Purging is safe — each one is
+    // ~700 B and refetched on demand.
+    if (QFile::exists(indexPath)) {
+        QFile idx(indexPath);
+        if (idx.open(QIODevice::ReadOnly)) {
+            const QJsonObject root = QJsonDocument::fromJson(idx.readAll()).object();
+            idx.close();
+            const QString stamp = QString::number(root.value("version").toInt())
+                                + QLatin1Char('/')
+                                + root.value("generatedAt").toString();
+
+            const QString markerPath = detailDir + QStringLiteral("/.catalog-version");
+            QString previous;
+            QFile marker(markerPath);
+            if (marker.open(QIODevice::ReadOnly)) {
+                previous = QString::fromUtf8(marker.readAll()).trimmed();
+                marker.close();
+            }
+
+            if (previous != stamp) {
+                QDir cacheDir(detailDir);
+                const auto stale = cacheDir.entryList({"*.json"}, QDir::Files);
+                for (const QString& f : stale)
+                    QFile::remove(cacheDir.absoluteFilePath(f));
+                qCInfo(lcCoreBridge) << "Catalog index changed:" << previous
+                                     << "->" << stamp << "— dropped" << stale.size()
+                                     << "cached package details";
+                QDir().mkpath(detailDir);
+                if (marker.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                    marker.write(stamp.toUtf8());
+                    marker.close();
+                }
+            }
+        }
+    }
+
     // Batch-load all cached per-game details so storeIds + fingerprints
     // are available for Epic/GOG game resolution without network requests
-    const QString detailDir = AppPaths::packageDetailDir();
     QDir dir(detailDir);
     if (dir.exists()) {
         const auto detailFiles = dir.entryList({"*.json"}, QDir::Files);
@@ -1478,7 +1539,24 @@ bool CoreBridge::ensurePackageDetail(const QString& steamAppId)
 
     // Check disk cache
     QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(steamAppId);
-    if (QFile::exists(cachePath)) {
+    const QFileInfo cached(cachePath);
+    if (cached.exists()) {
+        // Second layer behind the index-version purge in refreshPackageManifest().
+        // That purge only runs when a manifest refresh happens; a user who
+        // installs before one completes would still read a detail written
+        // against an older catalog. A cache file older than the index it was
+        // fetched alongside describes a catalog we have since replaced, so it
+        // is not trustworthy. Returning false sends the caller to ManifestSync,
+        // which overwrites it.
+        //
+        // This is the defect behind 1211 events across 40 games: recipes were
+        // corrected on the CDN and no installed client ever saw the correction.
+        const QFileInfo index(AppPaths::manifestIndexFile());
+        if (index.exists() && cached.lastModified() < index.lastModified()) {
+            qCInfo(lcCoreBridge) << "Cached detail for" << steamAppId
+                                 << "predates the catalog index — refetching";
+            return false;
+        }
         QFile file(cachePath);
         if (file.open(QIODevice::ReadOnly)) {
             QByteArray data = file.readAll();
