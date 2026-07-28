@@ -118,6 +118,7 @@ set(BACKEND_SOURCES
     src/services/crashreporter.cpp
     src/services/networksecurity.cpp
     src/services/pluginmanager.cpp
+    src/services/elevatedops.cpp
     src/services/ocrcontroller.cpp
     src/services/translationstatemanager.cpp
     src/services/installflowservice.cpp
@@ -568,6 +569,8 @@ if(WIN32)
         Crypt32
         Wintrust     # Authenticode verification
         dwmapi       # DWM acrylic/mica backdrop
+        Shell32      # ShellExecuteEx — elevated ("runas") install steps
+        Ole32        # CoInitializeEx, required by ShellExecuteEx
     )
 endif()
 

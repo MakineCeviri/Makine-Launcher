@@ -9,6 +9,12 @@ if(NOT DEFINED MAKINE_PROJECT_ROOT)
     set(MAKINE_PROJECT_ROOT "${CMAKE_SOURCE_DIR}")
 endif()
 
+# These targets are standalone-buildable, so they do not inherit the project's
+# language level. Without it test_cdnconfig fails to compile on MinGW GCC 13.1:
+# std::string_view::starts_with/ends_with are C++20.
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(GTest REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 
@@ -44,3 +50,20 @@ target_include_directories(test_catalogstore PRIVATE
     ${MAKINE_PROJECT_ROOT}/core/include)
 target_link_libraries(test_catalogstore PRIVATE GTest::gtest Qt6::Core)
 add_test(NAME test_catalogstore COMMAND test_catalogstore)
+
+# Install-step contract rules (header-only, no MOC, no filesystem)
+add_executable(test_installsteprules test_installsteprules.cpp)
+target_include_directories(test_installsteprules PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_installsteprules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_installsteprules COMMAND test_installsteprules)
+
+# CatalogProxyModel search-engine tests (Qt-dependent, real classes → AUTOMOC)
+add_executable(test_catalogproxymodel test_catalogproxymodel.cpp
+    ${MAKINE_PROJECT_ROOT}/qml/src/services/catalogproxymodel.cpp
+    ${MAKINE_PROJECT_ROOT}/qml/src/services/supportedgamesmodel.cpp)
+set_target_properties(test_catalogproxymodel PROPERTIES AUTOMOC ON)
+target_include_directories(test_catalogproxymodel PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_catalogproxymodel PRIVATE GTest::gtest Qt6::Core)
+add_test(NAME test_catalogproxymodel COMMAND test_catalogproxymodel)
