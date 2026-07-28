@@ -93,6 +93,20 @@ if ($written -match 'Ã|Â|â€') {
 Copy-Item (Join-Path $assets "*.png") (Join-Path $stage "Assets") -Force
 Copy-Item $ExePath (Join-Path $stage "Makine-Launcher.exe") -Force
 
+# --- elevated file helper ----------------------------------------------
+# Without this the Store build cannot patch games under C:\Program Files at
+# all: MSIX apps have no "Run as administrator", so the only way to write
+# there is to raise this separate binary through UAC. ElevatedOps degrades to
+# the old permission error when it is absent, which is exactly the failure we
+# are shipping this to fix — so a missing helper must break the build, not the
+# user's install.
+$elevateSrc = Join-Path (Split-Path (Resolve-Path $ExePath) -Parent) "makine-elevate.exe"
+if (-not (Test-Path $elevateSrc)) {
+  throw "makine-elevate.exe not found next to $ExePath - build the 'makine-elevate' target first."
+}
+Copy-Item $elevateSrc (Join-Path $stage "makine-elevate.exe") -Force
+Write-Host "Staged elevated helper: makine-elevate.exe"
+
 # --- runtime dependencies (dynamic builds only) ------------------------
 if ($QtBinDir) {
   $stagedExe = Join-Path $stage "Makine-Launcher.exe"
