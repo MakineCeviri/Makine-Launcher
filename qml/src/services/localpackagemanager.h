@@ -209,6 +209,10 @@ private:
         bool started = false;
         bool timedOut = false;
         bool cancelled = false;
+        // The binary demanded administrator rights and the user dismissed the
+        // UAC prompt. Distinct from a plain start failure: nothing is wrong
+        // with the package or the machine, so the advice must differ.
+        bool elevationDeclined = false;
         int exitCode = -1;
         QByteArray output;
     };
