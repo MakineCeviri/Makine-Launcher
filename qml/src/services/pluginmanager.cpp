@@ -981,6 +981,29 @@ bool PluginManager::extractPlugin(const QString& packagePath, const QString& plu
         return false;
     }
 
+    // ...and that the binary the manifest declares was actually shipped.
+    // Without this the package installs "successfully" and only fails later in
+    // loadPlugin(), where the user is shown a bare "DLL not found:
+    // makineai-live.dll" — a file they cannot supply and a defect that is not
+    // theirs. Refusing here names the fault while it is still the package's.
+    QFile manifestFile(destDir + "/manifest.json");
+    if (manifestFile.open(QIODevice::ReadOnly)) {
+        const QJsonObject obj =
+            QJsonDocument::fromJson(manifestFile.readAll()).object();
+        manifestFile.close();
+        const QString entryDll = obj.value("entry").toString();
+        if (!entryDll.isEmpty() && !QFile::exists(destDir + "/" + entryDll)) {
+            qCWarning(lcPlugin) << "Plugin" << pluginId << "declares entry"
+                << entryDll << "but that file is not in the package";
+            emit pluginError(pluginId,
+                tr("Eklenti paketi eksik: içinde \"%1\" dosyası yok, bu yüzden "
+                   "kurulamıyor. Bu bir paketleme hatasıdır — eklentiyi "
+                   "yayınlayan ekibe bildirin.").arg(entryDll));
+            QDir(destDir).removeRecursively();
+            return false;
+        }
+    }
+
     return true;
 }
 
