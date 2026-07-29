@@ -58,6 +58,15 @@ target_include_directories(test_installsteprules PRIVATE
 target_link_libraries(test_installsteprules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_installsteprules COMMAND test_installsteprules)
 
+# Telemetry failure classification (built without MAKINE_HAS_SENTRY, so the
+# reporting calls compile to no-ops and only the pure classifiers are exercised)
+add_executable(test_crashreporter test_crashreporter.cpp
+    ${MAKINE_PROJECT_ROOT}/qml/src/services/crashreporter.cpp)
+target_include_directories(test_crashreporter PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_crashreporter PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_crashreporter COMMAND test_crashreporter)
+
 # CatalogProxyModel search-engine tests (Qt-dependent, real classes → AUTOMOC)
 add_executable(test_catalogproxymodel test_catalogproxymodel.cpp
     ${MAKINE_PROJECT_ROOT}/qml/src/services/catalogproxymodel.cpp
