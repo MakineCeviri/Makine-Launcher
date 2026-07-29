@@ -667,6 +667,24 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
 
 // -- Shared helpers -----------------------------------------------------------
 
+// A source folder that exists but holds no file is not a usable source.
+//
+// QDir::exists() is true for an empty directory, so a download that created the
+// folder and then failed part-way still resolved. Install then continued and
+// reported "Yama dosyaları şu klasöre çıkarıldı: <path>" for a path the user
+// opens to find nothing — reported by mail for Wasteland 3 among others. Treat
+// empty as absent so the caller falls back, or says "yeniden indirin" instead.
+//
+// Stops at the first hit, so this stays O(1) on healthy packages rather than
+// walking a 5000-file tree.
+static bool dirHasFiles(const QString& path)
+{
+    if (path.isEmpty())
+        return false;
+    QDirIterator it(path, QDir::Files, QDirIterator::Subdirectories);
+    return it.hasNext();
+}
+
 QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QString& variant) const
 {
     QString sourcePath;
@@ -687,7 +705,7 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
     // leading "v" and allow a longer build suffix — but require a UNIQUE hit,
     // because copying the wrong game version's assets breaks the game.
     if (!variant.isEmpty() && !pkg.dirName.isEmpty()
-        && !sourcePath.isEmpty() && !QDir(sourcePath).exists())
+        && !sourcePath.isEmpty() && !dirHasFiles(sourcePath))
     {
         const QDir base(m_dataPath + "/" + pkg.dirName);
         QStringList hits;
@@ -705,8 +723,8 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
         }
     }
 
-    // Fall back to legacy pak/ format if game-name dir doesn't exist
-    if (sourcePath.isEmpty() || !QDir(sourcePath).exists()) {
+    // Fall back to legacy pak/ format if game-name dir is missing or empty
+    if (!dirHasFiles(sourcePath)) {
         QString pkgDirPath = m_dataPath + "/pak/" + pkg.packageId;
         QDir pkgDir(pkgDirPath);
         if (pkgDir.exists()) {
@@ -721,8 +739,15 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
     }
 
     // Return empty string if nothing found
-    if (sourcePath.isEmpty() || !QDir(sourcePath).exists())
+    if (!dirHasFiles(sourcePath)) {
+        if (!sourcePath.isEmpty() && QDir(sourcePath).exists()) {
+            // Distinguishable in telemetry from "never downloaded": the folder
+            // is there, the payload is not.
+            qCWarning(lcPackageManager)
+                << "resolveSourcePath: package folder exists but is empty:" << sourcePath;
+        }
         return {};
+    }
 
     return sourcePath;
 }
