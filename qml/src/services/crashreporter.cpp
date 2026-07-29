@@ -327,10 +327,47 @@ bool CrashReporter::isUserActionable(const QString& message)
     return false;
 }
 
+bool CrashReporter::isUnsupportedCapability(const QString& message)
+{
+    // The launcher refuses, by design, to overlay-copy a payload whose install
+    // method it cannot actually perform — that silent "success" was the
+    // "yama kuruldu ama oyun İngilizce" bug. The refusal is correct behaviour,
+    // so it must not be filed next to genuine defects.
+    //
+    // Matched on the guidance wording emitted by LocalPackageManager's
+    // no-handler branches (see installPackage / installWithOptions). Keep in
+    // sync with those strings; test_crash_reporter.cpp pins them.
+    static const QStringList kUnsupportedPatterns = {
+        QStringLiteral("otomatik kurulamıyor"),   // external/script/forge/generic
+        QStringLiteral("otomatik kuramıyor"),     // unityPatch wording
+        QStringLiteral("Paradox modudur"),
+        QStringLiteral("Steam Workshop üzerinden"),
+        QStringLiteral("kendi kurulum sihirbazıyla"),
+        QStringLiteral("desteklemediği bir kurulum adımı"),
+    };
+
+    for (const QString& p : kUnsupportedPatterns) {
+        if (message.contains(p, Qt::CaseInsensitive))
+            return true;
+    }
+    return false;
+}
+
 void CrashReporter::reportFailure(const char* operation, const QString& subject,
                                    const QString& message)
 {
-    const bool userSide = isUserActionable(message);
+    // Order matters: a capability gap is checked first because its guidance
+    // text ("… kurulum aracını çalıştırın", "yönetici izni isterse …") overlaps
+    // the user-actionable keywords and would otherwise be filed as `user`.
+    const bool unsupported = isUnsupportedCapability(message);
+    const bool userSide    = !unsupported && isUserActionable(message);
+
+    const QString side = unsupported ? QStringLiteral("unsupported")
+                       : userSide    ? QStringLiteral("user")
+                                     : QStringLiteral("system");
+    const char* level  = unsupported ? "info"
+                       : userSide    ? "warning"
+                                     : "error";
 
     // Tag before capturing so the event carries them: "which operation fails
     // most" and "which game fails most" are the two questions this exists to
@@ -338,15 +375,18 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
     setContext("operation", QString::fromLatin1(operation));
     if (!subject.isEmpty())
         setContext("subject", subject);
-    setContext("failure.side", userSide ? QStringLiteral("user") : QStringLiteral("system"));
+    setContext("failure.side", side);
 
+    // Kept as an event rather than dropped: the per-game counts are how we rank
+    // which install handler to write next (sentry_triage.py reads them as
+    // "Eksik handler talebi"). Only the severity changes.
     const QByteArray payload =
         QStringLiteral("%1 failed [%2]: %3")
             .arg(QString::fromLatin1(operation),
                  subject.isEmpty() ? QStringLiteral("-") : subject,
                  message)
             .toUtf8();
-    captureMessage(payload.constData(), userSide ? "warning" : "error");
+    captureMessage(payload.constData(), level);
 }
 
 void CrashReporter::setGameContext(const QString& gameId, const QString& gameName)

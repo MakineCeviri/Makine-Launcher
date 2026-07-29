@@ -49,10 +49,19 @@ public:
      * log. Every user report ("yama kurulamadı") therefore arrived without the
      * message the user actually saw, making remote diagnosis impossible.
      *
-     * Severity is derived from the message, not the call site: conditions the
-     * user can fix themselves (disk full, game running, permission denied, no
-     * connection) are recorded as warnings, everything else as an error. Without
-     * that split the project fills with noise and real defects stop standing out.
+     * Severity is derived from the message, not the call site, across three
+     * classes tagged as `failure.side`:
+     *   - `unsupported` (info)    — the patch needs an install capability the
+     *                               launcher does not implement. Nothing broke;
+     *                               these are a demand ranking for what to build.
+     *   - `user` (warning)        — the user can fix it on their own machine
+     *                               (disk full, game running, permission, network).
+     *   - `system` (error)        — everything else, i.e. our defects.
+     *
+     * Without the `unsupported` split those events landed as errors and were
+     * 72% of the project: real defects stopped standing out, and the
+     * "Widespread Failure" alert fired on patches that were never installable
+     * by us in the first place.
      *
      * @param operation Short slug used as a tag: "download", "install",
      *                  "uninstall", "backup", "restore", "sync", "scan".
@@ -65,6 +74,12 @@ public:
     /// True when `message` describes something the user can resolve on their own.
     /// Exposed for callers that want to branch on it (e.g. skip a retry).
     static bool isUserActionable(const QString& message);
+
+    /// True when `message` says the launcher cannot install this patch kind at
+    /// all (forge injection, script recipe, Paradox mod, Workshop, bundled
+    /// installer…). Such a run is a capability gap, not a failure — callers use
+    /// this to avoid presenting it as an error the user should retry.
+    static bool isUnsupportedCapability(const QString& message);
 
     /// Install Qt message handler that routes qWarning/qCritical/qFatal to Sentry
     static void installQtMessageHandler();
