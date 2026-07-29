@@ -155,6 +155,19 @@
       }
     },
     {
+      "name": "release-mingw",
+      "displayName": "Release MinGW (dynamic, for MSIX)",
+      "description": "Distribution build against the installed Qt kit. Same production flags as release-static (telemetry on, verified on, 'beta' version suffix) but dynamically linked, so the MSIX carries the Qt/runtime DLLs via windeployqt. Exists because release-static needs a Qt static kit built from source, which the 6.10.1 -> 6.11.1 upgrade removed.",
+      "inherits": "vcpkg-mingw",
+      "binaryDir": "${sourceDir}/build/release-mingw",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "MAKINE_UI_ONLY": "OFF",
+        "MAKINE_CRASH_REPORTING": "ON",
+        "MAKINE_RELEASE_VERIFIED": "ON"
+      }
+    },
+    {
       "name": "dev-profile",
       "displayName": "Development + Tracy Profiler",
       "description": "Dev build with Tracy profiler instrumentation enabled",
@@ -209,6 +222,10 @@
     {
       "name": "release-static",
       "configurePreset": "release-static"
+    },
+    {
+      "name": "release-mingw",
+      "configurePreset": "release-mingw"
     },
     {
       "name": "core",
