@@ -110,6 +110,12 @@ release-static:
     cmake --preset release-static
     cmake --build --preset release-static
 
+# Distribution build against the installed Qt kit (dynamic). Use this when no
+# Qt static kit is present — release-static needs one compiled from source.
+release-mingw:
+    cmake --preset release-mingw
+    cmake --build --preset release-mingw --target MakineLauncher makine-elevate
+
 # Run static release build
 run-static: release-static
     ./build/release-static/Makine-Launcher.exe
@@ -262,6 +268,13 @@ msix-assets:
 msix version identity publisher: release-static
     powershell -ExecutionPolicy Bypass -File scripts/make_msix.ps1 -Version "{{version}}" -IdentityName "{{identity}}" -Publisher "{{publisher}}"
     @echo "Next (owner): signtool sign /fd SHA256 /f <cert.pfx> /p <pwd> dist/Makine-Launcher-v{{version}}.msix"
+
+# Same MSIX from the dynamic build — windeployqt stages the Qt runtime into the
+# package. Use when there is no Qt static kit (Store submissions are signed by
+# Microsoft, so the package goes to Partner Center unsigned either way).
+# Usage: just msix-dynamic 0.1.4.0 Makineeviri.MakineAI "CN=C980BC94-..."
+msix-dynamic version identity publisher: release-mingw
+    powershell -ExecutionPolicy Bypass -File scripts/make_msix.ps1 -Version "{{version}}" -IdentityName "{{identity}}" -Publisher "{{publisher}}" -ExePath "build/release-mingw/Makine-Launcher.exe" -QtBinDir "C:/Qt/6.11.1/mingw_64/bin"
 
 # ============================================================================
 # PROFILING (Tracy)
