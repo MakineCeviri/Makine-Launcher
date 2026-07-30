@@ -13,6 +13,21 @@
 
 ---
 
+## Ekip Hafızası (`memory` MCP)
+
+Bu projeyi ilgilendiren **20 hazır not** var — araştırmaya başlamadan önce `memory_search`:
+
+| `project` | Not | İçerik |
+|-----------|-----|--------|
+| `makine-launcher-dev` | 9 | `.makine` paketleme + R2/D1/CDN yayın süreci · MSIX Store kimlik değerleri · CDN/R2 erişim yolları · core testlerini çalıştırma · build hız tercihi · çalışma tarzı geri bildirimleri |
+| `makine` | 7 | encryption key **değişmezliği** · pwsh 7.6.3 bozuk build · Sentry sessiz hata modları · MSIX sürümleme kuralı |
+| `makineai` | 4 | çeviri paketi analizi · güvenlik/code signing · referans temizlik kuralları · dağıtım mimarisi |
+
+- Yeni bir şey öğrenince: `memory_upsert(project: "makine-launcher-dev")`.
+- **Qt/QML/MinGW tuzakları projeler arası geçerli** — aynı toolchain'i kullanan `scframework`
+  notlarına da bak (48 not; ör. `qt-automoc-stale-cache`, `qt-extra-column-proxy-pattern`).
+- Detaylı kurallar → global `CLAUDE.md` › *Ekip Hafızası*.
+
 ## Agents
 
 | Agent | Domain | Model |
