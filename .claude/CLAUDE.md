@@ -3,7 +3,7 @@
 > **Qt6/QML + C++23 oyun çeviri launcher**
 > **Repo:** `origin` → MakineCeviri/Makine-Launcher (public, tek repo) · branches: `main` (stable, release-ready) + `dev` (WIP, daily driver)
 > **Eski:** Makine-Launcher-Dev archived (read-only yedek, 2026-05-20)
-> **Durum:** v0.1.0-beta | Vulkan default → D3D11 fix (5870b22, dev) + cherry-pick main (439ab92)
+> **Durum:** v0.1.4-beta | Vulkan default → D3D11 fix (5870b22, dev) + cherry-pick main (439ab92)
 > **Blockers:** MSIX submit (sonraki sürüm)
 > **Telemetri:** çalışıyor — `0.1.2-beta` 36 issue / 536 olay. Sentry API erişimi sorunsuz
 > (token `.env`'de, `SENTRY_AUTH_TOKEN`). Açık fatal: 3. Denetim: `just telemetry-check`

@@ -17,7 +17,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                        QML UI Layer                         │
 │  screens/  ·  components/  ·  dialogs/  ·  controllers/     │
-│  theme/    ·  utils/                                        │
+│  theme/                                                     │
 │  (PascalCase.qml — pure declarative UI, no JS logic)        │
 ├─────────────────────────────────────────────────────────────┤
 │                    C++ Service Layer                         │
@@ -25,7 +25,7 @@
 │                                                             │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐ │
 │  │ GameService   │ │ CoreBridge   │ │ PackageCatalog       │ │
-│  │ AuthService   │ │ InstallFlow  │ │ TranslationState     │ │
+│  │               │ │ InstallFlow  │ │ TranslationState     │ │
 │  │ UpdateService │ │ BackupMgr    │ │ TranslationDownloader│ │
 │  │ SteamDetails  │ │ BatchOps     │ │ ManifestSync         │ │
 │  │ RenderGov    │ │              │ │ TranslationDownloader│ │
@@ -62,27 +62,25 @@
 ## Project Structure
 
 ```
-Makine-Launcher-Dev/
+Makine-Launcher/
 ├── core/                    C++ core library
 │   ├── include/makine/      Public headers (.hpp, snake_case)
 │   └── src/                 Implementation files
 ├── qml/                     Qt/QML application
 │   ├── src/services/        C++ backend services (.h/.cpp, camelCase)
 │   └── qml/                 QML frontend
-│       ├── screens/         Top-level screens (HomePage, Library, LoginScreen)
+│       ├── screens/         Top-level screens (HomePage, Library)
 │       ├── components/      Reusable UI components (36 files)
 │       ├── dialogs/         Modal dialogs
 │       ├── controllers/     QML logic controllers
-│       ├── theme/           Theme definitions
-│       └── utils/           QML utility modules
+│       └── theme/           Theme definitions
 ├── tests/                   Test suites
 │   └── plugins/             Plugin tests
 ├── docs/                    Documentation
 │   ├── adr/                 Architecture Decision Records
 │   ├── api-reference/       API docs
 │   ├── developer-guide/     Developer guides
-│   ├── security/            Security documentation
-│   └── research/            Research notes
+│   └── security/            Security documentation
 ├── infra/                   Infrastructure (Docker, Caddy)
 ├── scripts/                 Build & utility scripts
 └── build/                   Build output (gitignored)
