@@ -309,7 +309,26 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
                                                      const QString& variant,
                                                      const QString& gamePath) const
 {
-    auto files = m_catalog.getPackageFileList(steamAppId.toStdString(), variant.toStdString());
+    // Resolve the source the same way the install will. Letting the catalog
+    // guess meant the two could point at different trees: the install found the
+    // package, the backup list came back empty, and the else-branch in
+    // installPackageCommon reads an empty list as "nothing to back up" rather
+    // than "could not look". The user was then left with a patched game that
+    // uninstall refuses to touch, permanently.
+    QString sourcePath;
+    if (const auto pkg = getPackage(steamAppId))
+        sourcePath = resolveSourcePath(*pkg, variant);
+
+    auto files = m_catalog.getPackageFileList(steamAppId.toStdString(), variant.toStdString(),
+                                              sourcePath.toStdString());
+
+    if (files.empty() && !sourcePath.isEmpty()) {
+        // Resolved yet empty. Says so out loud rather than letting the install
+        // proceed unbacked on a silently empty list.
+        qCWarning(lcPackageManager)
+            << "getPackageFileList: resolved" << sourcePath
+            << "but it lists no files — install would run without a backup";
+    }
 
     // The catalog lists paths as they sit inside the package. The overlay
     // install strips mis-packaged wrapper folders ("Türkçe Yama/", the game's

@@ -12,6 +12,7 @@
 #include <makine/package_catalog.hpp>
 #include <nlohmann/json.hpp>
 #include <filesystem>
+#include <algorithm>
 #include <fstream>
 #include <set>
 #include <string>
@@ -353,6 +354,75 @@ TEST_F(PackageCatalogTest, LoadInstalledStateNonexistentFileNoOp) {
     // Should not crash, just no-op
     catalog_.loadInstalledState(testDir_ / "does_not_exist.json");
     EXPECT_FALSE(catalog_.isInstalled("1245620"));
+}
+
+// =========================================================================
+// FILE LIST — what gets backed up before an install overwrites anything
+// =========================================================================
+
+// The list this returns is the backup list. When it came back empty the install
+// still ran, just with no backup, and uninstall then refused forever because the
+// originals were gone. It went empty whenever the path guessed here disagreed
+// with the one the install resolved — a variant folder named differently from
+// the declared variant, or a package sitting in the legacy pak/ layout.
+
+TEST_F(PackageCatalogTest, OverlayFileListIsEmptyWhenTheGuessedPathIsWrong) {
+    catalog_.loadFromIndex(indexPath_, cachePath_);
+
+    // Nothing at <cache>/elden-ring: the guess has nowhere to look.
+    const auto files = catalog_.getPackageFileList("1245620");
+    EXPECT_TRUE(files.empty());
+}
+
+TEST_F(PackageCatalogTest, OverlayFileListUsesTheCallerResolvedPath) {
+    catalog_.loadFromIndex(indexPath_, cachePath_);
+
+    // The install resolved the payload to a folder the guess would never try —
+    // here the shape Hollow Knight ships: declared variant "1.5.78", folder
+    // "v1.5.78.11833".
+    const fs::path resolved = cachePath_ / "elden-ring" / "v1.5.78.11833";
+    fs::create_directories(resolved / "Game" / "Content");
+    std::ofstream(resolved / "Game" / "Content" / "patch.pak") << "x";
+    std::ofstream(resolved / "readme.txt") << "x";
+
+    auto files = catalog_.getPackageFileList("1245620", "1.5.78", resolved.string());
+    std::sort(files.begin(), files.end());
+
+    ASSERT_EQ(files.size(), 2u);
+    EXPECT_EQ(files[0], "Game/Content/patch.pak");
+    EXPECT_EQ(files[1], "readme.txt");
+}
+
+TEST_F(PackageCatalogTest, ScriptCopyDirFileListUsesTheCallerResolvedPath) {
+    catalog_.loadFromIndex(indexPath_, cachePath_);
+
+    json detail;
+    detail["installMethod"] = {
+        {"type", "script"},
+        {"steps", json::array({
+            {{"action", "copyDir"}, {"src", "loc"}, {"dest", "Game/Content/Paks"}}
+        })}
+    };
+    ASSERT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+
+    // The script branch never appended the variant to its guess at all, so a
+    // copyDir step in a variant package scanned the wrong tree.
+    const fs::path resolved = cachePath_ / "elden-ring" / "1.04";
+    fs::create_directories(resolved / "loc");
+    std::ofstream(resolved / "loc" / "tr.locres") << "x";
+
+    const auto files = catalog_.getPackageFileList("1245620", "1.04", resolved.string());
+    ASSERT_EQ(files.size(), 1u);
+    EXPECT_EQ(files[0], "Game/Content/Paks/tr.locres");
+}
+
+TEST_F(PackageCatalogTest, UnknownPackageHasNoFileListEvenWithAPath) {
+    catalog_.loadFromIndex(indexPath_, cachePath_);
+    const fs::path resolved = cachePath_ / "stray";
+    fs::create_directories(resolved);
+    std::ofstream(resolved / "f.bin") << "x";
+
+    EXPECT_TRUE(catalog_.getPackageFileList("999999", {}, resolved.string()).empty());
 }
 
 // =========================================================================

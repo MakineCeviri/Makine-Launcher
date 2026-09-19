@@ -273,11 +273,22 @@ public:
      *
      * @param steamAppId Package to query
      * @param variant Optional variant subdirectory
+     * @param sourcePathOverride Where the package really is, when the caller has
+     *        already resolved it. This list is what gets backed up before an
+     *        install overwrites anything, so it has to describe the SAME tree
+     *        the install copies from. Derived here it could not: the guess made
+     *        below is `<data>/<dirName>[/<variant>]` and nothing else, while the
+     *        install side also tolerates variant folders named differently from
+     *        the declared variant and falls back to the legacy pak/ layout.
+     *        Where the two disagreed this came back empty, the install then ran
+     *        with no backup at all, and uninstall refused forever because the
+     *        originals were gone — 496 events across 20 users.
      * @return List of relative file paths
      */
     [[nodiscard]] std::vector<std::string> getPackageFileList(
         const std::string& steamAppId,
-        const std::string& variant = {}) const;
+        const std::string& variant = {},
+        const std::string& sourcePathOverride = {}) const;
 
     // =========================================================================
     // FOLDER MATCHING

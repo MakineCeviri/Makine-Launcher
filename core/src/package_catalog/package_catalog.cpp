@@ -532,7 +532,8 @@ std::string PackageCatalog::getVariantType(const std::string& steamAppId) const
 
 std::vector<std::string> PackageCatalog::getPackageFileList(
     const std::string& steamAppId,
-    const std::string& variant) const
+    const std::string& variant,
+    const std::string& sourcePathOverride) const
 {
     auto pkgIt = packages_.find(steamAppId);
     if (pkgIt == packages_.end()) return {};
@@ -545,7 +546,11 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
     if (!pkg.installSteps.empty()) {
         std::vector<std::string> targetFiles;
         targetFiles.reserve(pkg.installSteps.size());
-        fs::path sourcePath = dataPath_ / pkg.dirName;
+        // Note this guess never included the variant at all, so a copyDir step
+        // in a variant package scanned the wrong tree.
+        fs::path sourcePath = sourcePathOverride.empty()
+            ? dataPath_ / pkg.dirName
+            : fs::path(sourcePathOverride);
 
         for (const InstallStep& step : pkg.installSteps) {
             if (step.action == "copy") {
@@ -575,7 +580,9 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
     // Default: scan package directory for overlay installs
     fs::path sourcePath;
 
-    if (!pkg.dirName.empty()) {
+    if (!sourcePathOverride.empty()) {
+        sourcePath = fs::path(sourcePathOverride);
+    } else if (!pkg.dirName.empty()) {
         sourcePath = !variant.empty()
             ? dataPath_ / pkg.dirName / variant
             : dataPath_ / pkg.dirName;
