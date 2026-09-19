@@ -1459,6 +1459,21 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         return;
     }
 
+    // userPath IS supported — but only with a target to copy to. Without one the
+    // recipe fell through to the no-handler gate below, which told the user
+    // "kurulum yöntemi: userPath desteklenmiyor". That is not true, and it sent
+    // four users looking for a launcher limitation instead of a catalog entry
+    // missing its "target" field.
+    if (pkg.installMethodType == "userPath" && pkg.installMethodTarget.isEmpty()) {
+        qCWarning(lcPackageManager) << "userPath package has no target:" << pkg.gameName;
+        CrashReporter::reportFailure("package", steamAppId,
+            QStringLiteral("userPath recipe carries no target path"));
+        emit installCompleted(false,
+            tr("%1 için kurulum hedefi katalogda eksik. Bu bizim tarafımızdaki bir "
+               "veri hatası — sorun bize bildirildi.").arg(pkg.gameName));
+        return;
+    }
+
     // Handle userPath install type: copy to user-relative path instead of game dir
     if (pkg.installMethodType == "userPath" && !pkg.installMethodTarget.isEmpty()) {
         const QString userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
