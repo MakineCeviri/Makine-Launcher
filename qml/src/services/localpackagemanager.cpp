@@ -1376,17 +1376,28 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
     // Write permission pre-check
     {
-        QString testPath = gamePath + "/.makine_write_test";
+        const QString testPath = gamePath + QStringLiteral("/.makine_write_test");
         QFile testFile(testPath);
-        if (!testFile.open(QIODevice::WriteOnly)) {
+        if (testFile.open(QIODevice::WriteOnly)) {
+            testFile.close();
+            testFile.remove();
+        } else if (!ElevatedOps::available()) {
             emit installCompleted(false,
                 tr("Bu klasöre yazma izni yok. Çözüm: oyunu ve Steam'i "
                    "tamamen kapatın, sonra tekrar deneyin; izin penceresi "
                    "açılırsa 'Evet' deyin."));
             return;
+        } else {
+            // Not writable directly is not the end of the install:
+            // copyOverlayFiles defers exactly this case to makine-elevate,
+            // which asks for consent once and writes with it. Refusing here
+            // meant that path could never run for a game under Program Files —
+            // 51 events across 13 users, every one of them advised to "run as
+            // administrator", which an MSIX package has no way to do.
+            qCInfo(lcPackageManager)
+                << "Game directory is not directly writable; the install will "
+                   "ask for elevation:" << gamePath;
         }
-        testFile.close();
-        testFile.remove();
     }
 
     // Handle variant-specific options install (e.g. GTA Trilogy: variant selects game, then options for patch/dubbing)
