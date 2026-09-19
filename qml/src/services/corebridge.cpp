@@ -149,28 +149,83 @@ void CoreBridge::setCustomGamePaths(const QStringList& paths)
 
 // ========== Steam Scanner ==========
 
+// Where Steam is: the registry first, the disk second.
+//
+// The registry alone used to decide this, and an empty answer returned from the
+// whole Steam scan — zero games for a user whose library sits in the default
+// location. HKCU\Software\Valve\Steam is per-user, so a launcher running under
+// a different account than the one that installed Steam sees nothing there, and
+// a client installed by another user leaves no HKCU trace at all. Looking on
+// disk costs a handful of stat calls and covers exactly what the registry cannot.
+QString CoreBridge::findSteamInstallPath() const
+{
+    const auto hasSteamapps = [](const QString& candidate) {
+        return !candidate.isEmpty()
+            && QDir(QDir::cleanPath(candidate) + QStringLiteral("/steamapps")).exists();
+    };
+
+    QSettings hkcu("\\HKEY_CURRENT_USER\\Software\\Valve\\Steam", QSettings::NativeFormat);
+    QString path = hkcu.value(QStringLiteral("SteamPath")).toString();
+    if (path.isEmpty()) {
+        QSettings wow("\\HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Valve\\Steam",
+                      QSettings::NativeFormat);
+        path = wow.value(QStringLiteral("InstallPath")).toString();
+    }
+    if (path.isEmpty()) {
+        // 64-bit client: no WOW6432Node redirection.
+        QSettings hklm("\\HKEY_LOCAL_MACHINE\\SOFTWARE\\Valve\\Steam", QSettings::NativeFormat);
+        path = hklm.value(QStringLiteral("InstallPath")).toString();
+    }
+    if (hasSteamapps(path))
+        return QDir::cleanPath(path);
+
+    if (!path.isEmpty())
+        qCInfo(lcCoreBridge) << "Steam: registry path has no steamapps, trying disk";
+
+    QStringList candidates{
+        QDir::cleanPath(qEnvironmentVariable("ProgramFiles(x86)") + QStringLiteral("/Steam")),
+        QDir::cleanPath(qEnvironmentVariable("ProgramFiles") + QStringLiteral("/Steam")),
+    };
+    for (const auto& vol : QStorageInfo::mountedVolumes()) {
+        if (!vol.isReady() || vol.isReadOnly()) continue;
+        const QString root = vol.rootPath();
+        if (root.size() < 2) continue;
+        candidates << QDir::cleanPath(root.left(2) + QStringLiteral("/Steam"))
+                   << QDir::cleanPath(root.left(2) + QStringLiteral("/SteamLibrary"));
+    }
+
+    for (const QString& candidate : std::as_const(candidates)) {
+        if (hasSteamapps(candidate)) {
+            qCInfo(lcCoreBridge) << "Steam: found on disk at" << candidate;
+            return candidate;
+        }
+    }
+    return {};
+}
+
 void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
 {
     emit scanProgress(0.05, tr("Steam yolu aranıyor..."));
 
-    // Read Steam path from Windows Registry
-    QSettings steamReg("HKEY_CURRENT_USER\\Software\\Valve\\Steam", QSettings::NativeFormat);
-    QString steamPath = steamReg.value("SteamPath").toString();
-
+    const QString steamPath = findSteamInstallPath();
     if (steamPath.isEmpty()) {
-        // Try alternate location
-        QSettings steamReg64("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Valve\\Steam", QSettings::NativeFormat);
-        steamPath = steamReg64.value("InstallPath").toString();
-    }
-
-    if (steamPath.isEmpty()) {
-        qCDebug(lcCoreBridge) << "Steam not found in registry";
+        qCDebug(lcCoreBridge) << "Steam not found in registry or on disk";
+        m_scanNotes << QStringLiteral("steam:notfound");
         return;
     }
 
-    steamPath = QDir::cleanPath(steamPath);
     qCDebug(lcCoreBridge) << "Steam path:" << steamPath;
 
+    // The main library is known the moment steamPath is; libraryfolders.vdf only
+    // ADDS the others. Treating it as a precondition threw away a perfectly good
+    // steamapps/common whenever that file was missing, oversized or mid-rewrite,
+    // and reported zero games on a working Steam install.
+    QSet<QString> libraryPathSet;
+    if (QDir(steamPath + QStringLiteral("/steamapps")).exists())
+        libraryPathSet.insert(steamPath);
+
+    // Scoped so that giving up on the vdf gives up on the EXTRA libraries only.
+    [&] {
     // Parse libraryfolders.vdf to find all library folders
     QString vdfPath = steamPath + "/steamapps/libraryfolders.vdf";
     QFile vdfFile(vdfPath);
@@ -192,8 +247,6 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
         return;
     }
 
-    // Collect library paths (deduplicated)
-    QSet<QString> libraryPathSet;
     const auto* libraryfolders = vdfRoot->find("libraryfolders");
     if (!libraryfolders) libraryfolders = &(*vdfRoot); // root itself might be the node
 
@@ -213,10 +266,7 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
         }
     }
 
-    // Always include main Steam path
-    if (QDir(steamPath + "/steamapps").exists()) {
-        libraryPathSet.insert(steamPath);
-    }
+    }();
 
     QStringList libraryPaths = libraryPathSet.values();
 
@@ -553,8 +603,17 @@ QStringList CoreBridge::knownGameDirectories() const
         QStringLiteral("Games"),
         QStringLiteral("Oyunlar"),
         QStringLiteral("Oyun"),
-        // Store defaults
-        QStringLiteral("SteamLibrary"),
+        // Store defaults.
+        //
+        // Steam library folders hold "steamapps/common/<Game>", so the container
+        // whose children are games is steamapps/common — not the library root.
+        // Listing the root made the folder literally named "steamapps" look like
+        // a game; telemetry caught one being fuzzy-matched to Stellaris and
+        // rejected by the name check ("local: steamapps catalog: Stellaris").
+        QStringLiteral("SteamLibrary/steamapps/common"),
+        QStringLiteral("Steam/steamapps/common"),
+        QStringLiteral("Program Files (x86)/Steam/steamapps/common"),
+        QStringLiteral("Program Files/Steam/steamapps/common"),
         QStringLiteral("XboxGames"),
         QStringLiteral("GOG Games"),
         QStringLiteral("GOG Galaxy/Games"),
@@ -755,6 +814,7 @@ void CoreBridge::doScanRegistryReal(QList<DetectedGame>& outGames,
 void CoreBridge::scanAllLibraries()
 {
     MAKINE_ZONE_NAMED("CoreBridge::scanAllLibraries");
+    m_scanNotes.clear();
     INTEGRITY_GATE();
     CrashReporter::addBreadcrumb("core", "CoreBridge::scanAllLibraries");
     emit scanStarted();
@@ -980,9 +1040,14 @@ void CoreBridge::scanAllLibraries()
             breakdown << QStringLiteral("%1=%2").arg(it.key()).arg(it.value());
 
         const int catalogSize = pkgMgr ? pkgMgr->packageCount() : 0;
-        const QString summary = QStringLiteral("games=%1 matched=%2 catalog=%3 [%4]")
-                                    .arg(count).arg(matched).arg(catalogSize)
-                                    .arg(breakdown.join(QLatin1Char(' ')));
+        // The per-source breakdown only describes what WAS found, so a scan that
+        // found nothing says nothing about why. The notes carry that: tags only,
+        // no paths and no game names, so docs/telemetry.md still holds.
+        QString summary = QStringLiteral("games=%1 matched=%2 catalog=%3 [%4]")
+                              .arg(count).arg(matched).arg(catalogSize)
+                              .arg(breakdown.join(QLatin1Char(' ')));
+        if (!m_scanNotes.isEmpty())
+            summary += QStringLiteral(" notes=[%1]").arg(m_scanNotes.join(QLatin1Char(' ')));
         qCInfo(lcCoreBridge) << "Scan summary:" << summary;
         CrashReporter::addBreadcrumb("scan", summary.toUtf8().constData());
 

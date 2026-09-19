@@ -263,6 +263,8 @@ private:
     static CoreBridge* s_instance;
     QList<DetectedGame> m_detectedGames;
     // Scanning helpers (pure Qt, no vcpkg deps)
+    // Registry first, then the default locations on every mounted drive.
+    QString findSteamInstallPath() const;
     void doScanSteamReal(QList<DetectedGame>& outGames);
     void doScanEpicReal(QList<DetectedGame>& outGames);
     void doScanGogReal(QList<DetectedGame>& outGames);
@@ -278,6 +280,12 @@ private:
     OperationJournal* m_journal{nullptr};  // Non-owning. Set by setJournal().
     QHash<QString, int> m_steamAppIdToDetectedIndex;
     QStringList m_customGamePaths;
+
+    // Why a scan came back with nothing, in short tags ("steam:notfound"), for
+    // the telemetry summary. "No scanner found any game" on its own cannot tell
+    // a machine with no games from one where Steam was never located — 13 users
+    // reported the former and there was no way to know which they were.
+    QStringList m_scanNotes;
 };
 
 } // namespace makine
