@@ -21,23 +21,72 @@ static inline const QLoggingCategory &lcPathSecurity() {
 
 namespace makine::security {
 
-// Check that resolved fullPath stays within basePath directory
-inline bool isPathContained(const QString& basePath, const QString& fullPath) {
-    QString canonBase = QFileInfo(basePath).canonicalFilePath();
-    QString canonFull = QFileInfo(fullPath).canonicalFilePath();
+// Resolve as much of a path as actually exists, keeping the rest verbatim.
+//
+// canonicalFilePath() answers with nothing for a path that is not on disk, and
+// a file about to be CREATED is exactly that. Resolving only the side that
+// happens to exist then compares a resolved path against an unresolved one, and
+// anything the resolution would have removed — a junction in a Steam library
+// path, a symlinked game folder — reads as an escape.
+inline QString resolveThroughExisting(const QString& path) {
+    const QString cleaned = QDir::cleanPath(path);
+    QString head = cleaned;
+    QString tail;
 
-    // Fallback to cleanPath if canonical resolution fails (non-existent paths)
-    if (canonBase.isEmpty() || canonFull.isEmpty()) {
-        canonBase = QDir::cleanPath(basePath);
-        canonFull = QDir::cleanPath(fullPath);
+    // Bounded: every pass drops one segment, and a path has finitely many.
+    for (int guard = 0; guard < 256; ++guard) {
+        const QString canon = QFileInfo(head).canonicalFilePath();
+        if (!canon.isEmpty()) {
+            return tail.isEmpty() ? QDir::cleanPath(canon)
+                                  : QDir::cleanPath(canon + QLatin1Char('/') + tail);
+        }
+
+        const int slash = head.lastIndexOf(QLatin1Char('/'));
+        if (slash <= 0)
+            break;                       // no parent left to try
+        const QString segment = head.mid(slash + 1);
+        if (segment.isEmpty())
+            break;                       // "C:/" — already at a root
+        tail = tail.isEmpty() ? segment : segment + QLatin1Char('/') + tail;
+        head.truncate(slash);
+        if (head.endsWith(QLatin1Char(':')))
+            head += QLatin1Char('/');    // "C:" names the drive, "C:/" its root
     }
 
-    // Append separator to prevent /foo/bar matching /foo/barBaz
-    if (!canonBase.endsWith('/') && !canonBase.endsWith('\\'))
-        canonBase += '/';
+    // Nothing along this path exists. Both sides then get identical treatment,
+    // which is all containment needs.
+    return cleaned;
+}
 
-    return canonFull.startsWith(canonBase) ||
-           canonFull == canonBase.chopped(1);
+// Check that resolved fullPath stays within basePath directory
+//
+// Traversal stays blocked: cleanPath() collapses ".." before anything here
+// looks at the result, so an escaping path is a different prefix rather than a
+// disguised one.
+inline bool isPathContained(const QString& basePath, const QString& fullPath) {
+    if (basePath.isEmpty() || fullPath.isEmpty())
+        return false;
+
+    QString canonBase = resolveThroughExisting(basePath);
+    const QString canonFull = resolveThroughExisting(fullPath);
+    if (canonBase.isEmpty() || canonFull.isEmpty())
+        return false;
+
+    // Windows paths are case-insensitive: the same directory spelled with
+    // different case IS the same directory. Comparing case-sensitively refused
+    // 16 of 20 files in a backup restore and left the game half-patched.
+#ifdef Q_OS_WIN
+    constexpr auto kCase = Qt::CaseInsensitive;
+#else
+    constexpr auto kCase = Qt::CaseSensitive;
+#endif
+
+    // Append separator to prevent /foo/bar matching /foo/barBaz
+    if (!canonBase.endsWith(QLatin1Char('/')) && !canonBase.endsWith(QLatin1Char('\\')))
+        canonBase += QLatin1Char('/');
+
+    return canonFull.startsWith(canonBase, kCase) ||
+           canonFull.compare(canonBase.chopped(1), kCase) == 0;
 }
 
 // Safely join base + relative path, return empty if escape detected
