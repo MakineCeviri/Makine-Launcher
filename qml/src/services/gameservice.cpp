@@ -8,6 +8,7 @@
  */
 
 #include "gameservice.h"
+#include "gamenamerules.h"
 #include "imagecachemanager.h"
 #include "steamdetailsservice.h"
 #include "backupmanager.h"
@@ -39,42 +40,9 @@ Q_LOGGING_CATEGORY(lcGameService, "makine.game")
 namespace {
 constexpr int kAutoScanDelayMs = 500;
 
-// Normalize a game name for comparison: lowercase + drop non-alphanumeric.
-QString normalizeGameName(const QString& s)
-{
-    QString out;
-    out.reserve(s.size());
-    for (QChar ch : s) {
-        if (ch.isLetterOrNumber()) out.append(ch.toLower());
-        else if (ch.isSpace() && !out.isEmpty() && !out.endsWith(QLatin1Char(' '))) out.append(QLatin1Char(' '));
-    }
-    return out.trimmed();
-}
-
-// Reject catalog matches where the locally detected game name has
-// nothing to do with the catalog name. Crack/repack ACFs sometimes
-// reuse a known appid (e.g. Little Nightmares' 424840) for a
-// completely different game (e.g. The Genesis Order), which would
-// otherwise offer the wrong translation.
-bool gameNamesLikelyMatch(const QString& localName, const QString& catalogName)
-{
-    const QString a = normalizeGameName(localName);
-    const QString b = normalizeGameName(catalogName);
-    if (a.isEmpty() || b.isEmpty()) return true;       // can't decide → trust catalog
-    if (a.contains(b) || b.contains(a)) return true;   // substring either direction
-
-    const auto tokensA = a.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    const auto tokensB = b.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (tokensA.isEmpty() || tokensB.isEmpty()) return true;
-
-    QSet<QString> setB(tokensB.begin(), tokensB.end());
-    int common = 0;
-    for (const auto& t : tokensA)
-        if (setB.contains(t)) ++common;
-
-    const int minTokens = std::min(tokensA.size(), tokensB.size());
-    return common >= std::max(1, minTokens / 2);
-}
+// Name-match rule (both directions) lives in gamenamerules.h so it can be
+// exercised directly — see tests/ui/test_gamenamerules.cpp.
+using makine::namerules::gameNamesLikelyMatch;
 
 } // namespace
 

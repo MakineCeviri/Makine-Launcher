@@ -59,6 +59,13 @@ target_include_directories(test_catalogsyncrules PRIVATE
 target_link_libraries(test_catalogsyncrules PRIVATE GTest::gtest GTest::gtest_main)
 add_test(NAME test_catalogsyncrules COMMAND test_catalogsyncrules)
 
+# Catalog-vs-local game name matching (needs QString, no service construction)
+add_executable(test_gamenamerules test_gamenamerules.cpp)
+target_include_directories(test_gamenamerules PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_gamenamerules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_gamenamerules COMMAND test_gamenamerules)
+
 add_executable(test_installsteprules test_installsteprules.cpp)
 target_include_directories(test_installsteprules PRIVATE
     ${MAKINE_PROJECT_ROOT}/qml/src/services)
