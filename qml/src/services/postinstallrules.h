@@ -44,7 +44,7 @@ namespace makine::postinstall {
 
 // Language tokens as the stores and engines actually spell them, mapped to the
 // Turkish name we show. Unreal writes ".int" for International (= English),
-// FromSoftware writes "engus"/"jpnjp", Avalanche writes "_pol", Larian writes
+// FromSoftware writes "engus", Avalanche writes "_pol", Larian writes
 // "English.pak". Every entry below was read off a real package in the catalogue.
 inline const QHash<QString, QString>& languageTable()
 {
@@ -53,55 +53,50 @@ inline const QHash<QString, QString>& languageTable()
         {QStringLiteral("eng"),       QStringLiteral("İngilizce")},
         {QStringLiteral("en"),        QStringLiteral("İngilizce")},
         {QStringLiteral("int"),       QStringLiteral("İngilizce")},   // Unreal
-        {QStringLiteral("engus"),     QStringLiteral("İngilizce")},   // FromSoftware
+        // FromSoftware writes its own codes; "engus" is the one the catalogue
+        // actually contains (Elden Ring, Game/msg/engus). Its siblings —
+        // jpnjp, frafr, korkr and the rest — are left out on purpose: nothing
+        // in the catalogue uses them, and an unmatched path already falls back
+        // to the note rather than guessing.
+        {QStringLiteral("engus"),     QStringLiteral("İngilizce")},
         {QStringLiteral("french"),    QStringLiteral("Fransızca")},
         {QStringLiteral("francais"),  QStringLiteral("Fransızca")},
         {QStringLiteral("fra"),       QStringLiteral("Fransızca")},
         {QStringLiteral("fr"),        QStringLiteral("Fransızca")},
-        {QStringLiteral("frafr"),     QStringLiteral("Fransızca")},
         {QStringLiteral("german"),    QStringLiteral("Almanca")},
         {QStringLiteral("deutsch"),   QStringLiteral("Almanca")},
         {QStringLiteral("deu"),       QStringLiteral("Almanca")},
         {QStringLiteral("ger"),       QStringLiteral("Almanca")},
         {QStringLiteral("de"),        QStringLiteral("Almanca")},
-        {QStringLiteral("gerde"),     QStringLiteral("Almanca")},
         {QStringLiteral("spanish"),   QStringLiteral("İspanyolca")},
         {QStringLiteral("espanol"),   QStringLiteral("İspanyolca")},
         {QStringLiteral("esn"),       QStringLiteral("İspanyolca")},
         {QStringLiteral("esp"),       QStringLiteral("İspanyolca")},
         {QStringLiteral("es"),        QStringLiteral("İspanyolca")},
-        {QStringLiteral("spaes"),     QStringLiteral("İspanyolca")},
         {QStringLiteral("italian"),   QStringLiteral("İtalyanca")},
         {QStringLiteral("italiano"),  QStringLiteral("İtalyanca")},
         {QStringLiteral("ita"),       QStringLiteral("İtalyanca")},
         {QStringLiteral("it"),        QStringLiteral("İtalyanca")},
-        {QStringLiteral("itait"),     QStringLiteral("İtalyanca")},
         {QStringLiteral("polish"),    QStringLiteral("Lehçe")},
         {QStringLiteral("polski"),    QStringLiteral("Lehçe")},
         {QStringLiteral("pol"),       QStringLiteral("Lehçe")},
         {QStringLiteral("pl"),        QStringLiteral("Lehçe")},
-        {QStringLiteral("polpl"),     QStringLiteral("Lehçe")},
         {QStringLiteral("russian"),   QStringLiteral("Rusça")},
         {QStringLiteral("rus"),       QStringLiteral("Rusça")},
         {QStringLiteral("ru"),        QStringLiteral("Rusça")},
-        {QStringLiteral("rusru"),     QStringLiteral("Rusça")},
         {QStringLiteral("portuguese"),QStringLiteral("Portekizce")},
         {QStringLiteral("ptb"),       QStringLiteral("Portekizce")},
         {QStringLiteral("pt"),        QStringLiteral("Portekizce")},
-        {QStringLiteral("ptbbr"),     QStringLiteral("Portekizce")},
         {QStringLiteral("japanese"),  QStringLiteral("Japonca")},
         {QStringLiteral("jpn"),       QStringLiteral("Japonca")},
         {QStringLiteral("ja"),        QStringLiteral("Japonca")},
-        {QStringLiteral("jpnjp"),     QStringLiteral("Japonca")},
         {QStringLiteral("korean"),    QStringLiteral("Korece")},
         {QStringLiteral("kor"),       QStringLiteral("Korece")},
         {QStringLiteral("ko"),        QStringLiteral("Korece")},
-        {QStringLiteral("korkr"),     QStringLiteral("Korece")},
         {QStringLiteral("chinese"),   QStringLiteral("Çince")},
         {QStringLiteral("chs"),       QStringLiteral("Çince")},
         {QStringLiteral("cht"),       QStringLiteral("Çince")},
         {QStringLiteral("zh"),        QStringLiteral("Çince")},
-        {QStringLiteral("zhocn"),     QStringLiteral("Çince")},
         {QStringLiteral("turkish"),   QStringLiteral("Türkçe")},
         {QStringLiteral("türkçe"),    QStringLiteral("Türkçe")},
         {QStringLiteral("turkce"),    QStringLiteral("Türkçe")},
