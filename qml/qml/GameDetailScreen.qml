@@ -136,8 +136,15 @@ Item {
                 root.viewModel.hasTranslationUpdate = false
                 root.viewModel.installErrorMessage = ""
             } else {
+                // Deliberately NOT auto-cleared. A failed uninstall leaves the
+                // game patched with no way back, and the message carries the
+                // only recovery there is — the "Oyun dosyalarını doğrula / onar"
+                // button, which is bound to this very string being non-empty.
+                // Fading both after six seconds is why twelve users pressed
+                // Kaldır 368 times: the way out disappeared while they read it.
+                // Cleared on a successful install/uninstall, when repair starts,
+                // and when another game is opened.
                 root.viewModel.installErrorMessage = message || qsTr("Yama kaldırılamadı")
-                installErrorTimer.restart()
             }
         }
         function onPatchIntegrityChecked(gId, ok, message) {
