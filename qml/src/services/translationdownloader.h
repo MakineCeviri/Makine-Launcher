@@ -116,6 +116,9 @@ private:
         QString dataUrl;        // Stored for resume/retry
         bool cancelled{false};
         bool stallAborted{false};
+        // Set after an HTTP/2 protocol failure, so the retry goes over HTTP/1.1
+        // instead of walking into the same wall.
+        bool disableHttp2{false};
         bool writeError{false};   // Set when partFile->write() returns short — disk full / FS error
         int retryCount{0};
         qint64 resumeOffset{0};

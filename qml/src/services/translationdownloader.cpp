@@ -87,6 +87,11 @@ bool TranslationDownloader::shouldRetry(QNetworkReply::NetworkError err, int htt
     case QNetworkReply::TemporaryNetworkFailureError:
     case QNetworkReply::NetworkSessionFailedError:
         return true;
+    // "HTTP/2 protocol error" against the CDN, seen as a stream closing
+    // mid-transfer. The download used to end there. It is retryable, but only
+    // because the retry drops to HTTP/1.1 — see disableHttp2.
+    case QNetworkReply::ProtocolFailure:
+        return true;
     default:
         break;
     }
@@ -222,6 +227,8 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     }
 
     QNetworkRequest req{QUrl{state.dataUrl}};
+    if (state.disableHttp2)
+        req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setHeader(QNetworkRequest::UserAgentHeader,
@@ -348,6 +355,11 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
                 const bool retryable = state.stallAborted
                     || shouldRetry(reply->error(), httpStatus);
                 state.stallAborted = false;
+                if (reply->error() == QNetworkReply::ProtocolFailure) {
+                    qCWarning(lcDownloader) << "HTTP/2 protocol failure for" << appId
+                                            << "— retrying over HTTP/1.1";
+                    state.disableHttp2 = true;
+                }
 
                 if (retryable && state.retryCount < kMaxRetries) {
                     const int delay = kRetryDelaysMs[state.retryCount];
