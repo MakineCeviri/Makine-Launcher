@@ -1441,6 +1441,18 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     const QString sourcePath = resolveSourcePath(pkg, variant);
 
     if (sourcePath.isEmpty()) {
+        // Two unrelated failures used to share one message. A package folder
+        // that exists and holds no files is not an interrupted download:
+        // fetching it again produces the same nothing, and telling the user to
+        // check their connection sends them after a problem that is ours.
+        const QString pkgDir = m_dataPath + QStringLiteral("/") + pkg.dirName;
+        if (!pkg.dirName.isEmpty() && QDir(pkgDir).exists() && !dirHasFiles(pkgDir)) {
+            emit installCompleted(false,
+                tr("%1 yama paketi boş çıktı. Bu bizim tarafımızdaki bir paketleme "
+                   "hatası — tekrar indirmek çözmez. Sorun bize bildirildi.")
+                    .arg(pkg.gameName));
+            return;
+        }
         emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
                 "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
                 "kaldırıp yeniden indirin.").arg(pkg.gameName));
@@ -1813,6 +1825,18 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
     const QString sourcePath = resolveSourcePath(pkg, variant);
 
     if (sourcePath.isEmpty()) {
+        // Two unrelated failures used to share one message. A package folder
+        // that exists and holds no files is not an interrupted download:
+        // fetching it again produces the same nothing, and telling the user to
+        // check their connection sends them after a problem that is ours.
+        const QString pkgDir = m_dataPath + QStringLiteral("/") + pkg.dirName;
+        if (!pkg.dirName.isEmpty() && QDir(pkgDir).exists() && !dirHasFiles(pkgDir)) {
+            emit installCompleted(false,
+                tr("%1 yama paketi boş çıktı. Bu bizim tarafımızdaki bir paketleme "
+                   "hatası — tekrar indirmek çözmez. Sorun bize bildirildi.")
+                    .arg(pkg.gameName));
+            return;
+        }
         emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
                 "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
                 "kaldırıp yeniden indirin.").arg(pkg.gameName));

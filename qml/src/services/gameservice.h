@@ -455,6 +455,14 @@ private:
      * → coreBridge install/update call. The three public entry points are thin
      * wrappers that set the mode and call this method.
      */
+    // Packages whose extraction came back empty once already. hasLocalPackage()
+    // deletes such a directory and reports "not downloaded" so the flow fetches
+    // it again — which is right the first time and a loop every time after,
+    // because a package that extracts to nothing extracts to nothing again.
+    // Two users produced 31 identical events this way. Mutable: the query that
+    // learns this is const.
+    mutable QSet<QString> m_emptyExtractionRetried;
+
     void installPackageCommon(const QString& gameId, const QString& variant,
                               const QStringList& selectedOptions, InstallMode mode);
 

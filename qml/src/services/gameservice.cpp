@@ -1938,8 +1938,21 @@ bool GameService::hasLocalPackage(const QString& steamAppId) const
     // Some packages legitimately have just 1 file, so any file = valid.
     QDirIterator it(pkgDir.absolutePath(), QDir::Files, QDirIterator::Subdirectories);
     if (!it.hasNext()) {
+        if (m_emptyExtractionRetried.contains(steamAppId)) {
+            // Second time round. The download is not the problem: the package
+            // itself extracts to nothing, which is a packaging defect and needs
+            // to reach us rather than the user's connection. Keep the directory
+            // and let the install fail for real instead of fetching again.
+            qCWarning(lcGameService) << "Package extracts to no files on the second "
+                                        "attempt — packaging defect:" << steamAppId;
+            CrashReporter::reportFailure("package", steamAppId,
+                QStringLiteral("package extracts to zero files after a re-download; "
+                               "the archive itself carries no usable content"));
+            return true;
+        }
+        m_emptyExtractionRetried.insert(steamAppId);
         qCWarning(lcGameService) << "Package directory has no files (broken extraction?):"
-                   << pkgDir.absolutePath() << "— will re-download";
+                   << pkgDir.absolutePath() << "— will re-download once";
         pkgDir.removeRecursively();
         return false;
     }
