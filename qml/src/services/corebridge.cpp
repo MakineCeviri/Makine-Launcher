@@ -19,6 +19,7 @@
 #include <QStandardPaths>
 #include <QSet>
 #include <QMap>
+#include <QDateTime>
 #include <QFileInfo>
 #include <QDirIterator>
 #include <QStorageInfo>
@@ -1485,14 +1486,42 @@ void CoreBridge::refreshPackageManifest()
                 marker.close();
             }
 
-            if (previous != stamp) {
-                QDir cacheDir(detailDir);
-                const auto stale = cacheDir.entryList({"*.json"}, QDir::Files);
-                for (const QString& f : stale)
-                    QFile::remove(cacheDir.absoluteFilePath(f));
-                qCInfo(lcCoreBridge) << "Catalog index changed:" << previous
-                                     << "->" << stamp << "— dropped" << stale.size()
-                                     << "cached package details";
+            QDir cacheDir(detailDir);
+            const bool indexChanged = (previous != stamp);
+
+            // Second signal, because the first one can go silent. index.json is
+            // only rewritten when the publish step regenerates it, and it sat
+            // unchanged from 2026-05-18 while individual recipes were corrected
+            // underneath it — Alan Wake 2's was replaced 67 minutes after that
+            // index was cut and no installed client ever saw it. A cached detail
+            // is ~700 B, so expiring on age costs a couple hundred KB a week and
+            // puts a ceiling on how long a corrected recipe can fail to arrive,
+            // whatever else in the version bookkeeping goes wrong.
+            constexpr qint64 kDetailMaxAgeDays = 7;
+            const QDateTime now = QDateTime::currentDateTime();
+
+            QStringList dropped;
+            for (const QString& f : cacheDir.entryList({"*.json"}, QDir::Files)) {
+                const QString path = cacheDir.absoluteFilePath(f);
+                const bool aged = QFileInfo(path).lastModified().daysTo(now)
+                                  >= kDetailMaxAgeDays;
+                if (indexChanged || aged) {
+                    QFile::remove(path);
+                    dropped << f;
+                }
+            }
+
+            if (!dropped.isEmpty()) {
+                qCInfo(lcCoreBridge) << "Dropped" << dropped.size()
+                                     << "cached package details —"
+                                     << (indexChanged
+                                            ? QStringLiteral("catalog index changed: %1 -> %2")
+                                                  .arg(previous, stamp)
+                                            : QStringLiteral("older than %1 days")
+                                                  .arg(kDetailMaxAgeDays));
+            }
+
+            if (indexChanged) {
                 QDir().mkpath(detailDir);
                 if (marker.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
                     marker.write(stamp.toUtf8());
