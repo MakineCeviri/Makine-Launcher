@@ -9,6 +9,13 @@
 
 #include "crashreporter.h"
 
+#include "failurereasons.h"
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <appmodel.h>
+#endif
+
 #include <QString>
 #include <QStringList>
 
@@ -207,6 +214,21 @@ void CrashReporter::initialize()
     if (!machineId.isEmpty()) {
         QByteArray hash = QCryptographicHash::hash(machineId, QCryptographicHash::Sha256).toHex();
         setUser(QString::fromLatin1(hash.left(16)));
+
+    // Session fact, so a sticky tag is the right shape here (unlike fail.*).
+    // MSIX path virtualization was a confirmed root cause class — being able to
+    // filter app.packaged:true separates "our installer is wrong" from "the
+    // container moved the files".
+    //
+    // The same check exists in updateservice.cpp (anonymous namespace) and
+    // localpackagemanager.cpp; all three read a process-lifetime constant from
+    // the OS and none can see the others.
+#ifdef Q_OS_WIN
+    UINT32 nameLength = 0;
+    const bool packaged = ::GetCurrentPackageFullName(&nameLength, nullptr)
+                          != APPMODEL_ERROR_NO_PACKAGE;
+    setContext("app.packaged", packaged ? QStringLiteral("msix") : QStringLiteral("plain"));
+#endif
     }
 
     addBreadcrumb("app", "Sentry initialized", "info");
@@ -263,7 +285,8 @@ void CrashReporter::setUser(const QString& id)
 #endif
 }
 
-void CrashReporter::captureMessage(const char* message, const char* level)
+void CrashReporter::captureMessage(const char* message, const char* level,
+                                    const QHash<QString, QString>& eventTags)
 {
 #ifdef MAKINE_HAS_SENTRY
     sentry_level_t sentryLevel = SENTRY_LEVEL_INFO;
@@ -277,10 +300,26 @@ void CrashReporter::captureMessage(const char* message, const char* level)
     // PII stripping the stack frames get in beforeSend — that hook only walks
     // exception frames and never touches the message body.
     const std::string safe = sanitizePath(message);
-    sentry_capture_event(sentry_value_new_message_event(sentryLevel, "makine", safe.c_str()));
+    sentry_value_t event = sentry_value_new_message_event(sentryLevel, "makine", safe.c_str());
+
+    // Per-event tags. sentry_set_tag() would be simpler and wrong: it is
+    // session-global, so a fail.reason set here would ride along on every
+    // later event until something overwrote it.
+    if (!eventTags.isEmpty()) {
+        sentry_value_t tags = sentry_value_new_object();
+        for (auto it = eventTags.cbegin(); it != eventTags.cend(); ++it) {
+            if (it.value().isEmpty()) continue;          // an empty tag is noise
+            sentry_value_set_by_key(tags, it.key().toUtf8().constData(),
+                                    sentry_value_new_string(
+                                        sanitizePath(it.value().toUtf8().constData()).c_str()));
+        }
+        sentry_value_set_by_key(event, "tags", tags);
+    }
+    sentry_capture_event(event);
 #else
     Q_UNUSED(message)
     Q_UNUSED(level)
+    Q_UNUSED(eventTags)
 #endif
 }
 
@@ -354,7 +393,8 @@ bool CrashReporter::isUnsupportedCapability(const QString& message)
 }
 
 void CrashReporter::reportFailure(const char* operation, const QString& subject,
-                                   const QString& message)
+                                   const QString& message,
+                                   const QHash<QString, QString>& eventTags)
 {
     // Order matters: a capability gap is checked first because its guidance
     // text ("… kurulum aracını çalıştırın", "yönetici izni isterse …") overlaps
@@ -377,6 +417,15 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
         setContext("subject", subject);
     setContext("failure.side", side);
 
+    // The dimension the five existing tags never carried: WHY. Without it a
+    // single defect spread over 67 games reads as 67 unrelated issues — see
+    // failurereasons.h for the one that actually happened.
+    QHash<QString, QString> tags = eventTags;
+    tags.insert(QStringLiteral("fail.reason"), failurereasons::failureReason(message));
+    const QString action = failurereasons::failedStepAction(message);
+    if (!action.isEmpty())
+        tags.insert(QStringLiteral("fail.step"), action);
+
     // Kept as an event rather than dropped: the per-game counts are how we rank
     // which install handler to write next (sentry_triage.py reads them as
     // "Eksik handler talebi"). Only the severity changes.
@@ -386,7 +435,7 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
                  subject.isEmpty() ? QStringLiteral("-") : subject,
                  message)
             .toUtf8();
-    captureMessage(payload.constData(), level);
+    captureMessage(payload.constData(), level, tags);
 }
 
 void CrashReporter::setGameContext(const QString& gameId, const QString& gameName)

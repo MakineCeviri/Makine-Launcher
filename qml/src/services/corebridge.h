@@ -158,6 +158,17 @@ public:
     QString getInstallNotesForGame(const QString& gameId);
 
     /**
+     * @brief Recipe type a game's package installs with ("script", "userPath",
+     *        "external", … ; empty means a plain overlay)
+     *
+     * Exists so a failure report can carry the method as a queryable tag. The
+     * previous arrangement assumed the catalogue would be consulted by hand
+     * during triage, which meant one defect across 67 packages looked like 67
+     * separate per-game issues.
+     */
+    QString getInstallMethodForGame(const QString& gameId);
+
+    /**
      * @brief Get install options (checkbox-style) for a game
      */
     QVariantList getInstallOptionsForGame(const QString& gameId);

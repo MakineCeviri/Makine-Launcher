@@ -12,6 +12,7 @@
  * All methods are static and no-op when built without MAKINE_HAS_SENTRY.
  */
 
+#include <QHash>
 #include <QString>
 
 namespace makine {
@@ -36,7 +37,17 @@ public:
     static void setUser(const QString& id);
 
     /// Capture a message event (info, warning, error)
-    static void captureMessage(const char* message, const char* level = "info");
+    /**
+     * @brief Send a message event
+     *
+     * eventTags land on THIS event only. setContext() writes a global sentry
+     * tag that stays set for the rest of the session, which is right for a
+     * session fact (which OS, which game is open) and wrong for a failure
+     * fact — a stale fail.reason attached to the next unrelated event is worse
+     * than no tag at all.
+     */
+    static void captureMessage(const char* message, const char* level = "info",
+                               const QHash<QString, QString>& eventTags = {});
 
     /// Set game context for current operation (breadcrumb + tags)
     static void setGameContext(const QString& gameId, const QString& gameName);
@@ -69,7 +80,8 @@ public:
      * @param message   User-facing text; paths are redacted by captureMessage().
      */
     static void reportFailure(const char* operation, const QString& subject,
-                              const QString& message);
+                              const QString& message,
+                              const QHash<QString, QString>& eventTags = {});
 
     /// True when `message` describes something the user can resolve on their own.
     /// Exposed for callers that want to branch on it (e.g. skip a retry).

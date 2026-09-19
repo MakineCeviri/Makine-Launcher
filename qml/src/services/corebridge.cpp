@@ -1299,6 +1299,20 @@ QString CoreBridge::getInstallNotesForGame(const QString& gameId)
     return pkg->installNotes;
 }
 
+QString CoreBridge::getInstallMethodForGame(const QString& gameId)
+{
+    MAKINE_ZONE_NAMED("CoreBridge::getInstallMethodForGame");
+    if (!m_localPkgManager) return {};
+
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return {};
+
+    auto pkg = m_localPkgManager->getPackage(resolved);
+    if (!pkg) return {};
+
+    return pkg->installMethodType;
+}
+
 QVariantList CoreBridge::getInstallOptionsForGame(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("CoreBridge::getInstallOptionsForGame");

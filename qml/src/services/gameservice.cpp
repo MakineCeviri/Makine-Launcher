@@ -8,6 +8,8 @@
  */
 
 #include "gameservice.h"
+#include <QHash>
+
 #include "gamenamerules.h"
 #include "postinstallrules.h"
 #include "imagecachemanager.h"
@@ -1702,9 +1704,22 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
     if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.count())
         gameName = m_games[*it].name;
 
-    // Tag with the game so failures group per title in Sentry; the catalog
-    // supplies the install method for any appId when triaging.
+    // Tag with the game so failures group per title in Sentry.
     CrashReporter::setGameContext(gameId, gameName);
+
+    // The install method travels WITH the event. This comment used to say the
+    // catalogue supplies it "when triaging", and that assumption is what let a
+    // single defect in 67 packages read as 67 separate per-game issues for
+    // months: nobody opens the catalogue per issue, and Sentry cannot group by
+    // a field its events do not carry.
+    QHash<QString, QString> tags;
+    if (m_coreBridge) {
+        const QString method = m_coreBridge->getInstallMethodForGame(gameId);
+        // An empty type is the catalogue's way of saying "plain overlay"; name
+        // the bucket so it is visible rather than blank.
+        tags.insert(QStringLiteral("install.method"),
+                    method.isEmpty() ? QStringLiteral("overlay") : method);
+    }
 
     // Delegates to the shared reporter so these share the user/system severity
     // split with download, backup, sync and scan failures — one classification
@@ -1712,7 +1727,7 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
     const QString subject = gameName.isEmpty()
         ? gameId
         : QStringLiteral("%1 (%2)").arg(gameId, gameName);
-    CrashReporter::reportFailure(operation, subject, message);
+    CrashReporter::reportFailure(operation, subject, message, tags);
 }
 
 void GameService::performInstallRollback(const QString& gameId, const QString& originalError)
