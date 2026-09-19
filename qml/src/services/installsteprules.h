@@ -87,4 +87,40 @@ inline bool variantFolderMatches(const QString& variant, const QString& folder)
     return have == want || have.startsWith(want + QLatin1Char('.'));
 }
 
+// Does an EMPTY recipe under this method type mean "just overlay the payload"?
+//
+// It matters because two catalogue sources describe the same package
+// differently. The published CDN entry (assets/packages/<id>.json, written by
+// scripts/package_pipeline.py) omits installMethod entirely for a package that
+// installs by a plain structure-preserving copy. The API the launcher actually
+// reads its detail from — api/v2/games/<id> — fills that hole in with
+//
+//     "installMethod": {"type": "script", "steps": [], "options": []}
+//
+// for 67 of the 237 packages, measured 2026-09-19. "script" is not overlay-safe
+// and has no handler, so the honesty gate below refused every one of them:
+// Watch Dogs, Thief, DOOM (2016), Skyrim Special Edition, Dark Souls
+// Remastered, Control, Cuphead, Celeste, Devil May Cry 5, A Plague Tale —
+// 28% of the catalogue, reported from the field as "Bu yama otomatik
+// kurulamıyor (kurulum yöntemi: script)" across fourteen separate Sentry
+// issues.
+//
+// The distinction the gate needs is not "which type" but "does this type name
+// a PROCESS or a COPY". A copy-shaped type with nothing to copy is the absence
+// of a recipe, and the absence of a recipe already means overlay. A type that
+// names something else entirely — an installer to run, a Workshop item to
+// subscribe to, a forge archive to inject — still has no recipe and still must
+// refuse, because overlaying those really would be the silent
+// "kuruldu ama çalışmıyor" lie the gate was built to stop.
+inline bool emptyRecipeIsPlainOverlay(QStringView type)
+{
+    static const QStringList kCopyShaped = {
+        QStringLiteral("script"),        // the API's stand-in for "no method"
+        QStringLiteral("copy"),          QStringLiteral("copyFile"),
+        QStringLiteral("copyDir"),       QStringLiteral("overlay"),
+        QStringLiteral("direct"),        QStringLiteral("file-replace"),
+    };
+    return kCopyShaped.contains(type.toString());
+}
+
 } // namespace makine::steprules

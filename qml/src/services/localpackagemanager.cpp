@@ -1660,8 +1660,21 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     // Overlay-copying their payload and reporting success is exactly the
     // silent "yama kuruldu ama dil değişmiyor" lie. Fail loud with
     // guidance so the user uses the real source instead of being deceived.
+    //
+    // One exception, and it is not a loophole: a COPY-shaped type carrying no
+    // recipe at all. The catalogue API answers with {"type":"script","steps":[]}
+    // wherever the published CDN entry has no installMethod, which is how 67 of
+    // 237 packages — Watch Dogs, Thief, DOOM, Skyrim SE, Control — ended up
+    // refused for naming a method that only ever meant "copy the files".
+    // steprules::emptyRecipeIsPlainOverlay draws the line at process-vs-copy.
     {
-        if (!kOverlaySafeTypes.contains(pkg.installMethodType)) {
+        const bool noRecipeAtAll = pkg.installSteps.isEmpty()
+                                && pkg.installOptions.isEmpty()
+                                && pkg.combinedSteps.isEmpty();
+        const bool copyShapedButEmpty =
+            noRecipeAtAll && steprules::emptyRecipeIsPlainOverlay(pkg.installMethodType);
+
+        if (!kOverlaySafeTypes.contains(pkg.installMethodType) && !copyShapedButEmpty) {
             qCWarning(lcPackageManager)
                 << "No handler for install method" << pkg.installMethodType
                 << "— refusing silent overlay for" << pkg.gameName;

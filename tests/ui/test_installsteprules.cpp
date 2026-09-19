@@ -132,3 +132,42 @@ TEST(StepRules, VariantMatchRejectsEmptyInput)
     EXPECT_FALSE(variantFolderMatches({}, "1.5.80"));
     EXPECT_FALSE(variantFolderMatches("1.5.80", {}));
 }
+
+// ===== An empty recipe under a copy-shaped type =============================
+//
+// The catalogue API fills every recipe-less package in with
+// {"type":"script","steps":[]}; the published CDN entry for the same package
+// has no installMethod at all. 67 of 237 packages differ that way (measured
+// 2026-09-19) and every one of them was refused at install with "Bu yama
+// otomatik kurulamiyor (kurulum yontemi: script)".
+
+TEST(InstallStepRules, ScriptWithNoStepsIsJustAnOverlay)
+{
+    // The regression: Watch Dogs, Thief, DOOM (2016), Skyrim Special Edition,
+    // Control, Cuphead, A Plague Tale — all of them arrive as bare "script".
+    EXPECT_TRUE(makine::steprules::emptyRecipeIsPlainOverlay(QStringLiteral("script")));
+}
+
+TEST(InstallStepRules, OtherCopyShapedTypesAgree)
+{
+    for (const auto& t : {"copy", "copyFile", "copyDir", "overlay", "direct", "file-replace"})
+        EXPECT_TRUE(makine::steprules::emptyRecipeIsPlainOverlay(QString::fromLatin1(t))) << t;
+}
+
+TEST(InstallStepRules, TypesThatNameAProcessStillRefuse)
+{
+    // These have no recipe either, and that is exactly the point: something
+    // outside the launcher has to happen. Overlay-copying their payload and
+    // reporting success is the "kuruldu ama calismiyor" lie the gate exists for.
+    for (const auto& t : {"external", "installer", "workshop", "paradox-mod",
+                          "d2r_mod", "forge_inject", "modengine", "unityPatch",
+                          "userPath", "vpatch"})
+        EXPECT_FALSE(makine::steprules::emptyRecipeIsPlainOverlay(QString::fromLatin1(t))) << t;
+}
+
+TEST(InstallStepRules, AnUnknownFutureTypeRefuses)
+{
+    // A method nobody taught the launcher must not be guessed into an overlay.
+    EXPECT_FALSE(makine::steprules::emptyRecipeIsPlainOverlay(QStringLiteral("quantum-inject")));
+    EXPECT_FALSE(makine::steprules::emptyRecipeIsPlainOverlay(QStringLiteral("")));
+}
