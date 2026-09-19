@@ -1388,6 +1388,37 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             QStringList filesToOverwrite =
                 m_coreBridge->getPackageFileList(gameId, variant, installPath);
 
+            // An empty list means "could not look", never "nothing to back up".
+            // getPackageFileList enumerates what the install will WRITE, and a
+            // package that writes nothing is not a package. The else-branch
+            // below read the two the same way and installed anyway: the patch
+            // overwrote originals with no backup behind it, and uninstall then
+            // refused for good ("Yama kaldırılamadı … eski haline
+            // döndürülemiyor"), leaving the user to verify game files by hand.
+            //
+            // Every such report came back with records=0 — Sentry, 30 days,
+            // 2026-09-20: 376 events across Resident Evil 4, Starfield, Kenshi,
+            // Red Dead Redemption 2, Sir Brante, Spider-Man 2, It Takes Two.
+            // All plain overlay packages, all first installs.
+            //
+            // d401dd8 fixed one way the list came back empty (the backup list
+            // and the install resolved the package differently). This closes
+            // the shape itself: whatever the reason, a patch never goes on top
+            // of originals we did not manage to record.
+            if (bm && !alreadyInstalled && filesToOverwrite.isEmpty()) {
+                qCCritical(lcGameService) << "Backup file list empty for" << gameId
+                    << "— refusing to install without a backup";
+                m_installTimeoutTimer->stop();
+                m_installingGameId.clear();
+                reportOperationFailure("install", gameId,
+                    QStringLiteral("backup file list empty; refusing to patch without a backup"));
+                emit translationInstallCompleted(gameId, false,
+                    tr("Yama kurulmadı: yedeklenecek dosyalar belirlenemedi, bu yüzden "
+                       "oyun dosyalarının üzerine yedek almadan yazılmayacak.\n"
+                       "Yamayı yeniden indirip tekrar deneyin."));
+                return;
+            }
+
             if (bm && !filesToOverwrite.isEmpty() && !alreadyInstalled) {
                 emit translationInstallProgress(gameId, 0.0, tr("Yedek oluşturuluyor..."));
 
