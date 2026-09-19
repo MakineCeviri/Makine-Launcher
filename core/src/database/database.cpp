@@ -298,11 +298,38 @@ Result<void> Database::initialize(const std::optional<fs::path>& dbPath) {
     if (fs::exists(encPath) && !fs::exists(dbPath_)) {
         MAKINE_LOG_INFO(log::DATABASE, "Decrypting database from: {}", encPath.string());
         if (!dpapiDecryptFile(encPath, dbPath_)) {
-            MAKINE_LOG_ERROR(log::DATABASE, "Failed to decrypt database — DPAPI error");
-            return std::unexpected(Error{ErrorCode::IOError,
-                "Failed to decrypt database. The database may have been created by a different user."});
+            // DPAPI keys are bound to the Windows profile, so a database written
+            // under a different account — or after a profile migration, restore
+            // or admin password reset — can never be read again by this one.
+            // Refusing to start left four users with a launcher that failed the
+            // same way on every launch and gave them nothing to do about it.
+            //
+            // The file is set aside, never deleted: it is unreadable HERE, not
+            // worthless, and signing back into the original profile still
+            // recovers it. What continues is a fresh database — the launcher
+            // works, at the cost of its history.
+            const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            auto asidePath = encPath;
+            asidePath += fmt::format(".unreadable-{}", stamp);
+
+            std::error_code renameEc;
+            fs::rename(encPath, asidePath, renameEc);
+            if (renameEc) {
+                MAKINE_LOG_ERROR(log::DATABASE,
+                    "Failed to decrypt database and could not set it aside: {}",
+                    renameEc.message());
+                return std::unexpected(Error{ErrorCode::IOError,
+                    "Failed to decrypt database. The database may have been created by "
+                    "a different user."});
+            }
+
+            MAKINE_LOG_ERROR(log::DATABASE,
+                "Database could not be decrypted (DPAPI); kept at {} and starting fresh",
+                asidePath.string());
+        } else {
+            MAKINE_LOG_INFO(log::DATABASE, "Database decrypted successfully");
         }
-        MAKINE_LOG_INFO(log::DATABASE, "Database decrypted successfully");
     }
 #endif
 
