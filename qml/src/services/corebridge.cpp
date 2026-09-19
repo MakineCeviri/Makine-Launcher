@@ -749,6 +749,30 @@ void CoreBridge::doScanRegistryReal(QList<DetectedGame>& outGames,
             if (displayName.isEmpty() || installLocation.isEmpty())
                 continue;
 
+            // Store clients are published BY game publishers, so the publisher
+            // allowlist further down waves them straight through. They are not
+            // games: users were offered "Epic Games Launcher" and "Ubisoft
+            // Connect" in their library and tried to patch them. Matched on the
+            // whole name rather than a substring — "steam" also appears inside
+            // SteamWorld Dig, and hiding a real game is the worse mistake.
+            static const QSet<QString> kStoreClients = {
+                QStringLiteral("steam"),
+                QStringLiteral("epic games launcher"),
+                QStringLiteral("epic online services"),
+                QStringLiteral("ubisoft connect"),
+                QStringLiteral("uplay"),
+                QStringLiteral("ea app"),
+                QStringLiteral("ea desktop"),
+                QStringLiteral("origin"),
+                QStringLiteral("battle.net"),
+                QStringLiteral("gog galaxy"),
+                QStringLiteral("rockstar games launcher"),
+                QStringLiteral("riot client"),
+                QStringLiteral("xbox game bar"),
+            };
+            if (kStoreClients.contains(displayName.toLower()))
+                continue;
+
             // Install location must exist
             installLocation = QDir::cleanPath(installLocation);
             if (!QDir(installLocation).exists())
