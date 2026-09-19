@@ -168,15 +168,11 @@ Item {
             // toast for that. Invisible Layout items take no space, so the row
             // closes up rather than leaving a gap.
             visible: UpdateService.indicatorVisible || navBarRoot.currentIndex === 2
-            // Checking used to colour the badge background (primary06/15),
-            // which read as an "off-topic" tint in the top bar while the
-            // user was just waiting on a network check. We now leave the
-            // badge transparent during Checking — a translucent toast in
-            // Main.qml handles that ephemeral signal. Persistent
-            // informational states (Available / Ready / Downloading /
-            // Verifying / error) still get the coloured pill.
+            // Only persistent informational states (Available / Ready /
+            // Downloading / Verifying / error) get the coloured pill.
+            // indicatorVisible() is already false for Idle and Checking, so
+            // the background was never the thing appearing during a check.
             readonly property bool _showBg: UpdateService.indicatorVisible
-                                          && UpdateService.state !== UpdateService.Checking
             color: _showBg
                    ? (_statusMouse.containsMouse ? Theme.primary15 : Theme.primary06)
                    : "transparent"
@@ -187,7 +183,21 @@ Item {
 
             // Subtle pulse for Available state
             property real _pulse: 1.0
-            opacity: UpdateService.state === UpdateService.Available ? _pulse : 1.0
+
+            // Checking puts nothing in the header at all. The report was
+            // "pressing Güncellemeleri Denetle shows an off-topic colour up
+            // top"; 136b864 answered it by removing a background tint that
+            // indicatorVisible() had already suppressed, so the element it
+            // was actually about survived — the BusyIndicator below, which
+            // spins in Theme.primary for the whole round-trip. Main.qml's
+            // toast is the signal for this state.
+            //
+            // Opacity, not visible: on Settings the badge holds a Layout
+            // slot, and collapsing it would shove the icons to its right
+            // sideways and back on every check.
+            opacity: UpdateService.state === UpdateService.Checking ? 0
+                   : UpdateService.state === UpdateService.Available ? _pulse
+                   : 1.0
             SequentialAnimation on _pulse {
                 running: UpdateService.state === UpdateService.Available && navBarRoot.animationsEnabled
                 loops: Animation.Infinite
