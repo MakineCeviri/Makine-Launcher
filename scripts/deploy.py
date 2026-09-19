@@ -219,24 +219,49 @@ def sentry_upload_debug_symbols(dry_run: bool = False) -> bool:
         print("  SKIP: SENTRY_AUTH_TOKEN not set")
         return True
 
-    # Look for build output directory
-    build_dir = PROJECT_DIR / "build" / "dev"
-    if not build_dir.exists():
-        build_dir = PROJECT_DIR / "build" / "release"
-    if not build_dir.exists():
+    # Release directories first, and the ones that actually produce the shipped
+    # binary before the generic one. "dev" used to be tried FIRST, so a machine
+    # with a dev build uploaded symbols for a binary nobody runs: the Debug ID
+    # never matched a shipped crash, and every report kept its own frames as "?".
+    candidates = ["release-static", "release-mingw", "release", "dev"]
+    build_dir = next((PROJECT_DIR / "build" / name
+                      for name in candidates
+                      if (PROJECT_DIR / "build" / name).exists()), None)
+    if build_dir is None:
         print("  SKIP: No build directory found")
         return True
 
+    # Name the files rather than handing over the directory: a scan of a whole
+    # build tree walks the object files too and dies on the first one it cannot
+    # parse ("error: Invalid checksum"), uploading nothing.
+    #
+    # The .sym copy is the one that carries symbol NAMES. A stripped release
+    # binary still has a Debug ID and unwind info — enough to walk a stack, not
+    # enough to name a single frame of it — which is why it is uploaded
+    # alongside rather than instead.
+    names = ["Makine-Launcher.exe.sym", "Makine-Launcher.exe",
+             "Makine-Launcher.pdb", "makine-elevate.exe"]
+    files = [build_dir / n for n in names if (build_dir / n).exists()]
+    if not files:
+        print(f"  SKIP: No uploadable binaries in {build_dir}")
+        return True
+
     if dry_run:
-        print(f"  [DRY RUN] Would upload symbols from {build_dir}")
+        print(f"  [DRY RUN] Would upload from {build_dir}: "
+              + ", ".join(f.name for f in files))
         return True
 
     r = subprocess.run(
-        ["sentry-cli", "debug-files", "upload", "--include-sources", str(build_dir)],
+        ["sentry-cli", "debug-files", "upload", "--include-sources",
+         *[str(f) for f in files]],
         capture_output=True, text=True, cwd=str(PROJECT_DIR)
     )
     if r.returncode == 0:
-        print(f"  ✓ Debug symbols uploaded from {build_dir}")
+        print(f"  ✓ Debug symbols uploaded from {build_dir}: "
+              + ", ".join(f.name for f in files))
+        if not (build_dir / "Makine-Launcher.exe.sym").exists():
+            print("  WARNING: no .sym copy in this build — crash frames will not "
+                  "be named. It is produced by Release MinGW builds only.")
     else:
         print(f"  WARNING: symbol upload failed: {r.stderr[:200]}")
 

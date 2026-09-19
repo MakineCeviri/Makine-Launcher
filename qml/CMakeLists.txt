@@ -590,11 +590,33 @@ else()
     message(STATUS "i18n: Qt6::LinguistTools not found, translations disabled")
 endif()
 
-# Strip debug symbols in release builds (all configs, not just static)
+# Keep an unstripped copy for Sentry, then strip the one we ship.
+#
+# Stripping in place destroyed the only copy of the symbols, so
+# `sentry-cli debug-files upload` (scripts/deploy.py) had nothing to find and
+# every crash from a shipped build came back with our own frames as "?". Twelve
+# fatal issues across ~28 users are undiagnosable for this reason alone — the
+# only readable frames are Windows' own, symbolicated from Microsoft's servers.
+#
+# Measured rather than assumed (2026-09-19, sentry-cli 3.2.2):
+#   stripped .exe           → Debug ID + unwind, but `nm` finds 0 symbols;
+#                             stacks walk, every frame is "?"
+#   objcopy --only-keep-debug → 180k symbols but "missing debug identifier",
+#                             so Sentry cannot pair it with the crashing module
+#   unstripped copy         → both. This is the file to upload.
+#
+# --build-id is what gives the module a Debug ID at all; the stripped binary
+# keeps that section, so the shipped file and the .sym copy identify as the same
+# module. Packaging (scripts/make_msix.ps1) names the files it stages, so the
+# .sym copy never reaches the installer and the shipped size is unchanged.
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MSVC)
+    target_link_options(MakineLauncher PRIVATE "-Wl,--build-id=sha1")
+
     add_custom_command(TARGET MakineLauncher POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                "$<TARGET_FILE:MakineLauncher>" "$<TARGET_FILE:MakineLauncher>.sym"
         COMMAND ${CMAKE_STRIP} "$<TARGET_FILE:MakineLauncher>"
-        COMMENT "Stripping release binary for minimal size"
+        COMMENT "Keeping Makine-Launcher.exe.sym for Sentry, stripping the shipped binary"
         VERBATIM
     )
 endif()
