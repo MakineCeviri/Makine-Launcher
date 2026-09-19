@@ -104,6 +104,11 @@ private:
     QNetworkAccessManager m_nam;
     bool m_syncing{false};
     bool m_offline{false};
+
+    // Version reported by the catalog API for the sync in flight; 0 when this
+    // sync never got a meta answer. Only this number may be persisted as the
+    // local catalog version — see catalogsyncrules.h.
+    int  m_serverCatalogVersion{0};
     QTimer m_retryTimer;
     QTimer m_syncTimeoutTimer;
     // Tracks the in-flight sync reply so the timeout can abort it instead

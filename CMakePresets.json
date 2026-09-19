@@ -89,7 +89,8 @@
         "MAKINE_UI_ONLY": "OFF",
         "MAKINE_DEV_TOOLS": "ON",
         "MAKINE_CRASH_REPORTING": "ON",
-        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev"
+        "MAKINE_VERSION_SUFFIX": "pre-alpha-dev",
+        "MAKINE_BUILD_TESTS": "ON"
       }
     },
     {

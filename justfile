@@ -70,6 +70,10 @@ release:
 test: core
     ctest --preset core-tests
 
+# Run the UI service + integration tests (dev preset builds them)
+test-ui: dev
+    ctest --preset dev-tests --output-on-failure
+
 # Run tests with verbose output
 test-verbose: core
     ctest --preset core-tests --verbose

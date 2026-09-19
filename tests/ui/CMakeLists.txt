@@ -52,6 +52,13 @@ target_link_libraries(test_catalogstore PRIVATE GTest::gtest Qt6::Core)
 add_test(NAME test_catalogstore COMMAND test_catalogstore)
 
 # Install-step contract rules (header-only, no MOC, no filesystem)
+# Catalog sync decision (pure ints — needs neither Qt nor a network stack)
+add_executable(test_catalogsyncrules test_catalogsyncrules.cpp)
+target_include_directories(test_catalogsyncrules PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_catalogsyncrules PRIVATE GTest::gtest GTest::gtest_main)
+add_test(NAME test_catalogsyncrules COMMAND test_catalogsyncrules)
+
 add_executable(test_installsteprules test_installsteprules.cpp)
 target_include_directories(test_installsteprules PRIVATE
     ${MAKINE_PROJECT_ROOT}/qml/src/services)

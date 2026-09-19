@@ -8,6 +8,7 @@
  */
 
 #include "manifestsyncservice.h"
+#include "catalogsyncrules.h"
 #include "catalogstore.h"
 #include "detailfetcher.h"
 #include "telemetryservice.h"
@@ -131,6 +132,10 @@ void ManifestSyncService::fetchCatalogMeta()
 {
     MAKINE_ZONE_NAMED("ManifestSync::fetchCatalogMeta");
 
+    // Only a number the API itself issued may be persisted as the local
+    // version; anything reached without a meta answer leaves it untouched.
+    m_serverCatalogVersion = 0;
+
     QNetworkRequest req{QUrl{QLatin1String(cdn::kCatalogMeta)}};
     req.setTransferTimeout(8000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
@@ -166,16 +171,17 @@ void ManifestSyncService::handleMetaResponse(const QByteArray& data)
     const QJsonObject meta = root[QStringLiteral("data")].toObject();
     const int serverVersion = meta[QStringLiteral("version")].toInt();
     const int localVersion = m_store->loadLocalCatalogVersion();
+    m_serverCatalogVersion = serverVersion;
 
     qCDebug(lcManifestSync) << "ManifestSync: server v" << serverVersion << "local v" << localVersion;
 
-    if (serverVersion <= localVersion && !m_store->isEmpty()) {
+    if (catalogsync::catalogIsCurrent(serverVersion, localVersion, m_store->isEmpty())) {
         qCDebug(lcManifestSync) << "ManifestSync: catalog is current";
         finishSync();
         return;
     }
 
-    if (localVersion > 0 && (serverVersion - localVersion) <= 50) {
+    if (catalogsync::canUseDelta(serverVersion, localVersion)) {
         fetchCatalogDelta(localVersion);
     } else {
         fetchFullCatalog();
@@ -290,8 +296,13 @@ void ManifestSyncService::handleFullCatalogResponse(const QByteArray& data)
 
     if (!m_store->isEmpty()) {
         m_store->saveCachedIndex(data, QString());
-        if (m_store->catalogVersion() > 0)
-            m_store->saveLocalCatalogVersion(m_store->catalogVersion());
+        // index.json's own "version" is the CDN publish counter, not the one
+        // handleMetaResponse compares against next launch. Persisting it is what
+        // wedged clients at "catalog is current" forever. Reached without a meta
+        // answer (legacy fallback), nothing is persisted and the next launch
+        // decides afresh.
+        if (m_serverCatalogVersion > 0)
+            m_store->saveLocalCatalogVersion(m_serverCatalogVersion);
 
         qCDebug(lcManifestSync) << "ManifestSync: full catalog synced —"
                                 << m_store->catalogCount() << "packages, v"
