@@ -172,6 +172,15 @@ telemetry-check:
     python scripts/telemetry_selftest.py
     python scripts/sentry_triage.py --fail-on-dead-alert
 
+# installNotes vs. what the package actually writes. Far Cry 6 told users to
+# pick a Turkish entry the game does not have; the note was prose nobody could
+# check. --deep decrypts every package (~3 GB) and reads the real file list.
+notes-audit:
+    python scripts/catalog_notes_audit.py
+
+notes-audit-deep:
+    python scripts/catalog_notes_audit.py --deep
+
 # Planning sheet vs. what users can actually install. Catches the three states
 # no one sees by eye: a cancelled patch still installable, a finished patch that
 # was never published, a package nobody tracks. Pass the team sheet:

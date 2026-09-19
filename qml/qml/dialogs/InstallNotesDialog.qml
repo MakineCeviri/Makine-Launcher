@@ -8,27 +8,45 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * InstallNotesDialog.qml - Post-install instructions the patch does not work without
+ * InstallNotesDialog.qml - The last install step, when that step is the user's
  *
- * 61 of the 237 catalogue packages carry installNotes, and for most of them the
- * note IS the last install step: Far Cry 6 wants the in-game language set to
- * Turkish, Thief wants it set to English, Mad Max put Turkish in the Polish
- * slot, The Sims 4 needs mods enabled. Until this dialog existed the note was
- * only reachable in the detail page's About card, so the normal outcome was a
- * patch reported as installed over a game still running in its old language.
+ * Field report: "Far Cry 6 yama kurulu görünüyor ama oyun hâlâ İngilizce." The
+ * patch had installed correctly. What was missing was a sentence, and the
+ * launcher had nowhere to say it.
  *
- * Shown once, right after a successful install — the moment the instruction is
- * actionable. Acknowledge-only: there is nothing here to decline.
+ * Three things go in here, most reliable first:
+ *
+ *   languageSlot  derived from the files the install actually wrote. Curse of
+ *                 the Dead Gods writes the French files, Alan Wake 2 the
+ *                 English ones — neither catalogue note says so, and the game
+ *                 shows nothing until it is switched to that language. This
+ *                 line cannot contradict the package because it is read off it.
+ *   message       the catalogue note. Authored prose, so it can be wrong, so it
+ *                 comes second.
+ *   writtenFiles  what landed on disk. Turns the next support thread from
+ *                 "it doesn't work" into a file list someone can read.
+ *
+ * Shown once, right after a successful install, and only when there is
+ * something to do — see makine::postinstall::shouldShowAfterInstall.
  */
 BaseDialog {
     id: root
 
     property string message: ""
-    accentColor: Theme.success
+    property string languageSlot: ""
+    property var writtenFiles: []
 
-    width: 460
-    contentHeight: Math.min(contentColumn.implicitHeight, 320)
-    title: qsTr("Yama kuruldu — son bir adım var")
+    // A Turkish slot means the default already works; the caller only sends us
+    // here for a foreign one, and then the language line is the whole point.
+    readonly property bool _foreignSlot: languageSlot !== "" && languageSlot !== "Türkçe"
+    readonly property int _fileCount: writtenFiles ? writtenFiles.length : 0
+
+    accentColor: _foreignSlot ? Theme.warning : Theme.success
+
+    width: 480
+    contentHeight: Math.min(_contentColumn.implicitHeight, 340)
+    title: _foreignSlot ? qsTr("Yama kuruldu — oyunun dilini değiştirin")
+                        : qsTr("Yama kuruldu — son bir adım var")
 
     header: Item {
         implicitHeight: 56
@@ -52,7 +70,7 @@ BaseDialog {
                     textFormat: Text.PlainText
                     font.family: "Segoe MDL2 Assets"
                     font.pixelSize: 15
-                    text: ""                      // info
+                    text: root._foreignSlot ? "" : ""   // warning / info
                     color: root.accentColor
                 }
             }
@@ -78,39 +96,83 @@ BaseDialog {
         }
     }
 
-    contentItem: ColumnLayout {
-        id: contentColumn
-        spacing: Dimensions.spacingMD
+    // One scroller for everything: notes run to numbered lists (Kenshi, Skyrim,
+    // The Sims 4) and an instruction cut in half is the failure this dialog
+    // exists to prevent.
+    contentItem: ScrollView {
+        id: _scroller
+        clip: true
 
-        Item { Layout.preferredHeight: Dimensions.spacingXS }
+        ColumnLayout {
+            id: _contentColumn
+            width: _scroller.availableWidth
+            spacing: Dimensions.spacingMD
 
-        // The note can run to a numbered list (Kenshi, Skyrim, The Sims 4), so
-        // it scrolls rather than being elided — an instruction cut in half is
-        // the failure this dialog exists to prevent.
-        ScrollView {
-            id: _noteScroll
-            Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingLG
-            Layout.rightMargin: Dimensions.paddingLG
-            Layout.preferredHeight: Math.min(_noteLabel.implicitHeight, 240)
-            clip: true
+            Item { Layout.preferredHeight: Dimensions.spacingXS }
 
+            // ===== Derived from the installed files =====
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.paddingLG
+                Layout.rightMargin: Dimensions.paddingLG
+                Layout.preferredHeight: _slotText.implicitHeight + Dimensions.paddingMD * 2
+                visible: root.languageSlot !== ""
+                radius: Dimensions.radiusStandard
+                color: Theme.withAlpha(root.accentColor, 0.08)
+                border.color: Theme.withAlpha(root.accentColor, 0.20)
+                border.width: 1
+
+                Label {
+                    id: _slotText
+                    anchors.fill: parent
+                    anchors.margins: Dimensions.paddingMD
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WordWrap
+                    lineHeight: 1.5
+                    font.pixelSize: Dimensions.fontSM
+                    color: Theme.textPrimary
+                    text: root._foreignSlot
+                          ? qsTr("Çeviri oyunun %1 dil dosyalarına yazıldı. Görmek için oyunun dilini %1 yapın ve oyunu yeniden başlatın.")
+                              .arg(root.languageSlot)
+                          : qsTr("Çeviri %1 dil dosyalarına yazıldı.").arg(root.languageSlot)
+                }
+            }
+
+            // ===== The catalogue note =====
             Label {
-                id: _noteLabel
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.paddingLG
+                Layout.rightMargin: Dimensions.paddingLG
+                visible: root.message !== ""
                 textFormat: Text.PlainText
-                // availableWidth, not parent.width: inside a ScrollView the
-                // label's parent is the flickable content item, which sizes
-                // itself FROM this label — binding to it loops.
-                width: _noteScroll.availableWidth
                 text: root.message
                 font.pixelSize: Dimensions.fontSM
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
                 lineHeight: 1.5
             }
-        }
 
-        Item { Layout.preferredHeight: Dimensions.spacingXS }
+            // ===== What actually landed =====
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.paddingLG
+                Layout.rightMargin: Dimensions.paddingLG
+                visible: root._fileCount > 0
+                textFormat: Text.PlainText
+                font.pixelSize: Dimensions.fontMicro
+                color: Theme.textMuted
+                wrapMode: Text.WrapAnywhere
+                lineHeight: 1.4
+                text: {
+                    var shown = root.writtenFiles.slice(0, 6).join("\n")
+                    var rest = root._fileCount - 6
+                    return qsTr("Yazılan dosyalar (%1):").arg(root._fileCount) + "\n" + shown
+                           + (rest > 0 ? "\n+" + rest + " dosya daha" : "")
+                }
+            }
+
+            Item { Layout.preferredHeight: Dimensions.spacingXS }
+        }
     }
 
     footer: Item {
@@ -129,7 +191,7 @@ BaseDialog {
 
             Label {
                 textFormat: Text.PlainText
-                text: qsTr("Bu not oyun sayfasındaki Yama Notları bölümünde durmaya devam eder.")
+                text: qsTr("Bu bilgi oyun sayfasındaki Yama Notları bölümünde kalır.")
                 font.pixelSize: Dimensions.fontMicro
                 color: Theme.textMuted
                 elide: Text.ElideRight
@@ -140,7 +202,8 @@ BaseDialog {
                 Layout.preferredWidth: _okLbl.width + Dimensions.paddingLG * 2
                 Layout.preferredHeight: 34
                 radius: Dimensions.radiusStandard
-                color: _okMouse.containsMouse ? root.accentColor : Theme.withAlpha(root.accentColor, 0.85)
+                color: _okMouse.containsMouse ? root.accentColor
+                                              : Theme.withAlpha(root.accentColor, 0.85)
                 Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
                 scale: _okMouse.pressed ? Dimensions.pressScale : 1.0
                 Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }

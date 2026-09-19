@@ -193,6 +193,19 @@ public:
     Q_INVOKABLE QVariantList getInstallOptions(const QString& gameId);
 
     /**
+     * @brief What the user must still do now that the patch is installed
+     *
+     * Answers from the files that actually landed on disk, not only from the
+     * catalogue note. Far Cry 6 shipped a note telling people to pick a
+     * Turkish entry the game does not have; the installed file list is the one
+     * description of a patch that cannot be wrong.
+     *
+     * Keys: notes (QString) · languageSlot (QString, empty when undecidable) ·
+     *       files (QStringList, relative) · actionRequired (bool)
+     */
+    Q_INVOKABLE QVariantMap getPostInstallGuidance(const QString& gameId);
+
+    /**
      * @brief Get special dialog mode for a game (e.g. "eldenRing")
      */
     Q_INVOKABLE QString getSpecialDialog(const QString& gameId);

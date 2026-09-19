@@ -72,6 +72,14 @@ target_include_directories(test_installsteprules PRIVATE
 target_link_libraries(test_installsteprules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_installsteprules COMMAND test_installsteprules)
 
+# What the user must still do once a patch is installed — the language slot the
+# files landed in, and whether the catalogue note is an instruction at all.
+add_executable(test_postinstallrules test_postinstallrules.cpp)
+target_include_directories(test_postinstallrules PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_postinstallrules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_postinstallrules COMMAND test_postinstallrules)
+
 # Telemetry failure classification (built without MAKINE_HAS_SENTRY, so the
 # reporting calls compile to no-ops and only the pure classifiers are exercised)
 add_executable(test_crashreporter test_crashreporter.cpp

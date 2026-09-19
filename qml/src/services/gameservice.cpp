@@ -9,6 +9,7 @@
 
 #include "gameservice.h"
 #include "gamenamerules.h"
+#include "postinstallrules.h"
 #include "imagecachemanager.h"
 #include "steamdetailsservice.h"
 #include "backupmanager.h"
@@ -1138,6 +1139,38 @@ QString GameService::getInstallNotes(const QString& gameId)
     MAKINE_ZONE_NAMED("GameService::getInstallNotes");
     if (!m_coreBridge) return {};
     return m_coreBridge->getInstallNotesForGame(gameId);
+}
+
+QVariantMap GameService::getPostInstallGuidance(const QString& gameId)
+{
+    MAKINE_ZONE_NAMED("GameService::getPostInstallGuidance");
+    QVariantMap out{
+        {QStringLiteral("notes"),          QString()},
+        {QStringLiteral("languageSlot"),   QString()},
+        {QStringLiteral("files"),          QStringList()},
+        {QStringLiteral("actionRequired"), false},
+    };
+    if (!m_coreBridge) return out;
+
+    const QString notes = m_coreBridge->getInstallNotesForGame(gameId);
+
+    // Entries beginning with '_' are the installer's own bookkeeping, not game
+    // files — checkPatchIntegrity() filters them the same way.
+    QStringList written;
+    if (const auto info = m_coreBridge->getInstalledInfo(gameId)) {
+        written.reserve(info->installedFiles.size());
+        for (const QString& rel : info->installedFiles) {
+            if (!rel.startsWith(QLatin1Char('_'))) written.append(rel);
+        }
+    }
+
+    const QString slot = makine::postinstall::languageSlotFromPaths(written);
+    out[QStringLiteral("notes")]          = notes;
+    out[QStringLiteral("languageSlot")]   = slot;
+    out[QStringLiteral("files")]          = written;
+    out[QStringLiteral("actionRequired")] =
+        makine::postinstall::shouldShowAfterInstall(notes, slot);
+    return out;
 }
 
 QVariantList GameService::getInstallOptions(const QString& gameId)

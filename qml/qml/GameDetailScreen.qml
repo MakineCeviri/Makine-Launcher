@@ -27,6 +27,10 @@ Item {
     // UI-only state (not game data)
     readonly property bool _animEnabled: Dimensions.animSlow > 0
 
+    // Last GameService.getPostInstallGuidance() result — what the user still
+    // has to do, read off the files the install actually wrote.
+    property var _postInstall: ({})
+
     signal translateClicked()
     signal backClicked()
 
@@ -186,14 +190,18 @@ Item {
                     root.viewModel.hasTranslationUpdate = false
                     root.viewModel.installErrorMessage = ""
                     installSuccessTimer.restart()
-                    // For 61 of the 237 catalogue packages the note IS the last
-                    // install step — Far Cry 6 wants the in-game language set to
-                    // Turkish, Thief wants it set to English, The Sims 4 needs
-                    // mods enabled. Reported from the field as "yama kurulu
-                    // görünüyor ama oyun hâlâ İngilizce". Show it at the one
-                    // moment it is actionable.
-                    if (root.viewModel.translationNotes !== "")
+                    // Reported from the field as "yama kurulu görünüyor ama
+                    // oyun hâlâ İngilizce". The last install step is often the
+                    // user's: switch the game language, enable mods, add a
+                    // launch option. GameService derives it from the files that
+                    // actually landed rather than from the catalogue note,
+                    // which for Far Cry 6 named a language the game does not
+                    // have — and stays quiet when there is nothing to do.
+                    var guidance = GameService.getPostInstallGuidance(gId)
+                    if (guidance && guidance.actionRequired) {
+                        root._postInstall = guidance
                         installNotesLoader.active = true
+                    }
                 } else {
                     root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
                     installErrorTimer.restart()
@@ -231,7 +239,9 @@ Item {
         sourceComponent: Component {
             InstallNotesDialog {
                 parent: Overlay.overlay
-                message: root.viewModel.translationNotes
+                message: root._postInstall.notes || ""
+                languageSlot: root._postInstall.languageSlot || ""
+                writtenFiles: root._postInstall.files || []
                 onClosed: installNotesLoader.active = false
                 Component.onCompleted: open()
             }
