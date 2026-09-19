@@ -1409,7 +1409,12 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         && pkg.variantInstallOptions.contains(variant))
     {
         QString variantDir = m_dataPath + "/" + pkg.dirName + "/" + variant;
-        if (!QDir(variantDir).exists()) {
+        // dirHasFiles, not exists(): an interrupted download leaves the folder
+        // behind empty, and a recipe run against nothing fails step by step as
+        // "1 adımda hata oluştu" — the launcher blaming the game for a payload
+        // that never arrived. Same reason resolveSourcePath stopped trusting
+        // exists() in 1df0f32; these two option paths were missed.
+        if (!dirHasFiles(variantDir)) {
             emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
                 "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
                 "kaldırıp yeniden indirin.").arg(pkg.gameName));
@@ -1430,7 +1435,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     // Handle options-based install (package-level options, e.g. Elden Ring)
     if (pkg.installMethodType == "options" && !selectedOptions.isEmpty()) {
         QString baseDir = m_dataPath + "/" + pkg.dirName;
-        if (!QDir(baseDir).exists()) {
+        if (!dirHasFiles(baseDir)) {
             emit installCompleted(false, tr("Çeviri dosyaları bulunamadı: %1. İndirme eksik veya bozuk "
                 "olabilir. Çözüm: internet bağlantınızı kontrol edin, yamayı "
                 "kaldırıp yeniden indirin.").arg(pkg.gameName));
