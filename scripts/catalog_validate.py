@@ -88,13 +88,24 @@ def head(url):
         return 0, 0
 
 
-def is_mangled_risk(text):
-    """True when the packaging tar would not round-trip this name.
+# Karakterler cikaricinin GERCEKTEN '_' ile degistirdikleri
+# (mkpkformat.h extract_tar, #ifdef _WIN32 blogu).
+_SUBSTITUTED = set('?*"<>|')
 
-    Anything outside ASCII is replaced with '?' on write and '_' on extract, so
-    the recipe's spelling stops matching the directory that appears on disk.
+
+def is_mangled_risk(text):
+    """True when the extractor would not round-trip this name.
+
+    Onceki hali "ASCII disi her sey bozulur" diyordu ve bu YANLISTI. mkpkformat.h
+    icindeki tarpath() once kati UTF-8, sonra CP1254, sonra CP_ACP deniyor; gecerli
+    UTF-8 tasiyan bir tar adi dogru cozuluyor. 2026-09-19'da olculdu: tar'daki
+    'Türkçe Yama' (b'TÃ¼rkÃ§e Yama') diske 'Türkçe Yama' olarak
+    yaziliyor. Eski kural Elden Ring icin iki yanlis alarm uretiyordu ve bozuk
+    olmayan veriyi duzeltmeye yonlendiriyordu.
+
+    Gercek risk yalnizca sanitizer'in ikame ettigi karakterlerde.
     """
-    return any(ord(ch) > 127 for ch in (text or ""))
+    return any(ch in _SUBSTITUTED for ch in (text or ""))
 
 
 def walk_steps(im):

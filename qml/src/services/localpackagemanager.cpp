@@ -846,14 +846,18 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
     return sourcePath;
 }
 
-// Mirror of the filename substitution mkpkformat.h performs while extracting.
+// Fuzzy key for matching a recipe's folder name against one on disk.
 //
-// Packaging tools that lose non-ASCII characters write them into the tar as
-// '?', and '?' is a wildcard Windows refuses inside a path — so the extractor
-// rewrites it, along with the other Windows-illegal characters, to '_'. The
-// recipe still carries the original name, so "Türkçe Yama" exists on disk as
-// "T_rk_e Yama". Any comparison between a recipe name and a name on disk has
-// to pass both sides through this same substitution, or it silently misses.
+// NOT a mirror of the extractor, despite what this comment used to claim. It
+// said mkpkformat.h rewrites non-ASCII to '_', so "Türkçe Yama" would be on
+// disk as "T_rk_e Yama". That is false and it cost a long false lead: measured
+// 2026-09-19, extract_tar's tarpath() decodes the tar's UTF-8 bytes correctly
+// and writes "Türkçe Yama" verbatim. Only '?' '*' '"' '<' '>' '|' are ever
+// substituted, and none of them appear in a Turkish name.
+//
+// The function still earns its place — collapsing both sides to a common key
+// matches a correct on-disk name AND one an older build really did mangle, so
+// a subDir lookup succeeds either way. It is a tolerance, not a mirror.
 static QString extractorMangledName(const QString& name)
 {
     QString out;
