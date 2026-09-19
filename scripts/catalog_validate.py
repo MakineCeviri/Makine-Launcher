@@ -59,7 +59,7 @@ REQUIRED = {
     "copy": ("src", "dest"), "copyFile": ("src", "dest"),
     "copyDir": ("src", "dest"), "rename": ("src", "dest"),
     "copyToDesktop": ("src", "dest"), "delete": ("dest",),
-    "installFont": ("src",), "run": ("exe",), "setSteamLanguage": ("language",),
+    "installFont": ("src",), "run": ("exe|cmd",), "setSteamLanguage": ("language",),
 }
 # Mirrors kOverlaySafeTypes.
 OVERLAY_SAFE = {"", "direct", "overlay", "copy", "file-replace"}
@@ -68,7 +68,7 @@ REDIRECT_TYPES = {"external", "forge_inject", "workshop", "installer",
                   "paradox-mod", "unityPatch", "modengine", "d2r_mod", "vpatch"}
 # Keys the step parser reads. Anything else in a step is silently discarded.
 PARSED_KEYS = {"action", "src", "dest", "exe", "fallback", "workDir",
-               "language", "args"}
+               "language", "args", "cmd"}
 
 
 def fetch(url, as_json=True):
@@ -177,7 +177,11 @@ def check_package(app_id, meta, no_network):
         if action and action not in KNOWN_ACTIONS:
             add("ACTION", f"{where}: '{action}' çalıştırıcıda yok")
         elif action:
-            missing = [f for f in REQUIRED.get(action, ()) if not s.get(f)]
+            # "exe|cmd" = ikisinden biri yeterli. Recete tek bir komut satiri
+            # yazabiliyor ("cmd": "tools/moesow.exe kapat x.arch06"); ayristirici
+            # onu exe + args'a boluyor (package_catalog.hpp splitCommandLine).
+            missing = [f for f in REQUIRED.get(action, ())
+                       if not any(s.get(alt) for alt in f.split("|"))]
             if missing:
                 unread = sorted(set(s) - PARSED_KEYS)
                 hint = f" (okunmayan anahtar: {', '.join(unread)})" if unread else ""

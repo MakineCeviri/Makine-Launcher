@@ -164,6 +164,13 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
                 }
             }
         }
+        // Recipes that write one "cmd" string instead of exe + args. Applied
+        // last so an explicit exe/args pair always wins; see splitCommandLine.
+        if (step.exe.empty() && s.contains("cmd") && s["cmd"].is_string()) {
+            auto [exe, args] = splitCommandLine(s["cmd"].get<std::string>());
+            step.exe = std::move(exe);
+            if (step.args.empty()) step.args = std::move(args);
+        }
         steps.push_back(std::move(step));
     }
     return steps;

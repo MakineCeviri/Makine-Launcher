@@ -19,6 +19,8 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <unordered_map>
 #include <vector>
 
@@ -48,6 +50,46 @@ struct InstallStep {
     std::string workDir;    // "game" (default) or "package"
     std::string language;   // Steam language name — for "setSteamLanguage"
 };
+
+/**
+ * @brief Split a recipe's "cmd" string into an executable and its arguments
+ *
+ * The step schema has always had `exe` plus an `args` array, and the executor
+ * supports both. Several live recipes instead write one string:
+ *
+ *     {"action": "run", "cmd": "tools/moesow.exe kapat hotchunk.arch06"}
+ *
+ * The parser read only `exe`, so those steps arrived with nothing to run and
+ * the user was told the launcher does not support the step — 181 events over
+ * 14 users in 30 days (Middle-earth: Shadow of War, AC III Remastered),
+ * measured 2026-09-20. Nothing was missing but this split.
+ *
+ * Quote-aware so a path containing spaces survives; no <regex>, which is
+ * broken on MinGW 13.1.
+ *
+ * @return {executable, arguments}; empty executable when cmd holds no token
+ */
+inline std::pair<std::string, std::vector<std::string>>
+splitCommandLine(std::string_view cmd)
+{
+    std::vector<std::string> tokens;
+    std::string current;
+    bool inQuotes = false;
+    for (const char c : cmd) {
+        if (c == '"') { inQuotes = !inQuotes; continue; }
+        if (!inQuotes && (c == ' ' || c == '	')) {
+            if (!current.empty()) { tokens.push_back(current); current.clear(); }
+            continue;
+        }
+        current.push_back(c);
+    }
+    if (!current.empty()) tokens.push_back(current);
+    if (tokens.empty()) return {};
+
+    std::string exe = std::move(tokens.front());
+    tokens.erase(tokens.begin());
+    return {std::move(exe), std::move(tokens)};
+}
 
 /**
  * @brief An install option that can be independently selected (checkbox)

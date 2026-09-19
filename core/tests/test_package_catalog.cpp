@@ -540,3 +540,55 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdEmptyString) {
 
 } // namespace testing
 } // namespace makine
+
+// ===== "cmd" recipes: one string instead of exe + args =====================
+//
+// The schema has exe + args and the executor supports both, but live recipes
+// write a single command line. The parser read only "exe", so those steps
+// reached the user as "Bu yama, uygulamanın şu an desteklemediği bir kurulum
+// adımı içeriyor (run)" — 181 events / 14 users in 30 days, measured
+// 2026-09-20. Both strings below are copied from the published catalogue.
+
+TEST(SplitCommandLine, ShadowOfWarRecipe) {
+    // assets/packages/356190.json
+    auto [exe, args] = makine::packages::splitCommandLine("tools/moesow.exe kapat hotchunk.arch06");
+    EXPECT_EQ(exe, "tools/moesow.exe");
+    ASSERT_EQ(args.size(), 2u);
+    EXPECT_EQ(args[0], "kapat");
+    EXPECT_EQ(args[1], "hotchunk.arch06");
+}
+
+TEST(SplitCommandLine, AssassinsCreedIIIRecipe) {
+    // assets/packages/911400.json
+    auto [exe, args] = makine::packages::splitCommandLine(
+        "patch.exe tr DataPC_DX11.forge DataPC_DX11.forge_tr");
+    EXPECT_EQ(exe, "patch.exe");
+    ASSERT_EQ(args.size(), 3u);
+    EXPECT_EQ(args[0], "tr");
+    EXPECT_EQ(args[2], "DataPC_DX11.forge_tr");
+}
+
+TEST(SplitCommandLine, QuotedPathWithSpacesStaysOneToken) {
+    auto [exe, args] = makine::packages::splitCommandLine("\"tools/my patcher.exe\" --lang tr");
+    EXPECT_EQ(exe, "tools/my patcher.exe");
+    ASSERT_EQ(args.size(), 2u);
+    EXPECT_EQ(args[0], "--lang");
+}
+
+TEST(SplitCommandLine, ExecutableWithNoArguments) {
+    auto [exe, args] = makine::packages::splitCommandLine("ERING_TR.exe");
+    EXPECT_EQ(exe, "ERING_TR.exe");
+    EXPECT_TRUE(args.empty());
+}
+
+TEST(SplitCommandLine, RunsOfWhitespaceDoNotProduceEmptyArguments) {
+    auto [exe, args] = makine::packages::splitCommandLine("  patch.exe   tr		file.forge ");
+    EXPECT_EQ(exe, "patch.exe");
+    ASSERT_EQ(args.size(), 2u);
+    EXPECT_EQ(args[1], "file.forge");
+}
+
+TEST(SplitCommandLine, EmptyInputYieldsNoExecutable) {
+    EXPECT_TRUE(makine::packages::splitCommandLine("").first.empty());
+    EXPECT_TRUE(makine::packages::splitCommandLine("   ").first.empty());
+}
