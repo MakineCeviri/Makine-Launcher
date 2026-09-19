@@ -46,4 +46,16 @@ inline bool canUseDelta(int serverVersion, int localVersion, int maxGap = 50)
         && (serverVersion - localVersion) <= maxGap;
 }
 
+// Does a delta response actually describe the range we asked for?
+//
+// The live API answers since=19 with toVersion=12 and an empty change list —
+// HTTP 200, success:true, no 410. Applying that walks the stored version
+// BACKWARDS while changing nothing, and the next launch asks for a range that
+// is wrong in the same way: a loop that never reaches the full catalog. A delta
+// that cannot move us forward is not an answer, it is a reason to refetch.
+inline bool deltaIsUsable(int sinceVersion, int toVersion)
+{
+    return toVersion > 0 && toVersion >= sinceVersion;
+}
+
 } // namespace makine::catalogsync

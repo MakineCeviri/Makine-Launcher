@@ -199,7 +199,7 @@ void ManifestSyncService::fetchCatalogDelta(int sinceVersion)
 
     QNetworkReply* reply = m_nam.get(req);
     m_currentSyncReply = reply;
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, sinceVersion]() {
         reply->deleteLater();
 
         if (reply->error() != QNetworkReply::NoError) {
@@ -214,14 +214,14 @@ void ManifestSyncService::fetchCatalogDelta(int sinceVersion)
             return;
         }
         if (status >= 200 && status < 300) {
-            handleDeltaResponse(reply->readAll());
+            handleDeltaResponse(reply->readAll(), sinceVersion);
         } else {
             fetchFullCatalog();
         }
     });
 }
 
-void ManifestSyncService::handleDeltaResponse(const QByteArray& data)
+void ManifestSyncService::handleDeltaResponse(const QByteArray& data, int sinceVersion)
 {
     const QJsonDocument doc = QJsonDocument::fromJson(data);
     if (!doc.isObject()) { fetchFullCatalog(); return; }
@@ -232,6 +232,14 @@ void ManifestSyncService::handleDeltaResponse(const QByteArray& data)
     const QJsonObject deltaData = root[QStringLiteral("data")].toObject();
     const int toVersion = deltaData[QStringLiteral("toVersion")].toInt();
     const QJsonArray changes = deltaData[QStringLiteral("changes")].toArray();
+
+    if (!catalogsync::deltaIsUsable(sinceVersion, toVersion)) {
+        qCWarning(lcManifestSync) << "ManifestSync: delta since" << sinceVersion
+                                  << "answered with toVersion" << toVersion
+                                  << "— not a range, fetching the full catalog";
+        fetchFullCatalog();
+        return;
+    }
 
     qCDebug(lcManifestSync) << "ManifestSync: delta —" << changes.size() << "changes";
 

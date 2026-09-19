@@ -100,3 +100,27 @@ TEST(CatalogSyncRules, EqualVersionsNeedNoDelta)
 {
     EXPECT_FALSE(canUseDelta(12, 12));
 }
+
+// ===== Delta responses that describe no range =====
+
+TEST(CatalogSyncRules, DeltaEndingBelowWhereItStartedIsNotUsable)
+{
+    // Read live on 2026-09-19: GET /api/v2/catalog/delta?since=19 answers
+    // HTTP 200 success:true with {"fromVersion":19,"toVersion":12,"changes":[]}.
+    // Applying it would walk the stored version backwards and change nothing.
+    EXPECT_FALSE(deltaIsUsable(19, 12));
+    EXPECT_FALSE(deltaIsUsable(100, 12));  // same answer for any unknown since
+}
+
+TEST(CatalogSyncRules, DeltaWithNoVersionIsNotUsable)
+{
+    // A malformed body parses toVersion as 0; persisting that would reset the
+    // client to "never synced" on every launch.
+    EXPECT_FALSE(deltaIsUsable(12, 0));
+}
+
+TEST(CatalogSyncRules, ForwardAndNoopDeltasAreUsable)
+{
+    EXPECT_TRUE(deltaIsUsable(12, 13));
+    EXPECT_TRUE(deltaIsUsable(12, 12));  // legitimately nothing new
+}

@@ -83,7 +83,7 @@ private:
     void fetchCatalogMeta();
     void handleMetaResponse(const QByteArray& data);
     void fetchCatalogDelta(int sinceVersion);
-    void handleDeltaResponse(const QByteArray& data);
+    void handleDeltaResponse(const QByteArray& data, int sinceVersion);
     void fetchFullCatalog();
     void handleFullCatalogResponse(const QByteArray& data);
     void fallbackToLegacySync();
