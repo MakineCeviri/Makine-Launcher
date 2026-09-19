@@ -186,6 +186,14 @@ Item {
                     root.viewModel.hasTranslationUpdate = false
                     root.viewModel.installErrorMessage = ""
                     installSuccessTimer.restart()
+                    // For 61 of the 237 catalogue packages the note IS the last
+                    // install step — Far Cry 6 wants the in-game language set to
+                    // Turkish, Thief wants it set to English, The Sims 4 needs
+                    // mods enabled. Reported from the field as "yama kurulu
+                    // görünüyor ama oyun hâlâ İngilizce". Show it at the one
+                    // moment it is actionable.
+                    if (root.viewModel.translationNotes !== "")
+                        installNotesLoader.active = true
                 } else {
                     root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
                     installErrorTimer.restart()
@@ -213,6 +221,20 @@ Item {
         function onImageReady(appId) {
             if (appId === root.viewModel.steamAppId || appId === root.viewModel.gameId)
                 root.viewModel.imageUrl = ImageCache.resolve(appId)
+        }
+    }
+
+    // ===== POST-INSTALL NOTES DIALOG (lazy) =====
+    Loader {
+        id: installNotesLoader
+        active: false
+        sourceComponent: Component {
+            InstallNotesDialog {
+                parent: Overlay.overlay
+                message: root.viewModel.translationNotes
+                onClosed: installNotesLoader.active = false
+                Component.onCompleted: open()
+            }
         }
     }
 

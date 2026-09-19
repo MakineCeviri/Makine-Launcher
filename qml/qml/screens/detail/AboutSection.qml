@@ -14,8 +14,14 @@ Rectangle {
 
     Layout.fillWidth: true
     implicitHeight: contentLayout.implicitHeight + 2 * _padding
-    // Show patch notes from manifest when available, otherwise Steam description
-    readonly property bool _showPatchNotes: vm.fromLibrary && vm.translationNotes !== ""
+    // Show patch notes from manifest when available, otherwise Steam description.
+    //
+    // The gate used to be vm.fromLibrary — whether the user arrived from the
+    // Library page. That made a game's install instructions depend on which
+    // page it was opened from: install from Home and the note the patch does
+    // not work without was never rendered anywhere. Installed state is what
+    // actually decides which text is useful here.
+    readonly property bool _showPatchNotes: vm.packageInstalled && vm.translationNotes !== ""
     readonly property string _displayText: _showPatchNotes ? vm.translationNotes : vm.description
 
     visible: _displayText !== ""

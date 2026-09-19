@@ -303,6 +303,7 @@ qt_add_qml_module(MakineLauncher
         qml/dialogs/VariantSelectionDialog.qml
         qml/dialogs/InstallOptionsDialog.qml
         qml/dialogs/UpdateAlertDialog.qml
+        qml/dialogs/InstallNotesDialog.qml
 
     RESOURCES
         # SVG icons
