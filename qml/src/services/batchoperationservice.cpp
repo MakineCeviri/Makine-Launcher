@@ -216,6 +216,16 @@ void BatchOperationService::processNextItem()
     switch (m_currentOperation) {
         case BatchOperationType::Install:
         case BatchOperationType::Update:
+            // A batch has nobody to ask. Installing a variant package without a
+            // variant either copies the wrong game version's files over a
+            // working install or fails at the first step with a message that
+            // blames the user's game; neither is something to do unattended.
+            if (!m_coreBridge->getVariantsForGame(item.gameId).isEmpty()) {
+                disconnectCurrentItem();
+                onItemCompleted(item.gameId, false,
+                    tr("Bu yamanın sürüm seçimi var — oyunun kendi sayfasından kurun"));
+                return;
+            }
             m_coreBridge->installPackage(item.gameId, item.installPath);
             break;
         case BatchOperationType::Remove:

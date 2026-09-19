@@ -753,6 +753,17 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
 {
     QString sourcePath;
 
+    // Says out loud what used to be inferred from a downstream symptom. With no
+    // variant the search starts at the package root, where a variant-foldered
+    // archive holds one copy of every recipe path — the resolver then reports
+    // "ambiguous at depth 1" and the step fails as if the package were broken.
+    // A flat archive is unaffected, so this warns rather than refuses.
+    if (variant.isEmpty() && !pkg.variants.isEmpty()) {
+        qCWarning(lcPackageManager)
+            << "resolveSourcePath: package declares variants" << pkg.variants
+            << "but none was selected — searching from the package root";
+    }
+
     // Try new game-name directory format first
     if (!pkg.dirName.isEmpty()) {
         sourcePath = !variant.isEmpty()

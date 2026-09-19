@@ -69,6 +69,10 @@ private:
     void continueWithDetail(const QString& gameId, const QString& gameName);
     void continueAfterNotes(const QString& gameId, const QString& gameName);
     void continueAfterOptions(const QString& gameId, const QString& variant);
+    // Install and update share every gate in front of them; only the last
+    // step differs. Routing through here is what keeps an update from
+    // skipping a gate the install path asks for.
+    void dispatch(const QString& gameId, const QString& variant, const QStringList& options);
     void doInstall(const QString& gameId, const QString& variant, const QStringList& options);
     void doUpdate(const QString& gameId, const QString& variant, const QStringList& options);
     bool ensurePackageDetail(const QString& gameId, const QString& gameName);

@@ -89,7 +89,12 @@ void InstallFlowService::startUpdate(const QString& gameId, const QString& gameN
     if (!ensurePackageDetail(gameId, gameName))
         return;
 
-    doUpdate(gameId, QString(), QStringList());
+    // Through the variant gate, not straight to the update: a package whose
+    // recipe paths live inside a variant folder cannot be updated without
+    // knowing which one. Passing an empty variant sent the install searching
+    // from the package root, where it finds one copy per variant and refuses
+    // to guess — the user saw "Adım 1 hata" for a package that is intact.
+    continueAfterOptions(gameId, QString());
 }
 
 // ===== Anti-cheat continue =====
@@ -142,7 +147,7 @@ void InstallFlowService::onPackageDetailEnriched(const QString& appId)
     m_pendingGameName.clear();
 
     if (m_pendingUpdateFlow) {
-        doUpdate(gId, QString(), QStringList());
+        continueAfterOptions(gId, QString());
     } else {
         continueWithDetail(gId, gName);
     }
@@ -175,7 +180,7 @@ void InstallFlowService::onOptionsConfirmed(const QStringList& selectedIds)
     QString variant = m_pendingInstallOptionsData.value(QStringLiteral("variant")).toString();
     QString gameId = m_pendingInstallOptionsData.value(QStringLiteral("gameId")).toString();
     m_pendingInstallOptionsData.clear();
-    doInstall(gameId, variant, selectedIds);
+    dispatch(gameId, variant, selectedIds);
 }
 
 void InstallFlowService::onOptionsCancelled()
@@ -200,7 +205,7 @@ void InstallFlowService::continueAfterOptions(const QString& gameId, const QStri
         return;
     }
 
-    doInstall(gameId, QString(), QStringList());
+    dispatch(gameId, QString(), QStringList());
 }
 
 void InstallFlowService::onVariantSelected(const QString& variant)
@@ -225,7 +230,7 @@ void InstallFlowService::onVariantSelected(const QString& variant)
         return;
     }
 
-    doInstall(gameId, variant, QStringList());
+    dispatch(gameId, variant, QStringList());
 }
 
 void InstallFlowService::onVariantCancelled()
@@ -234,7 +239,16 @@ void InstallFlowService::onVariantCancelled()
     m_pendingUpdateFlow = false;
 }
 
-// ===== Download gate: install =====
+// ===== Download gates =====
+
+void InstallFlowService::dispatch(const QString& gameId, const QString& variant,
+                                   const QStringList& options)
+{
+    if (m_pendingUpdateFlow)
+        doUpdate(gameId, variant, options);
+    else
+        doInstall(gameId, variant, options);
+}
 
 void InstallFlowService::doInstall(const QString& gameId, const QString& variant,
                                     const QStringList& options)
