@@ -12,7 +12,7 @@
  *   3. Neither: all macros compile to nothing (zero overhead)
  *
  * PerfReporter is always active when any profiling is enabled.
- * It writes a JSON report on app exit that Claude Code can read.
+ * It writes a JSON report on app exit; scripts/perf_report.py formats it.
  *
  * Build with: cmake --preset dev-profile (enables both Tracy + PerfReporter)
  *

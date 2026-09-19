@@ -6,7 +6,7 @@
 perf_report.py - Format Makine-Launcher performance report JSON into markdown.
 
 Reads: %LOCALAPPDATA%/Makine/logs/perf_report.json
-Output: Formatted markdown to stdout (Claude Code can read this directly)
+Output: Formatted markdown to stdout
 
 Usage:
     python scripts/perf_report.py                  # Latest report
