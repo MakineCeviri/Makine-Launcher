@@ -506,12 +506,76 @@ struct ElevatedRun {
 //
 // Trade-off against QProcess: an elevated child cannot inherit our pipes, so
 // stdout is not captured. Exit code and cancellation still work via the handle.
+// An elevated child launched through ShellExecuteEx runs OUTSIDE our MSIX
+// container, so the virtualised AppData path we hold means nothing to it and
+// the launch fails with ERROR_PATH_NOT_FOUND (3). That was the whole of the
+// Elden Ring install failure: the patcher is on disk (1.2 MB), the UAC prompt
+// is correct, but the child was handed a path only we can see. Rewrite it to
+// the real LocalCache location before handing it over.
+QString deVirtualizeForElevation(const QString& path)
+{
+    if (path.isEmpty())
+        return path;
+
+    // Only a packaged process has a family name. Resolved at runtime so the
+    // unpackaged build neither links against nor depends on the app-model API.
+    using GetFamilyNameFn = LONG(WINAPI*)(UINT32*, PWSTR);
+    const HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
+    if (!kernel32)
+        return path;
+    const auto getFamilyName = reinterpret_cast<GetFamilyNameFn>(
+        reinterpret_cast<void*>(
+            GetProcAddress(kernel32, "GetCurrentPackageFamilyName")));
+    if (!getFamilyName)
+        return path;
+
+    constexpr UINT32 kFamilyNameCapacity = 128;  // PACKAGE_FAMILY_NAME_MAX_LENGTH + 1
+    wchar_t familyName[kFamilyNameCapacity];
+    UINT32 nameLength = kFamilyNameCapacity;
+    if (getFamilyName(&nameLength, familyName) != ERROR_SUCCESS)
+        return path;  // APPMODEL_ERROR_NO_PACKAGE — we run unpackaged
+    if (nameLength == 0)
+        return path;
+
+    // qEnvironmentVariable, not qgetenv: the latter round-trips through the
+    // ANSI code page, so a user folder with characters the code page cannot
+    // represent comes back mangled, the prefix test below misses, and the
+    // rewrite silently never happens for exactly the users who need it.
+    const QString localAppData =
+        QDir::fromNativeSeparators(qEnvironmentVariable("LOCALAPPDATA"));
+    if (localAppData.isEmpty())
+        return path;
+
+    const QString normalized = QDir::fromNativeSeparators(path);
+    if (!normalized.startsWith(localAppData, Qt::CaseInsensitive))
+        return path;
+
+    const QString realRoot = localAppData + QStringLiteral("/Packages/")
+        + QString::fromWCharArray(familyName, static_cast<int>(nameLength) - 1)
+        + QStringLiteral("/LocalCache/Local");
+    if (normalized.startsWith(realRoot, Qt::CaseInsensitive))
+        return path;  // already a real path
+
+    const QString rewritten = realRoot + normalized.mid(localAppData.length());
+
+    // Only take the rewrite when it actually resolves. Paths the container
+    // does not redirect must keep working exactly as they did before.
+    if (!QFileInfo::exists(rewritten))
+        return path;
+
+    qCInfo(lcPackageManager) << "De-virtualised path for elevation:"
+                             << path << "->" << rewritten;
+    return rewritten;
+}
+
 ElevatedRun startElevated(const QString& exePath, const QStringList& args,
                           const QString& workDir)
 {
     ElevatedRun out;
-    const QString nativeExe = QDir::toNativeSeparators(exePath);
-    const QString nativeDir = QDir::toNativeSeparators(workDir);
+    const QString nativeExe =
+        QDir::toNativeSeparators(deVirtualizeForElevation(exePath));
+    const QString nativeDir =
+        QDir::toNativeSeparators(deVirtualizeForElevation(workDir));
 
     QStringList quoted;
     quoted.reserve(args.size());
@@ -1131,8 +1195,7 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 "yamayı tekrar kurun.")
                     : tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                 "1) Oyunu ve Steam'i tamamen kapatın\n"
-                "2) Makine Launcher'ı yönetici olarak çalıştırın "
-                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "2) İzin penceresi açılırsa 'Evet' deyin\n"
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
@@ -1287,7 +1350,9 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         QFile testFile(testPath);
         if (!testFile.open(QIODevice::WriteOnly)) {
             emit installCompleted(false,
-                tr("Bu klasöre yazma izni yok. Uygulamayı yönetici olarak çalıştırmayı deneyin."));
+                tr("Bu klasöre yazma izni yok. Çözüm: oyunu ve Steam'i "
+                   "tamamen kapatın, sonra tekrar deneyin; izin penceresi "
+                   "açılırsa 'Evet' deyin."));
             return;
         }
         testFile.close();
@@ -1417,8 +1482,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     if (m_journal) m_journal->commitOperation();
                     emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                 "1) Oyunu ve Steam'i tamamen kapatın\n"
-                "2) Makine Launcher'ı yönetici olarak çalıştırın "
-                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "2) İzin penceresi açılırsa 'Evet' deyin\n"
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
@@ -1439,8 +1503,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 "yamayı tekrar kurun.")
                             : tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                 "1) Oyunu ve Steam'i tamamen kapatın\n"
-                "2) Makine Launcher'ı yönetici olarak çalıştırın "
-                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "2) İzin penceresi açılırsa 'Evet' deyin\n"
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
@@ -1844,8 +1907,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         if (err == CopyError::PermissionDenied)
             return fatal(tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                 "1) Oyunu ve Steam'i tamamen kapatın\n"
-                "2) Makine Launcher'ı yönetici olarak çalıştırın "
-                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "2) İzin penceresi açılırsa 'Evet' deyin\n"
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
@@ -1861,8 +1923,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             if (err2 == CopyError::PermissionDenied)
                 return fatal(tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                 "1) Oyunu ve Steam'i tamamen kapatın\n"
-                "2) Makine Launcher'ı yönetici olarak çalıştırın "
-                "(sağ tık → Yönetici olarak çalıştır)\n"
+                "2) İzin penceresi açılırsa 'Evet' deyin\n"
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
