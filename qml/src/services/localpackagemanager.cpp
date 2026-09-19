@@ -1675,8 +1675,32 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         const bool noRecipeAtAll = pkg.installSteps.isEmpty()
                                 && pkg.installOptions.isEmpty()
                                 && pkg.combinedSteps.isEmpty();
+        // …unless the archive ships one tree PER VARIANT. api/v2/games/<id>
+        // drops the catalogue's variantType/variants for all 15 variant
+        // packages, so pkg.variants is empty, nobody asked the user to choose,
+        // and a wholesale overlay would drop <game>/v0.88.0/BepInEx/… into the
+        // game root — a patch that reports success and loads nothing. Read the
+        // shape off the extracted archive instead of asking.
+        const QStringList rootEntries =
+            QDir(sourcePath).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        const bool variantFoldered = steprules::rootLooksVariantFoldered(rootEntries);
+
         const bool copyShapedButEmpty =
-            noRecipeAtAll && steprules::emptyRecipeIsPlainOverlay(pkg.installMethodType);
+            noRecipeAtAll && steprules::emptyRecipeIsPlainOverlay(pkg.installMethodType)
+            && !variantFoldered;
+
+        if (variantFoldered && noRecipeAtAll) {
+            qCWarning(lcPackageManager)
+                << "Package root holds variant folders" << rootEntries
+                << "but no variant was selected — refusing blind overlay for" << pkg.gameName;
+            emit installCompleted(false, tr(
+                "Bu yama birden fazla oyun sürümü için ayrı dosyalar içeriyor "
+                "(%1) ve hangisinin kurulacağı belirlenemedi.\n"
+                "Uygulamayı güncelleyip tekrar deneyin; sorun sürerse hangi oyun "
+                "sürümünü kullandığınızı bize bildirin.")
+                .arg(rootEntries.join(QStringLiteral(", "))));
+            return;
+        }
 
         if (!kOverlaySafeTypes.contains(pkg.installMethodType) && !copyShapedButEmpty) {
             qCWarning(lcPackageManager)

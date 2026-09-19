@@ -171,3 +171,75 @@ TEST(InstallStepRules, AnUnknownFutureTypeRefuses)
     EXPECT_FALSE(makine::steprules::emptyRecipeIsPlainOverlay(QStringLiteral("quantum-inject")));
     EXPECT_FALSE(makine::steprules::emptyRecipeIsPlainOverlay(QStringLiteral("")));
 }
+
+// ===== Variant folders vs. overlay content =================================
+//
+// api/v2/games/<id> drops variantType/variants for all 15 variant packages in
+// the catalogue (verified 2026-09-20), so pkg.variants arrives empty and
+// nothing asks the user to choose. Without this guard the empty-recipe overlay
+// above copies EVERY variant tree into the game root at once — Tormented Souls
+// would land as <game>/v0.88.0/BepInEx/…, reporting success and loading
+// nothing. Names below are the catalogue's real variant strings and the real
+// top-level directories of the packages they are contrasted with.
+
+TEST(InstallStepRules, EveryVariantStringInTheCatalogueIsRecognised) {
+    using makine::steprules::looksLikeVariantFolderName;
+    for (const auto* v : {"1.5.78", "1.5.80",              // Hollow Knight
+                          "1.00", "1.01", "1.04", "1.05",  // AC Syndicate
+                          "1.5.6",                          // AC Odyssey
+                          "v0.88.0", "v0.94.0",             // Tormented Souls
+                          "1.202.0.0", "1.312.0.0",         // Spider-Man 2
+                          "1.0", "1.3", "1.3.3", "1.4.1",   // Indiana Jones
+                          "1.0.6", "1.0.8", "1.0.8 Steam",  // AC Mirage
+                          "Steam", "Gamepass"})             // platform packages
+        EXPECT_TRUE(looksLikeVariantFolderName(QString::fromLatin1(v))) << v;
+}
+
+TEST(InstallStepRules, OverlayPackageRootsAreNotVariants) {
+    using makine::steprules::looksLikeVariantFolderName;
+    // Real top-level directories of packages that must keep overlaying.
+    for (const auto* d : {"base", "Mods", "font", "menu", "msg", "mods",
+                          "data_win32", "dropzone", "Config", "Localization",
+                          "Text", "TempleResources", "DefEd", "Data",
+                          "PenDriverPro", "engus", "fn", "eldenring-mods"})
+        EXPECT_FALSE(looksLikeVariantFolderName(QString::fromLatin1(d))) << d;
+}
+
+TEST(InstallStepRules, ABareNumberIsNotAVersion) {
+    using makine::steprules::looksLikeVariantFolderName;
+    // A year or a numbered chapter directory must not read as a variant.
+    EXPECT_FALSE(looksLikeVariantFolderName(QStringLiteral("2015")));
+    EXPECT_FALSE(looksLikeVariantFolderName(QStringLiteral("01")));
+    EXPECT_FALSE(looksLikeVariantFolderName(QString()));
+}
+
+TEST(InstallStepRules, TormentedSoulsRootIsVariantFoldered) {
+    using makine::steprules::rootLooksVariantFoldered;
+    // Measured by decrypting the published package: 69 files under two roots.
+    EXPECT_TRUE(rootLooksVariantFoldered({QStringLiteral("v0.88.0"),
+                                          QStringLiteral("v0.94.0")}));
+    // Indiana Jones ships six.
+    EXPECT_TRUE(rootLooksVariantFoldered({QStringLiteral("1.0"), QStringLiteral("1.3"),
+                                          QStringLiteral("1.3.3"), QStringLiteral("1.4"),
+                                          QStringLiteral("1.4.1"), QStringLiteral("1.5")}));
+    EXPECT_TRUE(rootLooksVariantFoldered({QStringLiteral("Steam"),
+                                          QStringLiteral("Gamepass")}));
+}
+
+TEST(InstallStepRules, ComplementaryRootsStillOverlay) {
+    using makine::steprules::rootLooksVariantFoldered;
+    // DOOM (2016) and Dark Souls: Remastered, also measured from the packages.
+    EXPECT_FALSE(rootLooksVariantFoldered({QStringLiteral("base"), QStringLiteral("Mods")}));
+    EXPECT_FALSE(rootLooksVariantFoldered({QStringLiteral("font"), QStringLiteral("menu"),
+                                           QStringLiteral("msg")}));
+    // One folder is never a choice between alternatives.
+    EXPECT_FALSE(rootLooksVariantFoldered({QStringLiteral("1.00")}));
+    EXPECT_FALSE(rootLooksVariantFoldered({}));
+}
+
+TEST(InstallStepRules, OneStrayVersionFolderDoesNotDisableTheOverlay) {
+    using makine::steprules::rootLooksVariantFoldered;
+    // Two variant-shaped entries are required, so a lone "1.0" beside real
+    // content keeps the package installable.
+    EXPECT_FALSE(rootLooksVariantFoldered({QStringLiteral("base"), QStringLiteral("1.0")}));
+}

@@ -63,6 +63,7 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // copy failure that caused it ("Yedek alma yarıda kaldı (3/6 başarılı,
         // 1 dosya kopyalanamadı)"), so a generic copy_failed placed first
         // swallows the whole bucket. The corpus test caught exactly that.
+        {QStringLiteral("birden fazla oyun sürümü için ayrı dosyalar"), QStringLiteral("variant_unselected")},
         {QStringLiteral("backup file list empty"),               QStringLiteral("backup_unknowable")},
         {QStringLiteral("backup available"),                     QStringLiteral("no_backup")},            // 376
         {QStringLiteral("Yedek tamamen geri yüklenemedi"),       QStringLiteral("restore_partial")},      // 48

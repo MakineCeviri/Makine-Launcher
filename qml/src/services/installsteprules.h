@@ -123,4 +123,63 @@ inline bool emptyRecipeIsPlainOverlay(QStringView type)
     return kCopyShaped.contains(type.toString());
 }
 
+// Is this top-level folder name one of a package's alternative variants?
+//
+// Needed because the launcher cannot ask: api/v2/games/<id> drops the
+// `variantType` and `variants` fields the published CDN entry carries, for all
+// 15 variant packages in the catalogue (verified 2026-09-20). So `pkg.variants`
+// arrives empty, nothing offers the user a choice, and an empty recipe walks
+// straight into emptyRecipeIsPlainOverlay above — which would copy EVERY
+// variant folder into the game root at once: <game>/v0.88.0/BepInEx/… , a patch
+// that reports success and loads nothing.
+//
+// The names themselves are the signal, and they separate cleanly from ordinary
+// overlay roots. Every variant string in the catalogue is a version
+// ("1.5.78", "1.00", "v0.88.0", "1.202.0.0", "1.0.8 Steam") or a store
+// ("Steam", "Gamepass"); every plain overlay root is an engine or content
+// directory ("base", "Mods", "font", "menu", "msg", "data_win32", "dropzone").
+inline bool looksLikeVariantFolderName(QStringView name)
+{
+    const QString trimmed = name.trimmed().toString();
+    if (trimmed.isEmpty()) return false;
+
+    static const QStringList kStores = {
+        QStringLiteral("steam"),    QStringLiteral("gamepass"),
+        QStringLiteral("game pass"),QStringLiteral("epic"),
+        QStringLiteral("gog"),      QStringLiteral("xbox"),
+        QStringLiteral("microsoft store"), QStringLiteral("ms store"),
+    };
+    if (kStores.contains(trimmed.toLower())) return true;
+
+    // A version: optional leading "v", a digit, then digits and dots only.
+    // A trailing store word is allowed ("1.0.8 Steam"), so measure the head.
+    const QString head = trimmed.section(QLatin1Char(' '), 0, 0);
+    int i = 0;
+    if (head.startsWith(QLatin1Char('v'), Qt::CaseInsensitive)) i = 1;
+    if (i >= head.size() || !head[i].isDigit()) return false;
+    bool sawDot = false;
+    for (; i < head.size(); ++i) {
+        if (head[i].isDigit()) continue;
+        if (head[i] == QLatin1Char('.')) { sawDot = true; continue; }
+        return false;
+    }
+    return sawDot;   // "1.0" yes, a bare "2015" no — that is a year or a name
+}
+
+// Does a package's root hold alternatives rather than content to copy?
+//
+// Two or more variant-shaped entries means the archive ships one complete tree
+// per version or store, and overlaying it wholesale is wrong. DOOM's "base" +
+// "Mods" and Dark Souls' "font" + "menu" + "msg" are complementary, score zero,
+// and keep working.
+inline bool rootLooksVariantFoldered(const QStringList& topLevelNames)
+{
+    if (topLevelNames.size() < 2) return false;
+    int variantLike = 0;
+    for (const QString& n : topLevelNames) {
+        if (looksLikeVariantFolderName(n)) ++variantLike;
+    }
+    return variantLike >= 2;
+}
+
 } // namespace makine::steprules
