@@ -1398,9 +1398,16 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                                                       << "— aborting install to protect originals";
                             m_installTimeoutTimer->stop();
                             m_installingGameId.clear();
+                            // BackupManager already worked out WHY; repeating its
+                            // reason beats guessing at disk space for a file that
+                            // was simply held open by a running game.
+                            BackupManager* backup = BackupManager::instance();
+                            const QString why = backup ? backup->lastError() : QString();
                             emit translationInstallCompleted(gameId, false,
-                                tr("Yedek oluşturulamadı, kurulum iptal edildi. "
-                                   "Disk alanı veya yazma iznini kontrol edin."));
+                                why.isEmpty()
+                                    ? tr("Yedek oluşturulamadı, kurulum iptal edildi. "
+                                         "Disk alanı veya yazma iznini kontrol edin.")
+                                    : tr("Kurulum iptal edildi. %1").arg(why));
                             return;
                         }
                         qCDebug(lcGameService) << "Installing translation for" << gameId

@@ -213,6 +213,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
         qint64 totalSize = 0;
         int copiedFiles = 0;
         int failedFiles = 0;
+    int lockedFiles = 0;
         int total = filesToOverwrite.size();
         QSet<QString> createdDirs;
 
@@ -254,8 +255,18 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
                 copiedFiles++;
             } else {
                 failedFiles++;
+                // Why it failed decides what the user should do. A source we
+                // cannot even open for reading is held by something — the game
+                // or its launcher — and no amount of disk space helps. That is
+                // the common case here: RDR2's dinput8.dll while the Rockstar
+                // launcher is up.
+                QFile probe(sourceFile);
+                const bool locked = !probe.open(QIODevice::ReadOnly);
+                if (locked) ++lockedFiles;
+                else probe.close();
                 qCWarning(lcBackup) << "Backup copy failed:" << sourceFile
-                                    << "->" << destFile;
+                                    << "->" << destFile
+                                    << (locked ? "(source is locked)" : "(copy error)");
             }
 
             // Throttle progress
@@ -276,11 +287,18 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
                                 << copiedFiles << "/" << total << "copied,"
                                 << failedFiles << "failed → rejecting";
             QDir(backupDir).removeRecursively();
-            QMetaObject::invokeMethod(this, [this, gameId, copiedFiles, total, failedFiles]() {
+            QMetaObject::invokeMethod(this,
+                [this, gameId, copiedFiles, total, failedFiles, lockedFiles]() {
                 if (m_journal) m_journal->abortOperation();
-                emit backupError(tr("Yedek alma yarıda kaldı (%1/%2 başarılı, %3 dosya kopyalanamadı). "
-                                    "Diskte yer açın veya dosya kilidini kontrol edip tekrar deneyin.")
-                                 .arg(copiedFiles).arg(total).arg(failedFiles));
+                const QString reason = lockedFiles > 0
+                    ? tr("Yedek alınamadı: %1 dosya başka bir program tarafından kullanılıyor. "
+                         "Oyunu ve mağaza uygulamasını (Steam, Epic, Rockstar, Ubisoft) "
+                         "tamamen kapatıp tekrar deneyin.").arg(lockedFiles)
+                    : tr("Yedek alma yarıda kaldı (%1/%2 başarılı, %3 dosya kopyalanamadı). "
+                         "Diskte yer açın veya dosya kilidini kontrol edip tekrar deneyin.")
+                         .arg(copiedFiles).arg(total).arg(failedFiles);
+                m_lastError = reason;
+                emit backupError(reason);
                 emit selectiveBackupCompleted(gameId, false);
             }, Qt::QueuedConnection);
             return;

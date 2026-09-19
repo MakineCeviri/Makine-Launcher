@@ -147,6 +147,15 @@ public:
      */
     Q_INVOKABLE void cancelCurrentRestore();
 
+// The reason the last backup gave up, so the caller that aborts the install
+
+// can repeat it instead of inventing its own. GameService used to say
+
+// "check disk space or write permission" for a failure that was neither.
+
+QString lastError() const { return m_lastError; }
+
+
 signals:
     void backupProgress(double progress, const QString& status);
     void selectiveBackupCompleted(const QString& gameId, bool success);
@@ -166,6 +175,7 @@ signals:
     void backupError(const QString& error);
 
 private:
+    QString m_lastError;
     void loadBackups();
     void saveBackups();
     void cleanupOldBackups(const QString& gameId);
