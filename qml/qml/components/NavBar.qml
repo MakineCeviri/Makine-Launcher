@@ -157,6 +157,17 @@ Item {
             Layout.preferredWidth: _badgeRow.width + 16
             Layout.preferredHeight: 26
             radius: 13
+
+            // The idle pill reads "Güncel" and asks nothing of the user — it was
+            // permanent furniture on the home and library pages, reporting that
+            // there is nothing to report. It stays on those pages only when
+            // there IS something (update available, downloading, verifying,
+            // ready, installing), and is always shown on Settings (index 2),
+            // where update status is part of what the page is for. Checking is
+            // deliberately not a reason to appear: Main.qml already floats a
+            // toast for that. Invisible Layout items take no space, so the row
+            // closes up rather than leaving a gap.
+            visible: UpdateService.indicatorVisible || navBarRoot.currentIndex === 2
             // Checking used to colour the badge background (primary06/15),
             // which read as an "off-topic" tint in the top bar while the
             // user was just waiting on a network check. We now leave the
