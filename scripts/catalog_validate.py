@@ -149,7 +149,11 @@ def check_package(app_id, meta, no_network):
     try:
         pkg = fetch(f"{CDN}/assets/packages/{app_id}.json")
     except Exception as exc:
-        add("DETAIL404", f"detay JSON alınamadı: {exc}")
+        # Not a defect for a redirect row: package_pipeline.py only writes a
+        # detail JSON for packages we host, and the launcher reads detail from
+        # api/v2/games/<id> regardless. 332800 and hytale are hangar rows.
+        if str(meta.get("source") or "makine") == "makine":
+            add("DETAIL404", f"detay JSON alınamadı: {exc}")
         return findings
 
     im = pkg.get("installMethod")
@@ -206,9 +210,21 @@ def check_package(app_id, meta, no_network):
         add("GATE", f"tip='{itype}', adım yok — otomatik kurulamaz")
 
     data_url = meta.get("dataUrl") or pkg.get("dataUrl") or ""
-    if not data_url and not ext and itype not in REDIRECT_TYPES:
+    # A redirect entry's dataUrl is a partner's WEB PAGE, not a package: apex
+    # and hangar rows send the user to apexyama.com / hangarceviri.com and the
+    # launcher never downloads them. Measuring those with a payload HEAD is
+    # what produced "33 paket R2'de yok" in an earlier audit — 24 of them were
+    # hangar rows with no dataUrl at all, and the rest were pages that answer
+    # a HEAD without a Content-Length. Both readings sent the team after data
+    # that was never broken, so the payload checks below skip them; whether the
+    # redirect itself resolves is catalog_gate.py's question.
+    source = str(meta.get("source") or pkg.get("source") or "makine")
+    is_redirect = source != "makine" or itype in REDIRECT_TYPES
+    hosted = data_url.startswith(f"{CDN}/")
+
+    if not data_url and not ext and not is_redirect:
         add("NODATA", "indirilecek dosya yok ve yönlendirme de yok")
-    elif data_url and not no_network:
+    elif data_url and hosted and not no_network:
         status, size = head(data_url)
         if status != 200:
             add("HTTP", f"veri dosyası HTTP {status}")
