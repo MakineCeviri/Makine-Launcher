@@ -286,6 +286,18 @@ release-zip-signed version: release-signed
     powershell -Command "Compress-Archive -Path 'build/release-static/Makine-Launcher.exe' -DestinationPath 'Makine-Launcher-v{{version}}-win64.zip' -Force"
     @echo "Signed release ready: Makine-Launcher-v{{version}}-win64.zip + SHA256SUMS.txt"
 
+# Build + package the ZIP published on GitHub Releases. Dynamic Qt: the runtime
+# DLLs travel inside the archive, so no static Qt kit is needed. Conventions and
+# the publishing checklist live in docs/RELEASING.md.
+# Usage: just release-zip-dynamic 0.1.5-beta
+release-zip-dynamic version: release-mingw
+    powershell -ExecutionPolicy Bypass -File scripts/make_release_zip.ps1 -Version "{{version}}"
+
+# Same, Authenticode-signed (owner only - needs scripts/certs/).
+# Usage: just release-zip-dynamic-signed 0.1.5-beta
+release-zip-dynamic-signed version: release-mingw
+    powershell -ExecutionPolicy Bypass -File scripts/make_release_zip.ps1 -Version "{{version}}" -Sign
+
 # Regenerate the MSIX tile/logo PNGs from qml/resources/images/logo.png
 msix-assets:
     python scripts/gen_msix_assets.py
