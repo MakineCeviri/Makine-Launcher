@@ -57,9 +57,11 @@ Teknik referans — her motorun dosya yapısı ve çeviri yöntemi:
 
 - [Mimari Kararlar (ADR)](adr/README.md)
 - [Güvenlik Modeli](security/security-model.md)
+- [Sürüm Yayınlama](RELEASING.md) - Etiket, başlık, notlar ve arşiv düzeni
+- [Paketleme Rehberi](release-packaging-guide.md) - Dağıtım paketinin üretimi
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [CHANGELOG.md](../CHANGELOG.md)
 
 ---
 
-*Makine-Launcher v0.1.0-alpha*
+*Makine-Launcher v0.1.4-beta*

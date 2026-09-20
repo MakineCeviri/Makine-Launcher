@@ -1,18 +1,24 @@
 # Makine-Launcher — Release Packaging Guide
 
-> Versiyon: 0.1.0-pre-alpha | Qt 6.10.1, MinGW 13.1.0, C++23
-> Bu rehber, dağıtım için hazır tek-EXE paket üretmenin adım adım sürecini belgeler.
+> Qt 6.11.1, MinGW 13.1.0, C++23
+> Bu rehber dağıtım paketinin nasıl **üretildiğini** belgeler.
+> Yayın düzeni — etiket, başlık, notlar, arşiv politikası — [RELEASING.md](RELEASING.md) dosyasındadır.
+>
+> **Güncel durum:** statik Qt kiti kurulu değil, tek dosya EXE üretilemiyor.
+> Yayınlanan paket Qt DLL'lerini taşıyan ZIP'tir: `just release-zip-dynamic <sürüm>`
+> (`scripts/make_release_zip.ps1`). Aşağıdaki statik yol, kit derlendiğinde geçerlidir.
 
 ---
 
 ## 1. Genel Bakış: Dağıtım Yolları
 
-Projenin iki farklı dağıtım yolu var:
+Projenin üç dağıtım yolu var:
 
 | Yol | Preset | Çıktı | Durum |
 |-----|--------|-------|-------|
-| **Static Qt** | `release-static` | `build/release-static/Makine-Launcher.exe` — tek EXE, DLL yok | Tercih edilen, kurulum gerektirir |
-| **Shared Qt + windeployqt** | `dev` + `just deploy` | `dist/` klasörü — EXE + DLL'ler | Geçici çözüm (şu an kullanılan) |
+| **Shared Qt + windeployqt** | `release-mingw` + `just release-zip-dynamic <sürüm>` | `dist/Makine-Launcher-v<sürüm>-win64.zip` — EXE + DLL'ler | **GitHub Releases'te yayınlanan paket** |
+| **MSIX** | `release-mingw` + `just msix-dynamic …` | `dist/Makine-Launcher-v<sürüm>.msix` | Microsoft Store |
+| **Static Qt** | `release-static` | `build/release-static/Makine-Launcher.exe` — tek EXE, DLL yok | Statik kit derlenene kadar kullanılamıyor |
 
 Static build hedef; windeployqt yolu ise static Qt build kurulana kadar geçerli ara çözümdür.
 
