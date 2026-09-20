@@ -8,7 +8,7 @@ package_pipeline.py -- Compress + Encrypt translation packages for distribution.
 Creates .makine files (MKPK format v1):
     [Magic: 4B "MKPK"] [Version: 1B] [Nonce: 12B] [Ciphertext+AuthTag: NB]
 
-Inner payload: tar.zst (zstandard level 9 compressed tar archive)
+Inner payload: tar.zst (zstandard, ZSTD_LEVEL below — currently 19)
 Encryption: AES-256-GCM (authenticated, tamper-proof)
 
 Usage:
@@ -89,7 +89,7 @@ def load_encryption_key(key_path: Path) -> bytes:
 # =============================================================================
 
 def compress_directory(dir_path: Path) -> bytes:
-    """Create tar archive of directory, then compress with zstd level 9."""
+    """Create tar archive of directory, then compress with zstd (ZSTD_LEVEL)."""
     # Phase 1: Create tar in memory
     # File extensions to exclude from packages (backups, temporaries)
     excluded_suffixes = {'.bak', '.bak2', '.orig'}

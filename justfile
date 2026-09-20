@@ -195,9 +195,25 @@ catalog-check sheet:
 catalog-validate:
     python scripts/catalog_validate.py
 
-# Same, as a gate — non-zero exit when a finding would break an install.
+# Does the published catalogue describe the objects that are really in R2, and
+# does api/v2/games/<id> still carry what the launcher parses?
+#
+# Exists because neither was true for six months and nothing could see it: the
+# 2026-03-13 repack (ZSTD_LEVEL 9 -> 19) left 197 of 201 manifest sizes wrong,
+# and the D1 migration silently dropped variantType/variants for all 15 variant
+# packages. Both were found by hand, months later, from user reports.
+catalog-r2:
+    python scripts/catalog_gate.py
+
+# Same, plus the digests themselves — streams every package (~6.6 GB).
+catalog-r2-deep:
+    python scripts/catalog_gate.py --verify-hashes
+
+# The release gate: recipe rules AND catalogue-vs-R2 consistency. Non-zero exit
+# when a finding would break an install.
 catalog-gate:
     python scripts/catalog_validate.py --strict
+    python scripts/catalog_gate.py
 
 # ============================================================================
 # DEPLOYMENT
