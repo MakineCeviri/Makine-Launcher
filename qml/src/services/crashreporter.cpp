@@ -9,6 +9,8 @@
 
 #include "crashreporter.h"
 
+#include "pathredaction.h"
+
 #include "failurereasons.h"
 
 #ifdef Q_OS_WIN
@@ -65,38 +67,11 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
     }
 }
 
-// Strip Windows username from file paths (SEC-14: PII stripping)
-// Replaces EVERY occurrence, not just the first: stack frame values hold a
-// single path, but captured messages (install/uninstall failures) can quote
-// several — one partially-sanitized message would still leak the username.
+// Strip Windows username from file paths (SEC-14: PII stripping).
+// The transform itself lives in pathredaction.h so it can be unit-tested —
+// from here it is only reachable by actually sending an event to Sentry.
 static std::string sanitizePath(const char* raw) {
-    if (!raw) return {};
-    std::string path(raw);
-    static const std::string kRedacted = "[redacted]";
-    // Replace C:\Users\<username>\ with C:\Users\[redacted]\ (both slash styles)
-    for (const auto& sep : {std::string("Users\\"), std::string("Users/")}) {
-        std::string::size_type pos = 0;
-        while ((pos = path.find(sep, pos)) != std::string::npos) {
-            const auto nameStart = pos + sep.size();
-            // Look for either separator, not just the one that opened the
-            // match: paths reach us mixed ("C:\Users\Ahmet/AppData/…") and
-            // searching only for the opening style would find nothing.
-            const auto nameEnd = std::min(path.find('\\', nameStart),
-                                          path.find('/', nameStart));
-            // A message can end at the user name — "klasör: C:\Users\Ahmet"
-            // carries no trailing separator, and bailing out here left the
-            // name in place. Redact to the end of the string in that case.
-            const auto nameLen = (nameEnd == std::string::npos)
-                                     ? path.size() - nameStart
-                                     : nameEnd - nameStart;
-            if (nameLen == 0)
-                break;
-            if (path.compare(nameStart, nameLen, kRedacted) != 0)
-                path.replace(nameStart, nameLen, kRedacted);
-            pos = nameStart + kRedacted.size();
-        }
-    }
-    return path;
+    return makine::redaction::redactUserPaths(raw);
 }
 
 // Sanitize stack frame values containing file paths

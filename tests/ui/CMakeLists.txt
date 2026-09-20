@@ -103,6 +103,13 @@ target_include_directories(test_packagechecksum PRIVATE
 target_link_libraries(test_packagechecksum PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_packagechecksum COMMAND test_packagechecksum)
 
+# What keeps a user's Windows account name out of the telemetry we send.
+add_executable(test_pathredaction test_pathredaction.cpp)
+target_include_directories(test_pathredaction PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_pathredaction PRIVATE GTest::gtest GTest::gtest_main)
+add_test(NAME test_pathredaction COMMAND test_pathredaction)
+
 # CatalogProxyModel search-engine tests (Qt-dependent, real classes → AUTOMOC)
 add_executable(test_catalogproxymodel test_catalogproxymodel.cpp
     ${MAKINE_PROJECT_ROOT}/qml/src/services/catalogproxymodel.cpp
