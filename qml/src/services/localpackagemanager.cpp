@@ -1196,10 +1196,6 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
     QList<Deferred> deferred;
     QList<ElevatedOps::Op> elevatedOps;
 
-    QString canonGamePath = QDir(gamePath).canonicalPath();
-    const QString cleanGamePath = QDir::cleanPath(gamePath);
-    if (canonGamePath.isEmpty())
-        canonGamePath = cleanGamePath;
 
     for (const auto& [srcPath, relPath] : filesToCopy) {
         // Cancellation check
@@ -1213,8 +1209,13 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
 
         QString destPath = QDir::cleanPath(gamePath + "/" + relPath);
 
-        // Prevent path traversal: ensure destination stays within game directory
-        if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
+        // Prevent path traversal: ensure destination stays within game directory.
+        //
+        // security::isPathContained and not a startsWith pair: a bare prefix
+        // test has no directory boundary, so "<game>Evil/x" passes a check
+        // against "<game>". It also resolves junctions, which Steam libraries
+        // really use, and compares case-insensitively on Windows.
+        if (!security::isPathContained(gamePath, destPath)) {
             qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
             result.errors++;
             continue;
@@ -2063,8 +2064,6 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
     const InstallStep& step,
     const QString& gamePath,
     const QString& packageDir,
-    const QString& canonGamePath,
-    const QString& cleanGamePath,
     double progress,
     int current, int total,
     const QString& progressPrefix,
@@ -2128,7 +2127,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString srcPath  = resolvePackageSource(packageDir, step.src);
         QString destPath = QDir::cleanPath(gamePath   + "/" + step.dest);
 
-        if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
+        if (!security::isPathContained(gamePath, destPath)) {
             qCCritical(lcPackageManager) << "Path traversal blocked in copy:" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama dosya hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
@@ -2150,7 +2149,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString srcDir  = resolvePackageSource(packageDir, step.src);
         QString destDir = QDir::cleanPath(gamePath   + "/" + step.dest);
 
-        if (!destDir.startsWith(canonGamePath) && !destDir.startsWith(cleanGamePath)) {
+        if (!security::isPathContained(gamePath, destDir)) {
             qCCritical(lcPackageManager) << "Path traversal blocked in copyDir:" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama klasör hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
@@ -2181,7 +2180,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
     } else if (step.action == "delete") {
         QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
-        if (!destPath.startsWith(canonGamePath) && !destPath.startsWith(cleanGamePath)) {
+        if (!security::isPathContained(gamePath, destPath)) {
             qCCritical(lcPackageManager) << "Path traversal blocked in delete:" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama silme hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
@@ -2256,10 +2255,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             qCWarning(lcPackageManager) << "Run: path traversal rejected:" << exePath;
             return StepOutcome::SoftError;
         }
-        QString canonExe  = QFileInfo(exePath).canonicalFilePath();
-        QString canonGame = QDir(gamePath).canonicalPath();
-        QString canonPkg  = QDir(packageDir).canonicalPath();
-        if (!canonExe.startsWith(canonGame) && !canonExe.startsWith(canonPkg)) {
+        if (!security::isPathContained(gamePath, exePath)
+            && !security::isPathContained(packageDir, exePath)) {
             qCWarning(lcPackageManager) << "Run: executable outside allowed directories:" << exePath;
             return StepOutcome::SoftError;
         }
@@ -2354,7 +2351,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString srcPath  = QDir::cleanPath(gamePath + "/" + step.src);
         QString destPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
-        if (!srcPath.startsWith(canonGamePath) || !destPath.startsWith(canonGamePath)) {
+        if (!security::isPathContained(gamePath, srcPath)
+            || !security::isPathContained(gamePath, destPath)) {
             qCCritical(lcPackageManager) << "Path traversal blocked in rename:" << step.src << "->" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama yeniden adlandırma hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
@@ -2391,7 +2389,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         const QString patchPath = resolvePackageSource(packageDir, step.src);
         const QString targetPath = QDir::cleanPath(gamePath + "/" + step.dest);
 
-        if (!targetPath.startsWith(canonGamePath) && !targetPath.startsWith(cleanGamePath)) {
+        if (!security::isPathContained(gamePath, targetPath)) {
             qCCritical(lcPackageManager) << "Path traversal blocked in vpatch:" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
@@ -2573,12 +2571,6 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     QStringList installedFiles;
     QStringList errorDetails;
 
-    // canonicalPath() returns empty for non-existent paths; fall back to cleanPath
-    QString canonGamePath = QDir(gamePath).canonicalPath();
-    const QString cleanGamePath = QDir::cleanPath(gamePath);
-    if (canonGamePath.isEmpty())
-        canonGamePath = cleanGamePath;
-
     // Begin crash recovery journal
     if (m_journal) {
         JournalEntry je;
@@ -2602,7 +2594,6 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 
         QString failDetail;
         StepOutcome outcome = executeStep(step, gamePath, packageDir,
-                                          canonGamePath, cleanGamePath,
                                           progress, current, total,
                                           QString{}, pkg.steamAppId,
                                           installedFiles, &failDetail);
@@ -2746,10 +2737,6 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         m_journal->beginOperation(je);
     }
 
-    QString canonGamePath = QDir(gamePath).canonicalPath();
-    const QString cleanGamePath = QDir::cleanPath(gamePath);
-    if (canonGamePath.isEmpty())
-        canonGamePath = cleanGamePath;
 
     int current = 0;
     int errors = 0;
@@ -2842,7 +2829,6 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 
             QString failDetail;
             StepOutcome outcome = executeStep(step, gamePath, optionDir,
-                                              canonGamePath, cleanGamePath,
                                               progress, current, totalSteps,
                                               prefix, pkg.steamAppId,
                                               installedFiles, &failDetail);
@@ -2867,7 +2853,6 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 
             QString failDetail;
             StepOutcome outcome = executeStep(step, gamePath, basePackageDir,
-                                              canonGamePath, cleanGamePath,
                                               progress, current, totalSteps,
                                               QString{}, pkg.steamAppId,
                                               installedFiles, &failDetail);
@@ -2952,7 +2937,6 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     }
 
     // Delete installed files (with path traversal protection)
-    const QString canonBase = QDir(basePath).canonicalPath();
     int deleted = 0;
     int failed = 0;
 
@@ -3075,7 +3059,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 
         QString fullPath = QDir::cleanPath(basePath + "/" + relPath);
         // Prevent path traversal: ensure resolved path stays within game directory
-        if (!fullPath.startsWith(canonBase)) {
+        if (!security::isPathContained(basePath, fullPath)) {
             qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
             continue;
         }

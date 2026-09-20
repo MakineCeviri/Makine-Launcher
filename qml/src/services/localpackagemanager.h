@@ -200,8 +200,6 @@ private:
     StepOutcome executeStep(const InstallStep& step,
                             const QString& gamePath,
                             const QString& packageDir,
-                            const QString& canonGamePath,
-                            const QString& cleanGamePath,
                             double progress,
                             int current, int total,
                             const QString& progressPrefix,

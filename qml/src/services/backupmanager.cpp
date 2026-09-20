@@ -209,7 +209,6 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             m_journal->beginOperation(je);
         }
 
-        const QString canonGamePath = QDir(gamePath).canonicalPath();
         qint64 totalSize = 0;
         int copiedFiles = 0;
         int failedFiles = 0;
@@ -237,8 +236,14 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             const QString& relPath = filesToOverwrite[i];
             const QString sourceFile = QDir::cleanPath(gamePath + "/" + relPath);
 
-            // Path traversal check
-            if (!sourceFile.startsWith(canonGamePath)) continue;
+            // Path traversal check. isPathContained and not a bare prefix test:
+            // startsWith has no directory boundary, so a relPath of
+            // "../<game> Evil/x" resolves to a sibling directory that still
+            // shares the prefix and would be silently backed up — or, read the
+            // other way, a junctioned Steam library would fail the test and the
+            // file would be skipped, leaving it unbacked while the install
+            // patched it anyway.
+            if (!security::isPathContained(gamePath, sourceFile)) continue;
 
             // Only backup if file actually exists in game dir
             if (!QFile::exists(sourceFile)) continue;
