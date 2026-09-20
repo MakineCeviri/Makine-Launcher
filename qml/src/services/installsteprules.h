@@ -182,4 +182,42 @@ inline bool rootLooksVariantFoldered(const QStringList& topLevelNames)
     return variantLike >= 2;
 }
 
+// Is this "run" step launching a tool the recipe ALSO hands to the user?
+//
+// Elden Ring's recipe copies engus/ and fn/ into the game, then runs
+// ERING_TR.exe, then copies that same ERING_TR.exe to the desktop as
+// "Elden Ring.exe". The third step cannot succeed: the binary is a compiled
+// AutoIt script with subsystem=GUI, a requestedExecutionLevel of
+// requireAdministrator and a GUIGetMsg event loop — it opens a window and
+// waits for a person. Run unattended it either fails to start (then the
+// elevated retry raises an unexplained UAC prompt mid-install), or it sits
+// there until the 30-minute cap, or the user closes it and it exits non-zero.
+// All three arrive as one undifferentiated "1 adımda hata oluştu": 915 events
+// across 160 users in 14 days, the second largest bucket in the field.
+//
+// The tell is structural, not a guess about any one binary: a recipe that
+// installs an executable FOR the user has already said the user is the one who
+// runs it. Running it ourselves as well is the leftover of a manual procedure.
+// Measured over the whole catalogue 2026-09-20, Elden Ring is the only package
+// with this shape; the other four run steps (moesow.exe, patch.exe) are
+// argument-taking command-line patchers and keep running.
+inline bool runStepIsUserLaunchedTool(QStringView exe,
+                                      const QStringList& userInstalledTools)
+{
+    // Compare leaf names: a step may say "tools/x.exe" where the desktop copy
+    // says "x.exe". Paths use either separator depending on who authored them.
+    const auto leaf = [](QStringView v) {
+        const QString s = v.toString();
+        const int cut = qMax(s.lastIndexOf(QLatin1Char('/')),
+                             s.lastIndexOf(QLatin1Char('\\')));
+        return (cut < 0 ? s : s.mid(cut + 1)).trimmed().toLower();
+    };
+    const QString want = leaf(exe);
+    if (want.isEmpty()) return false;
+    for (const QString& tool : userInstalledTools) {
+        if (leaf(tool) == want) return true;
+    }
+    return false;
+}
+
 } // namespace makine::steprules

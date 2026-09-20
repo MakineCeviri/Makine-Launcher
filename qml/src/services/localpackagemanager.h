@@ -190,6 +190,11 @@ private:
     // progressPrefix — prepended to status messages (empty for recipe steps,
     //                  "optLabel — " for option steps)
     // installedFiles — appended on success; caller owns the list
+    // failDetail   — set on SoftError to a short cause when the action has more
+    //                than one way to fail. "run" has four (not started /
+    //                elevation declined / timeout / non-zero exit) and all four
+    //                reached Sentry as the same sentence, so a 915-event bucket
+    //                could not be split by cause.
     // Returns SoftError to increment errors and continue, FatalError to abort
     // (caller should emit installCompleted and return), Cancelled to abort cleanly.
     StepOutcome executeStep(const InstallStep& step,
@@ -201,7 +206,8 @@ private:
                             int current, int total,
                             const QString& progressPrefix,
                             const QString& steamAppId,
-                            QStringList& installedFiles);
+                            QStringList& installedFiles,
+                            QString* failDetail = nullptr);
 
     // Run an external process with polling timeout.
     // progressCallback receives elapsed ms for UI feedback (optional).

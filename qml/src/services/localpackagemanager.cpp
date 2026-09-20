@@ -1074,6 +1074,39 @@ static QStringList unexecutableSteps(const QList<InstallStep>& steps)
     return out;
 }
 
+// Executables this recipe installs FOR the user to run themselves.
+static QStringList userInstalledTools(const QList<InstallStep>& steps)
+{
+    QStringList out;
+    for (const InstallStep& s : steps) {
+        if (s.action == QLatin1String("copyToDesktop") && !s.src.isEmpty())
+            out << s.src;
+    }
+    return out;
+}
+
+// Remove the "run" steps that launch one of those tools, returning their names.
+//
+// See steprules::runStepIsUserLaunchedTool for why: a recipe that hands the
+// user an executable has already said who runs it, and running it ourselves
+// unattended cannot work when the tool is interactive. Dropping the step is
+// not the same as hiding a failure — the tool is still installed, and the
+// caller names it in the finished-install note so the user knows to start it.
+static QStringList dropUserLaunchedTools(QList<InstallStep>& steps)
+{
+    const QStringList tools = userInstalledTools(steps);
+    if (tools.isEmpty()) return {};
+
+    QStringList dropped;
+    for (int i = steps.size() - 1; i >= 0; --i) {
+        if (steps[i].action != QLatin1String("run")) continue;
+        if (!steprules::runStepIsUserLaunchedTool(steps[i].exe, tools)) continue;
+        dropped << steps[i].exe;
+        steps.removeAt(i);
+    }
+    return dropped;
+}
+
 // Post-install verification: which of the files we just wrote are no longer on
 // disk?
 //
@@ -2007,7 +2040,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
     int current, int total,
     const QString& progressPrefix,
     const QString& steamAppId,
-    QStringList& installedFiles)
+    QStringList& installedFiles,
+    QString* failDetail)
 {
     // Helper: emit fatal error, commit journal, return FatalError
     auto fatal = [&](const QString& msg) -> StepOutcome {
@@ -2235,12 +2269,27 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             });
 
         if (result.cancelled) return StepOutcome::Cancelled;
-        if (!result.started || result.timedOut) {
+        // Name the cause. Four different problems used to leave the same trace:
+        // a binary antivirus quarantined, a UAC prompt the user dismissed, an
+        // interactive tool that never returns, and a tool that ran and refused.
+        // Each needs a different answer, and all four arrived as one bucket.
+        if (result.elevationDeclined) {
+            if (failDetail) *failDetail = QStringLiteral("yönetici izni verilmedi");
+            return StepOutcome::SoftError;
+        }
+        if (!result.started) {
+            if (failDetail) *failDetail = QStringLiteral("araç başlatılamadı");
+            return StepOutcome::SoftError;
+        }
+        if (result.timedOut) {
+            if (failDetail) *failDetail = QStringLiteral("araç 30 dakikada bitmedi");
             return StepOutcome::SoftError;
         }
         if (result.exitCode != 0) {
             qCWarning(lcPackageManager) << "Run: non-zero exit:" << result.exitCode
                        << "output:" << result.output.left(500);
+            if (failDetail)
+                *failDetail = QStringLiteral("araç hata kodu %1 verdi").arg(result.exitCode);
             return StepOutcome::SoftError;
         }
         qCDebug(lcPackageManager) << "Run OK:" << exePath;
@@ -2362,7 +2411,14 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     // game. A half-applied recipe (valid steps done, then an unknown action
     // failing mid-way) is the silent-corruption class guarded against in the
     // install-state flow. Fail loud with the extracted path instead.
-    if (const QStringList bad = unexecutableSteps(pkg.installSteps); !bad.isEmpty()) {
+    QList<InstallStep> steps = pkg.installSteps;
+    const QStringList userTools = dropUserLaunchedTools(steps);
+    if (!userTools.isEmpty()) {
+        qCInfo(lcPackageManager) << "Not running user-launched tool(s)" << userTools
+            << "— the recipe installs them for the user:" << pkg.gameName;
+    }
+
+    if (const QStringList bad = unexecutableSteps(steps); !bad.isEmpty()) {
         qCWarning(lcPackageManager) << "Recipe has unexecutable steps"
             << bad << "— refusing install for" << pkg.gameName;
         emit installCompleted(false, tr("Bu yama, uygulamanın şu an "
@@ -2373,7 +2429,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         return;
     }
 
-    const int total = pkg.installSteps.size();
+    const int total = steps.size();
     int current = 0;
     int errors = 0;
     QStringList installedFiles;
@@ -2396,7 +2452,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 
     emit installProgress(0.0, tr("Kurulum adımları hazırlanıyor..."));
 
-    for (const InstallStep& step : pkg.installSteps) {
+    for (const InstallStep& step : steps) {
         if (isCancelled()) {
             if (m_journal) m_journal->abortOperation();
             emit installCompleted(false, tr("Kurulum iptal edildi"));
@@ -2406,11 +2462,12 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         current++;
         double progress = static_cast<double>(current) / (total + 1);
 
+        QString failDetail;
         StepOutcome outcome = executeStep(step, gamePath, packageDir,
                                           canonGamePath, cleanGamePath,
                                           progress, current, total,
                                           QString{}, pkg.steamAppId,
-                                          installedFiles);
+                                          installedFiles, &failDetail);
         if (outcome == StepOutcome::FatalError) return; // fatal() already emitted
         if (outcome == StepOutcome::Cancelled) {
             if (m_journal) m_journal->abortOperation();
@@ -2421,7 +2478,9 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             errors++;
             // Collect detail about what failed
             QString detail = QStringLiteral("Adım %1: %2 %3")
-                .arg(current).arg(step.action, step.src);
+                .arg(current).arg(step.action,
+                                  step.src.isEmpty() ? step.exe : step.src);
+            if (!failDetail.isEmpty()) detail += QStringLiteral(" — ") + failDetail;
             errorDetails.append(detail);
         }
     }
@@ -2464,19 +2523,56 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     MAKINE_ZONE_NAMED("LPM::installWithOptions");
     INTEGRITY_GATE();
 
-    int totalSteps = 0;
-    // Count total steps across all selected options
-    for (const InstallOptionQt& opt : pkg.installOptions) {
-        if (selectedOptions.contains(opt.id))
-            totalSteps += opt.steps.size();
-    }
-
     // Check for combined steps
     QStringList sortedIds = selectedOptions;
     sortedIds.sort();
     QString combinedKey = sortedIds.join("+");
-    if (pkg.combinedSteps.contains(combinedKey))
-        totalSteps += pkg.combinedSteps[combinedKey].size();
+
+    // Every step this install will run, gathered before anything is counted so
+    // the tools the recipe installs for the user are known up front. Those are
+    // dropped from the run list across the WHOLE selection, not per option: a
+    // recipe may copy the tool to the desktop in one option and run it in
+    // another. See steprules::runStepIsUserLaunchedTool.
+    QHash<QString, QList<InstallStep>> optionSteps;
+    QList<InstallStep> combined;
+    {
+        QList<InstallStep> selected;
+        for (const InstallOptionQt& opt : pkg.installOptions)
+            if (selectedOptions.contains(opt.id)) selected += opt.steps;
+        if (pkg.combinedSteps.contains(combinedKey))
+            selected += pkg.combinedSteps[combinedKey];
+        const QStringList tools = userInstalledTools(selected);
+
+        const auto keep = [&tools](const InstallStep& st) {
+            return st.action != QLatin1String("run")
+                || !steprules::runStepIsUserLaunchedTool(st.exe, tools);
+        };
+        QStringList dropped;
+        for (const InstallOptionQt& opt : pkg.installOptions) {
+            if (!selectedOptions.contains(opt.id)) continue;
+            QList<InstallStep> kept;
+            for (const InstallStep& st : opt.steps) {
+                if (keep(st)) kept << st; else dropped << st.exe;
+            }
+            optionSteps.insert(opt.id, kept);
+        }
+        if (pkg.combinedSteps.contains(combinedKey)) {
+            for (const InstallStep& st : pkg.combinedSteps[combinedKey]) {
+                if (keep(st)) combined << st; else dropped << st.exe;
+            }
+        }
+        if (!dropped.isEmpty()) {
+            qCInfo(lcPackageManager) << "Not running user-launched tool(s)" << dropped
+                << "— the recipe installs them for the user:" << pkg.gameName;
+        }
+    }
+
+    int totalSteps = 0;
+    for (const InstallOptionQt& opt : pkg.installOptions) {
+        if (selectedOptions.contains(opt.id))
+            totalSteps += optionSteps.value(opt.id).size();
+    }
+    totalSteps += combined.size();
 
     if (totalSteps == 0) {
         emit installCompleted(false, tr("Seçilen seçenekler için kurulum "
@@ -2491,9 +2587,8 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     {
         QList<InstallStep> preflight;
         for (const InstallOptionQt& opt : pkg.installOptions)
-            if (selectedOptions.contains(opt.id)) preflight += opt.steps;
-        if (pkg.combinedSteps.contains(combinedKey))
-            preflight += pkg.combinedSteps[combinedKey];
+            if (selectedOptions.contains(opt.id)) preflight += optionSteps.value(opt.id);
+        preflight += combined;
         if (const QStringList bad = unexecutableSteps(preflight); !bad.isEmpty()) {
             qCWarning(lcPackageManager) << "Options recipe has unexecutable steps"
                 << bad << "— refusing install for" << pkg.gameName;
@@ -2528,12 +2623,15 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     // to tell if the failure was a missing source, an AV-blocked run, a
     // copyToDesktop permission issue, etc.
     QStringList errorDetails;
-    auto recordSoftError = [&](const InstallStep& step, const QString& prefix) {
+    auto recordSoftError = [&](const InstallStep& step, const QString& prefix,
+                               const QString& cause) {
         const QString target = step.dest.isEmpty()
             ? (step.src.isEmpty() ? step.exe : step.src)
             : step.dest;
-        errorDetails.append(QStringLiteral("%1Adım %2: %3 %4")
-            .arg(prefix).arg(current).arg(step.action, target));
+        QString detail = QStringLiteral("%1Adım %2: %3 %4")
+            .arg(prefix).arg(current).arg(step.action, target);
+        if (!cause.isEmpty()) detail += QStringLiteral(" — ") + cause;
+        errorDetails.append(detail);
     };
 
     emit installProgress(0.0, tr("Kurulum seçenekleri hazırlanıyor..."));
@@ -2594,7 +2692,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 
         QString prefix = opt.label + " — ";
 
-        for (const InstallStep& step : opt.steps) {
+        for (const InstallStep& step : optionSteps.value(opt.id)) {
             if (isCancelled()) {
                 if (m_journal) m_journal->abortOperation();
                 emit installCompleted(false, tr("Kurulum iptal edildi"));
@@ -2604,11 +2702,12 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             current++;
             double progress = static_cast<double>(current) / (totalSteps + 1);
 
+            QString failDetail;
             StepOutcome outcome = executeStep(step, gamePath, optionDir,
                                               canonGamePath, cleanGamePath,
                                               progress, current, totalSteps,
                                               prefix, pkg.steamAppId,
-                                              installedFiles);
+                                              installedFiles, &failDetail);
             if (outcome == StepOutcome::FatalError) return;
             if (outcome == StepOutcome::Cancelled) {
                 if (m_journal) m_journal->abortOperation();
@@ -2617,22 +2716,23 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             }
             if (outcome == StepOutcome::SoftError) {
                 errors++;
-                recordSoftError(step, prefix);
+                recordSoftError(step, prefix, failDetail);
             }
         }
     }
 
     // Execute combined steps if multiple options selected
-    if (pkg.combinedSteps.contains(combinedKey)) {
-        for (const InstallStep& step : pkg.combinedSteps[combinedKey]) {
+    {
+        for (const InstallStep& step : combined) {
             current++;
             double progress = static_cast<double>(current) / (totalSteps + 1);
 
+            QString failDetail;
             StepOutcome outcome = executeStep(step, gamePath, basePackageDir,
                                               canonGamePath, cleanGamePath,
                                               progress, current, totalSteps,
                                               QString{}, pkg.steamAppId,
-                                              installedFiles);
+                                              installedFiles, &failDetail);
             if (outcome == StepOutcome::FatalError) return;
             if (outcome == StepOutcome::Cancelled) {
                 if (m_journal) m_journal->abortOperation();
@@ -2641,7 +2741,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             }
             if (outcome == StepOutcome::SoftError) {
                 errors++;
-                recordSoftError(step, QString{});
+                recordSoftError(step, QString{}, failDetail);
             }
         }
     }

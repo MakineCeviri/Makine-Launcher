@@ -70,6 +70,17 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("Yedek alma yarıda kaldı"),              QStringLiteral("backup_partial")},       // 6
 
         // ---- the recipe ran and something in it broke ----
+        //
+        // The four run-step causes come first: every one of them is reported
+        // inside an "N adımda hata oluştu" message, so a generic step_failed
+        // placed above would swallow all of them. They are separated because
+        // each needs a different answer — an antivirus exclusion, a UAC prompt
+        // the user must accept, a tool that wants a person, a tool that ran and
+        // refused — and until now all four were the same 915-event bucket.
+        {QStringLiteral("yönetici izni verilmedi"),              QStringLiteral("elevation_declined")},
+        {QStringLiteral("araç başlatılamadı"),                   QStringLiteral("tool_start_failed")},
+        {QStringLiteral("araç 30 dakikada bitmedi"),             QStringLiteral("tool_timeout")},
+        {QStringLiteral("araç hata kodu"),                       QStringLiteral("tool_exit_code")},
         {QStringLiteral("adımda hata oluştu"),                   QStringLiteral("step_failed")},          // 1124
         {QStringLiteral("dosya kopyalanamadı"),                  QStringLiteral("copy_failed")},          // 6
         {QStringLiteral("yazma izni yok"),                       QStringLiteral("no_permission")},        // 59

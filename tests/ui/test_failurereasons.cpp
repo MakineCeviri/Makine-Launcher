@@ -174,3 +174,35 @@ TEST(FailureReasons, AColonThatIsNotAStepYieldsNothing)
     EXPECT_EQ(failedStepAction(QStringLiteral("1 adımda hata oluştu")), QString());
     EXPECT_EQ(failedStepAction(QString()), QString());
 }
+
+// ===== Why a "run" step failed ==============================================
+//
+// Four different problems left the same trace: a binary antivirus quarantined,
+// a UAC prompt the user dismissed, an interactive tool that never returns, and
+// a tool that ran and refused. Each needs a different answer. The messages
+// below are what the install path now writes into the step detail.
+
+TEST(FailureReasons, TheFourWaysATooledStepFails)
+{
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 3: run ERING_TR.exe — yönetici izni verilmedi")),
+        QStringLiteral("elevation_declined"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 3: run ERING_TR.exe — araç başlatılamadı")),
+        QStringLiteral("tool_start_failed"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 3: run ERING_TR.exe — araç 30 dakikada bitmedi")),
+        QStringLiteral("tool_timeout"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 3: run patch.exe — araç hata kodu 2 verdi")),
+        QStringLiteral("tool_exit_code"));
+}
+
+TEST(FailureReasons, AStepFailureWithNoNamedCauseIsStillStepFailed)
+{
+    // The cause is only attached to actions that have more than one way to
+    // fail; a copyDir that failed must keep its existing bucket.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 1: copyDir engus")),
+        QStringLiteral("step_failed"));
+}

@@ -243,3 +243,36 @@ TEST(InstallStepRules, OneStrayVersionFolderDoesNotDisableTheOverlay) {
     // content keeps the package installable.
     EXPECT_FALSE(rootLooksVariantFoldered({QStringLiteral("base"), QStringLiteral("1.0")}));
 }
+
+// ===== A tool the recipe hands to the user ==================================
+//
+// Elden Ring's recipe copies engus/ and fn/ into the game, runs ERING_TR.exe,
+// then copies that same ERING_TR.exe to the desktop as "Elden Ring.exe". The
+// binary is a compiled AutoIt script: subsystem GUI, requireAdministrator, and
+// a GUIGetMsg event loop — it opens a window and waits for a person. Run
+// unattended it cannot finish, and the three ways it fails all reached Sentry
+// as one "1 adımda hata oluştu": 915 events, 160 users, 14 days.
+
+TEST(InstallStepRules, TheEldenRingShape) {
+    using makine::steprules::runStepIsUserLaunchedTool;
+    const QStringList desktop = { QStringLiteral("ERING_TR.exe") };
+    EXPECT_TRUE(runStepIsUserLaunchedTool(QStringLiteral("ERING_TR.exe"), desktop));
+    // Case and directory prefixes differ between the two steps in practice.
+    EXPECT_TRUE(runStepIsUserLaunchedTool(QStringLiteral("ering_tr.exe"), desktop));
+    EXPECT_TRUE(runStepIsUserLaunchedTool(QStringLiteral("tools/ERING_TR.exe"), desktop));
+    EXPECT_TRUE(runStepIsUserLaunchedTool(QStringLiteral("tools\\ERING_TR.exe"), desktop));
+    EXPECT_TRUE(runStepIsUserLaunchedTool(QStringLiteral(" ERING_TR.exe "), desktop));
+}
+
+TEST(InstallStepRules, RealCommandLinePatchersKeepRunning) {
+    using makine::steprules::runStepIsUserLaunchedTool;
+    // The catalogue's other four run steps, measured 2026-09-20. None of these
+    // executables is installed for the user, so none may be skipped.
+    const QStringList none;
+    EXPECT_FALSE(runStepIsUserLaunchedTool(QStringLiteral("tools/moesow.exe"), none));
+    EXPECT_FALSE(runStepIsUserLaunchedTool(QStringLiteral("patch.exe"), none));
+    // A desktop copy of something else must not disarm an unrelated run step.
+    const QStringList other = { QStringLiteral("Baslat.lnk"), QStringLiteral("readme.txt") };
+    EXPECT_FALSE(runStepIsUserLaunchedTool(QStringLiteral("patch.exe"), other));
+    EXPECT_FALSE(runStepIsUserLaunchedTool(QString(), other));
+}
