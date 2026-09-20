@@ -81,6 +81,12 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("araç başlatılamadı"),                   QStringLiteral("tool_start_failed")},
         {QStringLiteral("araç 30 dakikada bitmedi"),             QStringLiteral("tool_timeout")},
         {QStringLiteral("araç hata kodu"),                       QStringLiteral("tool_exit_code")},
+        // VPatch outcomes. "nomatch" is the one that means the user's game is a
+        // version the patch was not built for — a catalogue problem, not a
+        // launcher fault — and it must not read as generic step breakage.
+        {QStringLiteral("oyun sürümü bu yamayla eşleşmiyor"),    QStringLiteral("vpatch_nomatch")},
+        {QStringLiteral("yama dosyası okunamadı"),               QStringLiteral("vpatch_corrupt")},
+        {QStringLiteral("yamalanan dosya doğrulanamadı"),        QStringLiteral("vpatch_verify")},
         {QStringLiteral("adımda hata oluştu"),                   QStringLiteral("step_failed")},          // 1124
         {QStringLiteral("dosya kopyalanamadı"),                  QStringLiteral("copy_failed")},          // 6
         {QStringLiteral("yazma izni yok"),                       QStringLiteral("no_permission")},        // 59

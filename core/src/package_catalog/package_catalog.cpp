@@ -164,6 +164,17 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
                 }
             }
         }
+        // "vpatch" names its two paths differently, because the recipes were
+        // written against the VPatch tool's own vocabulary rather than the
+        // step schema: "patch" is the delta file inside the package and
+        // "target" the game file it rewrites. Mapping them here keeps one
+        // meaning per field in the executor instead of a second pair of
+        // path members nothing else would use.
+        if (step.src.empty() && s.contains("patch") && s["patch"].is_string())
+            step.src = s["patch"].get<std::string>();
+        if (step.dest.empty() && s.contains("target") && s["target"].is_string())
+            step.dest = s["target"].get<std::string>();
+
         // Recipes that write one "cmd" string instead of exe + args. Applied
         // last so an explicit exe/args pair always wins; see splitCommandLine.
         if (step.exe.empty() && s.contains("cmd") && s["cmd"].is_string()) {

@@ -67,20 +67,28 @@ TEST(StepRules, SingleFieldActionsStayExecutable)
 
 TEST(StepRules, AcThreeRemasteredRecipeIsRefused)
 {
-    // 911400 — "run" steps carry "cmd", never parsed into exe; "backup" has no
-    // executor at all; "rename" carries "pattern"/"to", never parsed into
-    // src/dest. All six steps are dead, yet every action name but "backup" is
-    // known — this is the case an action-name-only check lets through.
+    // 911400, as the recipe stood on 2026-09-20: "run" steps carrying "cmd"
+    // and never parsed into exe, a "backup" action with no executor, and a
+    // "rename" carrying "pattern"/"to". All six steps were dead, yet every
+    // action name but "backup" is known — the case an action-name-only check
+    // lets through. (That package now applies its delta directly; the shapes
+    // below are still what this function has to catch.)
     EXPECT_EQ(missingField("run", {}, {}, /*exe=*/{}, {}), QStringLiteral("exe"));
     EXPECT_FALSE(isKnownAction("backup"));
     EXPECT_EQ(missingField("rename", /*src=*/{}, /*dest=*/{}, {}, {}),
               QStringLiteral("src"));
 }
 
-TEST(StepRules, FahrenheitVpatchIsRefused)
+TEST(StepRules, FahrenheitVpatchIsNowExecutable)
 {
-    // 312840 — action "vpatch" (keys "patch"/"target") has no executor.
-    EXPECT_FALSE(isKnownAction("vpatch"));
+    // 312840 — action "vpatch" (keys "patch"/"target"). It was refused here
+    // for as long as the executor had no such action; vpatchapply.h added one,
+    // ported from the NSIS reference applier and verified against that
+    // project's own test vectors, so the package installs instead of stopping
+    // at the gate.
+    EXPECT_TRUE(isKnownAction("vpatch"));
+    EXPECT_EQ(missingField("vpatch", "patches/BigFile_PC_d01.pat",
+                           "BigFile_PC_d01.big"), QString());
 }
 
 TEST(StepRules, ShadowOfWarRunWithoutExeIsRefused)
@@ -99,8 +107,10 @@ TEST(StepRules, EachActionReportsItsOwnMissingField)
     EXPECT_EQ(missingField("installFont", {}, "d"), QStringLiteral("src"));
     EXPECT_EQ(missingField("setSteamLanguage", "s", "d", "e", {}),
               QStringLiteral("language"));
+    EXPECT_EQ(missingField("vpatch", {}, "BigFile_PC_d01.big"), QStringLiteral("src"));
+    EXPECT_EQ(missingField("vpatch", "patches/x.pat", {}), QStringLiteral("dest"));
     // Unknown actions are not this function's job — it must not invent a field.
-    EXPECT_TRUE(missingField("vpatch", {}, {}, {}, {}).isEmpty());
+    EXPECT_TRUE(missingField("nosuchaction", {}, {}, {}, {}).isEmpty());
 }
 
 // ── Variant folder matching ──────────────────────────────────────────────────
@@ -275,4 +285,37 @@ TEST(InstallStepRules, RealCommandLinePatchersKeepRunning) {
     const QStringList other = { QStringLiteral("Baslat.lnk"), QStringLiteral("readme.txt") };
     EXPECT_FALSE(runStepIsUserLaunchedTool(QStringLiteral("patch.exe"), other));
     EXPECT_FALSE(runStepIsUserLaunchedTool(QString(), other));
+}
+
+// ===== vpatch ===============================================================
+//
+// Two catalogue packages apply a VPatch binary delta to a file the game
+// already owns. Both used to fail at the pre-flight gate with "'vpatch'
+// çalıştırıcıda yok", because the executor had no such action; the recipes
+// also name their paths "patch"/"target" rather than src/dest, which the
+// catalog parser now maps. A vpatch step missing either path would rewrite
+// the wrong file or nothing at all, so both are required.
+
+TEST(InstallStepRules, VpatchIsAnActionTheExecutorDispatchesOn) {
+    using makine::steprules::isKnownAction;
+    EXPECT_TRUE(isKnownAction(QStringLiteral("vpatch")));
+}
+
+TEST(InstallStepRules, VpatchNeedsBothThePatchAndTheTarget) {
+    using makine::steprules::missingField;
+    // Fahrenheit (312840), as published.
+    EXPECT_EQ(missingField(QStringLiteral("vpatch"),
+                           QStringLiteral("patches/BigFile_PC_d01.pat"),
+                           QStringLiteral("BigFile_PC_d01.big")),
+              QString());
+    // Assassin's Creed III (911400): one delta file, four targets.
+    EXPECT_EQ(missingField(QStringLiteral("vpatch"), QStringLiteral("tr"),
+                           QStringLiteral("DataPC_DX11.forge")),
+              QString());
+    EXPECT_EQ(missingField(QStringLiteral("vpatch"), QString(),
+                           QStringLiteral("BigFile_PC_d01.big")),
+              QStringLiteral("src"));
+    EXPECT_EQ(missingField(QStringLiteral("vpatch"),
+                           QStringLiteral("patches/BigFile_PC_d01.pat"), QString()),
+              QStringLiteral("dest"));
 }

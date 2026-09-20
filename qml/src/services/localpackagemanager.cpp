@@ -14,6 +14,7 @@
 
 #include "localpackagemanager.h"
 #include "installsteprules.h"
+#include "vpatchapply.h"
 #include "elevatedops.h"
 #include "profiler.h"
 #include "operationjournal.h"
@@ -349,6 +350,34 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
     result.reserve(pairs.size());
     for (const auto& p : pairs)
         result.append(p.second);
+
+    // Files the RECIPE rewrites that the package does not contain.
+    //
+    // The list above enumerates what we copy in, which is the whole story for
+    // an overlay package. A vpatch step is different: it rewrites an archive
+    // the game already owns, and that file appears nowhere in the package. Left
+    // out, the backup would not hold it, uninstall could not put it back, and
+    // the guard in GameService that refuses to patch without a backup would be
+    // satisfied by a list that covers everything except the file being changed.
+    //
+    // Every declared target, not just the selected options': backing up one
+    // file too many costs disk, backing up one too few costs the game.
+    if (const auto pkg = getPackage(steamAppId)) {
+        const auto collect = [&result](const QList<InstallStep>& steps) {
+            for (const InstallStep& st : steps) {
+                if (st.action == QLatin1String("vpatch") && !st.dest.isEmpty()
+                    && !result.contains(st.dest))
+                    result.append(st.dest);
+            }
+        };
+        collect(pkg->installSteps);
+        for (const InstallOptionQt& opt : pkg->installOptions) collect(opt.steps);
+        for (const auto& steps : pkg->combinedSteps) collect(steps);
+        for (const auto& vc : pkg->variantInstallOptions) {
+            for (const InstallOptionQt& opt : vc.installOptions) collect(opt.steps);
+            for (const auto& steps : vc.combinedSteps) collect(steps);
+        }
+    }
     return result;
 }
 
@@ -2347,6 +2376,115 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         }
         return StepOutcome::Ok;
 
+    } else if (step.action == "vpatch") {
+        // Apply a VPatch binary delta to a file the game already has.
+        //
+        // The two packages that use this (Fahrenheit 312840, AC III 911400)
+        // ship appliers the launcher cannot drive: an NSIS plugin DLL with no
+        // command line, and a patch.exe Windows will not start without
+        // elevation. vpatchapply.h does the work instead.
+        //
+        // Nothing is written over the game file until the produced bytes hash
+        // to the digest the patch declares: the output goes to a sibling temp
+        // file, and only a verified result is swapped in. A wrong or partial
+        // result leaves the original untouched.
+        const QString patchPath = resolvePackageSource(packageDir, step.src);
+        const QString targetPath = QDir::cleanPath(gamePath + "/" + step.dest);
+
+        if (!targetPath.startsWith(canonGamePath) && !targetPath.startsWith(cleanGamePath)) {
+            qCCritical(lcPackageManager) << "Path traversal blocked in vpatch:" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama hedefi oyun klasörü dışına çıkmaya çalıştı"));
+        }
+        if (patchPath.isEmpty() || !QFile::exists(patchPath)) {
+            qCWarning(lcPackageManager) << "vpatch: patch file not found:" << step.src;
+            if (failDetail) *failDetail = tr("yama dosyası okunamadı");
+            return StepOutcome::SoftError;
+        }
+        if (!QFile::exists(targetPath)) {
+            qCWarning(lcPackageManager) << "vpatch: target missing:" << targetPath;
+            if (failDetail) *failDetail = tr("oyun dosyası bulunamadı");
+            return StepOutcome::SoftError;
+        }
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Yamalanıyor %4").arg(progressPrefix).arg(current).arg(total)
+                .arg(QFileInfo(targetPath).fileName()));
+
+        // A delta produces a file about the size of the original, and we hold
+        // both until the swap. Refuse early rather than fill the user's disk.
+        const qint64 targetSize = QFileInfo(targetPath).size();
+        const QStorageInfo storage(QFileInfo(targetPath).absolutePath());
+        if (storage.isValid() && storage.bytesAvailable() < targetSize + (64LL << 20)) {
+            qCWarning(lcPackageManager) << "vpatch: not enough free space for" << targetPath
+                << "need" << targetSize << "have" << storage.bytesAvailable();
+            if (failDetail) *failDetail = tr("disk alanı yetersiz");
+            return StepOutcome::SoftError;
+        }
+
+        const QString tempPath = targetPath + QStringLiteral(".makine-new");
+        QFile::remove(tempPath);
+
+        vpatch::Result vr = vpatch::Result::Error;
+        {
+            QFile patchFile(patchPath), sourceFile(targetPath), destFile(tempPath);
+            if (!patchFile.open(QIODevice::ReadOnly) || !sourceFile.open(QIODevice::ReadOnly)
+                || !destFile.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
+                qCWarning(lcPackageManager) << "vpatch: cannot open files for" << step.dest;
+                if (failDetail) *failDetail = tr("dosya açılamadı");
+                QFile::remove(tempPath);
+                return StepOutcome::SoftError;
+            }
+            vr = vpatch::apply(patchFile, sourceFile, destFile);
+        }
+
+        if (vr == vpatch::Result::UpToDate) {
+            // Already patched — a re-install, or the user applied it by hand.
+            QFile::remove(tempPath);
+            qCInfo(lcPackageManager) << "vpatch: already up to date:" << step.dest;
+            return StepOutcome::Ok;
+        }
+        if (vr != vpatch::Result::Success) {
+            QFile::remove(tempPath);
+            qCWarning(lcPackageManager) << "vpatch failed:" << vpatch::resultName(vr)
+                                        << "target" << step.dest;
+            if (failDetail) {
+                *failDetail = (vr == vpatch::Result::NoMatch)
+                    ? tr("oyun sürümü bu yamayla eşleşmiyor")
+                    : (vr == vpatch::Result::Corrupt)
+                        ? tr("yama dosyası okunamadı")
+                        : tr("yamalanan dosya doğrulanamadı");
+            }
+            return StepOutcome::SoftError;
+        }
+
+        // Verified. Swap it in.
+        const QString oldPath = targetPath + QStringLiteral(".makine-old");
+        QFile::remove(oldPath);
+        if (!QFile::rename(targetPath, oldPath)) {
+            QFile::remove(tempPath);
+            qCWarning(lcPackageManager) << "vpatch: cannot move original aside:" << targetPath;
+            if (failDetail) *failDetail = tr("oyun dosyası değiştirilemedi");
+            return StepOutcome::SoftError;
+        }
+        if (!QFile::rename(tempPath, targetPath)) {
+            QFile::rename(oldPath, targetPath);   // put it back
+            QFile::remove(tempPath);
+            qCWarning(lcPackageManager) << "vpatch: cannot install patched file:" << targetPath;
+            if (failDetail) *failDetail = tr("oyun dosyası değiştirilemedi");
+            return StepOutcome::SoftError;
+        }
+        QFile::remove(oldPath);
+
+        // "_vpatch:" and not the plain path: uninstall must NOT delete this
+        // file. It existed before us and BackupManager::restoreBackup puts the
+        // original back over it; deleting would leave the game without an
+        // archive it needs. getPackageFileList lists vpatch targets so the
+        // backup really holds them.
+        installedFiles.append(QStringLiteral("_vpatch:") + step.dest);
+        if (m_journal) m_journal->recordFileModified(QStringLiteral("_vpatch:") + step.dest);
+        qCInfo(lcPackageManager) << "vpatch applied:" << step.dest;
+        return StepOutcome::Ok;
+
     } else if (step.action == "setSteamLanguage") {
         if (step.language.isEmpty()) {
             qCWarning(lcPackageManager) << "setSteamLanguage: language not specified";
@@ -2835,6 +2973,15 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                     failed++;
                 }
             }
+            continue;
+        }
+
+        // Files a vpatch step rewrote in place. They belong to the game, not
+        // to us: restoreBackup copies the originals back over them, and
+        // deleting here would leave the game without an archive it needs.
+        if (relPath.startsWith("_vpatch:")) {
+            qCDebug(lcPackageManager) << "Leaving vpatch target to the restore:"
+                                      << relPath.mid(8);
             continue;
         }
 

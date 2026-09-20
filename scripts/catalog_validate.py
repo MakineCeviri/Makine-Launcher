@@ -53,22 +53,27 @@ UA = {"User-Agent": "Makine-Launcher/0.1"}
 
 # Mirrors kKnownStepActions in localpackagemanager.cpp.
 KNOWN_ACTIONS = {"copy", "copyFile", "copyDir", "delete", "installFont",
-                 "run", "copyToDesktop", "rename", "setSteamLanguage"}
+                 "run", "copyToDesktop", "rename", "setSteamLanguage", "vpatch"}
 # Mirrors missingStepField() in installsteprules.h.
 REQUIRED = {
     "copy": ("src", "dest"), "copyFile": ("src", "dest"),
     "copyDir": ("src", "dest"), "rename": ("src", "dest"),
     "copyToDesktop": ("src", "dest"), "delete": ("dest",),
     "installFont": ("src",), "run": ("exe|cmd",), "setSteamLanguage": ("language",),
+    # "patch"/"target" are the VPatch tool's names for src/dest; the catalog
+    # parser maps them, so either spelling satisfies this.
+    "vpatch": ("src|patch", "dest|target"),
 }
 # Mirrors kOverlaySafeTypes.
 OVERLAY_SAFE = {"", "direct", "overlay", "copy", "file-replace"}
 # Types that intentionally redirect instead of installing.
+# "vpatch" left out on purpose: the launcher applies that format itself now
+# (vpatchapply.h), so a vpatch package installs rather than redirecting.
 REDIRECT_TYPES = {"external", "forge_inject", "workshop", "installer",
-                  "paradox-mod", "unityPatch", "modengine", "d2r_mod", "vpatch"}
+                  "paradox-mod", "unityPatch", "modengine", "d2r_mod"}
 # Keys the step parser reads. Anything else in a step is silently discarded.
 PARSED_KEYS = {"action", "src", "dest", "exe", "fallback", "workDir",
-               "language", "args", "cmd"}
+               "language", "args", "cmd", "patch", "target"}
 
 
 def fetch(url, as_json=True):

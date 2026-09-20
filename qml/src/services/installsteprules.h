@@ -26,7 +26,7 @@ inline const QStringList& knownActions()
         QStringLiteral("copyDir"),       QStringLiteral("delete"),
         QStringLiteral("installFont"),   QStringLiteral("run"),
         QStringLiteral("copyToDesktop"), QStringLiteral("rename"),
-        QStringLiteral("setSteamLanguage")
+        QStringLiteral("setSteamLanguage"), QStringLiteral("vpatch")
     };
     return kActions;
 }
@@ -64,6 +64,12 @@ inline QString missingField(const QString& action, const QString& src = {},
         if (exe.isEmpty())      return QStringLiteral("exe");
     } else if (action == QLatin1String("setSteamLanguage")) {
         if (language.isEmpty()) return QStringLiteral("language");
+    } else if (action == QLatin1String("vpatch")) {
+        // src = the .pat delta inside the package, dest = the game file it
+        // rewrites. Both are mandatory: a vpatch step with either missing
+        // would rewrite the wrong file or nothing at all.
+        if (src.isEmpty())      return QStringLiteral("src");
+        if (dest.isEmpty())     return QStringLiteral("dest");
     }
     return {};
 }

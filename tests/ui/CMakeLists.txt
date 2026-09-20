@@ -110,6 +110,13 @@ target_include_directories(test_pathredaction PRIVATE
 target_link_libraries(test_pathredaction PRIVATE GTest::gtest GTest::gtest_main)
 add_test(NAME test_pathredaction COMMAND test_pathredaction)
 
+# VPatch binary delta applier, against the NSIS reference project's own vectors.
+add_executable(test_vpatchapply test_vpatchapply.cpp)
+target_include_directories(test_vpatchapply PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_vpatchapply PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_vpatchapply COMMAND test_vpatchapply)
+
 # CatalogProxyModel search-engine tests (Qt-dependent, real classes → AUTOMOC)
 add_executable(test_catalogproxymodel test_catalogproxymodel.cpp
     ${MAKINE_PROJECT_ROOT}/qml/src/services/catalogproxymodel.cpp

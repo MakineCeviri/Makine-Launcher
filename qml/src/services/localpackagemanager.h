@@ -32,7 +32,7 @@ namespace makine {
 class OperationJournal;
 
 struct InstallStep {
-    QString action;     // "copy", "copyDir", "run", "delete", "installFont", "setSteamLanguage", "copyToDesktop", "rename"
+    QString action;     // "copy", "copyDir", "run", "delete", "installFont", "setSteamLanguage", "copyToDesktop", "rename", "vpatch"
     QString src;        // source file/dir (relative to package dir)
     QString dest;       // destination (relative to game dir) — for "copy"/"delete"
     QString exe;        // executable to run — for "run"
