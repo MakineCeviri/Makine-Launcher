@@ -26,10 +26,12 @@
 | `v0.1.0-pre-alpha` | 13 Mart 2026 | Kapalı test | Arşiv (ikili yok) |
 | `v0.1.0-beta` | 26 Mart 2026 | Kapalı beta, tek dosya statik EXE | Arşiv (ikili yok) |
 | `v0.1.0-beta-SourceCode` | 2 Mayıs 2026 | Aynı hattın son yayın yapısı | Arşiv (özgün SHA-256 korunuyor) |
-| `v0.1.1` | — | Hiç yayımlanmadı, atlandı | — |
-| `v0.1.2-beta` | 28 Temmuz 2026 | Microsoft Store (MSIX) | Arşiv (ikili yok) |
-| `v0.1.3` | — | Üç commit boyunca iç yapı numarası, yayımlanmadı | — |
-| `v0.1.4-beta` | Store'da güncel | Microsoft Store (MSIX) | Henüz yok |
+| `v0.1.1` | — | Hiç kullanılmadı, atlandı | — |
+| `v0.1.2-beta` | 22 Temmuz 2026 | Microsoft Store (MSIX 0.1.2.0) | Arşiv (ikili yok) |
+| `v0.1.3-beta` | 24 Temmuz 2026 | Microsoft Store (MSIX 0.1.3.0) | Arşiv (ikili yok) |
+| `v0.1.4-beta` | 29 Temmuz 2026 | Microsoft Store (MSIX 0.1.4.0) — **güncel** | Var (ikili yok, Store'a yönlendirir) |
+
+0.1.2–0.1.4 etiketleri arşiv düzeni için sonradan atıldı; Store paketinin hangi commit'ten üretildiği o sırada kaydedilmemişti. Etiketler, sürüm bump commit'leri ile MSIX sahneleme zamanından geriye götürülerek en yakın duruma yerleştirildi. 0.1.3'te numara önce Store paketine verilmiş, kaynak ağacı [`492f506`](https://github.com/MakineCeviri/Makine-Launcher/commit/492f506825fffc4053b677fcf35bcbba36f3e417) ile sonradan hizalanmıştı — **bu yüzden her Store gönderiminde önce etiket atılmalı.**
 
 ## Yeni sürüm çıkarma
 
@@ -59,12 +61,14 @@ curl -sI https://github.com/MakineCeviri/Makine-Launcher/releases/latest | head 
 - **Eski kayıt silinmez.** Dışarıya verilmiş bağlantılar kırılmasın diye etiket ve sayfa yerinde kalır; başlığa `(Arşiv)`, gövdenin başına güncel sürüme yönlendiren bant eklenir.
 - **Etiket hafif (lightweight) olmalı.** GitHub, bir sürümün `created_at` alanını etiketin gösterdiği **commit'in tarihinden** alır ve liste bu alana göre sıralanır. Annotated etikette tarih etiketin oluşturulduğu gün olur; geçmişe dönük bir kayıt listenin en üstüne çıkıp kronolojiyi bozar.
 - **İkili paket arşivlenmiyorsa** gövdede açıkça yazılır. Özgün yapının SHA-256 özeti biliniyorsa korunur — elinde eski dosya olan kullanıcı doğrulayabilsin.
-- Yayımlanmamış sürüm numaraları (0.1.1, 0.1.3) için kayıt açılmaz; yukarıdaki tabloda açıklanır.
+- Kullanılmamış sürüm numaraları (0.1.1) için kayıt açılmaz; yukarıdaki tabloda açıklanır.
+- **Store'a gönderilen her paket için de etiket at.** Sürüm numarası yalnız MSIX komut satırında kalırsa hangi commit'in yayımlandığı kaybolur.
 
 ## Bilinen sınırlar
 
 - **İçeriden güncelleme GitHub'ı kullanamaz.** `UpdateService` indirme host'u olarak yalnızca `cdn.makineceviri.org` ve `makineceviri.org` adreslerine izin verir (`qml/src/services/updateservice.cpp`), ve `SelfUpdater` indirilen dosyayı çalıştırılabilir gibi takas eder — ZIP ile çalışmaz. Store dışı kurulumda güncelleme şimdilik elle yapılır.
 - **`assets/update.json` güncel değil** (R2'de `0.1.0-pre-alpha`, `url` boş). Store dışı otomatik güncelleme açılacaksa hem bu dosya hem de bir kurulum EXE'si gerekir.
+- **Dev kanalı gövdeden `SHA256:` satırını okur.** `MAKINE_DEV_TOOLS` yapıları `releases/latest` çağırıp gövdedeki `SHA256: <hash>` satırını ve `.exe` uzantılı varlığı arar; ZIP-only bir sürümde sessizce boşta kalır (çökmez).
 - **Statik Qt kiti kurulu değil** — tek dosya EXE üretilemiyor. Yayın paketi Qt DLL'lerini taşıyan ZIP'tir (~50 MB).
 
 ## Ortam tuzakları
