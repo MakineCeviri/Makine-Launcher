@@ -8,6 +8,10 @@
  */
 
 #include "translationdownloader.h"
+
+#include "packagechecksum.h"
+
+#include <QCryptographicHash>
 #include "apppaths.h"
 #include "networksecurity.h"
 #include "profiler.h"
@@ -103,7 +107,8 @@ void TranslationDownloader::downloadPackage(
     const QString& appId,
     const QString& dataUrl,
     const QString& dirName,
-    qint64 expectedSize)
+    qint64 expectedSize,
+    const QString& expectedChecksum)
 {
     MAKINE_ZONE_NAMED("TranslationDownloader::downloadPackage");
     CrashReporter::addBreadcrumb("download",
@@ -131,7 +136,8 @@ void TranslationDownloader::downloadPackage(
     if (m_activeDownloads.size() >= kMaxConcurrentDownloads) {
         qCDebug(lcDownloader) << "queueing download" << appId
                               << "— active:" << m_activeDownloads.size();
-        m_pendingDownloads.enqueue({appId, dataUrl, dirName, expectedSize});
+        m_pendingDownloads.enqueue({appId, dataUrl, dirName, expectedSize,
+                                    expectedChecksum});
         return;
     }
 
@@ -181,6 +187,7 @@ void TranslationDownloader::downloadPackage(
     state.partPath = partPath;
     state.dirName = dirName;
     state.dataUrl = normalizedUrl;
+    state.expectedChecksum = expectedChecksum;
     state.cancelled = false;
     state.retryCount = 0;
     state.resumeOffset = 0;
@@ -450,7 +457,8 @@ void TranslationDownloader::startNextQueuedDownload()
     const QueuedDownload next = m_pendingDownloads.dequeue();
     qCDebug(lcDownloader) << "promoting queued download" << next.appId
                           << "— remaining queue:" << m_pendingDownloads.size();
-    downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize);
+    downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize,
+                    next.expectedChecksum);
 }
 
 void TranslationDownloader::cancelDownload(const QString& appId)
@@ -560,8 +568,9 @@ void TranslationDownloader::processDownloadedFile(
     // removes the DownloadState before the worker finishes.
     std::shared_ptr<std::atomic_bool> cancelFlag =
         m_activeDownloads.value(appId).cancelFlag;
+    const QString wantChecksum = m_activeDownloads.value(appId).expectedChecksum;
 
-    auto future = QtConcurrent::run([tempPath, destDir, cancelFlag]()
+    auto future = QtConcurrent::run([tempPath, destDir, cancelFlag, wantChecksum]()
         -> std::pair<int, std::string>
     {
         try {
@@ -599,6 +608,38 @@ void TranslationDownloader::processDownloadedFile(
             if (fileSize > makine::security::kMaxPackageBytes) {
                 file.close();
                 return {-1, "Package too large: " + std::to_string(fileSize / (1024*1024)) + " MB"};
+            }
+
+            // Is this the package we published?
+            //
+            // The AES-GCM tag inside MKPK already catches corruption, but only
+            // after the whole file has been decrypted, and it cannot tell a
+            // truncated download from a catalogue entry pointing at the wrong
+            // object. Hashing first costs one sequential read of a file that
+            // is about to be read anyway and names the problem precisely.
+            //
+            // Skipped when the catalogue publishes no usable digest: 54 of 239
+            // entries have none, and refusing those would break installs that
+            // have always worked.
+            if (makine::pkgchecksum::isVerifiable(wantChecksum)) {
+                QCryptographicHash hash(QCryptographicHash::Sha256);
+                if (!hash.addData(&file)) {
+                    file.close();
+                    return {-1, "Cannot read downloaded file for verification"};
+                }
+                const QString actual = QString::fromLatin1(hash.result().toHex());
+                if (!file.seek(0)) {
+                    file.close();
+                    return {-1, "Cannot rewind downloaded file after verification"};
+                }
+                if (!makine::pkgchecksum::checksumMatches(wantChecksum, actual)) {
+                    file.close();
+                    QFile::remove(tempPath);
+                    qCWarning(lcDownloader)
+                        << "Checksum mismatch — expected" << wantChecksum
+                        << "got" << actual << "size" << fileSize;
+                    return {-1, "checksum mismatch"};
+                }
             }
 
             // Memory-map the file instead of readAll() to avoid OOM on large packages.

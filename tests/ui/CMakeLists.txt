@@ -96,6 +96,13 @@ target_include_directories(test_crashreporter PRIVATE
 target_link_libraries(test_crashreporter PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_crashreporter COMMAND test_crashreporter)
 
+# Does a downloaded package match what the catalogue published?
+add_executable(test_packagechecksum test_packagechecksum.cpp)
+target_include_directories(test_packagechecksum PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_packagechecksum PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_packagechecksum COMMAND test_packagechecksum)
+
 # CatalogProxyModel search-engine tests (Qt-dependent, real classes → AUTOMOC)
 add_executable(test_catalogproxymodel test_catalogproxymodel.cpp
     ${MAKINE_PROJECT_ROOT}/qml/src/services/catalogproxymodel.cpp

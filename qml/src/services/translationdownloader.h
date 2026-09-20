@@ -13,8 +13,12 @@
  *   4. Tar extraction to local data directory
  *
  * Security model:
- *   AES-256-GCM authentication tag is the sole integrity gate.
- *   Tampered or corrupted data fails decryption automatically.
+ *   Two gates. The downloaded .makine is hashed against the catalogue's
+ *   SHA-256 before extraction, which names a truncated download or a wrong
+ *   object precisely; the AES-256-GCM authentication tag then rejects tampered
+ *   or corrupted contents during decryption. The hash is skipped for the
+ *   catalogue entries that publish no usable digest, so the GCM tag remains
+ *   the floor rather than the ceiling.
  */
 
 #pragma once
@@ -55,11 +59,18 @@ public:
      *                      used to compute a packageSize-aware free-space check
      *                      (~3x the size for download + decompress + extract).
      *                      Pass 0 to fall back to the static 500 MB minimum.
+     *
+     * @param expectedChecksum  SHA-256 of the .makine file from the catalogue,
+     *                      either "sha256:<hex>" or a bare digest. Checked
+     *                      before extraction; an empty or unparseable value
+     *                      means "cannot verify" and the install proceeds, so
+     *                      packages published without one keep working.
      */
     Q_INVOKABLE void downloadPackage(const QString& appId,
                                      const QString& dataUrl,
                                      const QString& dirName,
-                                     qint64 expectedSize = 0);
+                                     qint64 expectedSize = 0,
+                                     const QString& expectedChecksum = {});
 
     /**
      * @brief Cancel an active download.
@@ -114,6 +125,7 @@ private:
         QString partPath;       // {appId}.makine.part — persistent partial file
         QString dirName;
         QString dataUrl;        // Stored for resume/retry
+        QString expectedChecksum;
         bool cancelled{false};
         bool stallAborted{false};
         // Set after an HTTP/2 protocol failure, so the retry goes over HTTP/1.1
@@ -141,6 +153,7 @@ private:
         QString dataUrl;
         QString dirName;
         qint64  expectedSize;
+        QString expectedChecksum;
     };
     QQueue<QueuedDownload> m_pendingDownloads;
     void startNextQueuedDownload();
