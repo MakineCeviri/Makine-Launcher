@@ -106,6 +106,28 @@ struct TranslationConfig {
 
 /**
  * @brief Configuration for security operations
+ *
+ * NOT WIRED. Every field below is written to and read from the config file and
+ * then ignored: measured 2026-09-20, none of the six is referenced anywhere in
+ * core/ or qml/ outside this header and config.cpp.
+ *
+ * Saying so matters because the names read as guarantees. `verifyChecksums`
+ * defaulting to true was taken — in this project's own notes — as evidence
+ * that downloads were being verified, while translationdownloader.cpp read no
+ * checksum at all; 197 of 201 published manifests were meanwhile wrong and
+ * nobody noticed for six months.
+ *
+ * What actually guards an install today:
+ *   - the SHA-256 the catalogue publishes, checked before extraction
+ *     (qml/src/services/packagechecksum.h + translationdownloader.cpp)
+ *   - the AES-256-GCM authentication tag inside MKPK, during decryption
+ *   - path-traversal rejection at each step that writes (localpackagemanager)
+ *   - the target digest a VPatch delta declares (vpatchapply.h)
+ *
+ * None of those consults this struct, on purpose: a switch that turns download
+ * verification off has no user for whom it is the right answer. Leave the
+ * fields in place for the config schema's stability, but do not read them
+ * without first giving them a meaning worth having.
  */
 struct SecurityConfig {
     /// Verify package signatures before installation
