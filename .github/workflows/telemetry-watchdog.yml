@@ -2,6 +2,10 @@
 # Sentry dropping events to quota, or the counting endpoint going quiet.
 # Both happened for weeks without anyone noticing — see
 # scripts/telemetry_watchdog.py.
+#
+# Scheduled workflows only run from the default branch (main), but releases
+# are cut from dev and the two branches share no history. So this file lives
+# on main and checks out dev, where the scripts are maintained.
 name: Telemetry watchdog
 
 on:
@@ -16,9 +20,11 @@ jobs:
   watchdog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 

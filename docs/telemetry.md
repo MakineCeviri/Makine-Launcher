@@ -48,7 +48,10 @@ açılışta gider (en fazla 500). 400/413 dönen grup atılır, diğer her hata
 Worker 0.1.4'ün eski tek-olay gövdesini de kabul eder (`schema=1`, `out=attempt`).
 Sağlık ucu: `GET /api/v2/telemetry/health` (yalnız toplamlar).
 
-**Sunucu tarafında yapılamayanlar (ücretsiz plan):** istemci anahtarına hız sınırı
+**Plan:** yeni org Sponsored Team (öğrenci) — ayda 50.000 hata olayı (eskisi 5.000).
+Aşağıdaki kısıtlar eski org'un ücretsiz planı içindi.
+
+**Sunucu tarafında yapılamayanlar (eski org, ücretsiz plan):** istemci anahtarına hız sınırı
 (`rateLimit`) — API 200 döner ama **sessizce yok sayar** (geri okumayla görüldü);
 mesaj filtresi (`filters:error_messages`) — "You do not have that feature enabled".
 Yani 0.1.4'ün gürültüsü sahadan çekilene kadar kotayı yer; 0.1.5+ kapıyla korunur.
@@ -58,7 +61,9 @@ Sentry'nin son 24 saatteki `rate_limited` sayısı, sayım kanalının son 24 sa
 sayısı (dev kanalı hariç) ve sürüm başına **çökmesiz oturum oranı** (Sentry release health,
 7 gün, ≥100 oturum, eşik %98). Oturumlar hata kotasından düşmez: 2026-09-23'te hata olaylarının
 tamamı düşürülürken 0.1.4'ün oranı yine okunabiliyordu (%98,69, 2.972 oturum). `.github/workflows/telemetry-watchdog.yml` her gün 09:00'da (TR) çalıştırır —
-zamanlanmış iş yalnız varsayılan daldan (`main`) koşar. `telemetry-check`'e konmadı: o kodu
+zamanlanmış iş yalnız varsayılan daldan (`main`) koşar. Sürümler `dev`'den çıkıyor ve
+`main` ile ortak geçmişi yok; bu yüzden dosya `main`'de de duruyor (PR #7) ve `dev`'i
+checkout ediyor. İki kopya elle aynı tutulur. `telemetry-check`'e konmadı: o kodu
 doğrular, bekçi sahayı.
 
 ---
