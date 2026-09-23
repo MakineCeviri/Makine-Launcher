@@ -13,9 +13,11 @@
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <algorithm>
+#include <atomic>
 #include <fstream>
 #include <set>
 #include <string>
+#include <thread>
 
 namespace makine {
 namespace testing {
@@ -536,6 +538,35 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdEmptyString) {
     // Empty string may match entries — just verify no crash
     (void)catalog_.findMatchingAppId("");
     SUCCEED();
+}
+
+// The launcher matches games against the catalog on its scan worker thread
+// while the main thread reloads the catalog when a sync lands. loadFromIndex
+// clears packages_ first, and two 0.1.4 field crashes (NATIVE-7N, NATIVE-8A)
+// died inside that iteration. Without the catalog's lock this test crashes.
+TEST_F(PackageCatalogTest, ReloadWhileAnotherThreadReadsIsSafe) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    std::atomic<bool> stop{false};
+    std::atomic<int> reads{0};
+    std::thread reader([&] {
+        while (!stop.load()) {
+            (void)catalog_.findMatchingAppId("Elden Ring");
+            (void)catalog_.hasPackage("1716740");
+            (void)catalog_.allPackages();
+            (void)catalog_.getAllExeMap();
+            reads.fetch_add(1);
+        }
+    });
+
+    for (int i = 0; i < 300; ++i)
+        (void)catalog_.loadFromIndex(indexPath_, cachePath_);
+    stop.store(true);
+    reader.join();
+
+    EXPECT_GT(reads.load(), 0);
+    EXPECT_EQ(catalog_.packageCount(), 3);
+    EXPECT_EQ(catalog_.findMatchingAppId("Elden Ring"), "1245620");
 }
 
 } // namespace testing

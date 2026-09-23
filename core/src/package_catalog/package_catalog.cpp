@@ -118,6 +118,7 @@ PackageCatalog::PackageCatalog() = default;
 
 bool PackageCatalog::loadFromIndex(const fs::path& indexPath, const fs::path& packageCacheRoot)
 {
+    std::unique_lock lock(mutex_);
     packages_.clear();
     storeIdToSteamAppId_.clear();
     dataPath_ = packageCacheRoot;
@@ -335,6 +336,7 @@ void parseContributors(PackageCatalogEntry& entry, const json& obj)
 
 bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::string& detailJson)
 {
+    std::unique_lock lock(mutex_);
     auto it = packages_.find(steamAppId);
     if (it == packages_.end()) {
         MAKINE_LOG_WARN(log::PACKAGE, "enrichPackage: unknown appId {}", steamAppId);
@@ -410,6 +412,7 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
 
 bool PackageCatalog::isDetailLoaded(const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     auto it = packages_.find(steamAppId);
     if (it == packages_.end()) return false;
     return it->second.detailLoaded;
@@ -489,11 +492,13 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
 
 bool PackageCatalog::hasPackage(const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     return packages_.contains(steamAppId);
 }
 
 std::optional<PackageCatalogEntry> PackageCatalog::getPackage(const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     auto it = packages_.find(steamAppId);
     if (it != packages_.end()) {
         return it->second;
@@ -503,6 +508,7 @@ std::optional<PackageCatalogEntry> PackageCatalog::getPackage(const std::string&
 
 int PackageCatalog::packageCount() const
 {
+    std::shared_lock lock(mutex_);
     return static_cast<int>(packages_.size());
 }
 
@@ -512,6 +518,7 @@ int PackageCatalog::packageCount() const
 
 std::string PackageCatalog::resolveGameId(const std::string& gameId) const
 {
+    std::shared_lock lock(mutex_);
     // Direct match — already a steamAppId
     if (packages_.contains(gameId)) {
         return gameId;
@@ -532,6 +539,7 @@ std::string PackageCatalog::resolveGameId(const std::string& gameId) const
 
 std::vector<std::string> PackageCatalog::getVariants(const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     auto it = packages_.find(steamAppId);
     if (it == packages_.end()) return {};
     return it->second.variants;
@@ -539,6 +547,7 @@ std::vector<std::string> PackageCatalog::getVariants(const std::string& steamApp
 
 std::string PackageCatalog::getVariantType(const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     auto it = packages_.find(steamAppId);
     if (it == packages_.end()) return {};
     return it->second.variantType;
@@ -553,6 +562,7 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
     const std::string& variant,
     const std::string& sourcePathOverride) const
 {
+    std::shared_lock lock(mutex_);
     auto pkgIt = packages_.find(steamAppId);
     if (pkgIt == packages_.end()) return {};
 
@@ -629,6 +639,7 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
 
 std::string PackageCatalog::findMatchingAppId(const std::string& folderName) const
 {
+    std::shared_lock lock(mutex_);
     // Strip common scene release tags before matching:
     // "Death.Stranding.2.On.The.Beach-InsaneRamZes" → "Death.Stranding.2.On.The.Beach"
     std::string cleaned = trim(folderName);
@@ -974,6 +985,7 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
     const std::vector<std::string>& topEntries,
     const std::string& folderName) const
 {
+    std::shared_lock lock(mutex_);
     const std::string engineHint = normalizeEngine(engine);
 
     // Build a lowercase set of top-level entries for fast lookup
@@ -1080,23 +1092,27 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
 
 bool PackageCatalog::isInstalled(const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     return installed_.contains(steamAppId);
 }
 
 void PackageCatalog::markInstalled(const std::string& steamAppId,
                                    const InstalledPackageState& state)
 {
+    std::unique_lock lock(mutex_);
     installed_[steamAppId] = state;
 }
 
 void PackageCatalog::markUninstalled(const std::string& steamAppId)
 {
+    std::unique_lock lock(mutex_);
     installed_.erase(steamAppId);
 }
 
 std::optional<InstalledPackageState> PackageCatalog::getInstalledState(
     const std::string& steamAppId) const
 {
+    std::shared_lock lock(mutex_);
     auto it = installed_.find(steamAppId);
     if (it != installed_.end()) {
         return it->second;
@@ -1110,6 +1126,7 @@ std::optional<InstalledPackageState> PackageCatalog::getInstalledState(
 
 void PackageCatalog::loadInstalledState(const fs::path& statePath)
 {
+    std::unique_lock lock(mutex_);
     std::error_code ec;
     if (!fs::exists(statePath, ec)) return;
 
@@ -1173,6 +1190,7 @@ void PackageCatalog::loadInstalledState(const fs::path& statePath)
 
 void PackageCatalog::saveInstalledState(const fs::path& statePath) const
 {
+    std::shared_lock lock(mutex_);
     std::error_code ec;
 
     // Ensure parent directory exists
@@ -1255,6 +1273,7 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
 
 std::vector<PackageCatalogEntry> PackageCatalog::allPackages() const
 {
+    std::shared_lock lock(mutex_);
     std::vector<PackageCatalogEntry> result;
     result.reserve(packages_.size());
     for (const auto& [appId, pkg] : packages_) {
@@ -1265,6 +1284,7 @@ std::vector<PackageCatalogEntry> PackageCatalog::allPackages() const
 
 std::unordered_map<std::string, std::string> PackageCatalog::getAllExeMap() const
 {
+    std::shared_lock lock(mutex_);
     std::unordered_map<std::string, std::string> map;
     for (const auto& [appId, entry] : packages_) {
         if (entry.fingerprint) {

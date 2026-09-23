@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -449,6 +450,14 @@ private:
 
     // Root translation data path
     fs::path dataPath_;
+
+    // Every public method takes this: shared to read, exclusive to change.
+    // The launcher reads the catalog on the library-scan worker thread while
+    // the main thread reloads it when a catalog sync lands, and loadFromIndex
+    // clears packages_ first — two 0.1.4 field crashes (NATIVE-7N, NATIVE-8A)
+    // died iterating it mid-reload. All results are returned by value, so
+    // nothing escapes the lock.
+    mutable std::shared_mutex mutex_;
 };
 
 } // namespace packages
