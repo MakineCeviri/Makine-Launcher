@@ -17,7 +17,9 @@ fails the release when the symbols cannot be matched or uploaded:
      configured from a stale .env would otherwise ship reporting to the old one;
   1. the .sym copy (taken before strip) and the shipped exe must carry the
      same, non-zero Debug ID — otherwise Sentry cannot pair them;
-  2. both are uploaded with sentry-cli (org/project from .sentryclirc);
+  2. both are uploaded with sentry-cli, org/project passed explicitly —
+     sentry-cli also reads .env, and a stale SENTRY_ORG there outranks
+     .sentryclirc (the first 0.1.5 upload went to the old org and got 403);
   3. the Debug ID is read back from Sentry — "upload succeeded" has not meant
      "it is there" often enough in this project.
 
@@ -120,6 +122,7 @@ def main() -> int:
 
     env = dict(os.environ, SENTRY_AUTH_TOKEN=token)
     r = subprocess.run(["sentry-cli", "debug-files", "upload", "--include-sources",
+                        "--org", st.SENTRY_ORG, "--project", st.SENTRY_PROJECT,
                         str(sym), str(exe)],
                        capture_output=True, text=True, cwd=str(ROOT), env=env)
     if r.returncode != 0:
