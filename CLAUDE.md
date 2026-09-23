@@ -6,8 +6,8 @@
 | | |
 |---|---|
 | **Repo** | `origin` → MakineCeviri/Makine-Launcher (public, single repo) |
-| **Branches** | `main` (stable, release-ready) · `dev` (active development) |
-| **Push** | `git push` → origin/dev · release: merge dev → main |
+| **Branches** | `dev` (active development; release tags live here) · `main` (default branch, separate history — no common ancestor with `dev`) |
+| **Push** | `git push` → origin/dev · release: tag on `dev` (`docs/RELEASING.md`) · scheduled workflows must also exist on `main` (PR) |
 
 ---
 

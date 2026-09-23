@@ -1,15 +1,16 @@
 # Makine-Launcher — Claude Context
 
 > **Qt6/QML + C++23 oyun çeviri launcher**
-> **Repo:** `origin` → MakineCeviri/Makine-Launcher (public, tek repo) · branches: `main` (stable, release-ready) + `dev` (WIP, daily driver)
+> **Repo:** `origin` → MakineCeviri/Makine-Launcher (public, tek repo) · branches: `dev` (geliştirme, **sürüm etiketleri burada**) + `main` (varsayılan dal, **dev ile ortak geçmişi yok** — merge edilemez)
 > **Eski:** Makine-Launcher-Dev archived (read-only yedek, 2026-05-20)
-> **Durum:** v0.1.5-beta | ilk doğrudan ZIP paketi (dinamik Qt 6.11.1, `just release-zip-dynamic`)
-> **Blockers:** MSIX submit (sonraki sürüm)
-> **Telemetri:** çalışıyor — `0.1.2-beta` 36 issue / 536 olay. Sentry API erişimi sorunsuz
-> (token `.env`'de, `SENTRY_AUTH_TOKEN`). Açık fatal: 3. Denetim: `just telemetry-check`
+> **Durum (2026-09-23):** v0.1.5-beta kodu hazır, ZIP üretildi, **yayınlanmadı** · sonraki: v0.2.0 (büyük güncelleme)
+> **→ Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** (durum, kalan yayın adımları, tuzaklar)
+> **Blockers:** MSIX imzalı test + Store gönderimi (sertifika yalnız sahibinde)
+> **Telemetri:** iki kanal — sayım (`/api/v2/telemetry` → D1) + Sentry `makineceviri/makine-launcher`
+> (Sponsored Team, 50K/ay) · günlük körlük bekçisi (`main`'deki iş akışı) · `just telemetry-check` / `just telemetry-watch`
 >
-> Build, conventions, gotchas → **`CLAUDE.md`** (proje kökü)
-> Beta hazırlık akışı, key üretim, repo sync detayları → memory dosyaları (`~/.claude/projects/.../memory/`)
+> Build, conventions, gotchas → **`CLAUDE.md`** (proje kökü) · telemetri → `docs/telemetry.md` · 0.2.0 → `docs/v0.2.0-todo.md`
+> Operasyonel notlar (kimlik bilgisi düzeni, D1, push takılması…) → memory dosyaları (`~/.claude/projects/.../memory/`)
 
 ---
 
