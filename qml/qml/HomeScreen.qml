@@ -28,16 +28,10 @@ Item {
     Component.onCompleted: {
         if (typeof SceneProfiler !== "undefined")
             SceneProfiler.screenLoaded("Home")
-        // Defer heavy I/O until after first frame renders
-        scanDelayTimer.start()
-    }
-
-    // Filesystem scan after app settles — cached data from initialize() already displayed.
-    // Interval must exceed createRootObject time (~4s) to avoid firing during pre-render.
-    Timer {
-        id: scanDelayTimer
-        interval: 5000
-        onTriggered: GameService.scanAllLibraries()
+        // No scan here: GameService::initialize() already schedules the
+        // startup library scan (2 s with a games cache, 0.5 s without).
+        // A second timer-driven scan re-read index.json on a worker thread
+        // and re-published identical results a few seconds later.
     }
 
     // Update check handled by UpdateService in main.cpp startup.
