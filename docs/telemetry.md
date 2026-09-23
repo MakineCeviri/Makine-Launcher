@@ -1,7 +1,7 @@
 # Telemetri — Sentry ile Uzaktan Teşhis
 
 > **Amaç:** Kullanıcı geri bildirimi beklemeden sorunları görmek.
-> **Proje:** `makine-ceviri / native` · **Durum:** 2026-07-23 — beta verisi geldi, denetim otomatikleşti
+> **Proje:** `makine-ceviri / native` · **Durum:** 2026-09-23 — iki kanal: sayım (kendi ucumuz) + teşhis (Sentry), körlük bekçisi
 
 ## Komutlar
 
@@ -12,8 +12,52 @@
 | `just telemetry-selftest` | Gerçek yoldan bir olay gönderir, Sentry'de varlığını **ve** yol temizliğini doğrular |
 | `just triage` | Sıralı iş listesi: en çok başarısız operasyon, en çok istenen handler, regresyon |
 | `just sentry-setup` | Alarm kurallarını kurar/onarır, sonucu sunucudan geri okuyup doğrular |
+| `just telemetry-watch` | Şu an kör müyüz: Sentry kota yüzünden olay düşürüyor mu, sayım kanalı sustu mu (CI'da her gün) |
 
 Telemetriye dokunan her değişiklikten sonra `just telemetry-check`. Derleme başarısı kanıt değildir.
+
+---
+
+## İki kanal (2026-09-23)
+
+Ölçüm: Sentry'nin aylık 5.000 olaylık kotası her sıfırlanmadan 6-9 gün sonra doluyordu.
+30 günde 11.617 olayın 6.592'si düşürüldü, son 61 günün 37'sinde **hiç veri yoktu**.
+Kabul edilenlerin %69'u launcher'ın bilerek yaptığı retlerdi (`unsupported`), gerisi
+tekrardı (Elden Ring: 122 kullanıcı, 744 olay). Aynı sırada kendi ucumuz
+(`/api/v2/telemetry`) Mart'tan beri hiçbir şey yazmıyordu: `/api/v2/*` Hono uygulamasına
+gidiyor, oradaki işleyici launcher'ın göndermediği alanları okuyup yazmayı beklemiyordu.
+İkisi de haftalarca kimse fark etmeden kördü.
+
+| Kanal | Ne taşır | Nerede |
+|---|---|---|
+| **Sayım** | Her işlemin sonucu: `session` `sync` `scan` `download` `install` `uninstall` … → `ok` / `fail` (+ `side`, `reason`) / `cancel`. Başarılar dahil — başarı oranı artık hesaplanabiliyor. Kota yok. | Launcher `TelemetryService` → `POST makineceviri.org/api/v2/telemetry` (şema v2, toplu) → D1 `makine-catalog.telemetry_events` |
+| **Teşhis** | Yalnız çökme ve beklenmeyen hata, bağlamıyla (breadcrumb, etiketler). | Sentry, **kapıdan** geçerek |
+
+**Sentry kapısı** (`telemetryrules.h`, `CrashReporter::reportFailure`):
+- `unsupported` retler Sentry'ye hiç gitmez — sayım kanalında `side=unsupported` + `reason` ile sayılır
+  (hangi handler'ı önce yazmalı sorusunun cevabı artık oradan).
+- Aynı `(operation, reason, subject)` kurulum başına **24 saatte bir** gider; `qCritical` için aynı kural.
+- Oturum başına en fazla 30 olay. Çökmeler (crashpad) ve `selftest` kapıdan geçmez.
+- Her hata, kapının kararından **önce** sayım kanalına gider (`CrashReporter::setFailureSink`) — sayılar eksiksiz.
+
+**Sayım kanalı ayrıntıları:** anonim kurulum kimliği Sentry'nin kullanıcı kimliğiyle aynı
+(makine kimliğinin SHA-256'sı, ilk 16 hane) — iki kanal kurulum bazında birleştirilebilir.
+Yol, kullanıcı adı, oyun listesi gönderilmez. Kayıtlar 30 sn'de bir, en fazla 50'lik
+gruplar halinde gider; gönderilemeyenler kapanışta `telemetry-queue.json`'a yazılır, sonraki
+açılışta gider (en fazla 500). 400/413 dönen grup atılır, diğer her hata yeniden denenir.
+Worker 0.1.4'ün eski tek-olay gövdesini de kabul eder (`schema=1`, `out=attempt`).
+Sağlık ucu: `GET /api/v2/telemetry/health` (yalnız toplamlar).
+
+**Sunucu tarafında yapılamayanlar (ücretsiz plan):** istemci anahtarına hız sınırı
+(`rateLimit`) — API 200 döner ama **sessizce yok sayar** (geri okumayla görüldü);
+mesaj filtresi (`filters:error_messages`) — "You do not have that feature enabled".
+Yani 0.1.4'ün gürültüsü sahadan çekilene kadar kotayı yer; 0.1.5+ kapıyla korunur.
+
+**Bekçi:** `scripts/telemetry_watchdog.py` iki sayıya bakar ve körlükte sıfır dışı çıkar:
+Sentry'nin son 24 saatteki `rate_limited` sayısı ve sayım kanalının son 24 saatteki kayıt
+sayısı. `.github/workflows/telemetry-watchdog.yml` her gün 09:00'da (TR) çalıştırır —
+zamanlanmış iş yalnız varsayılan daldan (`main`) koşar. `telemetry-check`'e konmadı: o kodu
+doğrular, bekçi sahayı.
 
 ---
 
@@ -355,6 +399,8 @@ Artık ayrılıyor: **indeks dosyası diskte var ama katalog boş** → gerçek 
       geçersiz mi)
 
 **Telemetri altyapısı:**
-- [ ] Kurulum **başarı** oranı ölçümü — şu an yalnızca hatalar toplanıyor, oran hesaplanamıyor
+- [x] Kurulum **başarı** oranı ölçümü — sayım kanalı (2026-09-23)
+- [x] Körlük bekçisi — `telemetry_watchdog.py` + günlük CI (2026-09-23)
+- [ ] Sayım kanalı ucu kimliksiz: IP bazlı Cloudflare Rate Limiting kuralı
 - [ ] `RtlpHpSegReAlloc` kapatma kararını gözden geçir (regresyon alarmı artık çalışıyor)
 - [ ] `just telemetry-check`'i pre-push kancasına bağla
