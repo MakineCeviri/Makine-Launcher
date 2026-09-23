@@ -62,9 +62,11 @@ public:
      *
      * Severity is derived from the message, not the call site, across three
      * classes tagged as `failure.side`:
-     *   - `unsupported` (info)    — the patch needs an install capability the
+     *   - `unsupported`           — the patch needs an install capability the
      *                               launcher does not implement. Nothing broke;
-     *                               these are a demand ranking for what to build.
+     *                               these are a demand ranking for what to build,
+     *                               so they are counted (failure sink) and never
+     *                               sent to Sentry.
      *   - `user` (warning)        — the user can fix it on their own machine
      *                               (disk full, game running, permission, network).
      *   - `system` (error)        — everything else, i.e. our defects.
@@ -82,6 +84,13 @@ public:
     static void reportFailure(const char* operation, const QString& subject,
                               const QString& message,
                               const QHash<QString, QString>& eventTags = {});
+
+    /// Receives every reportFailure() — before the Sentry gate decides whether
+    /// this occurrence also becomes an event — so the counting channel sees all
+    /// of them. Set once at startup; may be called from any thread.
+    using FailureSink = void (*)(const char* operation, const QString& subject,
+                                 const QString& side, const QString& reason);
+    static void setFailureSink(FailureSink sink);
 
     /// True when `message` describes something the user can resolve on their own.
     /// Exposed for callers that want to branch on it (e.g. skip a retry).

@@ -79,6 +79,13 @@ target_include_directories(test_failurereasons PRIVATE
 target_link_libraries(test_failurereasons PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_failurereasons COMMAND test_failurereasons)
 
+# Counting-channel payload, offline queue and the Sentry quota gate.
+add_executable(test_telemetryrules test_telemetryrules.cpp)
+target_include_directories(test_telemetryrules PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_telemetryrules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_telemetryrules COMMAND test_telemetryrules)
+
 # What the user must still do once a patch is installed — the language slot the
 # files landed in, and whether the catalogue note is an instruction at all.
 add_executable(test_postinstallrules test_postinstallrules.cpp)

@@ -12,6 +12,7 @@
 #include "appprotection.h"
 #include "apppaths.h"
 #include "crashreporter.h"
+#include "telemetryservice.h"
 
 #include <QLoggingCategory>
 #include <QDir>
@@ -1095,6 +1096,11 @@ void CoreBridge::scanAllLibraries()
         } else if (count == 0) {
             CrashReporter::reportFailure("scan", QStringLiteral("empty"),
                 tr("Hiçbir tarayıcı oyun bulamadı (%1)").arg(summary));
+        } else {
+            TelemetryService::record(QStringLiteral("scan"), QStringLiteral("ok"), {},
+                                     {{QStringLiteral("games"), count},
+                                      {QStringLiteral("matched"), matched},
+                                      {QStringLiteral("catalog"), catalogSize}});
         }
 
         // Move results to main thread

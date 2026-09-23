@@ -11,7 +11,6 @@
 #include "gameservice.h"
 #include "translationdownloader.h"
 #include "manifestsyncservice.h"
-#include "telemetryservice.h"
 #include "corebridge.h"
 #include "crashreporter.h"
 
@@ -300,7 +299,6 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
     m_pendingDownloads.insert(gameId, PendingDownload{gameId, variant, options, /*isUpdate=*/false});
     m_downloader->downloadPackage(gameId, dataUrl, dirName, expectedSize,
                                   expectedChecksum);
-    m_manifestSync->telemetry()->onDownload(gameId);
 }
 
 // ===== Download gate: update =====
@@ -352,10 +350,8 @@ void InstallFlowService::onDownloadReady(const QString& appId)
 
     if (pending.isUpdate) {
         m_gameService->updateTranslation(pending.gameId, pending.variant, pending.selectedOptions);
-        m_manifestSync->telemetry()->onUpdate(pending.gameId);
     } else {
         m_gameService->installTranslation(pending.gameId, pending.variant, pending.selectedOptions);
-        m_manifestSync->telemetry()->onInstall(pending.gameId);
         emit installStarted(pending.gameId);
     }
 }

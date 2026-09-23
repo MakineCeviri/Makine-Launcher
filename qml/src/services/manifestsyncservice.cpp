@@ -397,7 +397,8 @@ void ManifestSyncService::finishSync()
     emit syncStatusChanged();
     setOffline(false);
     QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
-    m_telemetry->onSyncComplete(m_store->catalogVersion(), m_store->catalogCount());
+    TelemetryService::record(QStringLiteral("sync"), QStringLiteral("ok"), {},
+                             {{QStringLiteral("catalog"), m_store->catalogCount()}});
 }
 
 void ManifestSyncService::invalidateChangedDetails()

@@ -607,6 +607,7 @@ void logToFile(const QString& msg) {
 #include "services/imagecachemanager.h"
 #include "services/manifestsyncservice.h"
 #include "services/translationdownloader.h"
+#include "services/telemetryservice.h"
 #include "services/corebridge.h"
 #include "services/translationstatemanager.h"
 #include "services/installflowservice.h"
@@ -1108,6 +1109,35 @@ static void createServices(
                          installFlow->onDownloadFailed(appId, QString{});
                      });
 
+    // Outcome counting (telemetryservice.h). Failures reach the counts through
+    // CrashReporter's failure sink; successes and cancels exist only as these
+    // signals, which is why no success rate could be computed before.
+    QObject::connect(translationDownloader, &makine::TranslationDownloader::packageReady,
+                     &app, [](const QString& appId, const QString& /*dirName*/) {
+                         makine::TelemetryService::record(QStringLiteral("download"),
+                                                          QStringLiteral("ok"), appId);
+                     });
+    QObject::connect(translationDownloader, &makine::TranslationDownloader::downloadCancelled,
+                     &app, [](const QString& appId) {
+                         makine::TelemetryService::record(QStringLiteral("download"),
+                                                          QStringLiteral("cancel"), appId);
+                     });
+    QObject::connect(gameService, &GameService::translationInstallCompleted,
+                     &app, [](const QString& gameId, bool success, const QString&) {
+                         if (success)
+                             makine::TelemetryService::record(QStringLiteral("install"),
+                                                              QStringLiteral("ok"), gameId);
+                     });
+    QObject::connect(gameService, &GameService::translationUninstalled,
+                     &app, [](const QString& gameId, bool success, const QString&) {
+                         if (success)
+                             makine::TelemetryService::record(QStringLiteral("uninstall"),
+                                                              QStringLiteral("ok"), gameId);
+                     });
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, manifestSync, [manifestSync]() {
+        manifestSync->telemetry()->persist();
+    });
+
     logToFile(QString("Services initialized in %1 ms").arg(startupTimer.elapsed()));
 #ifdef Q_OS_WIN
     splash.pumpMessages();
@@ -1478,6 +1508,11 @@ int main(int argc, char *argv[])
     // === Phase 0: Crash reporting (as early as possible after QApp) ===
     makine::CrashReporter::initialize();
     makine::CrashReporter::installQtMessageHandler();
+    makine::CrashReporter::setFailureSink([](const char* op, const QString& subject,
+                                             const QString& side, const QString& reason) {
+        makine::TelemetryService::recordFailure(QString::fromLatin1(op), subject, side, reason);
+    });
+    makine::TelemetryService::record(QStringLiteral("session"), QStringLiteral("ok"));
 
 #ifdef MAKINE_DEV_TOOLS
     // Telemetry self-test (dev builds only, opt-in via --selftest-telemetry).
@@ -1506,7 +1541,13 @@ int main(int argc, char *argv[])
                            "message path check: C:\\Users\\selftest_user_name\\AppData"));
         makine::CrashReporter::shutdown();   // flushes queued envelopes
         qInfo("telemetry self-test event dispatched");
-        return 0;
+
+        // The counting channel has no quota to hide behind, but it can still
+        // be silently dead (it was, until 2026-09-23) — so it is proven the
+        // same way: one record through the real transport, the reply checked.
+        const int status = makine::TelemetryService::selfTest();
+        qInfo("counting channel self-test: HTTP %d", status);
+        return (status >= 200 && status < 300) ? 0 : 1;
     }
 #endif
 

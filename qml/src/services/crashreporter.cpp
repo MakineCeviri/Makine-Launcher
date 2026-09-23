@@ -21,11 +21,44 @@
 #include <QString>
 #include <QStringList>
 
+#include "telemetryrules.h"
+
+#include <QDateTime>
+#include <QMutex>
+#include <QSettings>
+#include <QVariantMap>
+
+static makine::CrashReporter::FailureSink s_failureSink = nullptr;
+
+// Sentry gate — see telemetryrules.h for why it exists. reportFailure runs on
+// the scan worker thread too and the Qt handler on whichever thread logged, so
+// the state is locked; recursive in case QSettings itself logs a critical.
+static QRecursiveMutex s_gateMutex;
+static int s_sessionEvents = 0;
+
+static bool admitToSentry(const QString& key)
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    QMutexLocker lock(&s_gateMutex);
+    if (s_sessionEvents >= makine::telemetryrules::kSentryEventsPerSession)
+        return false;
+
+    QSettings settings;
+    QVariantMap sent = settings.value(QStringLiteral("telemetry/sentrySent")).toMap();
+    makine::telemetryrules::pruneSent(sent, now);
+    if (!makine::telemetryrules::sentryMaySend(sent.value(key).toLongLong(), now))
+        return false;
+
+    sent.insert(key, now);
+    settings.setValue(QStringLiteral("telemetry/sentrySent"), sent);
+    ++s_sessionEvents;
+    return true;
+}
+
 #ifdef MAKINE_HAS_SENTRY
 #include <sentry.h>
 #include <QSysInfo>
 #include <QCoreApplication>
-#include <QCryptographicHash>
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
@@ -59,7 +92,9 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
         break;
     case QtCriticalMsg:
         makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "error");
-        makine::CrashReporter::captureMessage(utf8.constData(), "error");
+        if (admitToSentry(QStringLiteral("qt|%1|%2")
+                              .arg(QString::fromLatin1(category), msg.left(120))))
+            makine::CrashReporter::captureMessage(utf8.constData(), "error");
         break;
     case QtFatalMsg:
         makine::CrashReporter::captureMessage(utf8.constData(), "fatal");
@@ -185,10 +220,10 @@ void CrashReporter::initialize()
     setContext("arch", QSysInfo::currentCpuArchitecture());
 
     // Anonymous user ID (SHA-256 of machine unique ID)
-    QByteArray machineId = QSysInfo::machineUniqueId();
-    if (!machineId.isEmpty()) {
-        QByteArray hash = QCryptographicHash::hash(machineId, QCryptographicHash::Sha256).toHex();
-        setUser(QString::fromLatin1(hash.left(16)));
+    // Shared with the counting channel so both can be joined per install.
+    const QString installId = telemetryrules::installId(QSysInfo::machineUniqueId());
+    if (!installId.isEmpty()) {
+        setUser(installId);
 
     // Session fact, so a sticky tag is the right shape here (unlike fail.*).
     // MSIX path virtualization was a confirmed root cause class — being able to
@@ -367,6 +402,11 @@ bool CrashReporter::isUnsupportedCapability(const QString& message)
     return false;
 }
 
+void CrashReporter::setFailureSink(FailureSink sink)
+{
+    s_failureSink = sink;
+}
+
 void CrashReporter::reportFailure(const char* operation, const QString& subject,
                                    const QString& message,
                                    const QHash<QString, QString>& eventTags)
@@ -380,9 +420,24 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
     const QString side = unsupported ? QStringLiteral("unsupported")
                        : userSide    ? QStringLiteral("user")
                                      : QStringLiteral("system");
-    const char* level  = unsupported ? "info"
-                       : userSide    ? "warning"
+    const char* level  = userSide    ? "warning"
                                      : "error";
+    const QString reason = failurereasons::failureReason(message);
+
+    // Every occurrence is counted; Sentry only gets the ones worth its quota.
+    if (s_failureSink)
+        s_failureSink(operation, subject, side, reason);
+
+    // Capability gaps were 69% of what Sentry accepted and are fully answered
+    // by the counts (which game, how often). Anything else goes out once per
+    // (operation, reason, subject) per day — except the self-test, which is
+    // the proof that the path works and must never be suppressed.
+    if (unsupported)
+        return;
+    if (qstrcmp(operation, "selftest") != 0
+        && !admitToSentry(telemetryrules::sentryKey(QString::fromLatin1(operation),
+                                                    reason, subject)))
+        return;
 
     // Tag before capturing so the event carries them: "which operation fails
     // most" and "which game fails most" are the two questions this exists to
@@ -396,14 +451,11 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
     // single defect spread over 67 games reads as 67 unrelated issues — see
     // failurereasons.h for the one that actually happened.
     QHash<QString, QString> tags = eventTags;
-    tags.insert(QStringLiteral("fail.reason"), failurereasons::failureReason(message));
+    tags.insert(QStringLiteral("fail.reason"), reason);
     const QString action = failurereasons::failedStepAction(message);
     if (!action.isEmpty())
         tags.insert(QStringLiteral("fail.step"), action);
 
-    // Kept as an event rather than dropped: the per-game counts are how we rank
-    // which install handler to write next (sentry_triage.py reads them as
-    // "Eksik handler talebi"). Only the severity changes.
     const QByteArray payload =
         QStringLiteral("%1 failed [%2]: %3")
             .arg(QString::fromLatin1(operation),
