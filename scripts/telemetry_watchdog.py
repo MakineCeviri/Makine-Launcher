@@ -12,11 +12,15 @@ Both channels went dark without anyone noticing:
   * The counting endpoint (/api/v2/telemetry) had been writing nothing since
     March: requests were routed to a handler that read the wrong fields.
 
-This checks the two numbers that would have shown it, and exits non-zero:
+This checks the numbers that would have shown it, and exits non-zero:
   1. Sentry outcomes for the last 24 h — any `rate_limited` means events are
      being thrown away right now.
   2. The counting channel's /health — fewer than --min-24h records in 24 h
      means the pipeline (or the launcher side of it) is dead.
+  3. Crash-free session rate per release (Sentry release health, 7 days).
+     Sessions are not charged against the error quota, so this keeps seeing
+     crashes while error events are being dropped: 0.1.4 sat at 98.69% over
+     2,972 sessions on 2026-09-23 with its crash events all rate limited.
 
 Runs daily from .github/workflows/telemetry-watchdog.yml, so a failure arrives
 as a GitHub notification instead of waiting for someone to look.
@@ -52,6 +56,23 @@ def sentry_outcomes_24h(token: str) -> dict:
     return {g["by"]["outcome"]: g["totals"]["sum(quantity)"] for g in data.get("groups", [])}
 
 
+def crash_free_by_release(token: str) -> list:
+    url = (f"{st.SENTRY_BASE_URL}/organizations/{st.SENTRY_ORG}/sessions/"
+           "?field=sum(session)&field=crash_free_rate(session)&groupBy=release"
+           "&statsPeriod=7d&interval=1d&environment=production")
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.load(resp)
+    rows = []
+    for g in data.get("groups", []):
+        release = g["by"].get("release", "")
+        if "-dev" in release:            # dev builds tag themselves pre-alpha-dev
+            continue
+        rows.append((release, g["totals"].get("sum(session)", 0),
+                     g["totals"].get("crash_free_rate(session)")))
+    return sorted(rows, key=lambda r: -r[1])
+
+
 def counting_health() -> dict:
     req = urllib.request.Request(HEALTH_URL, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=30) as resp:
@@ -62,6 +83,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Fail when a telemetry channel goes blind")
     parser.add_argument("--min-24h", type=int, default=10,
                         help="Minimum counting-channel records expected in 24 h (default 10)")
+    parser.add_argument("--min-crash-free", type=float, default=98.0,
+                        help="Minimum crash-free session %% for a release with ≥ 100 sessions "
+                             "in 7 days (default 98.0)")
     args = parser.parse_args()
 
     failures = []
@@ -81,6 +105,18 @@ def main() -> int:
                                 "şu an kör")
         except (urllib.error.URLError, KeyError, ValueError) as exc:
             failures.append(f"Sentry istatistiği okunamadı: {exc}")
+
+        try:
+            for release, sessions, rate in crash_free_by_release(token):
+                if rate is None or sessions < 100:
+                    continue
+                pct = rate * 100
+                print(f"Çökmesiz oturum (7 gün) {release}: %{pct:.2f} · {sessions} oturum")
+                if pct < args.min_crash_free:
+                    failures.append(f"{release} çökmesiz oturum oranı %{pct:.2f} "
+                                    f"(eşik %{args.min_crash_free:.1f})")
+        except (urllib.error.URLError, KeyError, ValueError) as exc:
+            failures.append(f"Sentry oturum sağlığı okunamadı: {exc}")
 
     try:
         health = counting_health()

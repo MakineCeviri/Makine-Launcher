@@ -43,6 +43,8 @@
 $EDITOR docs/release-notes/v0.1.5-beta.md
 
 # 4. Paketi üret (dinamik Qt — DLL'ler ZIP içinde; statik kit yok)
+#    Önce sembolleri Sentry'ye yükler ve Sentry'den geri okur (scripts/upload_symbols.py);
+#    yükleyemezse durur — sembolsüz yayının çökmeleri okunamaz (0.1.4'ün hepsi öyleydi).
 just release-zip-dynamic 0.1.5-beta          # imzalı: just release-zip-dynamic-signed 0.1.5-beta
 # → dist/Makine-Launcher-v0.1.5-beta-win64.zip + dist/SHA256SUMS.txt
 
@@ -54,6 +56,8 @@ gh release view v0.1.5-beta
 curl -sI https://github.com/MakineCeviri/Makine-Launcher/releases/latest | head -1   # 302 + /tag/v0.1.5-beta
 
 # 7. Bir önceki sürümün başlığına "(Arşiv)" ekle, gövdesine güncel sürüm bandını koy
+# 7b. Birkaç gün sonra: just telemetry-watch — yeni sürümün çökmesiz oturum oranı
+#     bir öncekiyle karşılaştırılır (oturumlar hata kotasına takılmaz)
 # 8. Store paketi ayrı akış: just msix-dynamic <4 parçalı sürüm> <identity> <publisher>
 ```
 

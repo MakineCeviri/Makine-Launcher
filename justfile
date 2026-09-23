@@ -297,11 +297,13 @@ release-zip-signed version: release-signed
 # the publishing checklist live in docs/RELEASING.md.
 # Usage: just release-zip-dynamic 0.1.5-beta
 release-zip-dynamic version: release-mingw
+    python scripts/upload_symbols.py
     powershell -ExecutionPolicy Bypass -File scripts/make_release_zip.ps1 -Version "{{version}}"
 
 # Same, Authenticode-signed (owner only - needs scripts/certs/).
 # Usage: just release-zip-dynamic-signed 0.1.5-beta
 release-zip-dynamic-signed version: release-mingw
+    python scripts/upload_symbols.py
     powershell -ExecutionPolicy Bypass -File scripts/make_release_zip.ps1 -Version "{{version}}" -Sign
 
 # Regenerate the MSIX tile/logo PNGs from qml/resources/images/logo.png
@@ -321,6 +323,7 @@ msix version identity publisher: release-static
 # Microsoft, so the package goes to Partner Center unsigned either way).
 # Usage: just msix-dynamic 0.1.4.0 Makineeviri.MakineAI "CN=C980BC94-..."
 msix-dynamic version identity publisher: release-mingw
+    python scripts/upload_symbols.py
     powershell -ExecutionPolicy Bypass -File scripts/make_msix.ps1 -Version "{{version}}" -IdentityName "{{identity}}" -Publisher "{{publisher}}" -ExePath "build/release-mingw/Makine-Launcher.exe" -QtBinDir "C:/Qt/6.11.1/mingw_64/bin"
 
 # ============================================================================
