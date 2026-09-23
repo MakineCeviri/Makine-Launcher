@@ -40,8 +40,8 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 SENTRY_BASE_URL = "https://sentry.io/api/0"
-SENTRY_ORG = "makine-ceviri"
-SENTRY_PROJECT = "native"
+SENTRY_ORG = "makineceviri"
+SENTRY_PROJECT = "makine-launcher"
 
 # Failure texts that identify a missing install handler. These are the product
 # signal buried in the noise: every event here is a user who wanted a patch the
@@ -218,7 +218,7 @@ def print_report(report: dict) -> None:
     line = "=" * 78
 
     print(line)
-    print("  SENTRY TRIAGE — makine-ceviri/native")
+    print(f"  SENTRY TRIAGE — {SENTRY_ORG}/{SENTRY_PROJECT}")
     print(line)
     print(f"  {report['issue_count']} issue · {report['event_total']} olay")
 

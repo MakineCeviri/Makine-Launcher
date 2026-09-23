@@ -12,6 +12,9 @@ offsets by hand against a local copy of the shipped exe.
 
 This runs as part of `just release-zip-dynamic` and `just msix-dynamic`, and
 fails the release when the symbols cannot be matched or uploaded:
+  0. the DSN compiled into the build must belong to the Sentry project this
+     repo is configured for — 0.1.5 moved to a new organization, and a build
+     configured from a stale .env would otherwise ship reporting to the old one;
   1. the .sym copy (taken before strip) and the shipped exe must carry the
      same, non-zero Debug ID — otherwise Sentry cannot pair them;
   2. both are uploaded with sentry-cli (org/project from .sentryclirc);
@@ -48,6 +51,22 @@ def debug_id(path: Path) -> str:
                          capture_output=True, text=True, cwd=str(ROOT))
     m = re.search(r"Debug ID:\s*([0-9a-f-]+)", out.stdout + out.stderr)
     return m.group(1) if m else ""
+
+
+def embedded_dsn_project(build: Path) -> str:
+    """Project id of the DSN baked in at configure time (from build.ninja)."""
+    ninja = build / "build.ninja"
+    if not ninja.exists():
+        return ""
+    m = re.search(r'SENTRY_DSN=\\"https://[^@"]+@[^/"]+/(\d+)', ninja.read_text(errors="replace"))
+    return m.group(1) if m else ""
+
+
+def configured_project_id(token: str) -> str:
+    url = f"{st.SENTRY_BASE_URL}/projects/{st.SENTRY_ORG}/{st.SENTRY_PROJECT}/"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return str(json.load(resp).get("id", ""))
 
 
 def uploaded(token: str, did: str) -> bool:
@@ -90,6 +109,13 @@ def main() -> int:
     if not token:
         print("HATA: SENTRY_AUTH_TOKEN yok — semboller yüklenmeden yayın çıkarsa "
               "çökme raporları okunamaz.")
+        return 1
+
+    baked, expected = embedded_dsn_project(build), configured_project_id(token)
+    print(f"DSN projesi  yapıda: {baked or '-'}  beklenen ({st.SENTRY_ORG}/{st.SENTRY_PROJECT}): {expected}")
+    if not baked or baked != expected:
+        print("HATA: yapıya gömülü DSN yapılandırılmış Sentry projesine ait değil — "
+              ".env'deki MAKINE_SENTRY_DSN'i güncelleyip yeniden yapılandırın.")
         return 1
 
     env = dict(os.environ, SENTRY_AUTH_TOKEN=token)

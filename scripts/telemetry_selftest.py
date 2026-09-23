@@ -42,8 +42,8 @@ for _stream in (sys.stdout, sys.stderr):
 
 ROOT = Path(__file__).parent.parent
 SENTRY_BASE_URL = "https://sentry.io/api/0"
-SENTRY_ORG = "makine-ceviri"
-SENTRY_PROJECT = "native"
+SENTRY_ORG = "makineceviri"
+SENTRY_PROJECT = "makine-launcher"
 
 # Planted in main.cpp's self-test block. If this string ever reaches Sentry,
 # redaction is broken and real user names are leaking with it.

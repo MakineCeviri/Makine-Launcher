@@ -40,11 +40,11 @@ except ImportError:
     sys.exit(1)
 
 SENTRY_BASE_URL = "https://sentry.io/api/0"
-SENTRY_ORG = "makine-ceviri"
+SENTRY_ORG = "makineceviri"
 # Project slug as it exists in Sentry (see .sentryclirc). Not the repo name —
 # pointing this at "makine-launcher" silently targets a project that does not
 # exist, so every API call 404s and no rule is ever created.
-SENTRY_PROJECT = "native"
+SENTRY_PROJECT = "makine-launcher"
 GITHUB_ORG = "MakineCeviri"
 GITHUB_REPO = "Makine-Launcher"
 
@@ -406,7 +406,7 @@ def main():
         setup_code_mapping(integration_id, args.dry_run)
     else:
         print("  WARNING: GitHub integration not installed")
-        print("  → Install it at: https://makine-ceviri.sentry.io/settings/integrations/github/")
+        print("  → Install it at: https://makineceviri.sentry.io/settings/integrations/github/")
         print("  → Then re-run this script for code mappings")
 
     # Step 4: Alert rules

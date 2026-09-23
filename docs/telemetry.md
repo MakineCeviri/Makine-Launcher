@@ -1,7 +1,7 @@
 # Telemetri — Sentry ile Uzaktan Teşhis
 
 > **Amaç:** Kullanıcı geri bildirimi beklemeden sorunları görmek.
-> **Proje:** `makine-ceviri / native` · **Durum:** 2026-09-23 — iki kanal: sayım (kendi ucumuz) + teşhis (Sentry), körlük bekçisi
+> **Proje:** `makineceviri / makine-launcher` (0.1.5+; 0.1.4 ve öncesi eski `makine-ceviri / native`'e gönderir) · **Durum:** 2026-09-23 — iki kanal: sayım (kendi ucumuz) + teşhis (Sentry), körlük bekçisi
 
 ## Komutlar
 
