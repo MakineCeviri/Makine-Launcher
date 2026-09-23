@@ -177,8 +177,10 @@ void CrashReporter::initialize()
     // Release tag for version tracking (matches deploy.py Sentry release name)
     sentry_options_set_release(options, MAKINE_SENTRY_RELEASE);
 
-    // Environment
-#ifdef NDEBUG
+    // Environment. The dev presets are Release builds (NDEBUG) with DEV_TOOLS,
+    // so keying on NDEBUG alone filed every dev run and self-test under
+    // "production" — the environment the alert rules and crash-free rates use.
+#if defined(NDEBUG) && !defined(MAKINE_DEV_TOOLS)
     sentry_options_set_environment(options, "production");
 #else
     sentry_options_set_environment(options, "development");

@@ -258,10 +258,11 @@ Ortam değişkeni **tanımsızken** temiz yapılandırma da doğrulandı:
 
 | Öğe | Durum |
 |---|---|
-| GitHub entegrasyonu (`MakineCeviri`) | ✅ aktif |
+| GitHub entegrasyonu | ⏳ yeni org'da (`makineceviri`) kurulu değil — tarayıcıdan OAuth ister; eski org'da aktifti |
 | Release takibi (`deploy.py` → `sentry-cli releases`) | ✅ mevcut |
 | Debug sembolleri yükleme | ✅ `just release-zip-dynamic` / `msix-dynamic` içinde (`upload_symbols.py`: Debug ID eşleşmesi + geri okuma). Önceden yalnız `deploy.py`'deydi, yayın akışı çalıştırmıyordu. |
-| Uyarı kuralları | ✅ 4 kural, **dördü de bildirim gönderiyor** (2026-07-23 onarıldı) |
+| Ortam | ✅ dağıtım yapıları `production`, `MAKINE_DEV_TOOLS`'lu yapılar (dev preset'leri, selftest) `development`. Dev preset'i Release (NDEBUG) derlendiği için önceden her dev çalıştırması `production`'a düşüyordu. |
+| Uyarı kuralları | ✅ 4 kural, **dördü de bildirim gönderiyor** (2026-07-23 onarıldı), **dördü de yalnız `production`** (2026-09-23) |
 
 ### Alarm kuralları sessizce ölüydü (2026-07-23)
 
@@ -291,6 +292,11 @@ Aktif kurallar:
 | Regression Detected | çözülmüş issue yeniden olay alırsa | 30 dk |
 | Widespread Failure | `failure.side:system` + 1 saatte **3+** kullanıcı | 60 dk |
 | High priority issues | Sentry'nin kendi önceliklendirmesi | 30 dk |
+
+> "High priority issues" Sentry'nin varsayılan kuralı ve yeni iş akışı motorunda duruyor:
+> eski `/projects/.../rules/<id>/` ucu `PUT`'a 404 veriyor. Değişiklik
+> `/organizations/makineceviri/workflows/<id>/` üzerinden yapılır (GET → yalnız
+> `environment`'ı değiştir → PUT → geri oku). Diğer üçü `sentry_setup.py` ile yönetiliyor.
 
 > Eşik 10'dan **3'e** indirildi: projedeki en yaygın kusur (`.forge` enjeksiyonu) en
 > yüksek noktada 8 kullanıcıya ulaştı — 10'luk kapı en büyük sorunumuzda hiç açılmazdı.

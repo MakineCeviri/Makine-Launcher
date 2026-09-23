@@ -191,6 +191,11 @@ NOTIFY_EMAIL = {
 }
 
 
+# Only real users page anyone. Dev builds report as "development"; without
+# this every dev run and telemetry self-test could fire the first-seen rule.
+ALERT_ENVIRONMENT = "production"
+
+
 def desired_rules() -> list[dict]:
     """The alert rules this project is supposed to have."""
     return [
@@ -199,6 +204,7 @@ def desired_rules() -> list[dict]:
         # things we have to fix.
         {
             "name": "New Crash → GitHub Issue",
+            "environment": ALERT_ENVIRONMENT,
             "actionMatch": "all",
             "filterMatch": "all",
             "conditions": [
@@ -216,6 +222,7 @@ def desired_rules() -> list[dict]:
         # informed — exactly what this is meant to catch.
         {
             "name": "Regression Detected",
+            "environment": ALERT_ENVIRONMENT,
             "actionMatch": "all",
             "filterMatch": "all",
             "conditions": [
@@ -234,6 +241,7 @@ def desired_rules() -> list[dict]:
         # most reported problem we have.
         {
             "name": "Widespread Failure",
+            "environment": ALERT_ENVIRONMENT,
             "actionMatch": "all",
             "filterMatch": "all",
             "conditions": [
@@ -263,6 +271,10 @@ def _rule_needs_repair(existing: dict, wanted: dict) -> list[str]:
 
     if existing.get("status") != "active":
         reasons.append(f"status={existing.get('status')}")
+
+    if existing.get("environment") != wanted.get("environment"):
+        reasons.append(f"environment={existing.get('environment')} "
+                       f"(want {wanted.get('environment')})")
 
     # Compare condition thresholds — the user-frequency gate is the one we tune.
     for want_c in wanted.get("conditions", []):
