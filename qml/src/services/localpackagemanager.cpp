@@ -76,7 +76,11 @@ LocalPackageManager::LocalPackageManager(QObject *parent)
 bool LocalPackageManager::loadFromIndex(const QString& indexPath, const QString& packageCacheRoot)
 {
     MAKINE_ZONE_NAMED("LPM::loadFromIndex");
-    m_dataPath = packageCacheRoot;
+    // Called from the scan worker as well as the main thread, always with the
+    // same root: assign only on change, so repeated loads never rewrite a
+    // QString the other thread may be reading.
+    if (m_dataPath != packageCacheRoot)
+        m_dataPath = packageCacheRoot;
 
     bool ok = false;
     try {

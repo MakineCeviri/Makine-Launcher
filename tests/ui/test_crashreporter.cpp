@@ -15,6 +15,7 @@
 // copy of kOverlaySafeTypes.
 
 #include <gtest/gtest.h>
+#include <QList>
 #include <QString>
 
 #include "crashreporter.h"
@@ -136,6 +137,49 @@ TEST(CrashReporterClassify, RunStepFailureIsNotACapabilityGap)
     const QString eldenRing = QStringLiteral(
         "1 adımda hata oluştu\nTürkçe Yama — Adım 3: run ERING_TR.exe");
     EXPECT_FALSE(CrashReporter::isUnsupportedCapability(eldenRing));
+}
+
+// ===== Failure sink: every failure is counted ===============================
+//
+// The counting channel's completeness rests on this: reportFailure() hands
+// every failure to the sink BEFORE the Sentry gate decides anything — including
+// capability refusals, which never reach Sentry at all any more. A refactor
+// that returned early above the sink would silently erase them from the counts.
+
+struct SinkCall { QString op, subject, side, reason; };
+QList<SinkCall> g_calls;
+
+void captureSink(const char* op, const QString& subject, const QString& side,
+                 const QString& reason)
+{
+    g_calls.append({QString::fromLatin1(op), subject, side, reason});
+}
+
+TEST(CrashReporterSink, CapabilityRefusalIsCountedThoughSentryNeverSeesIt)
+{
+    g_calls.clear();
+    CrashReporter::setFailureSink(&captureSink);
+    CrashReporter::reportFailure("install", QStringLiteral("812140"), kForge);
+    CrashReporter::setFailureSink(nullptr);
+
+    ASSERT_EQ(g_calls.size(), 1);
+    EXPECT_EQ(g_calls[0].op, QStringLiteral("install"));
+    EXPECT_EQ(g_calls[0].subject, QStringLiteral("812140"));
+    EXPECT_EQ(g_calls[0].side, QStringLiteral("unsupported"));
+    EXPECT_EQ(g_calls[0].reason, QStringLiteral("forge_inject"));
+}
+
+TEST(CrashReporterSink, SelfTestIsCountedAsASystemFailure)
+{
+    // "selftest" bypasses the Sentry gate, so this path writes no settings.
+    g_calls.clear();
+    CrashReporter::setFailureSink(&captureSink);
+    CrashReporter::reportFailure("selftest", QStringLiteral("telemetry"),
+                                 QStringLiteral("telemetry self-test event"));
+    CrashReporter::setFailureSink(nullptr);
+
+    ASSERT_EQ(g_calls.size(), 1);
+    EXPECT_EQ(g_calls[0].side, QStringLiteral("system"));
 }
 
 } // namespace
