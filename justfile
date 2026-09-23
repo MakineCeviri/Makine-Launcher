@@ -172,6 +172,12 @@ telemetry-check:
     python scripts/telemetry_selftest.py
     python scripts/sentry_triage.py --fail-on-dead-alert
 
+# Is either channel blind right now? Sentry dropping events to quota, or the
+# counting endpoint gone quiet. Runs daily in CI (telemetry-watchdog.yml);
+# kept out of telemetry-check because it reports the field, not the code.
+telemetry-watch:
+    python scripts/telemetry_watchdog.py
+
 # installNotes vs. what the package actually writes. Far Cry 6 told users to
 # pick a Turkish entry the game does not have; the note was prose nobody could
 # check. --deep decrypts every package (~3 GB) and reads the real file list.

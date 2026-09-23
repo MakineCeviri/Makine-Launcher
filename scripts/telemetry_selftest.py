@@ -144,12 +144,20 @@ def run_selftest(exe: Path) -> bool:
         print("         Build a dev build first: just dev")
         return False
     print(f"  Running: {exe.name} --selftest-telemetry")
+    env = runtime_env(exe)
+    env["QT_FORCE_STDERR_LOGGING"] = "1"   # the exe is a GUI-subsystem binary
     result = subprocess.run(
         [str(exe), "--selftest-telemetry"],
-        capture_output=True, text=True, timeout=120, env=runtime_env(exe),
+        capture_output=True, text=True, timeout=120, env=env,
     )
+    # The same run also proves the counting channel (/api/v2/telemetry): the
+    # exe exits 1 when that POST does not come back 2xx.
+    for line in result.stderr.splitlines():
+        if "counting channel" in line:
+            print(f"  {line.strip()}")
     if result.returncode != 0:
-        print(f"  ERROR: self-test exited {result.returncode}")
+        print(f"  ERROR: self-test exited {result.returncode} "
+              "(Sentry dispatch or counting channel failed)")
         print(f"         {result.stderr[:300]}")
         return False
     print("  Self-test process exited cleanly")
@@ -196,8 +204,19 @@ def main() -> None:
 
     if issue is None:
         print("  FAIL: no self-test event arrived.")
-        print("        The DSN is probably empty — check the configure output for")
-        print("        'SENTRY DSN BULUNAMADI' and verify MAKINE_SENTRY_DSN in .env.")
+        # An exhausted quota drops the event exactly like an empty DSN would, and
+        # for most of every month that is the real cause — say which one it is.
+        try:
+            from telemetry_watchdog import sentry_outcomes_24h
+            dropped = sentry_outcomes_24h(load_token()).get("rate_limited", 0)
+        except Exception:  # diagnosis only; the FAIL stands either way
+            dropped = 0
+        if dropped:
+            print(f"        Sentry dropped {dropped} events to quota in the last 24 h —")
+            print("        the event was most likely rate limited, not lost to a bad DSN.")
+        else:
+            print("        The DSN is probably empty — check the configure output for")
+            print("        'SENTRY DSN BULUNAMADI' and verify MAKINE_SENTRY_DSN in .env.")
         sys.exit(1)
 
     print(f"  Event arrived: issue {issue.get('id')} (events={issue.get('count')})")
