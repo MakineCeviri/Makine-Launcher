@@ -1,0 +1,35 @@
+# Fails (and so notifies) when either telemetry channel goes blind:
+# Sentry dropping events to quota, or the counting endpoint going quiet.
+# Both happened for weeks without anyone noticing — see
+# scripts/telemetry_watchdog.py.
+#
+# Scheduled workflows only run from the default branch (main), but releases
+# are cut from dev and the two branches share no history. So this file lives
+# on main and checks out dev, where the scripts are maintained.
+name: Telemetry watchdog
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 09:00 Türkiye
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Check both channels
+        working-directory: scripts
+        run: python telemetry_watchdog.py
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
