@@ -3,7 +3,7 @@
 > **Qt6/QML + C++23 oyun çeviri launcher**
 > **Repo:** `origin` → MakineCeviri/Makine-Launcher (public, tek repo) · branches: `main` (stable, release-ready) + `dev` (WIP, daily driver)
 > **Eski:** Makine-Launcher-Dev archived (read-only yedek, 2026-05-20)
-> **Durum:** v0.1.4-beta | Vulkan default → D3D11 fix (5870b22, dev) + cherry-pick main (439ab92)
+> **Durum:** v0.1.5-beta | ilk doğrudan ZIP paketi (dinamik Qt 6.11.1, `just release-zip-dynamic`)
 > **Blockers:** MSIX submit (sonraki sürüm)
 > **Telemetri:** çalışıyor — `0.1.2-beta` 36 issue / 536 olay. Sentry API erişimi sorunsuz
 > (token `.env`'de, `SENTRY_AUTH_TOKEN`). Açık fatal: 3. Denetim: `just telemetry-check`
@@ -13,20 +13,19 @@
 
 ---
 
-## Ekip Hafızası (`memory` MCP)
+## Kalıcı bilgi — CEDRA Brain
 
-Bu projeyi ilgilendiren **20 hazır not** var — araştırmaya başlamadan önce `memory_search`:
+Ekip hafızası (`memory` MCP) 2026-09-23'te bırakıldı; okunmaz, yazılmaz. Araştırmaya başlamadan
+önce `cedra-brain` → `query_graph "<konu>"`.
 
-| `project` | Not | İçerik |
-|-----------|-----|--------|
-| `makine-launcher-dev` | 9 | `.makine` paketleme + R2/D1/CDN yayın süreci · MSIX Store kimlik değerleri · CDN/R2 erişim yolları · core testlerini çalıştırma · build hız tercihi · çalışma tarzı geri bildirimleri |
-| `makine` | 7 | encryption key **değişmezliği** · pwsh 7.6.3 bozuk build · Sentry sessiz hata modları · MSIX sürümleme kuralı |
-| `makineai` | 4 | çeviri paketi analizi · güvenlik/code signing · referans temizlik kuralları · dağıtım mimarisi |
-
-- Yeni bir şey öğrenince: `memory_upsert(project: "makine-launcher-dev")`.
-- **Qt/QML/MinGW tuzakları projeler arası geçerli** — aynı toolchain'i kullanan `scframework`
-  notlarına da bak (48 not; ör. `qt-automoc-stale-cache`, `qt-extra-column-proxy-pattern`).
-- Detaylı kurallar → global `CLAUDE.md` › *Ekip Hafızası*.
+- Eski ekip notları (bu projeyi ilgilendiren 20 not: `.makine` paketleme + R2/D1/CDN yayın süreci,
+  MSIX kimlik ve sürümleme, encryption key değişmezliği, Sentry sessiz hata modları...) brain'in
+  `team-memory` katmanında **donmuş arşiv** olarak duruyor.
+- **Qt/QML/MinGW tuzakları projeler arası geçerli** — SCFramework'te öğrenilenler (ör.
+  `qt-automoc-stale-cache`, `qt-extra-column-proxy-pattern`) burada da ısırır; projeyi değil konuyu ara.
+- Yeni bir şey öğrenince: bu dosyaya, `CLAUDE.md`'ye ya da `docs/`'a yaz, sonra
+  `bash C:/Workspace/ops/cedra-brain/refresh-brain.sh Makine-Launcher`.
+- Detaylı kurallar → global `CLAUDE.md` › *Kalıcı bilgi — yalnız CEDRA Brain*.
 
 ## Agents
 
