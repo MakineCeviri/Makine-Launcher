@@ -13,6 +13,7 @@
 | `just triage` | Sıralı iş listesi: en çok başarısız operasyon, en çok istenen handler, regresyon |
 | `just sentry-setup` | Alarm kurallarını kurar/onarır, sonucu sunucudan geri okuyup doğrular |
 | `just telemetry-watch` | Şu an kör müyüz: Sentry kota yüzünden olay düşürüyor mu, sayım kanalı sustu mu (CI'da her gün) |
+| `python scripts/set_sentry_token.py` | Token iptal/yenilendiğinde: panodaki token'ı doğrular, `.env` + GitHub secret'ı değiştirir (sahibi çalıştırır) |
 
 Telemetriye dokunan her değişiklikten sonra `just telemetry-check`. Derleme başarısı kanıt değildir.
 
