@@ -130,6 +130,45 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ---
 
+## [0.1.5-beta] - 2026-09-21
+
+### Eklenen
+- **Doğrudan kurulum paketi** — Qt çalışma zamanını içinde taşıyan `Makine-Launcher-v0.1.5-beta-win64.zip`, GitHub Releases'te yayımlanıyor (`just release-zip-dynamic`, `scripts/make_release_zip.ps1`)
+- **VPatch ikili delta uygulaması** — Delta biçimi launcher'ın içinde çözülüyor, paketin kendi uygulayıcısına gerek yok
+- **İndirme bütünlüğü** — İndirilen paket katalogdaki SHA-256 ile doğrulanıyor
+- **Hata telemetrisine neden etiketleri** — Olaylara hatanın nedenini taşıyan tag'ler eklendi
+- **Katalog/R2 tutarlılık kapısı** — Yayın öncesi denetim CI adımına bağlandı
+- **release-mingw preset** — Statik Qt kiti olmadan dağıtım yapısı (MSIX + ZIP)
+
+### Düzeltilen
+- Etkileşimli GUI isteyen kurulum araçları kurulum sırasında çalıştırılmıyor
+- Varyant klasörlü paketler körlemesine overlay'lenmiyor; varyant her hedef yola taşınıyor
+- Boş paket klasörü ve boş reçeteli kopyalama tipi geçerli kurulum kaynağı sayılmıyor
+- Yedek listesi belirlenemiyorsa yama kurulmuyor; liste kurulumun kendi çözücüsünden geliyor
+- Tek satırlık `cmd` reçeteleri çalıştırılabilir hale getirildi
+- Kurulum sonrası talimat gerçekten kurulan dosyalardan türetiliyor ve kurulum bitince gösteriliyor
+- Yol sınırı kontrolleri dizin sınırını bilen ortak yardımcıya taşındı; var olmayan hedef kaçış sayılmıyor
+- Yazma izni ön-kontrolü yükseltilmiş yolu baştan kesmiyor; yükseltilmiş adım konteyner dışı gerçek yolla başlıyor
+- Eksik `userPath` hedefi "desteklenmiyor" olarak gösterilmiyor
+- HTTP/2 protokol hatasında indirme HTTP/1.1 ile yeniden deneniyor
+- Boş çıkan pakette sonsuz yeniden-indirme döngüsü durduruldu
+- Aralık tarif etmeyen delta yanıtı uygulanmıyor
+- Steam kütüphanesi kayıt defteri yanıt vermediğinde de bulunuyor
+- Watch Dogs gibi oyunlar "tespit edilemedi" sayılmıyor; mağaza istemcileri oyun olarak listelenmiyor
+- Çözülemeyen veritabanı uygulamayı kalıcı olarak kırmıyor
+- Yedek alınamadığında gerçek engel raporlanıyor; kaldırma hatası ve kurtarma düğmesi 6 saniyede kaybolmuyor
+- Güncelleme denetiminde üst çubuk sessiz; "Güncel" rozeti yalnızca ayarlar sayfasında
+- Doğrulayıcı, yönlendirme girdilerini paket sanmıyor
+- Çıkarıcının ASCII dışı adları bozduğu iddiası düzeltildi
+
+### İyileştirilen
+- Reçete önbelleğine yaş sınırı, paket detay önbelleği katalog değişince tazeleniyor
+- Katalog sürüm karşılaştırması tek otoriteye bağlandı
+- Çökme raporları sembolleşebilsin diye semboller korunuyor ve doğru yerden yükleniyor
+- Telemetriye giden yoldan kullanıcı adını silen kural testle sabitlendi
+- Dil tablosundan kanıtsız kodlar çıkarıldı
+- Yayın düzeni belgelendi (`docs/RELEASING.md`), eski sürümler arşivlendi
+
 ## [0.1.0-alpha] - 2026-02-03
 
 ### Eklenen

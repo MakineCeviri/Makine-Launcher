@@ -64,4 +64,4 @@ Teknik referans — her motorun dosya yapısı ve çeviri yöntemi:
 
 ---
 
-*Makine-Launcher v0.1.4-beta*
+*Makine-Launcher v0.1.5-beta*
