@@ -139,8 +139,14 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - **Hata telemetrisine neden etiketleri** — Olaylara hatanın nedenini taşıyan tag'ler eklendi
 - **Katalog/R2 tutarlılık kapısı** — Yayın öncesi denetim CI adımına bağlandı
 - **release-mingw preset** — Statik Qt kiti olmadan dağıtım yapısı (MSIX + ZIP)
+- **İşlem sonucu sayımı** — Her işlemin sonucu (başarı dahil) `TelemetryService` ile kotasız kendi ucumuza (`/api/v2/telemetry`, şema v2) gidiyor; çevrimdışıyken diske yazılıp sonra gönderiliyor
+- **Sentry kapısı** — Desteklenmeyen kurulum retleri Sentry'ye gitmiyor, aynı hata kurulum başına günde bir kez, oturum başına en fazla 30 olay (`telemetryrules.h`)
+- **Telemetri bekçisi** — `scripts/telemetry_watchdog.py` + günlük CI: Sentry kota düşüşü ya da sayım kanalının susması hata verir
 
 ### Düzeltilen
+- `GameCard` görsel bağlantısı kendi işleyicisinden hedef değiştirdiği için Qt6Qml.dll'de oluşan çökme (0.1.4 saha çökmelerinin 24/27'si)
+- `PackageCatalog` tarama worker'ı ile ana thread arasında korumasız okunup yazılıyordu (NATIVE-7N, 8A)
+- Açılışta kütüphane iki kez taranıyordu
 - Etkileşimli GUI isteyen kurulum araçları kurulum sırasında çalıştırılmıyor
 - Varyant klasörlü paketler körlemesine overlay'lenmiyor; varyant her hedef yola taşınıyor
 - Boş paket klasörü ve boş reçeteli kopyalama tipi geçerli kurulum kaynağı sayılmıyor
