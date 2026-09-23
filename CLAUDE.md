@@ -198,6 +198,7 @@ QT_LOGGING_RULES="makine.game=false"      # Disable specific
 | `Behavior on readonly` | Runtime crash — use non-readonly property |
 | `component X:` shadows | Don't shadow shared component names |
 | `clip: true` in scrollables | Required for Flickable, ListView, ScrollView |
+| `Connections.target` changed from its own handler | Use-after-free in delegates (Qt 6.11, NATIVE-74) — keep `target` fixed, gate with `enabled` |
 
 ### vcpkg
 
