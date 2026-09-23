@@ -34,9 +34,16 @@ Item {
     ListView.onPooled: _src = ""
     ListView.onReused: _resolve()
 
-    // Listen for download completions — only when image not yet cached
+    // Listen for download completions — only when image not yet cached.
+    // The target stays fixed and `enabled` does the gating: the handler below
+    // changes _src itself, and changing `target` from inside the handler makes
+    // QQmlConnections detach the running QQmlBoundSignal and delete it later.
+    // A delegate destroyed before that deferred delete left the handler wired
+    // to a freed Connections — the NATIVE-74 crash (Qt6Qml.dll+0xb4a0e),
+    // 24 of 27 field fatals in 0.1.4.
     Connections {
-        target: root._src === "" ? ImageCache : null
+        target: ImageCache
+        enabled: root._src === ""
         function onImageReady(readyId) {
             if (readyId === (root.steamAppId || root.gameId))
                 root._resolve()
