@@ -30,6 +30,8 @@ Item {
     // Last GameService.getPostInstallGuidance() result — what the user still
     // has to do, read off the files the install actually wrote.
     property var _postInstall: ({})
+    // Game whose post-install steps arrived while its page was not showing
+    property string _pendingNotesGameId: ""
 
     signal translateClicked()
     signal backClicked()
@@ -72,6 +74,17 @@ Item {
         }
     }
 
+    onVisibleChanged: _showPendingNotes()
+
+    // The last install step is often the user's own; it waits until they are
+    // back on that game's page rather than popping up over another one.
+    function _showPendingNotes() {
+        if (!root.visible || root._pendingNotesGameId === ""
+            || root._pendingNotesGameId !== root.viewModel.gameId) return
+        root._pendingNotesGameId = ""
+        installNotesLoader.active = true
+    }
+
     // A patch recorded as installed can be gone from disk without the launcher
     // knowing: a store integrity check deletes it, a game update overwrites it,
     // antivirus quarantines it hours later. The library keeps saying "installed"
@@ -91,6 +104,7 @@ Item {
             mainFlick.contentY = 0
             root._replayEntryAnim()
             root._verifyInstalledPatch()
+            root._showPendingNotes()
         }
         function onAutoInstallChanged() {
             if (root.viewModel.autoInstall && root.viewModel.hasTranslation &&
@@ -103,9 +117,10 @@ Item {
 
     // ===== SERVICE CONNECTIONS =====
 
+    // Not gated on visibility: an install the user walked away from still
+    // ends, and its result has to land.
     Connections {
         target: GameService
-        enabled: root.visible
         function onSteamDetailsFetched(appId, details) {
             if (appId === root.viewModel.steamAppId)
                 root.viewModel.populateSteamDetails(details)
@@ -180,6 +195,21 @@ Item {
             }
         }
         function onTranslationInstallCompleted(gId, success, message) {
+            // Reported from the field as "yama kurulu görünüyor ama oyun hâlâ
+            // İngilizce". The last install step is often the user's: switch
+            // the game language, enable mods, add a launch option.
+            // GameService derives it from the files that actually landed
+            // rather than from the catalogue note, which for Far Cry 6 named a
+            // language the game does not have — and stays quiet when there is
+            // nothing to do.
+            if (success) {
+                var guidance = GameService.getPostInstallGuidance(gId)
+                if (guidance && guidance.actionRequired) {
+                    root._postInstall = guidance
+                    root._pendingNotesGameId = gId
+                    root._showPendingNotes()
+                }
+            }
             if (gId === root.viewModel.gameId) {
                 root.viewModel.isInstallingTranslation = false
                 root.viewModel.installProgress = 0
@@ -190,18 +220,6 @@ Item {
                     root.viewModel.hasTranslationUpdate = false
                     root.viewModel.installErrorMessage = ""
                     installSuccessTimer.restart()
-                    // Reported from the field as "yama kurulu görünüyor ama
-                    // oyun hâlâ İngilizce". The last install step is often the
-                    // user's: switch the game language, enable mods, add a
-                    // launch option. GameService derives it from the files that
-                    // actually landed rather than from the catalogue note,
-                    // which for Far Cry 6 named a language the game does not
-                    // have — and stays quiet when there is nothing to do.
-                    var guidance = GameService.getPostInstallGuidance(gId)
-                    if (guidance && guidance.actionRequired) {
-                        root._postInstall = guidance
-                        installNotesLoader.active = true
-                    }
                 } else {
                     root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
                     installErrorTimer.restart()
@@ -278,7 +296,6 @@ Item {
     // ===== DOWNLOAD SIGNALS (TranslationDownloader) =====
     Connections {
         target: TranslationDownloader
-        enabled: root.visible
         function onDownloadProgress(appId, received, total) {
             if (appId !== root.viewModel.gameId) return
             root.viewModel.isDownloading = true
@@ -314,7 +331,7 @@ Item {
             root.viewModel.isInstallingTranslation = false
             root.viewModel.installProgress = 0
             root.viewModel.installStatus = ""
-            root.viewModel.installErrorMessage = error || qsTr("Indirme basarisiz oldu")
+            root.viewModel.installErrorMessage = error || qsTr("İndirme başarısız oldu")
             installErrorTimer.restart()
         }
         function onDownloadCancelled(appId) {

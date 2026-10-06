@@ -238,6 +238,12 @@ public:
     Q_INVOKABLE void cancelInstallation();
 
     /**
+     * @brief Whether an install for `gameId` is under way (it outlives the
+     * detail page, which reopens on it)
+     */
+    Q_INVOKABLE bool isInstalling(const QString& gameId) const;
+
+    /**
      * @brief Update an installed translation package (no backup step)
      * Downloads new files, overwrites old ones, updates version.
      */
@@ -430,6 +436,8 @@ private:
     void finalizeManualGame(const QString& path, const QString& folderName,
                             const QString& engine, const QString& matchedAppId);
     void finalizeUninstall(const QString& gameId, const QString& gamePath);
+    // Ends an install cancelled before the core started on it.
+    void endCancelledInstall(const QString& gameId);
 
     // Waits for BackupManager to finish restoring `gameId`, either way, and
     // runs the matching callback once. Returns a canceller for a restore that
@@ -500,9 +508,13 @@ private:
     bool m_isScanning{false};
     QString m_scanStatus;
     qreal m_scanProgress{0};
-    QString m_installingGameId;  // Track which game is being installed
-    QTimer* m_installTimeoutTimer{nullptr};  // Frees the install slot if the
-                                             // core never reports completion
+    // The game being installed. Taken until the install reports back — also
+    // after a cancel or a timeout, so a worker still finishing never reports
+    // into the next install's slot.
+    QString m_installingGameId;
+    bool m_installCancelRequested{false};
+    QTimer* m_installTimeoutTimer{nullptr};  // Cancels an install the core
+                                             // never reports back on
                                              // (hang, deadlock, lost signal).
 
     // Cache for QVariantList conversions

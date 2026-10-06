@@ -694,6 +694,30 @@ ApplicationWindow {
         function onManualGameRejected(path, reason) {
             gameToast.show("", "", qsTr("Oyun eklenemedi"), reason)
         }
+        // An install or uninstall the user walked away from still has to say
+        // how it ended; the detail page only speaks for the game it shows.
+        function onTranslationInstallCompleted(gameId, success, message) {
+            if (window._detailShows(gameId)) return
+            var name = window._gameName(gameId)
+            gameToast.show("", name,
+                success ? qsTr("%1 için Türkçe yama kuruldu").arg(name)
+                        : qsTr("%1 için yama kurulamadı").arg(name),
+                success ? qsTr("Ayrıntılar için oyunun sayfasını açın.") : message)
+        }
+        function onTranslationUninstalled(gameId, success, message) {
+            if (success || window._detailShows(gameId)) return
+            gameToast.show("", "", qsTr("%1 için yama kaldırılamadı").arg(window._gameName(gameId)),
+                           message)
+        }
+    }
+
+    function _detailShows(gameId) {
+        return contentStackContainer.gameDetailVisible && detailVM.gameId === gameId
+    }
+
+    function _gameName(gameId) {
+        var game = GameService.getGameById(gameId)
+        return (game && game.name) || gameId
     }
 
     Connections {

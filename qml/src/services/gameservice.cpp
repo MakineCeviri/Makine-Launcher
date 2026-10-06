@@ -69,17 +69,17 @@ GameService::GameService(QObject *parent)
     connect(m_steamDetails, &SteamDetailsService::detailsFetchError,
             this, &GameService::steamDetailsFetchError);
 
-    // 30 minutes is the run-step ceiling in LocalPackageManager + a safety
-    // margin. If the core never reports completion (hang, crash without
-    // signal, deadlock) the slot would otherwise stay stuck and every
-    // subsequent install would hit "Zaten bir kurulum devam ediyor".
+    // Past LocalPackageManager's 30-minute run-step ceiling. The install is
+    // cancelled, not forgotten: freeing the slot while the worker still ran
+    // let its late result land on the next install, which could then be
+    // rolled back. The slot frees when the cancelled install reports back.
     m_installTimeoutTimer->setSingleShot(true);
-    m_installTimeoutTimer->setInterval(30 * 60 * 1000);
+    m_installTimeoutTimer->setInterval(35 * 60 * 1000);
     connect(m_installTimeoutTimer, &QTimer::timeout, this, [this]() {
         if (m_installingGameId.isEmpty()) return;
         const QString stuck = m_installingGameId;
-        m_installingGameId.clear();
-        qCWarning(lcGameService) << "Install timed out — clearing slot for" << stuck;
+        qCWarning(lcGameService) << "Install timed out — cancelling" << stuck;
+        cancelInstallation();
         emit translationInstallCompleted(stuck, false,
             tr("Kurulum yanıt vermiyor — uygulamayı yeniden başlatıp tekrar deneyin"));
     });
@@ -347,6 +347,7 @@ void GameService::setupCoreBridge()
                 m_installTimeoutTimer->stop();
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
+                m_installCancelRequested = false;
                 if (success && !gameId.isEmpty()) {
                     // Update package installed cache
                     m_packageInstalledCache[gameId] = true;
@@ -384,6 +385,7 @@ void GameService::setupCoreBridge()
                 m_installTimeoutTimer->stop();
                 QString gameId = m_installingGameId;
                 m_installingGameId.clear();
+                m_installCancelRequested = false;
                 reportOperationFailure("install", gameId, error);
                 if (!gameId.isEmpty()) {
                     performInstallRollback(gameId, error);
@@ -1241,9 +1243,26 @@ QString GameService::getVariantSpecialDialog(const QString& gameId, const QStrin
 
 void GameService::cancelInstallation()
 {
+    if (m_installingGameId.isEmpty()) return;
+    // The slot stays taken until the install reports back. Clearing it here
+    // dropped the cancelled install's result — so its rollback never ran —
+    // and a cancel during the backup let the install start anyway.
+    m_installCancelRequested = true;
     if (m_coreBridge)
         m_coreBridge->cancelInstall();
+}
+
+bool GameService::isInstalling(const QString& gameId) const
+{
+    return !gameId.isEmpty() && gameId == m_installingGameId;
+}
+
+void GameService::endCancelledInstall(const QString& gameId)
+{
+    m_installTimeoutTimer->stop();
     m_installingGameId.clear();
+    m_installCancelRequested = false;
+    emit translationInstallCompleted(gameId, false, tr("Kurulum iptal edildi"));
 }
 
 void GameService::installTranslation(const QString& gameId, const QString& variant,
@@ -1336,6 +1355,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
 
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
+    m_installCancelRequested = false;
     m_installTimeoutTimer->start();
     emit translationInstallStarted(gameId);
     emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
@@ -1351,6 +1371,10 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         [this, watcher, gameId, installPath, variant, selectedOptions, pkg, mode, runningMsg]() {
             const QString runningExe = watcher->result();
             watcher->deleteLater();
+            if (m_installCancelRequested) {
+                endCancelledInstall(gameId);
+                return;
+            }
 
             if (!runningExe.isEmpty()) {
                 m_installTimeoutTimer->stop();
@@ -1461,6 +1485,10 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                 connect(bm, &BackupManager::selectiveBackupCompleted, this,
                     [this, gameId, installPath, variant, selectedOptions](const QString& backupGameId, bool success) {
                         if (backupGameId != gameId) return;
+                        if (m_installCancelRequested) {
+                            endCancelledInstall(gameId);
+                            return;
+                        }
                         if (!success) {
                             // Without a backup we cannot offer safe rollback, and the patch
                             // would silently destroy the originals on the next uninstall.

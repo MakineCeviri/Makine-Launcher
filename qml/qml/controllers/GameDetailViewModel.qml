@@ -147,8 +147,16 @@ QtObject {
         autoInstall = d.autoInstall || false
         contributors = d.contributors || []
 
+        // A download or install keeps running while the page is closed; pick
+        // it up instead of offering to start another one.
+        var id = d.gameId || ""
+        isDownloading = id !== "" && TranslationDownloader.isDownloading(id)
+        isInstallingTranslation = isDownloading || (id !== "" && GameService.isInstalling(id))
+        if (isInstallingTranslation)
+            installStatus = isDownloading ? qsTr("İndiriliyor...") : qsTr("Kuruluyor...")
+
         // Set gameId after other props so listeners see complete state
-        gameId = d.gameId || ""
+        gameId = id
 
         // Check for translation package update (installed version vs catalog)
         if (packageInstalled && gameId !== "")
