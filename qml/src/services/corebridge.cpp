@@ -204,14 +204,14 @@ QString CoreBridge::findSteamInstallPath() const
     return {};
 }
 
-void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames)
+void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames, QStringList& notes)
 {
     emit scanProgress(0.05, tr("Steam yolu aranıyor..."));
 
     const QString steamPath = findSteamInstallPath();
     if (steamPath.isEmpty()) {
         qCDebug(lcCoreBridge) << "Steam not found in registry or on disk";
-        m_scanNotes << QStringLiteral("steam:notfound");
+        notes << QStringLiteral("steam:notfound");
         return;
     }
 
@@ -583,7 +583,7 @@ QString CoreBridge::detectEngineReal(const QString& gamePath)
 
 // ========== Filesystem Scanner ==========
 
-QStringList CoreBridge::knownGameDirectories() const
+QStringList CoreBridge::knownGameDirectories(const QStringList& customPaths) const
 {
     QStringList dirs;
 
@@ -636,15 +636,16 @@ QStringList CoreBridge::knownGameDirectories() const
     }
 
     // User-configured additional paths
-    dirs.append(m_customGamePaths);
+    dirs.append(customPaths);
 
     return dirs;
 }
 
 void CoreBridge::doScanFilesystemReal(QList<DetectedGame>& outGames,
-                                       const QSet<QString>& knownPaths)
+                                       const QSet<QString>& knownPaths,
+                                       const QStringList& customPaths)
 {
-    const QStringList gameDirs = knownGameDirectories();
+    const QStringList gameDirs = knownGameDirectories(customPaths);
     if (gameDirs.isEmpty()) return;
 
     qCDebug(lcCoreBridge) << "Filesystem scan: checking" << gameDirs.size() << "directories";
@@ -839,7 +840,6 @@ void CoreBridge::doScanRegistryReal(QList<DetectedGame>& outGames,
 void CoreBridge::scanAllLibraries()
 {
     MAKINE_ZONE_NAMED("CoreBridge::scanAllLibraries");
-    m_scanNotes.clear();
     INTEGRITY_GATE();
     CrashReporter::addBreadcrumb("core", "CoreBridge::scanAllLibraries");
     emit scanStarted();
@@ -862,8 +862,11 @@ void CoreBridge::scanAllLibraries()
     // Load translation packages from cached index (network-only mode)
     QString indexPath = AppPaths::manifestIndexFile();
     QString packageCache = AppPaths::packagesDir();
+    // Copied here, on the main thread: setCustomGamePaths() writes the member
+    // from the UI while the worker below would still be reading it.
+    const QStringList customPaths = m_customGamePaths;
 
-    (void)QtConcurrent::run([this, pkgMgr, indexPath, packageCache]() {
+    (void)QtConcurrent::run([this, pkgMgr, indexPath, packageCache, customPaths]() {
         MAKINE_THREAD_NAME("Worker-Scan");
 #ifndef MAKINE_UI_ONLY
         // Lazy Core init — runs once in background, doesn't block UI
@@ -881,10 +884,11 @@ void CoreBridge::scanAllLibraries()
 
         // Collect games in a thread-local list to avoid data race on m_detectedGames
         QList<DetectedGame> games;
+        QStringList scanNotes;
 
         // ── Store scanners ──
         emit scanProgress(0.10, tr("Steam kütüphanesi taranıyor..."));
-        doScanSteamReal(games);
+        doScanSteamReal(games, scanNotes);
 
         emit scanProgress(0.45, tr("Epic Games taranıyor..."));
         doScanEpicReal(games);
@@ -900,7 +904,7 @@ void CoreBridge::scanAllLibraries()
             knownPaths.insert(QDir::cleanPath(g.installPath).toLower());
 
         emit scanProgress(0.75, tr("Dosya sistemi taranıyor..."));
-        doScanFilesystemReal(games, knownPaths);
+        doScanFilesystemReal(games, knownPaths, customPaths);
 
         // Update knownPaths with filesystem results before registry scan
         for (const auto& g : games)
@@ -1071,8 +1075,8 @@ void CoreBridge::scanAllLibraries()
         QString summary = QStringLiteral("games=%1 matched=%2 catalog=%3 [%4]")
                               .arg(count).arg(matched).arg(catalogSize)
                               .arg(breakdown.join(QLatin1Char(' ')));
-        if (!m_scanNotes.isEmpty())
-            summary += QStringLiteral(" notes=[%1]").arg(m_scanNotes.join(QLatin1Char(' ')));
+        if (!scanNotes.isEmpty())
+            summary += QStringLiteral(" notes=[%1]").arg(scanNotes.join(QLatin1Char(' ')));
         qCInfo(lcCoreBridge) << "Scan summary:" << summary;
         CrashReporter::addBreadcrumb("scan", summary.toUtf8().constData());
 

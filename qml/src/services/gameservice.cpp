@@ -129,8 +129,9 @@ void GameService::initialize()
             }
         }
 
-        // Load Steam details cache via SteamDetailsService
-        m_steamDetails->loadCache();
+        // Parsed here, adopted on the main thread below: the service's cache is
+        // read and written there, and a fetch may already be under way.
+        QHash<QString, SteamDetails> steamDetails = SteamDetailsService::readCache();
 
         // Pre-warm package installed cache (avoids 260× main-thread calls later)
         QHash<QString, bool> pkgCache;
@@ -151,9 +152,11 @@ void GameService::initialize()
         // Deliver results to main thread
         QMetaObject::invokeMethod(this, [this,
                                          g = std::move(games),
-                                         p = std::move(pkgCache)]() mutable {
+                                         p = std::move(pkgCache),
+                                         d = std::move(steamDetails)]() mutable {
             MAKINE_ZONE_NAMED("GameService::initialize (main thread)");
 
+            m_steamDetails->adoptCache(d);
             m_games = std::move(g);
             m_packageInstalledCache = std::move(p);
             rebuildCache();

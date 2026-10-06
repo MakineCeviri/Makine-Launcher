@@ -79,10 +79,17 @@ public:
     QVariantMap getDetails(const QString& steamAppId) const;
 
     /**
-     * @brief Load the on-disk cache into memory (call at startup).
-     * Expired entries are silently discarded.
+     * @brief Read the on-disk cache. Expired entries are silently discarded.
+     * Touches no member, so it may run on a worker thread; hand the result to
+     * adoptCache() on the main thread.
      */
-    void loadCache();
+    static QHash<QString, SteamDetails> readCache();
+
+    /**
+     * @brief Take over a cache read by readCache(). Entries fetched since
+     * startup are newer than the file's and are kept.
+     */
+    void adoptCache(const QHash<QString, SteamDetails>& cache);
 
     /**
      * @brief Persist the in-memory cache to disk asynchronously.

@@ -227,18 +227,19 @@ QVariantMap SteamDetailsService::toVariantMap(const SteamDetails& details)
     };
 }
 
-void SteamDetailsService::loadCache()
+QHash<QString, SteamDetails> SteamDetailsService::readCache()
 {
-    MAKINE_ZONE_NAMED("SteamDetailsService::loadCache");
+    MAKINE_ZONE_NAMED("SteamDetailsService::readCache");
+    QHash<QString, SteamDetails> cache;
     const QString cachePath = AppPaths::steamDetailsCacheFile();
     QFile file(cachePath);
-    if (!file.open(QIODevice::ReadOnly)) return;
+    if (!file.open(QIODevice::ReadOnly)) return cache;
 
     QJsonParseError parseError;
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     file.close();
 
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) return;
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) return cache;
 
     const QJsonObject root = doc.object();
     for (auto it = root.begin(); it != root.end(); ++it) {
@@ -260,14 +261,21 @@ void SteamDetailsService::loadCache()
         for (const auto& v : obj["genres"].toArray())      details.genres.append(v.toString());
         for (const auto& v : obj["screenshots"].toArray()) details.screenshots.append(v.toString());
 
-        // Skip expired entries; track insertion order for O(1) eviction
-        if (!details.isExpired()) {
-            m_steamDetailsCache[it.key()] = details;
-            m_insertionOrder.enqueue(it.key());
-        }
+        if (!details.isExpired())
+            cache.insert(it.key(), details);
     }
+    return cache;
+}
 
-    qCDebug(lcSteamDetails) << "Loaded" << m_steamDetailsCache.size() << "cached Steam details";
+void SteamDetailsService::adoptCache(const QHash<QString, SteamDetails>& cache)
+{
+    for (auto it = cache.cbegin(); it != cache.cend(); ++it) {
+        if (m_steamDetailsCache.contains(it.key())) continue;
+        m_steamDetailsCache.insert(it.key(), it.value());
+        // Track insertion order for O(1) eviction
+        m_insertionOrder.enqueue(it.key());
+    }
+    qCDebug(lcSteamDetails) << "Loaded" << cache.size() << "cached Steam details";
 }
 
 void SteamDetailsService::saveCache()
