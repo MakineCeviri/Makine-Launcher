@@ -80,4 +80,5 @@ curl -sI https://github.com/MakineCeviri/Makine-Launcher/releases/latest | head 
 
 - **`.ps1` dosyaları UTF-8 BOM + CRLF olmalı** (`.gitattributes` zaten `eol=crlf` diyor). BOM'suz UTF-8'de Windows PowerShell 5.1 dosyayı ANSI okur; Türkçe karakterler ve em dash akıllı tırnağa dönüşüp ayrıştırmayı bozar.
 - **`Get-FileHash` bu makinede 5.1'den çağrıldığında yok** — `PSModulePath` içine PowerShell 7 modül dizini sızdığı için Utility modülü yüklenemiyor. Yayın scriptleri .NET `SHA256` kullanır.
+- **`build/release-mingw/` kaldırılan bağımlılıkların DLL'lerini tutar.** ZIP ve MSIX scriptleri oradaki her `*.dll`'i pakete kopyalar; vcpkg bağımlılığı çıkınca DLL'i dizinde kalıp pakete girer (0.1.5'te `libsimdjson`, `libsodium`, `libsqlite3`). Paketlemeden önce `objdump -p build/release-mingw/Makine-Launcher.exe | grep "DLL Name"` ile karşılaştır, fazlasını sil.
 - **Etiket push'u pre-push kapılarını çalıştırır** (build + test, dakikalar sürer). `gh release create --target <sha>` etiketi sunucu tarafında oluşturur; zaten push edilmiş bir commit'i etiketlemek için bu yeterlidir.
