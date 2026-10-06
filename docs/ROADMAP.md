@@ -107,10 +107,10 @@
 ## Araclar
 
 ### Gelistirme
-- Qt 6.10.1 + MinGW 13.1.0
-- Visual Studio 2022 (Core icin MSVC)
+- Qt 6.11.1 + MinGW 13.1.0
+- Visual Studio 2022 (opsiyonel, `release` preset'i icin MSVC)
 - CMake 3.28+ + Ninja
-- vcpkg (19 bagimllik)
+- vcpkg (4 bagimlilik + test icin gtest)
 
 ### DevOps
 - GitHub Actions (CI/CD)

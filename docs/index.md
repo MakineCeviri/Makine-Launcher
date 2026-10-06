@@ -26,7 +26,7 @@ Detaylar: [Vizyon](VISION.md) | [Yol Haritası](ROADMAP.md)
 - [QML Arayüz](developer-guide/qml-frontend.md) - Tema, bileşenler, state yönetimi
 - [Build Sistemi](developer-guide/build-system.md) - CMake, vcpkg, preset'ler
 - [Test Yazma](developer-guide/testing.md) - GTest, CTest
-- [Core Kütüphane](developer-guide/core-library.md) - İleri özellikler (opsiyonel)
+- [Core Kütüphane](developer-guide/core-library.md) - Paket kataloğu, çökme kurtarma, dosya bütünlüğü
 
 ---
 

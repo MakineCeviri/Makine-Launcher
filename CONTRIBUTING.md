@@ -8,7 +8,7 @@ Makine-Launcher, Türkçe oyun çeviri ekosisteminin masaüstü uygulamasıdır.
 
 | Araç | Sürüm | Not |
 |------|--------|-----|
-| Qt | 6.10.1 | MinGW 13.1.0 kit dahil |
+| Qt | 6.11.1 | MinGW 13.1.0 kit dahil |
 | CMake | 3.25+ | Qt ile birlikte gelir |
 | MinGW | 13.1.0 | Qt installer ile kurulur |
 | MSVC | 2022 (opsiyonel) | Release build için |
@@ -31,7 +31,7 @@ Bash ortamınıza aşağıdaki satırları ekleyin:
 
 ```bash
 export PATH="/c/Qt/Tools/CMake_64/bin:/c/Qt/Tools/mingw1310_64/bin:/c/Qt/Tools/Ninja:$PATH"
-export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"
+export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"
 ```
 
 ### 3. Derleme ve çalıştırma

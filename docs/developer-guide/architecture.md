@@ -29,8 +29,7 @@ Makine-Launcher'ın sistem mimarisini açıklar.
 │  └──────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────┤
 │              C++ Core Library                          │
-│  GameDetector │ PatchEngine │ PackageManager          │
-│  AssetParser │ VersionTracker │ Security              │
+│  PackageCatalog │ CrashRecovery │ FileIntegrity       │
 │  (vcpkg — dev: MinGW, release: MSVC)                  │
 └──────────────────────────────────────────────────────┘
 ```
@@ -42,15 +41,12 @@ Makine-Launcher'ın sistem mimarisini açıklar.
 ### CoreBridge
 Oyun tarama ve paket yönetiminin merkezi.
 
-**UI_ONLY modda (MinGW, `just dev`):**
-- Steam: Registry + VDF + ACF parse (saf Qt)
+Tarama her build modunda burada, saf Qt ile yapılır (`corebridge.cpp`):
+- Steam: Registry + VDF + ACF parse (`vdfparser.h`)
 - Epic: Manifest JSON tarama
 - GOG: Registry tarama
 - Motor tespiti: Dosya imzaları (DLL, dizin, uzantı)
 - Paket yönetimi: LocalPackageManager üzerinden
-
-**Full modda (MSVC, `just release`):**
-- Core kütüphanesi üzerinden tüm işlemler
 
 ### LocalPackageManager
 Yerel çeviri paketlerini yönetir:
@@ -204,7 +200,7 @@ hızlı QML iterasyonu gerektiğinde kullanılır.
 |-----|--------|-------|
 | [0001](../adr/0001-native-cpp-architecture.md) | Native C++ Architecture | Geçerli |
 | [0002](../adr/0002-result-based-error-handling.md) | Result-based Error Handling | Geçerli |
-| [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Geçerli |
+| [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Tarihsel (kütüphaneler 0.2.0'da kaldırıldı) |
 | [0006](../adr/0006-adaptation-engine-direction.md) | Adaptation Engine Direction | Geçerli |
 | [0007](../adr/0007-memory-translation-extractor.md) | Memory Translation Extractor | Geçerli |
 
@@ -214,4 +210,4 @@ hızlı QML iterasyonu gerektiğinde kullanılır.
 
 - [QML Arayüz](qml-frontend.md)
 - [Build Sistemi](build-system.md)
-- [Core Kütüphane](core-library.md) (opsiyonel, ileri özellikler)
+- [Core Kütüphane](core-library.md) (paket kataloğu, çökme kurtarma, dosya bütünlüğü)

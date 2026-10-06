@@ -4,7 +4,8 @@ Makine-Launcher güvenlik mimarisi ve politikaları.
 
 > **Durum:** Bu doküman hedef güvenlik mimarisini tanımlar.
 > Paket imzalama, sunucu dağıtımı ve HTTPS entegrasyonu henüz implemente edilmemiştir.
-> Yedekleme, dosya izinleri, anti-cheat tespiti ve audit logging aktiftir.
+> Yedekleme, dosya izinleri ve anti-cheat tespiti aktiftir. Audit logging ve şifreli yerel
+> veritabanı 0.2.0'da kullanılmayan core modülleriyle birlikte kaldırıldı.
 
 ---
 
@@ -108,8 +109,7 @@ Kuruluma İzin Ver
 ### Anahtar Yönetimi
 
 - Public key uygulama binary'sine gömülüdür (compile-time)
-- Credential'lar Windows Credential Manager'da saklanır
-- Yerel veritabanı DPAPI ile şifrelenir
+- Çeviri veri yolu ayarı DPAPI ile şifrelenerek saklanır (`SettingsManager`)
 
 ---
 
@@ -145,9 +145,8 @@ Kuruluma İzin Ver
 
 ```
 %LOCALAPPDATA%/MakineLauncher/logs/
-├── makine.log          # Ana log
-├── audit.log           # Güvenlik logu
-└── error.log           # Hata logu
+├── makine.log          # Ana log (core spdlog)
+└── makine_debug.log    # Uygulama debug logu
 ```
 
 ---
@@ -168,7 +167,6 @@ Kuruluma İzin Ver
 ### Veri Depolama
 
 Yerel veriler:
-- SQLite veritabanı (DPAPI ile şifrelenmiş)
 - Ayar dosyaları (JSON)
 - Cache dosyaları
 
@@ -256,7 +254,6 @@ Bir güvenlik açığı buldunuz mu?
 ### Kullanım Sırasında
 
 - [ ] Yedekleme aktif mi?
-- [ ] Audit log açık mı?
 - [ ] Anti-cheat uyarıları kontrol edildi mi?
 
 ### Kaldırma Sırasında

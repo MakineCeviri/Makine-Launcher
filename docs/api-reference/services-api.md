@@ -2,15 +2,15 @@
 
 Makine-Launcher Qt servis sınıflarının API referansı.
 
-> **Not:** Bu dökümanlar UI_ONLY (dev) build'de kullanılan saf Qt servislerini tanımlar.
+> **Not:** Bu dökümanlar saf Qt servislerini tanımlar (her build modunda aynı servisler kullanılır).
 > Tüm servisler `qml/src/services/` altındadır.
 
 ---
 
 ## CoreBridge (Singleton)
 
-Oyun tarama ve paket yönetiminin merkezi. UI_ONLY modda gerçek Steam/Epic/GOG
-tarama yapar. Full modda Core kütüphanesine yönlendirir.
+Oyun tarama ve paket yönetiminin merkezi. Steam/Epic/GOG taramasını her build
+modunda kendisi yapar; Core kütüphanesinde tarama kodu yoktur.
 
 ```cpp
 class CoreBridge : public QObject {

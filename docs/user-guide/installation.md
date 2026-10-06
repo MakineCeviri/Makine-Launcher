@@ -58,7 +58,7 @@ Makine-Launcher aşağıdaki platformları otomatik tarar:
 
 - Varsayılan: `C:\Program Files (x86)\Steam\`
 - Kütüphane klasörleri otomatik bulunur
-- Steam API üzerinden oyun listesi alınır
+- Oyun listesi `appmanifest_*.acf` dosyalarından okunur
 
 ### Epic Games
 
@@ -69,7 +69,7 @@ Makine-Launcher aşağıdaki platformları otomatik tarar:
 ### GOG Galaxy
 
 - Varsayılan: `C:\Program Files (x86)\GOG Galaxy\`
-- GOG Galaxy veritabanından liste
+- Liste Windows kayıt defterindeki GOG girdilerinden okunur
 - Standalone kurulumlar da desteklenir
 
 ### Manuel Ekleme

@@ -138,7 +138,7 @@ içine değil yanına kurar.
 | 1 | **`aliases` katalogda yok (0/239)** | Eşleştirmenin 1.5 ve 1.5b katmanları hiç çalışmıyor. "Yes Your Grace" gibi alternatif adlarla anılan oyunlar yalnızca birebir ad tutarsa bulunur | Veri |
 | 2 | **`storeIds` katalogda yok (0/239)** | Epic/GOG mağaza kimliğiyle doğrudan çözümleme ölü; her seferinde parmak izine düşülüyor | Veri |
 | 3 | **`fingerprint.keyFiles` kirli** | RDR2 paketinde `keyFiles: ["Türkçe Yama"]` — yamanın klasör adı yazılmış, oyunun dosyası değil. Bu ancak yama kurulduktan *sonra* doğru olur; kurulmadan önce sinyal vermez | Veri |
-| 4 | **Core'daki `GameDetector` ölü** | `core/src/game_detector/` içindeki üç tarayıcı her açılışta kaydediliyor ("Registered 3 game scanners") ama `scan()` hiç çağrılmıyor. QML katmanı kendi taramasını yapıyor. İki paralel uygulama — düzeltmenin yanlış tarafa yapılması riski | Kod |
+| 4 | ~~**Core'daki `GameDetector` ölü**~~ **Kapandı (0.2.0)** | Core'daki `GameDetector` ve tarayıcıları silindi. Tek tarama uygulaması servis katmanında: `qml/src/services/corebridge.cpp` (`doScan*Real`) | Kod |
 | 5 | **Ubisoft / EA / Battle.net tarayıcısı yok** | Yalnızca varsayılan kurulum klasörü ve `Uninstall` kaydı üzerinden yakalanıyorlar; kütüphane taşınmışsa bulunamaz | Kod |
 | 6 | **Xbox oyunları çoğunlukla yazılamaz** | Tespit ediliyor ama Game Pass klasörleri korumalıdır; kurulum izin hatasıyla düşer. Kullanıcıya bunun neden olduğu söylenmiyor | Ürün |
 

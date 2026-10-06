@@ -77,8 +77,8 @@ cd C:\Workspace\Makine\Makine-Launcher
 # just ile (önerilen)
 just setup
 
-# veya manuel
-vcpkg install --triplet x64-windows
+# veya manuel (classic mode)
+vcpkg install openssl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic zstd:x64-mingw-dynamic spdlog:x64-mingw-dynamic
 ```
 
 ### 5. Pre-commit Hook'ları (Opsiyonel)
@@ -131,7 +131,7 @@ just all
 
 # veya ayri ayri
 just core    # Core library
-just qml     # QML uygulama
+just dev     # Core + QML uygulama
 ```
 
 ### CMake ile
@@ -157,8 +157,9 @@ cmake --build build/dev
 | `dev-ui` | UI-only, Core yok (MinGW, vcpkg gereksiz) |
 | `debug` | Debug build — Core+UI (MinGW+vcpkg) |
 | `release` | Release — Core+UI (MSVC+vcpkg) |
-| `release-static` | Tek EXE — UI-only (static Qt) |
-| `core` | Sadece core library (MSVC+vcpkg) |
+| `release-mingw` | Dağıtım build'i — Core+UI (MinGW+vcpkg) |
+| `release-static` | Tek EXE — Core+UI (static Qt) |
+| `core` | Sadece core library + testleri (MinGW+vcpkg) |
 
 ---
 

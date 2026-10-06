@@ -24,9 +24,9 @@ Makine-Launcher su araclari kullanir:
 | `dev-ui` | UI-only (Core yok) | MinGW | `cmake --preset dev-ui` |
 | `debug` | Debug sembollu (Core+UI) | MinGW+vcpkg | `cmake --preset debug` |
 | `release` | Release (Core+UI) | MSVC+vcpkg | `cmake --preset release` |
-| `release-static` | Tek EXE, UI-only | MinGW (static Qt) | `cmake --preset release-static` |
-| `full-static` | Tek EXE, Core+UI | MinGW+vcpkg (static) | `cmake --preset full-static` |
-| `core` | Sadece core lib | MSVC+vcpkg | `cmake --preset core` |
+| `release-mingw` | Dagitim build'i (ZIP, MSIX) | MinGW+vcpkg | `cmake --preset release-mingw` |
+| `release-static` | Tek EXE, Core+UI | MinGW (static Qt)+vcpkg | `cmake --preset release-static` |
+| `core` | Sadece core lib + testleri | MinGW+vcpkg | `cmake --preset core` |
 
 ### Preset Kullanimi
 
@@ -52,25 +52,10 @@ cmake --build --preset dev
   "name": "makine-launcher",
   "version": "0.1.0",
   "dependencies": [
-    "boost-filesystem",
     "openssl",
-    "curl",
     "nlohmann-json",
-    "lz4",
-    "zlib",
     "zstd",
-    "sqlite3",
-    "spdlog",
-    "bit7z",
-    "libarchive",
-    "simdjson",
-    "efsw",
-    "mio",
-    "taskflow",
-    "concurrentqueue",
-    "simdutf",
-    "sqlitecpp",
-    "libsodium"
+    "spdlog"
   ],
   "features": {
     "tests": {
@@ -83,12 +68,16 @@ cmake --build --preset dev
 
 ### Bagimlilik Kurulumu
 
+vcpkg classic mode ile kullanilir (`VCPKG_MANIFEST_MODE=OFF`, triplet `x64-mingw-dynamic`);
+configure sirasinda paket kurulmaz.
+
 ```bash
-# Otomatik (manifest mode)
-cmake --preset dev  # vcpkg otomatik calisir
+just setup        # openssl, nlohmann-json, zstd, spdlog
+just setup-tests  # + gtest
 
 # Manuel
-vcpkg install --triplet x64-windows
+vcpkg install openssl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic \
+  zstd:x64-mingw-dynamic spdlog:x64-mingw-dynamic gtest:x64-mingw-dynamic
 ```
 
 ---
@@ -110,16 +99,17 @@ Makine-Launcher/
 
 ### Build Presets
 
-Core ve QML ayri CMake projeleri olarak build edilir (CMakePresets.json):
+Core tek basina (`core` preset) ya da kok CMakeLists.txt uzerinden QML ile birlikte
+(super-build) derlenir (CMakePresets.json):
 
 ```bash
-# Core library (MSVC + vcpkg)
-cmake --preset core-debug     # Configure
-cmake --build core/build      # Build
+# Core library + testleri (MinGW + vcpkg) → build/core
+cmake --preset core
+cmake --build --preset core
 
-# QML application (MinGW + Qt)
-cmake --preset dev             # Configure
-cmake --build qml/build/dev    # Build
+# Core + QML application (MinGW + Qt + vcpkg) → build/dev
+cmake --preset dev
+cmake --build --preset dev
 ```
 
 ### Core CMakeLists.txt
@@ -127,9 +117,9 @@ cmake --build qml/build/dev    # Build
 ```cmake
 # Static library
 add_library(makine_core STATIC
-    src/game_detector/steam_scanner.cpp
-    src/game_detector/epic_scanner.cpp
-    # ...
+    src/package_catalog/package_catalog.cpp
+    src/crash_recovery/crash_recovery.cpp
+    src/file_integrity/file_integrity.cpp
 )
 
 target_include_directories(makine_core PUBLIC
@@ -137,9 +127,9 @@ target_include_directories(makine_core PUBLIC
 )
 
 target_link_libraries(makine_core PUBLIC
-    Boost::filesystem
+    OpenSSL::Crypto
+    nlohmann_json::nlohmann_json
     spdlog::spdlog
-    # ...
 )
 ```
 
@@ -241,36 +231,15 @@ just deploy
 
 ## CI/CD
 
-### GitHub Actions
+`.github/workflows/ci.yml` (Build & test): `dev`'e her push'ta (yalnizca `docs/` / `*.md`
+degisen push'lar haric) ve `dev`'e acilan PR'larda `windows-latest` uzerinde:
 
-```yaml
-# .github/workflows/ci.yml (simplified)
-jobs:
-  build:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
+1. MinGW 13.1 + Qt 6.11.1 kurar
+2. vcpkg paketlerini classic mode ile kurar (`openssl nlohmann-json zstd spdlog gtest`, `x64-mingw-dynamic`)
+3. Gecici bir paket anahtari uretir (`scripts/generate_key_header.py`)
+4. `dev` preset'ini derler (crash reporting kapali) ve `ctest --preset dev-tests` calistirir
 
-      - name: Cache vcpkg
-        uses: actions/cache@v5
-        with:
-          path: C:/vcpkg/installed
-          key: vcpkg-classic-${{ hashFiles('vcpkg.json') }}
-
-      - name: Install dependencies
-        run: |
-          $deps = (Get-Content vcpkg.json | ConvertFrom-Json).dependencies
-          foreach ($dep in $deps) { C:/vcpkg/vcpkg install "${dep}:x64-windows" --classic --recurse }
-
-      - name: Configure & Build Core
-        run: |
-          cmake -B core/build -S core -G Ninja -DCMAKE_BUILD_TYPE=Release -DVCPKG_MANIFEST_MODE=OFF -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
-          cmake --build core/build
-
-      - name: Test
-        run: ctest --test-dir core/build
-```
+Diger is akislari: `deploy-manifests.yml`, `telemetry-watchdog.yml`.
 
 ---
 

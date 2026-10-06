@@ -6,30 +6,33 @@ Makine-Launcher test stratejisi ve örnekleri.
 
 ## Test Framework
 
-- **Google Test (GTest)** - Unit testler
+- **Google Test (GTest)** - Core ve UI servis testleri (gmock `makine_tests`'e linkli, şu an kullanılmıyor)
 - **CTest** - Test runner
-- **Qt Test** - UI testleri (planlanan)
 
 ---
 
 ## Test Yapısı
 
 ```
-core/
-└── tests/
-    ├── CMakeLists.txt
-    ├── test_main.cpp           # GTest main
-    ├── test_game_detector.cpp
-    ├── test_asset_parser.cpp
-    ├── test_patch_engine.cpp
-    └── testdata/               # Test verileri
-        ├── unity_game/
-        └── unreal_game/
+core/tests/                     # makine_tests — 231 test
+├── test_main.cpp               # GTest main
+├── test_error.cpp
+├── test_path_utils.cpp
+├── test_file_integrity.cpp
+├── test_crash_recovery.cpp
+└── test_package_catalog.cpp
+
+tests/
+├── ui/                         # Servis katmanı testleri, her dosya ayrı exe
+│   ├── test_vdfparser.cpp
+│   ├── test_catalogstore.cpp
+│   └── ...                     # 17 dosya
+├── integration/                # test_operationjournal_recover (core + servis)
+└── plugins/dummy/              # Eklenti API'si için örnek DLL (ayrı derlenir)
 ```
 
-> **Not:** Game-specific integration testler engine handler implementasyonu
-> bekledigi icin devre disi birakilmistir. `makine_tests` unit test
-> target'i aktiftir.
+> **Not:** `dev` preset `makine_tests` + `tests/ui/*` + `tests/integration` olmak üzere
+> 19 test exe'si üretir. `core` preset yalnızca `makine_tests`'i derler.
 
 ---
 
@@ -39,109 +42,53 @@ core/
 
 ```cpp
 #include <gtest/gtest.h>
-#include <makine/core.hpp>
+#include <makine/file_integrity.hpp>
 
-TEST(GameDetectorTest, DetectsSteamGames) {
-    auto& core = makine::Core::instance();
-    core.initialize();
-
-    auto& detector = core.gameDetector();
-    auto games = detector.scanSteam();
-
-    // Steam kuruluysa oyun bulmali
-    // (Test ortamina bagli)
-    EXPECT_GE(games.size(), 0);
+TEST(FileIntegrity, RejectsShortHex) {
+    EXPECT_FALSE(makine::integrity::isValidSha256Hex("abc123"));
 }
 ```
 
 ### Fixture Kullanımı
 
 ```cpp
-class AssetParserTest : public ::testing::Test {
+class FileIntegrityTest : public ::testing::Test {
 protected:
+    fs::path tempDir_;
+
     void SetUp() override {
-        core_ = &makine::Core::instance();
-        core_->initialize();
+        tempDir_ = fs::temp_directory_path() / "makine_integrity_tests";
+        fs::create_directories(tempDir_);
     }
 
     void TearDown() override {
-        core_->shutdown();
+        std::error_code ec;
+        fs::remove_all(tempDir_, ec);
     }
-
-    makine::Core* core_;
 };
 
-TEST_F(AssetParserTest, DetectsUnityEngine) {
-    auto& parser = core_->assetParser();
+TEST_F(FileIntegrityTest, ComputeFileHash_NonexistentFile) {
+    auto result = computeFileHash(tempDir_ / "does_not_exist.bin");
 
-    auto result = parser.detectEngine("testdata/unity_game");
-
-    ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value(), makine::EngineType::Unity);
-}
-
-TEST_F(AssetParserTest, DetectsUnrealEngine) {
-    auto& parser = core_->assetParser();
-
-    auto result = parser.detectEngine("testdata/unreal_game");
-
-    ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value(), makine::EngineType::Unreal);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code(), makine::ErrorCode::FileNotFound);
 }
 ```
 
 ### Parameterized Test
 
 ```cpp
-class EngineDetectionTest : public ::testing::TestWithParam<
-    std::tuple<std::string, makine::EngineType>
-> {};
+class TraversalTest : public ::testing::TestWithParam<std::string> {};
 
-TEST_P(EngineDetectionTest, DetectsEngine) {
-    auto [path, expectedEngine] = GetParam();
-
-    auto& parser = makine::Core::instance().assetParser();
-    auto result = parser.detectEngine(path);
-
-    ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value(), expectedEngine);
+TEST_P(TraversalTest, DetectsTraversal) {
+    EXPECT_TRUE(makine::path::containsTraversalPattern(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    Engines,
-    EngineDetectionTest,
-    ::testing::Values(
-        std::make_tuple("testdata/unity_game", makine::EngineType::Unity),
-        std::make_tuple("testdata/unreal_game", makine::EngineType::Unreal),
-        std::make_tuple("testdata/rpgmaker_game", makine::EngineType::RpgMaker)
-    )
+    Patterns,
+    TraversalTest,
+    ::testing::Values("../etc/passwd", "a/../../b", "%2e%2e/secret")
 );
-```
-
----
-
-## Mock Kullanımı
-
-```cpp
-#include <gmock/gmock.h>
-
-class MockFileSystem : public IFileSystem {
-public:
-    MOCK_METHOD(bool, exists, (const std::string& path), (const, override));
-    MOCK_METHOD(std::vector<std::byte>, read, (const std::string& path), (override));
-};
-
-TEST(PatchEngineTest, FailsWhenFileNotFound) {
-    MockFileSystem mockFs;
-    EXPECT_CALL(mockFs, exists(_))
-        .WillOnce(Return(false));
-
-    PatchEngine engine(&mockFs);
-    auto result = engine.apply(game, package);
-
-    EXPECT_FALSE(result.success());
-    EXPECT_EQ(result.error().code(), ErrorCode::NotFound);
-}
 ```
 
 ---
@@ -151,8 +98,11 @@ TEST(PatchEngineTest, FailsWhenFileNotFound) {
 ### Tüm Testler
 
 ```bash
-# just ile
+# just ile (dev build + ctest --preset dev-tests)
 just test
+
+# Sadece core (core build + ctest --preset core-tests)
+just test-core
 
 # veya CMake ile
 cd build/dev
@@ -162,11 +112,11 @@ ctest --output-on-failure
 ### Spesifik Test
 
 ```bash
-# Pattern ile
-ctest -R GameDetector
+# CTest adı (exe) ile
+ctest -R test_vdfparser
 
-# Verbose
-ctest -V -R AssetParser
+# makine_tests içinde GTest filtresi ile
+./build/dev/makine_tests --gtest_filter='CrashRecovery*'
 ```
 
 ### Test Listesi
@@ -179,17 +129,7 @@ ctest -N  # Sadece listele, calistirma
 
 ## Coverage
 
-### Coverage ile Build
-
-```bash
-# GCC/Clang
-cmake -B build -DCOVERAGE=ON
-cmake --build build
-ctest --test-dir build
-
-# Rapor olustur
-gcovr --html coverage.html --html-details
-```
+Projede tanımlı bir coverage seçeneği veya preset'i yok.
 
 ### Coverage Hedefleri
 
@@ -203,44 +143,23 @@ gcovr --html coverage.html --html-details
 
 ## CI'da Test
 
-GitHub Actions'da otomatik test:
-
-```yaml
-- name: Run Tests
-  run: |
-    cd build/release
-    ctest --output-on-failure --parallel 4
-```
+`.github/workflows/ci.yml` her `dev` push'unda ve `dev`'e açılan PR'da `dev` preset'ini
+derler ve `ctest --preset dev-tests --output-on-failure` çalıştırır (yerelde `just test` ile aynı).
 
 ---
 
 ## Test Verileri
 
-### Dizin Yapısı
-
-```
-testdata/
-├── unity_game/
-│   ├── UnityPlayer.dll
-│   └── GameName_Data/
-│       └── resources.assets
-├── unreal_game/
-│   ├── GameName.exe
-│   └── Content/
-│       └── Paks/
-└── rpgmaker_game/
-    └── www/
-        └── data/
-            └── System.json
-```
-
-### Test Verisi Oluşturma
+Repoda sabit test verisi dizini yok. Testler ihtiyaç duydukları dosyaları
+`SetUp()` içinde geçici dizine yazar ve `TearDown()` içinde siler:
 
 ```cpp
-// Test helper
-void createTestUnityGame(const std::string& path) {
-    fs::create_directories(path + "/GameName_Data");
-    // Minimal Unity dosyalari olustur
+// Test helper (test_file_integrity.cpp)
+fs::path writeFile(const std::string& name, const std::string& content) {
+    auto path = tempDir_ / name;
+    std::ofstream ofs(path, std::ios::binary);
+    ofs << content;
+    return path;
 }
 ```
 
@@ -252,8 +171,8 @@ void createTestUnityGame(const std::string& path) {
 
 ```cpp
 // Her test kendi setup'ini yapmali
-TEST(MyTest, DoSomething) {
-    auto core = createTestCore();  // Fresh instance
+TEST_F(CrashRecoveryTest, DoSomething) {
+    makine::recovery::CrashRecoveryJournal journal(testDir_);  // Fresh instance
     // test...
 }
 ```
@@ -265,24 +184,23 @@ TEST(MyTest, DoSomething) {
 TEST(Test1, Test2) { }
 
 // DOGRU
-TEST(GameDetector, ReturnsSteamGamesWhenSteamInstalled) { }
-TEST(PatchEngine, CreatesBackupBeforeApplyingPatch) { }
+TEST_F(FileIntegrityTest, ComputeFileHash_NonexistentFile) { }
+TEST_F(CrashRecoveryTest, RecoverInstallRestoresOriginalsAndRemovesAddedFiles) { }
 ```
 
 ### 3. Arrange-Act-Assert
 
 ```cpp
-TEST(AssetParser, DetectsUnityMono) {
+TEST_F(FileIntegrityTest, ComputeFileHash_KnownContent) {
     // Arrange
-    auto& parser = core.assetParser();
-    std::string path = "testdata/unity_mono";
+    auto path = writeFile("hello.txt", "Hello, World!");
 
     // Act
-    auto result = parser.detectEngine(path);
+    auto result = computeFileHash(path);
 
     // Assert
-    ASSERT_TRUE(result.success());
-    EXPECT_EQ(result.value(), EngineType::Unity);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(*result, kHelloWorldHash);
 }
 ```
 

@@ -121,15 +121,9 @@ windeployqt `--qmldir qml/qml` argümanıyla aşağıdakileri otomatik toplar:
 ### vcpkg DLL'leri (Shared Build — x64-mingw-dynamic)
 `dist/` klasörüne manuel kopyalanması gerekenler:
 ```
-openssl        → libssl-3-x64.dll, libcrypto-3-x64.dll
-curl           → libcurl.dll
-boost-filesystem → libboost_filesystem*.dll
-lz4            → lz4.dll
-zstd           → zstd.dll
-sqlite3        → sqlite3.dll
-spdlog         → spdlog.dll
-libsodium      → libsodium.dll
-libarchive     → archive.dll
+openssl        → libcrypto-3-x64.dll
+spdlog         → libspdlog.dll, libfmt.dll
+zstd           → libzstd.dll
 ```
 
 > Static build'de bu adım gerekmez; tüm kütüphaneler EXE'ye gömülü gelir.

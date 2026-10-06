@@ -26,13 +26,19 @@ Diğer token'lar (Discord, Railway, Gemini) sadece belirli servisler için gerek
 
 ## 3. encryption_key.h
 
-Bu dosya repo'da yoktur. Paket şifreleme/çözme için gereklidir.
+Bu dosya repo'da yoktur (gitignored). Paket şifreleme/çözme için gereklidir.
 
 ```
-core/include/makine/encryption_key.h
+qml/src/services/encryption_key.h
 ```
 
-Dosyayı proje sahibinden al veya kendi anahtarını üret. Olmadan build eder ama şifreli paketler çözülemez.
+`scripts/.encryption_key` dosyasından üretilir (anahtarı proje sahibinden al):
+
+```bash
+python scripts/generate_key_header.py
+```
+
+`dev-ui` dışındaki build'ler bu dosya olmadan derlenmez.
 
 ## 4. Araçları Kur
 
@@ -40,7 +46,7 @@ Dosyayı proje sahibinden al veya kendi anahtarını üret. Olmadan build eder a
 
 | Araç | Not |
 |------|-----|
-| Qt 6.10+ | MinGW 13.1 ve/veya MSVC 2022 kit'i |
+| Qt 6.11.1 | MinGW 13.1 kit'i (`C:\Qt\6.11.1\mingw_64`, preset'lerde sabit); MSVC 2022 kit'i yalnız `release` için |
 | CMake 3.28+ | Qt Tools ile gelir |
 | Ninja | Qt Tools ile gelir |
 | Git | Submodule desteği |
@@ -71,16 +77,11 @@ export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"  # runtime DLL'ler
 ## 6. vcpkg Bağımlılıkları (Core build için)
 
 ```bash
-just setup
+just setup        # openssl, nlohmann-json, zstd, spdlog
+just setup-tests  # + gtest (just test için)
 # veya manuel:
-vcpkg install boost-filesystem:x64-mingw-dynamic openssl:x64-mingw-dynamic \
-  curl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic lz4:x64-mingw-dynamic \
-  zlib:x64-mingw-dynamic zstd:x64-mingw-dynamic sqlite3:x64-mingw-dynamic \
-  spdlog:x64-mingw-dynamic simdjson:x64-mingw-dynamic mio:x64-mingw-dynamic \
-  taskflow:x64-mingw-dynamic concurrentqueue:x64-mingw-dynamic \
-  simdutf:x64-mingw-dynamic sqlitecpp:x64-mingw-dynamic \
-  libsodium:x64-mingw-dynamic libarchive:x64-mingw-dynamic \
-  bit7z:x64-mingw-dynamic efsw:x64-mingw-dynamic
+vcpkg install openssl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic \
+  zstd:x64-mingw-dynamic spdlog:x64-mingw-dynamic gtest:x64-mingw-dynamic
 ```
 
 > UI-only build (`dev-ui`) vcpkg gerektirmez.
@@ -129,7 +130,7 @@ just docs
 | `Qt6 not found` | PATH'e Qt CMake dizinini ekle |
 | `encryption_key.h not found` | Adım 3'e bak |
 | `submodule is empty` | `git submodule update --init` |
-| MinGW `<regex>` hatası | Bilinen sorun — regex kullanan dosyalar build'den hariç |
+| MinGW `<regex>` hatası | Bilinen sorun — `<regex>` kullanma; `find()`, `starts_with()`, `ends_with()` kullan |
 
 ---
 
