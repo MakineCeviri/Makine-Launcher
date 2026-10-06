@@ -71,5 +71,8 @@ Dialog {
         Behavior on opacity { NumberAnimation { duration: Dimensions.animMedium } }
     }
 
-    Keys.onEscapePressed: { root.cancelled(); root.close() }
+    // Escape under CloseOnEscape rejects a Dialog. A Keys handler never ran:
+    // a Popup is not an Item, so Escape closed the dialog without a word and
+    // an update flow stayed pending into the next install.
+    onRejected: root.cancelled()
 }
