@@ -81,7 +81,7 @@ def main():
     print(f"{'='*60}")
     print(f"\nTo test, run in another terminal:")
     print(f"  export MAKINE_UPDATE_URL=http://localhost:{PORT}/update.json")
-    print(f'  export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"')
+    print(f'  export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"')
     print(f"  ./build/dev/Makine-Launcher.exe")
     print(f"\nVerification checklist:")
     print(f"  1. NavBar download icon appears (pulse animation)")

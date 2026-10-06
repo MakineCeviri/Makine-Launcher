@@ -65,7 +65,7 @@ setx VCPKG_ROOT "C:\vcpkg"
 
 ```bash
 export PATH="/c/Qt/Tools/CMake_64/bin:/c/Qt/Tools/mingw1310_64/bin:/c/Qt/Tools/Ninja:$PATH"
-export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"  # runtime DLL'ler
+export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"  # runtime DLL'ler
 ```
 
 ## 6. vcpkg Bağımlılıkları (Core build için)

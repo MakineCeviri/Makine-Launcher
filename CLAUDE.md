@@ -41,18 +41,18 @@ python scripts/generate_key_header.py   # reads scripts/.encryption_key → qml/
 ```
 
 ```bash
-just dev          # MinGW dev build (Core+UI, vcpkg required)
+just dev          # MinGW dev build (Core+UI+tests, vcpkg required)
 just dev-ui       # UI-only build (no vcpkg, no encryption_key.h needed)
 just run          # Run after build
-just test         # Run tests
-just core         # Core library only (MSVC)
-just release      # MSVC release build
+just test         # Build dev, run every suite (core + UI + integration)
+just core         # Core library only (MinGW)
+just release-zip-dynamic <ver>   # Distribution ZIP (docs/RELEASING.md)
 ```
 
 PATH (bash):
 ```bash
 export PATH="/c/Qt/Tools/CMake_64/bin:/c/Qt/Tools/mingw1310_64/bin:/c/Qt/Tools/Ninja:/c/Program Files/Git/usr/bin:$PATH"
-export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
+export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
 ```
 
 | Preset | Compiler | Use case |
@@ -60,9 +60,10 @@ export PATH="/c/Qt/6.10.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
 | `dev` | MinGW + vcpkg | Daily development (Core+UI) |
 | `dev-ui` | MinGW | UI-only, no vcpkg (`MAKINE_UI_ONLY=ON`) |
 | `debug` | MinGW + vcpkg | Core+UI with debug symbols |
-| `release` | MSVC + vcpkg | Production release |
-| `release-static` | MinGW (static Qt) | Single EXE distribution |
-| `core` | MSVC + vcpkg | Core library only |
+| `release-mingw` | MinGW + vcpkg | Distribution build (ZIP, MSIX) |
+| `release` | MSVC + vcpkg | MSVC release (needs `Qt6_DIR` → an MSVC kit) |
+| `release-static` | MinGW (static Qt) | Single EXE — needs a Qt static kit built from source |
+| `core` | MinGW + vcpkg | Core library + its tests (`build/core`) |
 
 ## Coding conventions
 

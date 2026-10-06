@@ -3,10 +3,11 @@
 # Install just: cargo install just (or winget install just)
 #
 # Presets (CMakePresets.json):
-#   dev     = MinGW, Release, UI-only (fast iteration)
-#   debug   = MinGW, Debug, UI-only
-#   release = vcpkg, Release, full core integration
-#   core    = vcpkg, Release, core library only
+#   dev            = MinGW + vcpkg, Release, Core + UI + tests (daily development)
+#   dev-ui         = MinGW, UI only, no vcpkg
+#   debug          = MinGW + vcpkg, Debug, Core + UI
+#   release-mingw  = MinGW + vcpkg, distribution build (release-zip*, msix)
+#   core           = MinGW + vcpkg, core library + its tests only
 
 # Load .env for build-time variables (MAKINE_SENTRY_DSN, etc.)
 set dotenv-load
@@ -66,17 +67,17 @@ release:
 # TESTING
 # ============================================================================
 
-# Run core tests
-test: core
-    ctest --preset core-tests
-
-# Run the UI service + integration tests (dev preset builds them)
-test-ui: dev
+# Run every suite: core units, UI services, integration (the dev preset builds them all)
+test: dev
     ctest --preset dev-tests --output-on-failure
 
+# Run the core library tests only
+test-core: core
+    ctest --preset core-tests
+
 # Run tests with verbose output
-test-verbose: core
-    ctest --preset core-tests --verbose
+test-verbose: dev
+    ctest --preset dev-tests --verbose
 
 # ============================================================================
 # ALL BUILDS
@@ -95,7 +96,7 @@ all-release: release
 # Clean all build directories
 clean:
     @echo "Cleaning build directories..."
-    powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build, core/build, qml/build"
+    powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build, qml/build"
 
 # Clean and rebuild
 rebuild: clean all
@@ -416,7 +417,7 @@ check-format:
 # Run clang-tidy static analysis
 lint:
     @echo "Running clang-tidy analysis..."
-    powershell -Command "Get-ChildItem -Recurse -Include *.cpp -Path core/src | ForEach-Object { Write-Host ('Analyzing: ' + $_.Name); clang-tidy -p core/build $_.FullName 2>&1 | Select-String -Pattern 'warning:|error:' }"
+    powershell -Command "Get-ChildItem -Recurse -Include *.cpp -Path core/src | ForEach-Object { Write-Host ('Analyzing: ' + $_.Name); clang-tidy -p build/dev $_.FullName 2>&1 | Select-String -Pattern 'warning:|error:' }"
 
 # Run all quality checks
 check: check-format lint
@@ -460,7 +461,7 @@ docs:
     @echo "Documentation generated in core/docs/html/"
 
 # Pre-push quality check
-ci-check: check-format core test
+ci-check: check-format test
     @echo "All CI checks passed!"
 
 # ============================================================================

@@ -184,7 +184,7 @@
       "description": "Build core library only (for CI/testing)",
       "inherits": "vcpkg-mingw",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/core/build",
+      "binaryDir": "${sourceDir}/build/core",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "MAKINE_CORE_ONLY": "ON",
