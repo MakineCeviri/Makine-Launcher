@@ -39,6 +39,7 @@
 #include "services/rendergovernor.h"
 #include "services/crashreporter.h"
 #include <QLoggingCategory>
+#include <cstdlib>
 
 Q_LOGGING_CATEGORY(lcApp, "makine.app")
 
@@ -1176,11 +1177,20 @@ static void wireSignals(
     QObject::connect(trayManager, &SystemTrayManager::quitRequested,
                      &app, &QCoreApplication::quit);
 
-    // Clean shutdown: remove tray icon and drain thread pool before exit
+    // Clean shutdown: remove tray icon and drain thread pool before exit.
+    // Workers hold the services that are destroyed right after this returns;
+    // tearing down under one is a use-after-free. They are not cancelled:
+    // a cancelled install drops its journal and leaves the rollback to the
+    // event loop, which is not running any more.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [trayManager]() {
         trayManager->hide();
         QThreadPool::globalInstance()->clear();
-        QThreadPool::globalInstance()->waitForDone(3000);
+        if (!QThreadPool::globalInstance()->waitForDone(30000)) {
+            // Still copying. Leaving without teardown keeps the operation
+            // journal, and the next start rolls the operation back.
+            logToFile(QStringLiteral("Shutdown: workers still running after 30 s, exiting without teardown"));
+            std::_Exit(0);
+        }
     });
 
     // Connect ManifestSync signals BEFORE syncing,
