@@ -452,6 +452,76 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdNoMatch) {
     EXPECT_EQ(catalog_.findMatchingAppId("Cyberpunk 2077"), "");
 }
 
+// Every Easy Anti-Cheat title ships start_protected_game.exe. With it in Elden
+// Ring's fingerprint, other EAC games on users' disks were offered the Elden
+// Ring patch; a shared name must not identify a game on its own.
+TEST_F(PackageCatalogTest, SharedExeNameDoesNotIdentifyGame) {
+    json index;
+    index["packages"] = {
+        {"1245620", {{"name", "Elden Ring"}, {"v", "1.0.0"}, {"dirName", "Elden Ring"},
+                     {"exe", json::array({"start_protected_game.exe", "eldenring.exe"})}}},
+    };
+    const auto path = testDir_ / "shared_exe_index.json";
+    std::ofstream(path) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(path, cachePath_));
+
+    // Another EAC game: the bootstrapper is all it has in common. 40 is the
+    // lowest threshold any caller accepts (the running-process resolver).
+    const auto other = catalog_.findMatchingGames(
+        {"start_protected_game.exe", "nightreign.exe"}, "", {}, "ELDEN RING NIGHTREIGN");
+    for (const auto& m : other)
+        EXPECT_LT(m.confidence, 40) << m.steamAppId << " via " << m.matchedBy;
+
+    // The game's own executable still identifies it.
+    const auto own = catalog_.findMatchingGames({"eldenring.exe"}, "", {}, "Game");
+    ASSERT_FALSE(own.empty());
+    EXPECT_EQ(own.front().steamAppId, "1245620");
+    EXPECT_GE(own.front().confidence, 60);
+
+    // The running-process map must not carry it either.
+    const auto exeMap = catalog_.getAllExeMap();
+    EXPECT_FALSE(exeMap.contains("start_protected_game.exe"));
+    EXPECT_EQ(exeMap.at("eldenring.exe"), "1245620");
+}
+
+// The index keeps exe names as the game ships them ("Five Nights at Freddy's
+// 2.exe"); the process list and folder scans compare lower-cased names.
+TEST_F(PackageCatalogTest, ExeNamesMatchRegardlessOfCase) {
+    json index;
+    index["packages"] = {
+        {"332800", {{"name", "Five Nights at Freddy's 2"}, {"v", "1.0.0"},
+                    {"exe", json::array({"Five Nights at Freddy's 2.exe"})}}},
+    };
+    const auto path = testDir_ / "case_exe_index.json";
+    std::ofstream(path) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(path, cachePath_));
+
+    const auto matches = catalog_.findMatchingGames({"five nights at freddy's 2.exe"}, "", {}, "");
+    ASSERT_FALSE(matches.empty());
+    EXPECT_EQ(matches.front().steamAppId, "332800");
+    EXPECT_GE(matches.front().confidence, 60);
+
+    EXPECT_EQ(catalog_.getAllExeMap().at("five nights at freddy's 2.exe"), "332800");
+}
+
+// Two packages listing the same executable: which one the running-process map
+// reported depended on hash order. Such a name identifies neither.
+TEST_F(PackageCatalogTest, ExeClaimedByTwoPackagesIsLeftOutOfExeMap) {
+    json index;
+    index["packages"] = {
+        {"100", {{"name", "Alpha"}, {"v", "1.0.0"}, {"exe", json::array({"common.exe", "alpha.exe"})}}},
+        {"200", {{"name", "Beta"}, {"v", "1.0.0"}, {"exe", json::array({"common.exe", "beta.exe"})}}},
+    };
+    const auto path = testDir_ / "ambiguous_exe_index.json";
+    std::ofstream(path) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(path, cachePath_));
+
+    const auto exeMap = catalog_.getAllExeMap();
+    EXPECT_FALSE(exeMap.contains("common.exe"));
+    EXPECT_EQ(exeMap.at("alpha.exe"), "100");
+    EXPECT_EQ(exeMap.at("beta.exe"), "200");
+}
+
 // =========================================================================
 // EMPTY CATALOG
 // =========================================================================

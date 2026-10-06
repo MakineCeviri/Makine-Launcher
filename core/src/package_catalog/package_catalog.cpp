@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -871,6 +872,19 @@ std::string normalizeEngine(const std::string& engine)
     return "custom";
 }
 
+// Executable names that many unrelated games ship. Easy Anti-Cheat's bootstrapper
+// sits in every EAC title, Paradox's launcher in every Paradox one, and RPG Maker
+// names every game "game.exe" — in a fingerprint they point at the wrong game as
+// readily as the right one. Elden Ring's list carried start_protected_game.exe,
+// and other EAC games on users' disks were offered the Elden Ring patch.
+bool isSharedExeName(const std::string& lowerName)
+{
+    static const std::set<std::string> kShared = {
+        "start_protected_game.exe", "game.exe", "launcher.exe", "dowser.exe",
+    };
+    return kShared.contains(lowerName);
+}
+
 // Remove all characters in `chars` from `s`
 std::string removeChars(std::string_view s, std::string_view chars)
 {
@@ -1011,7 +1025,9 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
         // Tier 1: Exe name matching (+60 exact, +40 gameName-derived)
         bool exeExact = false;
         for (const auto& expected : fp.exeNames) {
-            if (exeSet.count(expected)) {
+            const std::string expectedLower = toLower(expected);
+            if (isSharedExeName(expectedLower)) continue;
+            if (exeSet.count(expectedLower)) {
                 exeExact = true;
                 break;
             }
@@ -1023,7 +1039,7 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
         } else {
             // Check if any game exe matches gameName-derived pattern
             std::string nameExe = toLower(entry.gameName) + ".exe";
-            if (exeSet.count(nameExe)) {
+            if (!isSharedExeName(nameExe) && exeSet.count(nameExe)) {
                 score += 40;
                 matchedBy = "gameNameExe";
             }
@@ -1286,10 +1302,18 @@ std::unordered_map<std::string, std::string> PackageCatalog::getAllExeMap() cons
 {
     std::shared_lock lock(mutex_);
     std::unordered_map<std::string, std::string> map;
+    std::set<std::string> ambiguous;
     for (const auto& [appId, entry] : packages_) {
-        if (entry.fingerprint) {
-            for (const auto& exe : entry.fingerprint->exeNames) {
-                map[exe] = appId;
+        if (!entry.fingerprint) continue;
+        for (const auto& exe : entry.fingerprint->exeNames) {
+            const std::string lower = toLower(exe);
+            if (isSharedExeName(lower) || ambiguous.contains(lower)) continue;
+            // A name two packages claim identifies neither: which one won used
+            // to depend on hash order.
+            const auto [it, inserted] = map.try_emplace(lower, appId);
+            if (!inserted && it->second != appId) {
+                map.erase(it);
+                ambiguous.insert(lower);
             }
         }
     }
