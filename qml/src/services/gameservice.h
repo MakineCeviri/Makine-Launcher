@@ -125,8 +125,10 @@ public:
     Q_INVOKABLE void scanAllLibraries();
     /**
      * @brief Add a manually selected game folder to the library (async)
-     * Engine detection + catalog matching run in background thread.
-     * Emits manualGameAdded(gameId) on completion.
+     * Takes a folder URL or a native path. The folder is judged and resolved to
+     * the game's own root (gamefolderrules.h), then engine detection + catalog
+     * matching run in a background thread. Emits manualGameAdded(gameId), or
+     * manualGameRejected(path, reason) when the folder cannot hold one game.
      */
     Q_INVOKABLE void addManualGame(const QString& path);
 
@@ -400,6 +402,7 @@ signals:
     void steamDetailsFetched(const QString& steamAppId, const QVariantMap& details);
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
     void manualGameAdded(const QString& gameId);
+    void manualGameRejected(const QString& path, const QString& reason);
     void gameRemoved(const QString& gameId);
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
     void translationInstallStarted(const QString& gameId);
@@ -457,7 +460,6 @@ private:
     void invalidateAllCaches();
     void rebuildCache();
     void ensureSupportedGamesCache();
-    bool isValidGamePath(const QString& path) const;
 
     enum class InstallMode { Install, Update };
 

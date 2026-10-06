@@ -10,6 +10,7 @@
 #include "gameservice.h"
 #include <QHash>
 
+#include "gamefolderrules.h"
 #include "gamenamerules.h"
 #include "postinstallrules.h"
 #include "imagecachemanager.h"
@@ -19,6 +20,7 @@
 #include "profiler.h"
 #include "crashreporter.h"
 #include "elevatedops.h"
+#include <QCryptographicHash>
 #include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
@@ -46,6 +48,9 @@ constexpr int kAutoScanDelayMs = 500;
 // Name-match rule (both directions) lives in gamenamerules.h so it can be
 // exercised directly — see tests/ui/test_gamenamerules.cpp.
 using makine::namerules::gameNamesLikelyMatch;
+using makine::namerules::normalizeGameName;
+using makine::namerules::Separators;
+namespace folderrules = makine::folderrules;
 
 } // namespace
 
@@ -565,40 +570,91 @@ void GameService::onGameDetected(const QString& gameId, const QString& gameName)
     qCDebug(lcGameService) << "Game detected:" << gameName << "(" << gameId << ")";
 }
 
+namespace {
+
+QString cleanEnvPath(const char* name)
+{
+    const QString value = qEnvironmentVariable(name);
+    return value.isEmpty() ? QString() : QDir::cleanPath(QDir::fromNativeSeparators(value));
+}
+
+// Folders a patch must never be written into, nor anywhere below them.
+QStringList protectedGameTrees()
+{
+    return {cleanEnvPath("SystemRoot"), cleanEnvPath("ProgramData"),
+            cleanEnvPath("CommonProgramFiles"), cleanEnvPath("CommonProgramFiles(x86)")};
+}
+
+// Folders that are no game's own folder, though a game may well sit below them.
+QStringList protectedGameFolders()
+{
+    QStringList folders;
+    for (const auto location : {QStandardPaths::HomeLocation, QStandardPaths::DesktopLocation,
+                                QStandardPaths::DocumentsLocation, QStandardPaths::DownloadLocation})
+        folders << QStandardPaths::writableLocation(location);
+    folders << cleanEnvPath("ProgramFiles") << cleanEnvPath("ProgramFiles(x86)");
+    return folders;
+}
+
+QString folderProblemText(folderrules::FolderProblem problem)
+{
+    using folderrules::FolderProblem;
+    switch (problem) {
+    case FolderProblem::Missing:
+        return GameService::tr("Seçilen klasör bulunamadı.");
+    case FolderProblem::DriveRoot:
+        return GameService::tr("Sürücünün kendisi seçildi. Oyunun kendi klasörünü seçin.");
+    case FolderProblem::Protected:
+        return GameService::tr("Bu bir Windows ya da kullanıcı klasörü. Oyunun kendi klasörünü seçin.");
+    case FolderProblem::NoExecutable:
+        return GameService::tr("Bu klasörde oyun dosyası (.exe) bulunamadı. "
+                               "Oyunun kurulu olduğu klasörü seçin.");
+    case FolderProblem::Collection:
+        return GameService::tr("Bu klasörde birden çok oyun var. "
+                               "Eklemek istediğiniz oyunun kendi klasörünü seçin.");
+    case FolderProblem::None:
+        break;
+    }
+    return {};
+}
+
+} // namespace
+
 void GameService::addManualGame(const QString& path)
 {
     MAKINE_ZONE_NAMED("GameService::addManualGame");
-    // Security: Validate path (sync — fast)
-    if (!isValidGamePath(path)) {
-        qCWarning(lcGameService) << "addManualGame: invalid path" << path;
-        return;
-    }
+    // QML hands over the folder dialog's URL, the process scanner a native path.
+    const QString chosen = folderrules::toLocalPath(path);
+    const QStringList trees = protectedGameTrees();
+    const QStringList folders = protectedGameFolders();
 
-    QDir dir(path);
-    if (!dir.exists()) {
-        qCWarning(lcGameService) << "addManualGame: path not found" << path;
-        return;
-    }
-
-    // Check for duplicate (sync — O(n) but fast string compare)
-    const QString canonicalPath = QFileInfo(path).canonicalFilePath();
-    for (const auto& game : m_games) {
-        if (QFileInfo(game.installPath).canonicalFilePath() == canonicalPath) {
-            emit manualGameAdded(game.id);
-            return;
-        }
-    }
-
-    const QString folderName = dir.dirName();
-
-    // Heavy work (disk I/O + linear scan) → background thread
+    // Everything below reads the disk — judging the folder walks up to four
+    // levels of it — so none of it runs on the UI thread.
     CoreBridge* cb = m_coreBridge;
-    (void)QtConcurrent::run([this, path, folderName, cb]() {
+    (void)QtConcurrent::run([this, chosen, trees, folders, cb]() {
         MAKINE_THREAD_NAME("Worker-ManualGame");
         MAKINE_ZONE_NAMED("addManualGame (async)");
 
+        const folderrules::FolderVerdict verdict =
+            folderrules::judgeGameFolder(chosen, trees, folders);
+        if (verdict.problem != folderrules::FolderProblem::None) {
+            const QString reason = folderProblemText(verdict.problem);
+            QMetaObject::invokeMethod(this, [this, chosen, reason]() {
+                qCWarning(lcGameService) << "addManualGame: rejected" << chosen << "-" << reason;
+                emit manualGameRejected(chosen, reason);
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        // Users open the folder the .exe sits in; recipes are written against
+        // the one the store installs into ("ELDEN RING", not "ELDEN RING/Game").
+        const QString root = verdict.root;
+        if (root != chosen)
+            qCInfo(lcGameService) << "addManualGame:" << chosen << "-> game root" << root;
+        const QString folderName = QDir(root).dirName();
+
         QString engine;
-        if (cb) engine = cb->detectEngine(path);
+        if (cb) engine = cb->detectEngine(root);
 
         // Step 1: Try folder-name matching (fast, backward compatible)
         QString matchedAppId;
@@ -606,7 +662,7 @@ void GameService::addManualGame(const QString& path)
 
         // Step 2: If no match, try file-based fingerprint matching
         if (matchedAppId.isEmpty() && cb) {
-            QVariantList candidates = cb->findMatchingGamesFromFiles(path);
+            QVariantList candidates = cb->findMatchingGamesFromFiles(root);
             if (!candidates.isEmpty()) {
                 QVariantMap best = candidates.first().toMap();
                 if (best.value(QStringLiteral("confidence")).toInt() >= 70) {
@@ -618,8 +674,8 @@ void GameService::addManualGame(const QString& path)
             }
         }
 
-        QMetaObject::invokeMethod(this, [this, path, folderName, engine, matchedAppId]() {
-            finalizeManualGame(path, folderName, engine, matchedAppId);
+        QMetaObject::invokeMethod(this, [this, root, folderName, engine, matchedAppId]() {
+            finalizeManualGame(root, folderName, engine, matchedAppId);
         }, Qt::QueuedConnection);
     });
 }
@@ -628,6 +684,16 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
                                       const QString& engine, const QString& matchedAppId)
 {
     MAKINE_ZONE_NAMED("GameService::finalizeManualGame");
+
+    // Already in the library — added before, or found by a scan.
+    const QString canonicalPath = QFileInfo(path).canonicalFilePath();
+    for (const auto& game : m_games) {
+        if (QFileInfo(game.installPath).canonicalFilePath()
+                .compare(canonicalPath, Qt::CaseInsensitive) == 0) {
+            emit manualGameAdded(game.id);
+            return;
+        }
+    }
 
     // Retry matching on main thread — catalog may have loaded
     // since the background thread attempted matching
@@ -640,17 +706,19 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
         }
     }
 
-    // If still no match, try matching via ManifestSync catalog by name
-    if (resolvedAppId.isEmpty() && m_manifestSync) {
+    // If still no match, try matching via ManifestSync catalog by name. The
+    // whole name, not a part of it: "contains" took a folder named "Game" for
+    // the first catalog title with "game" in it.
+    const QString folderKey = normalizeGameName(folderName, Separators::Compact);
+    if (resolvedAppId.isEmpty() && m_manifestSync && !folderKey.isEmpty()) {
         const QVariantList catalog = m_manifestSync->catalog();
         const QString lowerFolder = folderName.toLower();
         for (const auto& item : catalog) {
             const QVariantMap entry = item.toMap();
-            const QString nameLower = entry.value(QStringLiteral("gameName")).toString().toLower();
+            const QString nameKey = normalizeGameName(
+                entry.value(QStringLiteral("gameName")).toString(), Separators::Compact);
             const QString dirLower = entry.value(QStringLiteral("dirName")).toString().toLower();
-            if (nameLower.contains(lowerFolder) ||
-                lowerFolder.contains(nameLower) ||
-                dirLower == lowerFolder) {
+            if (nameKey == folderKey || dirLower == lowerFolder) {
                 resolvedAppId = entry.value(QStringLiteral("steamAppId")).toString();
                 qCDebug(lcGameService) << "Manual game matched via ManifestSync:"
                          << folderName << "-> steamAppId:" << resolvedAppId;
@@ -673,7 +741,11 @@ void GameService::finalizeManualGame(const QString& path, const QString& folderN
         auto pkg = m_coreBridge ? m_coreBridge->getPackageForGame(resolvedAppId) : std::nullopt;
         game.name = (pkg.has_value()) ? pkg->gameName : folderName;
     } else {
-        game.id = QStringLiteral("manual_%1").arg(m_games.count() + 1);
+        // From the folder, not the library size: manual games outlive rescans,
+        // so a count-based id collided and re-pointed the existing game.
+        game.id = QStringLiteral("manual_") + QString::fromLatin1(
+            QCryptographicHash::hash(path.toLower().toUtf8(), QCryptographicHash::Sha1)
+                .toHex().left(12));
         game.name = folderName;
         game.hasTranslation = false;
         qCWarning(lcGameService) << "Manual game not matched to catalog:" << folderName;
@@ -1082,47 +1154,6 @@ void GameService::ensureSupportedGamesCache()
 
     // Pre-warm by calling supportedGames() which populates m_supportedGamesCache
     supportedGames();
-}
-
-bool GameService::isValidGamePath(const QString& path) const
-{
-    // Security: Check for path traversal attacks
-    if (path.contains("..") || path.contains("//") || path.contains("\\\\")) {
-        qCWarning(lcGameService) << "Path traversal attempt detected:" << path;
-        return false;
-    }
-
-    QFileInfo info(path);
-    if (!info.isAbsolute()) {
-        qCWarning(lcGameService) << "Relative path not allowed:" << path;
-        return false;
-    }
-
-    if (!info.isDir()) {
-        qCWarning(lcGameService) << "Path is not a directory:" << path;
-        return false;
-    }
-
-    // Check for suspicious paths (system directories)
-    const QString normalizedPath = info.absoluteFilePath().toLower();
-    static const QStringList forbiddenPaths = {
-        "c:/windows",
-        "c:/program files/common files",
-        "c:/programdata",
-        "/etc",
-        "/usr",
-        "/bin",
-        "/sbin"
-    };
-
-    for (const auto& forbidden : forbiddenPaths) {
-        if (normalizedPath.startsWith(forbidden)) {
-            qCWarning(lcGameService) << "Forbidden system path:" << path;
-            return false;
-        }
-    }
-
-    return true;
 }
 
 QVariantList GameService::getVariants(const QString& gameId)

@@ -66,6 +66,14 @@ target_include_directories(test_gamenamerules PRIVATE
 target_link_libraries(test_gamenamerules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_gamenamerules COMMAND test_gamenamerules)
 
+# What a hand-picked game folder is: its root, a library, or no game at all
+# (real directory trees under QTemporaryDir, no service construction)
+add_executable(test_gamefolderrules test_gamefolderrules.cpp)
+target_include_directories(test_gamefolderrules PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_gamefolderrules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_gamefolderrules COMMAND test_gamefolderrules)
+
 add_executable(test_installsteprules test_installsteprules.cpp)
 target_include_directories(test_installsteprules PRIVATE
     ${MAKINE_PROJECT_ROOT}/qml/src/services)

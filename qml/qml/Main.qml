@@ -678,10 +678,7 @@ ApplicationWindow {
     FolderDialog {
         id: manualFolderDialog
         title: qsTr("Oyun Klasörünü Seç")
-        onAccepted: {
-            var folderPath = selectedFolder.toString().replace("file:///", "")
-            GameService.addManualGame(folderPath)
-        }
+        onAccepted: GameService.addManualGame(selectedFolder.toString())
     }
 
     Connections {
@@ -693,6 +690,9 @@ ApplicationWindow {
             var engine = (gameData && gameData.engine) || "Unknown"
             var installPath = (gameData && gameData.installPath) || ""
             homeView.gameSelected(gameId, gameName, installPath, engine)
+        }
+        function onManualGameRejected(path, reason) {
+            gameToast.show("", "", qsTr("Oyun eklenemedi"), reason)
         }
     }
 
