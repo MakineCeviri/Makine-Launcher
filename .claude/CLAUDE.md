@@ -1,89 +1,18 @@
-# Makine-Launcher — Claude Context
+# Makine-Launcher — Claude bağlamı
 
-> **Qt6/QML + C++23 oyun çeviri launcher**
-> **Repo:** `origin` → MakineCeviri/Makine-Launcher (public, tek repo) · branches: `dev` (geliştirme, **sürüm etiketleri burada**) + `main` (varsayılan dal, **dev ile ortak geçmişi yok** — merge edilemez)
-> **Eski:** Makine-Launcher-Dev archived (read-only yedek, 2026-05-20)
-> **Durum (2026-09-23):** v0.1.5-beta kodu hazır, ZIP üretildi, **yayınlanmadı** · sonraki: v0.2.0 (büyük güncelleme)
-> **→ Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** (durum, kalan yayın adımları, tuzaklar)
-> **Blockers:** MSIX imzalı test + Store gönderimi (sertifika yalnız sahibinde)
-> **Telemetri:** iki kanal — sayım (`/api/v2/telemetry` → D1) + Sentry `makineceviri/makine-launcher`
-> (Sponsored Team, 50K/ay) · günlük körlük bekçisi (`main`'deki iş akışı) · `just telemetry-check` / `just telemetry-watch`
->
-> Build, conventions, gotchas → **`CLAUDE.md`** (proje kökü) · telemetri → `docs/telemetry.md` · 0.2.0 → `docs/v0.2.0-todo.md`
-> Operasyonel notlar (kimlik bilgisi düzeni, D1, push takılması…) → memory dosyaları (`~/.claude/projects/.../memory/`)
+<!-- Build, mimari, kurallar, tuzaklar → proje kökündeki CLAUDE.md (o da her oturum yüklenir; burada tekrarlama). -->
 
----
+> **Durum (2026-09-23):** v0.1.5-beta kodu hazır, ZIP üretildi, **yayınlanmadı** · sonraki: v0.2.0 (büyük güncelleme, `docs/v0.2.0-todo.md`)
+> **Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** — durum, kalan yayın adımları, tuzaklar.
+> **Blocker:** MSIX imzalı test + Store gönderimi (sertifika yalnız sahibinde).
+> **Eski depo:** Makine-Launcher-Dev arşivli (read-only yedek, 2026-05-20).
 
-## Kalıcı bilgi — CEDRA Brain
+- **Telemetri:** iki kanal — sayım (`/api/v2/telemetry` → D1) + Sentry `makineceviri/makine-launcher` (Sponsored Team, 50K/ay) · günlük körlük bekçisi (`main`'deki iş akışı) · `just telemetry-check` / `just telemetry-watch` · ayrıntı `docs/telemetry.md`.
+- **Operasyonel notlar** (kimlik bilgisi düzeni, D1, push takılması, Sentry kotası…) → auto-memory (`MEMORY.md` dizini her oturum yüklenir).
+- **Eski ekip notları** (`.makine` paketleme + R2/D1/CDN yayın süreci, MSIX kimlik/sürümleme, encryption key değişmezliği, Sentry sessiz hata modları — 20 not) → brain `team-memory` katmanı. SCFramework'te öğrenilen Qt tuzakları (`qt-automoc-stale-cache`, `qt-extra-column-proxy-pattern`) burada da ısırır — konuyu ara.
+- Yeni öğrenilen → bu dosyaya, kök `CLAUDE.md`'ye ya da `docs/`'a yaz, sonra `bash C:/Workspace/ops/cedra-brain/refresh-brain.sh Makine-Launcher`.
 
-Ekip hafızası (`memory` MCP) 2026-09-23'te bırakıldı; okunmaz, yazılmaz. Araştırmaya başlamadan
-önce `cedra-brain` → `query_graph "<konu>"`.
-
-- Eski ekip notları (bu projeyi ilgilendiren 20 not: `.makine` paketleme + R2/D1/CDN yayın süreci,
-  MSIX kimlik ve sürümleme, encryption key değişmezliği, Sentry sessiz hata modları...) brain'in
-  `team-memory` katmanında **donmuş arşiv** olarak duruyor.
-- **Qt/QML/MinGW tuzakları projeler arası geçerli** — SCFramework'te öğrenilenler (ör.
-  `qt-automoc-stale-cache`, `qt-extra-column-proxy-pattern`) burada da ısırır; projeyi değil konuyu ara.
-- Yeni bir şey öğrenince: bu dosyaya, `CLAUDE.md`'ye ya da `docs/`'a yaz, sonra
-  `bash C:/Workspace/ops/cedra-brain/refresh-brain.sh Makine-Launcher`.
-- Detaylı kurallar → global `CLAUDE.md` › *Kalıcı bilgi — yalnız CEDRA Brain*.
-
-## Agents
-
-| Agent | Domain | Model |
-|-------|--------|-------|
-| `core-dev` | C++ core, CMake, vcpkg | opus |
-| `ui-dev` | QML, frontend services, theme | sonnet |
-| `qa` | Pre-release: build → test → lint → audit | — |
-| `ops` | CMake, justfile, build system | — |
-| `refactor` | Code cleanup, restructuring | — |
-| `perf` | Profiling, optimization | — |
-
-## Skills
-
-| Category | Commands |
-|----------|----------|
-| **Build & Run** | `/build` `/test` `/verify` `/format` `/lint` |
-| **Analysis** | `/inspect` `/ui-check` `/security-scan` `/deps` `/doctor` |
-| **Project** | `/git-overview` `/quick-status` `/changelog` `/manifest-check` `/scan-refs` |
-
-## Hookify Rules (8 active)
-
-| Rule | Action | Trigger |
-|------|--------|---------|
-| `protect-personal-workspace` | block | Writes to `C:\Workspace\Cedra\` |
-| `protect-secrets` | block | `.env`, `encryption_key.h`, `*.pem`, `*.pfx`, `*.key` |
-| `block-regex-header` | block | `#include <regex>` (broken on MinGW 13.1) |
-| `block-theme-background` | block | `Theme.background` → use `Theme.bgPrimary` |
-| `block-desktop-output` | block | Build artifacts to Desktop |
-| `protect-ui-design` | warn | Animations, MultiEffect, gradients |
-| `block-hardcoded-paths` | block | Absolute paths in source code |
-| `block-large-files` | warn | `git add` without size check (>5 MB → CDN) |
-
-## Permissions
-
-### Allowed (auto-approve)
-`cmake`, `just`, `ctest`, `git status/diff/log/branch/stash`, `ls`, `clang-format`, context-mode MCP tools
-
-### Denied (hard block)
-Read/Write/Edit: `.env*`, `encryption_key.h`, `scripts/certs/**`, `*.pem`, `*.pfx`, `*.key`, `*.p12`, `credentials.json`
-
-## Plugins
-
-| Plugin | Status | Purpose |
-|--------|--------|---------|
-| `clangd-lsp` | enabled | C++ intellisense, diagnostics |
-| `pyright-lsp` | disabled | Not a Python project |
-| `rust-analyzer-lsp` | disabled | Not a Rust project |
-| `typescript-lsp` | disabled | Not a TypeScript project |
-| `frontend-design` | disabled | Not using web frontend |
-
-## Secrets — NEVER commit
-
-`qml/src/services/encryption_key.h` · `.env` · `scripts/certs/**` · `*.pem` · `*.pfx` · `*.key`
-
-## Defense Layers
-
-```
-hookify (PreToolUse) → post-edit (PostToolUse) → pre-commit → pre-push
-```
+## Bu projede açık araçlar
+- **Skill'ler** (`.claude/settings.local.json` yalnız burada açar): `/build` `/test` `/verify` `/format` `/lint` · `/inspect` `/ui-check` `/security-scan` `/deps` `/makine-doctor` · `/changelog` `/manifest-check` `/scan-refs` · `/deploy` `/run` `/release-prep` `/perf-check` (son dördü kullanıcı-tetikli). Qt API: `qt-*` skill'leri (qt-development-skills eklentisi bu projede açık).
+- **Agent'lar:** `core-dev` (C++ core, CMake, vcpkg) · `ui-dev` (QML, servisler, tema) · `qa` (yayın öncesi build → test → lint, salt okunur).
+- **Korumalar:** `post-edit-check.sh` (QML/C++/CMake düzenlemelerinde otomatik denetim) → git `pre-commit` → `pre-push`. Secret dosyaları (`.env*`, `encryption_key.h`, `scripts/certs/**`, `*.pem` `*.pfx` `*.key` `*.p12`, `credentials.json`) okunmaz, yazılmaz.
