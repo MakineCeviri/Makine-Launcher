@@ -62,6 +62,16 @@ struct JournalEntry {
 };
 
 /**
+ * @brief Where recovery finds what an interrupted operation touched outside
+ * the journal itself
+ */
+struct RecoveryPaths {
+    fs::path installedState;  // installed_packages.json (uninstall recovery)
+    fs::path backupsRoot;     // <backupsRoot>/<gameId>/<backupId>/<relative path>
+    fs::path desktopDir;      // where "_desktop:" entries were copied
+};
+
+/**
  * @brief Recovery result for a single operation
  */
 struct RecoveryResult {
@@ -143,23 +153,29 @@ public:
      * @brief Recover from a crashed operation
      *
      * Dispatches to the appropriate recovery handler based on operation type.
-     * Deletes the journal file after recovery attempt.
+     * Never throws. A recovery that succeeded deletes the journal; one that
+     * failed moves it aside (failedJournalPath()) so the next launch does not
+     * run into it again and the evidence survives.
      *
-     * @param installedStatePath Path to installed_packages.json (for uninstall recovery)
      * @return Recovery result
      */
-    RecoveryResult recover(const fs::path& installedStatePath = {});
+    RecoveryResult recover(const RecoveryPaths& paths = {});
 
     /**
      * @brief Get the journal file path
      */
     [[nodiscard]] fs::path journalPath() const;
 
+    /**
+     * @brief Where a journal whose recovery failed is kept
+     */
+    [[nodiscard]] fs::path failedJournalPath() const;
+
 private:
     void flushJournal();
     void deleteJournal();
 
-    RecoveryResult recoverInstall(const JournalEntry& entry);
+    RecoveryResult recoverInstall(const JournalEntry& entry, const RecoveryPaths& paths);
     RecoveryResult recoverUninstall(const JournalEntry& entry, const fs::path& installedStatePath);
     RecoveryResult recoverBackupCreate(const JournalEntry& entry);
     RecoveryResult recoverBackupRestore(const JournalEntry& entry);

@@ -104,7 +104,7 @@ OperationJournal::OperationJournal(QObject *parent)
     QString dir = AppPaths::dataDir();
     QDir().mkpath(dir);
     m_journal = std::make_unique<recovery::CrashRecoveryJournal>(
-        dir.toStdString());
+        dir.toStdWString());
 #endif
 }
 
@@ -155,9 +155,13 @@ bool OperationJournal::recover()
     MAKINE_ZONE_NAMED("Journal::recover");
     if (!hasPendingOperation()) return true;
 
-    QString statePath = AppPaths::installedPackagesFile();
+    recovery::RecoveryPaths paths;
+    paths.installedState = AppPaths::installedPackagesFile().toStdWString();
+    paths.backupsRoot = AppPaths::backupsDir().toStdWString();
+    paths.desktopDir =
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).toStdWString();
 
-    auto result = m_journal->recover(statePath.toStdString());
+    auto result = m_journal->recover(paths);
 
     QString msg = result.success
         ? tr("Yarım kalan işlem temizlendi")
@@ -167,8 +171,9 @@ bool OperationJournal::recover()
         msg += " (" + QString::fromStdString(result.message) + ")";
     }
 
-    qCDebug(lcJournal) << "OperationJournal: recovery" << (result.success ? "succeeded" : "failed")
-             << "-" << result.filesProcessed << "files processed";
+    qCInfo(lcJournal) << "OperationJournal: recovery" << (result.success ? "succeeded" : "failed")
+             << "-" << result.filesProcessed << "files processed -"
+             << QString::fromStdString(result.message);
     emit recoveryCompleted(result.success, msg);
     return result.success;
 }

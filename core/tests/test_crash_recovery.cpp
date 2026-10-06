@@ -13,7 +13,9 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
+#include <vector>
 
 namespace makine {
 namespace testing {
@@ -281,39 +283,100 @@ TEST_F(CrashRecoveryTest, JournalPathWithinDataDir) {
 // Recovery
 // =============================================================================
 
-TEST_F(CrashRecoveryTest, RecoverInstallCrashRemovesOrphanedFiles) {
-    // Set up: a game directory with files that were partially installed
-    auto gamePath = testDir_ / "game_install";
-    fs::create_directories(gamePath / "data");
+// Writes the journal an install leaves behind when the process dies halfway:
+// begin, the records, and the flush a crash would never get to do.
+void writeCrashedInstall(const fs::path& dataDir, const std::string& gameId,
+                         const fs::path& gamePath, const std::vector<std::string>& records) {
+    CrashRecoveryJournal writer(dataDir);
+    JournalEntry entry;
+    entry.type = OperationType::Install;
+    entry.gameId = gameId;
+    entry.gamePath = gamePath.string();
+    writer.beginOperation(entry);
+    for (const auto& r : records) writer.recordFileModified(r);
+    // Records reach the disk every 20 files; a flush through a new begin is
+    // not possible while active, so pad to the interval.
+    for (int i = static_cast<int>(records.size()); i % 20 != 0; ++i)
+        writer.recordFileModified("_pad:" + std::to_string(i));
+}
 
-    createFile(gamePath / "data" / "localization.pak", "fake pak data");
-    createFile(gamePath / "data" / "strings.txt", "fake strings");
+std::string readFile(const fs::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
 
-    // Simulate a crashed install that recorded these files
-    {
-        CrashRecoveryJournal writer(testDir_);
+// The install journals every file it writes — the originals it replaced as
+// well as the files it added. Recovery used to delete them all and left the
+// game without files it shipped with. Originals come back from the backup
+// taken before the install; only what the patch added goes.
+TEST_F(CrashRecoveryTest, RecoverInstallRestoresOriginalsAndRemovesAddedFiles) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const auto desktop = testDir_ / "desktop";
 
-        JournalEntry entry;
-        entry.type = OperationType::Install;
-        entry.gameId = "game_install_crash";
-        entry.gamePath = gamePath.string();
+    createFile(gamePath / "data" / "localization.pak", "patched pak");     // replaced
+    createFile(gamePath / "data" / "tr_strings.txt", "added by patch");    // added
+    createFile(gamePath / "game.exe.bak", "original exe");                 // renamed away
+    createFile(gamePath / "game.exe", "patched exe");                      // written in its place
+    createFile(desktop / "Oyun TR.exe", "desktop copy");
 
-        writer.beginOperation(entry);
-        writer.recordFileModified("data/localization.pak");
-        writer.recordFileModified("data/strings.txt");
-        // Force flush by destroying (simulated crash)
-    }
+    createFile(backupsRoot / "123" / "a1b2c3d4" / "data" / "localization.pak", "original pak");
+    createFile(backupsRoot / "123" / "a1b2c3d4" / "game.exe", "original exe");
 
-    // Recover: should remove the orphaned files
+    writeCrashedInstall(testDir_, "123", gamePath, {
+        "data/localization.pak",
+        "data/tr_strings.txt",
+        "_rename:game.exe:game.exe.bak",
+        "game.exe",
+        "_desktop:Oyun TR.exe",
+    });
+
     CrashRecoveryJournal journal(testDir_);
-    EXPECT_TRUE(journal.hasPendingOperation());
+    const auto result = journal.recover({.backupsRoot = backupsRoot, .desktopDir = desktop});
 
-    auto result = journal.recover();
-    EXPECT_TRUE(result.success);
-    EXPECT_FALSE(result.message.empty());
-
-    // Journal file should be deleted after recovery
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(gamePath / "data" / "localization.pak"), "original pak");
+    EXPECT_FALSE(fs::exists(gamePath / "data" / "tr_strings.txt"));
+    EXPECT_EQ(readFile(gamePath / "game.exe"), "original exe");
+    EXPECT_FALSE(fs::exists(gamePath / "game.exe.bak"));
+    EXPECT_FALSE(fs::exists(desktop / "Oyun TR.exe"));
     EXPECT_FALSE(journal.hasPendingOperation());
+    EXPECT_FALSE(fs::exists(journal.failedJournalPath()));
+}
+
+// Without a backup there is no telling an added file from a replaced
+// original. Deleting would destroy originals, so nothing is touched, and the
+// journal is kept aside instead of being retried on every launch.
+TEST_F(CrashRecoveryTest, RecoverInstallWithoutBackupLeavesFilesAndKeepsJournalAside) {
+    const auto gamePath = testDir_ / "game";
+    createFile(gamePath / "data" / "localization.pak", "patched pak");
+
+    writeCrashedInstall(testDir_, "456", gamePath, {"data/localization.pak"});
+
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.backupsRoot = testDir_ / "backups"});
+
+    EXPECT_FALSE(result.success);
+    EXPECT_TRUE(fs::exists(gamePath / "data" / "localization.pak"));
+    EXPECT_FALSE(journal.hasPendingOperation());
+    EXPECT_TRUE(fs::exists(journal.failedJournalPath()));
+}
+
+// A journal record never reaches outside the game folder.
+TEST_F(CrashRecoveryTest, RecoverInstallIgnoresRecordsOutsideGameFolder) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    createFile(gamePath / "game.exe", "exe");
+    createFile(testDir_ / "outside.txt", "not ours");
+    createFile(backupsRoot / "789" / "b1" / "game.exe", "exe");
+
+    writeCrashedInstall(testDir_, "789", gamePath, {"../outside.txt"});
+
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.backupsRoot = backupsRoot});
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_TRUE(fs::exists(testDir_ / "outside.txt"));
 }
 
 TEST_F(CrashRecoveryTest, RecoverInstallCrashWithModifiedFilesInJournal) {

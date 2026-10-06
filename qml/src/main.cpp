@@ -1015,7 +1015,19 @@ static void createServices(
     auto* journal = new OperationJournal(&app);
     if (journal->hasPendingOperation()) {
         qCDebug(lcApp) << "OperationJournal: recovering from interrupted operation...";
-        journal->recover();
+        const JournalEntry pending = journal->readPendingOperation();
+        if (!journal->recover()) {
+            // The game may be left half patched; nobody would know otherwise.
+            const char* operation = "install";
+            switch (pending.type) {
+            case OpType::Install:       operation = "install"; break;
+            case OpType::Uninstall:     operation = "uninstall"; break;
+            case OpType::BackupCreate:  operation = "backup"; break;
+            case OpType::BackupRestore: operation = "restore"; break;
+            }
+            makine::CrashReporter::reportFailure(operation, pending.gameId,
+                QStringLiteral("interrupted operation could not be rolled back"));
+        }
     }
     outJournal = journal;
 #ifdef Q_OS_WIN

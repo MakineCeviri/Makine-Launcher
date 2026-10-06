@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <exception>
 #include <fstream>
 #include <mutex>
 #include <set>
@@ -71,6 +72,44 @@ fs::path windowsFontsDir() {
 }
 #endif
 
+// A journal record that names a file inside the game folder, not one that
+// climbs out of it.
+bool isContainedRelative(const fs::path& rel) {
+    if (rel.empty() || rel.has_root_name() || rel.has_root_directory()) return false;
+    for (const auto& part : rel) {
+        if (part == "..") return false;
+    }
+    return true;
+}
+
+// Markers the installer journals beside plain paths: "_font:", "_desktop:",
+// "_rename:", "_vpatch:", "_steamlang:". A Windows file name cannot hold ':',
+// so a record starting with '_' and carrying one is never a real path.
+bool isMarker(const std::string& record) {
+    return record.starts_with('_') && record.find(':') != std::string::npos;
+}
+
+// The newest backup taken for the game — the one taken right before the
+// install that was interrupted. Empty when the game has none.
+fs::path newestBackupDir(const fs::path& backupsRoot, const std::string& gameId) {
+    if (backupsRoot.empty() || gameId.empty()) return {};
+    std::error_code ec;
+    fs::path newest;
+    fs::file_time_type newestTime{};
+    for (fs::directory_iterator it(backupsRoot / gameId, ec), end; !ec && it != end;
+         it.increment(ec)) {
+        std::error_code entryEc;
+        if (!it->is_directory(entryEc)) continue;
+        const auto when = fs::last_write_time(it->path(), entryEc);
+        if (entryEc) continue;
+        if (newest.empty() || when > newestTime) {
+            newest = it->path();
+            newestTime = when;
+        }
+    }
+    return newest;
+}
+
 } // anonymous namespace
 
 CrashRecoveryJournal::CrashRecoveryJournal(const fs::path& dataDir)
@@ -82,6 +121,10 @@ CrashRecoveryJournal::CrashRecoveryJournal(const fs::path& dataDir)
 
 fs::path CrashRecoveryJournal::journalPath() const {
     return dataDir_ / "pending_operation.json";
+}
+
+fs::path CrashRecoveryJournal::failedJournalPath() const {
+    return dataDir_ / "pending_operation.failed.json";
 }
 
 bool CrashRecoveryJournal::beginOperation(const JournalEntry& entry) {
@@ -172,7 +215,7 @@ JournalEntry CrashRecoveryJournal::readPendingOperation() const {
     return entry;
 }
 
-RecoveryResult CrashRecoveryJournal::recover(const fs::path& installedStatePath) {
+RecoveryResult CrashRecoveryJournal::recover(const RecoveryPaths& paths) {
     if (!hasPendingOperation()) {
         return {true, 0, "No pending operation"};
     }
@@ -189,23 +232,37 @@ RecoveryResult CrashRecoveryJournal::recover(const fs::path& installedStatePath)
     MAKINE_LOG_INFO(log::CORE, "CrashRecoveryJournal: recovering {} for game {}",
                       operationTypeToString(entry.type), entry.gameId);
 
+    // A throw here used to skip deleteJournal(): the next launch ran into the
+    // same journal and threw again, on every start.
     RecoveryResult result;
-    switch (entry.type) {
-        case OperationType::Install:
-            result = recoverInstall(entry);
-            break;
-        case OperationType::Uninstall:
-            result = recoverUninstall(entry, installedStatePath);
-            break;
-        case OperationType::BackupCreate:
-            result = recoverBackupCreate(entry);
-            break;
-        case OperationType::BackupRestore:
-            result = recoverBackupRestore(entry);
-            break;
+    try {
+        switch (entry.type) {
+            case OperationType::Install:
+                result = recoverInstall(entry, paths);
+                break;
+            case OperationType::Uninstall:
+                result = recoverUninstall(entry, paths.installedState);
+                break;
+            case OperationType::BackupCreate:
+                result = recoverBackupCreate(entry);
+                break;
+            case OperationType::BackupRestore:
+                result = recoverBackupRestore(entry);
+                break;
+        }
+    } catch (const std::exception& e) {
+        result = {false, 0, fmt::format("Recovery threw: {}", e.what())};
     }
 
-    deleteJournal();
+    if (result.success) {
+        deleteJournal();
+    } else {
+        // Kept aside rather than deleted: it is the only record of what was
+        // left half done, and retrying it on every launch would not help.
+        std::error_code ec;
+        fs::rename(journalPath(), failedJournalPath(), ec);
+        if (ec) deleteJournal();
+    }
 
     MAKINE_LOG_INFO(log::CORE, "CrashRecoveryJournal: recovery {} ({} files processed)",
                       result.success ? "succeeded" : "failed", result.filesProcessed);
@@ -214,37 +271,97 @@ RecoveryResult CrashRecoveryJournal::recover(const fs::path& installedStatePath)
 
 // --- Recovery implementations ---
 
-RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry) {
-    if (entry.gamePath.empty() || !fs::exists(entry.gamePath)) {
+RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry,
+                                                    const RecoveryPaths& paths) {
+    std::error_code ec;
+    if (entry.gamePath.empty() || !fs::exists(entry.gamePath, ec)) {
         return {false, 0, fmt::format("Game path missing: {}", entry.gamePath)};
     }
+    const fs::path gamePath(entry.gamePath);
+    const fs::path backup = newestBackupDir(paths.backupsRoot, entry.gameId);
 
-    int deleted = 0;
-    std::error_code ec;
+    // The journal lists every file the install wrote, originals it replaced
+    // included; deleting them all left the game without files it shipped
+    // with. Only the backup tells the two apart, so without one nothing is
+    // touched.
+    if (backup.empty()) {
+        if (entry.modifiedFiles.empty()) return {true, 0, "Nothing to undo"};
+        return {false, 0, fmt::format(
+            "No backup for {}; {} written files left in place",
+            entry.gameId, entry.modifiedFiles.size())};
+    }
 
-    for (const auto& relPath : entry.modifiedFiles) {
-        // Font entries: "_font:filename.ttf"
-        if (relPath.starts_with("_font:")) {
+    int processed = 0;
+    int failed = 0;
+    const auto count = [&](bool ok) { ok ? ++processed : ++failed; };
+
+    // Newest first: a later step may have written where an earlier one
+    // renamed a file away from.
+    for (auto it = entry.modifiedFiles.rbegin(); it != entry.modifiedFiles.rend(); ++it) {
+        const std::string& record = *it;
+
+        if (record.starts_with("_font:")) {
 #ifdef _WIN32
-            auto fontDir = windowsFontsDir();
-            if (!fontDir.empty()) {
-                auto fontPath = fontDir / relPath.substr(6);
-                if (fs::remove(fontPath, ec)) {
-                    deleted++;
-                }
-            }
+            const auto fontDir = windowsFontsDir();
+            if (!fontDir.empty() && fs::remove(fontDir / record.substr(6), ec)) ++processed;
 #endif
             continue;
         }
-
-        auto fullPath = fs::path(entry.gamePath) / relPath;
-        if (fs::remove(fullPath, ec)) {
-            deleted++;
+        if (record.starts_with("_desktop:")) {
+            if (!paths.desktopDir.empty() && fs::remove(paths.desktopDir / record.substr(9), ec))
+                ++processed;
+            continue;
         }
+        if (record.starts_with("_rename:")) {
+            // "_rename:<from>:<to>" — put <to> back under its original name
+            const std::string names = record.substr(8);
+            const auto colon = names.find(':');
+            if (colon == std::string::npos) continue;
+            const fs::path from(names.substr(0, colon));
+            const fs::path to(names.substr(colon + 1));
+            if (!isContainedRelative(from) || !isContainedRelative(to)) continue;
+            if (!fs::exists(gamePath / to, ec)) continue;
+            fs::remove(gamePath / from, ec);
+            fs::rename(gamePath / to, gamePath / from, ec);
+            count(!ec);
+            continue;
+        }
+        // "_vpatch:" targets are originals patched in place: the backup holds
+        // them and puts them back below. Other markers leave nothing in the
+        // game folder to undo.
+        if (isMarker(record)) continue;
+
+        const fs::path rel(record);
+        if (!isContainedRelative(rel)) continue;
+        if (fs::exists(backup / rel, ec)) continue;  // an original — restored below
+        if (fs::remove(gamePath / rel, ec)) ++processed;
+        else if (ec) ++failed;
     }
 
-    return {true, deleted,
-        fmt::format("Removed {} orphaned files from install", deleted)};
+    // Every original the install was about to overwrite. Copying all of them
+    // back also covers files written after the journal's last flush.
+    for (fs::recursive_directory_iterator it(backup, ec), end; !ec && it != end; it.increment(ec)) {
+        std::error_code fileEc;
+        if (!it->is_regular_file(fileEc)) continue;
+        const fs::path rel = fs::relative(it->path(), backup, fileEc);
+        if (fileEc || !isContainedRelative(rel)) continue;
+        const fs::path dest = gamePath / rel;
+        fs::create_directories(dest.parent_path(), fileEc);
+        // overwrite_existing fails on MinGW's libstdc++ when the target exists
+        fs::remove(dest, fileEc);
+        fs::copy_file(it->path(), dest, fileEc);
+        count(!fileEc);
+    }
+    if (ec) ++failed;
+
+    if (failed > 0) {
+        return {false, processed, fmt::format(
+            "Install rollback incomplete: {} undone, {} failed (backup {})",
+            processed, failed, backup.filename().string())};
+    }
+    return {true, processed, fmt::format(
+        "Rolled back interrupted install: {} files (backup {})",
+        processed, backup.filename().string())};
 }
 
 RecoveryResult CrashRecoveryJournal::recoverUninstall(
