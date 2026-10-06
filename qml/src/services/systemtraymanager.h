@@ -48,7 +48,6 @@ signals:
     void pendingUpdatesChanged();
     void backgroundCheckEnabledChanged();
     void updateCheckRequested();
-    void contextMenuRequested(int x, int y);
 
 private:
     void updateTooltip();

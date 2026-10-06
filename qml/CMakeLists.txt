@@ -185,15 +185,6 @@ endif()
 set_source_files_properties(qml/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/theme/Dimensions.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-# Showcase images (resources/showcase/*.jpg) were embedded here but are
-# referenced by NOTHING in the codebase — game headers come from the Steam
-# CDN via GameService::steamHeroUrl/steamCoverUrl. The 146-file / ~24 MB
-# embed generated a ~132 MB qrc .cpp that MinGW cc1plus -O3 could not
-# compile (OOM, ~2 GB single allocation), blocking every MinGW build, and
-# bloated the EXE for zero functional gain. Removed: build unblock + binary
-# slim-down. Files remain on disk; if a real consumer is ever added, embed
-# them via a dedicated qt_add_resources(... BIG_RESOURCES) target instead.
-
 qt_add_qml_module(MakineLauncher
     URI MakineLauncher
     VERSION 1.0
@@ -217,16 +208,13 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/GameDetailOverlay.qml
         qml/screens/detail/ContributorsSection.qml
         qml/screens/detail/RuntimeSection.qml
-        qml/screens/detail/BackupSection.qml
         qml/screens/detail/InfoTilesBar.qml
 
         # Screens - Settings Panels
         qml/screens/settings/GeneralSettings.qml
         qml/screens/settings/DisplaySettings.qml
-        qml/screens/settings/BackupsSettings.qml
         qml/screens/settings/PluginsSettings.qml
         qml/screens/settings/PluginSettingsPage.qml
-        qml/screens/settings/PerformanceSettings.qml
         qml/screens/settings/AboutSettings.qml
 
         # Screens - Onboarding Steps
@@ -243,11 +231,9 @@ qt_add_qml_module(MakineLauncher
         #
         # Cards: Data display containers
         qml/components/GameCard.qml              # Game item in grid/list
-        qml/components/GameCardSkeleton.qml      # Loading placeholder for GameCard
         qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
         qml/components/GameDetectionCard.qml      # Game detection status + manual add
         qml/components/GameToast.qml               # Overlay notification for detected games
-        qml/components/ProjectShowcaseCard.qml    # Showcase project display
         #
         # Navigation: Window chrome and nav
         qml/components/TitleBar.qml               # Custom frameless title bar
@@ -263,7 +249,6 @@ qt_add_qml_module(MakineLauncher
         # Visual: Decorative and feedback
         qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip
         qml/components/AppBackground.qml          # Premium accent-aware ambient background
-        qml/components/SkeletonLoader.qml         # Generic loading skeleton
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         qml/components/RegionSelector.qml         # Full-screen rubber-band OCR region selector
         qml/components/TranslationOverlay.qml     # Frameless overlay window for OCR results
@@ -275,17 +260,11 @@ qt_add_qml_module(MakineLauncher
         qml/components/SettingsSidebar.qml        # Settings nav sidebar
         qml/components/SettingsDivider.qml        # Settings section divider
         qml/components/ToggleSetting.qml          # Toggle switch setting
-        qml/components/ThemeSetting.qml           # Theme picker setting
-        qml/components/InfoSettingWithBadge.qml   # Info display with badge
-        qml/components/DisabledSetting.qml        # Disabled/coming-soon setting
         qml/components/ClickableRow.qml           # Clickable list row
-        qml/components/CategoryItem.qml           # Category filter item
         qml/components/BatchOperationsPanel.qml   # Batch ops control
         qml/components/PerformanceMonitor.qml     # Dev-only perf overlay
-        qml/components/EmptyState.qml             # Reusable empty/zero-data state
         qml/components/FocusRing.qml              # Keyboard focus indicator
         qml/components/StyledScrollBar.qml        # Themed scrollbar
-        qml/components/TrayPopup.qml              # System tray context menu
         qml/components/GradientBorder.qml         # Apple-style gradient border
         qml/components/HorizontalGameStrip.qml  # Horizontal scrolling game card strip
 

@@ -94,16 +94,6 @@ QtObject {
         pendingVariantData = null
     }
 
-    // ===== DOWNLOAD CALLBACKS (connected from Main.qml) =====
-
-    function onDownloadReady(appId) {
-        InstallFlowService.onDownloadReady(appId)
-    }
-
-    function onDownloadFailed(appId, error) {
-        InstallFlowService.onDownloadFailed(appId, error)
-    }
-
     // ===== PACKAGE DETAIL CALLBACK =====
 
     function onPackageDetailEnriched(appId) {
@@ -119,10 +109,5 @@ QtObject {
             detectedSystems: antiCheatData.systems
         }
         showAntiCheatWarning()
-    }
-
-    // ===== EXTERNAL TRIGGER: Translation impact =====
-    function onTranslationImpactDetected(gameId, gameName, impact) {
-        // Handled separately via updateAlertLoader — just a pass-through signal
     }
 }

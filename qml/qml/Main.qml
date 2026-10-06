@@ -102,24 +102,6 @@ ApplicationWindow {
     }
 
     // ===== SYSTEM TRAY =====
-    TrayPopup {
-        id: trayPopup
-        onShowRequested: {
-            window.show(); window.raise(); window.requestActivate()
-        }
-        onCheckUpdatesRequested: UpdateService.check()
-        onSettingsRequested: {
-            window.show(); window.raise(); window.requestActivate()
-            window.currentNavIndex = 2
-            contentStackContainer.navigateTo(1)
-        }
-        onQuitRequested: {
-            window.forceQuit = true
-            if (!window.visible) window.show()
-            window.close()
-        }
-    }
-
     Connections {
         target: SystemTrayManager
         function onShowWindowRequested() {
@@ -131,6 +113,8 @@ ApplicationWindow {
         }
         function onSettingsRequested() {
             window.show(); window.raise(); window.requestActivate()
+            window.currentNavIndex = 2
+            contentStackContainer.navigateTo(1)
         }
         function onUpdateCheckRequested() {
             UpdateService.check()
