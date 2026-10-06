@@ -2,8 +2,8 @@
 
 <!-- Build, mimari, kurallar, tuzaklar → proje kökündeki CLAUDE.md (o da her oturum yüklenir; burada tekrarlama). -->
 
-> **Durum (2026-09-23):** v0.1.5-beta kodu hazır, ZIP üretildi, **yayınlanmadı** · sonraki: v0.2.0 (büyük güncelleme, `docs/v0.2.0-todo.md`)
-> **Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** — durum, kalan yayın adımları, tuzaklar.
+> **Durum (2026-10-06):** v0.1.5-beta **yayınlanmadı** — `a4d5b37`'den yayınlanacak, `dev`'in ucundan değil · `dev` v0.2.0'da: kod sağlığı turu bitti, CI açık (`docs/v0.2.0-todo.md` → "Kod sağlığı")
+> **Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** (en üstteki 2026-10-06 güncellemesi dahil) — durum, kalan yayın adımları, tuzaklar.
 > **Blocker:** MSIX imzalı test + Store gönderimi (sertifika yalnız sahibinde).
 > **Eski depo:** Makine-Launcher-Dev arşivli (read-only yedek, 2026-05-20).
 
