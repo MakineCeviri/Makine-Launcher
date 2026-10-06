@@ -8,7 +8,7 @@
 // a checksum and compressedChecksum never reached the C++ side at all. The
 // project believed otherwise because SecurityConfig::verifyChecksums defaults
 // to true — a field nothing has ever read, along with the other five in that
-// struct, which went with the rest of the unused core in 0.2.0. The
+// struct, which went with the rest of the unused core in 0.1.5-beta. The
 // only integrity gate on a 600 MB download was the AES-GCM auth tag inside
 // MKPK — which catches corruption, but only after the whole file has been
 // decrypted, and reports it as "paket bozuk" with no way to tell a truncated

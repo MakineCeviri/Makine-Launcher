@@ -7,7 +7,7 @@ Makine-Launcher C++ Core kütüphanesinin (`core/`, `makine_core` statik kütüp
 > (eklenti API'si, paket kataloğu tipleri) kullanılır, `OperationJournal` ve
 > `IntegrityService` kendi Qt yedek kodlarına düşer.
 >
-> 0.2.0'da launcher'ın hiç çağırmadığı modüller (oyun algılayıcı, yama motoru, SQLite
+> 0.1.5-beta'da launcher'ın hiç çağırmadığı modüller (oyun algılayıcı, yama motoru, SQLite
 > veritabanı, runtime/güvenlik yöneticisi, SSL pinning, `Core` singleton'ı...) silindi.
 > Oyun tarama, VDF ayrıştırma ve kurulum servis katmanındadır (`qml/src/services/`).
 

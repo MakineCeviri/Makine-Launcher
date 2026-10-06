@@ -200,7 +200,7 @@ hızlı QML iterasyonu gerektiğinde kullanılır.
 |-----|--------|-------|
 | [0001](../adr/0001-native-cpp-architecture.md) | Native C++ Architecture | Geçerli |
 | [0002](../adr/0002-result-based-error-handling.md) | Result-based Error Handling | Geçerli |
-| [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Tarihsel (kütüphaneler 0.2.0'da kaldırıldı) |
+| [0004](../adr/0004-optional-library-integration.md) | Optional Library Integration | Tarihsel (kütüphaneler 0.1.5-beta'da kaldırıldı) |
 | [0006](../adr/0006-adaptation-engine-direction.md) | Adaptation Engine Direction | Geçerli |
 | [0007](../adr/0007-memory-translation-extractor.md) | Memory Translation Extractor | Geçerli |
 

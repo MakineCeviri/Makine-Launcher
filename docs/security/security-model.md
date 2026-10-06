@@ -5,7 +5,7 @@ Makine-Launcher güvenlik mimarisi ve politikaları.
 > **Durum:** Bu doküman hedef güvenlik mimarisini tanımlar.
 > Paket imzalama, sunucu dağıtımı ve HTTPS entegrasyonu henüz implemente edilmemiştir.
 > Yedekleme, dosya izinleri ve anti-cheat tespiti aktiftir. Audit logging ve şifreli yerel
-> veritabanı 0.2.0'da kullanılmayan core modülleriyle birlikte kaldırıldı.
+> veritabanı 0.1.5-beta'da kullanılmayan core modülleriyle birlikte kaldırıldı.
 
 ---
 

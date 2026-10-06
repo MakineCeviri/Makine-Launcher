@@ -130,7 +130,7 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ---
 
-## [0.1.5-beta] - 2026-09-21
+## [0.1.5-beta] - 2026-10-06
 
 ### Eklenen
 - **Doğrudan kurulum paketi** — Qt çalışma zamanını içinde taşıyan `Makine-Launcher-v0.1.5-beta-win64.zip`, GitHub Releases'te yayımlanıyor (`just release-zip-dynamic`, `scripts/make_release_zip.ps1`)
@@ -142,6 +142,8 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - **İşlem sonucu sayımı** — Her işlemin sonucu (başarı dahil) `TelemetryService` ile kotasız kendi ucumuza (`/api/v2/telemetry`, şema v2) gidiyor; çevrimdışıyken diske yazılıp sonra gönderiliyor
 - **Sentry kapısı** — Desteklenmeyen kurulum retleri Sentry'ye gitmiyor, aynı hata kurulum başına günde bir kez, oturum başına en fazla 30 olay (`telemetryrules.h`)
 - **Telemetri bekçisi** — `scripts/telemetry_watchdog.py` + günlük CI: Sentry kota düşüşü ya da sayım kanalının susması hata verir
+- **CI** — Her `dev` push'unda Windows'ta derleme ve 19 test takımı (`.github/workflows/ci.yml`)
+- **Elle eklemede klasör denetimi** — Seçilen klasör oyunun kök klasörüne bağlanıyor; sürücü kökü, korumalı klasör, exe'siz ya da oyun koleksiyonu klasörü nedeni söylenerek reddediliyor
 
 ### Düzeltilen
 - `GameCard` görsel bağlantısı kendi işleyicisinden hedef değiştirdiği için Qt6Qml.dll'de oluşan çökme (0.1.4 saha çökmelerinin 24/27'si)
@@ -166,6 +168,18 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - Güncelleme denetiminde üst çubuk sessiz; "Güncel" rozeti yalnızca ayarlar sayfasında
 - Doğrulayıcı, yönlendirme girdilerini paket sanmıyor
 - Çıkarıcının ASCII dışı adları bozduğu iddiası düzeltildi
+- Yarım kalan kurulumun çökme kurtarması yedeği olan orijinalleri siliyordu; artık yedekten geri koyuyor, yedek yoksa dosyalara dokunmuyor
+- Kaldırma: dosya silinemeyince "kaldırıldı" denmiyor; tetiklenmeyen geri yükleme bağlantısı sonraki geri yüklemede eski geri çağrıyı çalıştırmıyor
+- İptal ve zaman aşımı, işçi bitmeden kurulum yuvasını boşaltmıyor; sayfa kapalıyken biten kurulum bildirim veriyor, sayfa yeniden açılınca süren kurulum görünüyor
+- Escape ile kapanan pencere iptali bildiriyor; kapanışta arka plan işleri bekleniyor
+- Tarama ve açılış iş parçacıkları ana iş parçacığının üyelerini okumuyor
+- Paylaşılan exe adları (`game.exe`, `launcher.exe`…) ve iki pakete ait exe'ler oyun tanımlamıyor
+- Paket yalnız CDN sunucusundan indiriliyor (adres alan adıyla denetleniyor)
+- Kısaltılmış açıklama biçimlendirme olarak yorumlanmıyor
+- Boşluklu klasörden eklenti kurulabiliyor
+- İlk açılıştaki renk seçenekleri Ayarlar'dakiyle aynı
+- Tepsi menüsündeki "Ayarlar" ayarlar sayfasını açıyor
+- Discord bağlantısı kalıcı sunucu davetine çevrildi
 
 ### İyileştirilen
 - Reçete önbelleğine yaş sınırı, paket detay önbelleği katalog değişince tazeleniyor
@@ -174,6 +188,12 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - Telemetriye giden yoldan kullanıcı adını silen kural testle sabitlendi
 - Dil tablosundan kanıtsız kodlar çıkarıldı
 - Yayın düzeni belgelendi (`docs/RELEASING.md`), eski sürümler arşivlendi
+- `just test` bütün test takımlarını çalıştırıyor; yayın ZIP'i testler geçmeden üretilmiyor
+- Kendi kodumuz `-Wall -Wextra` ile uyarısız derleniyor
+
+### Kaldırılan
+- Çekirdeğin çağrılmayan modülleri (oyun algılayıcı, yama motoru, SQLite veritabanı, runtime/güvenlik yöneticisi, SSL pinning — 106 dosya, ~34.700 satır); vcpkg bağımlılıkları 4'e indi, açılışta şifresi çözülen kullanılmayan `makine.db` artık yüklenmiyor
+- Hiçbir yerde kullanılmayan 12 QML bileşeni ve 24 MB vitrin görseli
 
 ## [0.1.0-alpha] - 2026-02-03
 

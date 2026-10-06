@@ -51,7 +51,7 @@ set(MAKINE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Source files. Only what the launcher calls into; the rest of the old core
 # (detector, patch engine, database, runtime manager...) had no caller and
-# was removed in 0.2.0.
+# was removed in 0.1.5-beta.
 set(MAKINE_SOURCES
     src/package_catalog/package_catalog.cpp
     src/crash_recovery/crash_recovery.cpp

@@ -5,7 +5,7 @@
 Accepted
 
 > **2026-10-06:** All optional libraries listed here (simdjson, simdutf, taskflow, mio,
-> libsodium, bit7z, efsw, SQLiteCpp) were dropped in 0.2.0 together with the unused core modules that used them. The
+> libsodium, bit7z, efsw, SQLiteCpp) were dropped in 0.1.5-beta together with the unused core modules that used them. The
 > project's vcpkg dependencies are now only openssl, nlohmann-json, zstd and spdlog;
 > the decision below is kept as a historical record.
 

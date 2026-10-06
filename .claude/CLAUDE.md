@@ -2,9 +2,9 @@
 
 <!-- Build, mimari, kurallar, tuzaklar → proje kökündeki CLAUDE.md (o da her oturum yüklenir; burada tekrarlama). -->
 
-> **Durum (2026-10-06):** v0.1.5-beta **yayınlanmadı** — `a4d5b37`'den yayınlanacak, `dev`'in ucundan değil · `dev` v0.2.0'da: kod sağlığı turu bitti, CI açık (`docs/v0.2.0-todo.md` → "Kod sağlığı")
+> **Durum (2026-10-06):** v0.1.5-beta `dev`'in ucundan paketlendi (ZIP + MSIX 0.1.5.0), kod sağlığı turunu da taşıyor · CI açık · sonraki: v0.2.0 (`docs/v0.2.0-todo.md`)
 > **Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** (en üstteki 2026-10-06 güncellemesi dahil) — durum, kalan yayın adımları, tuzaklar.
-> **Blocker:** MSIX imzalı test + Store gönderimi (sertifika yalnız sahibinde).
+> **Sahibinde:** Store gönderimi (Partner Center — MSIX yükleme + mağaza girişi CSV'si).
 > **Eski depo:** Makine-Launcher-Dev arşivli (read-only yedek, 2026-05-20).
 
 - **Telemetri:** iki kanal — sayım (`/api/v2/telemetry` → D1) + Sentry `makineceviri/makine-launcher` (Sponsored Team, 50K/ay) · günlük körlük bekçisi (`main`'deki iş akışı) · `just telemetry-check` / `just telemetry-watch` · ayrıntı `docs/telemetry.md`.
