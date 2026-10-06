@@ -52,11 +52,18 @@ jobs:
           echo 'C:\Qt\Tools\Ninja' >> "$GITHUB_PATH"
           echo 'C:\Qt\6.11.1\mingw_64\bin' >> "$GITHUB_PATH"
 
+      # Keyed on the runner's vcpkg commit: when the image updates vcpkg the
+      # old binaries are restored, the changed ones rebuilt (openssl alone
+      # takes ~25 min with MinGW) and saved under the new key.
+      - name: Read vcpkg version
+        id: vcpkg
+        run: echo "commit=$(git -C "$VCPKG_ROOT" rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Restore vcpkg binary cache
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\.vcpkg-cache
-          key: vcpkg-mingw-${{ env.VCPKG_PACKAGES }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          key: vcpkg-mingw-${{ steps.vcpkg.outputs.commit }}-${{ env.VCPKG_PACKAGES }}
           restore-keys: vcpkg-mingw-
 
       - name: Install vcpkg packages
