@@ -2942,7 +2942,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 
     // Delete installed files (with path traversal protection)
     int deleted = 0;
-    int failed = 0;
+    std::vector<std::string> remaining;  // records that could not be undone
 
     for (const auto& relPathStd : coreState.installedFiles) {
         const QString relPath = QString::fromStdString(relPathStd);
@@ -2958,7 +2958,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                     qCDebug(lcPackageManager) << "Desktop file removed:" << fileName;
                 } else {
                     qCWarning(lcPackageManager) << "Failed to remove desktop file:" << fileName;
-                    failed++;
+                    remaining.push_back(relPathStd);
                 }
             }
             continue;
@@ -2988,7 +2988,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                         qCDebug(lcPackageManager) << "Rename reversed:" << renamedName << "->" << origName;
                     } else {
                         qCWarning(lcPackageManager) << "Failed to reverse rename:" << renamedName;
-                        failed++;
+                        remaining.push_back(relPathStd);
                     }
                 }
             }
@@ -3007,7 +3007,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                     qCDebug(lcPackageManager) << "Font removed:" << fontName;
                 } else {
                     qCWarning(lcPackageManager) << "Failed to remove font:" << fontName;
-                    failed++;
+                    remaining.push_back(relPathStd);
                 }
             }
 #endif
@@ -3053,7 +3053,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                     qCDebug(lcPackageManager) << "Unity bundle restored:" << bundleRelPath;
                 } else {
                     qCWarning(lcPackageManager) << "Failed to restore Unity bundle:" << bundleRelPath;
-                    failed++;
+                    remaining.push_back(relPathStd);
                 }
             } else {
                 qCWarning(lcPackageManager) << "Unity bundle backup not found:" << backupPath;
@@ -3079,12 +3079,24 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                 if (m_journal) m_journal->recordFileModified(relPath);
             } else {
                 qCWarning(lcPackageManager) << "Failed to remove:" << fullPath;
-                failed++;
+                remaining.push_back(relPathStd);
             }
         }
     }
 
-    qCDebug(lcPackageManager) << "Uninstall" << steamAppId << ":" << deleted << "files deleted," << failed << "failed";
+    qCDebug(lcPackageManager) << "Uninstall" << steamAppId << ":" << deleted << "files deleted,"
+                              << remaining.size() << "failed";
+
+    if (!remaining.empty()) {
+        // Keep what is still on disk on record. Dropping the record reported
+        // success and left those files behind with nothing to retry from.
+        packages::InstalledPackageState left = coreState;
+        left.installedFiles = std::move(remaining);
+        m_catalog.markInstalled(steamAppId.toStdString(), left);
+        saveCatalogInstalledState(m_catalog, installedStatePath());
+        if (m_journal) m_journal->commitOperation();
+        return false;
+    }
 
     m_catalog.markUninstalled(steamAppId.toStdString());
     saveCatalogInstalledState(m_catalog, installedStatePath());

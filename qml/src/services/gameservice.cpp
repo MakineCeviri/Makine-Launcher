@@ -37,6 +37,8 @@
 #include <QLoggingCategory>
 #include <QtConcurrent>
 #include <algorithm>
+#include <functional>
+#include <memory>
 #include <QProcess>
 #include <optional>
 
@@ -1535,19 +1537,16 @@ void GameService::uninstallTranslation(const QString& gameId)
     if (bm && bm->hasBackup(gameId)) {
         auto latest = bm->getLatestBackup(gameId);
         if (!latest.isEmpty() && latest.contains("id")) {
-            // One-shot connection: wait for restore to finish, then proceed with uninstall
-            auto restoreConn = connect(bm, &BackupManager::backupRestored, this,
-                [this, gameId, gamePath = game.installPath, idx = *it](const QString& restoredGameId) {
-                    if (restoredGameId != gameId) return;
-                    finalizeUninstall(gameId, gamePath, idx);
-                }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+            // Wait for the restore to finish, then proceed with uninstall.
             // Partial restore: refuse to run uninstallPackage afterwards. Removing
             // patched-but-not-restored files would leave the game with holes;
             // surface the reason and let the user run Steam's "Verify Integrity"
             // (or unlock the file manually) instead.
-            connect(bm, &BackupManager::backupRestoreFailed, this,
-                [this, gameId](const QString& failedGameId, const QString& reason) {
-                    if (failedGameId != gameId) return;
+            const auto cancelWait = awaitRestore(bm, gameId,
+                [this, gameId, gamePath = game.installPath]() {
+                    finalizeUninstall(gameId, gamePath);
+                },
+                [this, gameId](const QString& reason) {
                     qCWarning(lcGameService) << "Backup restore failed for" << gameId
                                               << "— skipping uninstall to avoid mixed state";
                     // Tagged "uninstall", not "uninstall/restore": operation is
@@ -1560,10 +1559,10 @@ void GameService::uninstallTranslation(const QString& gameId)
                         QStringLiteral("restore failed, uninstall aborted to avoid mixed state: %1")
                             .arg(reason));
                     emit translationUninstalled(gameId, false, reason);
-                }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+                });
             bool started = bm->restoreBackup(latest["id"].toString(), game.installPath);
             if (!started) {
-                disconnect(restoreConn);
+                cancelWait();
                 // Restore never started. LocalPackageManager::uninstallPackage skips
                 // replacedFiles because it assumes restore puts the originals back,
                 // so running it now would leave the patched files in place while we
@@ -1582,7 +1581,7 @@ void GameService::uninstallTranslation(const QString& gameId)
                 }
                 qCWarning(lcGameService) << "Backup restore could not start for" << gameId
                            << "- install only added files, uninstall is still safe";
-                finalizeUninstall(gameId, game.installPath, *it);
+                finalizeUninstall(gameId, game.installPath);
             }
             return;
         }
@@ -1619,7 +1618,7 @@ void GameService::uninstallTranslation(const QString& gameId)
         return;
     }
 
-    finalizeUninstall(gameId, game.installPath, *it);
+    finalizeUninstall(gameId, game.installPath);
 }
 
 bool GameService::isGameDirWritable(const QString& gamePath)
@@ -1827,37 +1826,76 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
 
     // Restore success: also clean up any added files via uninstallPackage,
     // so the game directory is truly back to its pre-install layout.
-    connect(bm, &BackupManager::backupRestored, this,
-        [this, gameId, gamePath, originalError](const QString& restoredGameId) {
-            if (restoredGameId != gameId) return;
+    // Restore failure: surface both errors. The user will need to verify
+    // the game files via Steam (or whichever store) — our own restore
+    // cannot guarantee a clean state at this point.
+    const auto cancelWait = awaitRestore(bm, gameId,
+        [this, gameId, gamePath, originalError]() {
             if (m_coreBridge) m_coreBridge->uninstallPackage(gameId, gamePath);
             qCInfo(lcGameService) << "Install rollback complete for" << gameId;
             emit translationInstallCompleted(gameId, false,
                 tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
                     .arg(originalError));
-        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
-
-    // Restore failure: surface both errors. The user will need to verify
-    // the game files via Steam (or whichever store) — our own restore
-    // cannot guarantee a clean state at this point.
-    connect(bm, &BackupManager::backupRestoreFailed, this,
-        [this, gameId, originalError](const QString& failedGameId, const QString& reason) {
-            if (failedGameId != gameId) return;
+        },
+        [this, gameId, originalError](const QString& reason) {
             qCCritical(lcGameService) << "Install rollback failed for" << gameId
                                        << "— restore reported errors:" << reason;
             emit translationInstallCompleted(gameId, false,
                 tr("Kurulum başarısız oldu ve oyun tam olarak eski haline döndürülemedi.\n"
                    "Kurulum hatası: %1\n%2").arg(originalError, reason));
-        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+        });
 
-    bm->restoreBackup(latest[QStringLiteral("id")].toString(), gamePath);
+    // A restore that never starts never reports back either; the install
+    // would stay "in progress" for good.
+    if (!bm->restoreBackup(latest[QStringLiteral("id")].toString(), gamePath)) {
+        cancelWait();
+        qCCritical(lcGameService) << "Install rollback could not start for" << gameId;
+        emit translationInstallCompleted(gameId, false, originalError);
+    }
 }
 
-void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex)
+std::function<void()> GameService::awaitRestore(BackupManager* bm, const QString& gameId,
+                                                std::function<void()> onRestored,
+                                                std::function<void(const QString&)> onFailed)
+{
+    // Both connections go as soon as either fires. Two single-shot
+    // connections left the unfired one behind, and it went off on the
+    // game's next restore with a stale callback. `settled` also stops an
+    // event queued before the disconnect: restoreBackup() can report a
+    // failure and return false in the same call.
+    struct Wait {
+        QMetaObject::Connection restored, failed;
+        bool settled = false;
+    };
+    auto wait = std::make_shared<Wait>();
+    auto settle = [wait]() {
+        wait->settled = true;
+        QObject::disconnect(wait->restored);
+        QObject::disconnect(wait->failed);
+    };
+    wait->restored = connect(bm, &BackupManager::backupRestored, this,
+        [gameId, wait, settle, onRestored](const QString& restoredGameId) {
+            if (restoredGameId != gameId || wait->settled) return;
+            settle();
+            onRestored();
+        }, Qt::QueuedConnection);
+    wait->failed = connect(bm, &BackupManager::backupRestoreFailed, this,
+        [gameId, wait, settle, onFailed](const QString& failedGameId, const QString& reason) {
+            if (failedGameId != gameId || wait->settled) return;
+            settle();
+            onFailed(reason);
+        }, Qt::QueuedConnection);
+    return settle;
+}
+
+void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath)
 {
     MAKINE_ZONE_NAMED("GameService::finalizeUninstall");
     bool success = m_coreBridge->uninstallPackage(gameId, gamePath);
 
+    // Looked up now, not when the restore started: a scan in between
+    // rebuilds the list and the old index points at another game.
+    const int gameIndex = m_gameIdToIndex.value(gameId, -1);
     if (success && gameIndex >= 0 && gameIndex < m_games.count()) {
         m_games[gameIndex].hasTranslation = false;
         m_packageInstalledCache[gameId] = false;
@@ -1872,9 +1910,15 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         reportOperationFailure("uninstall", gameId,
             QStringLiteral("uninstallPackage returned false"));
 
+    // Still on record after a failed uninstall means files could not be
+    // deleted — most often because the game, or something holding its
+    // files, is still running.
+    const bool filesLeft = !success && m_coreBridge->isPackageInstalled(gameId);
     emit translationUninstalled(gameId, success,
-        success ? tr("Yama başarıyla kaldırıldı")
-                : tr("Yama kaldırılamadı"));
+        success     ? tr("Yama başarıyla kaldırıldı")
+        : filesLeft ? tr("Yama tamamen kaldırılamadı: bazı dosyalar silinemedi. "
+                         "Oyunu kapatıp tekrar deneyin.")
+                    : tr("Yama kaldırılamadı"));
 }
 
 void GameService::recoverTranslation(const QString& gameId)

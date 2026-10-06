@@ -19,13 +19,14 @@
 #include <QQmlEngine>
 #include <QFileInfo>
 #include <QDateTime>
+#include <functional>
 #include "corebridge.h"
 #include "manifestsyncservice.h"
 #include "steamdetailsservice.h"
 #include "supportedgamesmodel.h"
 
 class QTimer;
-namespace makine { class ImageCacheManager; }
+namespace makine { class BackupManager; class ImageCacheManager; }
 
 namespace makine {
 
@@ -428,7 +429,14 @@ private:
 
     void finalizeManualGame(const QString& path, const QString& folderName,
                             const QString& engine, const QString& matchedAppId);
-    void finalizeUninstall(const QString& gameId, const QString& gamePath, int gameIndex);
+    void finalizeUninstall(const QString& gameId, const QString& gamePath);
+
+    // Waits for BackupManager to finish restoring `gameId`, either way, and
+    // runs the matching callback once. Returns a canceller for a restore that
+    // never started.
+    std::function<void()> awaitRestore(BackupManager* bm, const QString& gameId,
+                                       std::function<void()> onRestored,
+                                       std::function<void(const QString&)> onFailed);
 
     // True when the install overwrote original game files. LocalPackageManager::
     // uninstallPackage deliberately skips those paths because restoreBackup is
