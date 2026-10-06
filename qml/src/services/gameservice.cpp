@@ -61,8 +61,8 @@ namespace makine {
 GameService::GameService(QObject *parent)
     : QObject(parent)
     , m_steamDetails(new SteamDetailsService(this))
-    , m_supportedGamesModel(new SupportedGamesModel(this))
     , m_installTimeoutTimer(new QTimer(this))
+    , m_supportedGamesModel(new SupportedGamesModel(this))
 {
     connect(m_steamDetails, &SteamDetailsService::detailsFetched,
             this, &GameService::steamDetailsFetched);

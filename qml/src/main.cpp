@@ -104,8 +104,6 @@ DWORD getWindowsBuildNumber() {
     return ovi.dwBuildNumber;
 }
 
-bool isWindows11() { return getWindowsBuildNumber() >= 22000; }
-
 // DWMWA constants not in older SDK headers
 constexpr DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 constexpr DWORD DWMWA_WINDOW_CORNER_PREFERENCE = 33;

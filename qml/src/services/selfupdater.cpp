@@ -19,7 +19,6 @@
 #include <Windows.h>
 #include <Softpub.h>
 #include <wintrust.h>
-#pragma comment(lib, "wintrust")
 #endif
 
 Q_LOGGING_CATEGORY(lcSelfUpdater, "makine.updater")

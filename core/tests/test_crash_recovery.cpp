@@ -332,7 +332,7 @@ TEST_F(CrashRecoveryTest, RecoverInstallRestoresOriginalsAndRemovesAddedFiles) {
     });
 
     CrashRecoveryJournal journal(testDir_);
-    const auto result = journal.recover({.backupsRoot = backupsRoot, .desktopDir = desktop});
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = backupsRoot, .desktopDir = desktop});
 
     EXPECT_TRUE(result.success) << result.message;
     EXPECT_EQ(readFile(gamePath / "data" / "localization.pak"), "original pak");
@@ -354,7 +354,7 @@ TEST_F(CrashRecoveryTest, RecoverInstallWithoutBackupLeavesFilesAndKeepsJournalA
     writeCrashedInstall(testDir_, "456", gamePath, {"data/localization.pak"});
 
     CrashRecoveryJournal journal(testDir_);
-    const auto result = journal.recover({.backupsRoot = testDir_ / "backups"});
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = testDir_ / "backups", .desktopDir = {}});
 
     EXPECT_FALSE(result.success);
     EXPECT_TRUE(fs::exists(gamePath / "data" / "localization.pak"));
@@ -373,7 +373,7 @@ TEST_F(CrashRecoveryTest, RecoverInstallIgnoresRecordsOutsideGameFolder) {
     writeCrashedInstall(testDir_, "789", gamePath, {"../outside.txt"});
 
     CrashRecoveryJournal journal(testDir_);
-    const auto result = journal.recover({.backupsRoot = backupsRoot});
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = backupsRoot, .desktopDir = {}});
 
     EXPECT_TRUE(result.success) << result.message;
     EXPECT_TRUE(fs::exists(testDir_ / "outside.txt"));

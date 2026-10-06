@@ -107,7 +107,7 @@ TEST_F(PackageCatalogTest, LoadFromIndexEmptyPackages) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, PackageCountAfterLoad) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_EQ(catalog_.packageCount(), 3);
 }
 
@@ -116,14 +116,14 @@ TEST_F(PackageCatalogTest, PackageCountAfterLoad) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, HasPackageExisting) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_TRUE(catalog_.hasPackage("1245620"));
     EXPECT_TRUE(catalog_.hasPackage("1716740"));
     EXPECT_TRUE(catalog_.hasPackage("391540"));
 }
 
 TEST_F(PackageCatalogTest, HasPackageNonexistent) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.hasPackage("999999"));
     EXPECT_FALSE(catalog_.hasPackage(""));
 }
@@ -133,7 +133,7 @@ TEST_F(PackageCatalogTest, HasPackageNonexistent) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, GetPackageReturnsCorrectFields) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     auto pkg = catalog_.getPackage("1245620");
     ASSERT_TRUE(pkg.has_value());
@@ -145,7 +145,7 @@ TEST_F(PackageCatalogTest, GetPackageReturnsCorrectFields) {
 }
 
 TEST_F(PackageCatalogTest, GetPackageNonexistentReturnsNullopt) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.getPackage("999999").has_value());
 }
 
@@ -154,7 +154,7 @@ TEST_F(PackageCatalogTest, GetPackageNonexistentReturnsNullopt) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, AllPackagesReturnsAllEntries) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     auto all = catalog_.allPackages();
     EXPECT_EQ(all.size(), 3u);
@@ -174,12 +174,12 @@ TEST_F(PackageCatalogTest, AllPackagesReturnsAllEntries) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, IsDetailLoadedInitiallyFalse) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.isDetailLoaded("1245620"));
 }
 
 TEST_F(PackageCatalogTest, EnrichPackageSetsDetailLoaded) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_TRUE(catalog_.enrichPackage("1245620", makeEnrichmentJson()));
     EXPECT_TRUE(catalog_.isDetailLoaded("1245620"));
 
@@ -199,7 +199,7 @@ TEST_F(PackageCatalogTest, EnrichPackageSetsDetailLoaded) {
 // GOG install can match on, since those stores name folders after internal code
 // names ("TWDTTDS", "indianaepicgamestore-win64-shipping.exe").
 TEST_F(PackageCatalogTest, EnrichPreservesIndexExeNames) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     auto before = catalog_.getPackage("1245620");
     ASSERT_TRUE(before.has_value());
@@ -220,12 +220,12 @@ TEST_F(PackageCatalogTest, EnrichPreservesIndexExeNames) {
 }
 
 TEST_F(PackageCatalogTest, EnrichPackageNonexistentAppId) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.enrichPackage("999999", makeEnrichmentJson()));
 }
 
 TEST_F(PackageCatalogTest, EnrichPackageInvalidJson) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.enrichPackage("1245620", "not json {{{"));
 }
 
@@ -234,18 +234,18 @@ TEST_F(PackageCatalogTest, EnrichPackageInvalidJson) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, ResolveGameIdDirectSteamAppId) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_EQ(catalog_.resolveGameId("1245620"), "1245620");
 }
 
 TEST_F(PackageCatalogTest, ResolveGameIdUnknownReturnsEmpty) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_EQ(catalog_.resolveGameId("unknown_id"), "");
 }
 
 TEST_F(PackageCatalogTest, ResolveGameIdViaStoreId) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
-    catalog_.enrichPackage("1245620", makeEnrichmentJson());
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    ASSERT_TRUE(catalog_.enrichPackage("1245620", makeEnrichmentJson()));
 
     // After enrichment, epic_eldenring should resolve to 1245620
     EXPECT_EQ(catalog_.resolveGameId("epic_epic_eldenring"), "1245620");
@@ -369,7 +369,7 @@ TEST_F(PackageCatalogTest, LoadInstalledStateNonexistentFileNoOp) {
 // the declared variant, or a package sitting in the legacy pak/ layout.
 
 TEST_F(PackageCatalogTest, OverlayFileListIsEmptyWhenTheGuessedPathIsWrong) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     // Nothing at <cache>/elden-ring: the guess has nowhere to look.
     const auto files = catalog_.getPackageFileList("1245620");
@@ -377,7 +377,7 @@ TEST_F(PackageCatalogTest, OverlayFileListIsEmptyWhenTheGuessedPathIsWrong) {
 }
 
 TEST_F(PackageCatalogTest, OverlayFileListUsesTheCallerResolvedPath) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     // The install resolved the payload to a folder the guess would never try —
     // here the shape Hollow Knight ships: declared variant "1.5.78", folder
@@ -396,7 +396,7 @@ TEST_F(PackageCatalogTest, OverlayFileListUsesTheCallerResolvedPath) {
 }
 
 TEST_F(PackageCatalogTest, ScriptCopyDirFileListUsesTheCallerResolvedPath) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     json detail;
     detail["installMethod"] = {
@@ -419,7 +419,7 @@ TEST_F(PackageCatalogTest, ScriptCopyDirFileListUsesTheCallerResolvedPath) {
 }
 
 TEST_F(PackageCatalogTest, UnknownPackageHasNoFileListEvenWithAPath) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     const fs::path resolved = cachePath_ / "stray";
     fs::create_directories(resolved);
     std::ofstream(resolved / "f.bin") << "x";
@@ -432,7 +432,7 @@ TEST_F(PackageCatalogTest, UnknownPackageHasNoFileListEvenWithAPath) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, FindMatchingAppIdByDirNameCaseInsensitive) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     // Exact dirName match (case-insensitive)
     EXPECT_EQ(catalog_.findMatchingAppId("Elden-Ring"), "1245620");
@@ -440,7 +440,7 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdByDirNameCaseInsensitive) {
 }
 
 TEST_F(PackageCatalogTest, FindMatchingAppIdByGameNameSubstring) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
 
     // gameName substring match
     EXPECT_NE(catalog_.findMatchingAppId("Disco"), "");
@@ -448,7 +448,7 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdByGameNameSubstring) {
 }
 
 TEST_F(PackageCatalogTest, FindMatchingAppIdNoMatch) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_EQ(catalog_.findMatchingAppId("Cyberpunk 2077"), "");
 }
 
@@ -547,12 +547,12 @@ TEST_F(PackageCatalogTest, EmptyCatalogAllPackagesEmpty) {
 // =========================================================================
 
 TEST_F(PackageCatalogTest, GetVariantsEmptyBeforeEnrichment) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_TRUE(catalog_.getVariants("1245620").empty());
 }
 
 TEST_F(PackageCatalogTest, GetVariantTypeEmptyBeforeEnrichment) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_TRUE(catalog_.getVariantType("1245620").empty());
 }
 
@@ -598,13 +598,13 @@ TEST_F(PackageCatalogTest, MarkUninstalledNonexistent) {
 }
 
 TEST_F(PackageCatalogTest, EnrichPackageWithEmptyJson) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     // Empty JSON object should not crash
     EXPECT_TRUE(catalog_.enrichPackage("1245620", "{}"));
 }
 
 TEST_F(PackageCatalogTest, FindMatchingAppIdEmptyString) {
-    catalog_.loadFromIndex(indexPath_, cachePath_);
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     // Empty string may match entries — just verify no crash
     (void)catalog_.findMatchingAppId("");
     SUCCEED();

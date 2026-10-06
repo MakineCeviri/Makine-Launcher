@@ -784,7 +784,6 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
     if (inputTokens.size() >= 3) {
         std::string bestAppId;
         int bestIntersection = 0;
-        double bestRatio = 0.0;
 
         for (const auto& [appId, pkg] : packages_) {
             for (const auto* src : {&pkg.gameName, &pkg.dirName}) {
@@ -800,7 +799,6 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
 
                 if (inter >= 4 && ratio >= 0.55 && inter > bestIntersection) {
                     bestIntersection = inter;
-                    bestRatio = ratio;
                     bestAppId = appId;
                 }
             }

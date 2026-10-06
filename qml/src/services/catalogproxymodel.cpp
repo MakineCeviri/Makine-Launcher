@@ -186,7 +186,6 @@ int CatalogProxyModel::fuzzyScore(const QString &pattern, const SearchEntry &ent
             continue;
 
         // Look-ahead: is there a word boundary match within 8 chars?
-        bool usedLookahead = false;
         if (lastMatchPos >= 0 && (ti - lastMatchPos) > 1) {
             // We have a gap — check if a better (word boundary) match exists ahead
             for (int look = ti + 1; look < tLen && look <= ti + 8; ++look) {
@@ -199,7 +198,6 @@ int CatalogProxyModel::fuzzyScore(const QString &pattern, const SearchEntry &ent
                     if (isWordStart) {
                         // Skip to word boundary match
                         ti = look;
-                        usedLookahead = true;
                         break;
                     }
                 }

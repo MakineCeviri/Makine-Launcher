@@ -14,7 +14,7 @@
  *   assets/index.json           - Package catalog (258 entries)
  *   assets/packages/{id}.json   - Per-game detail
  *   assets/images/{id}.png      - Game cover images (260x370)
- *   assets/banners/*.png        - Announcement banners
+ *   assets/banners/{name}.png   - Announcement banners
  *   assets/update.json          - Self-update metadata
  *   data/{id}.makine            - Encrypted translation packages
  */

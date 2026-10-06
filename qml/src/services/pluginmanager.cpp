@@ -678,10 +678,8 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
         }
 
         // Unload DLL before overwriting (Windows locks loaded DLLs)
-        bool wasEnabled = false;
         for (auto& p : m_plugins) {
             if (p.id == pluginId) {
-                wasEnabled = p.enabled;
                 if (p.loaded) unloadPlugin(p);
                 break;
             }
@@ -725,10 +723,8 @@ void PluginManager::installFromFile(const QString& fileOrUrl)
         return;
 
     // Unload if already installed (DLL lock prevention)
-    bool wasEnabled = false;
     for (auto& p : m_plugins) {
         if (p.id == tempId || p.dirPath.endsWith("/" + tempId)) {
-            wasEnabled = p.enabled;
             if (p.loaded) unloadPlugin(p);
             break;
         }

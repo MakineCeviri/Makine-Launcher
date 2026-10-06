@@ -77,6 +77,14 @@ if(MAKINE_CRASH_REPORTING)
     message(STATUS "Sentry crash reporting: ENABLED (backend: ${SENTRY_BACKEND})")
 endif()
 
+# Warnings for our own code. Set here, after the FetchContent dependencies
+# above, so Sentry and Tracy keep building with their own flags.
+# cast-function-type: GetProcAddress results are cast to their real
+# signatures on purpose (plugins, ntdll, msimg32).
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -Wextra -Wno-cast-function-type)
+endif()
+
 # Core C++ library
 if(NOT MAKINE_UI_ONLY)
     set(BUILD_TESTING ${MAKINE_BUILD_TESTS})
