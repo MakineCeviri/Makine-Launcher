@@ -1,0 +1,86 @@
+name: Build & test
+
+# The dev preset, unchanged, on a clean Windows machine: MinGW 13.1 + Qt 6.11.1
+# from the Qt mirrors, vcpkg packages (cached) and a throwaway package key.
+# Crash reporting is left out — it needs the Sentry DSN, which CI does not hold.
+
+on:
+  push:
+    branches: [dev, ci/**]
+    paths-ignore: ['docs/**', '**/*.md']
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows MinGW
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-cache
+      VCPKG_PACKAGES: openssl nlohmann-json zstd spdlog gtest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.11.1 + MinGW 13.1
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.11.1'
+          host: windows
+          target: desktop
+          arch: win64_mingw
+          dir: 'C:\'
+          tools: 'tools_mingw1310 tools_ninja'
+          # aqtinstall 3.3.0 cannot read the Qt 6.11 repository layout
+          # ("Failed to locate XML data"); this commit can.
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
+
+      - name: Put MinGW and Qt on PATH
+        run: |
+          echo 'C:\Qt\Tools\mingw1310_64\bin' >> "$GITHUB_PATH"
+          echo 'C:\Qt\Tools\Ninja' >> "$GITHUB_PATH"
+          echo 'C:\Qt\6.11.1\mingw_64\bin' >> "$GITHUB_PATH"
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.vcpkg-cache
+          key: vcpkg-mingw-${{ env.VCPKG_PACKAGES }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: vcpkg-mingw-
+
+      - name: Install vcpkg packages
+        # Run outside the checkout: the repo's vcpkg.json would switch vcpkg
+        # to manifest mode, and the presets use classic mode.
+        working-directory: C:\vcpkg
+        run: |
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+          ./vcpkg install $VCPKG_PACKAGES --triplet x64-mingw-dynamic
+
+      - name: Generate a throwaway package key
+        run: |
+          python -c "import pathlib, secrets; pathlib.Path('scripts/.encryption_key').write_text(secrets.token_hex(32))"
+          python scripts/generate_key_header.py
+
+      - name: Configure
+        run: >
+          cmake --preset dev
+          -DMAKINE_CRASH_REPORTING=OFF
+          -DCMAKE_C_COMPILER_LAUNCHER=
+          -DCMAKE_CXX_COMPILER_LAUNCHER=
+
+      - name: Build
+        run: cmake --build --preset dev
+
+      - name: Test
+        run: ctest --preset dev-tests --output-on-failure
