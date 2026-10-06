@@ -295,15 +295,16 @@ release-zip-signed version: release-signed
 
 # Build + package the ZIP published on GitHub Releases. Dynamic Qt: the runtime
 # DLLs travel inside the archive, so no static Qt kit is needed. Conventions and
-# the publishing checklist live in docs/RELEASING.md.
+# the publishing checklist live in docs/RELEASING.md. The test suites run
+# first: the release preset builds none of them.
 # Usage: just release-zip-dynamic 0.1.5-beta
-release-zip-dynamic version: release-mingw
+release-zip-dynamic version: test release-mingw
     python scripts/upload_symbols.py
     powershell -ExecutionPolicy Bypass -File scripts/make_release_zip.ps1 -Version "{{version}}"
 
 # Same, Authenticode-signed (owner only - needs scripts/certs/).
 # Usage: just release-zip-dynamic-signed 0.1.5-beta
-release-zip-dynamic-signed version: release-mingw
+release-zip-dynamic-signed version: test release-mingw
     python scripts/upload_symbols.py
     powershell -ExecutionPolicy Bypass -File scripts/make_release_zip.ps1 -Version "{{version}}" -Sign
 
@@ -463,17 +464,3 @@ docs:
 # Pre-push quality check
 ci-check: check-format test
     @echo "All CI checks passed!"
-
-# ============================================================================
-# SHOWCASE IMAGES
-# ============================================================================
-
-# Validate Steam App IDs and download showcase images
-download-images:
-    @echo "Validating Steam App IDs and downloading images..."
-    python scripts/download_showcase_images.py
-
-# Force re-download all images (ignore cache)
-download-images-force:
-    @echo "Force re-downloading all showcase images..."
-    python scripts/download_showcase_images.py --force
