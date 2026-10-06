@@ -10,7 +10,8 @@ pragma ComponentBehavior: Bound
 /**
  * ThemeStep.qml — Accent color picker (Step 2 of onboarding)
  *
- * 10 accent presets in a grid, mini preview card showing live color.
+ * The accent presets from Settings in a grid, mini preview card showing
+ * live color.
  * Selection immediately persists via SettingsManager.accentPreset.
  */
 Item {
@@ -18,19 +19,11 @@ Item {
 
     signal nextStep()
 
-    // Preset model — id + display color (accentBase from Theme._resolveAccentColors)
-    readonly property var presets: [
-        { presetId: "purple", color: "#8B5CF6" },
-        { presetId: "blue",   color: "#3B82F6" },
-        { presetId: "teal",   color: "#14B8A6" },
-        { presetId: "green",  color: "#22C55E" },
-        { presetId: "rose",   color: "#EC4899" },
-        { presetId: "amber",  color: "#F59E0B" },
-        { presetId: "red",    color: "#EF4444" },
-        { presetId: "sky",    color: "#0EA5E9" },
-        { presetId: "indigo", color: "#818CF8" },
-        { presetId: "black",  color: "#71717A" }
-    ]
+    // Same list the Settings page offers. A copy here still had blue and
+    // amber after Settings dropped them, so a colour picked during onboarding
+    // could not be found in Settings afterwards.
+    readonly property var presets: typeof SettingsManager !== "undefined"
+                                   ? SettingsManager.accentPresets() : []
 
     property string selectedPreset: typeof SettingsManager !== "undefined"
                                     ? SettingsManager.accentPreset : "purple"
@@ -64,10 +57,10 @@ Item {
 
         Item { Layout.preferredHeight: 32 }
 
-        // Color grid — Flow wraps 5 per row
+        // Color grid — Flow wraps 4 per row
         Flow {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 5 * 46  // 5 circles × (36px + 10px spacing)
+            Layout.preferredWidth: 4 * 46  // 4 circles × (36px + 10px spacing)
             spacing: 10
 
             Repeater {
@@ -78,8 +71,8 @@ Item {
                     required property int index
 
                     width: 36; height: 36; radius: 18
-                    color: modelData.color
-                    border.width: root.selectedPreset === modelData.presetId ? 2 : 0
+                    color: modelData.colors[2]
+                    border.width: root.selectedPreset === modelData.id ? 2 : 0
                     border.color: "#FFFFFF"
 
                     // Glow ring for selected
@@ -88,10 +81,10 @@ Item {
                         anchors.margins: -4
                         radius: parent.radius + 4
                         color: "transparent"
-                        border.width: root.selectedPreset === parent.modelData.presetId ? 1 : 0
+                        border.width: root.selectedPreset === parent.modelData.id ? 1 : 0
                         border.color: Qt.rgba(
                             parent.color.r, parent.color.g, parent.color.b, 0.4)
-                        visible: root.selectedPreset === parent.modelData.presetId
+                        visible: root.selectedPreset === parent.modelData.id
                     }
 
                     // Hover scale
@@ -105,9 +98,9 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            root.selectedPreset = parent.modelData.presetId
+                            root.selectedPreset = parent.modelData.id
                             if (typeof SettingsManager !== "undefined")
-                                SettingsManager.accentPreset = parent.modelData.presetId
+                                SettingsManager.accentPreset = parent.modelData.id
                         }
                     }
                 }
