@@ -56,7 +56,7 @@ public:
 
     // Install / Update / Uninstall
     Q_INVOKABLE void installPlugin(const QString& pluginId, const QString& downloadUrl = {});
-    Q_INVOKABLE void installFromFile(const QString& filePath);
+    Q_INVOKABLE void installFromFile(const QString& fileOrUrl);
     Q_INVOKABLE void uninstallPlugin(const QString& pluginId, bool removeData = false);
     Q_INVOKABLE void checkForUpdates();
     Q_INVOKABLE bool hasUpdate(const QString& pluginId) const;

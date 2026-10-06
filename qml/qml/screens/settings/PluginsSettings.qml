@@ -745,7 +745,7 @@ ColumnLayout {
                 nameFilters: ["Makine Plugin (*.makine)"]
                 onAccepted: {
                     if (selectedFile)
-                        PluginManager.installFromFile(selectedFile.toString().replace("file:///", ""))
+                        PluginManager.installFromFile(selectedFile.toString())
                 }
             }
         }

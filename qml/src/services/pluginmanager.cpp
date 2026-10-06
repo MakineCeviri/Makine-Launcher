@@ -706,8 +706,13 @@ void PluginManager::installPlugin(const QString& pluginId, const QString& downlo
 
 // ── Install from local .makine file ──
 
-void PluginManager::installFromFile(const QString& filePath)
+void PluginManager::installFromFile(const QString& fileOrUrl)
 {
+    // FileDialog hands over a URL. Cutting "file:///" off by hand left
+    // escapes such as %20 in the path, so a file in "My Plugins" was not found.
+    const QString filePath = fileOrUrl.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)
+                                 ? QUrl(fileOrUrl).toLocalFile()
+                                 : fileOrUrl;
     QFileInfo fi(filePath);
     if (!fi.exists()) {
         emit pluginError({}, QStringLiteral("File not found: ") + filePath);
