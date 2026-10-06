@@ -386,4 +386,4 @@ olarak seçebilirsiniz. Makine-Launcher, klasörü tarayarak oyun motorunu ve uy
 
 - [Hızlı Başlangıç](getting-started.md) — İlk çevirinizi yapın
 - [Kurulum](installation.md) — Makine-Launcher kurulumu
-- [Discord Topluluğu](https://discord.com/invite/QDezpy4QtV) — Yardım ve destek
+- [Discord Topluluğu](https://discord.com/invite/makine-ceviri-885595211806441482) — Yardım ve destek

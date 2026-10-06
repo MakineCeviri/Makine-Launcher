@@ -92,7 +92,7 @@ Makine-Launcher topluluk tarafından hazırlanan çeviri paketlerini oyunlara ku
 
 ## Sorun mu Yaşıyorsunuz?
 
-- [Discord Topluluğu](https://discord.com/invite/QDezpy4QtV)
+- [Discord Topluluğu](https://discord.com/invite/makine-ceviri-885595211806441482)
 - [GitHub Issues](https://github.com/MakineCeviri/Makine-Launcher/issues)
 
 ---

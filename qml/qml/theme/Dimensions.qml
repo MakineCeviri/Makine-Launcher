@@ -22,7 +22,7 @@ QtObject {
     // EXTERNAL LINKS
     // =========================================================================
 
-    readonly property string discordUrl: "https://discord.com/invite/QDezpy4QtV"
+    readonly property string discordUrl: "https://discord.com/invite/makine-ceviri-885595211806441482"
     readonly property string websiteUrl: "https://makineceviri.org/"
     readonly property string donatePageUrl: "https://makineceviri.org/destekci-ol"
 
