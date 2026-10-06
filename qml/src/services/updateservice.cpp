@@ -806,10 +806,22 @@ void UpdateService::downloadGitHubAsset()
     setState(Downloading);
 
     auto *reply = m_nam.get(request);
-    connect(reply, &QNetworkReply::redirected, this, [this, reply](const QUrl &url) {
-        // Mark so the parallel finished-handler skips this reply (B2-06 race)
-        reply->setProperty("makineRedirected", true);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
+
+        // Under ManualRedirectPolicy Qt neither follows the 302 nor emits
+        // redirected(): the reply just finishes carrying it. Waiting for
+        // redirected() left every dev-build update stuck in Downloading.
+        const QUrl url = reply->url().resolved(
+            reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl());
+        if (reply->error() != QNetworkReply::NoError || url == reply->url()
+            || url.scheme() != QLatin1String("https")) {
+            if (m_state == Downloading) {
+                setError(QStringLiteral("GitHub asset download failed: %1").arg(reply->errorString()));
+                setState(Available);
+            }
+            return;
+        }
 
         // Step 2: Follow redirect to presigned S3 URL (no auth needed)
         m_downloadUrl = url.toString();
@@ -879,21 +891,6 @@ void UpdateService::downloadGitHubAsset()
                 setState(Ready);
             }
         });
-    });
-
-    // Handle case where GitHub doesn't redirect (error)
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        // The redirected lambda already owns this reply lifetime; bail out so
-        // we don't double-deleteLater or race against the new download reply.
-        if (reply->property("makineRedirected").toBool())
-            return;
-        if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 302) {
-            if (m_state == Downloading) {
-                setError(QStringLiteral("GitHub asset download failed: %1").arg(reply->errorString()));
-                setState(Available);
-            }
-            reply->deleteLater();
-        }
     });
 }
 
