@@ -36,15 +36,14 @@ if(NOT MAKINE_UI_ONLY AND NOT TARGET makine_core)
     endif()
 
     # Find core dependencies (for standalone linking)
-    find_package(Boost REQUIRED COMPONENTS filesystem)
     find_package(OpenSSL REQUIRED)
-    find_package(CURL REQUIRED)
     find_package(nlohmann_json CONFIG REQUIRED)
-    find_package(lz4 CONFIG REQUIRED)
-    find_package(ZLIB REQUIRED)
-    find_package(zstd CONFIG REQUIRED)
-    find_package(unofficial-sqlite3 CONFIG REQUIRED)
     find_package(spdlog CONFIG REQUIRED)
+endif()
+
+# Package decompression (mkpkformat.h) — the launcher's own dependency
+if(NOT MAKINE_UI_ONLY)
+    find_package(zstd CONFIG REQUIRED)
 endif()
 
 # Find Qt packages
@@ -394,21 +393,17 @@ if(NOT MAKINE_UI_ONLY)
     if(TARGET makine_core)
         # Super-build: link directly (transitive dependencies handled automatically)
         target_link_libraries(MakineLauncher PRIVATE makine_core)
+        target_link_libraries(MakineLauncher PRIVATE
+            $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>)
     else()
         # Standalone: link prebuilt library + explicit dependencies
         target_link_libraries(MakineLauncher PRIVATE
             ${MAKINE_CORE_LIB}
         )
         target_link_libraries(MakineLauncher PRIVATE
-            Boost::filesystem
-            OpenSSL::SSL
             OpenSSL::Crypto
-            CURL::libcurl
             nlohmann_json::nlohmann_json
-            lz4::lz4
-            ZLIB::ZLIB
             $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
-            unofficial::sqlite3::sqlite3
             spdlog::spdlog
         )
     endif()

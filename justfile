@@ -23,7 +23,7 @@ default:
 # Install vcpkg dependencies (MinGW)
 setup:
     @echo "Installing vcpkg dependencies (MinGW)..."
-    vcpkg install boost-filesystem:x64-mingw-dynamic openssl:x64-mingw-dynamic curl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic lz4:x64-mingw-dynamic zlib:x64-mingw-dynamic zstd:x64-mingw-dynamic sqlite3:x64-mingw-dynamic spdlog:x64-mingw-dynamic simdjson:x64-mingw-dynamic mio:x64-mingw-dynamic taskflow:x64-mingw-dynamic concurrentqueue:x64-mingw-dynamic simdutf:x64-mingw-dynamic sqlitecpp:x64-mingw-dynamic libsodium:x64-mingw-dynamic libarchive:x64-mingw-dynamic bit7z:x64-mingw-dynamic efsw:x64-mingw-dynamic
+    vcpkg install openssl:x64-mingw-dynamic nlohmann-json:x64-mingw-dynamic zstd:x64-mingw-dynamic spdlog:x64-mingw-dynamic
 
 # Install vcpkg dependencies with tests
 setup-tests: setup

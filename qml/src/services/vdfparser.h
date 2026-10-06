@@ -6,7 +6,6 @@
  * @brief Valve Data Format (VDF) parser - header-only
  * @copyright (c) 2026 MakineCeviri Team
  *
- * Copied from core/include/makine/vdf_parser.hpp for UI_ONLY builds.
  * Recursive descent parser for Valve's key-value text format.
  * Used by Steam's libraryfolders.vdf and appmanifest_*.acf files.
  */

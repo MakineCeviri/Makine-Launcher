@@ -15,7 +15,7 @@ Three layers, top to bottom:
 
 - **QML UI** — `qml/qml/` `screens/` · `components/` · `dialogs/` · `controllers/` · `theme/`. PascalCase `.qml`, pure declarative UI, no JS logic.
 - **C++ service layer** — `qml/src/services/` bridges Core ↔ UI (`GameService`, `CoreBridge`, `InstallFlow`, `BackupMgr`, `BatchOps`, `PackageCatalog`, `TranslationState`, `TranslationDownloader`, `ManifestSync`, `UpdateService`, `SteamDetails`, `RenderGov`).
-- **C++ core library** — `core/include/makine/` + `core/src/`: game detection, patch engine, package catalog, security (crypto, SSL pinning, file integrity, sandbox), VDF parser, database, cache, async/parallel, logging, validation, config.
+- **C++ core library** — `core/include/makine/` + `core/src/`: package catalog, crash-recovery journal, file integrity, path checks, error types, logging macros, plugin API headers. Game detection, VDF parsing and patching live in the service layer.
 
 External: `cdn.makineceviri.org` (Cloudflare R2) and local game files (Steam, GOG, …).
 

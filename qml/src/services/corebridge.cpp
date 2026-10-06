@@ -34,11 +34,15 @@
 #include <QJsonObject>
 #include <QFile>
 
+#include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #ifndef MAKINE_UI_ONLY
-#include <makine/core.hpp>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #endif
 
 Q_LOGGING_CATEGORY(lcCoreBridge, "makine.bridge")
@@ -48,40 +52,30 @@ namespace makine {
 CoreBridge* CoreBridge::s_instance = nullptr;
 
 #ifndef MAKINE_UI_ONLY
-static bool s_coreInitialized = false;
-
-// Initialize Core singleton on first use
-// Returns true if Core is ready to use, false otherwise
-static bool ensureCoreInitialized() {
-    if (s_coreInitialized) return true;
-
-    try {
-        auto& core = Core::instance();
-        if (!core.isInitialized()) {
-            qCDebug(lcCoreBridge) << "Initializing Makine Core...";
-            auto result = core.initialize();
-            if (result) {
-                qCDebug(lcCoreBridge) << "Core initialized successfully in" << result->initDuration.count() << "ms";
-                CrashReporter::addBreadcrumb("core", "Core initialized successfully");
-                s_coreInitialized = true;
-                return true;
-            } else {
-                qCCritical(lcCoreBridge) << "Core initialization FAILED:"
-                           << QString::fromStdString(result.error().message());
-                CrashReporter::captureMessage("Core initialization failed", "error");
-                return false;
-            }
-        } else {
-            s_coreInitialized = true;
+// Sends the core library's spdlog output to logs/makine.log. That is all the
+// launcher ever needed from Core::initialize(), which also opened a database,
+// loaded keys and ran health checks for modules nothing called.
+static void startCoreLogging() {
+    static const bool started = [] {
+        try {
+            const QString logDir = AppPaths::logsDir();
+            QDir().mkpath(logDir);
+            // spdlog opens narrow (ANSI) file names on Windows
+            const std::string logFile = (logDir + QStringLiteral("/makine.log")).toLocal8Bit().toStdString();
+            std::vector<spdlog::sink_ptr> sinks{
+                std::make_shared<spdlog::sinks::stdout_color_sink_mt>(),
+                std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFile, true)};
+            auto logger = std::make_shared<spdlog::logger>("makine", sinks.begin(), sinks.end());
+            logger->set_level(spdlog::level::info);
+            logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v");
+            spdlog::set_default_logger(logger);
             return true;
+        } catch (const std::exception& ex) {
+            qCWarning(lcCoreBridge) << "Core logging unavailable:" << ex.what();
+            return false;
         }
-    } catch (const std::exception& e) {
-        qCCritical(lcCoreBridge) << "Core initialization threw exception:" << e.what();
-        return false;
-    } catch (...) {
-        qCCritical(lcCoreBridge) << "Core initialization threw unknown exception";
-        return false;
-    }
+    }();
+    (void)started;
 }
 #endif
 
@@ -869,8 +863,7 @@ void CoreBridge::scanAllLibraries()
     (void)QtConcurrent::run([this, pkgMgr, indexPath, packageCache, customPaths]() {
         MAKINE_THREAD_NAME("Worker-Scan");
 #ifndef MAKINE_UI_ONLY
-        // Lazy Core init — runs once in background, doesn't block UI
-        ensureCoreInitialized();
+        startCoreLogging();
 #endif
 
         // Load translation packages from index (lightweight catalog)

@@ -7,21 +7,10 @@
   "license": "AGPL-3.0-only",
   "supports": "windows & x64",
   "dependencies": [
-    "boost-filesystem",
     "openssl",
-    "curl",
     "nlohmann-json",
-    "lz4",
-    "zlib",
     "zstd",
-    "sqlite3",
-    "spdlog",
-    "bit7z",
-    "libarchive",
-    "efsw",
-    "mio",
-    "sqlitecpp",
-    "libsodium"
+    "spdlog"
   ],
   "overrides": [],
   "features": {
