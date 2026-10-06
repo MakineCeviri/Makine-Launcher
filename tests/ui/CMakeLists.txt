@@ -39,7 +39,7 @@ add_test(NAME test_pathsecurity COMMAND test_pathsecurity)
 
 add_executable(test_cdnconfig test_cdnconfig.cpp)
 target_include_directories(test_cdnconfig PRIVATE ${MAKINE_PROJECT_ROOT}/qml/src/services)
-target_link_libraries(test_cdnconfig PRIVATE GTest::gtest GTest::gtest_main)
+target_link_libraries(test_cdnconfig PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_cdnconfig COMMAND test_cdnconfig)
 
 # CatalogStore tests (Qt-dependent, uses core path_utils.hpp header-only)

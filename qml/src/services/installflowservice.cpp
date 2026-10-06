@@ -13,6 +13,7 @@
 #include "manifestsyncservice.h"
 #include "corebridge.h"
 #include "crashreporter.h"
+#include "cdnconfig.h"
 
 #include <QDesktopServices>
 #include <QUrl>
@@ -283,7 +284,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
 
     // Check catalog for R2 download URL
     QString dataUrl = catalog.value(QStringLiteral("dataUrl")).toString();
-    if (dataUrl.isEmpty() || !dataUrl.startsWith(QStringLiteral("https://cdn.makineceviri.org"))) {
+    if (dataUrl.isEmpty() || !cdn::isCdnUrl(dataUrl)) {
         // No valid CDN package — try local install
         m_gameService->installTranslation(gameId, variant, options);
         emit installStarted(gameId);
@@ -319,7 +320,7 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
     QVariantMap catalog = m_gameService->getCatalogEntry(gameId);
     QString dataUrl = catalog.value(QStringLiteral("dataUrl")).toString();
 
-    if (dataUrl.isEmpty() || !dataUrl.startsWith(QStringLiteral("https://cdn.makineceviri.org"))) {
+    if (dataUrl.isEmpty() || !cdn::isCdnUrl(dataUrl)) {
         m_gameService->updateTranslation(gameId, variant, options);
         m_pendingUpdateFlow = false;
         return;

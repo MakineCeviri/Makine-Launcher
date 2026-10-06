@@ -107,4 +107,22 @@ TEST_F(CdnConfigTest, DataBaseIsSeparateFromAssetsBase) {
     EXPECT_FALSE(assets.starts_with(data));
 }
 
+TEST(CdnUrlTest, AcceptsPackagesOnTheCdn) {
+    EXPECT_TRUE(cdn::isCdnUrl(QStringLiteral("https://cdn.makineceviri.org/data/1245620.makine")));
+    EXPECT_TRUE(cdn::isCdnUrl(QStringLiteral("https://CDN.makineceviri.org/data/x.makine")));
+}
+
+TEST(CdnUrlTest, RejectsLookalikeHosts) {
+    EXPECT_FALSE(cdn::isCdnUrl(QStringLiteral("https://cdn.makineceviri.org.example.com/data/x.makine")));
+    EXPECT_FALSE(cdn::isCdnUrl(QStringLiteral("https://cdn.makineceviri.org@example.com/data/x.makine")));
+    EXPECT_FALSE(cdn::isCdnUrl(QStringLiteral("https://example.com/cdn.makineceviri.org/x.makine")));
+}
+
+TEST(CdnUrlTest, RejectsPlainHttpOtherPortsAndJunk) {
+    EXPECT_FALSE(cdn::isCdnUrl(QStringLiteral("http://cdn.makineceviri.org/data/x.makine")));
+    EXPECT_FALSE(cdn::isCdnUrl(QStringLiteral("https://cdn.makineceviri.org:8443/data/x.makine")));
+    EXPECT_FALSE(cdn::isCdnUrl(QString()));
+    EXPECT_FALSE(cdn::isCdnUrl(QStringLiteral("not a url")));
+}
+
 } // namespace makine::testing

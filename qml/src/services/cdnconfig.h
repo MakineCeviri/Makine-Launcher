@@ -19,6 +19,9 @@
  *   data/{id}.makine            - Encrypted translation packages
  */
 
+#include <QString>
+#include <QUrl>
+
 namespace makine::cdn {
 
 // Base domain — change this single line to migrate all endpoints
@@ -43,5 +46,19 @@ inline constexpr auto kTelemetry    = "https://makineceviri.org/api/v2/telemetry
 
 // Shared User-Agent for all API requests
 inline constexpr auto kUserAgent    = "Makine-Launcher/0.1";
+
+// Whether a catalogue URL points at our CDN. Compares the parsed host: a
+// prefix check on the string also accepted
+// "https://cdn.makineceviri.org.example.com/..." and
+// "https://cdn.makineceviri.org@example.com/...".
+inline bool isCdnUrl(const QString& url)
+{
+    const QUrl parsed(url, QUrl::StrictMode);
+    return parsed.isValid()
+        && parsed.scheme() == QLatin1String("https")
+        && parsed.host() == QLatin1String(kDomain)
+        && parsed.userInfo().isEmpty()
+        && parsed.port(443) == 443;
+}
 
 } // namespace makine::cdn
