@@ -38,7 +38,10 @@ Rectangle {
         var cut = desc.substring(0, cutAt)
         var sp = cut.lastIndexOf(' ')
         if (sp > cutAt * 0.5) cut = cut.substring(0, sp)
-        return cut + "<font color=\"" + Theme.primary + "\">... daha fazla göster</font>"
+        // Rendered as StyledText: the description is catalogue/Steam text and
+        // must not be read as markup (a stray "<" cut it off; <img> loaded).
+        cut = cut.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        return cut + "<font color=\"" + Theme.primary + "\">... " + qsTr("daha fazla göster") + "</font>"
     }
 
     radius: Dimensions.radiusSection
