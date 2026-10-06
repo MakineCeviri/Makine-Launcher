@@ -981,13 +981,13 @@ ApplicationWindow {
             // Add detected game to library, then show notification
             GameService.addManualGame(installPath)
             gameToast.show(gameId, gameName,
-                gameName + " k\u00fct\u00fcphaneye eklendi!",
-                "K\u00fct\u00fcphaneden T\u00fcrk\u00e7e yama y\u00fckleyebilirsiniz.")
+                qsTr("%1 kütüphaneye eklendi!").arg(gameName),
+                qsTr("Kütüphaneden Türkçe yama yükleyebilirsiniz."))
         }
         function onProcessNotSupported(processName) {
             gameToast.show("", processName,
-                processName + " desteklenmiyor",
-                "Bu oyun henüz Türkçe'ye çevrilmedi.")
+                qsTr("%1 desteklenmiyor").arg(processName),
+                qsTr("Bu oyun henüz Türkçeye çevrilmedi."))
         }
     }
 
