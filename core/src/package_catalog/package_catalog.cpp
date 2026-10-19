@@ -743,6 +743,13 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
             const std::string word = remainder.substr(0, wordEnd);
             for (const char* numeral : {"ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"})
                 if (word == numeral) return true;
+            // ...or with a word naming a rebuilt release: a remaster's patch does
+            // not fit the original (2012 "Assassin's Creed III" folders were
+            // offered AC III Remastered's vpatch and failed all four steps), nor
+            // the other way round. Only rebuild words: "Edition", "GOTY" and the
+            // like are usually the same game.
+            for (const char* rebuild : {"remastered", "remaster", "remake", "reforged", "redux"})
+                if (word == rebuild) return true;
         }
         // Also check prefix (e.g. "2 red dead" unlikely but safe)
         std::string prefix = longer.substr(0, pos);

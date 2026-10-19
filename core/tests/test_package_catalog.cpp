@@ -510,6 +510,8 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdRejectsPartialWordAndNumeralSequels)
     EXPECT_EQ(catalog_.findMatchingAppId("Cities Skylines II"), "");
     EXPECT_EQ(catalog_.findMatchingAppId("Cities Skylines"), "255710");
     EXPECT_EQ(catalog_.findMatchingAppId("Assassin's Creed III Remastered"), "911400");
+    // Sentry 2026-10 (MAKINE-LAUNCHER-3M/V/1D/3J): the 2012 original got the remaster's patch.
+    EXPECT_EQ(catalog_.findMatchingAppId("Assassin's Creed III"), "");
     EXPECT_EQ(catalog_.findMatchingAppId("Disco"), "1716740");
 }
 
