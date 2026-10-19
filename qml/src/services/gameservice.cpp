@@ -1715,9 +1715,23 @@ void GameService::uninstallTranslationNow(const QString& gameId)
             const QString backupPath = latest.value(QStringLiteral("backupPath")).toString();
             const auto cancelWait = awaitRestore(bm, gameId,
                 [this, gameId, gamePath, backupPath]() {
+                    m_restoreFailures.remove(gameId);
                     finalizeUninstall(gameId, gamePath, backupPath);
                 },
-                [this, gameId](const QString& reason) {
+                [this, gameId, gamePath](const QString& reason) {
+                    // Refusing forever was a dead end: people retried dozens of
+                    // times (uninstall_aborted 105 events / 14 users — Alan Wake,
+                    // Starfield, RDR2). The first failure still stops, since a
+                    // closed game or a released lock usually lets the next try
+                    // through; the second removes the patch and hands what could
+                    // not be restored to the store's repair, like a missing backup.
+                    if (++m_restoreFailures[gameId] >= 2) {
+                        qCWarning(lcGameService) << "Backup restore failed again for" << gameId
+                                                 << "— removing the patch, the store repairs the rest";
+                        m_restoreFailures.remove(gameId);
+                        uninstallWithStoreRepair(gameId, gamePath);
+                        return;
+                    }
                     qCWarning(lcGameService) << "Backup restore failed for" << gameId
                                               << "— skipping uninstall to avoid mixed state";
                     // Tagged "uninstall", not "uninstall/restore": operation is
@@ -1729,7 +1743,9 @@ void GameService::uninstallTranslationNow(const QString& gameId)
                     reportOperationFailure("uninstall", gameId,
                         QStringLiteral("restore failed, uninstall aborted to avoid mixed state: %1")
                             .arg(reason));
-                    emit translationUninstalled(gameId, false, reason);
+                    emit translationUninstalled(gameId, false, reason + QStringLiteral("\n\n")
+                        + tr("Oyunu ve mağaza uygulamasını kapatıp tekrar deneyin. Yine olmazsa yama "
+                             "kaldırılır ve geri yüklenemeyen dosyalar için mağazanın dosya onarımı başlatılır."));
                 });
             bool started = bm->restoreBackup(latest["id"].toString(), gamePath);
             if (!started) {

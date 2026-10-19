@@ -521,6 +521,7 @@ private:
     bool m_installCancelRequested{false};
     QSet<QString> m_uninstalling;   // games with an uninstall in flight
     QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
+    QHash<QString, int> m_restoreFailures;  // failed uninstall restores per game, this session
     QSet<QString> m_integrityReported;   // "<game>:<missing>/<total>" already sent
     QTimer* m_installTimeoutTimer{nullptr};  // Cancels an install the core
                                              // never reports back on
