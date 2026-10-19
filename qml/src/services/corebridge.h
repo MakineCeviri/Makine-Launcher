@@ -200,6 +200,11 @@ public:
     QStringList unknownRecipeActions(const QString& gameId);
 
     /**
+     * @brief Whether the package's recipe rewrites game files in place
+     */
+    bool recipeWritesInPlace(const QString& gameId);
+
+    /**
      * @brief Match a folder name against the package catalog
      * @return steamAppId if matched, empty string otherwise
      */

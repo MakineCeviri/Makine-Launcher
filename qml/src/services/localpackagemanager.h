@@ -150,6 +150,9 @@ public:
     // Step actions in any of this package's recipes that this build cannot run.
     QStringList unknownRecipeActions(const QString& steamAppId) const;
 
+    // Whether any of this package's recipes rewrites a game file in place.
+    bool recipeWritesInPlace(const QString& steamAppId) const;
+
     // Match a folder name against package catalog (case-insensitive, matches gameName or dirName)
     QString findMatchingAppId(const QString& folderName) const;
 

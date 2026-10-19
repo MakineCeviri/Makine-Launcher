@@ -1418,6 +1418,13 @@ QStringList CoreBridge::unknownRecipeActions(const QString& gameId)
     return resolved.isEmpty() ? QStringList{} : m_localPkgManager->unknownRecipeActions(resolved);
 }
 
+bool CoreBridge::recipeWritesInPlace(const QString& gameId)
+{
+    if (!m_localPkgManager) return false;
+    const QString resolved = resolveToSteamAppId(gameId);
+    return !resolved.isEmpty() && m_localPkgManager->recipeWritesInPlace(resolved);
+}
+
 QString CoreBridge::findMatchingAppId(const QString& folderName)
 {
     MAKINE_ZONE_NAMED("CoreBridge::findMatchingAppId");

@@ -1353,6 +1353,15 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         }
     }
 
+    if (mode == InstallMode::Update && m_coreBridge->recipeWritesInPlace(gameId)) {
+        // In-place steps (patchBytes, forgeReimport, xdelta, vpatch) edit files
+        // the installed version already edited: a patch finds nothing left to
+        // replace, and the original is only in the first install's backup, which
+        // an update does not refresh. Go back to the originals, then install.
+        reinstallForUpdate(gameId, variant, selectedOptions);
+        return;
+    }
+
     if (mode == InstallMode::Install) {
         // Install mode: consume anti-cheat acknowledgement.
         // InstallFlowController already handled the warning dialog and called
@@ -2104,6 +2113,30 @@ void GameService::recoverTranslation(const QString& gameId)
             installTranslation(gameId);
         }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
 
+    uninstallTranslation(gameId);
+}
+
+void GameService::reinstallForUpdate(const QString& gameId, const QString& variant,
+                                     const QStringList& selectedOptions)
+{
+    qCInfo(lcGameService) << "Update of" << gameId
+                          << "rewrites files in place — restoring originals, then installing";
+    connect(this, &GameService::translationUninstalled, this,
+        [this, gameId, variant, selectedOptions](const QString& uninstalledId, bool success, const QString& /*msg*/) {
+            if (uninstalledId != gameId) return;
+            if (!success) {
+                emit translationInstallCompleted(gameId, false,
+                    tr("Güncelleme için oyunun orijinal dosyaları geri yüklenemedi; yeni sürüm kurulmadı."));
+                return;
+            }
+            if (m_storeRepairStarted.contains(gameId)) {
+                emit translationInstallCompleted(gameId, false,
+                    tr("Eski sürüm kaldırıldı; oyun dosyaları mağaza üzerinden onarılıyor. "
+                       "Onarım bitince yamayı yeniden kurun."));
+                return;
+            }
+            installTranslation(gameId, variant, selectedOptions);
+        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
     uninstallTranslation(gameId);
 }
 

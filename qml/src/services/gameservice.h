@@ -427,6 +427,10 @@ signals:
     void antiCheatWarningNeeded(const QString& gameId, const QVariantMap& antiCheatData);
 
 private:
+    // Update of a package whose recipe rewrites game files in place: restore
+    // the originals, then install this version (fresh backup, same choices).
+    void reinstallForUpdate(const QString& gameId, const QString& variant,
+                            const QStringList& selectedOptions);
     void saveCachedGames();
     void setupCoreBridge();
     void onScanProgress(qreal progress, const QString& status);

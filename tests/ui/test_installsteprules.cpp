@@ -33,6 +33,16 @@ bool executable(const QString& action, const QString& src = {},
 
 // ── Recipes that MUST still run (regression guard) ───────────────────────────
 
+TEST(StepRules, InPlaceActionsAreTheOnesThatEditGameFiles)
+{
+    // An update of a recipe with one of these restores the originals first.
+    for (const char* a : {"patchBytes", "forgeReimport", "xdelta", "vpatch"})
+        EXPECT_TRUE(isInPlaceAction(QString::fromLatin1(a))) << a;
+    for (const char* a : {"copy", "copyFile", "copyDir", "delete", "installFont", "run",
+                          "copyToDesktop", "rename", "setSteamLanguage", ""})
+        EXPECT_FALSE(isInPlaceAction(QString::fromLatin1(a))) << a;
+}
+
 TEST(StepRules, EldenRingOptionRecipeStaysExecutable)
 {
     // 1245620, option "patch" — the launcher's most-used scripted install.

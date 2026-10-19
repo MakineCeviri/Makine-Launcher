@@ -51,6 +51,16 @@ inline bool isKnownAction(const QString& action)
     return knownActions().contains(action);
 }
 
+// Does this action rewrite a file of the game in place (rather than copy a
+// package file over it)? Such a step cannot simply run again on an updated
+// install: the file it edits is already edited, and its original exists only
+// in the backup taken at the first install.
+inline bool isInPlaceAction(const QString& action)
+{
+    return action == QLatin1String("patchBytes") || action == QLatin1String("forgeReimport")
+        || action == QLatin1String("xdelta") || action == QLatin1String("vpatch");
+}
+
 // Which required parameter of a KNOWN action is empty, if any.
 //
 // An unknown action name is not the only way a recipe can be unrunnable. The

@@ -451,6 +451,25 @@ QStringList LocalPackageManager::unknownRecipeActions(const QString& steamAppId)
     return out;
 }
 
+bool LocalPackageManager::recipeWritesInPlace(const QString& steamAppId) const
+{
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg) return false;
+    const auto any = [](const QList<InstallStep>& steps) {
+        for (const InstallStep& st : steps)
+            if (steprules::isInPlaceAction(st.action)) return true;
+        return false;
+    };
+    if (any(pkg->installSteps)) return true;
+    for (const InstallOptionQt& opt : pkg->installOptions) if (any(opt.steps)) return true;
+    for (const auto& steps : pkg->combinedSteps) if (any(steps)) return true;
+    for (const auto& vc : pkg->variantInstallOptions) {
+        for (const InstallOptionQt& opt : vc.installOptions) if (any(opt.steps)) return true;
+        for (const auto& steps : vc.combinedSteps) if (any(steps)) return true;
+    }
+    return false;
+}
+
 QString LocalPackageManager::findMatchingAppId(const QString& folderName) const
 {
     return QString::fromStdString(m_catalog.findMatchingAppId(folderName.toStdString()));
