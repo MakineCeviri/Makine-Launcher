@@ -184,6 +184,16 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
             step.exe = std::move(exe);
             if (step.args.empty()) step.args = std::move(args);
         }
+        // "patchBytes": [{"find": "...", "replace": "..."}]. The byte strings
+        // stay encoded here; the executor decodes and validates them.
+        if (s.contains("patches") && s["patches"].is_array()) {
+            for (const auto& p : s["patches"]) {
+                if (p.is_object() && p.contains("find") && p["find"].is_string()
+                    && p.contains("replace") && p["replace"].is_string())
+                    step.patches.emplace_back(p["find"].get<std::string>(),
+                                              p["replace"].get<std::string>());
+            }
+        }
         steps.push_back(std::move(step));
     }
     return steps;
@@ -582,7 +592,10 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
             : fs::path(sourcePathOverride);
 
         for (const InstallStep& step : pkg.installSteps) {
-            if (step.action == "copy") {
+            // copyFile is the same step under another name (executeStep runs
+            // both); left out, Grim Fandango and Catherine overwrote originals
+            // with nothing backed up, and Alan Wake 2's list came back empty.
+            if (step.action == "copy" || step.action == "copyFile") {
                 targetFiles.push_back(step.dest);
             } else if (step.action == "copyDir") {
                 // Scan the source dir to get the actual file list
@@ -708,6 +721,13 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
         if (shorter.size() >= longer.size()) return false;
         auto pos = longer.find(shorter);
         if (pos == std::string::npos) return false;
+        // A match that starts or ends inside a word names another game:
+        // "assassin's creed ii" sits inside "assassin's creed iii remastered",
+        // and AC II folders were offered the AC III patch.
+        const size_t matchEnd = pos + shorter.size();
+        if ((matchEnd < longer.size() && std::isalnum(static_cast<unsigned char>(longer[matchEnd])))
+            || (pos > 0 && std::isalnum(static_cast<unsigned char>(longer[pos - 1]))))
+            return true;
         // Check what remains after the match
         std::string remainder = longer.substr(pos + shorter.size());
         // Trim leading spaces/punctuation
@@ -717,6 +737,13 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
         // If remainder starts with a digit, it's a sequel
         if (!remainder.empty() && std::isdigit(static_cast<unsigned char>(remainder[0])))
             return true;
+        // ...or with a Roman numeral standing as its own word ("hades ii").
+        {
+            const size_t wordEnd = remainder.find_first_of(" :-_.");
+            const std::string word = remainder.substr(0, wordEnd);
+            for (const char* numeral : {"ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"})
+                if (word == numeral) return true;
+        }
         // Also check prefix (e.g. "2 red dead" unlikely but safe)
         std::string prefix = longer.substr(0, pos);
         size_t end = prefix.find_last_not_of(" :-_.");

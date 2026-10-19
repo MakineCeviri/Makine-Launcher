@@ -36,8 +36,8 @@ core/
 │   ├── logging.hpp           # spdlog üstünde MAKINE_LOG_* makroları
 │   ├── types/common.hpp      # fs alias, ByteBuffer, ProgressCallback, CancellationToken, Version
 │   └── plugin/
-│       ├── plugin_api.h      # Eklenti DLL fonksiyon imzaları (C ABI)
-│       └── plugin_types.h    # MakineError, MakinePluginInfo
+│       ├── abi.h             # Eklenti C ABI'si v2 (makine_plugin_entry)
+│       └── sdk.hpp           # Eklenti yazarları için başlık-yalnız C++ SDK
 │
 ├── src/
 │   ├── package_catalog/package_catalog.cpp
@@ -110,7 +110,7 @@ build'lerde çalışır, `.sha256` dosyası yoksa kontrol atlanır.
 | `error.hpp` | `ErrorCode`, `Error`, `Result<T>`, `VoidResult`, `MAKINE_TRY` | Üç modül |
 | `logging.hpp` | `MAKINE_LOG_*`, `MAKINE_TIMED_SCOPE` | Üç modül |
 | `types/common.hpp` | Ortak tipler | `crash_recovery`, `file_integrity` |
-| `plugin/plugin_api.h` | Eklenti DLL'lerinin dışa aktardığı fonksiyon tipleri | `PluginManager` |
+| `plugin/abi.h`, `plugin/sdk.hpp` | Eklenti ABI'si v2 ve SDK'sı ([docs/plugins](../plugins/README.md)) | `makine-plugin-host`, eklentiler |
 
 ---
 

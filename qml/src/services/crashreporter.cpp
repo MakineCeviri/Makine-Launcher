@@ -434,7 +434,8 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
     // by the counts (which game, how often). Anything else goes out once per
     // (operation, reason, subject) per day — except the self-test, which is
     // the proof that the path works and must never be suppressed.
-    if (unsupported)
+    // A cancel is the user's choice; the count is all there is to know.
+    if (unsupported || reason == QLatin1String("cancelled"))
         return;
     if (qstrcmp(operation, "selftest") != 0
         && !admitToSentry(telemetryrules::sentryKey(QString::fromLatin1(operation),

@@ -323,6 +323,10 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
             auto it = m_activeDownloads.find(appId);
             if (it == m_activeDownloads.end()) return;
             auto& state = it.value();
+            // The state outlives this reply (retry wait, Range restart,
+            // extraction); a cancel in that window called abort() on the
+            // deleted reply (fatal MAKINE-LAUNCHER-2Y).
+            if (state.reply == reply) state.reply = nullptr;
 
             if (state.cancelled) {
                 QFile::remove(state.partPath);
@@ -522,9 +526,13 @@ static QString categorizeExtractError(const QString& raw)
         return TranslationDownloader::tr(
             "Güvenlik hatası: paket geçersiz dosya yolu içeriyor.");
 
+    // The files go to the launcher's own package folder, which no game holds
+    // open; in the field it was dinput8.dll, the shape antivirus grabs.
     if (raw.contains(QLatin1String("locked")))
         return TranslationDownloader::tr(
-            "Dosya kilitli — oyun açıksa kapatıp tekrar deneyin.");
+            "Dosya kilitli — antivirüs çıkarılan dosyayı tutuyor ya da karantinaya "
+            "alıyor olabilir. Makine Launcher'ı antivirüs dışlamalarına ekleyip "
+            "tekrar deneyin.");
 
     if (raw.contains(QLatin1String("disk full")) ||
         raw.contains(QLatin1String("Write failed")))

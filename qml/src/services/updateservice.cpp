@@ -203,7 +203,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     const QString notes = obj.value(QStringLiteral("notes")).toString();
     const QString channel = obj.value(QStringLiteral("channel")).toString();
 
-    if (version.isEmpty() || url.isEmpty()) {
+    if (version.isEmpty()) {
         setError(QStringLiteral("Güncelleme verisi eksik veya hatalı"));
         setState(Idle);
         return;
@@ -248,6 +248,13 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
 
     int cmp = compareVersions(remoteVer, currentVer);
     bool hasUpdate = (cmp > 0) || (cmp == 0 && currentPre.size() > 0 && remotePre.isEmpty());
+
+    // Only a newer version needs a download URL; an older entry means up to date.
+    if (hasUpdate && url.isEmpty()) {
+        setError(QStringLiteral("Güncelleme verisi eksik veya hatalı"));
+        setState(Idle);
+        return;
+    }
 
     // Cache result with timestamp
     QSettings settings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"));

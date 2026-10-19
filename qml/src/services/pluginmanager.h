@@ -3,187 +3,225 @@
 
 #pragma once
 
+#include "pluginmanifest.h"
+#include "plugininstaller.h"
+
+#include <QHash>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QObject>
-#include <QVariantList>
-#include <QVariantMap>
+#include <QRect>
 #include <QString>
 #include <QStringList>
-#include <QLoggingCategory>
-#include <QNetworkAccessManager>
-#include <vector>
+#include <QUrl>
+#include <QVariantList>
+#include <QVariantMap>
 
-#ifdef Q_OS_WIN
-#include <windows.h>
-#endif
+#include <functional>
+#include <map>
+#include <optional>
 
-#include <makine/plugin/plugin_api.h>
+namespace makine {
+class GameService;
+class ProcessScanner;
+} // namespace makine
+class PluginProcess;
+class PluginRegistry;
+class QNetworkAccessManager;
 
-Q_DECLARE_LOGGING_CATEGORY(lcPlugin)
-
+/**
+ * Plugin system v2 (docs/adr/0009-plugin-system-v2.md), as QML sees it.
+ *
+ * Installed plugins come from AppPaths::pluginsDir(); the official catalogue from
+ * the signed CDN registry. Each enabled plugin runs in its own
+ * makine-plugin-host.exe (PluginProcess). Plugins never run before the user has
+ * granted every capability their manifest declares.
+ *
+ * `plugins` entries: id, name, version, description, publisher, homepage, license,
+ *   verified, enabled, state, statusText, lastError, capabilities [{id,label,reason}],
+ *   missingCapabilities [{id,label,reason}], actions [{id,label,description}],
+ *   hasSettings, updateAvailable, availableVersion.
+ *   state: disabled | starting | running | error | crashed | needs-consent |
+ *          incompatible | invalid
+ * `catalog` entries: id, name, version, description, publisher, homepage, size,
+ *   capabilities [{id,label,reason}], installed, installedVersion, updateAvailable,
+ *   compatible, incompatibleReason.
+ */
 class PluginManager : public QObject {
     Q_OBJECT
 
     Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
-    Q_PROPERTY(int pluginCount READ pluginCount NOTIFY pluginsChanged)
-    Q_PROPERTY(bool checking READ isChecking NOTIFY checkingChanged)
-    Q_PROPERTY(bool installing READ isInstalling NOTIFY installingChanged)
-    Q_PROPERTY(QString installingPluginId READ installingPluginId NOTIFY installingChanged)
-    Q_PROPERTY(double installProgress READ installProgress NOTIFY installProgressChanged)
-    Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
-    Q_PROPERTY(QVariantList communityPlugins READ communityPlugins NOTIFY communityPluginsChanged)
-    Q_PROPERTY(bool loadingCommunity READ isLoadingCommunity NOTIFY loadingCommunityChanged)
+    Q_PROPERTY(int updateCount READ updateCount NOTIFY pluginsChanged)
+    Q_PROPERTY(QVariantList catalog READ catalog NOTIFY catalogChanged)
+    Q_PROPERTY(bool catalogLoading READ catalogLoading NOTIFY catalogChanged)
+    Q_PROPERTY(QString catalogError READ catalogError NOTIFY catalogChanged)
+    Q_PROPERTY(QString busyPluginId READ busyPluginId NOTIFY busyChanged)
+    Q_PROPERTY(double busyProgress READ busyProgress NOTIFY busyChanged)
+    Q_PROPERTY(bool developerMode READ developerMode WRITE setDeveloperMode NOTIFY developerModeChanged)
+
+    // The launcher-drawn overlay that plugins with the `overlay` capability drive.
+    Q_PROPERTY(bool overlayVisible READ overlayVisible NOTIFY overlayChanged)
+    Q_PROPERTY(QRect overlayRegion READ overlayRegion NOTIFY overlayChanged)
+    Q_PROPERTY(QString overlayText READ overlayText NOTIFY overlayChanged)
+    Q_PROPERTY(QString overlaySourceText READ overlaySourceText NOTIFY overlayChanged)
 
 public:
     explicit PluginManager(QObject* parent = nullptr);
     ~PluginManager() override;
 
-    QVariantList plugins() const;
-    int pluginCount() const;
-    bool isChecking() const { return m_checking; }
-    bool isInstalling() const { return m_installing; }
-    QString installingPluginId() const { return m_installingPluginId; }
-    double installProgress() const { return m_installProgress; }
-    bool restartRequired() const { return m_restartRequired; }
-    QVariantList communityPlugins() const { return m_communityPlugins; }
-    bool isLoadingCommunity() const { return m_loadingCommunity; }
+    void setGameService(makine::GameService* service);
+    void setProcessScanner(makine::ProcessScanner* scanner);
 
-    Q_INVOKABLE void discoverPlugins();
-    Q_INVOKABLE bool enablePlugin(const QString& pluginId);
-    Q_INVOKABLE bool disablePlugin(const QString& pluginId);
-    Q_INVOKABLE QVariantMap pluginInfo(const QString& pluginId) const;
-    Q_INVOKABLE bool isPluginEnabled(const QString& pluginId) const;
-    Q_INVOKABLE bool isPluginLoaded(const QString& pluginId) const;
-
-    // Install / Update / Uninstall
-    Q_INVOKABLE void installPlugin(const QString& pluginId, const QString& downloadUrl = {});
-    Q_INVOKABLE void installFromFile(const QString& fileOrUrl);
-    Q_INVOKABLE void uninstallPlugin(const QString& pluginId, bool removeData = false);
-    Q_INVOKABLE void checkForUpdates();
-    Q_INVOKABLE bool hasUpdate(const QString& pluginId) const;
-    Q_INVOKABLE QString availableVersion(const QString& pluginId) const;
-    Q_INVOKABLE QString lastPluginError(const QString& pluginId) const;
-
-    // Plugin settings (reads manifest settings definitions + calls DLL get/set)
-    Q_INVOKABLE QVariantList pluginSettings(const QString& pluginId) const;
-    Q_INVOKABLE QString getPluginSetting(const QString& pluginId, const QString& key) const;
-    Q_INVOKABLE void setPluginSetting(const QString& pluginId, const QString& key, const QString& value);
-
-    // Settings discovery (moved from SettingsScreen.qml JS loops)
-    Q_INVOKABLE QVariantList settingsCategories() const;
-    Q_INVOKABLE QVariantList pluginsWithSettings() const;
-
-    // Community discovery (GitHub topic search)
-    Q_INVOKABLE void fetchCommunityPlugins();
-    Q_INVOKABLE void openCommunityPage();
-
-    // OCR plugin calls
-    Q_INVOKABLE QString callPluginOcr(const QString& pluginId, int x, int y, int w, int h);
-    Q_INVOKABLE QString getPluginLastOcrText(const QString& pluginId) const;
-
-    void loadEnabledPlugins();
+    /// Reads installed plugins, starts the enabled ones and fetches the registry.
+    void start();
+    /// Asks every plugin to shut down and waits briefly. Call on aboutToQuit.
     void shutdownAll();
 
+    QVariantList plugins() const;
+    int updateCount() const;
+    QVariantList catalog() const;
+    bool catalogLoading() const;
+    QString catalogError() const;
+    QString busyPluginId() const { return m_busyId; }
+    double busyProgress() const { return m_busyProgress; }
+    bool developerMode() const;
+    void setDeveloperMode(bool on);
+    bool overlayVisible() const { return m_overlay.visible; }
+    QRect overlayRegion() const { return m_overlay.region; }
+    QString overlayText() const { return m_overlay.text; }
+    QString overlaySourceText() const { return m_overlay.sourceText; }
+
+    Q_INVOKABLE QVariantMap plugin(const QString& id) const;
+    Q_INVOKABLE void refreshCatalog();
+    /// Installs or updates from the registry. The caller has shown the entry's
+    /// capabilities, so they count as granted.
+    Q_INVOKABLE void install(const QString& id);
+    /// Developer mode only: an unverified .mkplugin chosen by the user.
+    Q_INVOKABLE void installFromFile(const QUrl& file);
+    Q_INVOKABLE void uninstall(const QString& id, bool removeData);
+    Q_INVOKABLE void setEnabled(const QString& id, bool enabled);
+    Q_INVOKABLE void restart(const QString& id);
+    /// Grants what the manifest asks for and starts the plugin if it is enabled.
+    Q_INVOKABLE void grantCapabilities(const QString& id);
+
+    /// Setting definitions with current values. Secrets carry `hasValue`, never the value.
+    Q_INVOKABLE QVariantList settings(const QString& id) const;
+    Q_INVOKABLE bool setSetting(const QString& id, const QString& key, const QVariant& value);
+    Q_INVOKABLE void runAction(const QString& id, const QString& actionId);
+    Q_INVOKABLE QStringList logLines(const QString& id) const;
+    /// Sidebar entries for enabled plugins that have settings or actions.
+    Q_INVOKABLE QVariantList settingsCategories() const;
+
+    Q_INVOKABLE void answerAttach(int requestId, bool allow, bool remember);
+    /// Qt logical global coordinates; the plugin receives physical pixels. width <= 0 means the user cancelled.
+    Q_INVOKABLE void answerRegion(int requestId, int x, int y, int width, int height);
+
 signals:
+    /// The set of plugins or their install-level data changed (install, update,
+    /// uninstall, enable, consent, catalog flags). Re-read `plugins`.
     void pluginsChanged();
-    void pluginError(const QString& pluginId, const QString& error);
-    void checkingChanged();
-    void installingChanged();
-    void installProgressChanged();
-    void restartRequiredChanged();
-    void pluginInstalled(const QString& pluginId);
-    void pluginUninstalled(const QString& pluginId);
-    void updateAvailable(const QString& pluginId, const QString& newVersion);
-    void communityPluginsChanged();
-    void loadingCommunityChanged();
+    /// One plugin's runtime data changed: state, lastError, statusText. Frequent
+    /// (ui.setStatus); re-read plugin(id) only, never the whole list.
+    void pluginChanged(const QString& id);
+    void catalogChanged();
+    void busyChanged();
+    void developerModeChanged();
+    void overlayChanged();
+    void logChanged(const QString& id);
+    /// A setting value changed, by the user or by the plugin itself (settings.set).
+    void settingsChanged(const QString& id);
+    /// Install, update and start failures, worded for the user.
+    void pluginError(const QString& id, const QString& message);
+    void pluginInstalled(const QString& id);
+    void actionFinished(const QString& id, const QString& actionId, bool ok, const QString& message);
+    /// ui.notify from a plugin. kind: info | success | warning | error
+    void notify(const QString& id, const QString& pluginName, const QString& title,
+                const QString& message, const QString& kind);
+    void attachRequested(int requestId, const QString& id, const QString& pluginName,
+                         const QString& gameName);
+    void regionRequested(int requestId, const QString& id, const QString& pluginName);
+    /// The plugin behind an open attach or region request stopped; close its UI.
+    void requestCancelled(int requestId);
 
 private:
-    struct PluginEntry {
+    struct Installed {
         QString id;
-        QString name;
-        QString version;
-        QString description;
-        QString author;
-        QString license;
-        QString category;
-        QString entryDll;
-        QString dirPath;
-        QStringList features;
-        QStringList capabilities;
-        QString size;
-        int apiVersion = 0;
+        QString dir;
+        std::optional<PluginManifest> manifest;   // empty: folder with a broken manifest
         bool enabled = false;
-        bool loaded = false;
-        bool updateAvailable = false;
-        QString availableVersion;
+        bool verified = false;      // installed from the signed registry
+        QStringList granted;        // capabilities the user agreed to
+        QString state;
+        QString statusText;
         QString lastError;
-        QVariantList settingsDefs; // from manifest.json "settings" array
-
-        // Optional DLL exports for settings
-        using GetSettingFn = const char* (*)(const char*);
-        using SetSettingFn = void (*)(const char*, const char*);
-        GetSettingFn fnGetSetting = nullptr;
-        SetSettingFn fnSetSetting = nullptr;
-
-        // Optional DLL exports for OCR+translate
-        using CaptureOcrTranslateFn = const char* (*)(void*, int, int, int, int);
-        using GetLastOcrTextFn = const char* (*)(void);
-        CaptureOcrTranslateFn fnCaptureOcrTranslate = nullptr;
-        GetLastOcrTextFn fnGetLastOcrText = nullptr;
-
-#ifdef Q_OS_WIN
-        HMODULE hModule = nullptr;
-#endif
-        MakineFn_GetInfo fnGetInfo = nullptr;
-        MakineFn_Initialize fnInitialize = nullptr;
-        MakineFn_Shutdown fnShutdown = nullptr;
-        MakineFn_IsReady fnIsReady = nullptr;
-        MakineFn_GetLastError fnGetLastError = nullptr;
-
-        QVariantMap toVariantMap() const;
+        PluginProcess* process = nullptr;
+        QList<qint64> crashTimes;   // msecs since epoch, last 5 minutes
+        bool updatePending = false; // .previous/<id> waits for this version to start
+        std::function<void()> afterStop;
+        QJsonObject values;         // settings.json "values"
+        QJsonObject secrets;        // settings.json "secrets": base64 DPAPI blobs
+        QStringList log;
     };
 
-    // Remote plugin entry (from plugin index)
-    struct RemotePluginEntry {
-        QString id;
-        QString version;
-        QString githubRepo;     // e.g. "MakineCeviri/makine-plugin-live"
-        QString downloadUrl;    // GitHub release asset URL
-        QString sha256;
-        qint64 size = 0;
+    struct UserRequest {
+        QString kind;     // attach | region
+        QString pluginId;
+        QJsonValue callId;
+        QString gameId;   // attach
     };
 
-    bool loadManifest(const QString& dirPath, PluginEntry& entry);
-    bool loadPlugin(PluginEntry& entry);
-    void unloadPlugin(PluginEntry& entry);
-    void saveEnabledList();
-    QStringList loadEnabledList() const;
+    Installed* find(const QString& id);
+    const Installed* find(const QString& id) const;
+    void reloadOne(const QString& id);
+    void loadFolder(const plugininstaller::InstalledFolder& folder);
+    QVariantMap toVariant(const Installed& p) const;
 
-    // Remote operations
-    void parsePluginIndex(const QByteArray& data);
-    void fetchGitHubRelease(const QString& repo, const QString& pluginId);
-    bool extractPlugin(const QString& zipPath, const QString& pluginId);
-    int compareVersions(const QString& a, const QString& b) const;
+    void startPlugin(Installed& p);
+    void stopThen(Installed& p, std::function<void()> next);
+    void onReady(const QString& id, PluginProcess* proc);
+    void onStartFailed(const QString& id, PluginProcess* proc, int code, const QString& message,
+                       const QJsonValue& data);
+    void onFinished(const QString& id, PluginProcess* proc, bool requested);
+    void onCall(const QString& id, const QJsonValue& callId, const QString& method, const QJsonValue& params);
+    void broadcast(const QString& event, const QJsonObject& payload);
 
-    // Security
-    bool verifyChecksum(const QString& filePath, const QString& expected);
-    bool verifyDllSignature(const QString& dllPath);
-    bool validateZipContents(const QString& zipPath, const QString& pluginId);
-    bool isPathSafe(const QString& path, const QString& allowedRoot);
+    /// A call (callId set) or a fire-and-forget emit (callId undefined) from a plugin.
+    void handleRequest(Installed& p, const QJsonValue& callId, const QString& method,
+                       const QJsonObject& params);
+    QJsonObject attachResult(const QString& gameId) const;
 
-    std::vector<PluginEntry> m_plugins;
-    std::vector<RemotePluginEntry> m_remoteIndex;
-    QVariantList m_communityPlugins;
+    void replaceInstalled(const plugininstaller::StagedPlugin& staged, bool verified,
+                          const QStringList& grant);
+    void setBusy(const QString& id, double progress);
+    void appendLog(Installed& p, int level, const QString& line);
+    void setState(Installed& p, const QString& state, const QString& error = {});
+
+    QJsonObject settingValues(const Installed& p) const;   // defaults + values + decrypted secrets
+    bool storeSetting(Installed& p, const QString& key, const QJsonValue& value);
+    void loadSettings(Installed& p);
+    void saveSettings(const Installed& p) const;
+
+    void saveEnabled() const;
+    QString hostExe() const;
+    void hideOverlayOf(const QString& id);
+
     QNetworkAccessManager* m_net = nullptr;
-    bool m_checking = false;
-    bool m_installing = false;
-    QString m_installingPluginId;
-    double m_installProgress = 0.0;
-    bool m_restartRequired = false;
-    bool m_loadingCommunity = false;
+    PluginRegistry* m_registry = nullptr;
+    makine::GameService* m_gameService = nullptr;
+    makine::ProcessScanner* m_processScanner = nullptr;
+    std::map<QString, Installed> m_plugins;
+    QHash<int, UserRequest> m_requests;
+    int m_nextRequestId = 1;
+    QString m_busyId;
+    double m_busyProgress = 0.0;
+    QString m_runningGameId;
+    bool m_shuttingDown = false;
 
-    // GitHub configuration
-    static constexpr const char* kTrustedGitHubOrg = "MakineCeviri";
-    static constexpr const char* kGitHubTopic = "makine-plugin";
-    static constexpr const char* kRegistryRepo = "MakineCeviri/Makine-LauncherPlugins";
-    static constexpr int kCommunityMaxDisplay = 3;
+    struct {
+        QString owner;
+        bool visible = false;
+        QRect region;
+        QString text;
+        QString sourceText;
+    } m_overlay;
 };

@@ -4,1154 +4,1113 @@
 #include "pluginmanager.h"
 #include "apppaths.h"
 #include "cdnconfig.h"
+#include "gameservice.h"
 #include "networksecurity.h"
+#include "pluginprocess.h"
+#include "pluginregistry.h"
+#include "processscanner.h"
 
+#include <makine/plugin/abi.h>
+
+#include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QJsonDocument>
+#include <QGuiApplication>
 #include <QJsonArray>
-#include <QJsonObject>
-#include <QSettings>
+#include <QJsonDocument>
+#include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QCryptographicHash>
-#include <QProcess>
-#include <QRegularExpression>
-#include <QDesktopServices>
+#include <QSaveFile>
+#include <QScreen>
+#include <QSettings>
+#include <QTimer>
 
-#ifndef MAKINE_UI_ONLY
-#include "mkpkformat.h"
-#endif
+#include <functional>
+#include <utility>
 
 #ifdef Q_OS_WIN
-#include <wintrust.h>
-#include <softpub.h>
+#include <windows.h>
+#include <dpapi.h>
 #endif
 
 using namespace makine;
 
-Q_LOGGING_CATEGORY(lcPlugin, "makine.plugin")
+namespace {
+
+constexpr int kMaxLogLines = 500;
+constexpr qint64 kMaxLogFileBytes = 1024 * 1024;
+constexpr qint64 kCrashWindowMs = 5 * 60 * 1000;
+constexpr int kMaxCrashes = 3;
+constexpr int kRestartDelaysMs[] = {1000, 5000, 15000};
+constexpr qint64 kMaxPackageBytes = 200LL * 1024 * 1024;
+
+const QString kEnabledKey = QStringLiteral("plugins/enabled");
+const QString kDeveloperModeKey = QStringLiteral("plugins/developerMode");
+
+QString key(const char* group, const QString& id)
+{
+    return QStringLiteral("plugins/%1/%2").arg(QLatin1String(group), id);
+}
+
+QString capabilityLabel(const QString& id)
+{
+    if (id == QLatin1String("network"))          return PluginManager::tr("İnternete bağlanır");
+    if (id == QLatin1String("screen-capture"))   return PluginManager::tr("Ekran görüntüsü alır");
+    if (id == QLatin1String("overlay"))          return PluginManager::tr("Oyunun üzerine pencere çizer");
+    if (id == QLatin1String("game-files-read"))  return PluginManager::tr("Oyun klasörlerini okur");
+    if (id == QLatin1String("game-files-write")) return PluginManager::tr("Oyun dosyalarını değiştirir");
+    if (id == QLatin1String("process-inject"))   return PluginManager::tr("Çalışan oyuna bağlanır");
+    return id;
+}
+
+QVariantList capabilityList(const QList<PluginCapability>& caps, const QStringList& skip = {})
+{
+    QVariantList list;
+    for (const auto& c : caps)
+        if (!skip.contains(c.id))
+            list.append(QVariantMap{{"id", c.id}, {"label", capabilityLabel(c.id)}, {"reason", c.reason}});
+    return list;
+}
+
+// Plugins speak physical pixels of the virtual desktop (the host is per-monitor
+// DPI aware, so DXGI and BitBlt need no scaling); QML speaks Qt's logical pixels.
+// Qt keeps each screen's top-left at its native position and scales only inside
+// the screen, so the conversion is per screen around that origin.
+QRect toPhysical(const QRect& logical)
+{
+    const QScreen* screen = QGuiApplication::screenAt(logical.center());
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    if (!screen) return logical;
+    const qreal dpr = screen->devicePixelRatio();
+    const QPoint origin = screen->geometry().topLeft();
+    const QPointF topLeft = QPointF(origin) + QPointF(logical.topLeft() - origin) * dpr;
+    return QRect(qRound(topLeft.x()), qRound(topLeft.y()),
+                 qRound(logical.width() * dpr), qRound(logical.height() * dpr));
+}
+
+QRect toLogical(const QRect& physical)
+{
+    for (const QScreen* screen : QGuiApplication::screens()) {
+        const qreal dpr = screen->devicePixelRatio();
+        const QPoint origin = screen->geometry().topLeft();
+        if (!QRect(origin, screen->geometry().size() * dpr).contains(physical.center())) continue;
+        const QPointF topLeft = QPointF(origin) + QPointF(physical.topLeft() - origin) / dpr;
+        return QRect(qRound(topLeft.x()), qRound(topLeft.y()),
+                     qRound(physical.width() / dpr), qRound(physical.height() / dpr));
+    }
+    return physical;
+}
+
+QString appVersion()
+{
+    return QCoreApplication::applicationVersion();
+}
+
+// Every Makine release carries "-beta"; a plugin asking for 0.2.0 means the 0.2.0
+// line, so the launcher's own pre-release tag is not held against it.
+bool launcherAtLeast(const QString& minLauncher)
+{
+    return pluginmanifest::compareVersions(appVersion().section(u'-', 0, 0), minLauncher) >= 0;
+}
+
+QString describeStartFailure(int code, const QString& message, const QJsonValue& data)
+{
+    if (code == -32000) {
+        switch (data.toObject().value(u"winError").toInt()) {
+        case 126: return PluginManager::tr("Eklentinin ihtiyaç duyduğu bir DLL eksik; paket hatalı.");
+        case 193: return PluginManager::tr("Eklenti 64 bit Windows için derlenmemiş.");
+        case 2:
+        case 3:   return PluginManager::tr("Eklenti dosyası bulunamadı.");
+        case 0:   return PluginManager::tr("Eklenti Makine eklentisi değil: %1").arg(message);
+        default:  return PluginManager::tr("Eklenti yüklenemedi (Windows hata kodu %1).")
+                            .arg(data.toObject().value(u"winError").toInt());
+        }
+    }
+    if (code == MAKINE_E_UNSUPPORTED) return PluginManager::tr("Bu eklenti Makine'nin bu sürümüyle çalışmıyor.");
+    if (code == MAKINE_E_TIMEOUT) return PluginManager::tr("Eklenti zamanında başlamadı.");
+    return PluginManager::tr("Eklenti başlatılamadı: %1").arg(message);
+}
+
+#ifdef Q_OS_WIN
+// DPAPI, bound to the current Windows user; the plugin id is the entropy so one
+// plugin's blob cannot be replayed as another's.
+QByteArray dpapi(const QByteArray& data, const QByteArray& entropy, bool protect)
+{
+    DATA_BLOB in{static_cast<DWORD>(data.size()), reinterpret_cast<BYTE*>(const_cast<char*>(data.data()))};
+    DATA_BLOB ent{static_cast<DWORD>(entropy.size()), reinterpret_cast<BYTE*>(const_cast<char*>(entropy.data()))};
+    DATA_BLOB out{};
+    const BOOL ok = protect
+        ? CryptProtectData(&in, L"Makine plugin setting", &ent, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out)
+        : CryptUnprotectData(&in, nullptr, &ent, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out);
+    if (!ok) return {};
+    QByteArray result(reinterpret_cast<const char*>(out.pbData), static_cast<qsizetype>(out.cbData));
+    SecureZeroMemory(out.pbData, out.cbData);
+    LocalFree(out.pbData);
+    return result;
+}
+#else
+QByteArray dpapi(const QByteArray&, const QByteArray&, bool) { return {}; }
+#endif
+
+} // namespace
 
 PluginManager::PluginManager(QObject* parent)
     : QObject(parent)
     , m_net(new QNetworkAccessManager(this))
 {
     security::installTlsPinning(m_net);
+    m_registry = new PluginRegistry(m_net, this);
+    connect(m_registry, &PluginRegistry::loadingChanged, this, &PluginManager::catalogChanged);
+    connect(m_registry, &PluginRegistry::failed, this, &PluginManager::catalogChanged);
+    connect(m_registry, &PluginRegistry::updated, this, [this] {
+        emit catalogChanged();
+        emit pluginsChanged();   // update flags
+    });
 }
 
-PluginManager::~PluginManager()
+PluginManager::~PluginManager() = default;
+
+void PluginManager::setGameService(GameService* service)
 {
-    shutdownAll();
+    m_gameService = service;
+    if (!service) return;
+    connect(service, &GameService::translationInstallCompleted, this,
+            [this](const QString& gameId, bool success, const QString&) {
+        if (success) broadcast(QStringLiteral("translation.installed"), {{"gameId", gameId}});
+    });
+    connect(service, &GameService::translationUninstalled, this,
+            [this](const QString& gameId, bool success, const QString&) {
+        if (success) broadcast(QStringLiteral("translation.uninstalled"), {{"gameId", gameId}});
+    });
 }
 
-// ── QML Properties ──
-
-QVariantList PluginManager::plugins() const
+void PluginManager::setProcessScanner(ProcessScanner* scanner)
 {
-    QVariantList list;
-    list.reserve(static_cast<int>(m_plugins.size()));
-    for (const auto& p : m_plugins)
-        list.append(p.toVariantMap());
-    return list;
+    m_processScanner = scanner;
+    if (!scanner) return;
+    const auto onChange = [this] {
+        const QString now = m_processScanner->gameRunning() ? m_processScanner->runningGameId() : QString();
+        if (now == m_runningGameId) return;
+        if (!m_runningGameId.isEmpty())
+            broadcast(QStringLiteral("game.stopped"), {{"gameId", m_runningGameId}});
+        m_runningGameId = now;
+        if (!now.isEmpty())
+            broadcast(QStringLiteral("game.started"),
+                      {{"gameId", now}, {"name", m_processScanner->runningGameName()}});
+    };
+    connect(scanner, &ProcessScanner::runningGameChanged, this, onChange);
+    connect(scanner, &ProcessScanner::gameRunningChanged, this, onChange);
 }
 
-int PluginManager::pluginCount() const
+// ── Lifecycle ───────────────────────────────────────────────────────────────
+
+void PluginManager::start()
 {
-    return static_cast<int>(m_plugins.size());
-}
-
-// ── Discovery ──
-
-void PluginManager::discoverPlugins()
-{
-    m_plugins.clear();
-
-    const QString pluginsPath = AppPaths::pluginsDir();
-    QDir dir(pluginsPath);
-    if (!dir.exists()) {
-        qCDebug(lcPlugin) << "Plugins directory does not exist:" << pluginsPath;
-        emit pluginsChanged();
-        return;
-    }
-
-    const auto enabledList = loadEnabledList();
-    const auto entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-
-    for (const auto& entry : entries) {
-        const QString pluginDir = pluginsPath + "/" + entry;
-        PluginEntry plugin;
-        if (loadManifest(pluginDir, plugin)) {
-            plugin.enabled = enabledList.contains(plugin.id);
-            qCDebug(lcPlugin) << "Discovered plugin:" << plugin.id
-                              << "v" << plugin.version
-                              << (plugin.enabled ? "(enabled)" : "(disabled)");
-            m_plugins.push_back(std::move(plugin));
+    const QString root = AppPaths::pluginsDir();
+    QDir().mkpath(root);
+    plugininstaller::cleanUp(root);
+    // An update cut short by exit: put the old version back if the new one never
+    // landed; otherwise the new one still has to prove that it starts.
+    const QString previousRoot = root + QStringLiteral("/.previous");
+    for (const QString& id : QDir(previousRoot).entryList(QDir::Dirs | QDir::NoDotAndDotDot))
+        if (!QFileInfo::exists(root + u'/' + id)) plugininstaller::rollback(root, id);
+    for (const auto& folder : plugininstaller::scan(root))
+        loadFolder(folder);
+    for (auto& [id, p] : m_plugins) {
+        if (QFileInfo::exists(previousRoot + u'/' + id)) {
+            if (p.enabled) p.updatePending = true;
+            else plugininstaller::dropPrevious(root, id);
         }
-    }
-
-    qCInfo(lcPlugin) << "Discovered" << m_plugins.size() << "plugin(s)";
-    emit pluginsChanged();
-}
-
-// ── Manifest Parsing ──
-
-bool PluginManager::loadManifest(const QString& dirPath, PluginEntry& entry)
-{
-    const QString manifestPath = dirPath + "/manifest.json";
-    QFile file(manifestPath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        qCWarning(lcPlugin) << "Cannot open manifest:" << manifestPath;
-        return false;
-    }
-
-    QJsonParseError parseError;
-    const auto doc = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError) {
-        qCWarning(lcPlugin) << "Manifest parse error in" << manifestPath
-                            << ":" << parseError.errorString();
-        return false;
-    }
-
-    const auto obj = doc.object();
-
-    entry.id          = obj["id"].toString();
-    entry.name        = obj["name"].toString();
-    entry.version     = obj["version"].toString();
-    entry.description = obj["description"].toString();
-    entry.author      = obj["author"].toString();
-    entry.license     = obj["license"].toString();
-    entry.category    = obj["category"].toString();
-    entry.entryDll    = obj["entry"].toString();
-    entry.apiVersion  = obj["apiVersion"].toInt(0);
-    entry.dirPath     = dirPath;
-    entry.size        = obj["size"].toString();
-
-    for (const auto& f : obj["features"].toArray())
-        entry.features.append(f.toString());
-
-    for (const auto& c : obj["capabilities"].toArray())
-        entry.capabilities.append(c.toString());
-
-    // Parse settings definitions from manifest
-    for (const auto& s : obj["settings"].toArray()) {
-        auto sObj = s.toObject();
-        QVariantMap setting;
-        setting["key"]     = sObj["key"].toString();
-        setting["type"]    = sObj["type"].toString();
-        setting["label"]   = sObj["label"].toString();
-        setting["default"] = sObj["default"].toVariant();
-        QVariantList opts;
-        for (const auto& o : sObj["options"].toArray())
-            opts.append(o.toString());
-        setting["options"] = opts;
-        entry.settingsDefs.append(setting);
-    }
-
-    // Validate required fields
-    if (entry.id.isEmpty() || entry.name.isEmpty() || entry.entryDll.isEmpty()) {
-        qCWarning(lcPlugin) << "Manifest missing required fields:" << manifestPath;
-        return false;
-    }
-
-    // Check API version compatibility
-    if (entry.apiVersion > MAKINE_PLUGIN_API_VERSION) {
-        qCWarning(lcPlugin) << "Plugin" << entry.id
-                            << "requires API v" << entry.apiVersion
-                            << "(launcher supports v" << MAKINE_PLUGIN_API_VERSION << ")";
-        entry.lastError = QStringLiteral("Incompatible API version");
-        return false;
-    }
-
-    return true;
-}
-
-// ── DLL Loading ──
-
-bool PluginManager::loadPlugin(PluginEntry& entry)
-{
-    if (entry.loaded)
-        return true;
-
-#ifdef Q_OS_WIN
-    const QString dllPath = entry.dirPath + "/" + entry.entryDll;
-    if (!QFile::exists(dllPath)) {
-        entry.lastError = "DLL not found: " + entry.entryDll;
-        qCWarning(lcPlugin) << entry.lastError;
-        return false;
-    }
-
-    entry.hModule = LoadLibraryW(reinterpret_cast<LPCWSTR>(dllPath.utf16()));
-    if (!entry.hModule) {
-        entry.lastError = "LoadLibrary failed (error " + QString::number(GetLastError()) + ")";
-        qCWarning(lcPlugin) << "Plugin" << entry.id << ":" << entry.lastError;
-        return false;
-    }
-
-    // Resolve required exported symbols
-    entry.fnGetInfo     = reinterpret_cast<MakineFn_GetInfo>(
-                              GetProcAddress(entry.hModule, "makine_get_info"));
-    entry.fnInitialize  = reinterpret_cast<MakineFn_Initialize>(
-                              GetProcAddress(entry.hModule, "makine_initialize"));
-    entry.fnShutdown    = reinterpret_cast<MakineFn_Shutdown>(
-                              GetProcAddress(entry.hModule, "makine_shutdown"));
-    entry.fnIsReady     = reinterpret_cast<MakineFn_IsReady>(
-                              GetProcAddress(entry.hModule, "makine_is_ready"));
-    entry.fnGetLastError = reinterpret_cast<MakineFn_GetLastError>(
-                              GetProcAddress(entry.hModule, "makine_get_last_error"));
-
-    // Optional: settings exports
-    entry.fnGetSetting = reinterpret_cast<PluginEntry::GetSettingFn>(
-                              GetProcAddress(entry.hModule, "makine_get_setting"));
-    entry.fnSetSetting = reinterpret_cast<PluginEntry::SetSettingFn>(
-                              GetProcAddress(entry.hModule, "makine_set_setting"));
-
-    // Optional: OCR+translate exports
-    entry.fnCaptureOcrTranslate = reinterpret_cast<PluginEntry::CaptureOcrTranslateFn>(
-                              GetProcAddress(entry.hModule, "makine_capture_ocr_translate"));
-    entry.fnGetLastOcrText = reinterpret_cast<PluginEntry::GetLastOcrTextFn>(
-                              GetProcAddress(entry.hModule, "makine_get_last_ocr_text"));
-
-    if (!entry.fnGetInfo || !entry.fnInitialize || !entry.fnShutdown
-        || !entry.fnIsReady || !entry.fnGetLastError) {
-        entry.lastError = "Missing required exports in " + entry.entryDll;
-        qCWarning(lcPlugin) << "Plugin" << entry.id << ":" << entry.lastError;
-        FreeLibrary(entry.hModule);
-        entry.hModule = nullptr;
-        return false;
-    }
-
-    // Initialize the plugin with its data directory
-    const QString dataPath = AppPaths::pluginDataDir() + "/" + entry.id;
-    QDir().mkpath(dataPath);
-
-    MakineError err = entry.fnInitialize(dataPath.toUtf8().constData());
-    if (err != MAKINE_OK) {
-        const char* errMsg = entry.fnGetLastError();
-        entry.lastError = errMsg ? QString::fromUtf8(errMsg) : QStringLiteral("Initialize failed");
-        qCWarning(lcPlugin) << "Plugin" << entry.id << "init failed:" << entry.lastError;
-        FreeLibrary(entry.hModule);
-        entry.hModule = nullptr;
-        return false;
-    }
-
-    entry.loaded = true;
-    qCInfo(lcPlugin) << "Loaded plugin:" << entry.id << "v" << entry.version;
-    return true;
-#else
-    entry.lastError = "Plugin loading not supported on this platform";
-    return false;
-#endif
-}
-
-void PluginManager::unloadPlugin(PluginEntry& entry)
-{
-    if (!entry.loaded)
-        return;
-
-    if (entry.fnShutdown)
-        entry.fnShutdown();
-
-#ifdef Q_OS_WIN
-    if (entry.hModule) {
-        FreeLibrary(entry.hModule);
-        entry.hModule = nullptr;
-    }
-#endif
-
-    entry.fnGetInfo = nullptr;
-    entry.fnInitialize = nullptr;
-    entry.fnShutdown = nullptr;
-    entry.fnIsReady = nullptr;
-    entry.fnGetLastError = nullptr;
-    entry.loaded = false;
-
-    qCInfo(lcPlugin) << "Unloaded plugin:" << entry.id;
-}
-
-// ── Lifecycle ──
-
-void PluginManager::loadEnabledPlugins()
-{
-    for (auto& p : m_plugins) {
-        if (p.enabled && !p.loaded) {
-            if (!loadPlugin(p))
-                emit pluginError(p.id, p.lastError);
-        }
+        if (p.enabled) startPlugin(p);
     }
     emit pluginsChanged();
+    refreshCatalog();
 }
 
 void PluginManager::shutdownAll()
 {
-    for (auto& p : m_plugins)
-        unloadPlugin(p);
+    m_shuttingDown = true;
+    for (auto& [id, p] : m_plugins)
+        if (p.process) p.process->stop(1500);
+    for (auto& [id, p] : m_plugins)
+        if (p.process) p.process->waitForExit(2000);
 }
 
-// ── Enable/Disable ──
-
-bool PluginManager::enablePlugin(const QString& pluginId)
+void PluginManager::loadFolder(const plugininstaller::InstalledFolder& folder)
 {
-    for (auto& p : m_plugins) {
-        if (p.id == pluginId) {
-            p.enabled = true;
-            saveEnabledList();
-            // Load DLL immediately — no restart needed
-            if (!p.loaded) {
-                if (!loadPlugin(p))
-                    emit pluginError(p.id, p.lastError);
-            }
-            emit pluginsChanged();
-            qCInfo(lcPlugin) << "Enabled plugin:" << pluginId;
-            return true;
-        }
-    }
-    return false;
+    const QString id = folder.manifest ? folder.manifest->id : QFileInfo(folder.dir).fileName();
+    Installed& p = m_plugins[id];
+    const QSettings s;
+    p.id = id;
+    p.dir = folder.dir;
+    p.manifest = folder.manifest;
+    p.enabled = s.value(kEnabledKey).toStringList().contains(id);
+    p.verified = s.value(key("verified", id)).toBool();
+    p.granted = s.value(key("granted", id)).toStringList();
+    loadSettings(p);
+    if (!p.manifest)
+        setState(p, QStringLiteral("invalid"),
+                 tr("Eklenti dosyaları okunamadı; kaldırıp yeniden kurun. (%1)").arg(folder.error));
+    else if (!p.enabled) setState(p, QStringLiteral("disabled"));
 }
 
-bool PluginManager::disablePlugin(const QString& pluginId)
+void PluginManager::reloadOne(const QString& id)
 {
-    for (auto& p : m_plugins) {
-        if (p.id == pluginId) {
-            p.enabled = false;
-            saveEnabledList();
-            // Unload DLL immediately — no restart needed
-            if (p.loaded)
-                unloadPlugin(p);
-            emit pluginsChanged();
-            qCInfo(lcPlugin) << "Disabled plugin:" << pluginId;
-            return true;
-        }
-    }
-    return false;
+    for (const auto& folder : plugininstaller::scan(AppPaths::pluginsDir()))
+        if (QFileInfo(folder.dir).fileName() == id) loadFolder(folder);
 }
 
-// ── Queries ──
-
-QVariantMap PluginManager::pluginInfo(const QString& pluginId) const
+void PluginManager::startPlugin(Installed& p)
 {
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.toVariantMap();
-    return {};
-}
+    if (!p.enabled || p.process || !p.manifest || m_shuttingDown) return;
+    const PluginManifest& m = *p.manifest;
 
-bool PluginManager::isPluginEnabled(const QString& pluginId) const
-{
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.enabled;
-    return false;
-}
+    if (!launcherAtLeast(m.minLauncher))
+        return setState(p, QStringLiteral("incompatible"),
+                        tr("Bu eklenti Makine %1 veya daha yeni bir sürüm istiyor.").arg(m.minLauncher));
+    for (const auto& c : m.capabilities)
+        if (!p.granted.contains(c.id)) return setState(p, QStringLiteral("needs-consent"));
+    const QString exe = hostExe();
+    if (!QFileInfo::exists(exe))
+        return setState(p, QStringLiteral("error"),
+                        tr("makine-plugin-host.exe bulunamadı; Makine'yi yeniden kurun."));
 
-bool PluginManager::isPluginLoaded(const QString& pluginId) const
-{
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.loaded;
-    return false;
-}
+    const QString dataDir = AppPaths::pluginDataDir() + u'/' + p.id;
+    QDir().mkpath(dataDir);
 
-QString PluginManager::callPluginOcr(const QString& pluginId, int x, int y, int w, int h)
-{
-    for (const auto& p : m_plugins) {
-        if (p.id == pluginId && p.loaded && p.fnCaptureOcrTranslate) {
-            const char* result = p.fnCaptureOcrTranslate(nullptr, x, y, w, h);
-            return result ? QString::fromUtf8(result) : QString();
-        }
-    }
-    return {};
-}
-
-QString PluginManager::getPluginLastOcrText(const QString& pluginId) const
-{
-    for (const auto& p : m_plugins) {
-        if (p.id == pluginId && p.loaded && p.fnGetLastOcrText) {
-            const char* result = p.fnGetLastOcrText();
-            return result ? QString::fromUtf8(result) : QString();
-        }
-    }
-    return {};
-}
-
-// ── Persistence ──
-
-void PluginManager::saveEnabledList()
-{
-    QSettings s;
-    QStringList enabled;
-    for (const auto& p : m_plugins)
-        if (p.enabled)
-            enabled.append(p.id);
-    s.setValue("plugins/enabled", enabled);
-}
-
-QStringList PluginManager::loadEnabledList() const
-{
-    QSettings s;
-    return s.value("plugins/enabled").toStringList();
-}
-
-// ── Serialization ──
-
-QVariantMap PluginManager::PluginEntry::toVariantMap() const
-{
-    return {
-        {"id",           id},
-        {"name",         name},
-        {"version",      version},
-        {"description",  description},
-        {"author",       author},
-        {"license",      license},
-        {"category",     category},
-        {"size",         size},
-        {"apiVersion",   apiVersion},
-        {"enabled",          enabled},
-        {"loaded",           loaded},
-        {"updateAvailable",  updateAvailable},
-        {"availableVersion", availableVersion},
-        {"lastError",        lastError},
-        {"features",         QVariant(features)},
-        {"capabilities",     QVariant(capabilities)},
-        {"settings",         settingsDefs},
-        {"hasSettings",      !settingsDefs.isEmpty()},
-    };
-}
-
-// ── Update Check (from registry repo on GitHub) ──
-
-void PluginManager::checkForUpdates()
-{
-    if (m_checking) return;
-
-
-
-    m_checking = true;
-    emit checkingChanged();
-
-    // Fetch index.json from registry repo (raw content via GitHub)
-    const QString url = QStringLiteral("https://raw.githubusercontent.com/%1/main/index.json")
-                            .arg(QString::fromLatin1(kRegistryRepo));
-    QNetworkRequest req{QUrl(url)};
-    req.setRawHeader("User-Agent", "Makine-Launcher");
-    auto* reply = m_net->get(req);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-        m_checking = false;
-        emit checkingChanged();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            qCWarning(lcPlugin) << "Failed to fetch plugin index:" << reply->errorString();
-            return;
-        }
-
-        parsePluginIndex(reply->readAll());
+    auto* proc = new PluginProcess(exe, p.dir + u'/' + m.entry, this);
+    p.process = proc;
+    const QString id = p.id;
+    connect(proc, &PluginProcess::ready, this, [this, id, proc] { onReady(id, proc); });
+    connect(proc, &PluginProcess::startFailed, this,
+            [this, id, proc](int code, const QString& message, const QJsonValue& data) {
+        onStartFailed(id, proc, code, message, data);
     });
+    connect(proc, &PluginProcess::finished, this,
+            [this, id, proc](bool requested, int) { onFinished(id, proc, requested); });
+    connect(proc, &PluginProcess::callRequested, this,
+            [this, id](const QJsonValue& callId, const QString& method, const QJsonValue& params) {
+        onCall(id, callId, method, params);
+    });
+    connect(proc, &PluginProcess::eventEmitted, this,
+            [this, id, proc](const QString& event, const QJsonValue& payload) {
+        Installed* q = find(id);
+        if (q && q->process == proc) handleRequest(*q, QJsonValue::Undefined, event, payload.toObject());
+    });
+    connect(proc, &PluginProcess::logLine, this, [this, id](int level, const QString& line) {
+        if (Installed* q = find(id)) appendLog(*q, level, line);
+    });
+
+    const QJsonObject init{
+        {"pluginId", p.id},
+        {"version", m.version},
+        {"launcherVersion", appVersion()},
+        {"abi", static_cast<int>(MAKINE_PLUGIN_ABI_VERSION)},
+        {"locale", "tr"},
+        {"dataDir", QDir::toNativeSeparators(dataDir)},
+        {"pluginDir", QDir::toNativeSeparators(p.dir)},
+        {"settings", settingValues(p)},
+    };
+    setState(p, QStringLiteral("starting"));
+    appendLog(p, MAKINE_LOG_INFO, tr("Başlatılıyor: %1 %2").arg(m.name, m.version));
+    proc->start(init);
 }
 
-void PluginManager::parsePluginIndex(const QByteArray& data)
+void PluginManager::stopThen(Installed& p, std::function<void()> next)
 {
-    QJsonParseError err;
-    const auto doc = QJsonDocument::fromJson(data, &err);
-    if (err.error != QJsonParseError::NoError) {
-        qCWarning(lcPlugin) << "Plugin index parse error:" << err.errorString();
+    if (!p.process) {
+        if (next) next();
         return;
     }
+    p.afterStop = std::move(next);
+    setState(p, QStringLiteral("stopping"));
+    p.process->stop();
+}
 
-    m_remoteIndex.clear();
-    const auto arr = doc.object()["plugins"].toArray();
-    for (const auto& item : arr) {
-        auto obj = item.toObject();
-        RemotePluginEntry remote;
-        remote.id          = obj["id"].toString();
-        remote.version     = obj["version"].toString();
-        remote.githubRepo  = obj["githubRepo"].toString();
-        remote.downloadUrl = obj["downloadUrl"].toString();
-        remote.sha256      = obj["sha256"].toString();
-        remote.size        = obj["size"].toInteger(0);
+void PluginManager::onReady(const QString& id, PluginProcess* proc)
+{
+    Installed* p = find(id);
+    if (!p || p->process != proc) return;
+    setState(*p, QStringLiteral("running"));
+    appendLog(*p, MAKINE_LOG_INFO, tr("Çalışıyor."));
+    if (p->updatePending) {
+        p->updatePending = false;
+        plugininstaller::dropPrevious(AppPaths::pluginsDir(), id);
+    }
+}
 
-        // Security: only accept plugins from trusted GitHub org
-        if (!remote.githubRepo.isEmpty()
-            && !remote.githubRepo.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/")) {
-            qCWarning(lcPlugin) << "Rejected untrusted plugin:" << remote.id
-                                << "from repo:" << remote.githubRepo;
+void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int code,
+                                  const QString& message, const QJsonValue& data)
+{
+    Installed* p = find(id);
+    if (!p || p->process != proc) return;
+    p->process = nullptr;
+    proc->deleteLater();
+    hideOverlayOf(id);
+
+    const QString reason = describeStartFailure(code, message, data);
+    appendLog(*p, MAKINE_LOG_ERROR, QStringLiteral("%1 [%2: %3]").arg(reason).arg(code).arg(message));
+
+    if (p->updatePending) {
+        p->updatePending = false;
+        if (plugininstaller::rollback(AppPaths::pluginsDir(), id)) {
+            reloadOne(id);
+            emit pluginsChanged();
+            const QString note = tr("Yeni sürüm başlatılamadı (%1); önceki sürüme dönüldü.").arg(reason);
+            if (Installed* q = find(id)) {
+                appendLog(*q, MAKINE_LOG_WARN, note);
+                startPlugin(*q);
+            }
+            emit pluginError(id, note);
+            return;
+        }
+    }
+    setState(*p, QStringLiteral("error"), reason);
+    emit pluginError(id, reason);
+}
+
+void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requested)
+{
+    Installed* p = find(id);
+    if (!p || p->process != proc) return;   // already handled by onStartFailed
+    p->process = nullptr;
+    proc->deleteLater();
+    hideOverlayOf(id);
+    for (auto it = m_requests.begin(); it != m_requests.end();) {
+        if (it->pluginId != id) {
+            ++it;
             continue;
         }
-
-        m_remoteIndex.push_back(std::move(remote));
+        const int requestId = it.key();
+        it = m_requests.erase(it);
+        emit requestCancelled(requestId);
     }
 
-    qCInfo(lcPlugin) << "Plugin index:" << m_remoteIndex.size() << "trusted plugin(s) available";
-
-    // Check installed plugins for updates
-    bool anyUpdate = false;
-    for (auto& p : m_plugins) {
-        for (const auto& remote : m_remoteIndex) {
-            if (remote.id == p.id && compareVersions(remote.version, p.version) > 0) {
-                p.updateAvailable = true;
-                p.availableVersion = remote.version;
-                anyUpdate = true;
-                qCInfo(lcPlugin) << "Update available:" << p.id
-                                 << p.version << "->" << remote.version;
-                emit updateAvailable(p.id, remote.version);
-            }
-        }
-    }
-
-    if (anyUpdate)
-        emit pluginsChanged();
-}
-
-// ── GitHub Release Fetch ──
-
-void PluginManager::fetchGitHubRelease(const QString& repo, const QString& pluginId)
-{
-
-
-    // Security: validate repo format and trusted org
-    if (!repo.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/")) {
-        emit pluginError(pluginId, QStringLiteral("Untrusted repository: ") + repo);
-        return;
-    }
-
-    // Only allow alphanumeric, dash, underscore, slash in repo name
-    static const QRegularExpression repoPattern(QStringLiteral("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"));
-    if (!repoPattern.match(repo).hasMatch()) {
-        emit pluginError(pluginId, QStringLiteral("Invalid repository name"));
-        return;
-    }
-
-    const QString apiUrl = QStringLiteral("https://api.github.com/repos/%1/releases/latest").arg(repo);
-    QNetworkRequest req{QUrl(apiUrl)};
-    req.setRawHeader("Accept", "application/vnd.github+json");
-    req.setRawHeader("User-Agent", "Makine-Launcher");
-
-    auto* reply = m_net->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, pluginId]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            qCWarning(lcPlugin) << "GitHub API error for" << pluginId << ":" << reply->errorString();
+    if (requested || m_shuttingDown) {
+        appendLog(*p, MAKINE_LOG_INFO, tr("Durduruldu."));
+        setState(*p, p->enabled ? QStringLiteral("starting") : QStringLiteral("disabled"));
+        if (auto next = std::exchange(p->afterStop, {})) {
+            next();   // may erase *p
             return;
         }
+        if (p->enabled) startPlugin(*p);
+        return;
+    }
 
-        const auto doc = QJsonDocument::fromJson(reply->readAll());
-        const auto assets = doc.object()["assets"].toArray();
-
-        for (const auto& asset : assets) {
-            auto obj = asset.toObject();
-            const QString name = obj["name"].toString();
-            if (name.endsWith(QStringLiteral(".makine"))) {
-                const QString downloadUrl = obj["browser_download_url"].toString();
-
-                // Security: verify download URL is from github.com
-                QUrl parsed(downloadUrl);
-                if (parsed.host() != QStringLiteral("github.com")
-                    && !parsed.host().endsWith(QStringLiteral(".github.com"))
-                    && !parsed.host().endsWith(QStringLiteral(".githubusercontent.com"))) {
-                    qCWarning(lcPlugin) << "Rejected non-GitHub download URL:" << downloadUrl;
-                    emit pluginError(pluginId, QStringLiteral("Download URL not from GitHub"));
-                    return;
-                }
-
-                installPlugin(pluginId, downloadUrl);
-                return;
-            }
-        }
-
-        emit pluginError(pluginId, QStringLiteral("No .makine asset found in latest release"));
+    // Crash: restart with back-off, give up after kMaxCrashes in the window.
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    p->crashTimes.append(now);
+    p->crashTimes.removeIf([now](qint64 t) { return now - t > kCrashWindowMs; });
+    appendLog(*p, MAKINE_LOG_ERROR, tr("Eklenti beklenmedik şekilde kapandı."));
+    if (p->crashTimes.size() >= kMaxCrashes) {
+        const QString reason = tr("Eklenti 5 dakika içinde %1 kez çöktü ve durduruldu.").arg(p->crashTimes.size());
+        setState(*p, QStringLiteral("crashed"), reason);
+        emit pluginError(id, reason);
+        return;
+    }
+    setState(*p, QStringLiteral("starting"), tr("Eklenti çöktü; yeniden başlatılıyor."));
+    const int delay = kRestartDelaysMs[qMin(p->crashTimes.size(), qsizetype(std::size(kRestartDelaysMs))) - 1];
+    QTimer::singleShot(delay, this, [this, id] {
+        Installed* q = find(id);
+        if (q && q->enabled && !q->process && q->state == QLatin1String("starting")) startPlugin(*q);
     });
 }
 
-// ── Install ──
+// ── Queries ─────────────────────────────────────────────────────────────────
 
-void PluginManager::installPlugin(const QString& pluginId, const QString& downloadUrl)
+PluginManager::Installed* PluginManager::find(const QString& id)
 {
-    if (m_installing) return;
-
-    // Find remote entry (prefer passed URL, fallback to index)
-    QString url = downloadUrl;
-    QString expectedHash;
-    if (url.isEmpty()) {
-        for (const auto& remote : m_remoteIndex) {
-            if (remote.id == pluginId) {
-                // If GitHub repo is set and no direct URL, fetch from GitHub
-                if (remote.downloadUrl.isEmpty() && !remote.githubRepo.isEmpty()) {
-                    fetchGitHubRelease(remote.githubRepo, pluginId);
-                    return;
-                }
-                url = remote.downloadUrl;
-                expectedHash = remote.sha256;
-                break;
-            }
-        }
-    }
-
-    if (url.isEmpty()) {
-        emit pluginError(pluginId, QStringLiteral("No download URL for plugin"));
-        return;
-    }
-
-    // Security: validate URL scheme
-    QUrl parsed(url);
-    if (parsed.scheme() != QStringLiteral("https")) {
-        emit pluginError(pluginId, QStringLiteral("Only HTTPS downloads allowed"));
-        return;
-    }
-
-    // Security: only allow downloads from trusted domains
-    const QString host = parsed.host();
-    bool trustedHost = host == QStringLiteral("github.com")
-                    || host.endsWith(QStringLiteral(".github.com"))
-                    || host.endsWith(QStringLiteral(".githubusercontent.com"))
-                    || host == QStringLiteral("cdn.makineceviri.org");
-    if (!trustedHost) {
-        emit pluginError(pluginId, QStringLiteral("Untrusted download domain: ") + host);
-        return;
-    }
-
-
-
-    m_installing = true;
-    m_installingPluginId = pluginId;
-    m_installProgress = 0.0;
-    emit installingChanged();
-    emit installProgressChanged();
-
-    QNetworkRequest req{parsed};
-    req.setRawHeader("User-Agent", "Makine-Launcher");
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
-    auto* reply = m_net->get(req);
-
-    connect(reply, &QNetworkReply::downloadProgress, this,
-            [this](qint64 received, qint64 total) {
-        if (total > 0) {
-            m_installProgress = static_cast<double>(received) / static_cast<double>(total);
-            emit installProgressChanged();
-        }
-    });
-
-    connect(reply, &QNetworkReply::finished, this,
-            [this, reply, pluginId, expectedHash]() {
-        reply->deleteLater();
-        m_installing = false;
-        m_installingPluginId.clear();
-        m_installProgress = 1.0;
-        emit installingChanged();
-        emit installProgressChanged();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit pluginError(pluginId, reply->errorString());
-            return;
-        }
-
-        // Security: check response size (max 100MB)
-        const auto data = reply->readAll();
-        if (data.size() > 100 * 1024 * 1024) {
-            emit pluginError(pluginId, QStringLiteral("Download exceeds 100MB limit"));
-            return;
-        }
-
-        // Save to temp
-        const QString tempPath = AppPaths::downloadTempDir() + "/" + pluginId + ".makine";
-        QDir().mkpath(AppPaths::downloadTempDir());
-        QFile file(tempPath);
-        if (!file.open(QIODevice::WriteOnly)) {
-            emit pluginError(pluginId, QStringLiteral("Cannot write temp file"));
-            return;
-        }
-        file.write(data);
-        file.close();
-
-        // Security: verify SHA-256 checksum (mandatory for index plugins)
-        if (!expectedHash.isEmpty() && !verifyChecksum(tempPath, expectedHash)) {
-            QFile::remove(tempPath);
-            emit pluginError(pluginId, QStringLiteral("Checksum verification failed — download may be tampered"));
-            return;
-        }
-
-        // Security: validate zip contents before extraction
-        if (!validateZipContents(tempPath, pluginId)) {
-            QFile::remove(tempPath);
-            return; // error already emitted
-        }
-
-        // Unload DLL before overwriting (Windows locks loaded DLLs)
-        for (auto& p : m_plugins) {
-            if (p.id == pluginId) {
-                if (p.loaded) unloadPlugin(p);
-                break;
-            }
-        }
-
-        // Extract (overwrites existing files)
-        if (!extractPlugin(tempPath, pluginId)) {
-            QFile::remove(tempPath);
-            emit pluginError(pluginId, QStringLiteral("Extraction failed"));
-            return;
-        }
-
-        QFile::remove(tempPath);
-
-        // Re-discover and auto-enable (fresh install or update)
-        discoverPlugins();
-        enablePlugin(pluginId);
-        emit pluginInstalled(pluginId);
-        qCInfo(lcPlugin) << "Installed plugin:" << pluginId;
-    });
+    const auto it = m_plugins.find(id);
+    return it == m_plugins.end() ? nullptr : &it->second;
 }
 
-// ── Install from local .makine file ──
-
-void PluginManager::installFromFile(const QString& fileOrUrl)
+const PluginManager::Installed* PluginManager::find(const QString& id) const
 {
-    // FileDialog hands over a URL. Cutting "file:///" off by hand left
-    // escapes such as %20 in the path, so a file in "My Plugins" was not found.
-    const QString filePath = fileOrUrl.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)
-                                 ? QUrl(fileOrUrl).toLocalFile()
-                                 : fileOrUrl;
-    QFileInfo fi(filePath);
-    if (!fi.exists()) {
-        emit pluginError({}, QStringLiteral("File not found: ") + filePath);
-        return;
-    }
-
-    QString tempId = fi.completeBaseName();
-
-    if (!validateZipContents(filePath, tempId))
-        return;
-
-    // Unload if already installed (DLL lock prevention)
-    for (auto& p : m_plugins) {
-        if (p.id == tempId || p.dirPath.endsWith("/" + tempId)) {
-            if (p.loaded) unloadPlugin(p);
-            break;
-        }
-    }
-
-    if (!extractPlugin(filePath, tempId)) {
-        emit pluginError(tempId, QStringLiteral("Extraction failed"));
-        return;
-    }
-
-    // Re-discover and auto-enable
-    discoverPlugins();
-    enablePlugin(tempId);
-    emit pluginInstalled(tempId);
-    qCInfo(lcPlugin) << "Installed plugin from file:" << filePath;
+    const auto it = m_plugins.find(id);
+    return it == m_plugins.end() ? nullptr : &it->second;
 }
 
-// ── Query: last error for a plugin ──
-
-QString PluginManager::lastPluginError(const QString& pluginId) const
+QVariantMap PluginManager::toVariant(const Installed& p) const
 {
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.lastError;
-    return {};
+    QVariantMap map{
+        {"id", p.id},
+        {"name", p.id},
+        {"enabled", p.enabled},
+        {"verified", p.verified},
+        {"state", p.state},
+        {"statusText", p.statusText},
+        {"lastError", p.lastError},
+        {"capabilities", QVariantList()},
+        {"missingCapabilities", QVariantList()},
+        {"actions", QVariantList()},
+        {"hasSettings", false},
+        {"updateAvailable", false},
+        {"availableVersion", QString()},
+    };
+    if (!p.manifest) return map;
+
+    const PluginManifest& m = *p.manifest;
+    map["name"] = m.name;
+    map["version"] = m.version;
+    map["description"] = m.description;
+    map["publisher"] = m.publisher;
+    map["homepage"] = m.homepage;
+    map["license"] = m.license;
+    map["capabilities"] = capabilityList(m.capabilities);
+    map["missingCapabilities"] = capabilityList(m.capabilities, p.granted);
+    QVariantList actions;
+    for (const auto& a : m.actions)
+        actions.append(QVariantMap{{"id", a.id}, {"label", a.label}, {"description", a.description}});
+    map["actions"] = actions;
+    map["hasSettings"] = !m.settings.isEmpty();
+    if (const auto* e = m_registry->find(p.id);
+        e && pluginmanifest::compareVersions(e->version, m.version) > 0) {
+        map["updateAvailable"] = true;
+        map["availableVersion"] = e->version;
+    }
+    return map;
 }
 
-// ── Uninstall ──
-
-void PluginManager::uninstallPlugin(const QString& pluginId, bool removeData)
+QVariantList PluginManager::plugins() const
 {
-    for (auto it = m_plugins.begin(); it != m_plugins.end(); ++it) {
-        if (it->id == pluginId) {
-            if (it->loaded) {
-                unloadPlugin(*it);
-                m_restartRequired = true;
-                emit restartRequiredChanged();
-            }
-
-            // Remove plugin directory
-            QDir pluginDir(it->dirPath);
-            if (pluginDir.exists())
-                pluginDir.removeRecursively();
-
-            // Optionally remove plugin data
-            if (removeData) {
-                QDir dataDir(AppPaths::pluginDataDir() + "/" + pluginId);
-                if (dataDir.exists())
-                    dataDir.removeRecursively();
-            }
-
-            m_plugins.erase(it);
-            saveEnabledList();
-            emit pluginsChanged();
-            emit pluginUninstalled(pluginId);
-            qCInfo(lcPlugin) << "Uninstalled plugin:" << pluginId
-                             << (removeData ? "(data removed)" : "(data kept)");
-            return;
-        }
-    }
+    QVariantList list;
+    for (const auto& [id, p] : m_plugins) list.append(toVariant(p));
+    return list;
 }
 
-// ── Query Helpers ──
-
-bool PluginManager::hasUpdate(const QString& pluginId) const
+int PluginManager::updateCount() const
 {
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.updateAvailable;
-    return false;
+    int n = 0;
+    for (const auto& [id, p] : m_plugins)
+        if (const auto* e = m_registry->find(id);
+            e && p.manifest && pluginmanifest::compareVersions(e->version, p.manifest->version) > 0)
+            ++n;
+    return n;
 }
 
-QString PluginManager::availableVersion(const QString& pluginId) const
+QVariantMap PluginManager::plugin(const QString& id) const
 {
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.availableVersion;
-    return {};
+    const Installed* p = find(id);
+    return p ? toVariant(*p) : QVariantMap{};
 }
 
-// ── Utilities ──
-
-// ── Security: Path Safety ──
-
-bool PluginManager::isPathSafe(const QString& path, const QString& allowedRoot)
+QVariantList PluginManager::catalog() const
 {
-    // Resolve to canonical path, prevent path traversal (../ attacks)
-    QFileInfo info(path);
-    const QString canonical = info.canonicalFilePath();
-    if (canonical.isEmpty())
-        return false; // path doesn't exist yet, check the absolute version
-    const QString absPath = info.absoluteFilePath();
-
-    QFileInfo rootInfo(allowedRoot);
-    const QString canonicalRoot = rootInfo.canonicalFilePath().isEmpty()
-                                  ? rootInfo.absoluteFilePath()
-                                  : rootInfo.canonicalFilePath();
-
-    return absPath.startsWith(canonicalRoot + "/") || absPath == canonicalRoot;
+    QVariantList list;
+    for (const auto& e : m_registry->entries()) {
+        const Installed* p = find(e.id);
+        const bool installed = p && p->manifest;
+        QString incompatible;
+        if (!pluginmanifest::isSupportedAbi(e.abi)
+            || !launcherAtLeast(e.minLauncher))
+            incompatible = tr("Makine'yi güncelleyin (en az %1 gerekiyor).").arg(e.minLauncher);
+        list.append(QVariantMap{
+            {"id", e.id},
+            {"name", e.name},
+            {"version", e.version},
+            {"description", e.description},
+            {"publisher", e.publisher},
+            {"homepage", e.homepage},
+            {"size", e.size},
+            {"capabilities", capabilityList(e.capabilities)},
+            {"installed", installed},
+            {"installedVersion", installed ? p->manifest->version : QString()},
+            {"updateAvailable", installed && pluginmanifest::compareVersions(e.version, p->manifest->version) > 0},
+            {"compatible", incompatible.isEmpty()},
+            {"incompatibleReason", incompatible},
+        });
+    }
+    return list;
 }
 
-// ── Security: Package Content Validation ──
+bool PluginManager::catalogLoading() const { return m_registry->isLoading(); }
+QString PluginManager::catalogError() const { return m_registry->lastError(); }
 
-bool PluginManager::validateZipContents(const QString& packagePath, const QString& pluginId)
+bool PluginManager::developerMode() const
 {
-    // Read and validate the .makine header
-    QFile file(packagePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        emit pluginError(pluginId, QStringLiteral("Cannot open package file"));
-        return false;
-    }
-
-    const QByteArray header = file.read(5);
-    file.close();
-
-    if (header.size() < 5) {
-        emit pluginError(pluginId, QStringLiteral("Package too small"));
-        return false;
-    }
-
-    // Validate MKPK magic bytes
-    if (header[0] != 'M' || header[1] != 'K' || header[2] != 'P' || header[3] != 'K') {
-        emit pluginError(pluginId, QStringLiteral("Invalid .makine package (bad magic bytes)"));
-        return false;
-    }
-
-    // Plugins must be v2 (unencrypted)
-    if (static_cast<uint8_t>(header[4]) != 2) {
-        emit pluginError(pluginId, QStringLiteral("Plugin packages must be MKPK v2 (unencrypted)"));
-        return false;
-    }
-
-    // File size sanity check (max 100MB)
-    QFileInfo fi(packagePath);
-    if (fi.size() > 100 * 1024 * 1024) {
-        emit pluginError(pluginId, QStringLiteral("Package exceeds 100MB limit"));
-        return false;
-    }
-
-    return true;
+    return QSettings().value(kDeveloperModeKey, false).toBool();
 }
 
-// ── Security: DLL Signature Verification ──
-
-bool PluginManager::verifyDllSignature(const QString& dllPath)
+void PluginManager::setDeveloperMode(bool on)
 {
-#ifdef Q_OS_WIN
-    // Use WinVerifyTrust to check Authenticode signature
-    WINTRUST_FILE_INFO fileInfo = {};
-    fileInfo.cbStruct = sizeof(fileInfo);
-    fileInfo.pcwszFilePath = reinterpret_cast<LPCWSTR>(dllPath.utf16());
-
-    GUID policyGuid = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-    WINTRUST_DATA trustData = {};
-    trustData.cbStruct = sizeof(trustData);
-    trustData.dwUIChoice = WTD_UI_NONE;
-    trustData.fdwRevocationChecks = WTD_REVOKE_NONE;
-    trustData.dwUnionChoice = WTD_CHOICE_FILE;
-    trustData.pFile = &fileInfo;
-    trustData.dwStateAction = WTD_STATEACTION_VERIFY;
-
-    LONG result = WinVerifyTrust(nullptr, &policyGuid, &trustData);
-
-    // Cleanup
-    trustData.dwStateAction = WTD_STATEACTION_CLOSE;
-    WinVerifyTrust(nullptr, &policyGuid, &trustData);
-
-    if (result == ERROR_SUCCESS) {
-        qCInfo(lcPlugin) << "DLL signature valid:" << dllPath;
-        return true;
-    }
-
-    qCWarning(lcPlugin) << "DLL signature check failed (code:" << result << "):" << dllPath;
-    // Don't block unsigned plugins — just warn.
-    // Official plugins will always be signed; community plugins may not be.
-    return true; // Allow unsigned for now, log the warning
-#else
-    Q_UNUSED(dllPath);
-    return true;
-#endif
+    if (developerMode() == on) return;
+    QSettings().setValue(kDeveloperModeKey, on);
+    emit developerModeChanged();
 }
 
-// ── Security: Checksum Verification ──
-
-bool PluginManager::verifyChecksum(const QString& filePath, const QString& expected)
+QStringList PluginManager::logLines(const QString& id) const
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly))
-        return false;
-
-    QCryptographicHash hash(QCryptographicHash::Sha256);
-    if (!hash.addData(&file))
-        return false;
-
-    const QString actual = hash.result().toHex();
-    if (actual != expected.toLower()) {
-        qCWarning(lcPlugin) << "Checksum mismatch:"
-                            << "expected:" << expected
-                            << "actual:" << actual;
-        return false;
-    }
-
-    qCDebug(lcPlugin) << "Checksum verified:" << filePath;
-    return true;
+    const Installed* p = find(id);
+    return p ? p->log : QStringList{};
 }
-
-// ── Extraction ──
-
-bool PluginManager::extractPlugin(const QString& packagePath, const QString& pluginId)
-{
-    const QString destDir = AppPaths::pluginsDir() + "/" + pluginId;
-    QDir().mkpath(destDir);
-
-#ifndef MAKINE_UI_ONLY
-    // Use .makine format (MKPK v2: zstd + tar, no encryption)
-    QFile file(packagePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        qCWarning(lcPlugin) << "Cannot open package:" << packagePath;
-        return false;
-    }
-
-    const QByteArray data = file.readAll();
-    file.close();
-
-    makine::mkpk::MkpkError mkpkErr{""};
-    int count = makine::mkpk::process_mkpkg(
-        reinterpret_cast<const uint8_t*>(data.constData()),
-        static_cast<size_t>(data.size()),
-        destDir.toStdWString(),
-        &mkpkErr);
-
-    if (count < 0) {
-        qCWarning(lcPlugin) << "Plugin extraction failed:" << QString::fromStdString(mkpkErr.message);
-        QDir(destDir).removeRecursively();
-        return false;
-    }
-
-    qCInfo(lcPlugin) << "Extracted" << count << "files for plugin" << pluginId;
-#else
-    // UI-only build: fallback to cmake tar extraction
-    QProcess proc;
-    proc.setWorkingDirectory(destDir);
-    proc.start(QStringLiteral("cmake"), {"-E", "tar", "xf", packagePath});
-    if (!proc.waitForFinished(30000) || proc.exitCode() != 0) {
-        qCWarning(lcPlugin) << "Extract failed for" << pluginId;
-        QDir(destDir).removeRecursively();
-        return false;
-    }
-#endif
-
-    // Post-extraction: verify manifest.json exists
-    if (!QFile::exists(destDir + "/manifest.json")) {
-        qCWarning(lcPlugin) << "Extracted plugin missing manifest.json";
-        QDir(destDir).removeRecursively();
-        return false;
-    }
-
-    // ...and that the binary the manifest declares was actually shipped.
-    // Without this the package installs "successfully" and only fails later in
-    // loadPlugin(), where the user is shown a bare "DLL not found:
-    // makineai-live.dll" — a file they cannot supply and a defect that is not
-    // theirs. Refusing here names the fault while it is still the package's.
-    QFile manifestFile(destDir + "/manifest.json");
-    if (manifestFile.open(QIODevice::ReadOnly)) {
-        const QJsonObject obj =
-            QJsonDocument::fromJson(manifestFile.readAll()).object();
-        manifestFile.close();
-        const QString entryDll = obj.value("entry").toString();
-        if (!entryDll.isEmpty() && !QFile::exists(destDir + "/" + entryDll)) {
-            qCWarning(lcPlugin) << "Plugin" << pluginId << "declares entry"
-                << entryDll << "but that file is not in the package";
-            emit pluginError(pluginId,
-                tr("Eklenti paketi eksik: içinde \"%1\" dosyası yok, bu yüzden "
-                   "kurulamıyor. Bu bir paketleme hatasıdır — eklentiyi "
-                   "yayınlayan ekibe bildirin.").arg(entryDll));
-            QDir(destDir).removeRecursively();
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// ── Version Comparison ──
-
-// ── Plugin Settings ──
-
-QVariantList PluginManager::pluginSettings(const QString& pluginId) const
-{
-    for (const auto& p : m_plugins)
-        if (p.id == pluginId)
-            return p.settingsDefs;
-    return {};
-}
-
-QString PluginManager::getPluginSetting(const QString& pluginId, const QString& key) const
-{
-    for (const auto& p : m_plugins) {
-        if (p.id == pluginId && p.fnGetSetting) {
-            const char* val = p.fnGetSetting(key.toUtf8().constData());
-            return val ? QString::fromUtf8(val) : QString();
-        }
-    }
-    return {};
-}
-
-void PluginManager::setPluginSetting(const QString& pluginId, const QString& key, const QString& value)
-{
-    for (const auto& p : m_plugins) {
-        if (p.id == pluginId && p.fnSetSetting) {
-            p.fnSetSetting(key.toUtf8().constData(), value.toUtf8().constData());
-            emit pluginsChanged(); // trigger UI refresh
-            return;
-        }
-    }
-}
-
-int PluginManager::compareVersions(const QString& a, const QString& b) const
-{
-    const auto partsA = a.split('.');
-    const auto partsB = b.split('.');
-    const int len = qMax(partsA.size(), partsB.size());
-
-    for (int i = 0; i < len; ++i) {
-        int va = (i < partsA.size()) ? partsA[i].toInt() : 0;
-        int vb = (i < partsB.size()) ? partsB[i].toInt() : 0;
-        if (va != vb) return va - vb;
-    }
-    return 0;
-}
-
-// ── Settings Discovery (moved from SettingsScreen.qml) ──
 
 QVariantList PluginManager::settingsCategories() const
 {
-    QVariantList result;
-    for (const auto& p : m_plugins) {
-        if (p.loaded && !p.settingsDefs.isEmpty()) {
-            result.append(QVariantMap{
-                {"name",        p.name},
-                {"description", p.description.isEmpty()
-                                    ? tr("Eklenti ayarları")
-                                    : p.description},
-                {"isPlugin",    true},
-                {"pluginId",    p.id}
-            });
-        }
+    QVariantList list;
+    for (const auto& [id, p] : m_plugins) {
+        if (!p.enabled || !p.manifest || (p.manifest->settings.isEmpty() && p.manifest->actions.isEmpty()))
+            continue;
+        list.append(QVariantMap{
+            {"name", p.manifest->name},
+            {"description", p.manifest->description.isEmpty() ? tr("Eklenti ayarları") : p.manifest->description},
+            {"isPlugin", true},
+            {"pluginId", id},
+        });
     }
-    return result;
+    return list;
 }
 
-QVariantList PluginManager::pluginsWithSettings() const
+QString PluginManager::hostExe() const
 {
-    QVariantList result;
-    for (const auto& p : m_plugins) {
-        if (p.loaded && !p.settingsDefs.isEmpty())
-            result.append(p.toVariantMap());
-    }
-    return result;
+    return QCoreApplication::applicationDirPath() + QStringLiteral("/makine-plugin-host.exe");
 }
 
-// ── Community Plugin Discovery (GitHub Topic Search) ──
+// ── User actions ────────────────────────────────────────────────────────────
 
-void PluginManager::fetchCommunityPlugins()
+void PluginManager::refreshCatalog()
 {
-    if (m_loadingCommunity) return;
+    m_registry->refresh();
+}
 
+void PluginManager::setEnabled(const QString& id, bool enabled)
+{
+    Installed* p = find(id);
+    if (!p || !p->manifest || p->enabled == enabled) return;
+    p->enabled = enabled;
+    saveEnabled();
+    if (enabled) {
+        p->crashTimes.clear();
+        startPlugin(*p);
+    } else if (p->process) {
+        stopThen(*p, nullptr);
+    } else {
+        setState(*p, QStringLiteral("disabled"));
+    }
+    emit pluginsChanged();   // the sidebar lists enabled plugins only
+}
 
-
-    m_loadingCommunity = true;
-    emit loadingCommunityChanged();
-
-    // Search GitHub for repos with "makine-plugin" topic, sorted by stars
-    const QString url = QStringLiteral(
-        "https://api.github.com/search/repositories?"
-        "q=topic:%1+fork:false&sort=stars&order=desc&per_page=%2")
-        .arg(QString::fromLatin1(kGitHubTopic))
-        .arg(kCommunityMaxDisplay);
-
-    QNetworkRequest req{QUrl(url)};
-    req.setRawHeader("Accept", "application/vnd.github+json");
-    req.setRawHeader("User-Agent", "Makine-Launcher");
-
-    auto* reply = m_net->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-        m_loadingCommunity = false;
-        emit loadingCommunityChanged();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            qCWarning(lcPlugin) << "GitHub topic search failed:" << reply->errorString();
-            return;
-        }
-
-        const auto doc = QJsonDocument::fromJson(reply->readAll());
-        const auto items = doc.object()["items"].toArray();
-
-        m_communityPlugins.clear();
-        for (const auto& item : items) {
-            auto repo = item.toObject();
-            const QString fullName = repo["full_name"].toString();
-
-            // Skip official MakineCeviri repos — they show in the official section
-            if (fullName.startsWith(QString::fromLatin1(kTrustedGitHubOrg) + "/"))
-                continue;
-
-            m_communityPlugins.append(QVariantMap{
-                {"name",          repo["name"].toString()},
-                {"fullName",      fullName},
-                {"description",   repo["description"].toString()},
-                {"stars",         repo["stargazers_count"].toInt()},
-                {"url",           repo["html_url"].toString()},
-                {"owner",         repo["owner"].toObject()["login"].toString()},
-                {"ownerAvatar",   repo["owner"].toObject()["avatar_url"].toString()},
-                {"language",      repo["language"].toString()},
-                {"updatedAt",     repo["updated_at"].toString()},
-            });
-        }
-
-        qCInfo(lcPlugin) << "Found" << m_communityPlugins.size() << "community plugin(s) on GitHub";
-        emit communityPluginsChanged();
+void PluginManager::restart(const QString& id)
+{
+    Installed* p = find(id);
+    if (!p || !p->enabled) return;
+    p->crashTimes.clear();
+    if (!p->process) return startPlugin(*p);
+    stopThen(*p, [this, id] {
+        if (Installed* q = find(id)) startPlugin(*q);
     });
 }
 
-void PluginManager::openCommunityPage()
+void PluginManager::grantCapabilities(const QString& id)
 {
-    const QString url = QStringLiteral("https://github.com/topics/%1")
-                            .arg(QString::fromLatin1(kGitHubTopic));
-    QDesktopServices::openUrl(QUrl(url));
+    Installed* p = find(id);
+    if (!p || !p->manifest) return;
+    for (const auto& c : p->manifest->capabilities)
+        if (!p->granted.contains(c.id)) p->granted.append(c.id);
+    QSettings().setValue(key("granted", id), p->granted);
+    if (p->enabled) startPlugin(*p);
+    emit pluginsChanged();
+}
+
+void PluginManager::install(const QString& id)
+{
+    if (!m_busyId.isEmpty()) return;
+    const PluginRegistryEntry* found = m_registry->find(id);
+    if (!found) {
+        emit pluginError(id, tr("Eklenti katalogda bulunamadı."));
+        return;
+    }
+    const PluginRegistryEntry entry = *found;   // the registry may refresh meanwhile
+    if (!pluginmanifest::isSupportedAbi(entry.abi)
+        || !launcherAtLeast(entry.minLauncher)) {
+        emit pluginError(id, tr("Bu eklenti için Makine'yi güncelleyin."));
+        return;
+    }
+
+    setBusy(id, 0.0);
+    QNetworkRequest req{QUrl(entry.url)};
+    req.setRawHeader("User-Agent", cdn::kUserAgent);
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    auto* reply = m_net->get(req);
+    connect(reply, &QNetworkReply::downloadProgress, this, [this, reply, entry](qint64 received, qint64) {
+        if (received > entry.size) reply->abort();
+        else setBusy(entry.id, 0.9 * double(received) / double(entry.size));
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, entry] {
+        reply->deleteLater();
+        const auto fail = [this, &entry](const QString& message) {
+            setBusy({}, 0.0);
+            emit pluginError(entry.id, message);
+        };
+        if (reply->error() != QNetworkReply::NoError)
+            return fail(tr("İndirilemedi: %1").arg(reply->errorString()));
+        const QByteArray data = reply->readAll();
+        if (data.size() != entry.size
+            || QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex() != entry.sha256.toLatin1())
+            return fail(tr("İndirilen paket doğrulanamadı; kurulum yapılmadı."));
+        QString error;
+        auto staged = plugininstaller::stage(data, AppPaths::pluginsDir() + QStringLiteral("/.staging"), &error);
+        if (!staged) return fail(tr("Paket açılamadı: %1").arg(error));
+        if (staged->manifest.id != entry.id || staged->manifest.version != entry.version) {
+            QDir(staged->dir).removeRecursively();
+            return fail(tr("Paket katalogdaki eklentiyle eşleşmiyor; kurulum yapılmadı."));
+        }
+        QStringList grant;
+        for (const auto& c : entry.capabilities) grant.append(c.id);
+        replaceInstalled(*staged, true, grant);
+    });
+}
+
+void PluginManager::installFromFile(const QUrl& file)
+{
+    if (!developerMode()) {
+        emit pluginError({}, tr("Dosyadan eklenti kurmak için önce Geliştirici modunu açın."));
+        return;
+    }
+    if (!m_busyId.isEmpty()) return;
+    const QString path = file.isLocalFile() ? file.toLocalFile() : file.toString();
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly) || f.size() > kMaxPackageBytes) {
+        emit pluginError({}, tr("Eklenti dosyası açılamadı: %1").arg(QFileInfo(path).fileName()));
+        return;
+    }
+    QString error;
+    auto staged = plugininstaller::stage(f.readAll(), AppPaths::pluginsDir() + QStringLiteral("/.staging"), &error);
+    if (!staged) {
+        emit pluginError({}, tr("Eklenti paketi geçersiz: %1").arg(error));
+        return;
+    }
+    // Never replace a working version with one this launcher cannot run.
+    if (!launcherAtLeast(staged->manifest.minLauncher)) {
+        QDir(staged->dir).removeRecursively();
+        emit pluginError(staged->manifest.id, tr("Bu eklenti Makine %1 veya daha yeni bir sürüm istiyor.")
+                                                  .arg(staged->manifest.minLauncher));
+        return;
+    }
+    // Unverified: nothing is granted, the user sees the capabilities and decides.
+    replaceInstalled(*staged, false, {});
+}
+
+void PluginManager::replaceInstalled(const plugininstaller::StagedPlugin& staged, bool verified,
+                                     const QStringList& grant)
+{
+    const QString id = staged.manifest.id;
+    Installed* existing = find(id);
+    const bool hadWorkingVersion = existing && existing->manifest;
+    const bool enable = existing ? existing->enabled : true;
+    setBusy(id, 0.95);
+
+    auto commit = [this, staged, verified, grant, id, hadWorkingVersion, enable] {
+        QString error;
+        if (!plugininstaller::commit(staged, AppPaths::pluginsDir(), &error)) {
+            QDir(staged.dir).removeRecursively();
+            setBusy({}, 0.0);
+            emit pluginError(id, tr("Kurulamadı: %1").arg(error));
+            if (Installed* p = find(id); p && p->enabled) startPlugin(*p);
+            return;
+        }
+        QSettings s;
+        s.setValue(key("verified", id), verified);
+        QStringList granted = s.value(key("granted", id)).toStringList();
+        for (const auto& g : grant)
+            if (!granted.contains(g)) granted.append(g);
+        s.setValue(key("granted", id), granted);
+
+        reloadOne(id);
+        Installed* p = find(id);
+        if (!p) return setBusy({}, 0.0);
+        p->enabled = enable;
+        p->crashTimes.clear();
+        saveEnabled();
+        // Keep the replaced version only while the new one has yet to prove it starts.
+        p->updatePending = hadWorkingVersion && enable;
+        if (hadWorkingVersion && !enable) plugininstaller::dropPrevious(AppPaths::pluginsDir(), id);
+        setBusy({}, 0.0);
+        appendLog(*p, MAKINE_LOG_INFO, tr("Kuruldu: %1").arg(p->manifest->version));
+        emit pluginInstalled(id);
+        if (p->enabled) startPlugin(*p);
+        else setState(*p, QStringLiteral("disabled"));
+        emit pluginsChanged();
+        emit catalogChanged();
+    };
+
+    if (existing) stopThen(*existing, commit);
+    else commit();
+}
+
+void PluginManager::uninstall(const QString& id, bool removeData)
+{
+    Installed* p = find(id);
+    if (!p) return;
+    stopThen(*p, [this, id, removeData] {
+        QString error;
+        if (!plugininstaller::remove(AppPaths::pluginsDir(), id, &error)) {
+            emit pluginError(id, tr("Kaldırılamadı: %1").arg(error));
+            if (Installed* q = find(id); q && q->enabled) startPlugin(*q);
+            return;
+        }
+        QSettings s;
+        s.remove(key("verified", id));
+        s.remove(key("granted", id));
+        s.remove(key("attach", id));
+        if (removeData) {
+            QDir(AppPaths::pluginDataDir() + u'/' + id).removeRecursively();
+            // The log holds whatever the plugin wrote, so it goes with the data.
+            const QString log = AppPaths::logsDir() + QStringLiteral("/plugins/") + id + QStringLiteral(".log");
+            QFile::remove(log);
+            QFile::remove(log + QStringLiteral(".1"));
+        }
+        m_plugins.erase(id);
+        saveEnabled();
+        emit pluginsChanged();
+        emit catalogChanged();
+    });
+}
+
+void PluginManager::runAction(const QString& id, const QString& actionId)
+{
+    Installed* p = find(id);
+    if (!p || !p->manifest) return;
+    const PluginAction* action = nullptr;
+    for (const auto& a : p->manifest->actions)
+        if (a.id == actionId) action = &a;
+    if (!action) return;
+    if (!p->process || !p->process->isReady()) {
+        emit actionFinished(id, actionId, false, tr("Eklenti çalışmıyor."));
+        return;
+    }
+    // Long timeout: an action may wait for the user (a region pick, a consent).
+    p->process->invoke(action->method, QJsonObject{},
+                       [this, id, actionId](const QJsonValue& result, const QJsonObject& error) {
+        if (!error.isEmpty()) {
+            emit actionFinished(id, actionId, false, error.value(u"message").toString());
+            return;
+        }
+        const QString message = result.isString() ? result.toString()
+                                                  : result.toObject().value(u"message").toString();
+        emit actionFinished(id, actionId, true, message);
+    }, 120000);
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+void PluginManager::loadSettings(Installed& p)
+{
+    QFile f(AppPaths::pluginDataDir() + u'/' + p.id + QStringLiteral("/settings.json"));
+    const QJsonObject o = f.open(QIODevice::ReadOnly) ? QJsonDocument::fromJson(f.readAll()).object() : QJsonObject{};
+    p.values = o.value(u"values").toObject();
+    p.secrets = o.value(u"secrets").toObject();
+}
+
+void PluginManager::saveSettings(const Installed& p) const
+{
+    const QString dir = AppPaths::pluginDataDir() + u'/' + p.id;
+    QDir().mkpath(dir);
+    QSaveFile f(dir + QStringLiteral("/settings.json"));
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(QJsonDocument(QJsonObject{{"values", p.values}, {"secrets", p.secrets}}).toJson());
+    f.commit();
+}
+
+QJsonObject PluginManager::settingValues(const Installed& p) const
+{
+    QJsonObject out;
+    if (!p.manifest) return out;
+    for (const QJsonObject& def : p.manifest->settings) {
+        const QString k = def.value(u"key").toString();
+        if (def.value(u"type").toString() == QLatin1String("secret")) {
+            const QByteArray blob = QByteArray::fromBase64(p.secrets.value(k).toString().toLatin1());
+            out.insert(k, blob.isEmpty() ? QString() : QString::fromUtf8(dpapi(blob, p.id.toUtf8(), false)));
+        } else if (p.values.contains(k) && pluginmanifest::isValidSettingValue(def, p.values.value(k))) {
+            out.insert(k, p.values.value(k));
+        } else if (def.contains(u"default")) {
+            out.insert(k, def.value(u"default"));
+        }
+    }
+    return out;
+}
+
+QVariantList PluginManager::settings(const QString& id) const
+{
+    const Installed* p = find(id);
+    if (!p || !p->manifest) return {};
+    const QJsonObject values = settingValues(*p);
+    QVariantList list;
+    for (const QJsonObject& def : p->manifest->settings) {
+        QVariantMap item = def.toVariantMap();
+        const QString k = def.value(u"key").toString();
+        if (def.value(u"type").toString() == QLatin1String("secret"))
+            item["hasValue"] = p->secrets.contains(k);
+        else
+            item["value"] = values.value(k).toVariant();
+        list.append(item);
+    }
+    return list;
+}
+
+bool PluginManager::storeSetting(Installed& p, const QString& k, const QJsonValue& v)
+{
+    const QJsonObject def = p.manifest ? p.manifest->setting(k) : QJsonObject{};
+    if (def.isEmpty()) return false;
+    if (def.value(u"type").toString() == QLatin1String("secret")) {
+        const QString text = v.toString();
+        if (text.isEmpty()) {
+            p.secrets.remove(k);
+        } else {
+            const QByteArray blob = dpapi(text.toUtf8(), p.id.toUtf8(), true);
+            if (blob.isEmpty()) return false;
+            p.secrets.insert(k, QString::fromLatin1(blob.toBase64()));
+        }
+    } else {
+        QJsonValue value = v;
+        // Path settings arrive from QML file dialogs as file:// URLs.
+        if (def.value(u"type").toString() == QLatin1String("path") && v.toString().startsWith(QLatin1String("file:")))
+            value = QDir::toNativeSeparators(QUrl(v.toString()).toLocalFile());
+        if (!pluginmanifest::isValidSettingValue(def, value)) return false;
+        p.values.insert(k, value);
+    }
+    saveSettings(p);
+    emit settingsChanged(p.id);
+    return true;
+}
+
+bool PluginManager::setSetting(const QString& id, const QString& k, const QVariant& value)
+{
+    Installed* p = find(id);
+    if (!p || !storeSetting(*p, k, QJsonValue::fromVariant(value))) return false;
+    if (p->process && p->manifest->events.contains(QStringLiteral("settings.changed")))
+        p->process->sendEvent(QStringLiteral("settings.changed"),
+                              QJsonObject{{"key", k}, {"value", settingValues(*p).value(k)}});
+    return true;
+}
+
+// ── Plugin → launcher ───────────────────────────────────────────────────────
+
+void PluginManager::onCall(const QString& id, const QJsonValue& callId, const QString& method,
+                           const QJsonValue& params)
+{
+    Installed* p = find(id);
+    if (!p || !p->process || !p->manifest) return;
+    handleRequest(*p, callId, method, params.toObject());
+}
+
+QJsonObject PluginManager::attachResult(const QString& gameId) const
+{
+    const QVariantMap game = m_gameService ? m_gameService->getGameById(gameId) : QVariantMap{};
+    return {{"allowed", true},
+            {"gameId", gameId},
+            {"name", game.value("name").toString()},
+            {"installPath", QDir::toNativeSeparators(game.value("installPath").toString())}};
+}
+
+void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const QString& method,
+                                  const QJsonObject& params)
+{
+    const bool isCall = !callId.isUndefined();
+    PluginProcess* proc = p.process;
+    const auto reply = [&](const QJsonValue& result) {
+        if (isCall && proc) proc->respond(callId, result);
+    };
+    const auto fail = [&](int code, const QString& message) {
+        if (isCall && proc) proc->respondError(callId, code, message);
+        else appendLog(p, MAKINE_LOG_WARN, QStringLiteral("%1: %2").arg(method, message));
+    };
+    const PluginManifest& m = *p.manifest;
+    const auto needs = [&](const char* capability) {
+        if (m.hasCapability(QLatin1String(capability))) return true;
+        fail(MAKINE_E_DENIED, QStringLiteral("capability %1 is not declared in manifest.json").arg(capability));
+        return false;
+    };
+
+    if (method == QLatin1String("settings.get")) {
+        const QJsonObject all = settingValues(p);
+        const QString k = params.value(u"key").toString();
+        if (!all.contains(k)) return fail(MAKINE_E_NOT_FOUND, QStringLiteral("unknown setting %1").arg(k));
+        return reply(all.value(k));
+    }
+    if (method == QLatin1String("settings.all")) return reply(settingValues(p));
+    if (method == QLatin1String("settings.set")) {
+        const QString k = params.value(u"key").toString();
+        if (m.setting(k).isEmpty()) return fail(MAKINE_E_NOT_FOUND, QStringLiteral("unknown setting %1").arg(k));
+        if (!storeSetting(p, k, params.value(u"value")))
+            return fail(MAKINE_E_INVALID_ARGUMENT, QStringLiteral("value does not fit setting %1").arg(k));
+        return reply(true);
+    }
+    if (method == QLatin1String("ui.notify")) {
+        QString kind = params.value(u"kind").toString(QStringLiteral("info"));
+        if (!QStringList{"info", "success", "warning", "error"}.contains(kind)) kind = QStringLiteral("info");
+        emit notify(p.id, m.name, params.value(u"title").toString().left(100),
+                    params.value(u"message").toString().left(500), kind);
+        return reply(true);
+    }
+    if (method == QLatin1String("ui.setStatus")) {
+        const QString text = params.value(u"text").toString().left(200);
+        if (text != p.statusText) {
+            p.statusText = text;
+            emit pluginChanged(p.id);
+        }
+        return reply(true);
+    }
+    if (method == QLatin1String("games.running")) {
+        if (!m_processScanner || !m_processScanner->gameRunning()) return reply(QJsonValue::Null);
+        return reply(QJsonObject{{"gameId", m_processScanner->runningGameId()},
+                                 {"name", m_processScanner->runningGameName()}});
+    }
+    if (method == QLatin1String("games.list")) {
+        if (!needs("game-files-read")) return;
+        QJsonArray games;
+        if (m_gameService)
+            for (const auto& g : m_gameService->games()) {
+                const QVariantMap game = g.toMap();
+                games.append(QJsonObject{{"id", game.value("id").toString()},
+                                         {"name", game.value("name").toString()},
+                                         {"engine", game.value("engine").toString()},
+                                         {"installPath", QDir::toNativeSeparators(game.value("installPath").toString())}});
+            }
+        return reply(games);
+    }
+    if (method == QLatin1String("games.requestAttach")) {
+        if (!needs("process-inject")) return;
+        if (!isCall) return;
+        const QString gameId = params.value(u"gameId").toString();
+        const QVariantMap game = m_gameService ? m_gameService->getGameById(gameId) : QVariantMap{};
+        if (game.isEmpty()) return fail(MAKINE_E_NOT_FOUND, QStringLiteral("unknown game %1").arg(gameId));
+        // Anti-cheat: never attach, whatever the user says. A ban is not undoable.
+        const bool protectedGame = m_gameService->checkAntiCheat(gameId).value("hasAntiCheat").toBool()
+            || (m_processScanner && m_processScanner->runningGameId() == gameId && m_processScanner->hasAntiCheat());
+        if (protectedGame)
+            return fail(MAKINE_E_DENIED, tr("Bu oyunda hile koruması var; eklentiler bağlanamaz."));
+        if (QSettings().value(key("attach", p.id)).toStringList().contains(gameId))
+            return reply(attachResult(gameId));
+        const int requestId = m_nextRequestId++;
+        m_requests.insert(requestId, {QStringLiteral("attach"), p.id, callId, gameId});
+        emit attachRequested(requestId, p.id, m.name, game.value("name").toString());
+        return;
+    }
+    if (method == QLatin1String("overlay.pickRegion")) {
+        if (!needs("overlay")) return;
+        if (!isCall) return;
+        for (const auto& r : std::as_const(m_requests))
+            if (r.kind == QLatin1String("region"))
+                return fail(MAKINE_E_BUSY, QStringLiteral("a region pick is already open"));
+        const int requestId = m_nextRequestId++;
+        m_requests.insert(requestId, {QStringLiteral("region"), p.id, callId, {}});
+        emit regionRequested(requestId, p.id, m.name);
+        return;
+    }
+    if (method == QLatin1String("overlay.show")) {
+        if (!needs("overlay")) return;
+        if (m_overlay.visible && m_overlay.owner != p.id)
+            return fail(MAKINE_E_BUSY, QStringLiteral("another plugin owns the overlay"));
+        m_overlay.owner = p.id;
+        if (params.contains(u"width") && params.contains(u"height"))
+            m_overlay.region = toLogical(QRect(params.value(u"x").toInt(), params.value(u"y").toInt(),
+                                               params.value(u"width").toInt(), params.value(u"height").toInt()));
+        m_overlay.text = params.value(u"text").toString().left(4000);
+        m_overlay.sourceText = params.value(u"sourceText").toString().left(4000);
+        m_overlay.visible = true;
+        emit overlayChanged();
+        return reply(true);
+    }
+    if (method == QLatin1String("overlay.hide")) {
+        if (!needs("overlay")) return;
+        hideOverlayOf(p.id);
+        return reply(true);
+    }
+    fail(MAKINE_E_NOT_FOUND, QStringLiteral("unknown method %1").arg(method));
+}
+
+void PluginManager::answerAttach(int requestId, bool allow, bool remember)
+{
+    const UserRequest req = m_requests.take(requestId);
+    Installed* p = find(req.pluginId);
+    if (!p || !p->process || req.kind != QLatin1String("attach")) return;
+    if (!allow) return p->process->respondError(req.callId, MAKINE_E_DENIED, QStringLiteral("the user declined"));
+    if (remember) {
+        QSettings s;
+        QStringList games = s.value(key("attach", p->id)).toStringList();
+        if (!games.contains(req.gameId)) games.append(req.gameId);
+        s.setValue(key("attach", p->id), games);
+    }
+    p->process->respond(req.callId, attachResult(req.gameId));
+}
+
+void PluginManager::answerRegion(int requestId, int x, int y, int width, int height)
+{
+    const UserRequest req = m_requests.take(requestId);
+    Installed* p = find(req.pluginId);
+    if (!p || !p->process || req.kind != QLatin1String("region")) return;
+    if (width <= 0 || height <= 0)
+        return p->process->respondError(req.callId, MAKINE_E_DENIED, QStringLiteral("the user cancelled"));
+    m_overlay.region = QRect(x, y, width, height);
+    emit overlayChanged();
+    const QRect physical = toPhysical(m_overlay.region);
+    p->process->respond(req.callId, QJsonObject{{"x", physical.x()}, {"y", physical.y()},
+                                                {"width", physical.width()}, {"height", physical.height()}});
+}
+
+void PluginManager::broadcast(const QString& event, const QJsonObject& payload)
+{
+    for (auto& [id, p] : m_plugins)
+        if (p.process && p.process->isReady() && p.manifest && p.manifest->events.contains(event))
+            p.process->sendEvent(event, payload);
+}
+
+void PluginManager::hideOverlayOf(const QString& id)
+{
+    if (m_overlay.owner != id || !m_overlay.visible) return;
+    m_overlay.visible = false;
+    m_overlay.owner.clear();
+    emit overlayChanged();
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+void PluginManager::setBusy(const QString& id, double progress)
+{
+    m_busyId = id;
+    m_busyProgress = progress;
+    emit busyChanged();
+}
+
+void PluginManager::setState(Installed& p, const QString& state, const QString& error)
+{
+    p.state = state;
+    p.lastError = error;
+    if (state != QLatin1String("running")) p.statusText.clear();
+    emit pluginChanged(p.id);
+}
+
+void PluginManager::saveEnabled() const
+{
+    QStringList enabled;
+    for (const auto& [id, p] : m_plugins)
+        if (p.enabled) enabled.append(id);
+    QSettings().setValue(kEnabledKey, enabled);
+}
+
+void PluginManager::appendLog(Installed& p, int level, const QString& line)
+{
+    static const char* const kLevels[] = {"DEBUG", "INFO", "WARN", "ERROR"};
+    const char* levelName = kLevels[qBound(0, level, 3)];
+    const QString text = line.left(2000);
+    p.log.append(QStringLiteral("%1 %2 %3").arg(QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss")),
+                                                QLatin1String(levelName), text));
+    if (p.log.size() > kMaxLogLines) p.log.remove(0, p.log.size() - kMaxLogLines);
+
+    const QString dir = AppPaths::logsDir() + QStringLiteral("/plugins");
+    const QString path = dir + u'/' + p.id + QStringLiteral(".log");
+    if (QFileInfo(path).size() > kMaxLogFileBytes) {
+        QFile::remove(path + QStringLiteral(".1"));
+        QFile::rename(path, path + QStringLiteral(".1"));
+    }
+    QDir().mkpath(dir);
+    QFile f(path);
+    if (f.open(QIODevice::Append | QIODevice::Text))
+        f.write(QStringLiteral("%1 %2 %3\n").arg(QDateTime::currentDateTime().toString(Qt::ISODate),
+                                                 QLatin1String(levelName), text).toUtf8());
+    qCDebug(lcPlugin).noquote() << p.id << levelName << text;
+    emit logChanged(p.id);
 }

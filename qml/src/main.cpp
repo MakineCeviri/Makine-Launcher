@@ -596,7 +596,6 @@ void logToFile(const QString& msg) {
 #include "services/settingsmanager.h"
 #include "services/backupmanager.h"
 #include "services/pluginmanager.h"
-#include "services/ocrcontroller.h"
 #include "services/processscanner.h"
 #include "services/systemtraymanager.h"
 #include "services/integrityservice.h"
@@ -789,9 +788,6 @@ static void configureQtEnvironment()
     // Texture atlas: 512x512 = 1 MB/atlas (default 2048x2048 = 16 MB)
     qputenv("QSG_ATLAS_WIDTH", "512");
     qputenv("QSG_ATLAS_HEIGHT", "512");
-
-    // V4 JS engine: aggressive GC to free unused JS heap sooner
-    qputenv("QV4_MM_AGGRESSIVE_GC", "1");
 
     // UI Scale: compute effective scale factor before QGuiApplication.
     //
@@ -1056,21 +1052,16 @@ static void createServices(
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
 
-    // ===== Phase 6b: Plugin system (dev builds only) =====
+    // ===== Phase 6b: Plugin system (dev builds only until v2 ships, ADR-0009) =====
 #ifdef MAKINE_DEV_TOOLS
     auto* pluginManager = new PluginManager(&app);
-    pluginManager->discoverPlugins();
-    pluginManager->loadEnabledPlugins();
-    pluginManager->checkForUpdates();
-    pluginManager->fetchCommunityPlugins();
+    pluginManager->setGameService(gameService);
+    pluginManager->setProcessScanner(processScanner);
+    pluginManager->start();
     engine.rootContext()->setContextProperty("PluginManager", pluginManager);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
-
-    auto* ocrController = new OcrController(pluginManager, &app);
-    engine.rootContext()->setContextProperty("OcrController", ocrController);
 #else
     engine.rootContext()->setContextProperty("PluginManager", nullptr);
-    engine.rootContext()->setContextProperty("OcrController", nullptr);
 #endif
 
     // ===== Phase 7: Update service + system tray =====
@@ -1202,6 +1193,11 @@ static void wireSignals(
         gameService, [manifestSync](const QString& appId) {
             if (auto* bridge = makine::CoreBridge::instance()) {
                 QVariantMap detail = manifestSync->getPackageDetail(appId);
+                // A failed fetch reports "ready" with nothing in it. Enriching
+                // with {} marked the detail loaded, and the install went on
+                // with no recipe (InstallFlowService reports the failure).
+                if (detail.isEmpty())
+                    return;
                 QJsonDocument doc(QJsonObject::fromVariantMap(detail));
                 bridge->enrichPackageFromJson(appId, doc.toJson(QJsonDocument::Compact));
             }
@@ -1416,16 +1412,12 @@ static void scheduleMemoryTrim()
     // compilation pages are no longer needed). Hot pages fault back in microseconds.
 #ifdef Q_OS_WIN
     QTimer::singleShot(kStartupSettleMs, []() {
-        // Compact heaps: merge free blocks, release unused pages to OS
-        HANDLE heaps[32];
-        DWORD count = GetProcessHeaps(32, heaps);
-        for (DWORD i = 0; i < count; ++i) {
-            HeapCompact(heaps[i], 0);
-        }
-
+        // No HeapCompact over GetProcessHeaps(): those handles belong to other
+        // modules, one can be destroyed before the call reaches it, and the
+        // startup scan is running right then (fatals MAKINE-LAUNCHER-3C, -1V).
         // Release working set: cold pages (DLL init, QML compile) go to standby list
         EmptyWorkingSet(GetCurrentProcess());
-        logToFile("Heap compacted + working set trimmed");
+        logToFile("Working set trimmed");
     });
 #endif
 }

@@ -34,6 +34,22 @@ InstallFlowService::InstallFlowService(GameService* gameService,
     , m_manifestSync(manifestSync)
     , m_coreBridge(coreBridge)
 {
+    // The index carries no recipe, so an install whose detail fetch failed
+    // would run as a plain copy: Valhalla's 146 .acv files dropped in the game
+    // root, reported as installed. Stop and say why instead.
+    connect(m_manifestSync, &ManifestSyncService::packageDetailReady, this,
+        [this](const QString& appId) {
+            if (appId != m_pendingGameId || !m_manifestSync->getPackageDetail(appId).isEmpty())
+                return;
+            m_pendingGameId.clear();
+            m_pendingGameName.clear();
+            m_pendingUpdateFlow = false;
+            qCWarning(lcInstallFlow) << "Package detail unavailable for" << appId
+                                     << "— not installing without its recipe";
+            emit m_gameService->translationInstallCompleted(appId, false,
+                tr("Kurulum bilgileri alınamadı, yama kurulmadı.\n"
+                   "İnternet bağlantınızı kontrol edip tekrar deneyin."));
+        });
 }
 
 // ===== ENTRY POINT: Install =====

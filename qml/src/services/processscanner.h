@@ -76,6 +76,14 @@ public:
      */
     Q_INVOKABLE QString resolveSelectedProcess(qint64 pid);
 
+    /**
+     * @brief Name of a running process whose executable lies inside @p dir
+     *
+     * By image path, not by name: a game's exe often sits below its root
+     * (Watch_Dogs bin/, Far Cry 3 bin/). Empty when none is running.
+     */
+    static QString runningExeUnder(const QString& dir);
+
 public slots:
     void rebuildProcessMap();
 

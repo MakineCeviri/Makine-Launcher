@@ -81,7 +81,7 @@
 | Ozellik | Durum | Neden |
 |---------|-------|-------|
 | Font analizi | **Kapatildi** | Pratik degeri dusuk |
-| Engine Handler'lar | **Kaldirildi** | Stub interface'ler korundu (IEngineHandler) |
+| Engine Handler'lar | **Kaldirildi** | Stub dahil tamamen silindi (b5a003b) |
 | Translation Pipeline | **Kaldirildi** | Stub header'lar silindi (2026-02-25) |
 | Translation Memory | **Ertelendi** | Ayri proje (MakineAI) |
 | Glossary Service | **Ertelendi** | Stub header silindi (2026-02-25) |

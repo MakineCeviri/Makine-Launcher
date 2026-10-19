@@ -229,6 +229,33 @@ TEST_F(PackageCatalogTest, EnrichPackageInvalidJson) {
     EXPECT_FALSE(catalog_.enrichPackage("1245620", "not json {{{"));
 }
 
+// The Elden Ring recipe's exe edit. The strings carry a terminating NUL
+// (JSON \u0000) that must survive parsing, or "data0:/msg" would also match
+// inside a longer string.
+TEST_F(PackageCatalogTest, PatchBytesPairsSurviveParsingWithTheirNul) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    const std::string detail = R"({"installMethod": {"type": "options", "options": [
+        {"id": "patch", "steps": [
+            {"action": "patchBytes", "src": "Game/eldenring.exe",
+             "dest": "Game/start_protected_game.exe",
+             "patches": [
+                {"find": "utf16:data0:/font\u0000", "replace": "utf16:dvdroot:/fn\u0000"},
+                {"find": "utf16:data0:/msg"},
+                "not an object"]}]}]}})";
+    ASSERT_TRUE(catalog_.enrichPackage("1245620", detail));
+
+    const auto pkg = catalog_.getPackage("1245620");
+    ASSERT_TRUE(pkg.has_value());
+    ASSERT_EQ(pkg->installOptions.size(), 1u);
+    ASSERT_EQ(pkg->installOptions[0].steps.size(), 1u);
+    const auto& step = pkg->installOptions[0].steps[0];
+    EXPECT_EQ(step.action, "patchBytes");
+    EXPECT_EQ(step.dest, "Game/start_protected_game.exe");
+    ASSERT_EQ(step.patches.size(), 1u);   // the incomplete pair and the string are dropped
+    EXPECT_EQ(step.patches[0].first, std::string("utf16:data0:/font\0", 18));
+    EXPECT_EQ(step.patches[0].second, std::string("utf16:dvdroot:/fn\0", 18));
+}
+
 // =========================================================================
 // RESOLVE GAME ID
 // =========================================================================
@@ -418,6 +445,22 @@ TEST_F(PackageCatalogTest, ScriptCopyDirFileListUsesTheCallerResolvedPath) {
     EXPECT_EQ(files[0], "Game/Content/Paks/tr.locres");
 }
 
+TEST_F(PackageCatalogTest, ScriptCopyFileTargetIsListedForBackup) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    json detail;
+    detail["installMethod"] = {
+        {"type", "script"},
+        {"steps", json::array({
+            {{"action", "copyFile"}, {"src", "grim.tr.tab"}, {"dest", "grim.en.tab"}}
+        })}
+    };
+    ASSERT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+
+    const auto files = catalog_.getPackageFileList("1245620", {}, (cachePath_ / "x").string());
+    ASSERT_EQ(files.size(), 1u);
+    EXPECT_EQ(files[0], "grim.en.tab");
+}
+
 TEST_F(PackageCatalogTest, UnknownPackageHasNoFileListEvenWithAPath) {
     ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     const fs::path resolved = cachePath_ / "stray";
@@ -444,6 +487,29 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdByGameNameSubstring) {
 
     // gameName substring match
     EXPECT_NE(catalog_.findMatchingAppId("Disco"), "");
+    EXPECT_EQ(catalog_.findMatchingAppId("Disco"), "1716740");
+}
+
+// "assassin's creed ii" is a substring of "assassin's creed iii remastered";
+// a match ending inside a word, or followed by a Roman numeral, is another game.
+TEST_F(PackageCatalogTest, FindMatchingAppIdRejectsPartialWordAndNumeralSequels) {
+    json index;
+    index["packages"] = {
+        {"911400", {{"name", "Assassin's Creed III Remastered"}, {"v", "1"},
+                    {"dirName", "Assassin's Creed III Remastered"}}},
+        {"1145360", {{"name", "Hades II"}, {"v", "1"}, {"dirName", "Hades II"}}},
+        {"1716740", {{"name", "Disco Elysium"}, {"v", "1"}, {"dirName", "disco-elysium"}}},
+        {"255710", {{"name", "Cities: Skylines"}, {"v", "1"}, {"dirName", "Cities Skylines"}}},
+    };
+    std::ofstream(indexPath_) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    EXPECT_EQ(catalog_.findMatchingAppId("Assassin's Creed II"), "");
+    EXPECT_EQ(catalog_.findMatchingAppId("Hades"), "");
+    // Sentry 2026-10: a "Cities Skylines II" folder was offered the first game's patch.
+    EXPECT_EQ(catalog_.findMatchingAppId("Cities Skylines II"), "");
+    EXPECT_EQ(catalog_.findMatchingAppId("Cities Skylines"), "255710");
+    EXPECT_EQ(catalog_.findMatchingAppId("Assassin's Creed III Remastered"), "911400");
     EXPECT_EQ(catalog_.findMatchingAppId("Disco"), "1716740");
 }
 

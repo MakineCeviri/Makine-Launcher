@@ -67,8 +67,8 @@ set(MAKINE_HEADERS
     include/makine/error.hpp
     include/makine/logging.hpp
     include/makine/types/common.hpp
-    include/makine/plugin/plugin_api.h
-    include/makine/plugin/plugin_types.h
+    include/makine/plugin/abi.h
+    include/makine/plugin/sdk.hpp
 )
 
 # Static library

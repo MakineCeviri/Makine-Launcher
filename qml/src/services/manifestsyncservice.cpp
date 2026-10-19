@@ -139,6 +139,10 @@ void ManifestSyncService::fetchCatalogMeta()
     QNetworkRequest req{QUrl{QLatin1String(cdn::kCatalogMeta)}};
     req.setTransferTimeout(8000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
+    // HTTP/1.1: small GETs gain nothing from HTTP/2, and Qt's HTTP/2 to
+    // Cloudflare drops streams ("HTTP/2 protocol error", Sentry 2026-10) with
+    // no fallback here — the downloader already retries over HTTP/1.1.
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
     QNetworkReply* reply = m_nam.get(req);
     m_currentSyncReply = reply;
@@ -196,6 +200,7 @@ void ManifestSyncService::fetchCatalogDelta(int sinceVersion)
     QNetworkRequest req{QUrl{url}};
     req.setTransferTimeout(10000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
     QNetworkReply* reply = m_nam.get(req);
     m_currentSyncReply = reply;
@@ -271,6 +276,7 @@ void ManifestSyncService::fetchFullCatalog()
     QNetworkRequest req{QUrl{QLatin1String(cdn::kCatalogUrl)}};
     req.setTransferTimeout(15000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
     QNetworkReply* reply = m_nam.get(req);
     m_currentSyncReply = reply;
@@ -331,6 +337,7 @@ void ManifestSyncService::fallbackToLegacySync()
                      QNetworkRequest::SameOriginRedirectPolicy);
     req.setTransferTimeout(10000);
     req.setHeader(QNetworkRequest::UserAgentHeader, QLatin1String(cdn::kUserAgent));
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
     if (!m_store->etag().isEmpty())
         req.setRawHeader("If-None-Match", m_store->etag().toUtf8());

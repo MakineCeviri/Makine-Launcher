@@ -9,93 +9,300 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * PluginsSettings.qml - Plugin management panel
+ * PluginsSettings.qml - Plugin management panel (plugin system v2)
  *
- * Shows official and community plugins with install/enable/disable controls.
- * Backend: PluginManager C++ service.
+ * "Yüklü": installed plugins with state, enable switch, consent and update.
+ * "Keşfet": the signed official catalogue; installing asks for the permissions first.
+ * Developer mode adds installing an unverified .mkplugin from disk.
+ * Details of one plugin replace the list in place (PluginSettingsPage).
+ * Backend: PluginManager C++ service (null in builds without dev tools).
+ * Everything a plugin or the registry supplies is untrusted text: PlainText only.
  */
 ColumnLayout {
     id: pluginsRoot
     spacing: Dimensions.spacingXL
 
-    // Discovered plugins from PluginManager
-    property var discoveredPlugins: PluginManager ? PluginManager.plugins : []
+    // Ids of the installed plugins. A card reads its own plugin and follows
+    // pluginChanged(id) itself, so a state tick never rebuilds the list.
+    ListModel { id: _idModel }
+    // Replaced only when the content changes, so cards do not rebuild on no-op signals.
+    property var catalog: []
+    // Id of the plugin whose details are open; "" shows the list.
+    property string detailId: ""
+    // Catalogue entry waiting for the user's confirmation.
+    property var pendingInstall: null
 
-    // Official plugin catalog — always shown, enriched with install/enable state
-    property var officialCatalog: [
-        {
-            id: "com.makineceviri.live",
-            name: "Makine Live",
-            description: qsTr("Gerçek zamanlı ekran OCR ve çeviri overlay sistemi"),
-            version: "0.1.0",
-            size: "20 MB",
-            icon: "\uE890",
-            iconFont: "Segoe MDL2 Assets",
-            accent: "#0ea5e9",
-            features: [
-                qsTr("DXGI/GDI Ekran Yakalama"),
-                qsTr("RapidOCR Metin Tanıma"),
-                qsTr("GPT · DeepL · Google Çeviri"),
-                qsTr("Şeffaf Overlay Penceresi")
-            ]
-        },
-        {
-            id: "com.makineceviri.texthook",
-            name: "Makine TextHook",
-            description: qsTr("Oyun belleğinden doğrudan metin çıkarma ve çeviri"),
-            version: "0.1.0",
-            size: "80 KB",
-            icon: "\uE943",
-            iconFont: "Segoe MDL2 Assets",
-            accent: "#a855f7",
-            features: [
-                qsTr("x64 Inline Hooking"),
-                qsTr("GDI Text Hook (10 fonksiyon)"),
-                qsTr("Named Pipe IPC"),
-                qsTr("Tekrar Filtresi")
-            ]
+    readonly property string busyId: PluginManager ? PluginManager.busyPluginId : ""
+    readonly property real busyProgress: PluginManager ? PluginManager.busyProgress : 0
+    readonly property bool catalogLoading: PluginManager ? PluginManager.catalogLoading : false
+    readonly property string catalogError: PluginManager ? PluginManager.catalogError : ""
+    readonly property bool developerMode: PluginManager ? PluginManager.developerMode : false
+    readonly property int updateCount: PluginManager ? PluginManager.updateCount : 0
+
+    // Brings the id model in line with the installed set, touching only what
+    // differs: installing or removing one plugin leaves the other cards alone.
+    function syncPlugins() {
+        var list = PluginManager ? PluginManager.plugins : []
+        var ids = []
+        for (var i = 0; i < list.length; i++) ids.push(list[i].id)
+
+        for (var n = 0; n < ids.length; n++) {
+            if (n < _idModel.count && _idModel.get(n).pluginId === ids[n]) continue
+            var from = -1
+            for (var k = n + 1; k < _idModel.count; k++) {
+                if (_idModel.get(k).pluginId === ids[n]) { from = k; break }
+            }
+            if (from >= 0) _idModel.move(from, n, 1)
+            else _idModel.insert(n, { pluginId: ids[n] })
         }
-    ]
+        while (_idModel.count > ids.length) _idModel.remove(_idModel.count - 1)
 
-    function _isDiscovered(pluginId) {
-        if (!PluginManager) return false
-        for (var i = 0; i < discoveredPlugins.length; i++)
-            if (discoveredPlugins[i].id === pluginId) return true
-        return false
+        // The plugin whose details are open was uninstalled.
+        if (detailId !== "" && ids.indexOf(detailId) < 0) detailId = ""
     }
 
-    // Merge catalog with live state from PluginManager
-    property var officialPlugins: {
-        var result = []
-        for (var i = 0; i < officialCatalog.length; i++) {
-            var cat = officialCatalog[i]
-            var installed = _isDiscovered(cat.id)
-            var enabled = PluginManager ? PluginManager.isPluginEnabled(cat.id) : false
-            var loaded = PluginManager ? PluginManager.isPluginLoaded(cat.id) : false
-            var updateAvail = PluginManager ? PluginManager.hasUpdate(cat.id) : false
-            var newVersion = PluginManager ? PluginManager.availableVersion(cat.id) : ""
-            var lastErr = PluginManager ? PluginManager.lastPluginError(cat.id) : ""
-            result.push({
-                id: cat.id, name: cat.name, description: cat.description,
-                version: cat.version, size: cat.size, icon: cat.icon,
-                accent: cat.accent, features: cat.features,
-                installed: installed, enabled: enabled, loaded: loaded,
-                hasUpdate: updateAvail, availableVersion: newVersion,
-                lastError: lastErr
-            })
-        }
-        return result
+    function syncCatalog() {
+        var next = PluginManager ? PluginManager.catalog : []
+        if (JSON.stringify(next) !== JSON.stringify(catalog)) catalog = next
     }
 
-    // ── Official Plugins Section ──
+    function catalogEntry(id) {
+        for (var i = 0; i < catalog.length; i++)
+            if (catalog[i].id === id) return catalog[i]
+        return null
+    }
+
+    function openDetail(id) {
+        detailId = id
+        // The page scrolls inside the settings ScrollView's Flickable.
+        var f = pluginsRoot
+        while (f && !("contentY" in f)) f = f.parent
+        if (f) f["contentY"] = 0
+    }
+
+    function askInstall(id) {
+        var entry = catalogEntry(id)
+        if (!entry) return
+        pendingInstall = entry
+        _installConfirm.open()
+    }
+
+    function formatSize(bytes) {
+        if (!(bytes > 0)) return "?"
+        if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB"
+        return (bytes / 1048576).toFixed(1) + " MB"
+    }
+
+    function installMessage(entry) {
+        var caps = entry.capabilities || []
+        var text = ""
+        if (caps.length > 0) {
+            var lines = []
+            for (var i = 0; i < caps.length; i++)
+                lines.push("• " + caps[i].label + (caps[i].reason ? " — " + caps[i].reason : ""))
+            text = qsTr("Bu eklenti Makine'den ayrı bir işlem olarak çalışır ve şu izinleri ister:")
+                   + "\n\n" + lines.join("\n")
+        } else {
+            text = qsTr("Bu eklenti özel bir izin istemiyor.")
+        }
+        text += "\n\n" + qsTr("Boyut: %1").arg(formatSize(entry.size))
+        if (entry.publisher) text += "   ·   " + qsTr("Yayıncı: %1").arg(entry.publisher)
+        return text
+    }
+
+    function stateText(s) {
+        switch (s) {
+        case "disabled": return qsTr("Devre dışı")
+        case "starting": return qsTr("Başlatılıyor")
+        case "running": return qsTr("Çalışıyor")
+        case "stopping": return qsTr("Durduruluyor")
+        case "error": return qsTr("Hata")
+        case "crashed": return qsTr("Beklenmedik şekilde durdu")
+        case "needs-consent": return qsTr("İzin bekliyor")
+        case "incompatible": return qsTr("Uyumsuz")
+        case "invalid": return qsTr("Geçersiz")
+        default: return s
+        }
+    }
+
+    function stateColor(s) {
+        switch (s) {
+        case "running": return Theme.success
+        case "starting":
+        case "stopping":
+        case "needs-consent":
+        case "incompatible": return Theme.warning
+        case "error":
+        case "crashed":
+        case "invalid": return Theme.error
+        default: return Theme.textMuted
+        }
+    }
+
+    Component.onCompleted: {
+        syncPlugins()
+        syncCatalog()
+    }
+
+    Connections {
+        target: PluginManager
+        // List-level changes only; one plugin's state ticks arrive as pluginChanged(id).
+        function onPluginsChanged() { pluginsRoot.syncPlugins() }
+        function onCatalogChanged() { pluginsRoot.syncCatalog() }
+    }
+
+    // ── Small building blocks (the same look as PluginSettingsPage) ──
+
+    component PluginBadge: Rectangle {
+        id: badge
+        property string text: ""
+        property color fg: Theme.textMuted
+        property color bg: Theme.textPrimary06
+        implicitWidth: _badgeLabel.implicitWidth + 12
+        implicitHeight: 20
+        radius: Dimensions.radiusFull
+        color: badge.bg
+
+        Label {
+            id: _badgeLabel
+            anchors.centerIn: parent
+            textFormat: Text.PlainText
+            text: badge.text
+            font.pixelSize: Dimensions.fontMini
+            font.weight: Font.Medium
+            color: badge.fg
+        }
+    }
+
+    component PluginButton: Rectangle {
+        id: btn
+        property string text: ""
+        property string kind: "ghost"   // primary | ghost | danger
+        signal clicked()
+
+        implicitWidth: _btnLabel.implicitWidth + 28
+        implicitHeight: 34
+        radius: Dimensions.radiusMD
+        color: btn.kind === "primary" ? Theme.primary
+             : btn.kind === "danger" ? (_btnMouse.containsMouse ? Theme.error15 : Theme.error10)
+             : (_btnMouse.containsMouse ? Theme.primary12 : Theme.primary08)
+        border.color: btn.kind === "danger" ? Theme.error25 : "transparent"
+        border.width: 1
+        opacity: !btn.enabled ? 0.4 : (btn.kind === "primary" && _btnMouse.containsMouse ? 0.9 : 1.0)
+        scale: _btnMouse.pressed ? Dimensions.pressScale : 1.0
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: btn.text
+        Keys.onReturnPressed: if (btn.enabled) btn.clicked()
+        Keys.onSpacePressed: if (btn.enabled) btn.clicked()
+
+        Label {
+            id: _btnLabel
+            anchors.centerIn: parent
+            textFormat: Text.PlainText
+            text: btn.text
+            font.pixelSize: Dimensions.fontSM
+            font.weight: Font.Medium
+            color: btn.kind === "primary" ? Theme.textOnColor
+                 : btn.kind === "danger" ? Theme.error
+                 : Theme.textPrimary
+        }
+
+        FocusRing { offset: -1 }
+
+        MouseArea {
+            id: _btnMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: btn.clicked()
+        }
+    }
+
+    component PluginSwitch: Rectangle {
+        id: sw
+        property bool checked: false
+        property string label: ""
+        signal toggled()
+
+        implicitWidth: Dimensions.toggleWidth
+        implicitHeight: Dimensions.toggleHeight
+        radius: Dimensions.toggleRadius
+        color: sw.checked ? Theme.primary : Theme.primary12
+        opacity: sw.enabled ? 1.0 : 0.4
+        Behavior on color { ColorAnimation { duration: Dimensions.animMedium; easing.type: Easing.OutCubic } }
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: sw.label
+        Accessible.checked: sw.checked
+        Keys.onSpacePressed: if (sw.enabled) sw.toggled()
+        Keys.onReturnPressed: if (sw.enabled) sw.toggled()
+
+        Rectangle {
+            width: Dimensions.toggleKnobSize
+            height: Dimensions.toggleKnobSize
+            radius: Dimensions.toggleKnobRadius
+            color: Theme.textOnColor
+            x: sw.checked ? sw.width - width - 3 : 3
+            anchors.verticalCenter: parent.verticalCenter
+            Behavior on x { NumberAnimation { duration: Dimensions.animMedium; easing.type: Easing.OutCubic } }
+        }
+
+        FocusRing { offset: -1 }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: sw.toggled()
+        }
+    }
+
+    component SectionTitle: Label {
+        textFormat: Text.PlainText
+        font.pixelSize: Dimensions.fontLG
+        font.weight: Font.DemiBold
+        color: Theme.textPrimary
+    }
+
+    // ── Details of one plugin ──
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: pluginsRoot.detailId !== ""
+        spacing: Dimensions.spacingXL
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            PluginButton {
+                text: "← " + qsTr("Eklentilere dön")
+                onClicked: pluginsRoot.detailId = ""
+            }
+
+            Item { Layout.fillWidth: true }
+        }
+
+        Loader {
+            Layout.fillWidth: true
+            active: pluginsRoot.detailId !== ""
+            sourceComponent: Component {
+                PluginSettingsPage { pluginId: pluginsRoot.detailId }
+            }
+        }
+    }
+
+    // ── Installed ──
     SettingsCard {
         Layout.fillWidth: true
+        visible: pluginsRoot.detailId === ""
 
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
 
-            // Section header
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 56
@@ -105,330 +312,355 @@ ColumnLayout {
                     anchors.leftMargin: Dimensions.marginML
                     anchors.rightMargin: Dimensions.marginML
 
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Resmi Eklentiler")
-                        font.pixelSize: Dimensions.fontLG
-                        font.weight: Font.DemiBold
-                        color: Theme.textPrimary
-                    }
+                    SectionTitle { text: qsTr("Yüklü") }
 
                     Item { Layout.fillWidth: true }
 
-                    // Badge removed per user request
+                    PluginBadge {
+                        visible: pluginsRoot.updateCount > 0
+                        text: qsTr("%1 güncelleme var").arg(pluginsRoot.updateCount)
+                        fg: Theme.warningBadgeText
+                        bg: Theme.warningBadgeBg
+                    }
                 }
             }
 
             SettingsDivider {}
 
-            // Plugin cards
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 88
+                visible: _idModel.count === 0
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: Dimensions.spacingSM
+
+                    Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Henüz eklenti yüklenmedi")
+                        font.pixelSize: Dimensions.fontMD
+                        color: Theme.textMuted
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Aşağıdaki Keşfet bölümünden bir eklenti kurabilirsiniz.")
+                        font.pixelSize: Dimensions.fontSM
+                        color: Theme.textSecondary
+                    }
+                }
+            }
+
             Repeater {
-                model: pluginsRoot.officialPlugins
+                model: _idModel
 
                 Rectangle {
+                    id: card
                     required property int index
-                    required property var modelData
+                    required property string pluginId
+                    // Install-level data (re-read on pluginsChanged) and the three
+                    // runtime fields (re-read on this plugin's pluginChanged).
+                    property var info: ({})
+                    property string pluginState: ""
+                    property string statusText: ""
+                    property string lastError: ""
+                    readonly property bool busy: pluginsRoot.busyId === pluginId
+
+                    function reloadRuntime() {
+                        var m = PluginManager ? PluginManager.plugin(pluginId) : ({})
+                        pluginState = m.state || ""
+                        statusText = m.statusText || ""
+                        lastError = m.lastError || ""
+                    }
+
+                    function reload() {
+                        info = PluginManager ? PluginManager.plugin(pluginId) : ({})
+                        pluginState = info.state || ""
+                        statusText = info.statusText || ""
+                        lastError = info.lastError || ""
+                    }
+
+                    Component.onCompleted: reload()
+
+                    Connections {
+                        target: PluginManager
+                        function onPluginsChanged() { card.reload() }
+                        function onPluginChanged(pid) { if (pid === card.pluginId) card.reloadRuntime() }
+                    }
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: _pluginContent.implicitHeight + Dimensions.marginML * 2
+                    Layout.preferredHeight: _cardCol.implicitHeight + Dimensions.marginML * 2
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
                     Layout.topMargin: index === 0 ? Dimensions.spacingMD : Dimensions.spacingSM
-                    Layout.bottomMargin: index === pluginsRoot.officialPlugins.length - 1 ? Dimensions.spacingMD : 0
+                    Layout.bottomMargin: index === _idModel.count - 1 ? Dimensions.spacingMD : 0
                     radius: Dimensions.radiusMD
-                    color: _pluginMouse.containsMouse ? Theme.primary06 : Theme.primary04
+                    color: _cardHover.hovered ? Theme.primary06 : Theme.primary04
                     border.color: Theme.primary08
                     border.width: 1
-
                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
+                    HoverHandler { id: _cardHover }
+
                     ColumnLayout {
-                        id: _pluginContent
+                        id: _cardCol
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: Dimensions.marginML
                         spacing: Dimensions.spacingMD
 
-                        // Top row: icon + name + version + toggle
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Dimensions.spacingLG
 
-                            // Plugin icon
-                            Rectangle {
-                                Layout.preferredWidth: 44
-                                Layout.preferredHeight: 44
-                                radius: 12
-                                color: modelData.accent + "18"
-                                border.color: modelData.accent + "30"
-                                border.width: 1
-
-                                Text {
-                                    textFormat: Text.PlainText
-                                    anchors.centerIn: parent
-                                    text: modelData.icon
-                                    font.family: modelData.iconFont || ""
-                                    font.pixelSize: 18
-                                    color: modelData.accent
-                                }
-                            }
-
-                            // Plugin info
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: Dimensions.spacingXXS
+                                spacing: Dimensions.spacingXS
 
                                 RowLayout {
+                                    Layout.fillWidth: true
                                     spacing: Dimensions.spacingSM
 
-                                    Text {
+                                    Label {
+                                        Layout.maximumWidth: 260
                                         textFormat: Text.PlainText
-                                        text: modelData.name
+                                        text: card.info.name
                                         font.pixelSize: Dimensions.fontMD
                                         font.weight: Font.DemiBold
                                         color: Theme.textPrimary
+                                        elide: Text.ElideRight
                                     }
 
-                                    Rectangle {
-                                        implicitWidth: _verLabel.implicitWidth + 12
-                                        implicitHeight: 20
-                                        radius: Dimensions.radiusFull
-                                        color: Theme.textPrimary06
-
-                                        Text {
-                                            id: _verLabel
-                                            textFormat: Text.PlainText
-                                            anchors.centerIn: parent
-                                            text: "v" + modelData.version
-                                            font.pixelSize: Dimensions.fontMini
-                                            font.weight: Font.Medium
-                                            color: Theme.textMuted
-                                        }
+                                    PluginBadge {
+                                        visible: !!card.info.version
+                                        text: "v" + card.info.version
                                     }
+
+                                    PluginBadge {
+                                        visible: card.info.verified === true
+                                        text: "✓ " + qsTr("Doğrulanmış")
+                                        fg: Theme.verifiedText
+                                        bg: Theme.verifiedBg
+                                    }
+
+                                    PluginBadge {
+                                        visible: card.info.verified !== true && card.pluginState !== "invalid"
+                                        text: "⚠ " + qsTr("Doğrulanmamış")
+                                        fg: Theme.warningBadgeText
+                                        bg: Theme.warningBadgeBg
+                                    }
+
+                                    Item { Layout.fillWidth: true }
                                 }
 
-                                Text {
+                                Label {
+                                    Layout.fillWidth: true
+                                    visible: !!card.info.description
                                     textFormat: Text.PlainText
-                                    text: modelData.description
+                                    text: card.info.description || ""
                                     font.pixelSize: Dimensions.fontBody
                                     color: Theme.textMuted
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
                                     Layout.fillWidth: true
+                                    visible: !!card.info.publisher
+                                    textFormat: Text.PlainText
+                                    text: qsTr("Yayıncı: %1").arg(card.info.publisher || "")
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.textSecondary
                                     elide: Text.ElideRight
                                 }
                             }
 
-                            // Action buttons column
-                            ColumnLayout {
-                                spacing: Dimensions.spacingXXS
-
-                                // Main action button
-                                Rectangle {
-                                    Layout.preferredWidth: _btnRow.implicitWidth + 28
-                                    Layout.preferredHeight: 36
-                                    radius: Dimensions.radiusMD
-                                    color: {
-                                        if (PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id) return Theme.primary08
-                                        if (!modelData.installed) return Theme.primary
-                                        if (modelData.enabled) return Theme.primary12
-                                        return Theme.primary
-                                    }
-                                    scale: _btnMouse.pressed ? 0.92 : 1.0
-                                    opacity: _btnMouse.containsMouse ? 0.9 : 1.0
-
-                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                                    // Install progress bar overlay
-                                    Rectangle {
-                                        anchors.left: parent.left
-                                        anchors.top: parent.top
-                                        anchors.bottom: parent.bottom
-                                        width: parent.width * (PluginManager ? PluginManager.installProgress : 0)
-                                        radius: Dimensions.radiusMD
-                                        color: Theme.primary + "44"
-                                        visible: PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id
-                                    }
-
-                                    Row {
-                                        id: _btnRow
-                                        anchors.centerIn: parent
-                                        spacing: Dimensions.spacingSM
-
-                                        Text {
-                                            textFormat: Text.PlainText
-                                            text: {
-                                                if (PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id) return "\u21BB"
-                                                if (!modelData.installed) return "\u2913"
-                                                return modelData.enabled ? "\u2714" : "\u25B6"
-                                            }
-                                            font.pixelSize: Dimensions.fontSM
-                                            color: modelData.installed && modelData.enabled
-                                                ? Theme.primary : Theme.textOnColor
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-
-                                        Text {
-                                            textFormat: Text.PlainText
-                                            text: {
-                                                if (PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id)
-                                                    return qsTr("Kuruluyor... %1%").arg(
-                                                        Math.round((PluginManager.installProgress || 0) * 100))
-                                                if (!modelData.installed) return qsTr("Kur") + "  " + modelData.size
-                                                return modelData.enabled ? qsTr("Ayarlar") : qsTr("Etkinle\u015Ftir")
-                                            }
-                                            font.pixelSize: Dimensions.fontSM
-                                            font.weight: Font.Medium
-                                            color: modelData.installed && modelData.enabled
-                                                ? Theme.primary : Theme.textOnColor
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-                                    }
-
-                                    FocusRing { offset: -1 }
-
-                                    MouseArea {
-                                        id: _btnMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        enabled: !(PluginManager && PluginManager.installing && PluginManager.installingPluginId === modelData.id)
-                                        onClicked: {
-                                            if (!modelData.installed) {
-                                                PluginManager.installPlugin(modelData.id)
-                                                return
-                                            }
-                                            if (modelData.enabled) {
-                                                // Navigate to plugin's settings page
-                                                var cats = pluginsRoot.parent ? root.categories : []
-                                                // Find plugin settings page index in parent SettingsScreen
-                                                var settingsScreen = pluginsRoot.parent
-                                                while (settingsScreen && !settingsScreen.categories) settingsScreen = settingsScreen.parent
-                                                if (settingsScreen) {
-                                                    for (var i = 0; i < settingsScreen.categories.length; i++) {
-                                                        if (settingsScreen.categories[i].pluginId === modelData.id) {
-                                                            settingsScreen.selectedCategory = i
-                                                            return
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                PluginManager.enablePlugin(modelData.id)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Update button (shown when update available)
-                                Rectangle {
-                                    Layout.preferredWidth: _updateRow.implicitWidth + 20
-                                    Layout.preferredHeight: 28
-                                    radius: Dimensions.radiusFull
-                                    color: "#f59e0b22"
-                                    border.color: "#f59e0b44"
-                                    border.width: 1
-                                    visible: modelData.installed && modelData.hasUpdate
-                                    scale: _updateMouse.pressed ? 0.92 : 1.0
-
-                                    Row {
-                                        id: _updateRow
-                                        anchors.centerIn: parent
-                                        spacing: 4
-
-                                        Text {
-                                            textFormat: Text.PlainText
-                                            text: "\u2191 " + qsTr("Güncelle")
-                                            font.pixelSize: Dimensions.fontMini
-                                            font.weight: Font.DemiBold
-                                            color: "#f59e0b"
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: _updateMouse
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: PluginManager.installPlugin(modelData.id)
-                                    }
-                                }
-
-                                // Uninstall button (shown when installed)
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: qsTr("Kaldır")
-                                    font.pixelSize: Dimensions.fontMini
-                                    color: _removeMouse.containsMouse ? Theme.error : Theme.textMuted
-                                    visible: modelData.installed && !modelData.enabled
-                                    Layout.alignment: Qt.AlignHCenter
-                                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                                    MouseArea {
-                                        id: _removeMouse
-                                        anchors.fill: parent
-                                        anchors.margins: -4
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: PluginManager.uninstallPlugin(modelData.id, false)
-                                    }
-                                }
+                            PluginSwitch {
+                                Layout.alignment: Qt.AlignTop
+                                label: qsTr("Eklentiyi etkinleştir")
+                                checked: card.info.enabled === true
+                                enabled: card.pluginState !== "incompatible" && card.pluginState !== "invalid"
+                                         && !card.busy
+                                onToggled: if (PluginManager) PluginManager.setEnabled(card.pluginId, !checked)
                             }
                         }
 
-                        // Error message (shown when plugin has error)
-                        Text {
-                            Layout.fillWidth: true
-                            visible: modelData.lastError.length > 0
-                            text: "\u26A0 " + (modelData.lastError || "")
-                            font.pixelSize: Dimensions.fontMini
-                            color: Theme.error
-                            wrapMode: Text.Wrap
-                            textFormat: Text.PlainText
-                        }
-
-                        // Features list
-                        Flow {
+                        RowLayout {
                             Layout.fillWidth: true
                             spacing: Dimensions.spacingSM
 
-                            Repeater {
-                                model: modelData.features
+                            Rectangle {
+                                Layout.preferredWidth: 8
+                                Layout.preferredHeight: 8
+                                radius: 4
+                                color: pluginsRoot.stateColor(card.pluginState)
+                            }
 
-                                Rectangle {
-                                    required property string modelData
-                                    implicitWidth: _featureText.implicitWidth + 16
-                                    implicitHeight: 26
-                                    radius: Dimensions.radiusFull
-                                    color: Theme.textPrimary04
+                            Label {
+                                textFormat: Text.PlainText
+                                text: pluginsRoot.stateText(card.pluginState)
+                                font.pixelSize: Dimensions.fontSM
+                                font.weight: Font.Medium
+                                color: pluginsRoot.stateColor(card.pluginState)
+                            }
 
-                                    Text {
-                                        id: _featureText
-                                        textFormat: Text.PlainText
-                                        anchors.centerIn: parent
-                                        text: modelData
-                                        font.pixelSize: Dimensions.fontMini
-                                        color: Theme.textSecondary
+                            Label {
+                                Layout.fillWidth: true
+                                visible: !!card.statusText
+                                textFormat: Text.PlainText
+                                text: "· " + (card.statusText || "")
+                                font.pixelSize: Dimensions.fontSM
+                                color: Theme.textMuted
+                                elide: Text.ElideRight
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: !!card.lastError
+                            textFormat: Text.PlainText
+                            text: "⚠ " + (card.lastError || "")
+                            font.pixelSize: Dimensions.fontSM
+                            color: Theme.error
+                            wrapMode: Text.WordWrap
+                        }
+
+                        // The plugin does not start before the user has granted what its manifest asks for.
+                        Rectangle {
+                            Layout.fillWidth: true
+                            visible: card.pluginState === "needs-consent"
+                            implicitHeight: _consentCol.implicitHeight + Dimensions.marginMD * 2
+                            radius: Dimensions.radiusMD
+                            color: Theme.warning08
+                            border.color: Theme.warning25
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: _consentCol
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: Dimensions.marginMD
+                                spacing: Dimensions.spacingMD
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    textFormat: Text.PlainText
+                                    text: qsTr("Bu eklentinin çalışabilmesi için aşağıdaki izinleri vermeniz gerekiyor:")
+                                    font.pixelSize: Dimensions.fontSM
+                                    font.weight: Font.Medium
+                                    color: Theme.textPrimary
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                Repeater {
+                                    model: card.info.missingCapabilities || []
+
+                                    ColumnLayout {
+                                        id: missingItem
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        spacing: Dimensions.spacingXXS
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            textFormat: Text.PlainText
+                                            text: missingItem.modelData.label
+                                            font.pixelSize: Dimensions.fontBody
+                                            font.weight: Font.Medium
+                                            color: Theme.textPrimary
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            visible: !!missingItem.modelData.reason
+                                            textFormat: Text.PlainText
+                                            text: missingItem.modelData.reason || ""
+                                            font.pixelSize: Dimensions.fontSM
+                                            color: Theme.textSecondary
+                                            wrapMode: Text.WordWrap
+                                        }
                                     }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+
+                                    PluginButton {
+                                        kind: "primary"
+                                        text: qsTr("İzinleri ver")
+                                        onClicked: if (PluginManager) PluginManager.grantCapabilities(card.pluginId)
+                                    }
+
+                                    Item { Layout.fillWidth: true }
                                 }
                             }
                         }
-                    }
 
-                    MouseArea {
-                        id: _pluginMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.NoButton
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            visible: card.busy
+                            spacing: Dimensions.spacingXS
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 4
+                                radius: 2
+                                color: Theme.primary12
+
+                                Rectangle {
+                                    width: parent.width * pluginsRoot.busyProgress
+                                    height: parent.height
+                                    radius: 2
+                                    color: Theme.primary
+                                }
+                            }
+
+                            Label {
+                                textFormat: Text.PlainText
+                                text: qsTr("Güncelleniyor… %1%").arg(Math.round(pluginsRoot.busyProgress * 100))
+                                font.pixelSize: Dimensions.fontSM
+                                color: Theme.textMuted
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Dimensions.spacingMD
+
+                            PluginButton {
+                                visible: card.info.updateAvailable === true
+                                kind: "primary"
+                                text: qsTr("Güncelle") + " · v" + card.info.availableVersion
+                                enabled: pluginsRoot.busyId === ""
+                                onClicked: pluginsRoot.askInstall(card.pluginId)
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            PluginButton {
+                                text: qsTr("Ayrıntılar")
+                                onClicked: pluginsRoot.openDetail(card.pluginId)
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // Plugin settings moved to dedicated PluginSettingsPage (sidebar)
-
-    // ── Community Plugins Section (GitHub Topic Search) ──
+    // ── Discover (official catalogue) ──
     SettingsCard {
         Layout.fillWidth: true
+        visible: pluginsRoot.detailId === ""
 
         ColumnLayout {
             Layout.fillWidth: true
@@ -442,450 +674,342 @@ ColumnLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Dimensions.marginML
                     anchors.rightMargin: Dimensions.marginML
+                    spacing: Dimensions.spacingMD
 
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Topluluk Eklentileri")
-                        font.pixelSize: Dimensions.fontLG
-                        font.weight: Font.DemiBold
-                        color: Theme.textPrimary
+                    SectionTitle { text: qsTr("Keşfet") }
+
+                    BusyIndicator {
+                        Layout.preferredWidth: 20
+                        Layout.preferredHeight: 20
+                        visible: pluginsRoot.catalogLoading
+                        running: visible
+                        palette.dark: Theme.primary
                     }
 
                     Item { Layout.fillWidth: true }
 
-                    // GitHub topic badge
-                    Rectangle {
-                        implicitWidth: _ghLabel.implicitWidth + 20
-                        implicitHeight: 26
-                        radius: Dimensions.radiusFull
-                        color: Theme.textPrimary06
-
-                        Text {
-                            id: _ghLabel
-                            textFormat: Text.PlainText
-                            anchors.centerIn: parent
-                            text: "GitHub"
-                            font.pixelSize: Dimensions.fontSM
-                            font.weight: Font.Medium
-                            color: Theme.textSecondary
-                        }
+                    PluginButton {
+                        text: qsTr("Yenile")
+                        enabled: !pluginsRoot.catalogLoading
+                        onClicked: if (PluginManager) PluginManager.refreshCatalog()
                     }
                 }
             }
 
             SettingsDivider {}
 
-            // Loading indicator
-            Item {
+            Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 48
-                visible: PluginManager && PluginManager.loadingCommunity
+                Layout.margins: Dimensions.marginML
+                visible: pluginsRoot.catalogError !== ""
+                implicitHeight: _catalogErrorCol.implicitHeight + Dimensions.marginMD * 2
+                radius: Dimensions.radiusMD
+                color: Theme.error10
+                border.color: Theme.error20
+                border.width: 1
 
-                BusyIndicator {
-                    anchors.centerIn: parent
-                    width: 24; height: 24
-                    running: parent.visible
+                ColumnLayout {
+                    id: _catalogErrorCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Dimensions.marginMD
+                    spacing: Dimensions.spacingXS
+
+                    Label {
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        text: qsTr("Eklenti kataloğu alınamadı")
+                        font.pixelSize: Dimensions.fontSM
+                        font.weight: Font.Medium
+                        color: Theme.error
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        text: pluginsRoot.catalogError
+                        font.pixelSize: Dimensions.fontSM
+                        color: Theme.textSecondary
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
 
-            // GitHub community plugin cards (top starred)
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 88
+                visible: pluginsRoot.catalog.length === 0 && pluginsRoot.catalogError === ""
+
+                Label {
+                    anchors.centerIn: parent
+                    textFormat: Text.PlainText
+                    text: pluginsRoot.catalogLoading ? qsTr("Katalog yükleniyor…")
+                                                     : qsTr("Kurulabilir eklenti bulunamadı.")
+                    font.pixelSize: Dimensions.fontMD
+                    color: Theme.textMuted
+                }
+            }
+
             Repeater {
-                model: PluginManager ? PluginManager.communityPlugins : []
+                model: pluginsRoot.catalog
 
                 Rectangle {
-                    required property var modelData
+                    id: entryCard
                     required property int index
+                    required property var modelData
+                    readonly property bool busy: pluginsRoot.busyId === modelData.id
+                    readonly property bool installed: modelData.installed === true
+
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 72
+                    Layout.preferredHeight: _entryCol.implicitHeight + Dimensions.marginML * 2
                     Layout.leftMargin: Dimensions.marginML
                     Layout.rightMargin: Dimensions.marginML
                     Layout.topMargin: index === 0 ? Dimensions.spacingMD : Dimensions.spacingSM
-                    Layout.bottomMargin: index === (PluginManager ? PluginManager.communityPlugins.length - 1 : 0)
-                                         ? Dimensions.spacingMD : 0
+                    Layout.bottomMargin: index === pluginsRoot.catalog.length - 1 ? Dimensions.spacingMD : 0
                     radius: Dimensions.radiusMD
-                    color: _cMouse.containsMouse ? Theme.primary06 : Theme.primary04
-                    border.color: Theme.primary08; border.width: 1
+                    color: _entryHover.hovered ? Theme.primary06 : Theme.primary04
+                    border.color: Theme.primary08
+                    border.width: 1
                     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: Dimensions.marginMS
-                        spacing: Dimensions.spacingLG
+                    HoverHandler { id: _entryHover }
 
-                        // Owner avatar
-                        Rectangle {
-                            Layout.preferredWidth: 40; Layout.preferredHeight: 40
-                            radius: Dimensions.radiusMD; color: Theme.primary12; clip: true
+                    ColumnLayout {
+                        id: _entryCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Dimensions.marginML
+                        spacing: Dimensions.spacingMD
 
-                            Image {
-                                anchors.fill: parent
-                                source: modelData.ownerAvatar || ""
-                                sourceSize: Qt.size(40, 40)
-                                asynchronous: true; fillMode: Image.PreserveAspectCrop
-                            }
-                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Dimensions.spacingLG
 
-                        // Plugin info
-                        ColumnLayout {
-                            Layout.fillWidth: true; spacing: Dimensions.spacingXXS
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Dimensions.spacingXS
 
-                            RowLayout {
-                                spacing: Dimensions.spacingSM
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Dimensions.spacingSM
 
-                                Text {
-                                    textFormat: Text.PlainText
-                                    text: modelData.name || ""
-                                    font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
-                                    color: Theme.textPrimary
-                                }
-
-                                // Open source indicator
-                                Rectangle {
-                                    implicitWidth: _osLbl.implicitWidth + 12
-                                    implicitHeight: 18; radius: Dimensions.radiusFull
-                                    color: Theme.textPrimary06
-
-                                    Text {
-                                        id: _osLbl; textFormat: Text.PlainText
-                                        anchors.centerIn: parent
-                                        text: modelData.language || "C++"
-                                        font.pixelSize: Dimensions.fontMini; font.weight: Font.Medium
-                                        color: Theme.textSecondary
+                                    Label {
+                                        Layout.maximumWidth: 260
+                                        textFormat: Text.PlainText
+                                        text: entryCard.modelData.name
+                                        font.pixelSize: Dimensions.fontMD
+                                        font.weight: Font.DemiBold
+                                        color: Theme.textPrimary
+                                        elide: Text.ElideRight
                                     }
+
+                                    PluginBadge {
+                                        text: "v" + entryCard.modelData.version
+                                    }
+
+                                    PluginBadge {
+                                        visible: entryCard.installed && entryCard.modelData.updateAvailable !== true
+                                        text: "✓ " + qsTr("Yüklü")
+                                        fg: Theme.verifiedText
+                                        bg: Theme.verifiedBg
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    visible: !!entryCard.modelData.description
+                                    textFormat: Text.PlainText
+                                    text: entryCard.modelData.description || ""
+                                    font.pixelSize: Dimensions.fontBody
+                                    color: Theme.textMuted
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    textFormat: Text.PlainText
+                                    text: {
+                                        var parts = []
+                                        if (entryCard.modelData.publisher)
+                                            parts.push(qsTr("Yayıncı: %1").arg(entryCard.modelData.publisher))
+                                        parts.push(qsTr("Boyut: %1").arg(pluginsRoot.formatSize(entryCard.modelData.size)))
+                                        return parts.join("  ·  ")
+                                    }
+                                    font.pixelSize: Dimensions.fontSM
+                                    color: Theme.textSecondary
+                                    elide: Text.ElideRight
                                 }
                             }
 
-                            Text {
-                                textFormat: Text.PlainText
-                                text: modelData.description || ""
-                                font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
-                                Layout.fillWidth: true; elide: Text.ElideRight
+                            PluginButton {
+                                Layout.alignment: Qt.AlignTop
+                                visible: !entryCard.installed || entryCard.modelData.updateAvailable === true
+                                kind: "primary"
+                                text: entryCard.installed ? qsTr("Güncelle") : qsTr("Kur")
+                                enabled: entryCard.modelData.compatible === true && pluginsRoot.busyId === ""
+                                onClicked: pluginsRoot.askInstall(entryCard.modelData.id)
                             }
                         }
 
-                        // Stars count
+                        Flow {
+                            Layout.fillWidth: true
+                            visible: (entryCard.modelData.capabilities || []).length > 0
+                            spacing: Dimensions.spacingSM
+
+                            Repeater {
+                                model: entryCard.modelData.capabilities || []
+
+                                PluginBadge {
+                                    required property var modelData
+                                    text: modelData.label
+                                    fg: Theme.textSecondary
+                                    bg: Theme.textPrimary04
+                                }
+                            }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: entryCard.modelData.compatible === false
+                            textFormat: Text.PlainText
+                            text: "⚠ " + (entryCard.modelData.incompatibleReason || qsTr("Bu eklenti bu Makine sürümüyle uyumlu değil."))
+                            font.pixelSize: Dimensions.fontSM
+                            color: Theme.warning
+                            wrapMode: Text.WordWrap
+                        }
+
                         ColumnLayout {
-                            spacing: 2
+                            Layout.fillWidth: true
+                            visible: entryCard.busy
+                            spacing: Dimensions.spacingXS
 
-                            Text {
-                                textFormat: Text.PlainText
-                                text: "\u2B50 " + (modelData.stars || 0)
-                                font.pixelSize: Dimensions.fontSM; font.weight: Font.DemiBold
-                                color: "#fbbf24"
-                                Layout.alignment: Qt.AlignRight
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 4
+                                radius: 2
+                                color: Theme.primary12
+
+                                Rectangle {
+                                    width: parent.width * pluginsRoot.busyProgress
+                                    height: parent.height
+                                    radius: 2
+                                    color: Theme.primary
+                                }
                             }
 
-                            Text {
+                            Label {
                                 textFormat: Text.PlainText
-                                text: modelData.owner || ""
-                                font.pixelSize: Dimensions.fontMini
+                                text: entryCard.installed
+                                      ? qsTr("Güncelleniyor… %1%").arg(Math.round(pluginsRoot.busyProgress * 100))
+                                      : qsTr("Kuruluyor… %1%").arg(Math.round(pluginsRoot.busyProgress * 100))
+                                font.pixelSize: Dimensions.fontSM
                                 color: Theme.textMuted
-                                Layout.alignment: Qt.AlignRight
                             }
                         }
-                    }
-
-                    MouseArea {
-                        id: _cMouse; anchors.fill: parent
-                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: Qt.openUrlExternally(modelData.url || "")
                     }
                 }
             }
+        }
+    }
 
-            // "Show more" button + empty state
-            Rectangle {
+    // ── Developer mode ──
+    SettingsCard {
+        Layout.fillWidth: true
+        visible: pluginsRoot.detailId === ""
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 0
+
+            ToggleSetting {
+                title: qsTr("Geliştirici modu")
+                description: qsTr("Dosyadan, doğrulanmamış eklenti kurmaya izin verir")
+                checked: pluginsRoot.developerMode
+                onToggled: if (PluginManager) PluginManager.developerMode = !pluginsRoot.developerMode
+            }
+
+            ColumnLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: PluginManager && PluginManager.communityPlugins.length > 0 ? 56 : 100
-                Layout.margins: Dimensions.marginML
-                radius: Dimensions.radiusMD
-                color: _moreMouse.containsMouse ? Theme.primary08 : Theme.primary04
-                visible: !PluginManager || !PluginManager.loadingCommunity
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                visible: pluginsRoot.developerMode
+                spacing: 0
 
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("GitHub'da daha fazla topluluk eklentisi görüntüle")
-                activeFocusOnTab: true
+                SettingsDivider {}
 
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: Dimensions.spacingSM
-                    visible: !PluginManager || PluginManager.communityPlugins.length === 0
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.margins: Dimensions.marginML
+                    implicitHeight: _devWarning.implicitHeight + Dimensions.marginMD * 2
+                    radius: Dimensions.radiusMD
+                    color: Theme.warning08
+                    border.color: Theme.warning25
+                    border.width: 1
 
-                    Text {
+                    Label {
+                        id: _devWarning
+                        anchors.fill: parent
+                        anchors.margins: Dimensions.marginMD
                         textFormat: Text.PlainText
-                        text: "\uD83D\uDD0C"
-                        font.pixelSize: Dimensions.headlineLarge
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Topluluk eklentilerini keşfet")
-                        font.pixelSize: Dimensions.fontMD
-                        color: Theme.textMuted
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("GitHub'da \"makine-plugin\" topic'i ile paylaşın")
+                        text: "⚠ " + qsTr("Dosyadan kurulan eklentiler Makine tarafından doğrulanmaz. Eklentiler bilgisayarınızda yerel kod olarak çalışır: bir eklenti dosyalarınıza ve hesaplarınıza erişebilir, kullandığınız oyunlara zarar verebilir. Yalnızca kaynağına güvendiğiniz eklentileri kurun.")
                         font.pixelSize: Dimensions.fontSM
                         color: Theme.textSecondary
-                        Layout.alignment: Qt.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.3
                     }
                 }
 
-                // "Show more" text when plugins exist
-                Text {
-                    textFormat: Text.PlainText
-                    anchors.centerIn: parent
-                    visible: PluginManager && PluginManager.communityPlugins.length > 0
-                    text: qsTr("GitHub'da daha fazla eklenti gör \u2192")
-                    font.pixelSize: Dimensions.fontMD
-                    font.weight: Font.Medium
-                    color: _moreMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                }
-
-                FocusRing { offset: -1 }
-
-                MouseArea {
-                    id: _moreMouse; anchors.fill: parent
-                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (PluginManager)
-                            PluginManager.openCommunityPage()
-                        else
-                            Qt.openUrlExternally("https://github.com/topics/makine-plugin")
-                    }
-                }
-            }
-
-            Item { Layout.preferredHeight: Dimensions.marginML }
-        }
-    }
-
-    // ── Import .makine file ──
-    SettingsCard {
-        Layout.fillWidth: true
-
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 56
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Dimensions.marginML
-                anchors.rightMargin: Dimensions.marginML
-                spacing: Dimensions.spacingLG
-
-                ColumnLayout {
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: Dimensions.spacingXXS
+                    Layout.leftMargin: Dimensions.marginML
+                    Layout.rightMargin: Dimensions.marginML
+                    Layout.bottomMargin: Dimensions.marginML
+                    spacing: Dimensions.spacingMD
 
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Eklenti Dosyas\u0131ndan Kur")
-                        font.pixelSize: Dimensions.fontMD
-                        font.weight: Font.Medium
-                        color: Theme.textPrimary
+                    PluginButton {
+                        kind: "primary"
+                        text: qsTr("Dosyadan yükle (.mkplugin)")
+                        enabled: pluginsRoot.busyId === ""
+                        onClicked: _fileDialog.open()
                     }
 
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr(".makine dosyasını seçerek eklenti yükleyin")
-                        font.pixelSize: Dimensions.fontBody
-                        color: Theme.textMuted
-                    }
-                }
-
-                Rectangle {
-                    Layout.preferredWidth: _importLabel.implicitWidth + 28
-                    Layout.preferredHeight: 36
-                    radius: Dimensions.radiusMD
-                    color: _importMouse.containsMouse ? Theme.primary12 : Theme.primary08
-                    scale: _importMouse.pressed ? 0.92 : 1.0
-
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                    Text {
-                        id: _importLabel
-                        textFormat: Text.PlainText
-                        anchors.centerIn: parent
-                        text: qsTr("Dosya Seç...")
-                        font.pixelSize: Dimensions.fontSM
-                        font.weight: Font.Medium
-                        color: Theme.textPrimary
-                    }
-
-                    FocusRing { offset: -1 }
-
-                    MouseArea {
-                        id: _importMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: _importDialog.open()
-                    }
-                }
-            }
-        }
-    }
-
-    // File dialog for .makine import
-    Loader {
-        id: _importDialogLoader
-        active: false
-        sourceComponent: Component {
-            FileDialog {
-                id: _dlg
-                title: qsTr("Eklenti Dosyası Seç")
-                nameFilters: ["Makine Plugin (*.makine)"]
-                onAccepted: {
-                    if (selectedFile)
-                        PluginManager.installFromFile(selectedFile.toString())
-                }
-            }
-        }
-    }
-
-    // Workaround: open dialog via property
-    property var _importDialog: QtObject {
-        function open() {
-            _importDialogLoader.active = true
-            _importDialogLoader.item.open()
-        }
-    }
-
-    // ── Error Banner (global plugin errors) ──
-    Connections {
-        target: PluginManager
-        function onPluginError(pluginId, error) {
-            _errorText.text = (pluginId ? pluginId + ": " : "") + error
-            _errorBanner.visible = true
-            _errorHideTimer.restart()
-        }
-    }
-
-    Rectangle {
-        id: _errorBanner
-        Layout.fillWidth: true
-        Layout.preferredHeight: visible ? 44 : 0
-        radius: Dimensions.radiusMD
-        color: Theme.error10
-        border.color: Theme.error12
-        border.width: 1
-        visible: false
-        clip: true
-
-        Behavior on Layout.preferredHeight { NumberAnimation { duration: 200 } }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginML
-            anchors.rightMargin: Dimensions.marginML
-
-            Text {
-                id: _errorText
-                textFormat: Text.PlainText
-                Layout.fillWidth: true
-                font.pixelSize: Dimensions.fontSM
-                color: Theme.error
-                elide: Text.ElideRight
-            }
-
-            Text {
-                textFormat: Text.PlainText
-                text: "\u2715"
-                font.pixelSize: Dimensions.fontMD
-                color: Theme.error
-                MouseArea {
-                    anchors.fill: parent
-                    anchors.margins: -8
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: _errorBanner.visible = false
-                }
-            }
-        }
-
-        Timer {
-            id: _errorHideTimer
-            interval: 8000
-            onTriggered: _errorBanner.visible = false
-        }
-    }
-
-    // ── Plugin SDK Info ──
-    SettingsCard {
-        Layout.fillWidth: true
-
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 64
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Dimensions.marginML
-                anchors.rightMargin: Dimensions.marginML
-                spacing: Dimensions.spacingLG
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: Dimensions.spacingXXS
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Kendi Eklentinizi Geli\u015Ftirin")
-                        font.pixelSize: Dimensions.fontMD
-                        font.weight: Font.Medium
-                        color: Theme.textPrimary
-                    }
-
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Açık kaynak Plugin SDK ile başlayın")
-                        font.pixelSize: Dimensions.fontBody
-                        color: Theme.textMuted
-                    }
-                }
-
-                Rectangle {
-                    Layout.preferredWidth: _sdkLabel.implicitWidth + 28
-                    Layout.preferredHeight: 36
-                    radius: Dimensions.radiusMD
-                    color: _sdkMouse.containsMouse ? Theme.primary12 : Theme.primary08
-                    scale: _sdkMouse.pressed ? 0.92 : 1.0
-
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("SDK belgelerini aç")
-                    activeFocusOnTab: true
-
-                    Text {
-                        id: _sdkLabel
-                        textFormat: Text.PlainText
-                        anchors.centerIn: parent
-                        text: qsTr("D\u00F6k\u00FCmantasyon \u2192")
-                        font.pixelSize: Dimensions.fontSM
-                        font.weight: Font.Medium
-                        color: Theme.textPrimary
-                    }
-
-                    FocusRing { offset: -1 }
-
-                    MouseArea {
-                        id: _sdkMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
+                    PluginButton {
+                        text: qsTr("Geliştirici belgeleri") + " →"
                         onClicked: Qt.openUrlExternally("https://makineceviri.org/docs/plugin-api")
                     }
+
+                    Item { Layout.fillWidth: true }
                 }
             }
+        }
+    }
+
+    FileDialog {
+        id: _fileDialog
+        title: qsTr("Eklenti dosyası seç")
+        nameFilters: [qsTr("Makine eklentisi (*.mkplugin)"), qsTr("Tüm dosyalar (*)")]
+        onAccepted: if (PluginManager) PluginManager.installFromFile(selectedFile)
+    }
+
+    // The registry entry's permissions count as granted once the user confirms.
+    ConfirmDialog {
+        id: _installConfirm
+        parent: Overlay.overlay
+        accentColor: Theme.warning
+        title: pluginsRoot.pendingInstall
+               ? (pluginsRoot.pendingInstall.installed ? qsTr("%1 güncellensin mi?") : qsTr("%1 kurulsun mu?"))
+                     .arg(pluginsRoot.pendingInstall.name)
+               : ""
+        message: pluginsRoot.pendingInstall ? pluginsRoot.installMessage(pluginsRoot.pendingInstall) : ""
+        confirmText: pluginsRoot.pendingInstall && pluginsRoot.pendingInstall.installed
+                     ? qsTr("Güncelle") : qsTr("Kur")
+        onConfirmed: {
+            if (PluginManager && pluginsRoot.pendingInstall)
+                PluginManager.install(pluginsRoot.pendingInstall.id)
         }
     }
 }

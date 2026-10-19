@@ -404,7 +404,9 @@ Item {
                     onTranslateClicked: heroRoot.translateClicked()
                     onUpdateClicked: heroRoot.updateClicked()
                     onUninstallClicked: heroRoot.uninstallClicked()
-                    onRepairClicked: GameService.repairGameFiles(heroRoot.vm.gameId)
+                    // "lost" = patch files gone from disk; a store verify cannot
+                    // bring them back, a reinstall does (same as UpdateBanner).
+                    onRepairClicked: GameService.recoverTranslation(heroRoot.vm.gameId)
                 }
 
                 // Install error message
@@ -420,12 +422,16 @@ Item {
                         id: _errRow
                         anchors.centerIn: parent; spacing: Dimensions.spacingSM
                         width: parent.width - 24
-                        Text {
-                            textFormat: Text.PlainText
+                        // Selectable: the message may carry a folder path or
+                        // an error the user is asked to pass on to us.
+                        TextEdit {
+                            readOnly: true
+                            selectByMouse: true
+                            textFormat: TextEdit.PlainText
                             text: heroRoot.vm.installErrorMessage
                             font.pixelSize: Dimensions.fontSM
                             color: Theme.error
-                            wrapMode: Text.WordWrap
+                            wrapMode: TextEdit.WordWrap
                             width: parent.width
                             anchors.verticalCenter: parent.verticalCenter
                         }

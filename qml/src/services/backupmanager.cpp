@@ -14,6 +14,8 @@
 #include "pathsecurity.h"
 #include "appprotection.h"
 #include "apppaths.h"
+#include "elevatedops.h"
+#include "rawfile.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -25,6 +27,7 @@
 #include <QUuid>
 #include <QDirIterator>
 #include <QSet>
+#include <QThread>
 #include <QLoggingCategory>
 #include <QtConcurrent>
 #include <algorithm>
@@ -152,9 +155,9 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
     qint64 estimatedSize = 0;
     int existingFiles = 0;
     for (const QString& relPath : filesToOverwrite) {
-        const QFileInfo fi(QDir::cleanPath(gamePath + "/" + relPath));
-        if (fi.exists()) {
-            estimatedSize += fi.size();
+        const QString file = QDir::cleanPath(gamePath + "/" + relPath);
+        if (rawfile::exists(file)) {
+            estimatedSize += rawfile::size(file);
             ++existingFiles;
         }
     }
@@ -246,7 +249,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             if (!security::isPathContained(gamePath, sourceFile)) continue;
 
             // Only backup if file actually exists in game dir
-            if (!QFile::exists(sourceFile)) continue;
+            if (!rawfile::exists(sourceFile)) continue;
 
             const QString destFile = backupDir + "/" + relPath;
             const QString destDir = QFileInfo(destFile).absolutePath();
@@ -256,7 +259,7 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
             }
 
             if (QFile::copy(sourceFile, destFile)) {
-                totalSize += QFileInfo(destFile).size();
+                totalSize += rawfile::size(destFile);
                 copiedFiles++;
             } else {
                 failedFiles++;
@@ -409,7 +412,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
     // patched files and leave the user with a broken game.
     {
         QDirIterator probe(backupDir,
-                           QDir::Files | QDir::NoDotAndDotDot,
+                           rawfile::kFiles | QDir::NoDotAndDotDot,
                            QDirIterator::Subdirectories);
         if (!probe.hasNext()) {
             qCWarning(lcBackup) << "Backup folder empty:" << backupDir
@@ -445,9 +448,19 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
     (void)QtConcurrent::run([this, backupDir, restoreDir, backupId, gameId, cancelFlag]() {
         QDir sourceDir(backupDir);
 
+        // A game under C:\Program Files: ask once for write access (no-op when
+        // the folder is already writable, e.g. after the install asked). Every
+        // file below failed here before, leaving the rollback of a failed
+        // install, and every uninstall, half done.
+        if (ElevatedOps::available()) {
+            QString grantError;
+            if (!ElevatedOps::ensureWritable(restoreDir, &grantError))
+                qCWarning(lcBackup) << "Restore target not writable:" << restoreDir << grantError;
+        }
+
         // Count total files first
         int totalFiles = 0;
-        QDirIterator countIt(backupDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        QDirIterator countIt(backupDir, rawfile::kFiles | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
         while (countIt.hasNext()) {
             countIt.next();
             totalFiles++;
@@ -457,7 +470,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
         int restoredCount = 0;
         int failedCount = 0;
         const QString canonRestoreDir = QDir(restoreDir).canonicalPath();
-        QDirIterator it2(backupDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        QDirIterator it2(backupDir, rawfile::kFiles | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
         QSet<QString> createdDirs;
 
         while (it2.hasNext()) {
@@ -501,13 +514,46 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
                 createdDirs.insert(destDir);
             }
 
-            // Remove existing file if present
-            if (QFile::exists(destFile)) {
-                QFile::remove(destFile);
+            // An original the failed install never replaced is still in place:
+            // same size and modification time as its backup (QFile::copy keeps
+            // the time; any write changes it). Rewriting it gains nothing, and
+            // when the game holds the file the write fails — the file the
+            // install could not touch then turned a harmless failed install
+            // into "rollback failed" (It Takes Two, 29 users, Sentry 2026-10).
+            const auto untouched = [&]() {
+                if (!rawfile::exists(destFile)
+                    || rawfile::size(destFile) != rawfile::size(backupFile))
+                    return false;
+                const QDateTime modified = QFileInfo(destFile).lastModified();
+                return modified.isValid() && modified == QFileInfo(backupFile).lastModified();
+            };
+
+            // Replace whatever is there. A read-only file refuses deletion, and
+            // a file a scanner or the game launcher still holds frees up after
+            // a moment — both read as a failed restore before.
+            QString copyError;
+            const auto replace = [&]() {
+                if (rawfile::exists(destFile) && !QFile::remove(destFile)) {
+                    QFile::setPermissions(destFile, QFile::permissions(destFile)
+                                                     | QFileDevice::WriteOwner
+                                                     | QFileDevice::WriteUser);
+                    QFile::remove(destFile);
+                }
+                QFile source(backupFile);
+                if (source.copy(destFile))
+                    return true;
+                copyError = source.errorString();
+                return false;
+            };
+            bool copied = untouched() || replace();
+            for (int delayMs : {300, 1500}) {
+                if (copied) break;
+                QThread::msleep(delayMs);
+                copied = replace();
             }
 
             // Copy backup file to target
-            if (QFile::copy(backupFile, destFile)) {
+            if (copied) {
                 restoredCount++;
                 if (m_journal) m_journal->recordFileModified(relativePath);
 
@@ -519,7 +565,7 @@ bool BackupManager::restoreBackup(const QString& backupId, const QString& target
                     }, Qt::QueuedConnection);
                 }
             } else {
-                qCWarning(lcBackup) << "Failed to restore file:" << destFile;
+                qCWarning(lcBackup) << "Failed to restore file:" << destFile << "—" << copyError;
                 ++failedCount;
             }
         }
@@ -705,11 +751,10 @@ void BackupManager::reconstructBackupsFromDisk()
             qint64 totalSize = 0;
             int fileCount = 0;
             QDirIterator it(backupPath,
-                            QDir::Files | QDir::NoDotAndDotDot,
+                            rawfile::kFiles | QDir::NoDotAndDotDot,
                             QDirIterator::Subdirectories);
             while (it.hasNext()) {
-                it.next();
-                totalSize += it.fileInfo().size();
+                totalSize += rawfile::size(it.next());
                 ++fileCount;
             }
 

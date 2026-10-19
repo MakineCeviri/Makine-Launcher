@@ -12,6 +12,10 @@
 // Deliberately free of InstallStep/QObject so the test needs nothing but
 // Qt6::Core — no MOC, no service construction, no filesystem.
 
+#include "bytepatch.h"
+
+#include <QList>
+#include <QPair>
 #include <QString>
 #include <QStringList>
 #include <QStringView>
@@ -26,10 +30,21 @@ inline const QStringList& knownActions()
         QStringLiteral("copyDir"),       QStringLiteral("delete"),
         QStringLiteral("installFont"),   QStringLiteral("run"),
         QStringLiteral("copyToDesktop"), QStringLiteral("rename"),
-        QStringLiteral("setSteamLanguage"), QStringLiteral("vpatch")
+        QStringLiteral("setSteamLanguage"), QStringLiteral("vpatch"),
+        QStringLiteral("patchBytes"),    QStringLiteral("forgeReimport"),
+        QStringLiteral("xdelta")
     };
     return kActions;
 }
+
+// The step set above, as a number the catalog API understands (header
+// X-Makine-Recipe). Below a recipe's level the API serves the older recipe
+// kept for that game in install_methods_compat — a D1 change reaches every
+// launcher at once, and 0.1.5 met 0.1.6-only steps that way (Elden Ring
+// refused for 294 users). Bump it with every action added to knownActions().
+//   1  0.1.5 and older (sent nothing)
+//   2  patchBytes, forgeReimport, xdelta; copyFile in the backup list
+inline constexpr int kRecipeLevel = 2;
 
 inline bool isKnownAction(const QString& action)
 {
@@ -49,7 +64,8 @@ inline bool isKnownAction(const QString& action)
 // Returns the offending field name, or an empty string when executable.
 inline QString missingField(const QString& action, const QString& src = {},
                             const QString& dest = {}, const QString& exe = {},
-                            const QString& language = {})
+                            const QString& language = {},
+                            const QList<QPair<QString, QString>>& patches = {})
 {
     if (action == QLatin1String("copy") || action == QLatin1String("copyFile")
         || action == QLatin1String("copyDir") || action == QLatin1String("rename")
@@ -68,6 +84,17 @@ inline QString missingField(const QString& action, const QString& src = {},
         // src = the .pat delta inside the package, dest = the game file it
         // rewrites. Both are mandatory: a vpatch step with either missing
         // would rewrite the wrong file or nothing at all.
+        if (src.isEmpty())      return QStringLiteral("src");
+        if (dest.isEmpty())     return QStringLiteral("dest");
+    } else if (action == QLatin1String("patchBytes")) {
+        // src = the game file read; dest (optional) = where the edited copy
+        // goes, in place when empty. A malformed find/replace pair is refused
+        // here, before any step has touched the game.
+        if (src.isEmpty())      return QStringLiteral("src");
+        if (!bytepatch::decodePairs(patches, nullptr)) return QStringLiteral("patches");
+    } else if (action == QLatin1String("forgeReimport") || action == QLatin1String("xdelta")) {
+        // src = the reimport folder / VCDIFF delta inside the package, dest =
+        // the game archive it rewrites.
         if (src.isEmpty())      return QStringLiteral("src");
         if (dest.isEmpty())     return QStringLiteral("dest");
     }
@@ -190,18 +217,18 @@ inline bool rootLooksVariantFoldered(const QStringList& topLevelNames)
 
 // Is this "run" step launching a tool the recipe ALSO hands to the user?
 //
-// Elden Ring's recipe copies engus/ and fn/ into the game, then runs
-// ERING_TR.exe, then copies that same ERING_TR.exe to the desktop as
-// "Elden Ring.exe". The third step cannot succeed: the binary is a compiled
-// AutoIt script with subsystem=GUI, a requestedExecutionLevel of
-// requireAdministrator and a GUIGetMsg event loop — it opens a window and
-// waits for a person. Run unattended it either fails to start (then the
-// elevated retry raises an unexplained UAC prompt mid-install), or it sits
-// there until the 30-minute cap, or the user closes it and it exits non-zero.
-// All three arrive as one undifferentiated "1 adımda hata oluştu": 915 events
-// across 160 users in 14 days, the second largest bucket in the field.
+// Elden Ring's recipe copied engus/ and fn/ into the game, then ran
+// ERING_TR.exe, then copied that same ERING_TR.exe to the desktop as
+// "Elden Ring.exe". The run step failed in the field — 915 events across 160
+// users in 14 days — and was read at the time as an interactive GUI tool.
+// That reading was wrong: decompiled (2026-10-08), ERING_TR.exe has no window
+// and no prompt; the GUIGetMsg it seemed to wait on is part of the AutoIt
+// runtime every compiled script carries. It is an exe patcher that only works
+// with Game/ as its working directory, which neither the run step (package
+// folder) nor the desktop copy ever gave it. The recipe now edits the exe
+// itself through "patchBytes" (bytepatch.h).
 //
-// The tell is structural, not a guess about any one binary: a recipe that
+// The rule still holds on its own terms. The tell is structural: a recipe that
 // installs an executable FOR the user has already said the user is the one who
 // runs it. Running it ourselves as well is the leftover of a manual procedure.
 // Measured over the whole catalogue 2026-09-20, Elden Ring is the only package

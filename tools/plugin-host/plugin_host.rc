@@ -1,0 +1,6 @@
+#include <windows.h>
+
+// Plugins inherit the process settings: physical-pixel coordinates (per-monitor
+// DPI aware, like the launcher), UTF-8 for narrow path APIs (Windows 10 1903+;
+// profile paths with Turkish letters), and long paths.
+1 RT_MANIFEST "plugin_host.manifest"

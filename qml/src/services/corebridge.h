@@ -195,6 +195,11 @@ public:
                                     const QString& gamePath = {});
 
     /**
+     * @brief Recipe step actions this build does not know (empty when runnable)
+     */
+    QStringList unknownRecipeActions(const QString& gameId);
+
+    /**
      * @brief Match a folder name against the package catalog
      * @return steamAppId if matched, empty string otherwise
      */
@@ -232,7 +237,8 @@ public:
     /**
      * @brief Uninstall translation package
      */
-    bool uninstallPackage(const QString& gameId, const QString& gamePath);
+    bool uninstallPackage(const QString& gameId, const QString& gamePath,
+                          const QString& restoredFrom = {});
 
     /**
      * @brief Refresh package catalog from cached index.json

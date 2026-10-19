@@ -15,7 +15,8 @@ Three layers, top to bottom:
 
 - **QML UI** — `qml/qml/` `screens/` · `components/` · `dialogs/` · `controllers/` · `theme/`. PascalCase `.qml`, pure declarative UI, no JS logic.
 - **C++ service layer** — `qml/src/services/` bridges Core ↔ UI (`GameService`, `CoreBridge`, `InstallFlow`, `BackupMgr`, `BatchOps`, `PackageCatalog`, `TranslationState`, `TranslationDownloader`, `ManifestSync`, `UpdateService`, `SteamDetails`, `RenderGov`).
-- **C++ core library** — `core/include/makine/` + `core/src/`: package catalog, crash-recovery journal, file integrity, path checks, error types, logging macros, plugin API headers. Game detection, VDF parsing and patching live in the service layer.
+- **C++ core library** — `core/include/makine/` + `core/src/`: package catalog, crash-recovery journal, file integrity, path checks, error types, logging macros, plugin ABI (`plugin/abi.h` + header-only `sdk.hpp`). Game detection, VDF parsing and patching live in the service layer.
+- **Plugins** (ADR-0009, guide `docs/plugins/README.md`) — each enabled plugin runs out of process in `makine-plugin-host.exe` (`tools/plugin-host/`, Qt-free, static); launcher side `PluginManager` + `plugin{process,manifest,registry,installer}`; signed CDN registry; `scripts/plugin_registry.py` (pack/sign) and `plugin_dev.py` (run a plugin without the launcher). Still behind `MAKINE_DEV_TOOLS`.
 
 External: `cdn.makineceviri.org` (Cloudflare R2) and local game files (Steam, GOG, …).
 
@@ -23,14 +24,18 @@ External: `cdn.makineceviri.org` (Cloudflare R2) and local game files (Steam, GO
 
 | Phase | Source | Purpose |
 |-------|--------|---------|
-| Startup | `index.json` | Lightweight catalog metadata |
-| On-demand | `packages/{appId}.json` (~700 B) | Install steps, contributors, variants |
+| Startup | R2 `assets/index.json` | Catalog metadata, package size + SHA-256 (download verification) |
+| On-demand | `makineceviri.org/api/v2/games/{appId}` (Makine-WEB Worker → D1 `makine-catalog`) | Install steps, notes, contributors, variants |
+
+- **A recipe fix is a D1 change**, not an R2 one: neither the launcher nor `catalog_validate.py` reads R2 `assets/packages/*.json` — an old mirror that has drifted from D1.
+- **A recipe reaches every launcher at once.** A new step action makes the recipe unrunnable for older builds, so: bump `steprules::kRecipeLevel` (`installsteprules.h`) with the action — the detail request sends it as `X-Makine-Recipe` — and put the recipe older launchers can run in D1 `install_methods_compat` (`level` = the new level; Makine-WEB `migrations/0009`). 0.1.5 sends nothing (level 1).
+- Publishing a package (`scripts/deploy.py`) rewrites `index.json` (`generatedAt`); clients then drop every cached detail and refetch the recipes. `Makine-Launcher-Assets` `main` must equal R2 — a push there syncs `assets/` to R2.
 
 - Entry points: `PackageCatalog::loadFromIndex()` + `enrichPackage()`
 - CDN config centralized in `qml/src/services/cdnconfig.h`
 - Prefixes: `assets/` (index, packages, images, banners) · `data/` (encrypted `.makine` packages)
 
-Other top-level dirs: `tests/` · `docs/` (ADRs in `docs/adr/`) · `infra/` (Docker, Caddy) · `scripts/` · `build/` (gitignored: `dev/`, `debug/`, `release/`).
+Other top-level dirs: `tests/` · `docs/` (ADRs in `docs/adr/`) · `infra/` (Docker, Caddy) · `scripts/` · `third_party/` (vendored xdelta3 decoder, Apache-2.0 — provenance in its README) · `build/` (gitignored: `dev/`, `debug/`, `release/`).
 
 ## Build
 
@@ -69,8 +74,8 @@ export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
 
 | Layer | Extension | File style | Example |
 |-------|-----------|------------|---------|
-| Core C++ | `.hpp` / `.cpp` | `snake_case` | `game_detector.hpp` |
-| UI C++ | `.h` / `.cpp` | `camelCase` | `gameService.h` |
+| Core C++ | `.hpp` / `.cpp` | `snake_case` | `package_catalog.hpp` |
+| UI C++ | `.h` / `.cpp` | `lowercase` | `gameservice.h` |
 | QML | `.qml` | `PascalCase` | `GameDetailScreen.qml` |
 
 - Classes `PascalCase` · functions & variables `camelCase` · constants `UPPER_SNAKE_CASE` · namespace `makine` (`snake_case`)
@@ -83,7 +88,7 @@ export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
 | Core | spdlog via `MAKINE_LOG_*` macros | `core/include/makine/logging.hpp` |
 | UI | `QLoggingCategory` | `qCDebug(lcXxx)` / `qCWarning(lcXxx)` |
 
-UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download` · `.batch` · `.backup` · `.process` · `.integrity` · `.manifest` · `.journal` · `.steam` · `.update` · `.updater` · `.security` · `.render`. Toggle with `QT_LOGGING_RULES="makine.*=true"` / `QT_LOGGING_RULES="makine.game=false"`.
+UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download` · `.batch` · `.backup` · `.process` · `.integrity` · `.manifest` · `.journal` · `.steam` · `.update` · `.updater` · `.security` · `.render` · `.plugin`. Toggle with `QT_LOGGING_RULES="makine.*=true"` / `QT_LOGGING_RULES="makine.game=false"`.
 
 ## Known gotchas
 
@@ -99,14 +104,23 @@ UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download`
 | QML | `component X:` | Don't shadow shared component names |
 | QML | `clip: true` in scrollables | Required for Flickable, ListView, ScrollView |
 | QML | `Connections.target` changed from its own handler | Use-after-free in delegates (Qt 6.11, NATIVE-74) — keep `target` fixed, gate with `enabled` |
+| QML | `QV4_MM_AGGRESSIVE_GC` is a V4 debug switch (a full GC on every JS allocation) | Never set it: up to 0.1.5 `main.cpp` did, and every JS-heavy binding ran 100–300× slower (2 s freezes) |
 | vcpkg | Manifest mode | Classic mode only (`VCPKG_MANIFEST_MODE=OFF`), triplet `x64-mingw-dynamic` |
+| Qt | Every `*.lnk` is read as a shell shortcut | A game data file named `.lnk` (Nioh) "does not exist", has size 0, `QDir::Files` skips it — use `rawfile.h` for game/package files |
+| MinGW libstdc++ | Paths past MAX_PATH | File I/O needs the `\\?\` form (long paths are off by default; `mkpkformat.h` `io_path`); `fs::remove_all` never returns on such a tree — delete with Qt |
+| Qt | `emit` is a macro | A C struct field or function named `emit` in a header Qt code includes breaks the build (`abi.h` uses `emit_event`) |
+| msvcrt | `stderr` on a pipe is fully buffered | A helper process that can be `TerminateProcess`ed loses its last lines — `setvbuf(stderr, nullptr, _IONBF, 0)` (plugin host) |
+| Plugin host | DLL search is plugin folder → host folder → System32 | Plugins link the C++ runtime statically or ship it; `PATH` is never searched. The host manifest makes the code page UTF-8 and the process per-monitor DPI aware (coordinates are physical pixels) |
+| Packaging | Python `tarfile` defaults to PAX | ustar name holds an ASCII stand-in that 0.1.5 reads — `package_pipeline.py` writes USTAR (GNU fallback) |
+| Sentry | Reads DWARF, not the COFF symbol table | A release `.sym` without `-g` symbolicates every frame of ours to `qml_register_types_MakineLauncher` (0.1.5); `qml/CMakeLists.txt` adds `-g1` in Release — check with `addr2line -f -e Makine-Launcher.exe.sym <addr>` |
+| Win32 | `HeapCompact` over `GetProcessHeaps()` | Never: other modules own those heaps and can destroy one mid-call (0.1.5 startup fatals 3C/1V) |
 
 ## Deferred features
 
 Intentionally deferred — stub headers removed:
 - Translation Memory, Glossary Service, QA Service, Translation Pipeline
-- Engine Handlers (only the `IEngineHandler` interface in `engine_handler.hpp`)
-- BepInEx/XUnity runtime (fully removed — `RuntimeManager` is a stub)
+- Engine Handlers and the BepInEx/XUnity runtime — fully removed in `b5a003b`, no stub left
+  (`IEngineHandler` / `RuntimeManager` no longer exist)
 - Integration tests disabled until handlers are implemented
 
 ## Rules

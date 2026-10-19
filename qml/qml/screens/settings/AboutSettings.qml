@@ -178,6 +178,7 @@ ColumnLayout {
                 { name: "OpenSSL", license: "Apache-2.0", url: "https://www.openssl.org/source/license.html" },
                 { name: "spdlog", license: "MIT", url: "https://github.com/gabime/spdlog/blob/v1.x/LICENSE" },
                 { name: "nlohmann/json", license: "MIT", url: "https://github.com/nlohmann/json/blob/develop/LICENSE.MIT" },
+                { name: "xdelta3", license: "Apache-2.0", url: "https://github.com/jmacd/xdelta/blob/release3_1_apl/xdelta3/LICENSE" },
                 { name: "Inter Font", license: "OFL-1.1", url: "https://github.com/rsms/inter/blob/master/LICENSE.txt" }
             ]
 

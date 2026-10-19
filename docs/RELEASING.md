@@ -72,7 +72,7 @@ curl -sI https://github.com/MakineCeviri/Makine-Launcher/releases/latest | head 
 ## Bilinen sınırlar
 
 - **İçeriden güncelleme GitHub'ı kullanamaz.** `UpdateService` indirme host'u olarak yalnızca `cdn.makineceviri.org` ve `makineceviri.org` adreslerine izin verir (`qml/src/services/updateservice.cpp`), ve `SelfUpdater` indirilen dosyayı çalıştırılabilir gibi takas eder — ZIP ile çalışmaz. Store dışı kurulumda güncelleme şimdilik elle yapılır.
-- **`assets/update.json` güncel değil** (R2'de `0.1.0-pre-alpha`, `url` boş). Store dışı otomatik güncelleme açılacaksa hem bu dosya hem de bir kurulum EXE'si gerekir.
+- **`assets/update.json` güncel değil** (R2'de `0.1.0-pre-alpha`, `url` boş). Store dışı otomatik güncelleme açılacaksa hem bu dosya hem de bir kurulum EXE'si gerekir. 0.1.5'e kadar ZIP kullanıcısı bu yüzden Ayarlar → Genel'de "Kontrol başarısız oldu" görüyordu; 0.1.6'dan beri eski sürümlü bir kayıt "güncel" sayılır, `url` yalnız daha yeni sürümde aranır.
 - **Dev kanalı gövdeden `SHA256:` satırını okur.** `MAKINE_DEV_TOOLS` yapıları `releases/latest` çağırıp gövdedeki `SHA256: <hash>` satırını ve `.exe` uzantılı varlığı arar; ZIP-only bir sürümde sessizce boşta kalır (çökmez).
 - **Statik Qt kiti kurulu değil** — tek dosya EXE üretilemiyor. Yayın paketi Qt DLL'lerini taşıyan ZIP'tir (~50 MB).
 

@@ -435,7 +435,14 @@ private:
 
     void finalizeManualGame(const QString& path, const QString& folderName,
                             const QString& engine, const QString& matchedAppId);
-    void finalizeUninstall(const QString& gameId, const QString& gamePath);
+    // uninstallTranslation once the game folder is known to be writable.
+    void uninstallTranslationNow(const QString& gameId);
+    // restoredFrom: the backup folder just restored; its files are originals.
+    void finalizeUninstall(const QString& gameId, const QString& gamePath,
+                           const QString& restoredFrom = {});
+    // Patch replaced originals and no backup can restore them: uninstall what
+    // it added, then start the store's file repair.
+    void uninstallWithStoreRepair(const QString& gameId, const QString& gamePath);
     // Ends an install cancelled before the core started on it.
     void endCancelledInstall(const QString& gameId);
 
@@ -451,11 +458,6 @@ private:
     // expected to put the originals back; without a usable backup, uninstalling
     // would leave the patched files in place and the game broken.
     bool translationReplacedOriginalFiles(const QString& gameId);
-
-    // True when a file can actually be created in `gamePath`. Probes by writing
-    // rather than reading QFileInfo::isWritable(), which on Windows reports the
-    // read-only attribute instead of the effective ACL.
-    static bool isGameDirWritable(const QString& gamePath);
 
     // Report an install/uninstall failure to Sentry as an event. These are by
     // far the most reported user problems, yet they only ever reached the local
@@ -513,6 +515,9 @@ private:
     // into the next install's slot.
     QString m_installingGameId;
     bool m_installCancelRequested{false};
+    QSet<QString> m_uninstalling;   // games with an uninstall in flight
+    QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
+    QSet<QString> m_integrityReported;   // "<game>:<missing>/<total>" already sent
     QTimer* m_installTimeoutTimer{nullptr};  // Cancels an install the core
                                              // never reports back on
                                              // (hang, deadlock, lost signal).

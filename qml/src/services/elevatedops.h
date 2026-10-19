@@ -22,12 +22,12 @@ namespace makine {
 class ElevatedOps
 {
 public:
-    enum class Kind { Copy, Mkdir, Delete, Rename };
+    enum class Kind { Copy, Mkdir, Delete, Rename, Grant };
 
     struct Op {
         Kind kind;
-        QString src;      // absolute source (Copy) or root-relative (Rename)
-        QString relDst;   // always relative to root
+        QString src;      // absolute source (Copy), root-relative (Rename), account SID (Grant)
+        QString relDst;   // always relative to root; unused by Grant
     };
 
     // True when the helper binary is present next to the application.
@@ -42,6 +42,26 @@ public:
 
     // True when the user dismissed the UAC prompt on the last run() call.
     static bool lastRunDeclined();
+
+    // Whether this process can create files in `dir`. Probes with a real file:
+    // on Windows QFileInfo::isWritable reflects the read-only attribute, not
+    // the ACL, so a folder under C:\Program Files reads "writable" right up
+    // until the write fails.
+    static bool canWrite(const QString& dir);
+
+    // Makes `dir` writable for the current user when it is not: one UAC prompt,
+    // after which the helper grants this account Modify on the folder and
+    // everything below it (what Steam does for its own library). Every later
+    // write — copies, in-place patches, restore, uninstall — then takes the
+    // normal path. Blocks until the prompt is answered: call it off the GUI
+    // thread. lastRunDeclined() tells a refusal from a failure.
+    static bool ensureWritable(const QString& dir, QString* error = nullptr);
+
+    // An elevated child runs OUTSIDE our MSIX container, so a virtualised
+    // AppData path we hold means nothing to it. Returns the real LocalCache
+    // location for such a path, or the path unchanged when it is not
+    // redirected (unpackaged build, or a path the container does not touch).
+    static QString realPath(const QString& path);
 };
 
 } // namespace makine

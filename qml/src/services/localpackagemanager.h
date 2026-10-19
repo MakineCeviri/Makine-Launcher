@@ -15,6 +15,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QJsonObject>
 #include <QVariantList>
@@ -32,7 +33,7 @@ namespace makine {
 class OperationJournal;
 
 struct InstallStep {
-    QString action;     // "copy", "copyDir", "run", "delete", "installFont", "setSteamLanguage", "copyToDesktop", "rename", "vpatch"
+    QString action;     // "copy", "copyDir", "run", "delete", "installFont", "setSteamLanguage", "copyToDesktop", "rename", "vpatch", "patchBytes", "forgeReimport", "xdelta"
     QString src;        // source file/dir (relative to package dir)
     QString dest;       // destination (relative to game dir) — for "copy"/"delete"
     QString exe;        // executable to run — for "run"
@@ -40,6 +41,7 @@ struct InstallStep {
     QString fallback;   // fallback executable if primary not found — for "run"
     QString workDir;    // "game" (default) or "package" — for "run"
     QString language;   // Steam language name — for "setSteamLanguage"
+    QList<QPair<QString, QString>> patches;  // find/replace byte strings — for "patchBytes"
 };
 
 struct InstallOptionQt {
@@ -126,7 +128,10 @@ public:
                        const QString& variant = {},
                        const QStringList& selectedOptions = {});
     void cancelInstall();
-    bool uninstallPackage(const QString& steamAppId, const QString& gamePath);
+    // restoredFrom: the backup folder the uninstall just restored from; a
+    // file it holds is an original and is left in place.
+    bool uninstallPackage(const QString& steamAppId, const QString& gamePath,
+                          const QString& restoredFrom = {});
 
     // Resolve any store ID (epic_xxx, gog_xxx, steamAppId) to canonical steamAppId
     QString resolveGameId(const QString& gameId) const;
@@ -141,6 +146,9 @@ public:
     // the install will overwrite. Pass it whenever the target is known.
     QStringList getPackageFileList(const QString& steamAppId, const QString& variant = {},
                                     const QString& gamePath = {}) const;
+
+    // Step actions in any of this package's recipes that this build cannot run.
+    QStringList unknownRecipeActions(const QString& steamAppId) const;
 
     // Match a folder name against package catalog (case-insensitive, matches gameName or dirName)
     QString findMatchingAppId(const QString& folderName) const;
@@ -190,6 +198,8 @@ private:
     // progressPrefix — prepended to status messages (empty for recipe steps,
     //                  "optLabel — " for option steps)
     // installedFiles — appended on success; caller owns the list
+    // replacedFiles — copies that overwrote a file the game already had, so
+    //                uninstall leaves them to the restore instead of deleting
     // failDetail   — set on SoftError to a short cause when the action has more
     //                than one way to fail. "run" has four (not started /
     //                elevation declined / timeout / non-zero exit) and all four
@@ -205,6 +215,7 @@ private:
                             const QString& progressPrefix,
                             const QString& steamAppId,
                             QStringList& installedFiles,
+                            QSet<QString>& replacedFiles,
                             QString* failDetail = nullptr);
 
     // Run an external process with polling timeout.

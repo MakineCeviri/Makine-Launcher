@@ -33,6 +33,7 @@
 #include <fstream>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -333,10 +334,37 @@ inline int extract(
 #endif
     };
 
+    // Path handed to the file APIs. Past MAX_PATH Windows needs the extended
+    // form unless long paths are enabled system-wide, which is off by default:
+    // Pillars of Eternity II ships 158-character names, and under
+    // %LOCALAPPDATA%\MakineCeviri\Makine-Launcher\packages\<game> those files
+    // could not be written.
+    auto io_path = [](const fs::path& p) -> fs::path {
+#ifdef _WIN32
+        constexpr size_t kShortEnough = 240;   // CreateDirectoryW stops at 248
+        if (p.native().size() < kShortEnough || !p.is_absolute())
+            return p;
+        const std::wstring n = p.lexically_normal().make_preferred().native();
+        if (n.starts_with(LR"(\\?\)"))
+            return fs::path(n);
+        if (n.starts_with(LR"(\\)"))
+            return fs::path(LR"(\\?\UNC\)" + n.substr(2));
+        return fs::path(LR"(\\?\)" + n);
+#else
+        return p;
+#endif
+    };
+
     fs::create_directories(dest);
 
     int file_count = 0;
     size_t pos = 0;
+    // Name carried by a preceding PAX ('x') or GNU long-name ('L') record.
+    // Python's tarfile writes PAX by default, and for a non-ASCII or long name
+    // the ustar field holds only an ASCII stand-in ("T?rk?e Yama", cut at 100
+    // bytes) — the real UTF-8 name is in the record. Sekiro's 37 Japanese
+    // .fmg names all collapsed into one another without it.
+    std::string long_name;
 
     while (pos + 512 <= size) {
         // Cancel between tar entries — large packages can spend minutes here,
@@ -375,19 +403,51 @@ inline int extract(
             fullname = std::string(name);
         }
 
-        // Remove trailing slashes
-        while (!fullname.empty() && fullname.back() == '/')
-            fullname.pop_back();
-
-        if (fullname.empty()) {
-            pos += 512;
-            continue;
-        }
-
         size_t file_size = parse_octal(reinterpret_cast<const char*>(header + 124), 12);
         char typeflag = static_cast<char>(header[156]);
 
         pos += 512; // Move past header
+
+        // Name records apply to the entry that follows them.
+        if (typeflag == 'x' || typeflag == 'L') {
+            if (pos + file_size > size) {
+                if (err) *err = MkpkError("Tar truncated: name record extends beyond archive");
+                return -1;
+            }
+            const char* rec = reinterpret_cast<const char*>(data + pos);
+            if (typeflag == 'L') {
+                long_name.assign(rec, strnlen(rec, file_size));
+            } else {
+                // "<len> <key>=<value>\n" records; only "path" matters here.
+                size_t at = 0;
+                while (at < file_size) {
+                    size_t len = 0, digits = at;
+                    while (digits < file_size && rec[digits] >= '0' && rec[digits] <= '9')
+                        len = len * 10 + static_cast<size_t>(rec[digits++] - '0');
+                    if (len == 0 || at + len > file_size) break;
+                    const std::string_view entry(rec + digits + 1, at + len - digits - 2);
+                    if (entry.starts_with("path="))
+                        long_name.assign(entry.substr(5));
+                    at += len;
+                }
+            }
+            pos += ((file_size + 511) / 512) * 512;
+            continue;
+        }
+        if (!long_name.empty()) {
+            fullname = std::move(long_name);
+            long_name.clear();
+        }
+
+        // Remove trailing slashes
+        const bool dir_name = !fullname.empty() && fullname.back() == '/';
+        while (!fullname.empty() && fullname.back() == '/')
+            fullname.pop_back();
+
+        if (fullname.empty()) {
+            pos += ((file_size + 511) / 512) * 512;
+            continue;
+        }
 
         // Sanitize Windows-illegal characters in tar filenames.
         // Some packaging tools corrupt non-ASCII chars to '?' which is
@@ -403,14 +463,16 @@ inline int extract(
         fs::path target = dest / tarpath(fullname);
         auto canonical_dest = fs::weakly_canonical(dest);
         auto canonical_target = fs::weakly_canonical(target);
-        if (canonical_target.string().find(canonical_dest.string()) != 0) {
+        // Component-wise: a string prefix test let "../GameX/a.dll" out of "Game".
+        const fs::path inside = canonical_target.lexically_relative(canonical_dest);
+        if (inside.empty() || *inside.begin() == "..") {
             if (err) *err = MkpkError("Path traversal attempt blocked: " + fullname);
             return -1;
         }
 
-        if (typeflag == '5' || (typeflag == '\0' && fullname.back() == '/')) {
+        if (typeflag == '5' || (typeflag == '\0' && dir_name)) {
             // Directory
-            fs::create_directories(target);
+            fs::create_directories(io_path(target));
         } else if (typeflag == '0' || typeflag == '\0') {
             // Regular file
             if (pos + file_size > size) {
@@ -418,13 +480,14 @@ inline int extract(
                 return -1;
             }
 
-            fs::create_directories(target.parent_path());
+            const fs::path out = io_path(target);
+            fs::create_directories(out.parent_path());
 
-            std::ofstream ofs(target, std::ios::binary);
+            std::ofstream ofs(out, std::ios::binary);
             if (!ofs) {
                 // On Windows, file may be locked by the running game — retry once after 200ms
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                ofs.open(target, std::ios::binary);
+                ofs.open(out, std::ios::binary);
                 if (!ofs) {
                     if (err) *err = MkpkError("Cannot write file (locked?): " + target.string());
                     return -1;

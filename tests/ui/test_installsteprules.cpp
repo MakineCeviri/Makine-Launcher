@@ -319,3 +319,53 @@ TEST(InstallStepRules, VpatchNeedsBothThePatchAndTheTarget) {
                            QStringLiteral("patches/BigFile_PC_d01.pat"), QString()),
               QStringLiteral("dest"));
 }
+
+// ===== patchBytes ===========================================================
+//
+// Elden Ring's exe edit (see bytepatch.h). The pre-flight gate must refuse a
+// malformed pair before any earlier step has copied files into the game.
+
+TEST(InstallStepRules, PatchBytesIsAnActionTheExecutorDispatchesOn) {
+    EXPECT_TRUE(isKnownAction(QStringLiteral("patchBytes")));
+}
+
+TEST(InstallStepRules, PatchBytesNeedsASourceAndUsablePairs) {
+    const QList<QPair<QString, QString>> eldenRing = {
+        {QStringLiteral("utf16:data0:/font") + QChar(0), QStringLiteral("utf16:dvdroot:/fn") + QChar(0)},
+        {QStringLiteral("utf16:data0:/msg") + QChar(0),
+         QStringLiteral("utf16:dvdroot:/") + QChar(0) + QChar(0)},
+    };
+    EXPECT_EQ(missingField(QStringLiteral("patchBytes"), QStringLiteral("Game/eldenring.exe"),
+                           QStringLiteral("Game/start_protected_game.exe"), {}, {}, eldenRing),
+              QString());
+    // In place: dest is optional.
+    EXPECT_EQ(missingField(QStringLiteral("patchBytes"), QStringLiteral("Game/eldenring.exe"),
+                           {}, {}, {}, eldenRing),
+              QString());
+    EXPECT_EQ(missingField(QStringLiteral("patchBytes"), {}, {}, {}, {}, eldenRing),
+              QStringLiteral("src"));
+    EXPECT_EQ(missingField(QStringLiteral("patchBytes"), QStringLiteral("Game/eldenring.exe")),
+              QStringLiteral("patches"));
+    // A replacement one character short would shift every byte after it.
+    EXPECT_EQ(missingField(QStringLiteral("patchBytes"), QStringLiteral("Game/eldenring.exe"),
+                           {}, {}, {},
+                           {{QStringLiteral("utf16:data0:/msg"), QStringLiteral("utf16:dvdroot:/")}}),
+              QStringLiteral("patches"));
+}
+
+// ===== forgeReimport / xdelta ==============================================
+//
+// The forge games (Valhalla, Mirage, Odyssey). Both rewrite an archive the
+// game owns, so a step without its target must never reach the executor.
+
+TEST(InstallStepRules, ForgeActionsNeedTheirSourceAndTheirArchive) {
+    for (const QString& action : {QStringLiteral("forgeReimport"), QStringLiteral("xdelta")}) {
+        EXPECT_TRUE(isKnownAction(action));
+        EXPECT_EQ(missingField(action, QStringLiteral("DataPC_35_dlc"),
+                               QStringLiteral("dlc_35/DataPC_35_dlc.forge")),
+                  QString());
+        EXPECT_EQ(missingField(action, {}, QStringLiteral("DataPC_patch_01.forge")),
+                  QStringLiteral("src"));
+        EXPECT_EQ(missingField(action, QStringLiteral("aco156.aco")), QStringLiteral("dest"));
+    }
+}

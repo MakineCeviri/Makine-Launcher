@@ -342,6 +342,41 @@ QList<ProcessScanner::ProcessInfo> ProcessScanner::getRunningProcesses()
     return processes;
 }
 
+QString ProcessScanner::runningExeUnder(const QString& dir)
+{
+#ifdef Q_OS_WIN
+    const QString root = QDir::cleanPath(QDir::fromNativeSeparators(dir)) + QLatin1Char('/');
+    if (root.size() < 4)    // never match a whole drive
+        return {};
+
+    HandleGuard snapshot{CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)};
+    if (!snapshot)
+        return {};
+
+    PROCESSENTRY32W pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32W);
+    if (!Process32FirstW(snapshot.get(), &pe32))
+        return {};
+    do {
+        HandleGuard process{OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                                        pe32.th32ProcessID)};
+        if (!process)
+            continue;   // system and protected processes
+        std::wstring path(32768, L'\0');
+        DWORD size = static_cast<DWORD>(path.size());
+        if (!QueryFullProcessImageNameW(process.get(), 0, path.data(), &size))
+            continue;
+        const QString image = QDir::fromNativeSeparators(
+            QString::fromWCharArray(path.data(), static_cast<int>(size)));
+        if (image.startsWith(root, Qt::CaseInsensitive))
+            return QString::fromWCharArray(pe32.szExeFile);
+    } while (Process32NextW(snapshot.get(), &pe32));
+#else
+    Q_UNUSED(dir)
+#endif
+    return {};
+}
+
 #ifdef Q_OS_WIN
 QString ProcessScanner::getProcessFullPath(DWORD processId) const
 {

@@ -37,6 +37,11 @@ inline constexpr auto kBannersBase= "https://cdn.makineceviri.org/assets/banners
 // Data endpoint (encrypted .makine packages)
 inline constexpr auto kDataBase   = "https://cdn.makineceviri.org/data/";
 
+// Plugin registry: index plus its Ed25519 signature (scripts/plugin_registry.py);
+// packages live under data/plugins/<id>/<version>.mkplugin
+inline constexpr auto kPluginIndex    = "https://cdn.makineceviri.org/assets/plugins/index.json";
+inline constexpr auto kPluginIndexSig = "https://cdn.makineceviri.org/assets/plugins/index.json.sig";
+
 // Catalog API (static JSON — served via Cloudflare Workers + Assets)
 inline constexpr auto kCatalogUrl   = "https://cdn.makineceviri.org/assets/index.json";
 inline constexpr auto kCatalogMeta  = "https://makineceviri.org/api/v2/catalog/meta";

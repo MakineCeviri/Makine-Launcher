@@ -95,13 +95,26 @@ def compress_directory(dir_path: Path) -> bytes:
     excluded_suffixes = {'.bak', '.bak2', '.orig'}
 
     tar_buffer = io.BytesIO()
-    with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+    # USTAR, not the PAX default: PAX leaves an ASCII stand-in ("T?rk?e Yama")
+    # in the header's name field, and launchers up to 0.1.5 read only that
+    # field and the ustar prefix. USTAR keeps the UTF-8 name there and splits a
+    # long path into prefix + name, so every launcher gets it whole. A path
+    # USTAR cannot hold falls back to GNU's long-name record (0.1.6+ reads it).
+    with tarfile.open(fileobj=tar_buffer, mode="w", format=tarfile.USTAR_FORMAT,
+                      encoding="utf-8") as tar:
         for entry in sorted(dir_path.rglob("*")):
             if entry.is_file():
                 if entry.suffix.lower() in excluded_suffixes:
                     continue
                 arcname = entry.relative_to(dir_path).as_posix()
-                tar.add(str(entry), arcname=arcname)
+                info = tar.gettarinfo(str(entry), arcname=arcname)
+                try:
+                    info.tobuf(tarfile.USTAR_FORMAT, "utf-8", "surrogateescape")
+                    tar.format = tarfile.USTAR_FORMAT
+                except ValueError:
+                    tar.format = tarfile.GNU_FORMAT
+                with open(entry, "rb") as f:
+                    tar.addfile(info, f)
     tar_data = tar_buffer.getvalue()
 
     # Phase 2: Compress with zstd

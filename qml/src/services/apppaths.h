@@ -148,8 +148,11 @@ public:
                 QDir().rename(sentryDb, sentryDbNew);
             }
 
-            // Remove dir if empty (recursive rmdir only removes empty dirs)
-            d.removeRecursively();
+            // Remove the dir only if nothing is left. removeRecursively() did
+            // not stop at empty dirs: whatever migrateFromLegacyRoot() could not
+            // move (an entry that already existed in the new root, such as
+            // backups/) was deleted, game-file backups included.
+            QDir().rmdir(dir);
         }
     }
 };

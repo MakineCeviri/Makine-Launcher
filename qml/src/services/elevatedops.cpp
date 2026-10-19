@@ -10,11 +10,15 @@
 #include <QLoggingCategory>
 #include <QRandomGenerator>
 #include <QStandardPaths>
+#include <QTemporaryFile>
+
+#include <vector>
 
 #ifdef Q_OS_WIN
 #  include <windows.h>
 #  include <shellapi.h>
 #  include <objbase.h>
+#  include <sddl.h>
 #endif
 
 Q_LOGGING_CATEGORY(lcElevated, "makine.elevated")
@@ -41,6 +45,31 @@ bool fieldSafe(const QString& s)
         && !s.contains(QLatin1Char('\n'))
         && !s.contains(QLatin1Char('\r'));
 }
+
+#ifdef Q_OS_WIN
+// The account this process runs as ("S-1-5-21-…"). GRANT names it explicitly
+// because the elevated helper may run as a different, administrator account
+// than the user it is opening the folder for.
+QString currentUserSid()
+{
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+        return {};
+    QString out;
+    DWORD size = 0;
+    GetTokenInformation(token, TokenUser, nullptr, 0, &size);
+    std::vector<BYTE> buf(size);
+    if (size > 0 && GetTokenInformation(token, TokenUser, buf.data(), size, &size)) {
+        LPWSTR text = nullptr;
+        if (ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(buf.data())->User.Sid, &text)) {
+            out = QString::fromWCharArray(text);
+            LocalFree(text);
+        }
+    }
+    CloseHandle(token);
+    return out;
+}
+#endif
 
 } // namespace
 
@@ -84,7 +113,7 @@ bool ElevatedOps::run(const QString& root, const QList<Op>& ops,
             return fail(QStringLiteral("refusing job: path contains a field separator"));
         switch (op.kind) {
         case Kind::Copy:
-            job += QStringLiteral("COPY ") + QDir::toNativeSeparators(op.src)
+            job += QStringLiteral("COPY ") + QDir::toNativeSeparators(realPath(op.src))
                  + QLatin1Char('|') + op.relDst + QLatin1Char('\n');
             break;
         case Kind::Mkdir:
@@ -96,6 +125,9 @@ bool ElevatedOps::run(const QString& root, const QList<Op>& ops,
         case Kind::Rename:
             job += QStringLiteral("REN ") + op.src + QLatin1Char('|')
                  + op.relDst + QLatin1Char('\n');
+            break;
+        case Kind::Grant:
+            job += QStringLiteral("GRANT ") + op.src + QLatin1Char('\n');
             break;
         }
     }
@@ -116,8 +148,10 @@ bool ElevatedOps::run(const QString& root, const QList<Op>& ops,
     const QString resultPath = jobPath + QStringLiteral(".result");
     QFile::remove(resultPath);
 
+    // The helper reads the job, and writes the result next to it, outside our
+    // MSIX container, where only the real path of our temp folder resolves.
     const QString exe = QDir::toNativeSeparators(helperPath());
-    const QString arg = QStringLiteral("\"") + QDir::toNativeSeparators(jobPath)
+    const QString arg = QStringLiteral("\"") + QDir::toNativeSeparators(realPath(jobPath))
                       + QStringLiteral("\"");
 
     const HRESULT hr = CoInitializeEx(
@@ -170,6 +204,8 @@ bool ElevatedOps::run(const QString& root, const QList<Op>& ops,
         const auto parts = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
         if (parts.size() >= 2 && failedIndices)
             failedIndices->append(parts.at(1).toInt());
+        if (parts.size() >= 3)
+            qCWarning(lcElevated) << "elevated op" << parts.at(1) << "failed, win32" << parts.at(2);
     }
 
     qCInfo(lcElevated) << "elevated job:" << ops.size() << "ops,"
@@ -178,6 +214,102 @@ bool ElevatedOps::run(const QString& root, const QList<Op>& ops,
         *error = QStringLiteral("%1/%2 elevated operations failed")
                      .arg(failures).arg(ops.size());
     return failures == 0;
+#endif
+}
+
+bool ElevatedOps::canWrite(const QString& dir)
+{
+    if (dir.isEmpty() || !QDir(dir).exists())
+        return false;
+    QTemporaryFile probe(QDir(dir).filePath(QStringLiteral("makine-write-probe-XXXXXX.tmp")));
+    if (!probe.open())
+        return false;
+    const bool wrote = probe.write("makine", 6) == 6;
+    probe.close();
+    return wrote;
+}
+
+bool ElevatedOps::ensureWritable(const QString& dir, QString* error)
+{
+    g_lastDeclined = false;
+    if (canWrite(dir))
+        return true;
+#ifdef Q_OS_WIN
+    const QString sid = currentUserSid();
+    if (sid.isEmpty()) {
+        if (error) *error = QStringLiteral("cannot read the current account SID");
+        return false;
+    }
+    qCInfo(lcElevated) << "asking for write access to" << dir;
+    if (!run(dir, {{Kind::Grant, sid, {}}}, error))
+        return false;
+    if (canWrite(dir))
+        return true;
+    if (error) *error = QStringLiteral("write access granted, folder still not writable");
+    qCWarning(lcElevated) << "write access granted, folder still not writable:" << dir;
+    return false;
+#else
+    if (error) *error = QStringLiteral("folder is not writable");
+    return false;
+#endif
+}
+
+QString ElevatedOps::realPath(const QString& path)
+{
+#ifdef Q_OS_WIN
+    if (path.isEmpty())
+        return path;
+
+    // Only a packaged process has a family name. Resolved at runtime so the
+    // unpackaged build neither links against nor depends on the app-model API.
+    using GetFamilyNameFn = LONG(WINAPI*)(UINT32*, PWSTR);
+    const HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
+    if (!kernel32)
+        return path;
+    const auto getFamilyName = reinterpret_cast<GetFamilyNameFn>(
+        reinterpret_cast<void*>(
+            GetProcAddress(kernel32, "GetCurrentPackageFamilyName")));
+    if (!getFamilyName)
+        return path;
+
+    constexpr UINT32 kFamilyNameCapacity = 128;  // PACKAGE_FAMILY_NAME_MAX_LENGTH + 1
+    wchar_t familyName[kFamilyNameCapacity];
+    UINT32 nameLength = kFamilyNameCapacity;
+    if (getFamilyName(&nameLength, familyName) != ERROR_SUCCESS)
+        return path;  // APPMODEL_ERROR_NO_PACKAGE — we run unpackaged
+    if (nameLength == 0)
+        return path;
+
+    // qEnvironmentVariable, not qgetenv: the latter round-trips through the
+    // ANSI code page, so a user folder with characters the code page cannot
+    // represent comes back mangled, the prefix test below misses, and the
+    // rewrite silently never happens for exactly the users who need it.
+    const QString localAppData =
+        QDir::fromNativeSeparators(qEnvironmentVariable("LOCALAPPDATA"));
+    if (localAppData.isEmpty())
+        return path;
+
+    const QString normalized = QDir::fromNativeSeparators(path);
+    if (!normalized.startsWith(localAppData, Qt::CaseInsensitive))
+        return path;
+
+    const QString realRoot = localAppData + QStringLiteral("/Packages/")
+        + QString::fromWCharArray(familyName, static_cast<int>(nameLength) - 1)
+        + QStringLiteral("/LocalCache/Local");
+    if (normalized.startsWith(realRoot, Qt::CaseInsensitive))
+        return path;  // already a real path
+
+    const QString rewritten = realRoot + normalized.mid(localAppData.length());
+
+    // Only take the rewrite when it actually resolves. Paths the container
+    // does not redirect must keep working exactly as they did before.
+    if (!QFileInfo::exists(rewritten))
+        return path;
+
+    qCInfo(lcElevated) << "De-virtualised path for elevation:" << path << "->" << rewritten;
+    return rewritten;
+#else
+    return path;
 #endif
 }
 

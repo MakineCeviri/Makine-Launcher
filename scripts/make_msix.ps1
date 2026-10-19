@@ -107,6 +107,15 @@ if (-not (Test-Path $elevateSrc)) {
 Copy-Item $elevateSrc (Join-Path $stage "makine-elevate.exe") -Force
 Write-Host "Staged elevated helper: makine-elevate.exe"
 
+# --- plugin host -------------------------------------------------------
+# Each enabled plugin runs in its own copy (docs/plugins/README.md). Optional
+# until plugins leave MAKINE_DEV_TOOLS: staged whenever the build made it.
+$pluginHostSrc = Join-Path (Split-Path (Resolve-Path $ExePath) -Parent) "makine-plugin-host.exe"
+if (Test-Path $pluginHostSrc) {
+  Copy-Item $pluginHostSrc (Join-Path $stage "makine-plugin-host.exe") -Force
+  Write-Host "Staged plugin host: makine-plugin-host.exe"
+}
+
 # --- runtime dependencies (dynamic builds only) ------------------------
 if ($QtBinDir) {
   $stagedExe = Join-Path $stage "Makine-Launcher.exe"

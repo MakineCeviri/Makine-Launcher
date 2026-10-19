@@ -22,6 +22,7 @@
 //     MKDIR <relative destination>
 //     DEL <relative destination>
 //     REN <relative source>|<relative destination>
+//     GRANT <account SID>          (Modify on ROOT, inherited below it)
 //
 // '|' is a separator because Windows forbids it in file names.
 //
@@ -33,6 +34,8 @@
 // (capped at 100); 101+ for job-level errors.
 
 #include <windows.h>
+#include <aclapi.h>
+#include <sddl.h>
 
 #include <string>
 #include <vector>
@@ -44,8 +47,8 @@ constexpr int kExitBadJob = 102;
 constexpr int kExitNoRoot = 103;
 
 struct Op {
-    enum Kind { Copy, Mkdir, Del, Ren } kind;
-    std::wstring a;   // absolute source (Copy) or relative source (Ren)
+    enum Kind { Copy, Mkdir, Del, Ren, Grant } kind;
+    std::wstring a;   // absolute source (Copy), relative source (Ren) or SID (Grant)
     std::wstring b;   // relative destination
 };
 
@@ -122,6 +125,74 @@ bool ensureParentDirs(const std::wstring& fullPath)
         || GetLastError() == ERROR_ALREADY_EXISTS;
 }
 
+bool sameAsEnvPath(const std::wstring& path, const wchar_t* var)
+{
+    wchar_t buf[MAX_PATH];
+    const DWORD n = GetEnvironmentVariableW(var, buf, MAX_PATH);
+    return n > 0 && n < MAX_PATH && lstrcmpiW(path.c_str(), buf) == 0;
+}
+
+// A folder that may be opened up to a user: a game folder, never a drive
+// root, the Windows tree, or one of the shared parents (Program Files…) itself.
+bool grantableRoot(const std::wstring& root)
+{
+    if (root.size() <= 3) return false;  // "C:" / "C:\"
+    if (sameAsEnvPath(root, L"ProgramFiles") || sameAsEnvPath(root, L"ProgramFiles(x86)")
+        || sameAsEnvPath(root, L"ProgramW6432") || sameAsEnvPath(root, L"ProgramData"))
+        return false;
+    wchar_t win[MAX_PATH];
+    const UINT n = GetWindowsDirectoryW(win, MAX_PATH);
+    if (n > 0 && n < MAX_PATH && root.size() >= n
+        && CompareStringOrdinal(root.c_str(), (int)n, win, (int)n, TRUE) == CSTR_EQUAL
+        && (root.size() == n || root[n] == L'\\'))
+        return false;
+    return true;
+}
+
+// Gives one user account Modify on ROOT, inherited by everything below it —
+// what Steam does for its own library — so the launcher can patch, restore
+// and uninstall that game without another prompt. Only plain account SIDs
+// (local/domain S-1-5-21-…, Microsoft Entra S-1-12-1-…) are accepted: a job
+// naming Everyone or Users would open the folder to every account.
+DWORD grantModify(const std::wstring& root, const std::wstring& sidText)
+{
+    if (sidText.rfind(L"S-1-5-21-", 0) != 0 && sidText.rfind(L"S-1-12-1-", 0) != 0)
+        return ERROR_INVALID_SID;
+    if (!grantableRoot(root)) return ERROR_ACCESS_DENIED;
+
+    PSID sid = nullptr;
+    if (!ConvertStringSidToSidW(sidText.c_str(), &sid)) return GetLastError();
+
+    PACL oldDacl = nullptr;
+    PSECURITY_DESCRIPTOR sd = nullptr;
+    DWORD rc = GetNamedSecurityInfoW(root.c_str(), SE_FILE_OBJECT,
+                                     DACL_SECURITY_INFORMATION, nullptr, nullptr,
+                                     &oldDacl, nullptr, &sd);
+    if (rc == ERROR_SUCCESS) {
+        EXPLICIT_ACCESSW ea{};
+        ea.grfAccessPermissions =   // "Modify"
+            FILE_GENERIC_READ | FILE_GENERIC_WRITE | FILE_GENERIC_EXECUTE | DELETE;
+        ea.grfAccessMode = GRANT_ACCESS;
+        ea.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+        ea.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+        ea.Trustee.TrusteeType = TRUSTEE_IS_USER;
+        ea.Trustee.ptstrName = reinterpret_cast<LPWSTR>(sid);
+        PACL newDacl = nullptr;
+        rc = SetEntriesInAclW(1, &ea, oldDacl, &newDacl);
+        if (rc == ERROR_SUCCESS) {
+            // Setting the DACL also propagates the inheritable entry to the
+            // files and folders already below ROOT.
+            rc = SetNamedSecurityInfoW(const_cast<LPWSTR>(root.c_str()), SE_FILE_OBJECT,
+                                       DACL_SECURITY_INFORMATION, nullptr, nullptr,
+                                       newDacl, nullptr);
+            LocalFree(newDacl);
+        }
+        LocalFree(sd);
+    }
+    LocalFree(sid);
+    return rc;
+}
+
 std::string trimCr(const std::string& s)
 {
     if (!s.empty() && s.back() == '\r') return s.substr(0, s.size() - 1);
@@ -176,6 +247,8 @@ int wmain(int argc, wchar_t** argv)
         } else if (verb == "REN") {
             Op o{Op::Ren, {}, {}};
             if (split(o.a, o.b)) ops.push_back(o);
+        } else if (verb == "GRANT") {
+            ops.push_back({Op::Grant, rest, {}});
         }
     }
 
@@ -190,7 +263,7 @@ int wmain(int argc, wchar_t** argv)
         DWORD err = 0;
         bool ok = false;
 
-        const bool destOk = safeRelative(op.b);
+        const bool destOk = (op.kind == Op::Grant) || safeRelative(op.b);
         const bool srcOk = (op.kind != Op::Ren) || safeRelative(op.a);
         if (!destOk || !srcOk) {
             err = ERROR_INVALID_NAME;
@@ -216,6 +289,10 @@ int wmain(int argc, wchar_t** argv)
                                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
                 break;
             }
+            case Op::Grant:
+                SetLastError(grantModify(root, op.a));
+                ok = GetLastError() == ERROR_SUCCESS;
+                break;
             }
             if (!ok) err = GetLastError();
         }

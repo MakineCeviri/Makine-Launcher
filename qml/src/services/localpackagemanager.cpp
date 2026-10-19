@@ -13,12 +13,16 @@
  */
 
 #include "localpackagemanager.h"
+#include "bytepatch.h"
+#include "forgereimport.h"
 #include "installsteprules.h"
 #include "vpatchapply.h"
+#include "xdeltaapply.h"
 #include "elevatedops.h"
 #include "profiler.h"
 #include "operationjournal.h"
 #include "pathsecurity.h"
+#include "rawfile.h"
 #include "appprotection.h"
 #include "apppaths.h"
 #include "crashreporter.h"
@@ -26,6 +30,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QStandardPaths>
@@ -163,6 +168,10 @@ PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalog
             for (const auto& a : s.args) {
                 step.args.append(QString::fromStdString(a));
             }
+            for (const auto& [find, replace] : s.patches) {
+                step.patches.append({QString::fromStdString(find),
+                                     QString::fromStdString(replace)});
+            }
             result.append(step);
         }
         return result;
@@ -264,7 +273,7 @@ QStringList LocalPackageManager::missingInstalledFiles(const QString& steamAppId
     for (const auto& f : state->installedFiles) {
         const QString rel = QString::fromStdString(f);
         if (rel.startsWith(QLatin1Char('_'))) continue;
-        if (!QFileInfo::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
+        if (!rawfile::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
             missing.append(rel);
     }
     return missing;
@@ -310,6 +319,10 @@ QString LocalPackageManager::getVariantType(const QString& steamAppId) const
     return QString::fromStdString(m_catalog.getVariantType(steamAppId.toStdString()));
 }
 
+static QString resolveOptionDir(const QString& baseDir, const QString& subDir);
+static void collectCopyTargets(const QList<InstallStep>& steps, const QString& packageDir,
+                               QStringList& out, QSet<QString>& seen);
+
 QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
                                                      const QString& variant,
                                                      const QString& gamePath) const
@@ -326,14 +339,6 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
 
     auto files = m_catalog.getPackageFileList(steamAppId.toStdString(), variant.toStdString(),
                                               sourcePath.toStdString());
-
-    if (files.empty() && !sourcePath.isEmpty()) {
-        // Resolved yet empty. Says so out loud rather than letting the install
-        // proceed unbacked on a silently empty list.
-        qCWarning(lcPackageManager)
-            << "getPackageFileList: resolved" << sourcePath
-            << "but it lists no files — install would run without a backup";
-    }
 
     // The catalog lists paths as they sit inside the package. The overlay
     // install strips mis-packaged wrapper folders ("Türkçe Yama/", the game's
@@ -367,11 +372,39 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
     // Every declared target, not just the selected options': backing up one
     // file too many costs disk, backing up one too few costs the game.
     if (const auto pkg = getPackage(steamAppId)) {
+        // Copy targets of the recipe that will actually run (see
+        // collectCopyTargets), from the same folders the install reads.
+        QSet<QString> seen(result.cbegin(), result.cend());
+        if (!variant.isEmpty() && pkg->variantInstallOptions.contains(variant)) {
+            const QString base = m_dataPath + "/" + pkg->dirName + "/" + variant;
+            const auto& vc = pkg->variantInstallOptions[variant];
+            for (const InstallOptionQt& opt : vc.installOptions)
+                collectCopyTargets(opt.steps, resolveOptionDir(base, opt.subDir), result, seen);
+            for (const auto& steps : vc.combinedSteps)
+                collectCopyTargets(steps, base, result, seen);
+        } else if (pkg->installMethodType == QLatin1String("options")) {
+            const QString base = m_dataPath + "/" + pkg->dirName;
+            for (const InstallOptionQt& opt : pkg->installOptions)
+                collectCopyTargets(opt.steps, resolveOptionDir(base, opt.subDir), result, seen);
+            for (const auto& steps : pkg->combinedSteps)
+                collectCopyTargets(steps, base, result, seen);
+        } else if (!pkg->installSteps.isEmpty() && !sourcePath.isEmpty()) {
+            collectCopyTargets(pkg->installSteps, sourcePath, result, seen);
+        }
+
         const auto collect = [&result](const QList<InstallStep>& steps) {
             for (const InstallStep& st : steps) {
-                if (st.action == QLatin1String("vpatch") && !st.dest.isEmpty()
-                    && !result.contains(st.dest))
+                if ((st.action == QLatin1String("vpatch")
+                     || st.action == QLatin1String("forgeReimport")
+                     || st.action == QLatin1String("xdelta"))
+                    && !st.dest.isEmpty() && !result.contains(st.dest))
                     result.append(st.dest);
+                // patchBytes writes dest, or src in place when dest is empty.
+                if (st.action == QLatin1String("patchBytes")) {
+                    const QString target = st.dest.isEmpty() ? st.src : st.dest;
+                    if (!target.isEmpty() && !result.contains(target))
+                        result.append(target);
+                }
             }
         };
         collect(pkg->installSteps);
@@ -382,7 +415,40 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
             for (const auto& steps : vc.combinedSteps) collect(steps);
         }
     }
+
+    // Checked on the final list: the catalog's part is empty for every recipe
+    // made only of in-place steps (forgeReimport, xdelta), which the recipe
+    // targets above then fill.
+    if (result.isEmpty() && !sourcePath.isEmpty()) {
+        // Resolved yet empty. Says so out loud rather than letting the install
+        // proceed unbacked on a silently empty list.
+        qCWarning(lcPackageManager)
+            << "getPackageFileList: resolved" << sourcePath
+            << "but it lists no files — install would run without a backup";
+    }
     return result;
+}
+
+QStringList LocalPackageManager::unknownRecipeActions(const QString& steamAppId) const
+{
+    QStringList out;
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg) return out;
+    const auto scan = [&out](const QList<InstallStep>& steps) {
+        for (const InstallStep& st : steps) {
+            if (!st.action.isEmpty() && !steprules::isKnownAction(st.action)
+                && !out.contains(st.action))
+                out << st.action;
+        }
+    };
+    scan(pkg->installSteps);
+    for (const InstallOptionQt& opt : pkg->installOptions) scan(opt.steps);
+    for (const auto& steps : pkg->combinedSteps) scan(steps);
+    for (const auto& vc : pkg->variantInstallOptions) {
+        for (const InstallOptionQt& opt : vc.installOptions) scan(opt.steps);
+        for (const auto& steps : vc.combinedSteps) scan(steps);
+    }
+    return out;
 }
 
 QString LocalPackageManager::findMatchingAppId(const QString& folderName) const
@@ -481,34 +547,51 @@ QString LocalPackageManager::installedStatePath() const
 LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
     const QString& src, const QString& dest)
 {
+    // Windows reports access denied as OpenError like any other failed open,
+    // so the error code cannot tell a folder we may not write (C:\Program
+    // Files) from a file held open by the game or a virus scan. The folder
+    // can: a permission wall is not worth the lock back-off below.
+    const auto lockedOrDenied = [&dest]() {
+        return ElevatedOps::canWrite(QFileInfo(dest).absolutePath())
+            ? CopyError::FileLocked : CopyError::PermissionDenied;
+    };
+
     // Single attempt: try the copy and classify the failure mode.
     auto attempt = [&]() -> CopyResult {
         // Remove existing dest first; if removal fails, classify immediately
-        if (QFile::exists(dest)) {
-            if (!QFile::remove(dest)) {
+        if (rawfile::exists(dest)) {
+            // A read-only original refuses deletion exactly like a locked one;
+            // clear the attribute before deciding which it is.
+            if (!QFile::remove(dest)
+                && !(QFile::setPermissions(dest, QFile::permissions(dest)
+                                                   | QFileDevice::WriteOwner
+                                                   | QFileDevice::WriteUser)
+                     && QFile::remove(dest))) {
+                // Append: a plain WriteOnly open truncates the original.
                 QFile probe(dest);
-                if (!probe.open(QIODevice::WriteOnly)) {
+                if (!probe.open(QIODevice::WriteOnly | QIODevice::Append)) {
                     auto fe = probe.error();
                     if (fe == QFileDevice::PermissionsError)
                         return {false, CopyError::PermissionDenied};
                     if (fe == QFileDevice::ResourceError)
                         return {false, CopyError::DiskFull};
                 }
-                return {false, CopyError::FileLocked};
+                return {false, lockedOrDenied()};
             }
         }
 
         if (QFile::copy(src, dest)) return {true, CopyError::None};
 
+        // NewOnly: a file that is still there is not ours to truncate or remove.
         QFile probe(dest);
-        if (!probe.open(QIODevice::WriteOnly)) {
+        if (!probe.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
             auto fe = probe.error();
             if (fe == QFileDevice::PermissionsError)
                 return {false, CopyError::PermissionDenied};
             if (fe == QFileDevice::ResourceError)
                 return {false, CopyError::DiskFull};
             if (fe == QFileDevice::OpenError && QFileInfo(dest).absoluteDir().exists())
-                return {false, CopyError::FileLocked};
+                return {false, lockedOrDenied()};
         } else {
             probe.close();
             probe.remove();
@@ -558,76 +641,17 @@ struct ElevatedRun {
 //
 // Trade-off against QProcess: an elevated child cannot inherit our pipes, so
 // stdout is not captured. Exit code and cancellation still work via the handle.
-// An elevated child launched through ShellExecuteEx runs OUTSIDE our MSIX
-// container, so the virtualised AppData path we hold means nothing to it and
-// the launch fails with ERROR_PATH_NOT_FOUND (3). That was the whole of the
-// Elden Ring install failure: the patcher is on disk (1.2 MB), the UAC prompt
-// is correct, but the child was handed a path only we can see. Rewrite it to
-// the real LocalCache location before handing it over.
-QString deVirtualizeForElevation(const QString& path)
-{
-    if (path.isEmpty())
-        return path;
-
-    // Only a packaged process has a family name. Resolved at runtime so the
-    // unpackaged build neither links against nor depends on the app-model API.
-    using GetFamilyNameFn = LONG(WINAPI*)(UINT32*, PWSTR);
-    const HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
-    if (!kernel32)
-        return path;
-    const auto getFamilyName = reinterpret_cast<GetFamilyNameFn>(
-        reinterpret_cast<void*>(
-            GetProcAddress(kernel32, "GetCurrentPackageFamilyName")));
-    if (!getFamilyName)
-        return path;
-
-    constexpr UINT32 kFamilyNameCapacity = 128;  // PACKAGE_FAMILY_NAME_MAX_LENGTH + 1
-    wchar_t familyName[kFamilyNameCapacity];
-    UINT32 nameLength = kFamilyNameCapacity;
-    if (getFamilyName(&nameLength, familyName) != ERROR_SUCCESS)
-        return path;  // APPMODEL_ERROR_NO_PACKAGE — we run unpackaged
-    if (nameLength == 0)
-        return path;
-
-    // qEnvironmentVariable, not qgetenv: the latter round-trips through the
-    // ANSI code page, so a user folder with characters the code page cannot
-    // represent comes back mangled, the prefix test below misses, and the
-    // rewrite silently never happens for exactly the users who need it.
-    const QString localAppData =
-        QDir::fromNativeSeparators(qEnvironmentVariable("LOCALAPPDATA"));
-    if (localAppData.isEmpty())
-        return path;
-
-    const QString normalized = QDir::fromNativeSeparators(path);
-    if (!normalized.startsWith(localAppData, Qt::CaseInsensitive))
-        return path;
-
-    const QString realRoot = localAppData + QStringLiteral("/Packages/")
-        + QString::fromWCharArray(familyName, static_cast<int>(nameLength) - 1)
-        + QStringLiteral("/LocalCache/Local");
-    if (normalized.startsWith(realRoot, Qt::CaseInsensitive))
-        return path;  // already a real path
-
-    const QString rewritten = realRoot + normalized.mid(localAppData.length());
-
-    // Only take the rewrite when it actually resolves. Paths the container
-    // does not redirect must keep working exactly as they did before.
-    if (!QFileInfo::exists(rewritten))
-        return path;
-
-    qCInfo(lcPackageManager) << "De-virtualised path for elevation:"
-                             << path << "->" << rewritten;
-    return rewritten;
-}
-
+// The child runs outside our MSIX container, so it is handed real paths
+// (ElevatedOps::realPath) — the virtualised ones only we can see made the
+// Elden Ring patcher fail with ERROR_PATH_NOT_FOUND for most of its users.
 ElevatedRun startElevated(const QString& exePath, const QStringList& args,
                           const QString& workDir)
 {
     ElevatedRun out;
     const QString nativeExe =
-        QDir::toNativeSeparators(deVirtualizeForElevation(exePath));
+        QDir::toNativeSeparators(ElevatedOps::realPath(exePath));
     const QString nativeDir =
-        QDir::toNativeSeparators(deVirtualizeForElevation(workDir));
+        QDir::toNativeSeparators(ElevatedOps::realPath(workDir));
 
     QStringList quoted;
     quoted.reserve(args.size());
@@ -682,6 +706,10 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     proc.setWorkingDirectory(workDir);
     proc.setProcessChannelMode(QProcess::MergedChannels);
     proc.start(exePath, args);
+    // Nothing is ever typed into these tools. Closing stdin turns a
+    // "press a key to exit" pause (QuickBMS on an error) into an immediate
+    // exit instead of a 30-minute wait.
+    proc.closeWriteChannel();
 
     ProcessResult result;
     if (!proc.waitForStarted(10000)) {
@@ -783,6 +811,14 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
 
 // -- Shared helpers -----------------------------------------------------------
 
+// A package folder as the user should see it. Under MSIX our AppData is
+// virtualised: the path we hold does not exist in Explorer, so "Yama dosyaları
+// şu klasöre çıkarıldı: <path>" sent 275 users to a folder they could not find.
+static QString shownPath(const QString& path)
+{
+    return QDir::toNativeSeparators(ElevatedOps::realPath(path));
+}
+
 // A source folder that exists but holds no file is not a usable source.
 //
 // QDir::exists() is true for an empty directory, so a download that created the
@@ -797,7 +833,7 @@ static bool dirHasFiles(const QString& path)
 {
     if (path.isEmpty())
         return false;
-    QDirIterator it(path, QDir::Files, QDirIterator::Subdirectories);
+    QDirIterator it(path, rawfile::kFiles, QDirIterator::Subdirectories);
     return it.hasNext();
 }
 
@@ -883,10 +919,11 @@ QString LocalPackageManager::resolveSourcePath(const PackageInfo& pkg, const QSt
 //
 // NOT a mirror of the extractor, despite what this comment used to claim. It
 // said mkpkformat.h rewrites non-ASCII to '_', so "Türkçe Yama" would be on
-// disk as "T_rk_e Yama". That is false and it cost a long false lead: measured
-// 2026-09-19, extract_tar's tarpath() decodes the tar's UTF-8 bytes correctly
-// and writes "Türkçe Yama" verbatim. Only '?' '*' '"' '<' '>' '|' are ever
-// substituted, and none of them appear in a Turkish name.
+// disk as "T_rk_e Yama". Half true, which cost a long false lead: a tar that
+// keeps UTF-8 in the header's name field was decoded verbatim (measured
+// 2026-09-19), but package_pipeline.py writes PAX, where that field holds
+// "T?rk?e Yama" and the real name sits in a PAX record the extractor skipped
+// until 2026-10-08 — so those packages did land as "T_rk_e Yama".
 //
 // The function still earns its place — collapsing both sides to a common key
 // matches a correct on-disk name AND one an older build really did mangle, so
@@ -993,7 +1030,7 @@ static QStringList collectAtDepth(const QString& root, const QString& relSrc,
 {
     if (targetDepth == 0) {
         const QString cand = QDir::cleanPath(root + "/" + relSrc);
-        return QFileInfo::exists(cand) ? QStringList{cand} : QStringList{};
+        return rawfile::exists(cand) ? QStringList{cand} : QStringList{};
     }
     QStringList results;
     const auto subs = QDir(root).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
@@ -1024,7 +1061,7 @@ static QStringList collectAtDepth(const QString& root, const QString& relSrc,
 static QString resolvePackageSource(const QString& packageDir, const QString& relSrc)
 {
     const QString strict = QDir::cleanPath(packageDir + "/" + relSrc);
-    if (QFileInfo::exists(strict))
+    if (rawfile::exists(strict))
         return strict;
 
     constexpr int kMaxWrapperDepth = 3;
@@ -1044,6 +1081,52 @@ static QString resolvePackageSource(const QString& packageDir, const QString& re
         }
     }
     return strict;
+}
+
+// An option's source folder as installWithOptions resolves it: the declared
+// subDir, else a folder matching it through the extractor's old substitution,
+// else the package root (packages are not always wrapped in their subDir).
+static QString resolveOptionDir(const QString& baseDir, const QString& subDir)
+{
+    const QString strict = QDir::cleanPath(baseDir + "/" + subDir);
+    if (subDir.isEmpty() || QDir(strict).exists())
+        return strict;
+    const QString wanted = extractorMangledName(subDir);
+    const auto entries = QDir(baseDir).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString& entry : entries) {
+        if (extractorMangledName(entry).compare(wanted, Qt::CaseInsensitive) == 0) {
+            qCInfo(lcPackageManager) << "Option subDir matched through extractor mangling:"
+                                     << subDir << "->" << entry;
+            return QDir::cleanPath(baseDir + "/" + entry);
+        }
+    }
+    qCWarning(lcPackageManager) << "Option subDir not found, falling back to package root:"
+                                << strict;
+    return QDir::cleanPath(baseDir);
+}
+
+// Game files a recipe's copy steps write, resolved the way executeStep
+// resolves them. The core's own listing reads the strict source path, and for
+// an options package the raw package tree rather than the option steps'
+// destinations, so an original those steps overwrote was never backed up.
+static void collectCopyTargets(const QList<InstallStep>& steps, const QString& packageDir,
+                               QStringList& out, QSet<QString>& seen)
+{
+    const auto add = [&](const QString& rel) {
+        if (!seen.contains(rel)) { seen.insert(rel); out.append(rel); }
+    };
+    for (const InstallStep& st : steps) {
+        if (st.action == QLatin1String("copy") || st.action == QLatin1String("copyFile")) {
+            if (!st.dest.isEmpty()) add(st.dest);
+        } else if (st.action == QLatin1String("copyDir")) {
+            const QString srcDir = resolvePackageSource(packageDir, st.src);
+            QDirIterator it(srcDir, rawfile::kFiles, QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                it.next();
+                add(st.dest + "/" + it.filePath().mid(srcDir.length() + 1));
+            }
+        }
+    }
 }
 
 // Install methods that are genuinely a structure-preserving overlay copy:
@@ -1098,7 +1181,7 @@ static QStringList unexecutableSteps(const QList<InstallStep>& steps)
         if (!steprules::isKnownAction(s.action))
             defect = s.action;
         else if (const QString field = steprules::missingField(
-                     s.action, s.src, s.dest, s.exe, s.language);
+                     s.action, s.src, s.dest, s.exe, s.language, s.patches);
                  !field.isEmpty())
             defect = s.action + " (" + field + ")";
         if (!defect.isEmpty() && !out.contains(defect))
@@ -1123,8 +1206,9 @@ static QStringList userInstalledTools(const QList<InstallStep>& steps)
 // See steprules::runStepIsUserLaunchedTool for why: a recipe that hands the
 // user an executable has already said who runs it, and running it ourselves
 // unattended cannot work when the tool is interactive. Dropping the step is
-// not the same as hiding a failure — the tool is still installed, and the
-// caller names it in the finished-install note so the user knows to start it.
+// not the same as hiding a failure — the tool is still installed where the
+// recipe put it. The caller only logs the names; no recipe in the catalogue
+// has this shape any more (Elden Ring now uses patchBytes).
 static QStringList dropUserLaunchedTools(QList<InstallStep>& steps)
 {
     const QStringList tools = userInstalledTools(steps);
@@ -1159,7 +1243,7 @@ static QStringList missingAfterInstall(const QString& gamePath, const QStringLis
     for (const QString& rel : relPaths) {
         if (rel.startsWith(QLatin1Char('_')))
             continue;
-        if (!QFileInfo::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
+        if (!rawfile::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
             missing.append(rel);
     }
     return missing;
@@ -1225,7 +1309,7 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             continue;
         }
 
-        bool destExists = QFile::exists(destPath);
+        bool destExists = rawfile::exists(destPath);
 
         // Ensure destination directory exists. A failure here is usually the
         // same permission wall as the copy itself, so defer rather than count
@@ -1552,8 +1636,16 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
     // Handle userPath install type: copy to user-relative path instead of game dir
     if (pkg.installMethodType == "userPath" && !pkg.installMethodTarget.isEmpty()) {
-        const QString userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-        const QString targetPath = QDir::cleanPath(userHome + "/" + pkg.installMethodTarget);
+        // "Documents/…" means the Documents folder itself, which OneDrive's
+        // folder backup moves away from <home>/Documents — the game reads
+        // from where it really is (The Sims 4, Stellaris).
+        QString base = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+        QString rel = pkg.installMethodTarget;
+        if (rel.startsWith(QLatin1String("Documents/"), Qt::CaseInsensitive)) {
+            base = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+            rel = rel.mid(10);
+        }
+        const QString targetPath = QDir::cleanPath(base + "/" + rel);
 
         (void)QtConcurrent::run([this, steamAppId, targetPath, sourcePath, pkg]() {
             emit installProgress(0.0, tr("Dosyalar hazırlanıyor..."));
@@ -1570,7 +1662,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             }
 
             QList<QPair<QString, QString>> filesToCopy;
-            QDirIterator it(sourcePath, QDir::Files, QDirIterator::Subdirectories);
+            QDirIterator it(sourcePath, rawfile::kFiles, QDirIterator::Subdirectories);
             while (it.hasNext()) {
                 it.next();
                 QString relPath = it.filePath().mid(sourcePath.length() + 1);
@@ -1679,11 +1771,10 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 emit installCompleted(true, tr("%1 dosya başarıyla kuruldu").arg(copied));
             } else {
                 if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun açık, "
-                "antivirüs engelliyor veya yazma izni yok. Çözüm: oyunu ve "
-                "Steam'i kapatın, Makine Launcher'ı yönetici olarak "
-                "çalıştırın, antivirüste oyun klasörünü izinli yapın, sonra "
-                "tekrar deneyin.").arg(errors).arg(total));
+                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun ya da "
+                "başlatıcısı açık veya antivirüs dosyaları tutuyor. Çözüm: "
+                "oyunu ve başlatıcısını (Steam, EA, Ubisoft…) kapatın, "
+                "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin.").arg(errors).arg(total));
             }
         });
         return;
@@ -1699,7 +1790,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             "gerektiriyor; Makine Launcher bunu henüz otomatik kuramıyor. "
             "Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
             "Klasörün içindeki kurulum aracını (UnityEX / UABEA) "
-            "çalıştırın ve talimatları izleyin.").arg(sourcePath));
+            "çalıştırın ve talimatları izleyin.").arg(shownPath(sourcePath)));
         return;
     }
 
@@ -1710,12 +1801,17 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
     // The package itself was downloaded into sourcePath; surface that path
     // so the user can run the included tool, rather than being redirected
     // off-launcher.
-    if (pkg.installMethodType == "forge_inject") {
+    //
+    // A forge_inject package WITH steps runs them: forgeReimport/xdelta
+    // steps, the legacy installer's QuickBMS/xdelta3 commands done
+    // in-process. The type stays forge_inject on purpose — launchers older
+    // than those steps keep refusing here.
+    if (pkg.installMethodType == "forge_inject" && pkg.installSteps.isEmpty()) {
         emit installCompleted(false, tr("Bu yama, oyunun .forge "
             "arşivlerine enjeksiyon gerektirdiği için otomatik kurulamıyor. "
             "Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
             "Klasörün içindeki kurulum aracını çalıştırın ve istendiğinde "
-            "oyun klasörünüzü gösterin.").arg(sourcePath));
+            "oyun klasörünüzü gösterin.").arg(shownPath(sourcePath)));
         return;
     }
 
@@ -1784,11 +1880,14 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 guide = tr("Bu yamanın çevirisi harici bir kurulum aracıyla "
                     "uygulanır, Makine Launcher tarafından otomatik "
                     "kurulamıyor. Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
-                    "Klasördeki kurulum talimatını izleyin.").arg(sourcePath);
+                    "Klasördeki kurulum talimatını izleyin.").arg(shownPath(sourcePath));
             else if (m == "installer")
-                guide = tr("Bu yama kendi kurulum sihirbazıyla gelir. Çözüm: "
-                    "yama arşivini açın, içindeki kurulum (.exe) dosyasını "
-                    "çalıştırın ve istendiğinde oyun klasörünü seçin.");
+                // The download is an encrypted .makine file the user cannot
+                // open; the extracted folder is the only "archive" there is.
+                guide = tr("Bu yama kendi kurulum aracıyla gelir ve otomatik "
+                    "kurulamıyor. Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
+                    "İçindeki kurulum (.exe) dosyasını çalıştırın ve istendiğinde "
+                    "oyun klasörünü seçin.").arg(shownPath(sourcePath));
             else if (m == "workshop")
                 guide = tr("Bu çeviri Steam Workshop üzerinden dağıtılıyor. "
                     "Çözüm: Steam'de oyunun Workshop sayfasını açın, Türkçe "
@@ -1802,12 +1901,12 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     "kurulmaz. Yama dosyaları şu klasöre çıkarıldı:\n%1\n"
                     "Bu klasörün içindekileri Belgeler/Paradox Interactive/"
                     "<oyun>/mod klasörüne kopyalayın, ardından oyun "
-                    "başlatıcısında mod listesinden etkinleştirin.").arg(sourcePath);
+                    "başlatıcısında mod listesinden etkinleştirin.").arg(shownPath(sourcePath));
             else
                 guide = tr("Bu yama otomatik kurulamıyor (kurulum yöntemi: "
                     "%1). Yama dosyaları şu klasöre çıkarıldı:\n%2\n"
                     "Klasördeki kurulum talimatını izleyin.")
-                    .arg(m, sourcePath);
+                    .arg(m, shownPath(sourcePath));
             emit installCompleted(false, guide);
             return;
         }
@@ -1828,7 +1927,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
         // Collect all files to copy
         QList<QPair<QString, QString>> filesToCopy; // source, relative path
-        QDirIterator it(sourcePath, QDir::Files, QDirIterator::Subdirectories);
+        QDirIterator it(sourcePath, rawfile::kFiles, QDirIterator::Subdirectories);
         while (it.hasNext()) {
             it.next();
             QString relPath = it.filePath().mid(sourcePath.length() + 1);
@@ -1878,11 +1977,10 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
         } else {
             if (m_journal) m_journal->commitOperation();
             emit installCompleted(false,
-                tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun açık, "
-                "antivirüs engelliyor veya yazma izni yok. Çözüm: oyunu ve "
-                "Steam'i kapatın, Makine Launcher'ı yönetici olarak "
-                "çalıştırın, antivirüste oyun klasörünü izinli yapın, sonra "
-                "tekrar deneyin.").arg(result.errors).arg(filesToCopy.size()));
+                tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun ya da "
+                "başlatıcısı açık veya antivirüs dosyaları tutuyor. Çözüm: "
+                "oyunu ve başlatıcısını (Steam, EA, Ubisoft…) kapatın, "
+                "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin.").arg(result.errors).arg(filesToCopy.size()));
         }
     });
 }
@@ -1939,7 +2037,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         for (const QString& relPath : oldAdded) {
             if (relPath.startsWith("_")) continue; // skip meta entries like _steamlang
             QString filePath = QDir::cleanPath(gamePath + "/" + relPath);
-            if (QFile::exists(filePath))
+            if (rawfile::exists(filePath))
                 QFile::remove(filePath);
         }
 
@@ -1989,7 +2087,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
 
         // Scan new package files
         QList<QPair<QString, QString>> filesToCopy;
-        QDirIterator it(sourcePath, QDir::Files, QDirIterator::Subdirectories);
+        QDirIterator it(sourcePath, rawfile::kFiles, QDirIterator::Subdirectories);
         while (it.hasNext()) {
             it.next();
             QString relPath = it.filePath().mid(sourcePath.length() + 1);
@@ -2018,7 +2116,7 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         for (const auto& oldFile : oldAddedSet) {
             if (newFileSet.count(oldFile) == 0) {
                 QString filePath = QDir::cleanPath(gamePath + "/" + QString::fromStdString(oldFile));
-                if (QFile::exists(filePath)) {
+                if (rawfile::exists(filePath)) {
                     QFile::remove(filePath);
                     staleDeleted++;
                 }
@@ -2073,6 +2171,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
     const QString& progressPrefix,
     const QString& steamAppId,
     QStringList& installedFiles,
+    QSet<QString>& replacedFiles,
     QString* failDetail)
 {
     // Helper: emit fatal error, commit journal, return FatalError
@@ -2088,6 +2187,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QFileInfo dstInfo(dst);
         if (!QDir().mkpath(dstInfo.absolutePath())) {
             qCWarning(lcPackageManager) << "Failed to create directory:" << dstInfo.absolutePath();
+            if (failDetail) *failDetail = tr("klasör oluşturulamadı");
             return StepOutcome::SoftError;
         }
         auto [ok, err] = tryCopyFile(src, dst);
@@ -2121,9 +2221,11 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
                 "Sonra yamayı tekrar kurun."));
             qCWarning(lcPackageManager) << logLabel << "failed (locked):" << src << "->" << dst;
+            if (failDetail) *failDetail = tr("dosya kilitli");
             return StepOutcome::SoftError;
         }
         qCWarning(lcPackageManager) << logLabel << "failed:" << src << "->" << dst;
+        if (failDetail) *failDetail = tr("dosya kopyalanamadı");
         return StepOutcome::SoftError;
     };
 
@@ -2135,16 +2237,20 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             qCCritical(lcPackageManager) << "Path traversal blocked in copy:" << step.dest;
             return fatal(tr("Güvenlik ihlali: yama dosya hedefi oyun klasörü dışına çıkmaya çalıştı"));
         }
-        if (!QFile::exists(srcPath)) {
+        if (!rawfile::exists(srcPath)) {
             qCWarning(lcPackageManager) << "Copy source not found:" << srcPath;
+            if (failDetail) *failDetail = tr("paket dosyası bulunamadı");
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
             tr("%1Adım %2/%3: %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
 
+        // The game's own file, unless an earlier step of this install wrote it.
+        const bool original = rawfile::exists(destPath) && !installedFiles.contains(step.dest);
         StepOutcome outcome = copyOne(srcPath, destPath, "copy");
         if (outcome == StepOutcome::Ok) {
             installedFiles.append(step.dest);
+            if (original) replacedFiles.insert(step.dest);
             if (m_journal) m_journal->recordFileModified(step.dest);
         }
         return outcome;
@@ -2159,25 +2265,40 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         }
         if (!QDir(srcDir).exists()) {
             qCWarning(lcPackageManager) << "copyDir source not found:" << srcDir;
+            if (failDetail) *failDetail = tr("paket klasörü bulunamadı");
             return StepOutcome::SoftError;
         }
         emit installProgress(progress,
             tr("%1Adım %2/%3: %4/").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
 
-        QDirIterator dirIt(srcDir, QDir::Files, QDirIterator::Subdirectories);
+        int dirFiles = 0;
+        int dirFailed = 0;
+        QDirIterator dirIt(srcDir, rawfile::kFiles, QDirIterator::Subdirectories);
         while (dirIt.hasNext()) {
             dirIt.next();
+            ++dirFiles;
             QString relPath  = dirIt.filePath().mid(srcDir.length() + 1);
             QString destPath = QDir::cleanPath(destDir + "/" + relPath);
+            const QString fullRelPath = step.dest + "/" + relPath;
+            const bool original = rawfile::exists(destPath) && !installedFiles.contains(fullRelPath);
             StepOutcome outcome = copyOne(dirIt.filePath(), destPath, "copyDir");
             if (outcome == StepOutcome::Ok) {
-                QString fullRelPath = step.dest + "/" + relPath;
                 installedFiles.append(fullRelPath);
+                if (original) replacedFiles.insert(fullRelPath);
                 if (m_journal) m_journal->recordFileModified(fullRelPath);
             } else if (outcome != StepOutcome::SoftError) {
                 return outcome; // Fatal or Cancelled — propagate immediately
+            } else {
+                ++dirFailed;    // keep going: the rest of the folder still lands
             }
-            // SoftError inside copyDir: continue to next file (errors counted by caller)
+        }
+        // A folder copied in part is a failed step. Returning Ok here counted
+        // a half-copied patch as installed.
+        if (dirFailed > 0) {
+            if (failDetail)
+                *failDetail = tr("%1/%2 dosya kopyalanamadı (%3)")
+                                  .arg(dirFailed).arg(dirFiles).arg(*failDetail);
+            return StepOutcome::SoftError;
         }
         return StepOutcome::Ok;
 
@@ -2191,7 +2312,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         emit installProgress(progress,
             tr("%1Adım %2/%3: Siliniyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.dest));
 
-        if (QFile::exists(destPath)) {
+        if (rawfile::exists(destPath)) {
             if (!QFile::remove(destPath)) {
                 qCWarning(lcPackageManager) << "Delete failed:" << destPath;
                 return StepOutcome::SoftError;
@@ -2333,7 +2454,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         QString srcPath = resolvePackageSource(packageDir, step.src);
         if (!QFile::exists(srcPath))
             srcPath = QDir::cleanPath(gamePath + "/" + step.src);
-        if (!QFile::exists(srcPath)) {
+        if (!rawfile::exists(srcPath)) {
             qCWarning(lcPackageManager) << "copyToDesktop source not found:" << step.src;
             return StepOutcome::SoftError;
         }
@@ -2403,7 +2524,15 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             return StepOutcome::SoftError;
         }
         if (!QFile::exists(targetPath)) {
-            qCWarning(lcPackageManager) << "vpatch: target missing:" << targetPath;
+            // What the folder holds instead: AC III's Ubisoft Connect copy
+            // missed all four .forge targets at the root, and the event could
+            // not say whether they live elsewhere or under other names.
+            const QFileInfo target(targetPath);
+            qCWarning(lcPackageManager) << "vpatch: target missing:" << targetPath
+                << "— same-type files there:"
+                << QDir(target.absolutePath())
+                       .entryList({QStringLiteral("*.") + target.suffix()}, rawfile::kFiles)
+                       .mid(0, 12);
             if (failDetail) *failDetail = tr("oyun dosyası bulunamadı");
             return StepOutcome::SoftError;
         }
@@ -2487,6 +2616,247 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         qCInfo(lcPackageManager) << "vpatch applied:" << step.dest;
         return StepOutcome::Ok;
 
+    } else if (step.action == "patchBytes") {
+        // Same-length find-and-replace in a game file, written to dest (or
+        // back over src). Elden Ring: eldenring.exe -> start_protected_game.exe
+        // with its two mount strings pointed at Game/. Rules in bytepatch.h.
+        const QString destRel  = step.dest.isEmpty() ? step.src : step.dest;
+        const QString srcPath  = QDir::cleanPath(gamePath + "/" + step.src);
+        const QString destPath = QDir::cleanPath(gamePath + "/" + destRel);
+
+        if (!security::isPathContained(gamePath, srcPath)
+            || !security::isPathContained(gamePath, destPath)) {
+            qCCritical(lcPackageManager) << "Path traversal blocked in patchBytes:"
+                                         << step.src << "->" << destRel;
+            return fatal(tr("Güvenlik ihlali: yama hedefi oyun klasörü dışına çıkmaya çalıştı"));
+        }
+        QList<bytepatch::Pair> pairs;
+        if (!bytepatch::decodePairs(step.patches, &pairs)) {   // pre-flight refuses this too
+            if (failDetail) *failDetail = tr("kurulum tarifi hatalı");
+            return StepOutcome::SoftError;
+        }
+        QFile in(srcPath);
+        if (!in.open(QIODevice::ReadOnly)) {
+            qCWarning(lcPackageManager) << "patchBytes: cannot read" << srcPath;
+            if (failDetail) *failDetail = tr("oyun dosyası bulunamadı");
+            return StepOutcome::SoftError;
+        }
+        QByteArray data = in.readAll();
+        in.close();
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Yamalanıyor %4").arg(progressPrefix).arg(current).arg(total)
+                .arg(QFileInfo(destPath).fileName()));
+
+        const bytepatch::Result br = bytepatch::apply(data, pairs);
+        if (br != bytepatch::Result::Patched && br != bytepatch::Result::AlreadyPatched) {
+            qCWarning(lcPackageManager) << "patchBytes failed:" << bytepatch::resultName(br)
+                                        << "source" << step.src;
+            if (failDetail) *failDetail = tr("oyun sürümü bu yamayla eşleşmiyor");
+            return StepOutcome::SoftError;
+        }
+
+        // A file that existed before us is the game's: uninstall restores it
+        // from the backup (getPackageFileList lists it) and must not delete
+        // it, which is what the "_vpatch:" marker already means. A file we
+        // create is ours and goes on uninstall.
+        const bool existed = QFile::exists(destPath);
+        if (!(br == bytepatch::Result::AlreadyPatched && destPath == srcPath)) {
+            QSaveFile out(destPath);
+            if (!out.open(QIODevice::WriteOnly) || out.write(data) != data.size()
+                || !out.commit()) {
+                qCWarning(lcPackageManager) << "patchBytes: cannot write" << destPath
+                                            << out.errorString();
+                if (failDetail) *failDetail = tr("oyun dosyası değiştirilemedi");
+                return StepOutcome::SoftError;
+            }
+        }
+        const QString record = existed ? QStringLiteral("_vpatch:") + destRel : destRel;
+        installedFiles.append(record);
+        if (m_journal) m_journal->recordFileModified(record);
+        qCInfo(lcPackageManager) << "patchBytes" << bytepatch::resultName(br) << step.src
+                                 << "->" << destRel;
+        return StepOutcome::Ok;
+
+    } else if (step.action == "forgeReimport") {
+        // Write a folder of "<index>.acv" files into a .forge archive: the
+        // legacy installer's QuickBMS reimport (AC Valhalla, AC Mirage), done
+        // in-process. The archive is edited in place; it was backed up first
+        // (getPackageFileList lists it) and uninstall restores it from there.
+        // Rules in forgereimport.h.
+        const QString folder = resolvePackageSource(packageDir, step.src);
+        const QString forgePath = QDir::cleanPath(gamePath + "/" + step.dest);
+        if (!security::isPathContained(gamePath, forgePath)) {
+            qCCritical(lcPackageManager) << "Path traversal blocked in forgeReimport:" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama hedefi oyun klasörü dışına çıkmaya çalıştı"));
+        }
+        // An archive this install does not have belongs to DLC the user does
+        // not own: nothing there to translate. The legacy installer ran the
+        // tool anyway and let it fail.
+        if (!QFile::exists(forgePath)) {
+            qCInfo(lcPackageManager) << "forgeReimport: not in this install, skipping:" << step.dest;
+            return StepOutcome::Ok;
+        }
+        QMap<quint32, QByteArray> files;
+        if (!QFileInfo(folder).isDir() || !forgereimport::loadFolder(folder, &files)
+            || files.isEmpty()) {
+            qCWarning(lcPackageManager) << "forgeReimport: no reimport files in" << step.src;
+            if (failDetail) *failDetail = tr("yama dosyası okunamadı");
+            return StepOutcome::SoftError;
+        }
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Yamalanıyor %4").arg(progressPrefix).arg(current).arg(total)
+                .arg(QFileInfo(forgePath).fileName()));
+
+        forgereimport::Result fr = forgereimport::Result::IoError;
+        {
+            QFile forge(forgePath);
+            if (forge.open(QIODevice::ReadWrite)) {
+                fr = forgereimport::apply(forge, files);
+                if (fr == forgereimport::Result::Done && !forge.flush())
+                    fr = forgereimport::Result::IoError;
+            } else {
+                qCWarning(lcPackageManager) << "forgeReimport: cannot open" << forgePath
+                                            << forge.errorString();
+            }
+        }
+        if (fr != forgereimport::Result::Done) {
+            qCWarning(lcPackageManager) << "forgeReimport failed:" << forgereimport::resultName(fr)
+                                        << "target" << step.dest;
+            if (failDetail) {
+                *failDetail = (fr == forgereimport::Result::IoError)
+                    ? tr("oyun dosyası değiştirilemedi")
+                    : tr("oyun sürümü bu yamayla eşleşmiyor");
+            }
+            return StepOutcome::SoftError;
+        }
+        installedFiles.append(QStringLiteral("_vpatch:") + step.dest);
+        if (m_journal) m_journal->recordFileModified(QStringLiteral("_vpatch:") + step.dest);
+        qCInfo(lcPackageManager) << "forgeReimport:" << files.size() << "files ->" << step.dest;
+        return StepOutcome::Ok;
+
+    } else if (step.action == "xdelta") {
+        // Rebuild a game archive from an xdelta3 delta: the legacy installer's
+        // c1.exe (xdelta3 3.0.4) for AC Odyssey, done in-process. Same
+        // temp-and-swap as vpatch: the archive is replaced only by a result
+        // whose every window matched the checksum the delta carries.
+        const QString deltaPath = resolvePackageSource(packageDir, step.src);
+        const QString targetPath = QDir::cleanPath(gamePath + "/" + step.dest);
+        if (!security::isPathContained(gamePath, targetPath)) {
+            qCCritical(lcPackageManager) << "Path traversal blocked in xdelta:" << step.dest;
+            return fatal(tr("Güvenlik ihlali: yama hedefi oyun klasörü dışına çıkmaya çalıştı"));
+        }
+        if (!QFile::exists(targetPath)) {   // DLC not owned — see forgeReimport
+            qCInfo(lcPackageManager) << "xdelta: not in this install, skipping:" << step.dest;
+            return StepOutcome::Ok;
+        }
+        if (!QFile::exists(deltaPath)) {
+            qCWarning(lcPackageManager) << "xdelta: delta not found:" << step.src;
+            if (failDetail) *failDetail = tr("yama dosyası okunamadı");
+            return StepOutcome::SoftError;
+        }
+
+        emit installProgress(progress,
+            tr("%1Adım %2/%3: Yamalanıyor %4").arg(progressPrefix).arg(current).arg(total)
+                .arg(QFileInfo(targetPath).fileName()));
+
+        // Original and result side by side until the swap.
+        const qint64 targetSize = QFileInfo(targetPath).size();
+        const QStorageInfo storage(QFileInfo(targetPath).absolutePath());
+        if (storage.isValid() && storage.bytesAvailable() < targetSize + (64LL << 20)) {
+            qCWarning(lcPackageManager) << "xdelta: not enough free space for" << targetPath
+                << "need" << targetSize << "have" << storage.bytesAvailable();
+            if (failDetail) *failDetail = tr("disk alanı yetersiz");
+            return StepOutcome::SoftError;
+        }
+
+        const QString tempPath = targetPath + QStringLiteral(".makine-new");
+        QFile::remove(tempPath);
+
+        xdelta::Result xr = xdelta::Result::Corrupt;
+        bool cancelled = false;
+        {
+            QFile deltaFile(deltaPath), sourceFile(targetPath), out(tempPath);
+            uchar* source = nullptr;
+            if (!deltaFile.open(QIODevice::ReadOnly) || !sourceFile.open(QIODevice::ReadOnly)
+                || !out.open(QIODevice::WriteOnly | QIODevice::Truncate)
+                || (source = sourceFile.map(0, sourceFile.size())) == nullptr) {
+                qCWarning(lcPackageManager) << "xdelta: cannot open files for" << step.dest;
+                if (failDetail) *failDetail = tr("dosya açılamadı");
+                out.close();
+                QFile::remove(tempPath);
+                return StepOutcome::SoftError;
+            }
+            const QByteArray delta = deltaFile.readAll();
+            // Odyssey's main archive is 3 GB: report as it grows, and let
+            // the user stop it.
+            const QString name = QFileInfo(targetPath).fileName();
+            qint64 written = 0, nextReport = 0;
+            xr = xdelta::apply(reinterpret_cast<const std::uint8_t*>(delta.constData()),
+                               std::size_t(delta.size()), source, std::size_t(sourceFile.size()),
+                               [&](const std::uint8_t* data, std::size_t size) {
+                                   if (isCancelled()) { cancelled = true; return false; }
+                                   if (out.write(reinterpret_cast<const char*>(data), qint64(size))
+                                       != qint64(size))
+                                       return false;
+                                   written += qint64(size);
+                                   if (written >= nextReport) {
+                                       nextReport = written + (256LL << 20);
+                                       emit installProgress(progress,
+                                           tr("%1Adım %2/%3: Yamalanıyor %4 — %5 / %6 MB")
+                                               .arg(progressPrefix).arg(current).arg(total)
+                                               .arg(name).arg(written >> 20).arg(targetSize >> 20));
+                                   }
+                                   return true;
+                               });
+            sourceFile.unmap(source);
+            if (xr == xdelta::Result::Success && !out.flush()) xr = xdelta::Result::WriteError;
+        }
+
+        if (cancelled) {
+            QFile::remove(tempPath);
+            return StepOutcome::Cancelled;
+        }
+        if (xr != xdelta::Result::Success) {
+            QFile::remove(tempPath);
+            if (xr != xdelta::Result::UpToDate) {
+                qCWarning(lcPackageManager) << "xdelta failed:" << xdelta::resultName(xr)
+                                            << "target" << step.dest;
+                if (failDetail) {
+                    *failDetail = (xr == xdelta::Result::NoMatch)
+                        ? tr("oyun sürümü bu yamayla eşleşmiyor")
+                        : (xr == xdelta::Result::Corrupt)
+                            ? tr("yama dosyası okunamadı")
+                            : tr("oyun dosyası değiştirilemedi");
+                }
+                return StepOutcome::SoftError;
+            }
+            qCInfo(lcPackageManager) << "xdelta: already up to date:" << step.dest;
+        } else {
+            const QString oldPath = targetPath + QStringLiteral(".makine-old");
+            QFile::remove(oldPath);
+            if (!QFile::rename(targetPath, oldPath)) {
+                QFile::remove(tempPath);
+                qCWarning(lcPackageManager) << "xdelta: cannot move original aside:" << targetPath;
+                if (failDetail) *failDetail = tr("oyun dosyası değiştirilemedi");
+                return StepOutcome::SoftError;
+            }
+            if (!QFile::rename(tempPath, targetPath)) {
+                QFile::rename(oldPath, targetPath);   // put it back
+                QFile::remove(tempPath);
+                qCWarning(lcPackageManager) << "xdelta: cannot install patched file:" << targetPath;
+                if (failDetail) *failDetail = tr("oyun dosyası değiştirilemedi");
+                return StepOutcome::SoftError;
+            }
+            QFile::remove(oldPath);
+            qCInfo(lcPackageManager) << "xdelta applied:" << step.dest;
+        }
+        // Ours either way — a re-install finds it already patched.
+        installedFiles.append(QStringLiteral("_vpatch:") + step.dest);
+        if (m_journal) m_journal->recordFileModified(QStringLiteral("_vpatch:") + step.dest);
+        return StepOutcome::Ok;
+
     } else if (step.action == "setSteamLanguage") {
         if (step.language.isEmpty()) {
             qCWarning(lcPackageManager) << "setSteamLanguage: language not specified";
@@ -2495,17 +2865,25 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         emit installProgress(progress,
             tr("%1Adım %2/%3: Steam dili ayarlanıyor %4").arg(progressPrefix).arg(current).arg(total).arg(step.language));
 
-        // Game path is typically: .../steamapps/common/GameName — go up two levels
+        // Game path is typically: .../steamapps/common/GameName — go up two levels.
+        //
+        // No manifest, or none naming a language, means there is no Steam
+        // setting to change: a GOG/repack copy, or a Steam game whose language
+        // was never chosen. That is not a failed install — the files are in
+        // and the install note tells the user which language to pick — yet it
+        // failed every Mad Max install that was not a configured Steam one.
         QDir dir(gamePath);
         if (!dir.cdUp() || !dir.cdUp()) {
-            qCWarning(lcPackageManager) << "setSteamLanguage: cannot find steamapps dir from:" << gamePath;
-            return StepOutcome::SoftError;
+            qCInfo(lcPackageManager) << "setSteamLanguage: no steamapps dir above" << gamePath
+                                     << "— not a Steam install, skipped";
+            return StepOutcome::Ok;
         }
         QString acfPath = dir.absoluteFilePath("appmanifest_" + steamAppId + ".acf");
         QFile acfFile(acfPath);
         if (!acfFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            qCWarning(lcPackageManager) << "setSteamLanguage: cannot open ACF:" << acfPath;
-            return StepOutcome::SoftError;
+            qCInfo(lcPackageManager) << "setSteamLanguage: no Steam manifest" << acfPath
+                                     << "— not a Steam install, skipped";
+            return StepOutcome::Ok;
         }
         QString content = QString::fromUtf8(acfFile.readAll());
         acfFile.close();
@@ -2514,14 +2892,16 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         static const QRegularExpression langRe(QStringLiteral(R"(("language"\s+")([^"]*)("))"));
         auto match = langRe.match(content);
         if (!match.hasMatch()) {
-            qCWarning(lcPackageManager) << "setSteamLanguage: 'language' key not found in ACF:" << acfPath;
-            return StepOutcome::SoftError;
+            qCInfo(lcPackageManager) << "setSteamLanguage: no 'language' key in" << acfPath
+                                     << "— skipped";
+            return StepOutcome::Ok;
         }
         QString oldLang = match.captured(2);
         content.replace(match.capturedStart(2), match.capturedLength(2), step.language);
 
         if (!acfFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
             qCWarning(lcPackageManager) << "setSteamLanguage: cannot write ACF:" << acfPath;
+            if (failDetail) *failDetail = tr("Steam ayar dosyası yazılamadı");
             return StepOutcome::SoftError;
         }
         acfFile.write(content.toUtf8());
@@ -2565,7 +2945,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             "desteklemediği bir kurulum adımı içeriyor (%1). Otomatik "
             "kurulamıyor.\nYama dosyaları şu klasöre çıkarıldı:\n%2\n"
             "Klasördeki kurulum talimatını izleyin.")
-            .arg(bad.join(QStringLiteral(", ")), packageDir));
+            .arg(bad.join(QStringLiteral(", ")), shownPath(packageDir)));
         return;
     }
 
@@ -2573,6 +2953,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     int current = 0;
     int errors = 0;
     QStringList installedFiles;
+    QSet<QString> replacedFiles;
     QStringList errorDetails;
 
     // Begin crash recovery journal
@@ -2600,7 +2981,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         StepOutcome outcome = executeStep(step, gamePath, packageDir,
                                           progress, current, total,
                                           QString{}, pkg.steamAppId,
-                                          installedFiles, &failDetail);
+                                          installedFiles, replacedFiles, &failDetail);
         if (outcome == StepOutcome::FatalError) return; // fatal() already emitted
         if (outcome == StepOutcome::Cancelled) {
             if (m_journal) m_journal->abortOperation();
@@ -2619,17 +3000,14 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     }
 
     if (errors == 0) {
-        QMetaObject::invokeMethod(this, [this, steamAppId = pkg.steamAppId, gamePath, pkg, installedFiles]() {
-            packages::InstalledPackageState state;
-            state.version = pkg.version.toStdString();
-            state.gamePath = gamePath.toStdString();
-            for (const QString& f : installedFiles)
-                state.installedFiles.push_back(f.toStdString());
-            state.installedAt = QDateTime::currentSecsSinceEpoch();
-            m_catalog.markInstalled(steamAppId.toStdString(), state);
-            saveCatalogInstalledState(m_catalog, installedStatePath());
-            if (m_journal) m_journal->commitOperation();
-        }, Qt::QueuedConnection);
+        // Which files were the game's own decides what uninstall deletes. Not
+        // recorded before, so uninstall deleted the originals the restore had
+        // just put back — Far Cry 3 lost common.fat, Half-Life its .wav files.
+        QStringList added;
+        for (const QString& f : installedFiles)
+            if (!f.startsWith(QLatin1Char('_')) && !replacedFiles.contains(f)) added << f;
+        saveInstallState(pkg.steamAppId, gamePath, pkg, installedFiles, added,
+                         replacedFiles.values());
 
         emit installCompleted(true,
             tr("%1 adım başarıyla tamamlandı").arg(total));
@@ -2745,6 +3123,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     int current = 0;
     int errors = 0;
     QStringList installedFiles;
+    QSet<QString> replacedFiles;
     // Mirror executeInstallSteps: collect per-step failure context so the
     // user (and we, when triaging reports) can see which option/action
     // actually failed instead of a bare "%1 adımda hata oluştu". This was
@@ -2775,39 +3154,14 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         // path is missing, fall back to the package root so step sources are
         // still found — this was the dominant cause of "1 adımda hata oluştu"
         // (e.g. Elden Ring), independent of any game-side mod.
-        QString optionDir = QDir::cleanPath(basePackageDir + "/" + opt.subDir);
-        if (!opt.subDir.isEmpty() && !QDir(optionDir).exists()) {
-            // Before giving up, try matching through the extractor's own
-            // substitution: the directory is on disk as "T_rk_e Yama" while the
-            // recipe says "Türkçe Yama", so a literal match cannot find it.
-            //
-            // This was the real cause behind Elden Ring's "1 adımda hata
-            // oluştu" (48 events, 8 users). optionDir is what executeStep
-            // receives as packageDir, so falling back to the package root also
-            // moved the run step's working directory — ERING_TR.exe was being
-            // launched from the wrong place, and the user was told to check
-            // their antivirus.
-            const QString wanted = extractorMangledName(opt.subDir);
-            QString matched;
-            const auto entries =
-                QDir(basePackageDir).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-            for (const QString& entry : entries) {
-                if (extractorMangledName(entry).compare(wanted, Qt::CaseInsensitive) == 0) {
-                    matched = entry;
-                    break;
-                }
-            }
-
-            if (!matched.isEmpty()) {
-                optionDir = QDir::cleanPath(basePackageDir + "/" + matched);
-                qCInfo(lcPackageManager) << "Option subDir matched through extractor mangling:"
-                                         << opt.subDir << "->" << matched;
-            } else {
-                qCWarning(lcPackageManager) << "Option subDir not found, falling back to package root:"
-                                            << optionDir;
-                optionDir = QDir::cleanPath(basePackageDir);
-            }
-        }
+        //
+        // resolveOptionDir also matches the folder through the extractor's
+        // old substitution ("T_rk_e Yama" for "Türkçe Yama"). That was the
+        // real cause behind Elden Ring's "1 adımda hata oluştu" (48 events,
+        // 8 users): optionDir is what executeStep receives as packageDir, so
+        // falling back to the package root also moved the run step's working
+        // directory.
+        const QString optionDir = resolveOptionDir(basePackageDir, opt.subDir);
         if (!QDir(optionDir).exists()) {
             qCWarning(lcPackageManager) << "Option source dir not found:" << optionDir;
             errors++;
@@ -2835,7 +3189,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             StepOutcome outcome = executeStep(step, gamePath, optionDir,
                                               progress, current, totalSteps,
                                               prefix, pkg.steamAppId,
-                                              installedFiles, &failDetail);
+                                              installedFiles, replacedFiles, &failDetail);
             if (outcome == StepOutcome::FatalError) return;
             if (outcome == StepOutcome::Cancelled) {
                 if (m_journal) m_journal->abortOperation();
@@ -2859,7 +3213,7 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             StepOutcome outcome = executeStep(step, gamePath, basePackageDir,
                                               progress, current, totalSteps,
                                               QString{}, pkg.steamAppId,
-                                              installedFiles, &failDetail);
+                                              installedFiles, replacedFiles, &failDetail);
             if (outcome == StepOutcome::FatalError) return;
             if (outcome == StepOutcome::Cancelled) {
                 if (m_journal) m_journal->abortOperation();
@@ -2874,17 +3228,14 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
     }
 
     if (errors == 0) {
-        QMetaObject::invokeMethod(this, [this, steamAppId = pkg.steamAppId, gamePath, pkg, installedFiles]() {
-            packages::InstalledPackageState state;
-            state.version = pkg.version.toStdString();
-            state.gamePath = gamePath.toStdString();
-            for (const QString& f : installedFiles)
-                state.installedFiles.push_back(f.toStdString());
-            state.installedAt = QDateTime::currentSecsSinceEpoch();
-            m_catalog.markInstalled(steamAppId.toStdString(), state);
-            saveCatalogInstalledState(m_catalog, installedStatePath());
-            if (m_journal) m_journal->commitOperation();
-        }, Qt::QueuedConnection);
+        // Which files were the game's own decides what uninstall deletes. Not
+        // recorded before, so uninstall deleted the originals the restore had
+        // just put back — Far Cry 3 lost common.fat, Half-Life its .wav files.
+        QStringList added;
+        for (const QString& f : installedFiles)
+            if (!f.startsWith(QLatin1Char('_')) && !replacedFiles.contains(f)) added << f;
+        saveInstallState(pkg.steamAppId, gamePath, pkg, installedFiles, added,
+                         replacedFiles.values());
 
         emit installCompleted(true, tr("Kurulum başarıyla tamamlandı"));
     } else {
@@ -2907,7 +3258,8 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 
 // -- Uninstall package --------------------------------------------------------
 
-bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath)
+bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath,
+                                           const QString& restoredFrom)
 {
     MAKINE_ZONE_NAMED("LPM::uninstallPackage");
     INTEGRITY_GATE();
@@ -2919,9 +3271,14 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     if (!maybeState) return false;
 
     const auto& coreState = *maybeState;
-    const QString basePath = coreState.gamePath.empty()
+    // The recorded path, unless the game has moved since: the restore just
+    // wrote to gamePath, and deleting at a folder that is gone removed nothing
+    // while the patch files stayed in the new one.
+    const QString recordedPath = QString::fromStdString(coreState.gamePath);
+    const QString basePath = (recordedPath.isEmpty()
+                              || (!QDir(recordedPath).exists() && QDir(gamePath).exists()))
         ? gamePath
-        : QString::fromStdString(coreState.gamePath);
+        : recordedPath;
 
     // Files we REPLACED at install time — BackupManager::restoreBackup
     // copies the originals back over them in the uninstall flow. Deleting
@@ -3073,12 +3430,29 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
             qCDebug(lcPackageManager) << "Preserving restored original:" << relPath;
             continue;
         }
-        if (QFile::exists(fullPath)) {
-            if (QFile::remove(fullPath)) {
+        // Same for a file the backup holds: it was the game's before the
+        // install. Recipe installs recorded no replaced list before 0.1.6, so
+        // for those states this is the only thing that tells an original from
+        // an added file (crash recovery uses the same rule).
+        if (!restoredFrom.isEmpty()
+            && rawfile::exists(QDir::cleanPath(restoredFrom + "/" + relPath))) {
+            qCDebug(lcPackageManager) << "Preserving restored original (in backup):" << relPath;
+            continue;
+        }
+        if (rawfile::exists(fullPath)) {
+            // A read-only attribute (copied over from the package or set by
+            // the game) fails the delete even with write access to the folder.
+            QFile victim(fullPath);
+            if (victim.remove()
+                || (QFile::setPermissions(fullPath, QFile::permissions(fullPath)
+                                                        | QFileDevice::WriteOwner
+                                                        | QFileDevice::WriteUser)
+                    && victim.remove())) {
                 deleted++;
                 if (m_journal) m_journal->recordFileModified(relPath);
             } else {
-                qCWarning(lcPackageManager) << "Failed to remove:" << fullPath;
+                qCWarning(lcPackageManager) << "Failed to remove:" << fullPath
+                                            << "—" << victim.errorString();
                 remaining.push_back(relPathStd);
             }
         }

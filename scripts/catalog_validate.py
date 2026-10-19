@@ -49,11 +49,18 @@ for _s in (sys.stdout, sys.stderr):
         _s.reconfigure(encoding="utf-8", errors="replace")
 
 CDN = "https://cdn.makineceviri.org"
-UA = {"User-Agent": "Makine-Launcher/0.1"}
+# The recipe the launcher executes comes from here (Makine-WEB Worker -> D1).
+# The CDN's assets/packages/<id>.json is a mirror nothing reads; it had drifted
+# from D1 for 95 packages when this was switched (2026-10-08).
+API = "https://makineceviri.org/api/v2"
+# Recipe level: validate the recipes this tree runs, not the ones the API keeps
+# for 0.1.5 (installsteprules.h kRecipeLevel).
+UA = {"User-Agent": "Makine-Launcher/0.1", "X-Makine-Recipe": "2"}
 
 # Mirrors kKnownStepActions in localpackagemanager.cpp.
 KNOWN_ACTIONS = {"copy", "copyFile", "copyDir", "delete", "installFont",
-                 "run", "copyToDesktop", "rename", "setSteamLanguage", "vpatch"}
+                 "run", "copyToDesktop", "rename", "setSteamLanguage", "vpatch",
+                 "patchBytes", "forgeReimport", "xdelta"}
 # Mirrors missingStepField() in installsteprules.h.
 REQUIRED = {
     "copy": ("src", "dest"), "copyFile": ("src", "dest"),
@@ -63,9 +70,14 @@ REQUIRED = {
     # "patch"/"target" are the VPatch tool's names for src/dest; the catalog
     # parser maps them, so either spelling satisfies this.
     "vpatch": ("src|patch", "dest|target"),
+    "patchBytes": ("src", "patches"),
+    "forgeReimport": ("src", "dest"), "xdelta": ("src", "dest"),
 }
 # Mirrors kOverlaySafeTypes.
 OVERLAY_SAFE = {"", "direct", "overlay", "copy", "file-replace"}
+# Mirrors steprules::emptyRecipeIsPlainOverlay: with no steps at all these
+# install as a plain overlay (0.1.5+), so an empty recipe is not a gate.
+EMPTY_IS_OVERLAY = OVERLAY_SAFE | {"script", "copyFile", "copyDir"}
 # Types that intentionally redirect instead of installing.
 # "vpatch" left out on purpose: the launcher applies that format itself now
 # (vpatchapply.h), so a vpatch package installs rather than redirecting.
@@ -73,7 +85,7 @@ REDIRECT_TYPES = {"external", "forge_inject", "workshop", "installer",
                   "paradox-mod", "unityPatch", "modengine", "d2r_mod"}
 # Keys the step parser reads. Anything else in a step is silently discarded.
 PARSED_KEYS = {"action", "src", "dest", "exe", "fallback", "workDir",
-               "language", "args", "cmd", "patch", "target"}
+               "language", "args", "cmd", "patch", "target", "patches"}
 
 
 def fetch(url, as_json=True):
@@ -152,11 +164,10 @@ def check_package(app_id, meta, no_network):
                          "code": code, "detail": detail})
 
     try:
-        pkg = fetch(f"{CDN}/assets/packages/{app_id}.json")
+        pkg = fetch(f"{API}/games/{app_id}")
     except Exception as exc:
-        # Not a defect for a redirect row: package_pipeline.py only writes a
-        # detail JSON for packages we host, and the launcher reads detail from
-        # api/v2/games/<id> regardless. 332800 and hytale are hangar rows.
+        # Not a defect for a redirect row: hangar rows have no D1 entry and
+        # the launcher sends the user to externalUrl instead.
         if str(meta.get("source") or "makine") == "makine":
             add("DETAIL404", f"detay JSON alınamadı: {exc}")
         return findings
@@ -211,7 +222,7 @@ def check_package(app_id, meta, no_network):
     if itype == "userPath":
         if not im.get("target"):
             add("GATE", "tip='userPath' ama 'target' alanı yok — kurulamaz")
-    elif itype not in OVERLAY_SAFE and not has_steps and itype not in REDIRECT_TYPES:
+    elif itype not in EMPTY_IS_OVERLAY and not has_steps and itype not in REDIRECT_TYPES:
         add("GATE", f"tip='{itype}', adım yok — otomatik kurulamaz")
 
     data_url = meta.get("dataUrl") or pkg.get("dataUrl") or ""
@@ -252,7 +263,8 @@ def main():
           f"· {index.get('generatedAt', '')}", file=sys.stderr)
 
     findings = []
-    with ThreadPoolExecutor(max_workers=16) as pool:
+    # The site's WAF starts rate-limiting above 6 parallel requests.
+    with ThreadPoolExecutor(max_workers=6) as pool:
         futures = [pool.submit(check_package, aid, meta, args.no_network)
                    for aid, meta in packages.items()]
         for f in futures:

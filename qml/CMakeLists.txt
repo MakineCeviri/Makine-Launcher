@@ -117,11 +117,15 @@ set(BACKEND_SOURCES
     src/services/crashreporter.cpp
     src/services/networksecurity.cpp
     src/services/pluginmanager.cpp
+    src/services/pluginmanifest.cpp
+    src/services/plugininstaller.cpp
+    src/services/pluginprocess.cpp
+    src/services/pluginregistry.cpp
     src/services/elevatedops.cpp
-    src/services/ocrcontroller.cpp
     src/services/translationstatemanager.cpp
     src/services/installflowservice.cpp
     src/services/rendergovernor.cpp
+    src/services/xdeltaapply.cpp
 )
 
 set(BACKEND_HEADERS
@@ -155,9 +159,14 @@ set(BACKEND_HEADERS
     src/services/apppaths.h
     src/services/profiler.h
     src/services/pluginmanager.h
-    src/services/ocrcontroller.h
+    src/services/pluginmanifest.h
+    src/services/plugininstaller.h
+    src/services/pluginprocess.h
+    src/services/pluginregistry.h
+    src/services/pluginwire.h
     src/services/translationstatemanager.h
     src/services/installflowservice.h
+    src/services/xdeltaapply.h
 )
 
 # encryption_key.h is generated at build time (not in repo) — only needed for full builds
@@ -361,7 +370,9 @@ target_link_libraries(MakineLauncher PRIVATE
     Qt6::Network
     Qt6::Svg
     Qt6::Concurrent
-    wintrust   # DLL signature verification
+    wintrust   # SelfUpdater: Authenticode check of downloaded updates
+    crypt32    # DPAPI for plugin secret settings
+    xdelta3    # VCDIFF decoder for the "xdelta" install step (third_party/)
 )
 
 # Static Qt: import QML plugins at link time (no-op for shared builds)
@@ -584,7 +595,16 @@ endif()
 # keeps that section, so the shipped file and the .sym copy identify as the same
 # module. Packaging (scripts/make_msix.ps1) names the files it stages, so the
 # .sym copy never reaches the installer and the shipped size is unchanged.
+#
+# The `nm` count above was the wrong test: Sentry reads DWARF, not the COFF
+# symbol table, so 0.1.5's .sym (no -g) still put every frame of ours on the
+# exe's only export, qml_register_types_MakineLauncher. -g1 adds function names
+# and line tables — enough for a stack, and stripped from the shipped file.
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MSVC)
+    target_compile_options(MakineLauncher PRIVATE -g1)
+    if(TARGET makine_core)
+        target_compile_options(makine_core PRIVATE -g1)
+    endif()
     target_link_options(MakineLauncher PRIVATE "-Wl,--build-id=sha1")
 
     add_custom_command(TARGET MakineLauncher POST_BUILD

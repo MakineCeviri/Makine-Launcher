@@ -283,6 +283,11 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames, QStringList& not
         QDir steamappsDir(libPath + "/steamapps");
         totalGames += steamappsDir.entryList({"appmanifest_*.acf"}, QDir::Files).size();
     }
+    // Steam found yet nothing to read: say where it stopped. The scan_empty
+    // reports with Steam present (10 users, 2026-10) could not tell "no
+    // library" from "no manifest" from "every manifest filtered out".
+    if (totalGames == 0)
+        notes << QStringLiteral("steam:libs=%1 acf=0").arg(libraryPaths.size());
 
     // Second pass: parse each ACF
     for (const QString& libPath : libraryPaths) {
@@ -1090,6 +1095,12 @@ void CoreBridge::scanAllLibraries()
         } else if (catalogSize == 0) {
             CrashReporter::addBreadcrumb("scan",
                 "catalog empty: no cached index yet (first launch, sync pending)");
+        } else if (count == 0 && scanNotes.contains(QStringLiteral("steam:notfound"))) {
+            // No store client at all: repack games kept in arbitrary folders,
+            // added by hand. Nothing failed — every event of the steam:notfound
+            // "scan_empty" issue (21 users, Sentry 2026-10) was such a machine.
+            TelemetryService::record(QStringLiteral("scan"), QStringLiteral("empty_nostore"), {},
+                                     {{QStringLiteral("catalog"), catalogSize}});
         } else if (count == 0) {
             CrashReporter::reportFailure("scan", QStringLiteral("empty"),
                 tr("Hiçbir tarayıcı oyun bulamadı (%1)").arg(summary));
@@ -1400,6 +1411,13 @@ QStringList CoreBridge::getPackageFileList(const QString& gameId, const QString&
     return m_localPkgManager->getPackageFileList(resolved, variant, gamePath);
 }
 
+QStringList CoreBridge::unknownRecipeActions(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? QStringList{} : m_localPkgManager->unknownRecipeActions(resolved);
+}
+
 QString CoreBridge::findMatchingAppId(const QString& folderName)
 {
     MAKINE_ZONE_NAMED("CoreBridge::findMatchingAppId");
@@ -1526,7 +1544,8 @@ void CoreBridge::updateInstalledStoreVersion(const QString& gameId, const QStrin
     m_localPkgManager->updateInstalledStoreVersion(resolved, storeVersion, source);
 }
 
-bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath)
+bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath,
+                                  const QString& restoredFrom)
 {
     MAKINE_ZONE_NAMED("CoreBridge::uninstallPackage");
     if (!m_localPkgManager) return false;
@@ -1534,7 +1553,7 @@ bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath
     QString resolved = resolveToSteamAppId(gameId);
     if (resolved.isEmpty()) return false;
 
-    return m_localPkgManager->uninstallPackage(resolved, gamePath);
+    return m_localPkgManager->uninstallPackage(resolved, gamePath, restoredFrom);
 }
 
 void CoreBridge::refreshPackageManifest()

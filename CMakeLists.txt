@@ -96,6 +96,9 @@ endif()
 
 # Qt/QML application
 if(NOT MAKINE_CORE_ONLY)
+    # Vendored xdelta3 decoder (C) for the "xdelta" install step.
+    enable_language(C)
+    add_subdirectory(third_party/xdelta3)
     add_subdirectory(qml)
 endif()
 
@@ -115,10 +118,32 @@ if(WIN32 AND NOT MAKINE_CORE_ONLY)
         WIN32_EXECUTABLE OFF
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON)
+    target_link_libraries(makine-elevate PRIVATE advapi32)  # GRANT: ACL API
     if(MINGW)
         # wmain needs the unicode entry point; keep the binary free of the C++
         # runtime DLLs so it can be dropped next to the launcher unchanged.
         target_link_options(makine-elevate PRIVATE
+            -municode -static -static-libgcc -static-libstdc++)
+    endif()
+endif()
+
+# Plugin host (docs/adr/0009-plugin-system-v2.md). Every enabled plugin runs in
+# its own copy, so a plugin crash or hang never takes the launcher with it.
+# Qt-free and statically linked: no Qt or C++ runtime DLL is loaded in the
+# process before the plugin, so a plugin brings whichever versions it needs.
+if(WIN32 AND NOT MAKINE_CORE_ONLY AND NOT MAKINE_UI_ONLY)
+    find_package(nlohmann_json CONFIG REQUIRED)
+    add_executable(makine-plugin-host WIN32
+        tools/plugin-host/plugin_host.cpp
+        tools/plugin-host/plugin_host.rc)
+    set_target_properties(makine-plugin-host PROPERTIES
+        OUTPUT_NAME "makine-plugin-host"
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON)
+    target_include_directories(makine-plugin-host PRIVATE core/include)
+    target_link_libraries(makine-plugin-host PRIVATE nlohmann_json::nlohmann_json shell32)
+    if(MINGW)
+        target_link_options(makine-plugin-host PRIVATE
             -municode -static -static-libgcc -static-libstdc++)
     endif()
 endif()

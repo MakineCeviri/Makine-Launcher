@@ -15,6 +15,8 @@ An Architecture Decision Record (ADR) is a document that captures an important a
 | [ADR-0004](0004-optional-library-integration.md) | Optional Library Integration Pattern | Accepted | 2026-01 |
 | [ADR-0006](0006-adaptation-engine-direction.md) | Adaptation Engine Direction | Accepted | 2026-02 |
 | [ADR-0007](0007-memory-translation-extractor.md) | Memory Translation Extractor | Accepted | 2026-02 |
+| [ADR-0008](0008-manifest-sync-architecture.md) | ManifestSync Service Decomposition | Accepted | 2026-03 |
+| [ADR-0009](0009-plugin-system-v2.md) | Plugin System v2 — out-of-process plugins, signed registry | Accepted | 2026-10 |
 
 ## References
 

@@ -48,10 +48,41 @@ Item {
         { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
     ]
 
-    // Discover loaded plugins with settings — delegates to PluginManager C++
-    readonly property var _pluginCategories: {
-        if (!devToolsEnabled || !PluginManager) return []
-        return PluginManager.settingsCategories()
+    // Enabled plugins with settings or actions — delegates to PluginManager C++.
+    // settingsCategories() has no change signal, so it is re-read on pluginsChanged
+    // and replaced only when the entries differ (see _refreshPluginCategories).
+    property var _pluginCategories: []
+
+    // The "Eklentiler" page; plugin pages only exist when dev tools are on.
+    readonly property int _pluginsPageIndex: 2
+
+    function _refreshPluginCategories() {
+        var next = (devToolsEnabled && PluginManager) ? PluginManager.settingsCategories() : []
+        if (JSON.stringify(next) === JSON.stringify(_pluginCategories)) return
+
+        var shown = categories[selectedCategory]
+        _pluginCategories = next
+
+        // The page on screen was a plugin's: follow it to its new index, or fall
+        // back to the plugin list when the plugin was disabled or removed.
+        if (shown && shown.isPlugin) {
+            var index = _pluginsPageIndex
+            for (var i = 0; i < categories.length; i++)
+                if (categories[i].pluginId === shown.pluginId) index = i
+            selectedCategory = index
+        }
+    }
+
+    function _pluginIdAt(i) {
+        var cat = categories[i]
+        return cat && cat.isPlugin ? cat.pluginId : ""
+    }
+
+    Component.onCompleted: _refreshPluginCategories()
+
+    Connections {
+        target: PluginManager
+        function onPluginsChanged() { root._refreshPluginCategories() }
     }
 
     // Plugin pages go AFTER Hakkında (at the very bottom) — Eklentiler hidden in release
@@ -68,6 +99,9 @@ Item {
     readonly property var _staticSourcesEnd: [
         "screens/settings/AboutSettings.qml"
     ]
+
+    // The category on screen; a plugin's page can vanish a moment before the selection moves.
+    readonly property var _current: categories[selectedCategory] || categories[0]
 
     readonly property var panelSources: {
         var base = devToolsEnabled ? _staticSources : _staticSources.filter(function(s) { return s.indexOf("Plugins") === -1 })
@@ -128,7 +162,7 @@ Item {
 
                             Label {
                                 textFormat: Text.PlainText
-                                text: categories[selectedCategory].name
+                                text: root._current.name
                                 font.pixelSize: Dimensions.fontHero
                                 font.weight: Font.DemiBold
                                 color: Theme.textPrimary
@@ -138,7 +172,7 @@ Item {
 
                             Label {
                                 textFormat: Text.PlainText
-                                text: categories[selectedCategory].description
+                                text: root._current.description
                                 font.pixelSize: Dimensions.fontMD
                                 color: Theme.textMuted
                             }
@@ -230,28 +264,56 @@ Item {
                                 }
                             }
 
+                            // One slot per page. Plugin pages come and go at the end, and
+                            // appending or removing slots leaves the other pages alone (a
+                            // Repeater over a plain number would rebuild every page).
+                            ListModel { id: pageSlots }
+
+                            function syncPageSlots() {
+                                var n = root.panelSources.length
+                                while (pageSlots.count < n) pageSlots.append({ slot: pageSlots.count })
+                                while (pageSlots.count > n) pageSlots.remove(pageSlots.count - 1)
+                            }
+
+                            Connections {
+                                target: root
+                                function onPanelSourcesChanged() { pageContainer.syncPageSlots() }
+                            }
+
+                            Component.onCompleted: syncPageSlots()
+
                             Repeater {
                                 id: pageRepeater
-                                model: root.panelSources
+                                model: pageSlots
 
                                 Loader {
+                                    id: pageLoader
                                     required property int index
-                                    required property string modelData
 
                                     anchors.left: parent ? parent.left : undefined
                                     anchors.right: parent ? parent.right : undefined
                                     y: 0
 
-                                    active: pageContainer._visited[index]
+                                    active: !!pageContainer._visited[index]
                                     visible: root.selectedCategory === index
                                     asynchronous: index > 0
-                                    source: modelData
+                                    source: root.panelSources[index] || ""
+
+                                    // Plugin pages share one source; which plugin they show follows the category.
+                                    Binding {
+                                        target: pageLoader.item
+                                        property: "pluginId"
+                                        value: root._pluginIdAt(pageLoader.index)
+                                        when: pageLoader.item !== null && root._pluginIdAt(pageLoader.index) !== ""
+                                    }
 
                                     onLoaded: {
-                                        // Set pluginId for plugin settings pages
-                                        var cat = root.categories[index]
-                                        if (cat && cat.isPlugin && item && "pluginId" in item)
-                                            item.pluginId = cat.pluginId
+                                        // A page's height follows its content (lists load, details open).
+                                        if (item)
+                                            item.implicitHeightChanged.connect(function() {
+                                                if (root.selectedCategory === pageLoader.index)
+                                                    pageContainer.updateHeight()
+                                            })
 
                                         // Wire GeneralSettings (page 0) signals here.
                                         // itemAt() is not bindable, so the old

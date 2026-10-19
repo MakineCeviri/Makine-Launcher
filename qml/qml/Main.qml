@@ -991,35 +991,204 @@ ApplicationWindow {
         }
     }
 
-    // ===== OCR REGION SELECTOR (dev builds only) =====
+    // ===== PLUGIN REQUESTS (dev builds only: PluginManager is null otherwise) =====
+    // A plugin asks, the user answers through these; the request id ties the two.
+    property int _regionRequestId: 0
+    property int _attachRequestId: 0
+    property string _attachPluginName: ""
+    property string _attachGameName: ""
+    property var _attachQueue: []
+
+    function _pluginName(pluginId) {
+        var info = PluginManager ? PluginManager.plugin(pluginId) : null
+        return (info && info.name) || pluginId
+    }
+
+    function _answerRegion(x, y, w, h) {
+        if (window._regionRequestId > 0 && PluginManager)
+            PluginManager.answerRegion(window._regionRequestId, x, y, w, h)
+        window._regionRequestId = 0
+    }
+
+    function _answerAttach(allow, remember) {
+        if (window._attachRequestId > 0 && PluginManager)
+            PluginManager.answerAttach(window._attachRequestId, allow, remember)
+        window._attachRequestId = 0
+    }
+
+    // One dialog at a time; the rest wait in line.
+    function _showNextAttach() {
+        if (attachDialog.visible || window._attachQueue.length === 0) return
+        var next = window._attachQueue[0]
+        window._attachQueue = window._attachQueue.slice(1)
+        window._attachRequestId = next.requestId
+        window._attachPluginName = next.pluginName
+        window._attachGameName = next.gameName
+        attachDialog.open()
+    }
+
+    Connections {
+        target: PluginManager
+        function onRegionRequested(requestId, pluginId, pluginName) {
+            window._regionRequestId = requestId
+            regionSelector.pluginName = pluginName
+            regionSelector.show()
+        }
+        function onAttachRequested(requestId, pluginId, pluginName, gameName) {
+            window._attachQueue = window._attachQueue.concat([
+                { requestId: requestId, pluginId: pluginId, pluginName: pluginName, gameName: gameName }])
+            window._showNextAttach()
+        }
+        // The launcher forgets a request when its plugin stops; so must the UI.
+        function onRequestCancelled(requestId) {
+            if (window._regionRequestId === requestId) {
+                window._regionRequestId = 0
+                regionSelector.hide()
+            }
+            if (window._attachRequestId === requestId) {
+                window._attachRequestId = 0
+                attachDialog.close()
+            }
+            window._attachQueue = window._attachQueue.filter(function(r) {
+                return r.requestId !== requestId
+            })
+        }
+        function onNotify(pluginId, pluginName, title, message, kind) {
+            var mark = { success: "✓ ", warning: "⚠ ", error: "✕ " }[kind] || ""
+            gameToast.show("", pluginName,
+                mark + (title ? pluginName + ": " + title : pluginName),
+                message || qsTr("Eklenti bildirimi"))
+        }
+        function onPluginError(pluginId, message) {
+            var name = pluginId ? window._pluginName(pluginId) : ""
+            gameToast.show("", name,
+                name ? qsTr("Eklenti hatası: %1").arg(name) : qsTr("Eklenti hatası"),
+                message || qsTr("Bilinmeyen bir hata oluştu."))
+        }
+        function onPluginInstalled(pluginId) {
+            var name = window._pluginName(pluginId)
+            gameToast.show("", name, qsTr("%1 kuruldu").arg(name),
+                qsTr("Ayarlar > Eklentiler bölümünden yönetebilirsiniz."))
+        }
+    }
+
+    // ===== PLUGIN REGION SELECTOR =====
     RegionSelector {
         id: regionSelector
-        onRegionSelected: function(rx, ry, rw, rh) {
-            if (OcrController) OcrController.setRegion(rx, ry, rw, rh)
-        }
+        onRegionSelected: function(rx, ry, rw, rh) { window._answerRegion(rx, ry, rw, rh) }
+        onCancelled: window._answerRegion(0, 0, 0, 0)
     }
 
-    // ===== OCR TRANSLATION OVERLAY (dev builds only) =====
+    // ===== PLUGIN TRANSLATION OVERLAY =====
+    // The plugin shows and hides it (overlay.show / overlay.hide), so no timer here.
     TranslationOverlay {
         id: translationOverlay
-        visible: OcrController ? OcrController.overlayVisible : false
-        sourceRegion: OcrController ? OcrController.captureRegion : Qt.rect(0,0,0,0)
+        autoHide: false
+        sourceRegion: PluginManager ? PluginManager.overlayRegion : Qt.rect(0, 0, 0, 0)
+        translatedText: PluginManager ? PluginManager.overlayText : ""
+        ocrText: PluginManager ? PluginManager.overlaySourceText : ""
     }
 
-    // ===== OCR SIGNAL WIRING (dev builds only) =====
-    Connections {
-        target: OcrController || null
-        function onTranslationReady(text) {
-            translationOverlay.translatedText = text
+    // A Binding rather than `visible:` — the overlay window assigns visible itself
+    // when new text arrives, which would drop a plain binding.
+    Binding {
+        target: translationOverlay
+        property: "visible"
+        value: PluginManager ? PluginManager.overlayVisible : false
+    }
+
+    // ===== PLUGIN ATTACH CONSENT =====
+    // Attaching to a game process can trip anti-cheat, so it is never silent.
+    component AttachDialogButton: Rectangle {
+        id: attachBtn
+        property string text: ""
+        property bool filled: false
+        signal clicked()
+
+        Layout.preferredWidth: _attachLbl.implicitWidth + Dimensions.paddingLG * 2
+        Layout.preferredHeight: 34
+        radius: Dimensions.radiusStandard
+        color: attachBtn.filled
+               ? (_attachMouse.containsMouse ? Theme.warning : Theme.withAlpha(Theme.warning, 0.85))
+               : (_attachMouse.containsMouse ? Theme.textPrimary08 : "transparent")
+        border.color: attachBtn.filled ? "transparent" : Theme.textPrimary12
+        border.width: 1
+        scale: _attachMouse.pressed ? Dimensions.pressScale : 1.0
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: attachBtn.text
+        Keys.onReturnPressed: attachBtn.clicked()
+        Keys.onSpacePressed: attachBtn.clicked()
+
+        Label {
+            id: _attachLbl
+            anchors.centerIn: parent
+            textFormat: Text.PlainText
+            text: attachBtn.text
+            font.pixelSize: Dimensions.fontSM
+            font.weight: attachBtn.filled ? Font.DemiBold : Font.Medium
+            color: attachBtn.filled ? Theme.textOnColor
+                 : (_attachMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary)
         }
-        function onOcrTextReady(text) {
-            translationOverlay.ocrText = text
+
+        MouseArea {
+            id: _attachMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: attachBtn.clicked()
         }
-        function onRegionSelectingChanged() {
-            if (OcrController && OcrController.regionSelecting)
-                regionSelector.show()
-            else
-                regionSelector.hide()
+    }
+
+    ConfirmDialog {
+        id: attachDialog
+        parent: Overlay.overlay
+        accentColor: Theme.warning
+        width: 520
+        title: qsTr("Oyuna bağlanma isteği")
+        message: qsTr("%1 eklentisi %2 oyununa bağlanmak istiyor.")
+                     .arg(window._attachPluginName).arg(window._attachGameName)
+                 + "\n\n"
+                 + qsTr("Bu işlem çevrimiçi oyunlarda hile koruması tarafından fark edilebilir ve hesabınızın engellenmesine yol açabilir. Yalnızca ne yaptığınızdan eminseniz izin verin.")
+        // Escape and the close button count as a refusal.
+        onCancelled: window._answerAttach(false, false)
+        onClosed: window._showNextAttach()
+
+        footer: Item {
+            implicitHeight: 56
+
+            Rectangle {
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                height: 1; color: Theme.textPrimary06
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Dimensions.paddingLG
+                anchors.rightMargin: Dimensions.paddingLG
+                spacing: Dimensions.spacingMD
+
+                AttachDialogButton {
+                    text: qsTr("Reddet")
+                    onClicked: { window._answerAttach(false, false); attachDialog.close() }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                AttachDialogButton {
+                    text: qsTr("Bu oyun için hep izin ver")
+                    onClicked: { window._answerAttach(true, true); attachDialog.close() }
+                }
+
+                AttachDialogButton {
+                    filled: true
+                    text: qsTr("Bağlan")
+                    onClicked: { window._answerAttach(true, false); attachDialog.close() }
+                }
+            }
         }
     }
 

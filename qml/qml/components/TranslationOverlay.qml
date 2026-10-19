@@ -21,6 +21,9 @@ Window {
     property string ocrText: ""
     property rect sourceRegion: Qt.rect(0, 0, 0, 0)
 
+    // Off when a plugin drives the overlay and hides it itself
+    property bool autoHide: true
+
     // Configurable from plugin settings
     property color textColor: "#f3f4f6"
     property int textSize: 15
@@ -56,7 +59,7 @@ Window {
     onTranslatedTextChanged: {
         if (translatedText.length > 0) {
             visible = true
-            hideTimer.restart()
+            if (overlayWindow.autoHide) hideTimer.restart()
         }
     }
 }

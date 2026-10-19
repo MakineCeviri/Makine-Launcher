@@ -2,7 +2,7 @@
 
 <!-- Build, mimari, kurallar, tuzaklar → proje kökündeki CLAUDE.md (o da her oturum yüklenir; burada tekrarlama). -->
 
-> **Durum (2026-10-06):** v0.1.5-beta `dev`'in ucundan paketlendi (ZIP + MSIX 0.1.5.0), kod sağlığı turunu da taşıyor · CI açık · sonraki: v0.2.0 (`docs/v0.2.0-todo.md`)
+> **Durum (2026-10-08):** v0.1.5-beta yayında · 0.1.6 yama/kurulum/kaldırma turu çalışma ağacında (commit edilmedi; eski yükleyici adımları, kaldırma doğruluğu, tar adları, `.lnk`, uzun yollar — `docs/v0.2.0-todo.md`) · veri tarafı (D1, R2, Assets) yayında · eklenti sistemi v2 de çalışma ağacında (ADR-0009, `docs/plugins/`; hâlâ `MAKINE_DEV_TOOLS` arkasında; imza anahtarı → auto-memory)
 > **Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** (en üstteki 2026-10-06 güncellemesi dahil) — durum, kalan yayın adımları, tuzaklar.
 > **Sahibinde:** Store gönderimi (Partner Center — MSIX yükleme + mağaza girişi CSV'si).
 > **Eski depo:** Makine-Launcher-Dev arşivli (read-only yedek, 2026-05-20).

@@ -24,6 +24,9 @@ Window {
     signal regionSelected(int rx, int ry, int rw, int rh)
     signal cancelled()
 
+    // Plugin that asked for the region; named in the instruction when set
+    property string pluginName: ""
+
     property bool selecting: false
     property point startPos: Qt.point(0, 0)
     property rect selectionRect: Qt.rect(0, 0, 0, 0)
@@ -99,7 +102,8 @@ Window {
         Text {
             anchors.centerIn: parent
             visible: !regionWindow.selecting && regionWindow.selectionRect.width === 0
-            text: "Fare ile s\u00fcr\u00fckleyerek OCR b\u00f6lgesi se\u00e7in\nESC ile iptal"
+            text: (regionWindow.pluginName !== "" ? regionWindow.pluginName + "\n" : "")
+                  + "Fare ile s\u00fcr\u00fckleyerek b\u00f6lge se\u00e7in\nESC ile iptal"
             font.pixelSize: 18; font.weight: Font.Medium
             color: "#ffffff"
             horizontalAlignment: Text.AlignHCenter

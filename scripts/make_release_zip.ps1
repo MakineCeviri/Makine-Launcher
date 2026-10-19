@@ -69,6 +69,13 @@ if (Test-Path $elevate) {
   Write-Warning "makine-elevate.exe missing next to the launcher - admin-owned install paths will fail"
 }
 
+# Plugin host - each enabled plugin runs in its own copy (docs/plugins/README.md).
+# Optional until plugins leave MAKINE_DEV_TOOLS: staged whenever the build made it.
+$pluginHost = Join-Path $srcDir "makine-plugin-host.exe"
+if (Test-Path $pluginHost) {
+  Copy-Item $pluginHost (Join-Path $stage "makine-plugin-host.exe") -Force
+}
+
 # Project DLLs first, so windeployqt sees the full dependency set.
 $dlls = Get-ChildItem $srcDir -Filter *.dll -EA SilentlyContinue
 if ($dlls) {
@@ -85,10 +92,9 @@ $deployArgs = @(
 if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 
 if ($Sign) {
-  & (Join-Path $repo "scripts/sign_exe.ps1") -Path @(
-      (Join-Path $stage "Makine-Launcher.exe"),
-      (Join-Path $stage "makine-elevate.exe")
-  )
+  $toSign = @("Makine-Launcher.exe", "makine-elevate.exe", "makine-plugin-host.exe") |
+      ForEach-Object { Join-Path $stage $_ } | Where-Object { Test-Path $_ }
+  & (Join-Path $repo "scripts/sign_exe.ps1") -Path $toSign
   if ($LASTEXITCODE -ne 0) { throw "signing failed ($LASTEXITCODE)" }
 }
 

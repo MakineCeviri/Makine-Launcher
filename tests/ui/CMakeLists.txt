@@ -132,6 +132,28 @@ target_include_directories(test_vpatchapply PRIVATE
 target_link_libraries(test_vpatchapply PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_vpatchapply COMMAND test_vpatchapply)
 
+# Same-length find-and-replace in a game binary (the Elden Ring exe edit).
+add_executable(test_bytepatch test_bytepatch.cpp)
+target_include_directories(test_bytepatch PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_bytepatch PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_bytepatch COMMAND test_bytepatch)
+
+# .forge reimport (AC Valhalla/Mirage), against QuickBMS's own output.
+add_executable(test_forgereimport test_forgereimport.cpp)
+target_include_directories(test_forgereimport PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_forgereimport PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_forgereimport COMMAND test_forgereimport)
+
+# xdelta3 delta decoder (AC Odyssey), against deltas made by the legacy c1.exe.
+add_executable(test_xdeltaapply test_xdeltaapply.cpp
+    ${MAKINE_PROJECT_ROOT}/qml/src/services/xdeltaapply.cpp)
+target_include_directories(test_xdeltaapply PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_xdeltaapply PRIVATE GTest::gtest GTest::gtest_main xdelta3)
+add_test(NAME test_xdeltaapply COMMAND test_xdeltaapply)
+
 # CatalogProxyModel search-engine tests (Qt-dependent, real classes → AUTOMOC)
 add_executable(test_catalogproxymodel test_catalogproxymodel.cpp
     ${MAKINE_PROJECT_ROOT}/qml/src/services/catalogproxymodel.cpp
@@ -141,3 +163,76 @@ target_include_directories(test_catalogproxymodel PRIVATE
     ${MAKINE_PROJECT_ROOT}/qml/src/services)
 target_link_libraries(test_catalogproxymodel PRIVATE GTest::gtest Qt6::Core)
 add_test(NAME test_catalogproxymodel COMMAND test_catalogproxymodel)
+
+# MKPK tar extraction: PAX / GNU name records. mkpkformat.h includes the
+# OpenSSL, zstd and fmt headers (only tar::extract is used), so this needs the
+# vcpkg build.
+if(NOT MAKINE_UI_ONLY)
+    find_package(OpenSSL REQUIRED)
+    find_package(zstd CONFIG REQUIRED)
+    find_package(spdlog CONFIG REQUIRED)
+    add_executable(test_mkpktar test_mkpktar.cpp)
+    target_include_directories(test_mkpktar PRIVATE ${MAKINE_PROJECT_ROOT}/qml/src/services)
+    target_link_libraries(test_mkpktar PRIVATE GTest::gtest GTest::gtest_main
+        OpenSSL::Crypto spdlog::spdlog
+        $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>)
+    add_test(NAME test_mkpktar COMMAND test_mkpktar)
+endif()
+
+# Plugin system v2 (docs/adr/0009-plugin-system-v2.md): manifest rules, wire
+# framing, and the full launcher -> makine-plugin-host -> plugin DLL round trip.
+add_executable(test_pluginmanifest test_pluginmanifest.cpp
+    ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginmanifest.cpp)
+target_include_directories(test_pluginmanifest PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services ${MAKINE_PROJECT_ROOT}/core/include)
+target_link_libraries(test_pluginmanifest PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_pluginmanifest COMMAND test_pluginmanifest)
+
+if(NOT MAKINE_UI_ONLY)
+    # Ed25519 registry signature + entry rules (OpenSSL).
+    add_executable(test_pluginregistry test_pluginregistry.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginregistry.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginmanifest.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginprocess.cpp)
+    set_target_properties(test_pluginregistry PROPERTIES AUTOMOC ON)
+    target_include_directories(test_pluginregistry PRIVATE
+        ${MAKINE_PROJECT_ROOT}/qml/src/services ${MAKINE_PROJECT_ROOT}/core/include)
+    find_package(Qt6 REQUIRED COMPONENTS Network)
+    target_link_libraries(test_pluginregistry PRIVATE GTest::gtest GTest::gtest_main
+        Qt6::Core Qt6::Network OpenSSL::Crypto)
+    add_test(NAME test_pluginregistry COMMAND test_pluginregistry)
+
+    # Staging, update, rollback and removal of plugin folders (real MKPK v2 packages).
+    add_executable(test_plugininstaller test_plugininstaller.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/plugininstaller.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginmanifest.cpp)
+    target_include_directories(test_plugininstaller PRIVATE
+        ${MAKINE_PROJECT_ROOT}/qml/src/services ${MAKINE_PROJECT_ROOT}/core/include)
+    target_link_libraries(test_plugininstaller PRIVATE GTest::gtest GTest::gtest_main Qt6::Core
+        OpenSSL::Crypto spdlog::spdlog
+        $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>)
+    add_test(NAME test_plugininstaller COMMAND test_plugininstaller)
+endif()
+
+if(WIN32 AND TARGET makine-plugin-host)
+    # Static C++ runtime: the host keeps the launcher folder and PATH out of the
+    # plugin's DLL search, so a plugin must carry or embed what it links.
+    add_library(makine-echo-plugin SHARED ${MAKINE_PROJECT_ROOT}/tests/plugins/echo/echo_plugin.cpp)
+    target_include_directories(makine-echo-plugin PRIVATE ${MAKINE_PROJECT_ROOT}/core/include)
+    set_target_properties(makine-echo-plugin PROPERTIES PREFIX "")
+    if(MINGW)
+        target_link_options(makine-echo-plugin PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
+
+    add_executable(test_pluginprocess test_pluginprocess.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginprocess.cpp)
+    set_target_properties(test_pluginprocess PROPERTIES AUTOMOC ON)
+    target_include_directories(test_pluginprocess PRIVATE
+        ${MAKINE_PROJECT_ROOT}/qml/src/services ${MAKINE_PROJECT_ROOT}/core/include)
+    target_compile_definitions(test_pluginprocess PRIVATE
+        MAKINE_PLUGIN_HOST="$<TARGET_FILE:makine-plugin-host>"
+        MAKINE_ECHO_PLUGIN="$<TARGET_FILE:makine-echo-plugin>")
+    target_link_libraries(test_pluginprocess PRIVATE GTest::gtest Qt6::Core)
+    add_dependencies(test_pluginprocess makine-plugin-host makine-echo-plugin)
+    add_test(NAME test_pluginprocess COMMAND test_pluginprocess)
+endif()

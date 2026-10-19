@@ -179,10 +179,14 @@ Item {
             // Reuse the error banner: it is the surface the user is already
             // looking at when they reach for repair, and it auto-clears.
             root.viewModel.installErrorMessage = message
-            installErrorTimer.restart()
+            // Steam takes over when the check started; otherwise the message
+            // lists the store's steps by hand and has to stay to be followed.
+            if (started) installErrorTimer.restart()
+            else installErrorTimer.stop()
         }
         function onTranslationInstallStarted(gId) {
             if (gId === root.viewModel.gameId) {
+                root.viewModel.installErrorMessage = ""
                 root.viewModel.isInstallingTranslation = true
                 root.viewModel.installProgress = 0
                 root.viewModel.installStatus = qsTr("Kuruluyor...")
@@ -221,8 +225,12 @@ Item {
                     root.viewModel.installErrorMessage = ""
                     installSuccessTimer.restart()
                 } else {
+                    // Not auto-cleared either, for the uninstall reason above:
+                    // the message is the fix (close the game, say "Evet" to the
+                    // prompt, a folder to open) and takes longer than six
+                    // seconds to read. Cleared when the next install starts.
+                    installErrorTimer.stop()
                     root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
-                    installErrorTimer.restart()
                 }
             }
         }

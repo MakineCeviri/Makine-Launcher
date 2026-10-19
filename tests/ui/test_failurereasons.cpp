@@ -163,6 +163,28 @@ TEST(FailureReasons, TheFailingActionIsReadBackOutOfTheDetail)
               QStringLiteral("setSteamLanguage"));
 }
 
+TEST(FailureReasons, InPlacePatchStepsAreTaggedToo)
+{
+    // AC III Remastered (911400) and Fahrenheit (312840) failed in vpatch and
+    // arrived with no fail.step at all.
+    EXPECT_EQ(failedStepAction(QStringLiteral(
+        "4/4 adımda hata oluştu\ntr — Adım 1: vpatch AC3SP.forge — hedef dosya oyunda yok")),
+        QStringLiteral("vpatch"));
+    EXPECT_EQ(failedStepAction(QStringLiteral("Adım 2: forgeReimport DataPC.forge")),
+              QStringLiteral("forgeReimport"));
+}
+
+TEST(FailureReasons, OnlyTheUsersCancelIsACancel)
+{
+    // RDR2, Elden Ring, ME LE, Alien: Isolation — the ✕ button, sent to Sentry
+    // as "other". A backup failure that stopped the install shares the words.
+    EXPECT_EQ(failureReason(QStringLiteral("Kurulum iptal edildi")),
+              QStringLiteral("cancelled"));
+    EXPECT_NE(failureReason(QStringLiteral(
+        "Kurulum iptal edildi. Yedek alma yarıda kaldı: 3/5 dosya")),
+        QStringLiteral("cancelled"));
+}
+
 TEST(FailureReasons, AColonThatIsNotAStepYieldsNothing)
 {
     // Only actions the executor dispatches on count; a sentence that happens to

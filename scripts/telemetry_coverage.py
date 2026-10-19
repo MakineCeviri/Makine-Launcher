@@ -52,10 +52,11 @@ TELEMETRY_CALLS = ("reportFailure", "reportOperationFailure")
 # Signals intentionally outside telemetry, with the reason. Anything not listed
 # here and not wired is reported as a gap.
 EXEMPT = {
-    "ocrError": "OCR is an optional plugin; failures are a plugin concern, "
-                "not a launcher defect",
-    "pluginError": "plugin load failures are third-party code; reporting them "
-                   "would attribute other people's bugs to us",
+    "pluginError": "plugins are compiled out of releases (MAKINE_DEV_TOOLS); "
+                   "split host-side install failures (download, checksum, "
+                   "extract) from plugin faults before that gate is lifted",
+    "startFailed": "PluginProcess internal; PluginManager turns it into "
+                   "pluginError, exempt for the same reason",
     "detailsFetchError": "Steam store metadata is cosmetic — a failure degrades "
                          "the card, it does not block the user",
     "steamDetailsFetchError": "GameService only forwards detailsFetchError; "

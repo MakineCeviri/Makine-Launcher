@@ -50,6 +50,7 @@ struct InstallStep {
     std::string fallback;   // fallback executable
     std::string workDir;    // "game" (default) or "package"
     std::string language;   // Steam language name — for "setSteamLanguage"
+    std::vector<std::pair<std::string, std::string>> patches;  // find/replace — for "patchBytes"
 };
 
 /**

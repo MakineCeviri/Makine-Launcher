@@ -12,6 +12,7 @@
 #include "cdnconfig.h"
 #include "networksecurity.h"
 #include "profiler.h"
+#include "installsteprules.h"
 
 #include <makine/path_utils.hpp>
 
@@ -74,6 +75,9 @@ void DetailFetcher::fetch(const QString& appId)
     m_pending.insert(appId);
 
     QNetworkRequest req{QUrl{detailUrl(appId)}};
+    // Which recipe steps this build runs; without it the API serves the
+    // recipe kept for 0.1.5 (installsteprules.h).
+    req.setRawHeader("X-Makine-Recipe", QByteArray::number(steprules::kRecipeLevel));
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
     security::hardenRequest(req, 10000);

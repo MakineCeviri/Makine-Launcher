@@ -9,8 +9,6 @@ Single command to:
   1. Run compression + encryption pipeline (package_pipeline.py)
   2. Upload .makine files to Cloudflare R2 (r2_upload.py)
   3. Upload updated manifests to R2 (wrangler)
-  4. Create Sentry release + associate commits (sentry-cli)
-  5. Upload debug symbols for stack trace symbolication (sentry-cli)
 
 Usage:
     python scripts/deploy.py                     # Full deploy (all packages)
@@ -22,8 +20,6 @@ Usage:
 Prerequisites:
     pip install zstandard cryptography boto3
     CLOUDFLARE_API_TOKEN env var (see .env)
-    SENTRY_AUTH_TOKEN env var (see .env, optional)
-    sentry-cli (pip install sentry-cli, optional)
 """
 
 import argparse
@@ -128,144 +124,6 @@ def upload_manifests_to_r2(dry_run: bool = False) -> bool:
 
     print(f"\n  Total: {uploaded} uploaded, {errors} errors")
     return errors == 0
-
-
-def get_app_version() -> str:
-    """Read MAKINE_VERSION_FULL from top-level CMakeLists.txt."""
-    cmake_path = PROJECT_DIR / "CMakeLists.txt"
-    if not cmake_path.exists():
-        return "0.1.0-alpha"
-
-    version = ""
-    suffix = ""
-    for line in cmake_path.read_text().splitlines():
-        stripped = line.strip()
-        if stripped.startswith("project(") and "VERSION" in stripped:
-            # project(MakineLauncher VERSION 0.1.0 ...)
-            parts = stripped.split()
-            for i, p in enumerate(parts):
-                if p == "VERSION" and i + 1 < len(parts):
-                    version = parts[i + 1].rstrip(")")
-                    break
-        if "MAKINE_VERSION_SUFFIX" in stripped and "set(" in stripped.lower():
-            # set(MAKINE_VERSION_SUFFIX "pre-alpha")
-            if '"' in stripped:
-                suffix = stripped.split('"')[1]
-
-    return f"{version}-{suffix}" if version and suffix else version or "0.1.0-alpha"
-
-
-def sentry_release_tracking(release_version: str, dry_run: bool = False) -> bool:
-    """Create Sentry release, associate commits, and finalize."""
-    print()
-    print("=" * 70)
-    print("  STEP: Sentry Release Tracking")
-    print("=" * 70)
-    print(f"  Release: {release_version}")
-
-    if not os.environ.get("SENTRY_AUTH_TOKEN"):
-        print("  SKIP: SENTRY_AUTH_TOKEN not set")
-        return True  # Non-fatal
-
-    if dry_run:
-        print("  [DRY RUN] Would create + finalize Sentry release")
-        return True
-
-    sentry_cli = "sentry-cli"
-
-    # Create release
-    r = subprocess.run(
-        [sentry_cli, "releases", "new", release_version],
-        capture_output=True, text=True, cwd=str(PROJECT_DIR)
-    )
-    if r.returncode != 0:
-        print(f"  WARNING: sentry-cli releases new failed: {r.stderr[:200]}")
-        print("  (Is sentry-cli installed? Run: pip install sentry-cli)")
-        return True  # Non-fatal
-
-    print(f"  ✓ Release created: {release_version}")
-
-    # Associate commits (auto-detect from git)
-    r = subprocess.run(
-        [sentry_cli, "releases", "set-commits", release_version, "--auto"],
-        capture_output=True, text=True, cwd=str(PROJECT_DIR)
-    )
-    if r.returncode == 0:
-        print("  ✓ Commits associated")
-    else:
-        print(f"  WARNING: set-commits failed: {r.stderr[:150]}")
-
-    # Finalize release
-    r = subprocess.run(
-        [sentry_cli, "releases", "finalize", release_version],
-        capture_output=True, text=True, cwd=str(PROJECT_DIR)
-    )
-    if r.returncode == 0:
-        print(f"  ✓ Release finalized")
-    else:
-        print(f"  WARNING: finalize failed: {r.stderr[:150]}")
-
-    return True
-
-
-def sentry_upload_debug_symbols(dry_run: bool = False) -> bool:
-    """Upload debug symbols (DWARF/PDB) to Sentry for stack trace symbolication."""
-    print()
-    print("=" * 70)
-    print("  STEP: Sentry Debug Symbol Upload")
-    print("=" * 70)
-
-    if not os.environ.get("SENTRY_AUTH_TOKEN"):
-        print("  SKIP: SENTRY_AUTH_TOKEN not set")
-        return True
-
-    # Release directories first, and the ones that actually produce the shipped
-    # binary before the generic one. "dev" used to be tried FIRST, so a machine
-    # with a dev build uploaded symbols for a binary nobody runs: the Debug ID
-    # never matched a shipped crash, and every report kept its own frames as "?".
-    candidates = ["release-static", "release-mingw", "release", "dev"]
-    build_dir = next((PROJECT_DIR / "build" / name
-                      for name in candidates
-                      if (PROJECT_DIR / "build" / name).exists()), None)
-    if build_dir is None:
-        print("  SKIP: No build directory found")
-        return True
-
-    # Name the files rather than handing over the directory: a scan of a whole
-    # build tree walks the object files too and dies on the first one it cannot
-    # parse ("error: Invalid checksum"), uploading nothing.
-    #
-    # The .sym copy is the one that carries symbol NAMES. A stripped release
-    # binary still has a Debug ID and unwind info — enough to walk a stack, not
-    # enough to name a single frame of it — which is why it is uploaded
-    # alongside rather than instead.
-    names = ["Makine-Launcher.exe.sym", "Makine-Launcher.exe",
-             "Makine-Launcher.pdb", "makine-elevate.exe"]
-    files = [build_dir / n for n in names if (build_dir / n).exists()]
-    if not files:
-        print(f"  SKIP: No uploadable binaries in {build_dir}")
-        return True
-
-    if dry_run:
-        print(f"  [DRY RUN] Would upload from {build_dir}: "
-              + ", ".join(f.name for f in files))
-        return True
-
-    r = subprocess.run(
-        ["sentry-cli", "debug-files", "upload", "--include-sources",
-         *[str(f) for f in files]],
-        capture_output=True, text=True, cwd=str(PROJECT_DIR)
-    )
-    if r.returncode == 0:
-        print(f"  ✓ Debug symbols uploaded from {build_dir}: "
-              + ", ".join(f.name for f in files))
-        if not (build_dir / "Makine-Launcher.exe.sym").exists():
-            print("  WARNING: no .sym copy in this build — crash frames will not "
-                  "be named. It is produced by Release MinGW builds only.")
-    else:
-        print(f"  WARNING: symbol upload failed: {r.stderr[:200]}")
-
-    return True
 
 
 def load_env():
@@ -374,17 +232,6 @@ def main():
         else:
             print("\nManifest upload failed.")
             sys.exit(1)
-
-    # ── Step 4: Sentry release tracking ──
-    sentry_release = f"makine-launcher@{get_app_version()}"
-    steps_total += 1
-    if sentry_release_tracking(sentry_release, args.dry_run):
-        steps_ok += 1
-
-    # ── Step 5: Upload debug symbols ──
-    steps_total += 1
-    if sentry_upload_debug_symbols(args.dry_run):
-        steps_ok += 1
 
     # ── Summary ──
     elapsed = time.monotonic() - t0

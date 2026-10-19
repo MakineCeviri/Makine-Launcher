@@ -106,6 +106,10 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
 // silently drops the event out of every grouping.
 inline QString failureReason(const QString& message)
 {
+    // The user pressed ✕. Exact match: "Kurulum iptal edildi. <why>" is a
+    // backup failure that stopped the install, not a cancel.
+    if (message.trimmed() == QStringLiteral("Kurulum iptal edildi"))
+        return QStringLiteral("cancelled");
     for (const auto& [pattern, code] : reasonRules()) {
         if (message.contains(pattern, Qt::CaseInsensitive))
             return code;
@@ -139,7 +143,9 @@ inline QString failedStepAction(const QString& message)
         QStringLiteral("copyDir"),       QStringLiteral("delete"),
         QStringLiteral("installFont"),   QStringLiteral("run"),
         QStringLiteral("copyToDesktop"), QStringLiteral("rename"),
-        QStringLiteral("setSteamLanguage"),
+        QStringLiteral("setSteamLanguage"), QStringLiteral("vpatch"),
+        QStringLiteral("patchBytes"),    QStringLiteral("forgeReimport"),
+        QStringLiteral("xdelta"),
     };
     return kActions.contains(action) ? action : QString();
 }
