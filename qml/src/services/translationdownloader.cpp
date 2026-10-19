@@ -10,6 +10,7 @@
 #include "translationdownloader.h"
 
 #include "packagechecksum.h"
+#include "packagestamp.h"
 
 #include <QCryptographicHash>
 #include "apppaths.h"
@@ -712,7 +713,7 @@ void TranslationDownloader::processDownloadedFile(
 
     auto* watcher = new QFutureWatcher<std::pair<int, std::string>>(this);
     connect(watcher, &QFutureWatcher<std::pair<int, std::string>>::finished, this,
-        [this, watcher, appId, dirName, tempPath]() {
+        [this, watcher, appId, dirName, tempPath, wantChecksum]() {
             watcher->deleteLater();
 
             m_activeDownloads.remove(appId);
@@ -742,6 +743,9 @@ void TranslationDownloader::processDownloadedFile(
 
             qCDebug(lcDownloader) << "package ready" << appId
                      << "-" << fileCount << "files extracted to" << dirName;
+            // Remember which package filled the folder, so a later update does
+            // not mistake it for the new one (packagestamp.h).
+            pkgstamp::set(dirName, wantChecksum);
 
             CrashReporter::addBreadcrumb("download",
                 QStringLiteral("packageReady: %1 (%2 files)").arg(appId).arg(fileCount).toUtf8().constData());

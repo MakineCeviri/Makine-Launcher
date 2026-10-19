@@ -21,6 +21,7 @@
 #include "crashreporter.h"
 #include "elevatedops.h"
 #include "rawfile.h"
+#include "packagestamp.h"
 #include "processscanner.h"
 #include <QCryptographicHash>
 #include <QDesktopServices>
@@ -2225,6 +2226,18 @@ bool GameService::hasLocalPackage(const QString& steamAppId) const
 
     QDir pkgDir(AppPaths::packagesDir() + QStringLiteral("/") + dirName);
     if (!pkgDir.exists()) return false;
+
+    // A folder filled by another package than the one the catalogue lists now
+    // (an update was published, or it predates stamps) is not reused: it would
+    // install the old files under the new version. Download again instead.
+    const QString wantChecksum = getCatalogEntry(steamAppId).value(QStringLiteral("checksum")).toString();
+    if (!pkgstamp::matches(dirName, wantChecksum)) {
+        qCInfo(lcGameService) << "Extracted package for" << steamAppId
+                              << "is not the catalogue's current one — downloading again";
+        pkgDir.removeRecursively();
+        pkgstamp::clear(dirName);
+        return false;
+    }
 
     // Guard: a previous crash may have left an empty directory tree.
     // Check for actual FILES recursively — empty subdirs don't count.
