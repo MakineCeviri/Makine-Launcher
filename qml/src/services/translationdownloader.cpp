@@ -527,6 +527,13 @@ static QString categorizeExtractError(const QString& raw)
         return TranslationDownloader::tr(
             "Güvenlik hatası: paket geçersiz dosya yolu içeriyor.");
 
+    if (raw.contains(QLatin1String("Windows error 225")) || raw.contains(QLatin1String("Windows error 226")))
+        return TranslationDownloader::tr(
+            "Antivirüs (ör. Windows Defender) paketteki bir dosyayı engelledi: %1. "
+            "Windows Güvenliği > Koruma geçmişi'nden dosyaya izin verip Makine Launcher'ı "
+            "dışlamalara ekleyin, sonra tekrar deneyin.")
+            .arg(QFileInfo(raw.section(QLatin1String("): "), -1)).fileName());
+
     // The files go to the launcher's own package folder, which no game holds
     // open; in the field it was dinput8.dll, the shape antivirus grabs.
     if (raw.contains(QLatin1String("locked")))

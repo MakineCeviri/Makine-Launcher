@@ -188,9 +188,12 @@ private:
 
     QString installedStatePath() const;
 
-    enum class CopyError { None, DiskFull, PermissionDenied, FileLocked, Other };
+    // Quarantined: antivirus refused or removed the file (Windows 225/226).
+    enum class CopyError { None, DiskFull, PermissionDenied, FileLocked, Quarantined, Other };
     struct CopyResult { bool ok; CopyError error; };
     CopyResult tryCopyFile(const QString& src, const QString& dest);
+    // What to tell the player when antivirus blocks a package file.
+    static QString quarantinedMessage(const QString& file);
 
     // Outcome of a single step execution.
     enum class StepOutcome { Ok, SoftError, FatalError, Cancelled };
@@ -279,6 +282,8 @@ private:
     QString m_dataPath;
     OperationJournal* m_journal{nullptr};
     std::atomic<bool> m_cancelRequested{false};
+    // Windows error of the last failed copy, for the failure report (0 = none).
+    unsigned long m_lastCopyWinError{0};
 };
 
 } // namespace makine

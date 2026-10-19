@@ -22,6 +22,20 @@ using namespace makine::failurereasons;
 
 // ===== The bucket that was invisible ========================================
 
+TEST(FailureReasons, AntivirusHasItsOwnCodeNotCopyFailed)
+{
+    // RDR2's dinput8.dll / .asi files: Defender quarantines them (225/226).
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Antivirüs (ör. Windows Defender) bir yama dosyasını engelledi: dinput8.dll")),
+        QStringLiteral("antivirus_blocked"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Antivirüs (ör. Windows Defender) paketteki bir dosyayı engelledi: ScriptHookRDR2.dll.")),
+        QStringLiteral("antivirus_blocked"));
+    // The Windows code rides along in an ordinary copy failure without changing its bucket.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu: dosya kopyalanamadı, Windows hata 5")), QStringLiteral("step_failed"));
+}
+
 TEST(FailureReasons, TheDefectThatLookedLikeFiftySeparateIssues)
 {
     // 2219 events. Fifty issues, one cause, no way to see it.

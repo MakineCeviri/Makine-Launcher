@@ -77,6 +77,9 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // each needs a different answer — an antivirus exclusion, a UAC prompt
         // the user must accept, a tool that wants a person, a tool that ran and
         // refused — and until now all four were the same 915-event bucket.
+        // Antivirus refused or quarantined a package file (Windows 225/226),
+        // at extraction or at install: an exclusion fixes it, a retry does not.
+        {QStringLiteral("Antivirüs (ör. Windows Defender)"),     QStringLiteral("antivirus_blocked")},
         {QStringLiteral("yönetici izni verilmedi"),              QStringLiteral("elevation_declined")},
         {QStringLiteral("araç başlatılamadı"),                   QStringLiteral("tool_start_failed")},
         {QStringLiteral("araç 30 dakikada bitmedi"),             QStringLiteral("tool_timeout")},

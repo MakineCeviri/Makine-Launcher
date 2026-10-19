@@ -489,7 +489,14 @@ inline int extract(
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 ofs.open(out, std::ios::binary);
                 if (!ofs) {
-                    if (err) *err = MkpkError("Cannot write file (locked?): " + target.string());
+                    // The Windows error tells antivirus (225/226) from a lock (32)
+                    // or a permission wall (5); categorizeExtractError reads it.
+#ifdef _WIN32
+                    const std::string why = " (Windows error " + std::to_string(::GetLastError()) + ")";
+#else
+                    const std::string why;
+#endif
+                    if (err) *err = MkpkError("Cannot write file (locked?)" + why + ": " + target.string());
                     return -1;
                 }
             }

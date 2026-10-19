@@ -563,9 +563,20 @@ QString LocalPackageManager::installedStatePath() const
 
 // -- Smart copy helper --------------------------------------------------------
 
+QString LocalPackageManager::quarantinedMessage(const QString& file)
+{
+    return tr("Antivirüs (ör. Windows Defender) bir yama dosyasını engelledi: %1\n\n"
+              "Bu dosya çevirinin çalışması için gerekli. Çözüm:\n"
+              "1) Windows Güvenliği > Virüs ve tehdit koruması > Koruma geçmişi'nden "
+              "dosyayı geri yükleyin (\"İzin ver\")\n"
+              "2) Oyun klasörünü ve Makine Launcher'ı dışlamalara ekleyin\n"
+              "Sonra yamayı tekrar kurun.").arg(QFileInfo(file).fileName());
+}
+
 LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
     const QString& src, const QString& dest)
 {
+    m_lastCopyWinError = 0;
     // Windows reports access denied as OpenError like any other failed open,
     // so the error code cannot tell a folder we may not write (C:\Program
     // Files) from a file held open by the game or a virus scan. The folder
@@ -599,7 +610,29 @@ LocalPackageManager::CopyResult LocalPackageManager::tryCopyFile(
             }
         }
 
+#ifdef Q_OS_WIN
+        // CopyFileW rather than QFile::copy: the latter drops the Windows error,
+        // and "locked" in the field was three different things — access denied
+        // (5), a sharing violation (32) and antivirus (225/226).
+        const auto win = [](const QString& p) {
+            QString n = QDir::toNativeSeparators(QFileInfo(p).absoluteFilePath());
+            if (n.size() >= 248 && !n.startsWith(QLatin1String("\\\\?\\")))
+                n = n.startsWith(QLatin1String("\\\\"))
+                    ? QLatin1String("\\\\?\\UNC\\") + n.mid(2)
+                    : QLatin1String("\\\\?\\") + n;
+            return n.toStdWString();
+        };
+        if (::CopyFileW(win(src).c_str(), win(dest).c_str(), FALSE)) return {true, CopyError::None};
+        m_lastCopyWinError = ::GetLastError();
+        if (m_lastCopyWinError == 225 || m_lastCopyWinError == 226)   // ERROR_VIRUS_INFECTED / _DELETED
+            return {false, CopyError::Quarantined};
+        if (m_lastCopyWinError == ERROR_DISK_FULL || m_lastCopyWinError == ERROR_HANDLE_DISK_FULL)
+            return {false, CopyError::DiskFull};
+        if (m_lastCopyWinError == ERROR_SHARING_VIOLATION || m_lastCopyWinError == ERROR_LOCK_VIOLATION)
+            return {false, CopyError::FileLocked};
+#else
         if (QFile::copy(src, dest)) return {true, CopyError::None};
+#endif
 
         // NewOnly: a file that is still there is not ours to truncate or remove.
         QFile probe(dest);
@@ -1380,6 +1413,11 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 result.errors = -1;
                 return result;
             }
+        } else if (copyErr == CopyError::Quarantined) {
+            if (m_journal) m_journal->commitOperation();
+            emit installCompleted(false, quarantinedMessage(relPath));
+            result.errors = -1;
+            return result;
         } else if (copyErr == CopyError::FileLocked) {
             QThread::msleep(150);
             auto [ok2, err2] = tryCopyFile(srcPath, destPath);
@@ -1742,6 +1780,10 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
                 "Sonra yamayı tekrar kurun."));
+                    return;
+                } else if (copyErr == CopyError::Quarantined) {
+                    if (m_journal) m_journal->commitOperation();
+                    emit installCompleted(false, quarantinedMessage(relPath));
                     return;
                 } else if (copyErr == CopyError::FileLocked) {
                     QThread::msleep(150);
@@ -2211,6 +2253,8 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         }
         auto [ok, err] = tryCopyFile(src, dst);
         if (ok) return StepOutcome::Ok;
+        if (err == CopyError::Quarantined)
+            return fatal(quarantinedMessage(dst));
         if (err == CopyError::DiskFull)
             return fatal(tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
                 "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
@@ -2239,12 +2283,16 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
                 "Sonra yamayı tekrar kurun."));
-            qCWarning(lcPackageManager) << logLabel << "failed (locked):" << src << "->" << dst;
-            if (failDetail) *failDetail = tr("dosya kilitli");
+            qCWarning(lcPackageManager) << logLabel << "failed (locked):" << src << "->" << dst
+                                        << "winerr" << m_lastCopyWinError;
+            if (failDetail) *failDetail = m_lastCopyWinError
+                ? tr("dosya kilitli, Windows hata %1").arg(m_lastCopyWinError) : tr("dosya kilitli");
             return StepOutcome::SoftError;
         }
-        qCWarning(lcPackageManager) << logLabel << "failed:" << src << "->" << dst;
-        if (failDetail) *failDetail = tr("dosya kopyalanamadı");
+        qCWarning(lcPackageManager) << logLabel << "failed:" << src << "->" << dst
+                                    << "winerr" << m_lastCopyWinError;
+        if (failDetail) *failDetail = m_lastCopyWinError
+            ? tr("dosya kopyalanamadı, Windows hata %1").arg(m_lastCopyWinError) : tr("dosya kopyalanamadı");
         return StepOutcome::SoftError;
     };
 
