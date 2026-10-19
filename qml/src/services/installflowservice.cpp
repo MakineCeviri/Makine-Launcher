@@ -309,7 +309,9 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
 
     // Resolve dirName and start download
     QString dirName = resolveDirName(gameId, catalog);
-    const qint64 expectedSize = catalog.value(QStringLiteral("size")).toLongLong();
+    // The catalogue entry calls the package size "downloadSize" (catalogstore.cpp); asking
+    // for "size" read 0 and the free-space check never scaled with the package.
+    const qint64 expectedSize = catalog.value(QStringLiteral("downloadSize")).toLongLong();
     const QString expectedChecksum =
         catalog.value(QStringLiteral("checksum")).toString();
 
@@ -343,7 +345,9 @@ void InstallFlowService::doUpdate(const QString& gameId, const QString& variant,
     }
 
     QString dirName = resolveDirName(gameId, catalog);
-    const qint64 expectedSize = catalog.value(QStringLiteral("size")).toLongLong();
+    // The catalogue entry calls the package size "downloadSize" (catalogstore.cpp); asking
+    // for "size" read 0 and the free-space check never scaled with the package.
+    const qint64 expectedSize = catalog.value(QStringLiteral("downloadSize")).toLongLong();
     const QString expectedChecksum =
         catalog.value(QStringLiteral("checksum")).toString();
     m_pendingDownloads.insert(gameId, PendingDownload{gameId, variant, options, /*isUpdate=*/true});
