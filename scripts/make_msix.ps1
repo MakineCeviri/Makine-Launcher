@@ -134,6 +134,12 @@ if ($QtBinDir) {
       --qmldir (Join-Path $repo "qml/qml") $stagedExe
   if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 
+  # Stamp a Debug ID onto the staged third-party DLLs so Sentry can symbolicate
+  # the Qt/MinGW frames the fatals land in (see make_release_zip.ps1 for the
+  # --include-signed tradeoff). upload_symbols.py --deploy-dir uploads them.
+  & python (Join-Path $repo "scripts/stamp_debug_ids.py") $stage --include-signed
+  if ($LASTEXITCODE -ne 0) { throw "stamp_debug_ids.py failed ($LASTEXITCODE)" }
+
   $n = (Get-ChildItem $stage -Recurse -File).Count
   Write-Host "Staged $n file(s) after windeployqt"
 }

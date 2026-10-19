@@ -21,10 +21,17 @@ fails the release when the symbols cannot be matched or uploaded:
      sentry-cli also reads .env, and a stale SENTRY_ORG there outranks
      .sentryclirc (the first 0.1.5 upload went to the old org and got 403);
   3. the Debug ID is read back from Sentry — "upload succeeded" has not meant
-     "it is there" often enough in this project.
+     "it is there" often enough in this project;
+  4. with --deploy-dir, the third-party DLLs stamped by stamp_debug_ids.py
+     (Qt6*.dll, libstdc++-6.dll, libgcc_s_seh-1.dll …) are uploaded too and
+     verified by Debug ID — they carry symtab+unwind, which is what Sentry
+     needs to put function names on the Qt/MinGW frames every fatal arrives in.
+     The packaging scripts stamp the staged deploy dir before calling this, so
+     the shipped DLLs and the uploaded symbols identify as the same module.
 
 Usage:
     python scripts/upload_symbols.py                        # build/release-mingw
+    python scripts/upload_symbols.py --deploy-dir dist/Makine-Launcher-v1.2-win64
     python scripts/upload_symbols.py --build-dir build/dev --dry-run
 """
 
@@ -82,9 +89,63 @@ def uploaded(token: str, did: str) -> bool:
     return any((f.get("debugId") or "").lower()[:36] == did.lower()[:36] for f in files)
 
 
+def stamped_dlls(deploy: Path) -> dict:
+    """Map {relative path: Debug ID} for every DLL under deploy with a usable ID.
+
+    The stamped third-party DLLs (and the few that already shipped a CodeView
+    record, e.g. dxcompiler.dll) carry a non-zero Debug ID; the ones skipped for
+    lack of header room never will. We upload only the former — the latter have
+    nothing Sentry can pair.
+    """
+    out = {}
+    for dll in sorted(deploy.rglob("*.dll")):
+        did = debug_id(dll)
+        if did and not did.startswith(ZERO_ID):
+            out[dll.relative_to(deploy).as_posix()] = did
+    return out
+
+
+def upload_deploy_dlls(token: str, deploy: Path) -> bool:
+    """Upload every stamped DLL under deploy and verify each by Debug ID."""
+    wanted = stamped_dlls(deploy)
+    if not wanted:
+        print(f"HATA: {deploy} altında Debug ID taşıyan DLL yok — "
+              "paketlemeden önce stamp_debug_ids.py çalıştı mı?")
+        return False
+    print(f"Üçüncü taraf DLL sembolleri: {len(wanted)} DLL yüklenecek ({deploy})")
+
+    env = dict(os.environ, SENTRY_AUTH_TOKEN=token)
+    # One recursive upload: sentry-cli finds every file with a usable Debug ID
+    # and skips checksums Sentry already has, so re-runs are cheap.
+    r = subprocess.run(["sentry-cli", "debug-files", "upload", "--include-sources",
+                        "--org", st.SENTRY_ORG, "--project", st.SENTRY_PROJECT,
+                        str(deploy)],
+                       capture_output=True, text=True, cwd=str(ROOT), env=env)
+    if r.returncode != 0:
+        print(f"HATA: DLL sembol yüklemesi başarısız: {(r.stderr or r.stdout)[:300]}")
+        return False
+
+    # Read every Debug ID back, like the exe path does. Sentry assembles uploads
+    # asynchronously, so poll until all are present (or time out).
+    pending = dict(wanted)
+    for _ in range(24):
+        for rel, did in list(pending.items()):
+            if uploaded(token, did):
+                del pending[rel]
+        if not pending:
+            print(f"Üçüncü taraf semboller Sentry'de: {len(wanted)} DLL doğrulandı")
+            return True
+        time.sleep(5)
+    print(f"HATA: yükleme 'başarılı' dedi ama şu DLL'ler 2 dk içinde görünmedi: "
+          f"{', '.join(sorted(pending))}")
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Upload release symbols to Sentry")
     parser.add_argument("--build-dir", default=str(ROOT / "build" / "release-mingw"))
+    parser.add_argument("--deploy-dir", default="",
+                        help="Staged deploy dir — also upload its stamped third-party DLLs")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -103,8 +164,15 @@ def main() -> int:
               "Sentry çökmeleri bu sembollerle eşleştiremez.")
         return 1
 
+    deploy = Path(args.deploy_dir) if args.deploy_dir else None
+    if deploy and not deploy.is_dir():
+        print(f"HATA: --deploy-dir yok: {deploy}")
+        return 1
+
     if args.dry_run:
         print(f"[DRY RUN] {exe.name} + {sym.name} yüklenecekti.")
+        if deploy:
+            print(f"[DRY RUN] {len(stamped_dlls(deploy))} damgalı DLL de yüklenecekti ({deploy}).")
         return 0
 
     token = st.load_token()
@@ -131,13 +199,20 @@ def main() -> int:
 
     # Sentry assembles uploads asynchronously: right after sentry-cli returns,
     # the file is often not listed yet (seen on the first run of this script).
+    exe_ok = False
     for _ in range(18):
         if uploaded(token, exe_id):
             print(f"Semboller Sentry'de: {exe_id}")
-            return 0
+            exe_ok = True
+            break
         time.sleep(5)
-    print(f"HATA: yükleme 'başarılı' dedi ama {exe_id} 90 sn içinde Sentry'de görünmedi.")
-    return 1
+    if not exe_ok:
+        print(f"HATA: yükleme 'başarılı' dedi ama {exe_id} 90 sn içinde Sentry'de görünmedi.")
+        return 1
+
+    if deploy and not upload_deploy_dlls(token, deploy):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
