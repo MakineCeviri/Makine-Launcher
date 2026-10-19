@@ -113,16 +113,18 @@ def upload_file(
             "status": "dry-run",
         }
 
-    # Check if already uploaded with same size
+    # Skip only when the remote object is provably this file. Comparing sizes
+    # skipped a repackaged .makine that happened to keep its size, and the
+    # catalogue then announced a checksum the CDN did not serve. The SHA-256 is
+    # stored as object metadata on upload (the admin panel writes the same key).
     try:
         head = s3_client.head_object(Bucket=bucket, Key=object_key)
-        remote_size = head["ContentLength"]
-        if remote_size == file_size:
+        if head.get("Metadata", {}).get("sha256") == checksum:
             return {
                 "key": object_key,
                 "size": file_size,
                 "checksum": checksum,
-                "status": "skipped (already exists, same size)",
+                "status": "skipped (already exists, same sha256)",
             }
     except s3_client.exceptions.ClientError:
         pass  # Object doesn't exist yet — proceed with upload
@@ -145,7 +147,7 @@ def upload_file(
         bucket,
         object_key,
         Callback=progress_callback,
-        ExtraArgs={"ContentType": "application/octet-stream"},
+        ExtraArgs={"ContentType": "application/octet-stream", "Metadata": {"sha256": checksum}},
     )
     elapsed = time.monotonic() - t0
     speed = file_size / elapsed / (1024 * 1024) if elapsed > 0 else 0
