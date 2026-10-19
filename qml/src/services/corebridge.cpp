@@ -27,6 +27,7 @@
 
 #include "vdfparser.h"
 #include "localpackagemanager.h"
+#include "installsteprules.h"
 #include "operationjournal.h"
 #include <QSettings>
 #include <QJsonDocument>
@@ -1606,9 +1607,15 @@ void CoreBridge::refreshPackageManifest()
         if (idx.open(QIODevice::ReadOnly)) {
             const QJsonObject root = QJsonDocument::fromJson(idx.readAll()).object();
             idx.close();
+            // The recipe level is part of the stamp: the API answers with the
+            // recipe this build can run (X-Makine-Recipe), so details cached by
+            // an older build — 0.1.5 got the compat recipes — must go on upgrade
+            // even when index.json has not changed.
             const QString stamp = QString::number(root.value("version").toInt())
                                 + QLatin1Char('/')
-                                + root.value("generatedAt").toString();
+                                + root.value("generatedAt").toString()
+                                + QStringLiteral("/r")
+                                + QString::number(steprules::kRecipeLevel);
 
             const QString markerPath = detailDir + QStringLiteral("/.catalog-version");
             QString previous;
