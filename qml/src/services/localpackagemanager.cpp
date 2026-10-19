@@ -43,6 +43,8 @@
 #include <QThread>
 #include <QtConcurrent>
 #include <QSet>
+#include <QCoreApplication>
+#include <QDesktopServices>
 
 #ifdef Q_OS_WIN
 #  include <windows.h>
@@ -1968,6 +1970,14 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     "%1). Yama dosyaları şu klasöre çıkarıldı:\n%2\n"
                     "Klasördeki kurulum talimatını izleyin.")
                     .arg(m, shownPath(sourcePath));
+            // The extracted folder is the only way forward, and retrying cannot
+            // change the answer — Battlefield 6 alone was retried 128 times by
+            // 16 users (external_tool). Open the folder for them.
+            if (m == "external" || m == "installer" || m == "paradox-mod") {
+                const QUrl folder = QUrl::fromLocalFile(sourcePath);
+                QMetaObject::invokeMethod(QCoreApplication::instance(),
+                    [folder]() { QDesktopServices::openUrl(folder); }, Qt::QueuedConnection);
+            }
             emit installCompleted(false, guide);
             return;
         }
