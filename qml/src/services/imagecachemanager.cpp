@@ -13,10 +13,14 @@
 #include "networksecurity.h"
 #include "profiler.h"
 
+#include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QDirIterator>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkReply>
 #include <QRegularExpression>
 #include <QUrl>
@@ -25,12 +29,24 @@ namespace makine {
 
 static constexpr auto CDN_IMAGE_BASE = cdn::kImagesBase;
 
+static QString checksPath() { return AppPaths::cacheDir() + QStringLiteral("/image_checks.json"); }
+
 ImageCacheManager::ImageCacheManager(QObject* parent)
     : QObject(parent)
 {
     security::installTlsPinning(&m_nam);
     m_cacheDir = AppPaths::imageCacheDir();
     ensureCacheDir();
+
+    QFile checks(checksPath());
+    if (checks.open(QIODevice::ReadOnly)) {
+        const QJsonObject obj = QJsonDocument::fromJson(checks.readAll()).object();
+        for (auto it = obj.begin(); it != obj.end(); ++it)
+            m_checkedAt.insert(it.key(), static_cast<qint64>(it.value().toDouble()));
+    }
+    m_saveChecksTimer.setSingleShot(true);
+    m_saveChecksTimer.setInterval(3000);
+    connect(&m_saveChecksTimer, &QTimer::timeout, this, &ImageCacheManager::saveChecks);
 }
 
 void ImageCacheManager::ensureCacheDir()
@@ -94,6 +110,7 @@ QString ImageCacheManager::resolve(const QString& appId)
 #ifdef MAKINE_DEV_TOOLS
         ++m_cacheHitCount;
 #endif
+        maybeRevalidate(appId);
         return QUrl::fromLocalFile(path).toString();
     }
 
@@ -188,6 +205,78 @@ void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
     });
 }
 
+void ImageCacheManager::maybeRevalidate(const QString& appId)
+{
+    if (m_revalidated.contains(appId))
+        return;
+    const qint64 now = QDateTime::currentSecsSinceEpoch();
+    if (now - m_checkedAt.value(appId, 0) < RECHECK_AFTER_SECS)
+        return;
+    m_revalidated.insert(appId);
+    m_revalidateQueue.enqueue(appId);
+    processRevalidations();
+}
+
+void ImageCacheManager::processRevalidations()
+{
+    while (m_revalidating < MAX_REVALIDATING && !m_revalidateQueue.isEmpty()) {
+        const QString appId = m_revalidateQueue.dequeue();
+        const QString path = localPath(appId);
+        QFile local(path);
+        if (!local.open(QIODevice::ReadOnly))
+            continue;
+        const QByteArray localMd5 = QCryptographicHash::hash(local.readAll(), QCryptographicHash::Md5).toHex();
+        local.close();
+
+        QNetworkRequest req{QUrl{remoteUrl(appId)}};
+        req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::SameOriginRedirectPolicy);
+        req.setTransferTimeout(15000);
+        req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Makine-Launcher/0.1"));
+        // 304 when the cached file is ours and unchanged; 200 when ours changed or
+        // the cached one came from Steam and we have our own now; 404 when we have none.
+        req.setRawHeader("If-None-Match", '"' + localMd5 + '"');
+        ++m_revalidating;
+        QNetworkReply* reply = m_nam.get(req);
+        connect(reply, &QNetworkReply::finished, this, [this, reply, appId, path, localMd5]() {
+            reply->deleteLater();
+            --m_revalidating;
+            const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            if (reply->error() == QNetworkReply::NoError && status == 200) {
+                const QByteArray data = reply->readAll();
+                if (!data.isEmpty()
+                    && QCryptographicHash::hash(data, QCryptographicHash::Md5).toHex() != localMd5) {
+                    const qint64 oldSize = QFileInfo(path).size();
+                    QFile file(path);
+                    if (file.open(QIODevice::WriteOnly)) {
+                        file.write(data);
+                        file.close();
+                        if (m_cachedSizeBytes >= 0)
+                            m_cachedSizeBytes += data.size() - oldSize;
+                        emit imageUpdated(appId);
+                        emit cacheSizeChanged();
+                    }
+                }
+            }
+            // A network error is asked again next session; an answer is remembered.
+            if (status == 200 || status == 304 || status == 404) {
+                m_checkedAt.insert(appId, QDateTime::currentSecsSinceEpoch());
+                m_saveChecksTimer.start();
+            }
+            processRevalidations();
+        });
+    }
+}
+
+void ImageCacheManager::saveChecks()
+{
+    QJsonObject obj;
+    for (auto it = m_checkedAt.cbegin(); it != m_checkedAt.cend(); ++it)
+        obj.insert(it.key(), static_cast<double>(it.value()));
+    QFile f(checksPath());
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+}
+
 void ImageCacheManager::clearCache()
 {
     QDir dir(m_cacheDir);
@@ -195,6 +284,9 @@ void ImageCacheManager::clearCache()
         dir.removeRecursively();
         dir.mkpath(QStringLiteral("."));
     }
+    m_checkedAt.clear();
+    m_revalidated.clear();
+    saveChecks();
     m_failed.clear();
     m_r2Failed.clear();
     m_queued.clear();
