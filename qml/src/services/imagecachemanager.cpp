@@ -181,6 +181,10 @@ void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
                             m_cachedSizeBytes += data.size();
                         if (m_cachedImageCount >= 0)
                             ++m_cachedImageCount;
+                        // Just fetched (or just learned the CDN has none): no need to ask again soon.
+                        m_checkedAt.insert(appId, QDateTime::currentSecsSinceEpoch());
+                        m_revalidated.insert(appId);
+                        m_saveChecksTimer.start();
                         emit imageReady(appId);
                         emit cacheSizeChanged();
                         success = true;
