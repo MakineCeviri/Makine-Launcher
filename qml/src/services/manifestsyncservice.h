@@ -22,6 +22,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QNetworkAccessManager>
+#include <QElapsedTimer>
 #include <QPointer>
 #include <QTimer>
 
@@ -48,6 +49,14 @@ public:
 
     // --- QML API (unchanged) ---
     Q_INVOKABLE void syncCatalog();
+    /**
+     * @brief Sync again if the last sync started at least @p minAgeMs ago.
+     * Quiet: when the catalog turns out unchanged, no catalogReady (which
+     * would re-match every game). Run by a timer and when the window
+     * regains focus, so a game published in the panel shows up without a
+     * restart.
+     */
+    Q_INVOKABLE void syncIfStale(int minAgeMs);
     QVariantList catalog() const;
     Q_INVOKABLE void fetchPackageDetail(const QString& appId);
     Q_INVOKABLE QVariantMap getPackageDetail(const QString& appId) const;
@@ -87,7 +96,9 @@ private:
     void fetchFullCatalog();
     void handleFullCatalogResponse(const QByteArray& data);
     void fallbackToLegacySync();
-    void finishSync();
+    void startSync(bool quiet);
+    /// @p catalogChanged false = the server confirmed the cached catalog.
+    void finishSync(bool catalogChanged = true);
     void invalidateChangedDetails();
     /// SWR helper: peek changedCount, drain via invalidateChangedDetails,
     /// then emit catalogRefreshed when count > 0.
@@ -110,6 +121,10 @@ private:
     // local catalog version — see catalogsyncrules.h.
     int  m_serverCatalogVersion{0};
     QTimer m_retryTimer;
+    // Periodic re-check while the launcher stays open (see syncIfStale).
+    QTimer m_pollTimer;
+    QElapsedTimer m_sinceSyncStart;
+    bool m_quietSync{false};
     QTimer m_syncTimeoutTimer;
     // Tracks the in-flight sync reply so the timeout can abort it instead
     // of just clearing m_syncing — that previously left a zombie reply

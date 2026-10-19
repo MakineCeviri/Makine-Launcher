@@ -83,6 +83,13 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
     // Forward detail fetcher signal
     connect(m_detailFetcher, &DetailFetcher::detailReady,
             this, &ManifestSyncService::packageDetailReady);
+
+    // A launcher left open still picks up what the catalog gained since it
+    // started: a meta request (~100 bytes) every half hour, the full index
+    // only when the version moved.
+    m_pollTimer.setInterval(30 * 60 * 1000);
+    connect(&m_pollTimer, &QTimer::timeout, this, [this]() { syncIfStale(25 * 60 * 1000); });
+    m_pollTimer.start();
 }
 
 ManifestSyncService::~ManifestSyncService()
@@ -113,12 +120,26 @@ QString ManifestSyncService::indexUrl()
 
 void ManifestSyncService::syncCatalog()
 {
+    startSync(false);
+}
+
+void ManifestSyncService::syncIfStale(int minAgeMs)
+{
+    if (m_syncing || (m_sinceSyncStart.isValid() && m_sinceSyncStart.elapsed() < minAgeMs))
+        return;
+    startSync(true);
+}
+
+void ManifestSyncService::startSync(bool quiet)
+{
     MAKINE_ZONE_NAMED("ManifestSync::syncCatalog");
     CrashReporter::addBreadcrumb("manifest", "ManifestSync::syncCatalog");
 
     if (m_syncing)
         return;
 
+    m_quietSync = quiet;
+    m_sinceSyncStart.start();
     m_syncing = true;
     emit syncStatusChanged();
     m_syncTimeoutTimer.start();
@@ -181,7 +202,7 @@ void ManifestSyncService::handleMetaResponse(const QByteArray& data)
 
     if (catalogsync::catalogIsCurrent(serverVersion, localVersion, m_store->isEmpty())) {
         qCDebug(lcManifestSync) << "ManifestSync: catalog is current";
-        finishSync();
+        finishSync(!m_quietSync);
         return;
     }
 
@@ -397,13 +418,14 @@ void ManifestSyncService::fallbackToLegacySync()
 
 // ========== Sync Helpers ==========
 
-void ManifestSyncService::finishSync()
+void ManifestSyncService::finishSync(bool catalogChanged)
 {
     m_syncing = false;
     m_syncTimeoutTimer.stop();
     emit syncStatusChanged();
     setOffline(false);
-    QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
+    if (catalogChanged)
+        QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
     TelemetryService::record(QStringLiteral("sync"), QStringLiteral("ok"), {},
                              {{QStringLiteral("catalog"), m_store->catalogCount()}});
 }

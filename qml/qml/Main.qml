@@ -33,6 +33,11 @@ ApplicationWindow {
     // Aspect ratio lock handled natively via WM_SIZING in C++ (main.cpp)
     // — zero recursive bindings, zero frame drops during resize
 
+    // Coming back to the launcher re-checks the catalog (at most every
+    // 10 minutes; quiet when nothing changed), so a newly published game or
+    // package update appears without a restart.
+    onActiveChanged: if (active && !window._onboardingActive) ManifestSync.syncIfStale(10 * 60 * 1000)
+
     Component.onCompleted: {
         // Freeze geometry — assigning the current value back breaks the
         // Screen.width / Screen.height bindings above, so dragging the
