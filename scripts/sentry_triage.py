@@ -113,9 +113,55 @@ def fetch_tag_values(tag: str) -> list[dict]:
     return [] if isinstance(values, dict) else values
 
 
-def fetch_rules() -> list[dict]:
-    rules = api(f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/")
-    return [] if isinstance(rules, dict) else rules
+def fetch_project_id() -> str:
+    """Numeric project id — the detectors endpoint filters by it, not the slug."""
+    data = api(f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/")
+    if isinstance(data, dict) and "__error__" not in data:
+        return str(data.get("id", ""))
+    return ""
+
+
+def analyze_alerts() -> dict:
+    """Which alerts actually notify someone — via the workflow engine.
+
+    Sentry retired the per-project `/rules/` endpoint (it now 404s) and moved
+    alerting to org-level *workflows* fired by project *detectors*. The old
+    check turned that 404 into `[]` and silently passed, so a project whose
+    crash alert had lost its action would look healthy. This reads the real
+    graph instead and reports two failure modes:
+      * an enabled workflow wired to one of this project's detectors but with
+        no action — it triggers and notifies nobody;
+      * the project's issue_stream detector (the one that fires on new issues)
+        with no workflow attached at all — new crashes alert nobody.
+    On any API error it returns the error rather than an empty, healthy-looking
+    result.
+    """
+    pid = fetch_project_id()
+    if not pid:
+        return {"error": "proje kimliği alınamadı (yetki/ağ?)", "dead": [], "orphan_detectors": []}
+
+    detectors = api(f"/organizations/{SENTRY_ORG}/detectors/", f"?project={pid}")
+    workflows = api(f"/organizations/{SENTRY_ORG}/workflows/")
+    errors = [d.get("__error__") for d in (detectors, workflows) if isinstance(d, dict)]
+    if errors:
+        return {"error": "; ".join(e for e in errors if e), "dead": [], "orphan_detectors": []}
+
+    det_ids = {str(d.get("id")) for d in detectors}
+    # issue_stream detectors with no workflow — new issues alert nobody.
+    orphan = [d.get("name") or d.get("id") for d in detectors
+              if d.get("type") == "issue_stream" and not d.get("workflowIds")]
+
+    dead = []
+    for w in workflows:
+        if not w.get("enabled"):
+            continue
+        if not ({str(x) for x in (w.get("detectorIds") or [])} & det_ids):
+            continue  # not connected to this project
+        actions = [a for af in (w.get("actionFilters") or []) for a in (af.get("actions") or [])]
+        if not actions:
+            dead.append(w.get("name") or str(w.get("id")))
+
+    return {"error": None, "dead": dead, "orphan_detectors": orphan}
 
 
 def as_int(value) -> int:
@@ -156,7 +202,7 @@ def build_report() -> dict:
         if re.search(r"\d+(/\d+)? ad[ıi]mda hata olu[şs]tu", i.get("title") or "")
     ]
 
-    dead_rules = [r for r in fetch_rules() if not r.get("actions")]
+    alerts = analyze_alerts()
 
     operations = {v.get("value"): as_int(v.get("count")) for v in fetch_tag_values("operation")}
     sides = {v.get("value"): as_int(v.get("count")) for v in fetch_tag_values("failure.side")}
@@ -199,7 +245,9 @@ def build_report() -> dict:
             }
             for i in opaque
         ],
-        "dead_alert_rules": [r.get("name") for r in dead_rules],
+        "dead_alert_rules": alerts["dead"],
+        "orphan_detectors": alerts["orphan_detectors"],
+        "alert_error": alerts["error"],
         "top_issues": [
             {
                 "id": i.get("id"),
@@ -232,12 +280,21 @@ def print_report(report: dict) -> None:
     for op, count in sorted(report["operations"].items(), key=lambda kv: -kv[1]):
         print(f"    {op:22s} {count:>5d}")
 
+    if report.get("alert_error"):
+        print(f"\n  {line[:40]}")
+        print("  !! ALARM DURUMU OKUNAMADI — saglikli sayilmaz")
+        print(f"    {report['alert_error']}")
     if report["dead_alert_rules"]:
         print(f"\n  {line[:40]}")
-        print("  !! BILDIRIMSIZ ALARM KURALLARI")
+        print("  !! BILDIRIMSIZ ALARM — eylemi olmayan is akislari")
         for name in report["dead_alert_rules"]:
             print(f"    - {name} — tetiklense de kimseye ulasmiyor")
-        print("     Duzeltme: python scripts/sentry_setup.py")
+        print("     Duzeltme: Sentry > Alerts > Workflows (eyleme e-posta/entegrasyon ekle)")
+    if report.get("orphan_detectors"):
+        print(f"\n  {line[:40]}")
+        print("  !! IS AKISI OLMAYAN DEDEKTOR — yeni sorunlar kimseyi uyarmiyor")
+        for name in report["orphan_detectors"]:
+            print(f"    - {name} — hicbir is akisina bagli degil")
 
     if report["handler_demand"]:
         print(f"\n  Eksik handler talebi (olay sayisina gore):")
@@ -300,7 +357,11 @@ def main() -> None:
 
     if args.fail_on_regression and report["regressions"]:
         sys.exit(2)
-    if args.fail_on_dead_alert and report["dead_alert_rules"]:
+    # A read error means we could not confirm the alerts are live — with the
+    # gate on, that is a failure, not a pass.
+    if args.fail_on_dead_alert and (report["dead_alert_rules"]
+                                    or report.get("orphan_detectors")
+                                    or report.get("alert_error")):
         sys.exit(3)
 
 
