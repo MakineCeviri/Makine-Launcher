@@ -12,6 +12,9 @@ Item {
     property string gameName: ""
     property string steamAppId: ""
     property string installPath: ""
+    // Optional state pill on the cover ("Kurulu", "Bilgisayarında", a date…)
+    property string badge: ""
+    property color badgeColor: Theme.primary
 
     signal clicked()
 
@@ -65,6 +68,37 @@ Item {
         sourceSize: Qt.size(260, 370)
         asynchronous: true
         mipmap: true
+    }
+
+    // Dark pill + coloured dot + word: readable on any cover art.
+    Rectangle {
+        visible: root.badge !== ""
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: Dimensions.spacingMD
+        height: 20
+        width: badgeRow.implicitWidth + 14
+        radius: height / 2
+        color: Qt.rgba(0, 0, 0, 0.72)
+
+        Row {
+            id: badgeRow
+            anchors.centerIn: parent
+            spacing: 5
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 6; height: 6; radius: 3
+                color: root.badgeColor
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                textFormat: Text.PlainText
+                text: root.badge
+                font.pixelSize: Dimensions.fontCaption
+                font.weight: Font.DemiBold
+                color: "#FFFFFF"
+            }
+        }
     }
 
     scale: cardHover.hovered ? 1.03 : 1.0

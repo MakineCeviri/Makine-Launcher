@@ -50,8 +50,8 @@ Item {
     }
 
     // Sub-pages share the same slot, switched by visibility
-    // Async-loaded: defers the home page (lead art, shelves, the catalogue
-    // grid) until after the first frame.
+    // Async-loaded: defers heavyweight creation (GameDetectionCard,
+    // AnnouncementCard, CatalogSection with 2× strip) until after first frame.
     Loader {
         id: homePageLoader
         anchors.fill: parent

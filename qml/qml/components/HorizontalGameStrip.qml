@@ -24,17 +24,23 @@ Item {
     property bool largeCards: false
     property bool wheelEnabled: true
     property real driftSpeed: 0  // px/sec, negative=left, positive=right (wrapAround only)
+    // Pill on each cover: an item's own `badge`, else its state on this PC.
+    property bool showStatus: false
     property bool _initialCentered: false
 
     // Is the model a C++ QAbstractItemModel (proxy)?
-    readonly property bool _isProxyModel: model && typeof model.rowCount === "function"
+    readonly property bool _isProxyModel: _isProxy(model)
+    // Asked of the model itself, not of _isProxyModel: onModelChanged runs
+    // before that binding updates, so switching a strip from a proxy to an
+    // array left it showing the old, empty array (Ana Sayfa "Bilgisayarımda").
+    function _isProxy(m) { return !!m && typeof m.rowCount === "function" }
 
     // For JS array models: build 2x view model internally
     property var _viewModel: []
     property bool _wrapReady: false
 
     function _updateViewModel() {
-        if (_isProxyModel) return // proxy handles doubling
+        if (_isProxy(model)) return // proxy handles doubling
         var src = model
         if (!src || src.length === 0) { _viewModel = src || []; return }
         if (!wrapAround || src.length < 2 || !_wrapReady) { _viewModel = src; return }
@@ -67,7 +73,7 @@ Item {
     // Re-center when model changes
     onModelChanged: {
         _initialCentered = false
-        if (!_isProxyModel) {
+        if (!_isProxy(model)) {
             _wrapReady = false
             _updateViewModel()
             if (wrapAround && model && model.length >= 2)
@@ -142,6 +148,10 @@ Item {
             if (!strip._initialCentered && contentWidth > width && count > 0) {
                 if (strip.wrapAround && strip._jumpWidth > 0) {
                     contentX = strip._jumpWidth - width / 2
+                } else if (strip.largeCards) {
+                    // A single row of results or a short list starts at its
+                    // first item — the best match, the newest patch.
+                    contentX = originX
                 } else {
                     contentX = (contentWidth - width) / 2
                 }
@@ -163,6 +173,14 @@ Item {
                 gameName: model.name ?? model.gameName ?? ""
                 steamAppId: model.steamAppId ?? ""
                 installPath: model.installPath ?? ""
+                badge: !strip.showStatus ? ""
+                     : model.badge !== undefined ? model.badge
+                     : model.packageInstalled ? qsTr("Kurulu")
+                     : model.isInstalled ? qsTr("Bilgisayarında")
+                     : ""
+                badgeColor: model.badgeColor !== undefined ? model.badgeColor
+                          : model.packageInstalled ? Theme.success
+                          : Theme.primary
                 onClicked: strip.gameClicked(
                     model.gameId ?? model.id ?? "",
                     model.name ?? model.gameName ?? "",

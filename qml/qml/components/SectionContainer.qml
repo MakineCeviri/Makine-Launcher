@@ -49,7 +49,7 @@ Rectangle {
         spacing: 8
     }
 
-    // Edge fades — inline component named SectionEdgeFade so it never shadows another file's inline EdgeFade
+    // Edge fades — inline component named SectionEdgeFade to avoid shadowing CatalogSection's inline EdgeFade
     component SectionEdgeFade: Rectangle {
         property bool mirror: false
         anchors { top: parent.top; bottom: parent.bottom; topMargin: 40 }
