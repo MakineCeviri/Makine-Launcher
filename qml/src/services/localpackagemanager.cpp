@@ -2473,14 +2473,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
 
         QString workDir = (step.workDir == "package") ? packageDir : gamePath;
 
-        // Resolve argument placeholders
-        QStringList resolvedArgs;
-        for (const QString& arg : step.args) {
-            QString resolved = arg;
-            resolved.replace("${gamePath}", gamePath);
-            resolved.replace("${packageDir}", packageDir);
-            resolvedArgs.append(resolved);
-        }
+        const QStringList resolvedArgs = steprules::resolveRunArgs(step.args, gamePath, packageDir);
         qCInfo(lcPackageManager) << "Run: executing" << exePath
                 << "args:" << resolvedArgs << "workDir:" << workDir;
 

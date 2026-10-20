@@ -379,3 +379,34 @@ TEST(InstallStepRules, ForgeActionsNeedTheirSourceAndTheirArchive) {
         EXPECT_EQ(missingField(action, QStringLiteral("aco156.aco")), QStringLiteral("dest"));
     }
 }
+
+// ===== run step placeholders ================================================
+//
+// The admin panel's "run the patch's own program" recipe hands the game
+// folder to a patch .bat: {"action":"run","exe":"HeavyRain_Turkce_Yama.exe",
+// "args":["${gamePath}"],"workDir":"package"}. Qt holds paths with '/', and
+// xcopy/copy inside the .bat read "/SteamLibrary" as a switch.
+
+TEST(InstallStepRules, RunArgsGetTheGameAndPackagePathsWithNativeSeparators) {
+    const QString game = QStringLiteral("D:/SteamLibrary/steamapps/common/Heavy Rain");
+    const QString pkg  = QStringLiteral("C:/Users/x/AppData/Local/MakineCeviri/Makine-Launcher/packages/heavy-rain");
+    const QStringList args = resolveRunArgs(
+        {QStringLiteral("${gamePath}"), QStringLiteral("/S"),
+         QStringLiteral("--from=${packageDir}"), QStringLiteral(R"(${gamePath}\data)")},
+        game, pkg);
+#ifdef Q_OS_WIN
+    EXPECT_EQ(args, QStringList({
+        QStringLiteral(R"(D:\SteamLibrary\steamapps\common\Heavy Rain)"),
+        QStringLiteral("/S"),   // the recipe's own text is left as written
+        QStringLiteral(R"(--from=C:\Users\x\AppData\Local\MakineCeviri\Makine-Launcher\packages\heavy-rain)"),
+        QStringLiteral(R"(D:\SteamLibrary\steamapps\common\Heavy Rain\data)")}));
+#else
+    EXPECT_EQ(args.at(0), game);
+#endif
+}
+
+TEST(InstallStepRules, RunArgsWithoutPlaceholdersAreUnchanged) {
+    const QStringList args = {QStringLiteral("kapat"), QStringLiteral("hotchunk.arch06")};
+    EXPECT_EQ(resolveRunArgs(args, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")), args);
+    EXPECT_TRUE(resolveRunArgs({}, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")).isEmpty());
+}

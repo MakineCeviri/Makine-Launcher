@@ -14,6 +14,7 @@
 
 #include "bytepatch.h"
 
+#include <QDir>
 #include <QList>
 #include <QPair>
 #include <QString>
@@ -261,6 +262,26 @@ inline bool runStepIsUserLaunchedTool(QStringView exe,
         if (leaf(tool) == want) return true;
     }
     return false;
+}
+
+// A run step's arguments with ${gamePath} and ${packageDir} filled in. The two
+// paths go in with native separators: Qt holds them as "D:/SteamLibrary/…",
+// and a patch's own .bat that hands that to xcopy or copy fails, because cmd
+// reads "/SteamLibrary" as a switch. The rest of each argument is the recipe
+// author's and stays as written.
+inline QStringList resolveRunArgs(const QStringList& args, const QString& gamePath,
+                                  const QString& packageDir)
+{
+    const QString game = QDir::toNativeSeparators(gamePath);
+    const QString pkg  = QDir::toNativeSeparators(packageDir);
+    QStringList resolved;
+    resolved.reserve(args.size());
+    for (QString arg : args) {
+        arg.replace(QLatin1String("${gamePath}"), game);
+        arg.replace(QLatin1String("${packageDir}"), pkg);
+        resolved.append(arg);
+    }
+    return resolved;
 }
 
 } // namespace makine::steprules
