@@ -18,6 +18,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace makine {
 namespace testing {
@@ -254,6 +255,34 @@ TEST_F(PackageCatalogTest, PatchBytesPairsSurviveParsingWithTheirNul) {
     ASSERT_EQ(step.patches.size(), 1u);   // the incomplete pair and the string are dropped
     EXPECT_EQ(step.patches[0].first, std::string("utf16:data0:/font\0", 18));
     EXPECT_EQ(step.patches[0].second, std::string("utf16:dvdroot:/fn\0", 18));
+}
+
+// The admin panel's "run the patch's own program" recipe, with the program
+// that undoes it. Wrong JSON types are skipped like every other step key —
+// a bad value must not take the recipe, or the rest of the catalog, with it.
+TEST_F(PackageCatalogTest, RunStepCarriesItsUninstallProgram) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    const std::string detail = R"({"installMethod": {"type": "script", "steps": [
+        {"action": "run", "exe": "HeavyRain_Turkce_Yama.exe", "args": ["${gamePath}"],
+         "workDir": "package", "uninstall": "Kaldir.bat",
+         "uninstallArgs": ["${gamePath}", 7, "/q"]},
+        {"action": "run", "exe": "patch.exe", "uninstall": 5, "uninstallArgs": "x"},
+        {"action": "run", "exe": "tool.exe"}]}})";
+    ASSERT_TRUE(catalog_.enrichPackage("1245620", detail));
+
+    const auto pkg = catalog_.getPackage("1245620");
+    ASSERT_TRUE(pkg.has_value());
+    ASSERT_EQ(pkg->installSteps.size(), 3u);
+    const auto& run = pkg->installSteps[0];
+    EXPECT_EQ(run.exe, "HeavyRain_Turkce_Yama.exe");
+    EXPECT_EQ(run.workDir, "package");
+    EXPECT_EQ(run.uninstall, "Kaldir.bat");
+    EXPECT_EQ(run.uninstallArgs, (std::vector<std::string>{"${gamePath}", "/q"}));
+
+    EXPECT_EQ(pkg->installSteps[1].exe, "patch.exe");
+    EXPECT_TRUE(pkg->installSteps[1].uninstall.empty());
+    EXPECT_TRUE(pkg->installSteps[1].uninstallArgs.empty());
+    EXPECT_TRUE(pkg->installSteps[2].uninstall.empty());
 }
 
 // =========================================================================

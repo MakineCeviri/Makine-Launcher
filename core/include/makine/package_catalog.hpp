@@ -49,6 +49,8 @@ struct InstallStep {
     std::vector<std::string> args;
     std::string fallback;   // fallback executable
     std::string workDir;    // "game" (default) or "package"
+    std::string uninstall;  // program that undoes a "run" step (resolved like exe)
+    std::vector<std::string> uninstallArgs;
     std::string language;   // Steam language name — for "setSteamLanguage"
     std::vector<std::pair<std::string, std::string>> patches;  // find/replace — for "patchBytes"
 };

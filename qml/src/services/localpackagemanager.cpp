@@ -166,9 +166,13 @@ PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalog
             step.exe      = QString::fromStdString(s.exe);
             step.fallback = QString::fromStdString(s.fallback);
             step.workDir  = QString::fromStdString(s.workDir);
+            step.uninstall = QString::fromStdString(s.uninstall);
             step.language = QString::fromStdString(s.language);
             for (const auto& a : s.args) {
                 step.args.append(QString::fromStdString(a));
+            }
+            for (const auto& a : s.uninstallArgs) {
+                step.uninstallArgs.append(QString::fromStdString(a));
             }
             for (const auto& [find, replace] : s.patches) {
                 step.patches.append({QString::fromStdString(find),
@@ -1139,6 +1143,39 @@ static QString resolvePackageSource(const QString& packageDir, const QString& re
         }
     }
     return strict;
+}
+
+// Where a run step's program is: the game folder first, then the package
+// (wrapper-tolerant, as above). Empty when neither has it. Shared by the "run"
+// branch and uninstall, so a step's "uninstall" resolves exactly like its exe.
+static QString findRunProgram(const QString& relPath, const QString& gamePath,
+                              const QString& packageDir)
+{
+    if (relPath.isEmpty())
+        return {};
+    const QString inGame = QDir::cleanPath(gamePath + "/" + relPath);
+    if (QFile::exists(inGame))
+        return inGame;
+    if (packageDir.isEmpty())        // uninstall after the package folder went
+        return {};
+    const QString inPackage = resolvePackageSource(packageDir, relPath);
+    return QFile::exists(inPackage) ? inPackage : QString();
+}
+
+// Why a found program must not be started — empty when it may be. It has to
+// stay inside the game or package folder and be an .exe, .bat or .cmd.
+static QString runProgramRejection(const QString& path, const QString& gamePath,
+                                   const QString& packageDir)
+{
+    if (path.contains(".."))
+        return QStringLiteral("path traversal rejected");
+    if (!security::isPathContained(gamePath, path)
+        && !security::isPathContained(packageDir, path))
+        return QStringLiteral("executable outside allowed directories");
+    const QString ext = QFileInfo(path).suffix().toLower();
+    if (ext != "exe" && ext != "bat" && ext != "cmd")
+        return QStringLiteral("disallowed executable type: %1").arg(ext);
+    return {};
 }
 
 // An option's source folder as installWithOptions resolves it: the declared
@@ -2441,34 +2478,16 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         // for the package side means ".makine archives that nest the exe
         // under a wrapper (<game>/Türkçe Yama/ERING_TR.exe) still resolve
         // — without it the step silently soft-failed.
-        QString exePath;
-        QString gameExe = QDir::cleanPath(gamePath + "/" + step.exe);
-
-        if      (QFile::exists(gameExe))                 exePath = gameExe;
-        else if (QString c = resolvePackageSource(packageDir, step.exe);
-                 QFile::exists(c))                       exePath = c;
-        else if (!step.fallback.isEmpty()) {
-            QString gameFb = QDir::cleanPath(gamePath + "/" + step.fallback);
-            if      (QFile::exists(gameFb))              exePath = gameFb;
-            else if (QString c = resolvePackageSource(packageDir, step.fallback);
-                     QFile::exists(c))                   exePath = c;
-        }
+        QString exePath = findRunProgram(step.exe, gamePath, packageDir);
+        if (exePath.isEmpty())
+            exePath = findRunProgram(step.fallback, gamePath, packageDir);
         if (exePath.isEmpty()) {
             qCWarning(lcPackageManager) << "Run: executable not found:" << step.exe;
             return StepOutcome::SoftError;
         }
-        if (exePath.contains("..")) {
-            qCWarning(lcPackageManager) << "Run: path traversal rejected:" << exePath;
-            return StepOutcome::SoftError;
-        }
-        if (!security::isPathContained(gamePath, exePath)
-            && !security::isPathContained(packageDir, exePath)) {
-            qCWarning(lcPackageManager) << "Run: executable outside allowed directories:" << exePath;
-            return StepOutcome::SoftError;
-        }
-        QString ext = QFileInfo(exePath).suffix().toLower();
-        if (ext != "exe" && ext != "bat" && ext != "cmd") {
-            qCWarning(lcPackageManager) << "Run: disallowed executable type:" << ext;
+        if (const QString why = runProgramRejection(exePath, gamePath, packageDir);
+            !why.isEmpty()) {
+            qCWarning(lcPackageManager) << "Run:" << why << "-" << exePath;
             return StepOutcome::SoftError;
         }
 
@@ -3332,6 +3351,66 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 
 // -- Uninstall package --------------------------------------------------------
 
+// A patch installed by its own program (a "run" step) changed the game where
+// our file list cannot see: "Kaldır" deleted that list, said the patch was
+// gone, and the patch stayed in the game. A run step may name the program that
+// undoes it ("uninstall" + "uninstallArgs"); this starts it.
+//
+// Detached, never waited on: uninstall runs on the UI thread, and the program
+// is often a window the user clicks through (a "Kaldır" button of its own) or
+// a restore .bat. A program that needs administrator rights gets its UAC
+// prompt from QProcess::startDetached itself.
+//
+// Top-level steps only. An option's steps ran only if the user picked that
+// option, and the install record does not keep which ones were picked;
+// starting the undo of something never installed is worse than not starting
+// it. For the same reason a variant package is searched from its root.
+void LocalPackageManager::startUninstallPrograms(const QString& steamAppId,
+                                                 const QString& gamePath) const
+{
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg)
+        return;
+    QList<InstallStep> undo;
+    for (const InstallStep& step : pkg->installSteps) {
+        if (step.action == QLatin1String("run") && !step.uninstall.isEmpty())
+            undo.append(step);
+    }
+    // No game folder, nothing to undo: the program would only fail against it.
+    if (undo.isEmpty() || !QDir(gamePath).exists())
+        return;
+
+    const QString packageDir = resolveSourcePath(*pkg, QString());
+    for (const InstallStep& step : undo) {
+        const QString program = findRunProgram(step.uninstall, gamePath, packageDir);
+        QString why = program.isEmpty()
+            ? (packageDir.isEmpty() ? QStringLiteral("not found, package folder is gone")
+                                    : QStringLiteral("not found"))
+            : runProgramRejection(program, gamePath, packageDir);
+        if (why.isEmpty()) {
+            const QString workDir = (step.workDir == "package" && !packageDir.isEmpty())
+                ? packageDir : gamePath;
+            const QStringList args =
+                steprules::resolveRunArgs(step.uninstallArgs, gamePath, packageDir);
+            qCInfo(lcPackageManager) << "Uninstall: starting" << program
+                                     << "args:" << args << "workDir:" << workDir;
+            if (QProcess::startDetached(program, args, workDir)) {
+                CrashReporter::addBreadcrumb("package",
+                    QStringLiteral("uninstall program started: %1")
+                        .arg(step.uninstall).toUtf8().constData());
+                continue;
+            }
+            why = QStringLiteral("failed to start");
+        }
+        // The rest of the uninstall still runs; this only means the patch may
+        // be left in the game, which is what the event is for.
+        qCWarning(lcPackageManager) << "Uninstall program" << step.uninstall
+                                    << "for" << steamAppId << ":" << why;
+        CrashReporter::reportFailure("uninstall", steamAppId,
+            QStringLiteral("uninstall program %1: %2").arg(step.uninstall, why));
+    }
+}
+
 bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath,
                                            const QString& restoredFrom)
 {
@@ -3353,6 +3432,8 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                               || (!QDir(recordedPath).exists() && QDir(gamePath).exists()))
         ? gamePath
         : recordedPath;
+
+    startUninstallPrograms(steamAppId, basePath);
 
     // Files we REPLACED at install time — BackupManager::restoreBackup
     // copies the originals back over them in the uninstall flow. Deleting

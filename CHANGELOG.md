@@ -9,6 +9,7 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ### Eklenen (2026-10-20)
 - **Hata raporu ayarı** — Ayarlar → Genel → "Çökme ve Hata Raporlarını Gönder" (varsayılan açık). Kapalıyken Sentry hiç başlatılmıyor; çalışırken kapatılınca o andan sonra hiçbir rapor, çökme ya da oturum bilgisi gönderilmiyor; yeniden açılınca yeniden başlatma gerekmeden sürüyor. Sayım kanalı (`TelemetryService`) bu ayarın dışında
+- **Kendi programıyla kurulan yamayı kaldırma** — `run` adımına isteğe bağlı `uninstall` + `uninstallArgs` (aynı `${gamePath}`/`${packageDir}`); "Kaldır" o programı beklemeden başlatıp normal kaldırmaya devam ediyor. Önceden yalnız izlenen dosyalar siliniyor, yama oyunda kalırken "kaldırıldı" deniyordu. Eski launcher'lar bu anahtarları yok sayar
 
 ### Düzeltilen (2026-10-20)
 - `run` adımında `${gamePath}` / `${packageDir}` Windows ayırıcısıyla (`D:\SteamLibrary\…`) veriliyor; `D:/…` biçimi yamanın kendi .bat'ındaki xcopy/copy komutlarını bozuyordu

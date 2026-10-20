@@ -85,7 +85,8 @@ REDIRECT_TYPES = {"external", "forge_inject", "workshop", "installer",
                   "paradox-mod", "unityPatch", "modengine", "d2r_mod"}
 # Keys the step parser reads. Anything else in a step is silently discarded.
 PARSED_KEYS = {"action", "src", "dest", "exe", "fallback", "workDir",
-               "language", "args", "cmd", "patch", "target", "patches"}
+               "language", "args", "cmd", "patch", "target", "patches",
+               "uninstall", "uninstallArgs"}
 
 
 def fetch(url, as_json=True):

@@ -166,6 +166,18 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
                 }
             }
         }
+        // A "run" step whose program installs the patch itself may name the
+        // program that undoes it; "Kaldır" starts that one. Older launchers
+        // read neither key — unknown keys are skipped here — so adding them
+        // needs no recipe level.
+        if (s.contains("uninstall") && s["uninstall"].is_string())
+            step.uninstall = s["uninstall"].get<std::string>();
+        if (s.contains("uninstallArgs") && s["uninstallArgs"].is_array()) {
+            for (const auto& a : s["uninstallArgs"]) {
+                if (a.is_string())
+                    step.uninstallArgs.push_back(a.get<std::string>());
+            }
+        }
         // "vpatch" names its two paths differently, because the recipes were
         // written against the VPatch tool's own vocabulary rather than the
         // step schema: "patch" is the delta file inside the package and

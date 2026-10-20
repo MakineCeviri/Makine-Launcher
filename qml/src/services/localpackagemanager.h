@@ -40,6 +40,8 @@ struct InstallStep {
     QStringList args;   // arguments — for "run"
     QString fallback;   // fallback executable if primary not found — for "run"
     QString workDir;    // "game" (default) or "package" — for "run"
+    QString uninstall;  // program that undoes this "run" step — started on uninstall
+    QStringList uninstallArgs;  // its arguments, same placeholders as args
     QString language;   // Steam language name — for "setSteamLanguage"
     QList<QPair<QString, QString>> patches;  // find/replace byte strings — for "patchBytes"
 };
@@ -187,6 +189,10 @@ private:
                             const QString& basePackageDir, const QStringList& selectedOptions);
 
     QString installedStatePath() const;
+
+    // Start, detached, the "uninstall" program of every run step that names
+    // one, so a patch installed by its own program is removed by it too.
+    void startUninstallPrograms(const QString& steamAppId, const QString& gamePath) const;
 
     // Quarantined: antivirus refused or removed the file (Windows 225/226).
     enum class CopyError { None, DiskFull, PermissionDenied, FileLocked, Quarantined, Other };
