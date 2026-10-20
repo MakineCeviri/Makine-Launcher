@@ -94,12 +94,13 @@ if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 # Stamp a Debug ID onto the staged third-party DLLs so Sentry can symbolicate
 # their frames (every fatal lands in Qt6*.dll / libstdc++ / libgcc). This must
 # run on the STAGE, after windeployqt copies the Qt runtime in — the DLLs that
-# ship are the ones that get the ID. --include-signed also stamps the signed Qt
-# DLLs (their Authenticode cert is stripped; our own EXE is signed separately
-# and this bundle is repackaged anyway). scripts/upload_symbols.py --deploy-dir
-# then uploads the matching symbols. Drop --include-signed to keep Qt's
-# signature and symbolicate only the MinGW-runtime frames.
-& python (Join-Path $repo "scripts/stamp_debug_ids.py") $stage --include-signed
+# ship are the ones that get the ID. scripts/upload_symbols.py --deploy-dir
+# then uploads the matching symbols. The Qt DLLs are Authenticode-signed by The
+# Qt Company and stay untouched: stamping them strips that signature, and
+# antivirus already quarantines launcher files in the field (antivirus_blocked).
+# --include-signed would stamp them too, so Qt frames resolve as well; that
+# trade is a release decision, not a default.
+& python (Join-Path $repo "scripts/stamp_debug_ids.py") $stage
 if ($LASTEXITCODE -ne 0) { throw "stamp_debug_ids.py failed ($LASTEXITCODE)" }
 
 if ($Sign) {
