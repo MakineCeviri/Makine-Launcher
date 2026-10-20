@@ -23,6 +23,7 @@
 #include <QSurfaceFormat>
 #include <QQuickWindow>
 #include <QQuickGraphicsConfiguration>
+#include <QThread>
 #include <QThreadPool>
 #include <QLibrary>
 #include <QElapsedTimer>
@@ -1565,6 +1566,22 @@ int main(int argc, char *argv[])
             "selftest", QStringLiteral("telemetry"),
             QStringLiteral("telemetry self-test event: DSN, init and transport reachable; "
                            "message path check: C:\\Users\\selftest_user_name\\AppData"));
+        // MAKINE_SELFTEST_TOGGLE also proves the runtime switch (Ayarlar → "Çökme
+        // ve Hata Raporlarını Gönder"): a report made while it is off must never
+        // reach the server, one made after it is back on must. The pause lets the
+        // first event leave before the switch, since switching off also drops
+        // whatever is still queued.
+        if (qEnvironmentVariableIsSet("MAKINE_SELFTEST_TOGGLE")) {
+            QThread::sleep(2);
+            makine::CrashReporter::setEnabled(false);
+            makine::CrashReporter::reportFailure(
+                "selftest", QStringLiteral("telemetry"),
+                QStringLiteral("telemetry self-test toggle: made while reports are OFF"));
+            makine::CrashReporter::setEnabled(true);
+            makine::CrashReporter::reportFailure(
+                "selftest", QStringLiteral("telemetry"),
+                QStringLiteral("telemetry self-test toggle: made after reports are ON again"));
+        }
         makine::CrashReporter::shutdown();   // flushes queued envelopes
         qInfo("telemetry self-test event dispatched");
 
