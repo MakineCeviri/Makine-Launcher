@@ -7,6 +7,9 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### Eklenen (2026-10-20)
+- **Hata raporu ayarı** — Ayarlar → Genel → "Çökme ve Hata Raporlarını Gönder" (varsayılan açık). Kapalıyken Sentry hiç başlatılmıyor; çalışırken kapatılınca o andan sonra hiçbir rapor, çökme ya da oturum bilgisi gönderilmiyor; yeniden açılınca yeniden başlatma gerekmeden sürüyor. Sayım kanalı (`TelemetryService`) bu ayarın dışında
+
 ### Eklenen (2026-03-12)
 - **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)
 - **Discord butonu** — Duyuru kartında hover animasyonlu Discord bağlantısı

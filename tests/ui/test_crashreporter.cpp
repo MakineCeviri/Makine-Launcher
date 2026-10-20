@@ -169,6 +169,23 @@ TEST(CrashReporterSink, CapabilityRefusalIsCountedThoughSentryNeverSeesIt)
     EXPECT_EQ(g_calls[0].reason, QStringLiteral("forge_inject"));
 }
 
+// Turning Sentry reports off in Ayarlar does not turn the counting channel off
+// with them: that is a separate, anonymous channel the setting does not cover.
+// With reports off the Sentry gate is never consulted, so this writes no settings.
+TEST(CrashReporterSink, ReportsOffStillCountsTheFailure)
+{
+    g_calls.clear();
+    CrashReporter::setEnabled(false);
+    CrashReporter::setFailureSink(&captureSink);
+    CrashReporter::reportFailure("install", QStringLiteral("1245620"),
+                                 QStringLiteral("1/3 adımda hata oluştu"));
+    CrashReporter::setFailureSink(nullptr);
+
+    ASSERT_EQ(g_calls.size(), 1);
+    EXPECT_EQ(g_calls[0].side, QStringLiteral("system"));
+    EXPECT_EQ(g_calls[0].reason, QStringLiteral("step_failed"));
+}
+
 TEST(CrashReporterSink, SelfTestIsCountedAsASystemFailure)
 {
     // "selftest" bypasses the Sentry gate, so this path writes no settings.

@@ -28,7 +28,14 @@
 #include <QSettings>
 #include <QVariantMap>
 
+#include <atomic>
+
 static makine::CrashReporter::FailureSink s_failureSink = nullptr;
+
+// The user's "Çökme ve Hata Raporlarını Gönder" setting. False until
+// initialize() has brought Sentry up, so a session that opted out never even
+// builds an event. Read on whichever thread reports, written on the GUI thread.
+static std::atomic<bool> s_enabled{false};
 
 // Sentry gate — see telemetryrules.h for why it exists. reportFailure runs on
 // the scan worker thread too and the Qt handler on whichever thread logged, so
@@ -38,6 +45,11 @@ static int s_sessionEvents = 0;
 
 static bool admitToSentry(const QString& key)
 {
+    // Checked before the quota: an event that is never sent must not use up
+    // the day's slot for its key, or it stays suppressed once reports are back.
+    if (!s_enabled)
+        return false;
+
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     QMutexLocker lock(&s_gateMutex);
     if (s_sessionEvents >= makine::telemetryrules::kSentryEventsPerSession)
@@ -69,6 +81,9 @@ namespace {
 
 // Previous Qt message handler (for chaining)
 static QtMessageHandler s_previousHandler = nullptr;
+
+// sentry_init() has succeeded in this process. GUI thread only.
+static bool s_initialized = false;
 
 // Qt message handler that routes to Sentry
 void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg)
@@ -209,11 +224,33 @@ void CrashReporter::initialize()
     // phases, which is exactly the context a crash report needs.
     sentry_options_set_max_breadcrumbs(options, 100);
 
+    // Uploads wait for consent, and consent follows the user's setting
+    // (setEnabled). That is what makes switching reports off total: the SDK
+    // drops every envelope at the transport — messages, the crash the breakpad
+    // handler writes, session updates, whatever is still queued — not only
+    // the events that pass through our own wrappers.
+    //
+    // The SDK keeps that consent on disk and reads it inside sentry_init(),
+    // the same call that sends the previous run's queued envelopes; a consent
+    // given after it is too late for them. On the first start with this
+    // setting there is no file yet, so that replay (a crash minidump among it)
+    // would be dropped. Writing it first keeps it (sentry-native 0.9.1,
+    // load_user_consent). Should the format ever change, only that replay is
+    // lost: sentry_user_consent_give() below still covers the session.
+    QFile consentFile(dbPath + QStringLiteral("/user-consent"));
+    if (consentFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        consentFile.write("1\n");
+    consentFile.close();
+    sentry_options_set_require_user_consent(options, 1);
+
     int result = sentry_init(options);
     if (result != 0) {
         qWarning("CrashReporter: sentry_init failed with code %d", result);
         return;
     }
+    sentry_user_consent_give();
+    s_initialized = true;
+    s_enabled = true;
 
     // OS context
     setContext("os.name", QSysInfo::productType());
@@ -247,6 +284,22 @@ void CrashReporter::initialize()
 #endif
 }
 
+void CrashReporter::setEnabled(bool enabled)
+{
+#ifdef MAKINE_HAS_SENTRY
+    // The session started with reports off, so Sentry was never brought up.
+    if (enabled && !s_initialized) {
+        initialize();
+        return;
+    }
+    if (enabled)
+        sentry_user_consent_give();
+    else
+        sentry_user_consent_revoke();
+#endif
+    s_enabled = enabled;
+}
+
 void CrashReporter::shutdown()
 {
 #ifdef MAKINE_HAS_SENTRY
@@ -259,6 +312,8 @@ void CrashReporter::addBreadcrumb(const char* category, const char* message,
                                    const char* level)
 {
 #ifdef MAKINE_HAS_SENTRY
+    if (!s_enabled)
+        return;
     // Breadcrumbs are attached to every event, and the qCWarning lines routed
     // here quote absolute paths — live events carried "C:/Users/<name>/AppData/…"
     // through untouched while the message body next to them was correctly
@@ -301,6 +356,8 @@ void CrashReporter::captureMessage(const char* message, const char* level,
                                     const QHash<QString, QString>& eventTags)
 {
 #ifdef MAKINE_HAS_SENTRY
+    if (!s_enabled)
+        return;
     sentry_level_t sentryLevel = SENTRY_LEVEL_INFO;
     if (qstrcmp(level, "warning") == 0)      sentryLevel = SENTRY_LEVEL_WARNING;
     else if (qstrcmp(level, "error") == 0)    sentryLevel = SENTRY_LEVEL_ERROR;

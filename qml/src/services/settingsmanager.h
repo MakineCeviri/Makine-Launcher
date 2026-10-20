@@ -35,6 +35,7 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool startWithWindows READ startWithWindows WRITE setStartWithWindows NOTIFY startWithWindowsChanged)
     Q_PROPERTY(bool minimizeToTray READ minimizeToTray WRITE setMinimizeToTray NOTIFY minimizeToTrayChanged)
     Q_PROPERTY(bool showNotifications READ showNotifications WRITE setShowNotifications NOTIFY showNotificationsChanged)
+    Q_PROPERTY(bool sendCrashReports READ sendCrashReports WRITE setSendCrashReports NOTIFY sendCrashReportsChanged)
     // Performance settings
     Q_PROPERTY(bool hardwareAcceleration READ hardwareAcceleration WRITE setHardwareAcceleration NOTIFY hardwareAccelerationChanged)
     Q_PROPERTY(bool useGlobalCache READ useGlobalCache WRITE setUseGlobalCache NOTIFY useGlobalCacheChanged)
@@ -78,6 +79,11 @@ public:
 
     bool showNotifications() const { return m_showNotifications; }
     void setShowNotifications(bool value);
+
+    // Sentry crash/error reports (opt-out). main.cpp reads the stored value
+    // before this object exists and applies changes via CrashReporter::setEnabled.
+    bool sendCrashReports() const { return m_sendCrashReports; }
+    void setSendCrashReports(bool value);
 
 
 
@@ -132,6 +138,7 @@ signals:
     void startWithWindowsChanged();
     void minimizeToTrayChanged();
     void showNotificationsChanged();
+    void sendCrashReportsChanged();
     void hardwareAccelerationChanged();
     void useGlobalCacheChanged();
     void enableAnimationsChanged();
@@ -163,6 +170,7 @@ private:
     bool m_startWithWindows{false};
     bool m_minimizeToTray{false};
     bool m_showNotifications{false};
+    bool m_sendCrashReports{true};
     // Performance
     bool m_hardwareAcceleration{true};
     bool m_useGlobalCache{true};

@@ -86,6 +86,16 @@ void SettingsManager::setShowNotifications(bool value)
     }
 }
 
+void SettingsManager::setSendCrashReports(bool value)
+{
+    if (m_sendCrashReports != value) {
+        m_sendCrashReports = value;
+        m_settings.setValue("general/sendCrashReports", value);
+        emit sendCrashReportsChanged();
+        emit settingsChanged();
+    }
+}
+
 
 void SettingsManager::setHardwareAcceleration(bool value)
 {
@@ -277,6 +287,8 @@ void SettingsManager::resetToDefaults()
     setStartWithWindows(false);
     setMinimizeToTray(false);
     setShowNotifications(false);
+    // sendCrashReports stays: a reset must not turn back on the reports the
+    // user switched off.
     setHardwareAcceleration(true);
     setUseGlobalCache(true);
     setEnableAnimations(true);
@@ -324,6 +336,7 @@ void SettingsManager::loadSettings()
     m_startWithWindows = m_settings.value("general/startWithWindows", false).toBool();
     m_minimizeToTray = m_settings.value("general/minimizeToTray", false).toBool();
     m_showNotifications = m_settings.value("general/showNotifications", false).toBool();
+    m_sendCrashReports = m_settings.value("general/sendCrashReports", true).toBool();
     m_hardwareAcceleration = m_settings.value("performance/hardwareAcceleration", true).toBool();
     m_useGlobalCache = m_settings.value("performance/useGlobalCache", true).toBool();
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
@@ -365,6 +378,7 @@ void SettingsManager::saveSettings()
     m_settings.setValue("general/startWithWindows", m_startWithWindows);
     m_settings.setValue("general/minimizeToTray", m_minimizeToTray);
     m_settings.setValue("general/showNotifications", m_showNotifications);
+    m_settings.setValue("general/sendCrashReports", m_sendCrashReports);
     m_settings.setValue("performance/hardwareAcceleration", m_hardwareAcceleration);
     m_settings.setValue("performance/useGlobalCache", m_useGlobalCache);
     m_settings.setValue("performance/enableAnimations", m_enableAnimations);

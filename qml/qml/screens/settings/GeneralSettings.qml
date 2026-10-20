@@ -57,6 +57,16 @@ ColumnLayout {
                 onToggled: SettingsManager.minimizeToTray = !SettingsManager.minimizeToTray
             }
 
+            SettingsDivider {}
+
+            ToggleSetting {
+                title: qsTr("Çökme ve Hata Raporlarını Gönder")
+                description: qsTr("Raporlar (Sentry) kişisel bilgi içermez; kapatırsanız hiçbiri gönderilmez.")
+                checked: SettingsManager.sendCrashReports
+                disableAnimations: !SettingsManager.enableAnimations
+                onToggled: SettingsManager.sendCrashReports = !SettingsManager.sendCrashReports
+            }
+
         }
     }
 

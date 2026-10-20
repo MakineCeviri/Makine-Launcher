@@ -20,8 +20,21 @@ namespace makine {
 class CrashReporter
 {
 public:
-    /// Initialize Sentry SDK. Call as early as possible, before QGuiApplication.
+    /// Initialize Sentry SDK. Call as early as possible, right after
+    /// QGuiApplication — and only when the user allows reports
+    /// (SettingsManager::sendCrashReports).
     static void initialize();
+
+    /**
+     * @brief Apply the user's "Çökme ve Hata Raporlarını Gönder" setting at runtime.
+     *
+     * Off: nothing more leaves the process from this call on — no message, no
+     * crash, no session update, nothing still queued. On: reports resume at
+     * once, and a session that started opted out brings Sentry up here.
+     * The counting channel (TelemetryService, our own endpoint) is separate
+     * and unaffected. GUI thread only.
+     */
+    static void setEnabled(bool enabled);
 
     /// Flush and shutdown Sentry SDK. Call at application exit.
     static void shutdown();

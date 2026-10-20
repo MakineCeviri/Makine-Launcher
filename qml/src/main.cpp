@@ -961,6 +961,13 @@ static void createServices(
         app.setQuitOnLastWindowClosed(!settingsManager->minimizeToTray());
     });
 
+    // Reports switched off stop at once; switched on, they resume — Sentry is
+    // brought up then if this session started without it.
+    QObject::connect(settingsManager, &SettingsManager::sendCrashReportsChanged, &app,
+                     [settingsManager]() {
+        makine::CrashReporter::setEnabled(settingsManager->sendCrashReports());
+    });
+
     // ===== Phase 2: Image cache =====
 #ifdef Q_OS_WIN
     splash.setStatus(L"G\u00F6rsel \u00F6nbelle\u011Fi ba\u015Flat\u0131l\u0131yor...");
@@ -1518,7 +1525,14 @@ int main(int argc, char *argv[])
 #endif
 
     // === Phase 0: Crash reporting (as early as possible after QApp) ===
-    makine::CrashReporter::initialize();
+    // Only with the user's consent (Ayarlar → Genel → "Çökme ve Hata
+    // Raporlarını Gönder"). SettingsManager does not exist yet, so the stored
+    // value is read directly. An opted-out session does not start Sentry at
+    // all: no session, no crash handler, no replay of what an earlier run left
+    // queued.
+    if (QSettings("MakineCeviri", "Makine-Launcher")
+            .value("general/sendCrashReports", true).toBool())
+        makine::CrashReporter::initialize();
     makine::CrashReporter::installQtMessageHandler();
     makine::CrashReporter::setFailureSink([](const char* op, const QString& subject,
                                              const QString& side, const QString& reason) {
