@@ -854,6 +854,8 @@ void CoreBridge::scanAllLibraries()
                 this, &CoreBridge::packageInstallProgress);
         connect(m_localPkgManager, &LocalPackageManager::installCompleted,
                 this, &CoreBridge::packageInstallCompleted);
+        connect(m_localPkgManager, &LocalPackageManager::processOutput,
+                this, &CoreBridge::packageProcessOutput);
     }
 
     // Capture raw pointer for thread-safe package lookups (manager lives on main thread)
@@ -1278,6 +1280,12 @@ void CoreBridge::cancelInstall()
         m_localPkgManager->cancelInstall();
 }
 
+void CoreBridge::sendProcessInput(const QString& text)
+{
+    if (m_localPkgManager)
+        m_localPkgManager->sendProcessInput(text);
+}
+
 QVariantList CoreBridge::getVariantsForGame(const QString& gameId)
 {
     MAKINE_ZONE_NAMED("CoreBridge::getVariantsForGame");
@@ -1424,6 +1432,14 @@ bool CoreBridge::recipeWritesInPlace(const QString& gameId)
     if (!m_localPkgManager) return false;
     const QString resolved = resolveToSteamAppId(gameId);
     return !resolved.isEmpty() && m_localPkgManager->recipeWritesInPlace(resolved);
+}
+
+LocalPackageManager::OwnProgram CoreBridge::ownProgramRecipe(const QString& gameId)
+{
+    if (!m_localPkgManager) return LocalPackageManager::OwnProgram::No;
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? LocalPackageManager::OwnProgram::No
+                              : m_localPkgManager->ownProgramRecipe(resolved);
 }
 
 QString CoreBridge::findMatchingAppId(const QString& folderName)
@@ -1576,6 +1592,8 @@ void CoreBridge::refreshPackageManifest()
                 this, &CoreBridge::packageInstallProgress);
         connect(m_localPkgManager, &LocalPackageManager::installCompleted,
                 this, &CoreBridge::packageInstallCompleted);
+        connect(m_localPkgManager, &LocalPackageManager::processOutput,
+                this, &CoreBridge::packageProcessOutput);
         qCDebug(lcCoreBridge) << "LocalPackageManager created early (via refreshPackageManifest)";
     }
 

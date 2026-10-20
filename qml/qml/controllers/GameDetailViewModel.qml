@@ -77,6 +77,8 @@ QtObject {
     property string installStatus: ""
     property bool installCompleted: false
     property string installErrorMessage: ""
+    // Output of the patch's own program (GameService.installConsole)
+    property string installConsole: ""
 
     // ===== DOWNLOAD STATE =====
     property bool isDownloading: false
@@ -124,6 +126,7 @@ QtObject {
         antiCheatName = ""; isInstallingRuntime = false
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
         installCompleted = false; installErrorMessage = ""; isDownloading = false
+        installConsole = ""
         updateImpact = null; descriptionExpanded = false
     }
 
@@ -154,6 +157,7 @@ QtObject {
         isInstallingTranslation = isDownloading || (id !== "" && GameService.isInstalling(id))
         if (isInstallingTranslation)
             installStatus = isDownloading ? qsTr("İndiriliyor...") : qsTr("Kuruluyor...")
+        installConsole = id !== "" ? GameService.installConsole(id) : ""
 
         // Set gameId after other props so listeners see complete state
         gameId = id

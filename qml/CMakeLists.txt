@@ -214,6 +214,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/TranslationActionButton.qml
         qml/screens/detail/AboutSection.qml
         qml/screens/detail/UpdateBanner.qml
+        qml/screens/detail/ProgramConsole.qml
         qml/screens/detail/GameDetailOverlay.qml
         qml/screens/detail/ContributorsSection.qml
         qml/screens/detail/RuntimeSection.qml

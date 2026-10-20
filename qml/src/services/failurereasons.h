@@ -64,6 +64,9 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // 1 dosya kopyalanamadı)"), so a generic copy_failed placed first
         // swallows the whole bucket. The corpus test caught exactly that.
         {QStringLiteral("birden fazla oyun sürümü için ayrı dosyalar"), QStringLiteral("variant_unselected")},
+        // A recipe that is only the patch's own program, with nothing named to
+        // undo it: a catalogue fix, never a retry (Heavy Rain, 2026-10-20).
+        {QStringLiteral("names no uninstall program"),           QStringLiteral("run_no_undo")},
         {QStringLiteral("backup file list empty"),               QStringLiteral("backup_unknowable")},
         {QStringLiteral("backup available"),                     QStringLiteral("no_backup")},            // 376
         {QStringLiteral("Yedek tamamen geri yüklenemedi"),       QStringLiteral("restore_partial")},      // 48

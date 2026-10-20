@@ -80,6 +80,13 @@ target_include_directories(test_installsteprules PRIVATE
 target_link_libraries(test_installsteprules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_installsteprules COMMAND test_installsteprules)
 
+# A run step's output on the game page: split characters, "\r", the size cap.
+add_executable(test_processconsole test_processconsole.cpp)
+target_include_directories(test_processconsole PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_processconsole PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_processconsole COMMAND test_processconsole)
+
 # Why a field failure happened, as a stable code instead of Turkish prose.
 add_executable(test_failurereasons test_failurereasons.cpp)
 target_include_directories(test_failurereasons PRIVATE

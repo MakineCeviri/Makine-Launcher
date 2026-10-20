@@ -244,6 +244,17 @@ public:
     Q_INVOKABLE bool isInstalling(const QString& gameId) const;
 
     /**
+     * @brief What the patch's own program has printed during `gameId`'s
+     * install (kept after it ends, until the next install starts)
+     */
+    Q_INVOKABLE QString installConsole(const QString& gameId) const;
+
+    /**
+     * @brief Pass a typed line to that program; an empty line is a key press
+     */
+    Q_INVOKABLE void sendInstallInput(const QString& text);
+
+    /**
      * @brief Update an installed translation package (no backup step)
      * Downloads new files, overwrites old ones, updates version.
      */
@@ -414,6 +425,7 @@ signals:
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
     void translationInstallStarted(const QString& gameId);
     void translationInstallProgress(const QString& gameId, double progress, const QString& status);
+    void translationInstallOutput(const QString& gameId);
     void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
 
@@ -519,6 +531,9 @@ private:
     // into the next install's slot.
     QString m_installingGameId;
     bool m_installCancelRequested{false};
+    // Output of the install's own program (installConsole) and whose it is.
+    QString m_installConsole;
+    QString m_installConsoleGameId;
     QSet<QString> m_uninstalling;   // games with an uninstall in flight
     QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
     QHash<QString, int> m_restoreFailures;  // failed uninstall restores per game, this session

@@ -23,6 +23,7 @@
 #include "rawfile.h"
 #include "packagestamp.h"
 #include "processscanner.h"
+#include "processconsole.h"
 #include <QCryptographicHash>
 #include <QDesktopServices>
 #include <QDir>
@@ -48,6 +49,9 @@ Q_LOGGING_CATEGORY(lcGameService, "makine.game")
 
 namespace {
 constexpr int kAutoScanDelayMs = 500;
+// Newest output of an install's own program kept for the game page (~1000
+// lines); the page lays the whole text out again on every update.
+constexpr qsizetype kInstallConsoleCap = qsizetype{64} * 1024;
 
 // Name-match rule (both directions) lives in gamenamerules.h so it can be
 // exercised directly — see tests/ui/test_gamenamerules.cpp.
@@ -347,6 +351,13 @@ void GameService::setupCoreBridge()
                 if (!m_installingGameId.isEmpty()) {
                     emit translationInstallProgress(m_installingGameId, progress, status);
                 }
+            });
+    connect(m_coreBridge, &CoreBridge::packageProcessOutput,
+            this, [this](const QString& text) {
+                if (m_installingGameId.isEmpty() || m_installingGameId != m_installConsoleGameId)
+                    return;
+                processconsole::appendTo(m_installConsole, text, kInstallConsoleCap);
+                emit translationInstallOutput(m_installingGameId);
             });
 
     connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
@@ -1264,6 +1275,25 @@ bool GameService::isInstalling(const QString& gameId) const
     return !gameId.isEmpty() && gameId == m_installingGameId;
 }
 
+QString GameService::installConsole(const QString& gameId) const
+{
+    if (gameId.isEmpty() || gameId != m_installConsoleGameId)
+        return {};
+    // A trailing "\r" is a return still waiting for its next character.
+    return m_installConsole.endsWith(QLatin1Char('\r')) ? m_installConsole.chopped(1)
+                                                        : m_installConsole;
+}
+
+void GameService::sendInstallInput(const QString& text)
+{
+    if (m_installingGameId.isEmpty() || !m_coreBridge)
+        return;
+    // A pipe does not echo; show what was typed where a console would.
+    processconsole::appendTo(m_installConsole, text + QLatin1Char('\n'), kInstallConsoleCap);
+    emit translationInstallOutput(m_installingGameId);
+    m_coreBridge->sendProcessInput(text);
+}
+
 void GameService::endCancelledInstall(const QString& gameId)
 {
     m_installTimeoutTimer->stop();
@@ -1372,6 +1402,8 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
     m_installCancelRequested = false;
+    m_installConsole.clear();
+    m_installConsoleGameId = gameId;
     m_installTimeoutTimer->start();
     emit translationInstallStarted(gameId);
     emit translationInstallProgress(gameId, 0.0, tr("Oyun durumu kontrol ediliyor..."));
@@ -1489,7 +1521,16 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             // and the install resolved the package differently). This closes
             // the shape itself: whatever the reason, a patch never goes on top
             // of originals we did not manage to record.
-            if (bm && !alreadyInstalled && filesToOverwrite.isEmpty()) {
+            // A recipe that is only the patch's own program writes where no list
+            // can see in advance. It may go in without a backup of ours when it
+            // also names the program that undoes it: uninstall starts that one
+            // (startUninstallPrograms). Without it, nothing could take it back.
+            const auto ownProgram = m_coreBridge->ownProgramRecipe(gameId);
+            if (ownProgram == LocalPackageManager::OwnProgram::WithUndo && filesToOverwrite.isEmpty())
+                qCInfo(lcGameService) << "Recipe of" << gameId
+                                      << "is its own program with an undo - no backup of ours";
+            if (bm && !alreadyInstalled && filesToOverwrite.isEmpty()
+                && ownProgram != LocalPackageManager::OwnProgram::WithUndo) {
                 // Warning, not critical: a critical log is a Sentry event of
                 // its own, and the report below already is one.
                 qCWarning(lcGameService) << "Backup file list empty for" << gameId
@@ -1511,6 +1552,21 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                                             .arg(unknown.join(QStringLiteral(", ")));
                     reportOperationFailure("install", gameId, msg);
                     emit translationInstallCompleted(gameId, false, msg);
+                    return;
+                }
+
+                // Not "download it again": the recipe itself is incomplete, and
+                // every retry would end here. 56 attempts in eight minutes on
+                // Heavy Rain (2026-10-20) were this.
+                if (ownProgram == LocalPackageManager::OwnProgram::WithoutUndo) {
+                    reportOperationFailure("install", gameId,
+                        QStringLiteral("own-program recipe names no uninstall program; "
+                                       "refusing without a backup"));
+                    emit translationInstallCompleted(gameId, false,
+                        tr("Bu yama kendi programıyla kuruluyor, ama onu geri alacak "
+                           "kaldırma programı tanımlanmamış. Oyun dosyalarına dokunulmadı: "
+                           "değişiklikler yedeklenemez ve geri alınamazdı.\n"
+                           "Bu bir katalog hatası ve bildirildi; düzeltildiğinde yama kurulabilecek."));
                     return;
                 }
 

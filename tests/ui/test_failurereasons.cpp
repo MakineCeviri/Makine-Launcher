@@ -123,6 +123,18 @@ TEST(FailureReasons, BothCasingsOfTheBackupMessageLandTogether)
         QStringLiteral("no_backup"));
 }
 
+TEST(FailureReasons, AnOwnProgramRecipeWithoutUndoIsNotAnEmptyBackupList)
+{
+    // Heavy Rain, 2026-10-20: 56 attempts filed as backup_unknowable, which
+    // reads as "download again". The recipe had nothing to undo it with.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "own-program recipe names no uninstall program; refusing without a backup")),
+        QStringLiteral("run_no_undo"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "backup file list empty; refusing to patch without a backup")),
+        QStringLiteral("backup_unknowable"));
+}
+
 TEST(FailureReasons, TheRemainingLiveBuckets)
 {
     EXPECT_EQ(failureReason(QStringLiteral(

@@ -190,6 +190,7 @@ Item {
                 root.viewModel.isInstallingTranslation = true
                 root.viewModel.installProgress = 0
                 root.viewModel.installStatus = qsTr("Kuruluyor...")
+                root.viewModel.installConsole = ""
             }
         }
         function onTranslationInstallProgress(gId, progress, status) {
@@ -197,6 +198,10 @@ Item {
                 root.viewModel.installProgress = progress
                 root.viewModel.installStatus = status || qsTr("Kuruluyor...")
             }
+        }
+        function onTranslationInstallOutput(gId) {
+            if (gId === root.viewModel.gameId)
+                root.viewModel.installConsole = GameService.installConsole(gId)
         }
         function onTranslationInstallCompleted(gId, success, message) {
             // Reported from the field as "yama kurulu görünüyor ama oyun hâlâ
@@ -427,6 +432,14 @@ Item {
             // =================================================================
 
             UpdateBanner {
+                vm: root.viewModel
+            }
+
+            // =================================================================
+            // OUTPUT OF THE PATCH'S OWN PROGRAM ("run" steps)
+            // =================================================================
+
+            ProgramConsole {
                 vm: root.viewModel
             }
 

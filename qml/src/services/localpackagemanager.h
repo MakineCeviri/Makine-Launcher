@@ -15,6 +15,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QMutex>
 #include <QSet>
 #include <QString>
 #include <QJsonObject>
@@ -155,6 +156,17 @@ public:
     // Whether any of this package's recipes rewrites a game file in place.
     bool recipeWritesInPlace(const QString& steamAppId) const;
 
+    // A recipe made only of "run" steps: the patch's own program installs it,
+    // so nothing it writes can be listed (and backed up) in advance. WithUndo
+    // when every step also names the program that undoes it.
+    enum class OwnProgram { No, WithUndo, WithoutUndo };
+    OwnProgram ownProgramRecipe(const QString& steamAppId) const;
+
+    // An answer typed on the install page for the program a "run" step is
+    // running. Called from the UI thread while the program runs on the
+    // install worker; dropped when no program is running.
+    void sendProcessInput(const QString& text);
+
     // Match a folder name against package catalog (case-insensitive, matches gameName or dirName)
     QString findMatchingAppId(const QString& folderName) const;
 
@@ -178,6 +190,8 @@ public:
 signals:
     void installProgress(double progress, const QString& status);
     void installCompleted(bool success, const QString& message);
+    // What the program of a "run" step printed, as it arrives.
+    void processOutput(const QString& text);
 
 private:
     // Recipe-based install: execute custom install steps for a package
@@ -288,6 +302,10 @@ private:
     QString m_dataPath;
     OperationJournal* m_journal{nullptr};
     std::atomic<bool> m_cancelRequested{false};
+    // Typed answers waiting for the running program (sendProcessInput).
+    QMutex m_inputMutex;
+    QByteArray m_pendingInput;     // guarded by m_inputMutex
+    bool m_acceptsInput{false};    // guarded by m_inputMutex
     // Windows error of the last failed copy, for the failure report (0 = none).
     unsigned long m_lastCopyWinError{0};
 };

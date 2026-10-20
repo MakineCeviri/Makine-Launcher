@@ -16,6 +16,7 @@
 #include "bytepatch.h"
 #include "forgereimport.h"
 #include "installsteprules.h"
+#include "processconsole.h"
 #include "vpatchapply.h"
 #include "xdeltaapply.h"
 #include "elevatedops.h"
@@ -38,7 +39,9 @@
 #include <QDirIterator>
 #include <QRegularExpression>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QProcess>
+#include <QScopeGuard>
 #include <QStorageInfo>
 #include <QThread>
 #include <QtConcurrent>
@@ -476,6 +479,31 @@ bool LocalPackageManager::recipeWritesInPlace(const QString& steamAppId) const
     return false;
 }
 
+LocalPackageManager::OwnProgram
+LocalPackageManager::ownProgramRecipe(const QString& steamAppId) const
+{
+    const auto pkg = getPackage(steamAppId);
+    // Top-level steps only, like startUninstallPrograms: an option's undo is
+    // not started on uninstall, so it cannot stand in for a backup.
+    if (!pkg || pkg->installSteps.isEmpty() || !pkg->installOptions.isEmpty()
+        || !pkg->variantInstallOptions.isEmpty())
+        return OwnProgram::No;
+    bool undo = true;
+    for (const InstallStep& st : pkg->installSteps) {
+        if (st.action != QLatin1String("run"))
+            return OwnProgram::No;
+        undo = undo && !st.uninstall.isEmpty();
+    }
+    return undo ? OwnProgram::WithUndo : OwnProgram::WithoutUndo;
+}
+
+void LocalPackageManager::sendProcessInput(const QString& text)
+{
+    QMutexLocker lock(&m_inputMutex);
+    if (m_acceptsInput)
+        m_pendingInput += text.toUtf8() + "\r\n";
+}
+
 QString LocalPackageManager::findMatchingAppId(const QString& folderName) const
 {
     return QString::fromStdString(m_catalog.findMatchingAppId(folderName.toStdString()));
@@ -763,15 +791,30 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     // and the old 30-minute cap killed it mid-install. Cancel still ends any
     // run at once. GameService's install watchdog sits just past this.
     constexpr int kMaxMs  = 7200000;
+    // Output and typed answers move this often (see processconsole.h).
+    constexpr int kPipeMs = 250;
+
+    const QString exeName = QFileInfo(exePath).fileName();
+    QStringList shownArgs;
+    for (const QString& a : args)
+        shownArgs << (a.contains(QLatin1Char(' ')) ? QLatin1Char('"') + a + QLatin1Char('"') : a);
+    emit processOutput(QStringLiteral("> %1 %2\n").arg(exeName, shownArgs.join(QLatin1Char(' '))));
 
     QProcess proc;
     proc.setWorkingDirectory(workDir);
     proc.setProcessChannelMode(QProcess::MergedChannels);
+    // Python block-buffers a pipe, so nothing would show until it exits, and
+    // writes it in the ANSI code page, where a character outside cp1254 stops
+    // the tool with UnicodeEncodeError. Other programs ignore both.
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("PYTHONUNBUFFERED"), QStringLiteral("1"));
+    env.insert(QStringLiteral("PYTHONIOENCODING"), QStringLiteral("utf-8"));
+    proc.setProcessEnvironment(env);
     proc.start(exePath, args);
-    // Nothing is ever typed into these tools. Closing stdin turns a
-    // "press a key to exit" pause (QuickBMS on an error) into an immediate
-    // exit instead of a wait until the cap below.
-    proc.closeWriteChannel();
+    // stdin stays open: the game page passes typed answers to a "set /p" or
+    // "press a key" prompt (sendProcessInput). It used to be closed so that
+    // such a prompt ended at once instead of waiting out the cap below; now
+    // the user sees the prompt and answers it, or cancels.
 
     ProcessResult result;
     if (!proc.waitForStarted(10000)) {
@@ -809,6 +852,8 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
             }
             qCInfo(lcPackageManager) << "Started elevated:" << exePath;
             result.started = true;
+            emit processOutput(tr("%1 yönetici izniyle kendi penceresinde çalışıyor; "
+                                  "çıktısı burada görünmez.\n").arg(exeName));
 
             int elevElapsed = 0;
             for (;;) {
@@ -845,9 +890,40 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     }
     result.started = true;
 
-    int elapsed = 0;
+    {
+        QMutexLocker lock(&m_inputMutex);
+        m_pendingInput.clear();
+        m_acceptsInput = true;
+    }
+    const auto inputOff = qScopeGuard([this] {
+        QMutexLocker lock(&m_inputMutex);
+        m_acceptsInput = false;
+        m_pendingInput.clear();
+    });
 
-    while (!proc.waitForFinished(kPollMs)) {
+    QByteArray unshown;  // read, not yet shown: the start of a split character
+    const auto forward = [&](bool final) {
+        const QByteArray bytes = proc.readAll();
+        result.output += bytes;
+        unshown += bytes;
+        if (const QString text = processconsole::takeText(unshown, final); !text.isEmpty())
+            emit processOutput(text);
+    };
+
+    QElapsedTimer clock;
+    clock.start();
+    qint64 lastTick = 0;
+    while (!proc.waitForFinished(kPipeMs)) {
+        forward(false);
+        QByteArray input;
+        {
+            QMutexLocker lock(&m_inputMutex);
+            input.swap(m_pendingInput);
+        }
+        if (!input.isEmpty()) {
+            proc.write(input);
+            proc.waitForBytesWritten(1000);
+        }
         if (isCancelled()) {
             qCInfo(lcPackageManager) << "Process cancelled by user:" << exePath;
             proc.kill();
@@ -855,7 +931,7 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
             result.cancelled = true;
             return result;
         }
-        elapsed += kPollMs;
+        const qint64 elapsed = clock.elapsed();
         if (elapsed >= kMaxMs) {
             qCWarning(lcPackageManager) << "Process timeout:" << exePath;
             proc.kill();
@@ -863,11 +939,15 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
             result.timedOut = true;
             return result;
         }
-        if (progressCallback) progressCallback(elapsed);
+        if (progressCallback && elapsed - lastTick >= kPollMs) {
+            lastTick = elapsed;
+            progressCallback(static_cast<int>(elapsed));
+        }
     }
 
+    forward(true);
     result.exitCode = proc.exitCode();
-    result.output = proc.readAll();
+    emit processOutput(tr("\n[%1 bitti, çıkış kodu %2]\n").arg(exeName).arg(result.exitCode));
     return result;
 }
 

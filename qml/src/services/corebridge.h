@@ -143,6 +143,11 @@ public:
     void cancelInstall();
 
     /**
+     * @brief Pass a typed answer to the program a "run" step is running
+     */
+    void sendProcessInput(const QString& text);
+
+    /**
      * @brief Get available variants for a game
      */
     QVariantList getVariantsForGame(const QString& gameId);
@@ -203,6 +208,11 @@ public:
      * @brief Whether the package's recipe rewrites game files in place
      */
     bool recipeWritesInPlace(const QString& gameId);
+
+    /**
+     * @brief Whether the recipe is the patch's own program, and names its undo
+     */
+    LocalPackageManager::OwnProgram ownProgramRecipe(const QString& gameId);
 
     /**
      * @brief Match a folder name against the package catalog
@@ -280,6 +290,7 @@ signals:
     void packageInstallError(const QString& error);
     void packageInstallProgress(double progress, const QString& status);
     void packageInstallCompleted(bool success, const QString& message);
+    void packageProcessOutput(const QString& text);
 
 private:
     static CoreBridge* s_instance;
