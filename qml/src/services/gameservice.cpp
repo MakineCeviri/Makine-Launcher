@@ -25,6 +25,7 @@
 #include "processscanner.h"
 #include "processconsole.h"
 #include <QCryptographicHash>
+#include <QDate>
 #include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
@@ -2387,6 +2388,27 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
     }
     qCDebug(lcGameService) << "GameService::getCatalogEntry: not found for" << steamAppId;
     return {};
+}
+
+QVariantList GameService::recentlyUpdatedGames(int limit) const
+{
+    // Entries without a dated version (an external link, an old index) are
+    // left out rather than sorted as the oldest.
+    QList<std::pair<QString, QVariant>> dated;
+    for (const QVariant& v : supportedGames()) {
+        const QString version = v.toMap().value(QStringLiteral("version")).toString();
+        if (QDate::fromString(version, Qt::ISODate).isValid())
+            dated.append({version, v});
+    }
+    std::stable_sort(dated.begin(), dated.end(),
+                     [](const auto& a, const auto& b) { return a.first > b.first; });
+    QVariantList out;
+    for (const auto& [version, entry] : dated) {
+        if (limit >= 0 && out.size() >= limit)
+            break;
+        out.append(entry);
+    }
+    return out;
 }
 
 QVariantMap GameService::resolveGameData(const QString& gameId,

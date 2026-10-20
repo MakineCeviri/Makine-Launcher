@@ -50,8 +50,8 @@ Item {
     }
 
     // Sub-pages share the same slot, switched by visibility
-    // Async-loaded: defers heavyweight creation (GameDetectionCard,
-    // AnnouncementCard, CatalogSection with 2× strip) until after first frame.
+    // Async-loaded: defers the home page (lead art, shelves, the catalogue
+    // grid) until after the first frame.
     Loader {
         id: homePageLoader
         anchors.fill: parent
@@ -64,6 +64,9 @@ Item {
                 contentMargin: root.contentMargin
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     root.gameSelected(gameId, gameName, installPath, engine)
+                }
+                onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
+                    root.installAndShowDetail(gameId, gameName, installPath, engine)
                 }
                 onManualFolderRequested: root.manualFolderRequested()
                 onSettingsRequested: root.settingsRequested()

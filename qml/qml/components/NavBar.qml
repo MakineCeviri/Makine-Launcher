@@ -143,6 +143,12 @@ Item {
         }
 
         NavItem {
+            text: qsTr("Ana Sayfa")
+            selected: navBarRoot.currentIndex === 0
+            onClicked: navBarRoot.homeClicked()
+        }
+
+        NavItem {
             text: qsTr("Kütüphanem")
             selected: navBarRoot.currentIndex === 1
             onClicked: navBarRoot.libraryClicked()

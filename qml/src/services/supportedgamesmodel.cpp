@@ -8,7 +8,11 @@
  */
 
 #include "supportedgamesmodel.h"
+#include <QCollator>
+#include <QLocale>
 #include <QVariantMap>
+
+#include <algorithm>
 
 namespace makine {
 
@@ -87,10 +91,21 @@ void SupportedGamesModel::resetFromCatalog(const QVariantList &catalogData)
         e.installPath   = map.value(QStringLiteral("installPath")).toString();
         e.packageInstalled = map.value(QStringLiteral("packageInstalled")).toBool();
 
-        if (!e.steamAppId.isEmpty()) {
-            m_appIdToIndex[e.steamAppId] = m_entries.size();
-        }
         m_entries.append(std::move(e));
+    }
+
+    // A-Z in Turkish order: the catalogue arrives keyed by app id, which read
+    // as no order at all on the home page's grid of every patch.
+    QCollator collator{QLocale(QLocale::Turkish, QLocale::Turkey)};
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    collator.setNumericMode(true);
+    std::stable_sort(m_entries.begin(), m_entries.end(),
+                     [&collator](const CatalogEntry &a, const CatalogEntry &b) {
+                         return collator.compare(a.name, b.name) < 0;
+                     });
+    for (int i = 0; i < m_entries.size(); ++i) {
+        if (!m_entries[i].steamAppId.isEmpty())
+            m_appIdToIndex[m_entries[i].steamAppId] = i;
     }
 
     endResetModel();

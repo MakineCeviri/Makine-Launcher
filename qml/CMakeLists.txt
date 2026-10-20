@@ -207,6 +207,13 @@ qt_add_qml_module(MakineLauncher
 
         # Screens - Home Pages
         qml/screens/HomePage.qml
+        qml/screens/home/HomeButton.qml
+        qml/screens/home/HomeCover.qml
+        qml/screens/home/HomeHero.qml
+        qml/screens/home/HomeNotice.qml
+        qml/screens/home/HomeSearchField.qml
+        qml/screens/home/HomeSectionHeader.qml
+        qml/screens/home/HomeShelf.qml
         qml/screens/Library.qml
 
         # Screens - Game Detail Sections
@@ -241,8 +248,6 @@ qt_add_qml_module(MakineLauncher
         #
         # Cards: Data display containers
         qml/components/GameCard.qml              # Game item in grid/list
-        qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
-        qml/components/GameDetectionCard.qml      # Game detection status + manual add
         qml/components/GameToast.qml               # Overlay notification for detected games
         #
         # Navigation: Window chrome and nav
@@ -254,7 +259,6 @@ qt_add_qml_module(MakineLauncher
         # Layout: Section containers
         qml/components/SectionContainer.qml       # Glassmorphic section wrapper
         qml/components/GameSection.qml            # Section with title + game strip + empty state
-        qml/components/CatalogSection.qml         # Localization library catalog (search + game strips)
         #
         # Visual: Decorative and feedback
         qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip

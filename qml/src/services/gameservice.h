@@ -361,6 +361,12 @@ public:
     Q_INVOKABLE QVariantMap getCatalogEntry(const QString& steamAppId) const;
 
     /**
+     * @brief Catalogue entries by package date ("version", YYYY-MM-DD), newest
+     * first; at most `limit`. Refreshes with supportedGamesModel.
+     */
+    Q_INVOKABLE QVariantList recentlyUpdatedGames(int limit) const;
+
+    /**
      * @brief Resolve all game metadata needed for the detail screen.
      *
      * Consolidates: manual-game check, steamAppId resolution, catalog lookup,
