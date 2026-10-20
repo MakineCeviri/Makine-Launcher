@@ -7,14 +7,6 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
-### Eklenen (2026-10-20)
-- **Hata raporu ayarı** — Ayarlar → Genel → "Çökme ve Hata Raporlarını Gönder" (varsayılan açık). Kapalıyken Sentry hiç başlatılmıyor; çalışırken kapatılınca o andan sonra hiçbir rapor, çökme ya da oturum bilgisi gönderilmiyor; yeniden açılınca yeniden başlatma gerekmeden sürüyor. Sayım kanalı (`TelemetryService`) bu ayarın dışında
-- **Kendi programıyla kurulan yamayı kaldırma** — `run` adımına isteğe bağlı `uninstall` + `uninstallArgs` (aynı `${gamePath}`/`${packageDir}`); "Kaldır" o programı beklemeden başlatıp normal kaldırmaya devam ediyor. Önceden yalnız izlenen dosyalar siliniyor, yama oyunda kalırken "kaldırıldı" deniyordu. Eski launcher'lar bu anahtarları yok sayar
-
-### Düzeltilen (2026-10-20)
-- `run` adımında `${gamePath}` / `${packageDir}` Windows ayırıcısıyla (`D:\SteamLibrary\…`) veriliyor; `D:/…` biçimi yamanın kendi .bat'ındaki xcopy/copy komutlarını bozuyordu
-- `run` adımının süre sınırı 30 dakikadan 2 saate çıktı: etkileşimli yama kurucuları (Heavy Rain'inki 10–20 dk + kullanıcının tıklamaları) yarıda kesiliyordu; iptal her an çalışıyor
-
 ### Eklenen (2026-03-12)
 - **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)
 - **Discord butonu** — Duyuru kartında hover animasyonlu Discord bağlantısı
@@ -137,6 +129,35 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - Release workflow `lukka/run-vcpkg` yerine built-in vcpkg kullanılıyor
 
 ---
+
+## [0.1.6-beta] - 2026-10-20
+
+### Eklenen
+- **Hata raporu ayarı** — Ayarlar → Genel → "Çökme ve Hata Raporlarını Gönder" (varsayılan açık). Kapalıyken Sentry hiç başlatılmıyor; çalışırken kapatılınca o andan sonra hiçbir rapor, çökme ya da oturum bilgisi gönderilmiyor; yeniden açılınca yeniden başlatma gerekmeden sürüyor. Sayım kanalı (`TelemetryService`) bu ayarın dışında
+- **Kendi programıyla kurulan yamayı kaldırma** — `run` adımına isteğe bağlı `uninstall` + `uninstallArgs` (aynı `${gamePath}`/`${packageDir}`); "Kaldır" o programı beklemeden başlatıp normal kaldırmaya devam ediyor. Önceden yalnız izlenen dosyalar siliniyor, yama oyunda kalırken "kaldırıldı" deniyordu. Eski launcher'lar bu anahtarları yok sayar
+- **Yeni kurulum adımları (tarif seviyesi 2)** — `patchBytes` (oyun dosyasında bayt değiştirme), `forgeReimport` (.forge arşivine aktarma), `xdelta` (VCDIFF delta, `third_party/xdelta3`): Elden Ring ve Assassin's Creed Valhalla / Odyssey / Mirage yamaları launcher'ın içinde kuruluyor. Launcher bildiği adım kümesini `X-Makine-Recipe` ile söylüyor; eski sürümlere çalıştırabilecekleri tarif gidiyor
+- **Katalog açıkken de yenileniyor** — 30 dakikada bir ve pencereye dönünce (en az 10 dakika arayla); değişmediyse sessiz
+- **Değişen kapaklar geliyor** — önbellekteki kapak 3 günde bir CDN'e soruluyor (`If-None-Match`)
+
+### Düzeltilen
+- `run` adımında `${gamePath}` / `${packageDir}` Windows ayırıcısıyla (`D:\SteamLibrary\…`) veriliyor; `D:/…` biçimi yamanın kendi .bat'ındaki xcopy/copy komutlarını bozuyordu
+- `run` adımının süre sınırı 30 dakikadan 2 saate çıktı: etkileşimli yama kurucuları (Heavy Rain'inki 10–20 dk + kullanıcının tıklamaları) yarıda kesiliyordu; iptal her an çalışıyor
+- **Arayüz donmaları** — `main.cpp` Qt'nin hata ayıklama anahtarı `QV4_MM_AGGRESSIVE_GC`'yi açıyordu; JS ağırlıklı her bağlama 100–300 kat yavaş çalışıyor, eklenti sayfası 2 saniye donuyordu
+- **Kaldırma doğruluğu** — tarifli kaldırma geri yüklenen orijinalleri silmiyor; seçenekli paketlerde (Elden Ring, DS2, GTA…) yedek listesi seçenek adımlarını kapsıyor; yedeksiz kaldırma eklenen dosyaları silip değişenler için mağaza onarımı başlatıyor; salt okunur dosyalar kaldırılabiliyor; silinmiş ya da taşınmış oyun klasöründe kayıt düşüyor; yedek ikinci kez geri yüklenemezse mağaza onarımına geçiliyor
+- Yerinde yamalayan paketin güncellemesi önce orijinalleri geri yüklüyor; güncelleme eski açılmış paketi yeniden kurmuyor (paket damgası)
+- Paket açıcı PAX/GNU uzun adları okuyor ("Türkçe Yama" artık "T_rk_e Yama" değil, 100 bayttan uzun adlar kesilmiyor), MAX_PATH'i aşan yolları yazabiliyor, `.lnk` uzantılı oyun dosyalarını kısayol sanmıyor
+- İndirme öncesi boş alan denetimi paketin gerçek boyutunu kullanıyor (önceden sabit 500 MB)
+- Kopyalama hatasında antivirüs engeli ve Windows hata kodu görünüyor
+- Oyunun aslı remaster paketine, remaster aslının paketine eşlenmiyor (AC III ↔ Remastered, Hades ↔ Hades II)
+- `userPath` hedefindeki `Documents/` gerçek Belgeler klasörüne çözülüyor (OneDrive klasör taşıması açıkken boş `Documents`'a kuruyordu)
+- Elle kurulan yamada (external / installer / paradox-mod) çıkarılan klasör kendiliğinden açılıyor
+- Açılıştaki eski klasör temizliği yalnız boş klasörü siliyor (önceden yeni kökteki `backups/` dahil siliyordu)
+- 0.1.6'ya geçince 0.1.5'in indirdiği eski tarifler atılıyor
+
+### Geliştirme
+- Release yapısında `-g1`: Sentry kendi çerçevelerimizi çözümlüyor; MinGW/vcpkg DLL'lerine Debug ID damgalanıp sembolleri yükleniyor; The Qt Company imzalı Qt DLL'lerine dokunulmuyor
+- `--selftest-telemetry` hata raporu ayarının çalışırken kapanıp açılmasını da doğruluyor (`MAKINE_SELFTEST_TOGGLE`)
+- Eklenti sistemi v2 (süreç dışı host, imzalı kayıt defteri; ADR-0009) hâlâ `MAKINE_DEV_TOOLS` arkasında, yayına girmiyor
 
 ## [0.1.5-beta] - 2026-10-06
 
