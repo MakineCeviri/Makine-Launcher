@@ -48,8 +48,11 @@ ApplicationWindow {
         window.x = xx
         window.y = yy
 
+        // --onboarding shows the welcome flow again (design work, or a user
+        // who wants to redo their first-run choices).
         if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
+                                       || Qt.application.arguments.indexOf("--onboarding") >= 0
     }
 
     // Cross-monitor refresh — when the window crosses to a screen with a
@@ -831,6 +834,9 @@ ApplicationWindow {
         id: onboardingLoader
         anchors.fill: parent
         active: window._onboardingActive
+        // A Loader is a focus scope: without this the wizard never gets
+        // the keys (Enter for the step's main action).
+        focus: active
         z: Dimensions.zOverlay
         sourceComponent: Component {
             OnboardingWizard {

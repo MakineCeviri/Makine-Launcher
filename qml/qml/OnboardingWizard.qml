@@ -12,7 +12,9 @@ pragma ComponentBehavior: Bound
 /**
  * OnboardingWizard.qml — First-launch onboarding experience
  *
- * 3 steps: ThemeStep → ScanStep → ReadyStep
+ * 3 steps: WelcomeStep (what this is) → GamesStep (which of your games have
+ * a Turkish patch) → PreferencesStep (accent, watcher, autostart, reports).
+ * Enter runs the current step's main action.
  * Background: Premium neon gradient (preserved pixel-perfect).
  */
 Item {
@@ -21,8 +23,13 @@ Item {
     signal wizardFinished()
 
     property int currentStep: 0
-    readonly property int totalSteps: 4
+    readonly property int totalSteps: 3
     readonly property bool isLastStep: currentStep === totalSteps - 1
+    readonly property var stepTitles: [qsTr("Hoş geldin"), qsTr("Oyunların"), qsTr("Tercihler")]
+
+    focus: true
+    Keys.onReturnPressed: stepStack.children[root.currentStep].primaryAction()
+    Keys.onEnterPressed: stepStack.children[root.currentStep].primaryAction()
     // Pause idle animations when window is minimized/hidden to save GPU
     property bool animationsEnabled: true
 
@@ -202,87 +209,110 @@ Item {
         anchors.bottomMargin: 56
         currentIndex: root.currentStep
 
-        WelcomeLoginStep {
-            onLoginSuccess: root.currentStep = 1
+        WelcomeStep {
+            animate: root.animationsEnabled && root.currentStep === 0
+            onNext: root.currentStep = 1
         }
 
-        ThemeStep {
-            onNextStep: root.currentStep = 2
+        GamesStep {
+            onNext: root.currentStep = 2
+            onBack: root.currentStep = 0
         }
 
-        ScanStep {
-            onNextStep: root.currentStep = 3
-            onPreviousStep: root.currentStep = 1
-        }
-
-        ReadyStep {
-            onFinished: root.wizardFinished()
+        PreferencesStep {
+            onFinish: root.wizardFinished()
+            onBack: root.currentStep = 1
         }
     }
 
     // =========================================================================
-    // BOTTOM: Step dots + Skip (first launch only)
+    // BOTTOM: where you are — numbered, named steps. Not on the welcome,
+    // which says "3 kısa adım" itself and keeps the stage to the wall.
     // =========================================================================
-    RowLayout {
+    Row {
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 16
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: 60
-        anchors.rightMargin: 60
-        height: 32
-        visible: true
+        anchors.bottomMargin: 22
+        spacing: 14
+        z: 6
+        visible: root.currentStep > 0
 
-        Item { Layout.fillWidth: true }
+        Repeater {
+            model: root.totalSteps
 
-        // Step dots
-        Row {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 6
-
-            Repeater {
-                model: root.totalSteps
+            Row {
+                id: stepItem
+                required property int index
+                readonly property bool active: stepItem.index === root.currentStep
+                readonly property bool done: stepItem.index < root.currentStep
+                spacing: 14
+                Accessible.role: Accessible.StaticText
+                Accessible.name: qsTr("Adım %1/%2: %3").arg(stepItem.index + 1).arg(root.totalSteps)
+                                 .arg(root.stepTitles[stepItem.index])
 
                 Rectangle {
-                    required property int index
-                    width: index === root.currentStep ? 24 : 8
-                    height: 6
-                    radius: 3
-                    color: index === root.currentStep
-                        ? Theme.accentBase
-                        : index < root.currentStep
-                            ? Theme.success60
-                            : Qt.rgba(1, 1, 1, 0.15)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 22; height: 22; radius: 11
+                    color: stepItem.active ? Theme.accentBase
+                         : stepItem.done ? Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.2)
+                         : Qt.rgba(1, 1, 1, 0.08)
+                    Behavior on color { ColorAnimation { duration: 200 } }
 
-                    Behavior on width {
-                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                    Text {
+                        anchors.centerIn: parent
+                        visible: !stepItem.done
+                        textFormat: Text.PlainText
+                        text: String(stepItem.index + 1)
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                        color: stepItem.active ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.5)
                     }
-                    Behavior on color {
-                        ColorAnimation { duration: 200 }
+                    Text {
+                        anchors.centerIn: parent
+                        visible: stepItem.done
+                        textFormat: Text.PlainText
+                        text: "\uE73E"
+                        font.family: "Segoe MDL2 Assets"
+                        font.pixelSize: 10
+                        color: Theme.success
                     }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    textFormat: Text.PlainText
+                    text: root.stepTitles[stepItem.index]
+                    font.pixelSize: 13
+                    font.weight: stepItem.active ? Font.DemiBold : Font.Medium
+                    color: stepItem.active ? "#FFFFFF" : Qt.rgba(1, 1, 1, stepItem.done ? 0.7 : 0.45)
+                }
+                // Connector to the next step
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: stepItem.index < root.totalSteps - 1
+                    width: 28; height: 1
+                    color: Qt.rgba(1, 1, 1, 0.15)
                 }
             }
         }
+    }
 
-        Item { Layout.fillWidth: true }
+    // =========================================================================
+    // BOTTOM: Skip — after the welcome, before the last step
+    // =========================================================================
+    Text {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 40
+        anchors.bottomMargin: 24
+        visible: root.currentStep > 0 && !root.isLastStep
+        textFormat: Text.PlainText
+        text: qsTr("Atla, ayarları sonra yaparım")
+        font.pixelSize: 13
+        color: skipHover.hovered ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(1, 1, 1, 0.45)
+        Accessible.role: Accessible.Button
+        Accessible.name: text
 
-        // Skip link — visible on steps 1-2 (after login, before ready)
-        Text {
-            textFormat: Text.PlainText
-            visible: root.currentStep > 0 && !root.isLastStep
-            text: qsTr("Atla")
-            font.pixelSize: 13
-            color: skipMa.containsMouse
-                ? Qt.rgba(1, 1, 1, 0.6)
-                : Qt.rgba(1, 1, 1, 0.3)
-
-            MouseArea {
-                id: skipMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.wizardFinished()
-            }
-        }
+        HoverHandler { id: skipHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: root.wizardFinished() }
     }
 }

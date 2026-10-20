@@ -204,6 +204,10 @@ qt_add_qml_module(MakineLauncher
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
         qml/OnboardingWizard.qml
+        qml/screens/onboarding/OnboardingButton.qml
+        qml/screens/onboarding/WelcomeStep.qml
+        qml/screens/onboarding/GamesStep.qml
+        qml/screens/onboarding/PreferencesStep.qml
 
         # Screens - Home Pages
         qml/screens/HomePage.qml
@@ -235,10 +239,6 @@ qt_add_qml_module(MakineLauncher
         qml/screens/settings/AboutSettings.qml
 
         # Screens - Onboarding Steps
-        qml/screens/onboarding/WelcomeLoginStep.qml
-        qml/screens/onboarding/ThemeStep.qml
-        qml/screens/onboarding/ScanStep.qml
-        qml/screens/onboarding/ReadyStep.qml
 
         # Theme (singletons)
         qml/theme/Theme.qml

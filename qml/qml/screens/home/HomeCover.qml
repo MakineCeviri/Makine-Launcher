@@ -19,6 +19,8 @@ Item {
     property string steamAppId: ""
     property string name: ""
     property string subtitle: ""
+    // false: a picture of the game, not a control (the welcome flow)
+    property bool interactive: true
     // "" | "ready" (on this PC, patch not installed) | "installable" (same,
     // where "on this PC" is the news) | "installed" | "update"
     property string status: ""
@@ -26,7 +28,7 @@ Item {
     signal clicked()
 
     readonly property real coverHeight: Math.round(width * 185 / 130)
-    readonly property bool _lifted: hover.hovered || card.activeFocus
+    readonly property bool _lifted: card.interactive && (hover.hovered || card.activeFocus)
     readonly property string _statusText: card.status === "installed" ? qsTr("Kurulu")
                                         : card.status === "update" ? qsTr("Güncelleme var")
                                         : card.status === "ready" ? qsTr("Yama hazır")
@@ -39,8 +41,8 @@ Item {
     implicitHeight: coverHeight + Dimensions.spacingMD + nameLabel.implicitHeight
                     + (subtitleLabel.visible ? subtitleLabel.implicitHeight + 2 : 0)
 
-    activeFocusOnTab: true
-    Accessible.role: Accessible.Button
+    activeFocusOnTab: card.interactive
+    Accessible.role: card.interactive ? Accessible.Button : Accessible.Graphic
     Accessible.name: card._statusText !== "" ? card.name + ", " + card._statusText : card.name
     Keys.onReturnPressed: card.clicked()
     Keys.onSpacePressed: card.clicked()
@@ -180,9 +182,11 @@ Item {
 
     HoverHandler {
         id: hover
+        enabled: card.interactive
         cursorShape: Qt.PointingHandCursor
     }
     TapHandler {
+        enabled: card.interactive
         onTapped: card.clicked()
     }
 }

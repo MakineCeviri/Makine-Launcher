@@ -322,7 +322,9 @@ QVariantList GameService::games() const
 void GameService::scanAllLibraries()
 {
     MAKINE_ZONE_NAMED("GameService::scanAllLibraries");
-    if (m_isScanning) return;
+    // Without the bridge nothing would ever report back, and isScanning
+    // stayed true for good (the welcome flow asked before setup ran).
+    if (m_isScanning || !m_coreBridge) return;
 
     m_isScanning = true;
     emit isScanningChanged();
@@ -330,10 +332,7 @@ void GameService::scanAllLibraries()
     m_scanProgress = 0;
     m_scanStatus = tr("Oyun kütüphaneleri taranıyor...");
 
-    // Use CoreBridge for actual scanning
-    if (m_coreBridge) {
-        m_coreBridge->scanAllLibraries();
-    }
+    m_coreBridge->scanAllLibraries();
 }
 
 void GameService::setupCoreBridge()
