@@ -12,6 +12,7 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ### Düzeltilen (2026-10-20)
 - `run` adımında `${gamePath}` / `${packageDir}` Windows ayırıcısıyla (`D:\SteamLibrary\…`) veriliyor; `D:/…` biçimi yamanın kendi .bat'ındaki xcopy/copy komutlarını bozuyordu
+- `run` adımının süre sınırı 30 dakikadan 2 saate çıktı: etkileşimli yama kurucuları (Heavy Rain'inki 10–20 dk + kullanıcının tıklamaları) yarıda kesiliyordu; iptal her an çalışıyor
 
 ### Eklenen (2026-03-12)
 - **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)

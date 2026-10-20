@@ -227,7 +227,7 @@ TEST(FailureReasons, TheFourWaysATooledStepFails)
         "1 adımda hata oluştu\nAdım 3: run ERING_TR.exe — araç başlatılamadı")),
         QStringLiteral("tool_start_failed"));
     EXPECT_EQ(failureReason(QStringLiteral(
-        "1 adımda hata oluştu\nAdım 3: run ERING_TR.exe — araç 30 dakikada bitmedi")),
+        "1 adımda hata oluştu\nAdım 3: run ERING_TR.exe — araç 2 saatte bitmedi")),
         QStringLiteral("tool_timeout"));
     EXPECT_EQ(failureReason(QStringLiteral(
         "1 adımda hata oluştu\nAdım 3: run patch.exe — araç hata kodu 2 verdi")),

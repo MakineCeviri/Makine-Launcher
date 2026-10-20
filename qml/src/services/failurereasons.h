@@ -82,7 +82,7 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("Antivirüs (ör. Windows Defender)"),     QStringLiteral("antivirus_blocked")},
         {QStringLiteral("yönetici izni verilmedi"),              QStringLiteral("elevation_declined")},
         {QStringLiteral("araç başlatılamadı"),                   QStringLiteral("tool_start_failed")},
-        {QStringLiteral("araç 30 dakikada bitmedi"),             QStringLiteral("tool_timeout")},
+        {QStringLiteral("araç 2 saatte bitmedi"),                QStringLiteral("tool_timeout")},
         {QStringLiteral("araç hata kodu"),                       QStringLiteral("tool_exit_code")},
         // VPatch outcomes. "nomatch" is the one that means the user's game is a
         // version the patch was not built for — a catalogue problem, not a

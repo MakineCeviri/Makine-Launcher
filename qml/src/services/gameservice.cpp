@@ -71,12 +71,12 @@ GameService::GameService(QObject *parent)
     connect(m_steamDetails, &SteamDetailsService::detailsFetchError,
             this, &GameService::steamDetailsFetchError);
 
-    // Past LocalPackageManager's 30-minute run-step ceiling. The install is
+    // Past LocalPackageManager's 2-hour run-step ceiling. The install is
     // cancelled, not forgotten: freeing the slot while the worker still ran
     // let its late result land on the next install, which could then be
     // rolled back. The slot frees when the cancelled install reports back.
     m_installTimeoutTimer->setSingleShot(true);
-    m_installTimeoutTimer->setInterval(35 * 60 * 1000);
+    m_installTimeoutTimer->setInterval(125 * 60 * 1000);
     connect(m_installTimeoutTimer, &QTimer::timeout, this, [this]() {
         if (m_installingGameId.isEmpty()) return;
         const QString stuck = m_installingGameId;

@@ -754,7 +754,11 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     std::function<void(int elapsedMs)> progressCallback)
 {
     constexpr int kPollMs = 1000;        // Poll faster so cancel feels responsive
-    constexpr int kMaxMs  = 1800000;     // 30 minutes hard cap
+    // 2 hours hard cap. A patch's own installer is interactive: Heavy Rain's
+    // runs 10-20 minutes plus the time the user takes to click through it,
+    // and the old 30-minute cap killed it mid-install. Cancel still ends any
+    // run at once. GameService's install watchdog sits just past this.
+    constexpr int kMaxMs  = 7200000;
 
     QProcess proc;
     proc.setWorkingDirectory(workDir);
@@ -762,7 +766,7 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     proc.start(exePath, args);
     // Nothing is ever typed into these tools. Closing stdin turns a
     // "press a key to exit" pause (QuickBMS on an error) into an immediate
-    // exit instead of a 30-minute wait.
+    // exit instead of a wait until the cap below.
     proc.closeWriteChannel();
 
     ProcessResult result;
@@ -2503,7 +2507,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             return StepOutcome::SoftError;
         }
         if (result.timedOut) {
-            if (failDetail) *failDetail = QStringLiteral("araç 30 dakikada bitmedi");
+            if (failDetail) *failDetail = QStringLiteral("araç 2 saatte bitmedi");
             return StepOutcome::SoftError;
         }
         if (result.exitCode != 0) {
