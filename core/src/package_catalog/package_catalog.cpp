@@ -331,9 +331,14 @@ void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
     // executable names. Overwriting wholesale drops the one signal that lets a
     // non-Steam install match its package: Epic and GOG folders are named after
     // internal code names, so the executable is all we have to go on.
+    // Executable names are pooled rather than replaced: the index lists the
+    // store's real ones, and a detail list made up from the title
+    // ("red dead redemption 2.exe") must not push them out.
     if (entry.fingerprint.has_value()) {
         const GameFingerprint& prev = *entry.fingerprint;
-        if (gfp.exeNames.empty())   gfp.exeNames   = prev.exeNames;
+        for (const auto& e : prev.exeNames)
+            if (std::find(gfp.exeNames.begin(), gfp.exeNames.end(), e) == gfp.exeNames.end())
+                gfp.exeNames.push_back(e);
         if (gfp.keyFiles.empty())   gfp.keyFiles   = prev.keyFiles;
         if (gfp.engineHint.empty()) gfp.engineHint = prev.engineHint;
     }
@@ -929,6 +934,14 @@ bool isSharedExeName(const std::string& lowerName)
     return kShared.contains(lowerName);
 }
 
+// A fingerprint entry may be a path relative to the game root, as a store's
+// launch entry gives it ("game/eldenring.exe"); what runs is the file name.
+std::string exeFileName(const std::string& entry)
+{
+    const auto cut = entry.find_last_of("/\\");
+    return cut == std::string::npos ? entry : entry.substr(cut + 1);
+}
+
 // Remove all characters in `chars` from `s`
 std::string removeChars(std::string_view s, std::string_view chars)
 {
@@ -1069,7 +1082,7 @@ std::vector<FingerprintMatch> PackageCatalog::findMatchingGames(
         // Tier 1: Exe name matching (+60 exact, +40 gameName-derived)
         bool exeExact = false;
         for (const auto& expected : fp.exeNames) {
-            const std::string expectedLower = toLower(expected);
+            const std::string expectedLower = toLower(exeFileName(expected));
             if (isSharedExeName(expectedLower)) continue;
             if (exeSet.count(expectedLower)) {
                 exeExact = true;
@@ -1350,7 +1363,7 @@ std::unordered_map<std::string, std::string> PackageCatalog::getAllExeMap() cons
     for (const auto& [appId, entry] : packages_) {
         if (!entry.fingerprint) continue;
         for (const auto& exe : entry.fingerprint->exeNames) {
-            const std::string lower = toLower(exe);
+            const std::string lower = toLower(exeFileName(exe));
             if (isSharedExeName(lower) || ambiguous.contains(lower)) continue;
             // A name two packages claim identifies neither: which one won used
             // to depend on hash order.

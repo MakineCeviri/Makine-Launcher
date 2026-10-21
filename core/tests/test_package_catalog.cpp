@@ -220,6 +220,29 @@ TEST_F(PackageCatalogTest, EnrichPreservesIndexExeNames) {
     EXPECT_EQ(after->fingerprint->keyFiles[0], "Game");
 }
 
+// The detail's own list is pooled with the index's, never swapped for it: D1
+// held names made up from the title ("red dead redemption 2.exe") that pushed
+// the store's real one out the moment the game's page opened. A store launch
+// path matches on its file name.
+TEST_F(PackageCatalogTest, EnrichPoolsExeNamesAndMatchesPathsByFileName) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    json detail;
+    detail["fingerprint"] = {{"exeNames", json::array({"elden ring.exe", "Game/start_ER.exe"})}};
+    EXPECT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+
+    const auto after = catalog_.getPackage("1245620");
+    ASSERT_TRUE(after.has_value() && after->fingerprint.has_value());
+    const auto& names = after->fingerprint->exeNames;
+    EXPECT_NE(std::find(names.begin(), names.end(), "eldenring.exe"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "elden ring.exe"), names.end());
+
+    const auto matches = catalog_.findMatchingGames({"start_er.exe"}, "", {}, "");
+    ASSERT_FALSE(matches.empty());
+    EXPECT_EQ(matches.front().steamAppId, "1245620");
+    EXPECT_EQ(catalog_.getAllExeMap().at("start_er.exe"), "1245620");
+}
+
 TEST_F(PackageCatalogTest, EnrichPackageNonexistentAppId) {
     ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.enrichPackage("999999", makeEnrichmentJson()));
