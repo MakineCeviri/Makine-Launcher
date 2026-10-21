@@ -205,6 +205,11 @@ public:
     QStringList unknownRecipeActions(const QString& gameId);
 
     /**
+     * @brief What the package expects under its game's root (see pickRoot)
+     */
+    folderrules::Expectations folderExpectations(const QString& gameId);
+
+    /**
      * @brief Whether the package's recipe rewrites game files in place
      */
     bool recipeWritesInPlace(const QString& gameId);

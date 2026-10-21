@@ -438,6 +438,76 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
     return result;
 }
 
+folderrules::Expectations LocalPackageManager::folderExpectations(const QString& steamAppId) const
+{
+    folderrules::Expectations e;
+    if (const auto entry = m_catalog.getPackage(steamAppId.toStdString()); entry && entry->fingerprint) {
+        for (const auto& name : entry->fingerprint->exeNames)
+            e.exeNames << QString::fromStdString(name).toLower();
+    }
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg) return e;
+
+    // A recipe path relative to the game root, or empty when it is not one
+    // (the root itself, a placeholder, anything absolute or climbing out).
+    const auto relative = [](QString p) -> QString {
+        p = QDir::cleanPath(QDir::fromNativeSeparators(p.trimmed()));
+        if (p.isEmpty() || p == QLatin1String(".") || p.startsWith(QLatin1String(".."))
+            || p.startsWith(QLatin1Char('/')) || p.contains(QLatin1Char(':'))
+            || p.contains(QLatin1String("${")))
+            return {};
+        return p;
+    };
+    const auto parentDir = [](const QString& rel) {
+        const int cut = rel.lastIndexOf(QLatin1Char('/'));
+        return cut > 0 ? rel.left(cut) : QString();
+    };
+
+    QSet<QString> dirs, files;
+    const auto collect = [&](const QList<InstallStep>& steps) {
+        for (const InstallStep& st : steps) {
+            if (steprules::isInPlaceAction(st.action)) {
+                const QString f = relative(st.action == QLatin1String("patchBytes") && st.dest.isEmpty()
+                                               ? st.src : st.dest);
+                if (!f.isEmpty()) files.insert(f);
+            } else if (st.action == QLatin1String("copy") || st.action == QLatin1String("copyFile")
+                       || st.action == QLatin1String("copyDir") || st.action == QLatin1String("rename")) {
+                const QString d = parentDir(relative(st.dest));
+                if (!d.isEmpty()) dirs.insert(d);
+            }
+        }
+    };
+    collect(pkg->installSteps);
+    for (const InstallOptionQt& opt : pkg->installOptions) collect(opt.steps);
+    for (const auto& steps : pkg->combinedSteps) collect(steps);
+    for (const auto& vc : pkg->variantInstallOptions) {
+        for (const InstallOptionQt& opt : vc.installOptions) collect(opt.steps);
+        for (const auto& steps : vc.combinedSteps) collect(steps);
+    }
+
+    // An overlay package already on disk: the folders its files go into, two
+    // levels deep at most ("Content/Paks", not every subfolder of a mod).
+    const bool overlay = pkg->installSteps.isEmpty() && pkg->installOptions.isEmpty()
+                         && pkg->variantInstallOptions.isEmpty();
+    if (overlay) {
+        const QString source = resolveSourcePath(*pkg, QString());
+        if (!source.isEmpty()) {
+            const QDir root(source);
+            QDirIterator it(source, rawfile::kFiles, QDirIterator::Subdirectories);
+            for (int n = 0; it.hasNext() && n < 4000; ++n) {
+                const QString rel = root.relativeFilePath(it.next());
+                const QStringList parts = parentDir(rel).split(QLatin1Char('/'), Qt::SkipEmptyParts);
+                if (!parts.isEmpty())
+                    dirs.insert(parts.mid(0, 2).join(QLatin1Char('/')));
+            }
+        }
+    }
+
+    e.targetDirs = QStringList(dirs.cbegin(), dirs.cend()).mid(0, 40);
+    e.targetFiles = QStringList(files.cbegin(), files.cend()).mid(0, 40);
+    return e;
+}
+
 QStringList LocalPackageManager::unknownRecipeActions(const QString& steamAppId) const
 {
     QStringList out;

@@ -29,6 +29,8 @@
 
 #include <makine/package_catalog.hpp>
 
+#include "gamefolderrules.h"
+
 namespace makine {
 
 class OperationJournal;
@@ -152,6 +154,12 @@ public:
 
     // Step actions in any of this package's recipes that this build cannot run.
     QStringList unknownRecipeActions(const QString& steamAppId) const;
+
+    // What this package expects under its game's root: the catalogue's exe
+    // names, the folders its recipe (or, once downloaded, its files) go into,
+    // the game files it edits in place. folderrules::pickRoot weighs a
+    // user-picked folder against it.
+    folderrules::Expectations folderExpectations(const QString& steamAppId) const;
 
     // Whether any of this package's recipes rewrites a game file in place.
     bool recipeWritesInPlace(const QString& steamAppId) const;

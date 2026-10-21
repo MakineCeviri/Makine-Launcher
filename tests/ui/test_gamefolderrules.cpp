@@ -225,3 +225,107 @@ TEST_F(GameFolderRulesTest, VerdictDoesNotClimbIntoAProtectedFolder)
     EXPECT_EQ(judgeGameFolder(path(QStringLiteral("Users/me/bin")), {}, folders).problem,
               FolderProblem::Protected);
 }
+
+// --- pickRoot: the root a specific patch needs -------------------------------
+
+TEST_F(GameFolderRulesTest, PickAnywhereInsideAnUnrealGameLandsOnItsRoot)
+{
+    touch(QStringLiteral("common/Lies of P/LiesofP/Binaries/Win64/LiesofP-Win64-Shipping.exe"));
+    mkdir(QStringLiteral("common/Lies of P/LiesofP/Content/Paks"));
+    mkdir(QStringLiteral("common/Lies of P/Engine"));
+    touch(QStringLiteral("common/Lies of P/LiesofP.exe"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("liesofp.exe")};
+    e.targetDirs = {QStringLiteral("LiesofP/Content/Paks")};
+    const QString root = path(QStringLiteral("common/Lies of P"));
+
+    for (const char* pick : {"common/Lies of P/LiesofP/Binaries/Win64",
+                             "common/Lies of P/LiesofP/Content",
+                             "common/Lies of P/LiesofP",
+                             "common/Lies of P"}) {
+        EXPECT_EQ(pickRoot(path(QString::fromLatin1(pick)), QStringLiteral("Lies of P"), e).root, root)
+            << pick;
+    }
+    // The exe itself, picked as a file.
+    EXPECT_EQ(pickRoot(path(QStringLiteral("common/Lies of P/LiesofP.exe")),
+                       QStringLiteral("Lies of P"), e).root, root);
+}
+
+TEST_F(GameFolderRulesTest, ALibraryPickFindsTheGameInside)
+{
+    touch(QStringLiteral("common/ELDEN RING/Game/eldenring.exe"));
+    touch(QStringLiteral("common/ELDEN RING/Game/regulation.bin"));
+    touch(QStringLiteral("common/Hades/Hades.exe"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("eldenring.exe")};
+    e.targetFiles = {QStringLiteral("Game/regulation.bin")};
+
+    const RootEvidence r = pickRoot(path(QStringLiteral("common")), QStringLiteral("ELDEN RING"), e);
+    EXPECT_EQ(r.root, path(QStringLiteral("common/ELDEN RING")));
+    EXPECT_EQ(r.exe, QStringLiteral("Game/eldenring.exe"));
+    EXPECT_EQ(r.filesFound, 1);
+}
+
+TEST_F(GameFolderRulesTest, TheRecipeOutvotesTheLayoutGuess)
+{
+    // A folder named "Game" with an exe and nothing runnable above it reads as
+    // FromSoftware's layout — but this patch writes into "Data/", which only
+    // exists one level down. The patch decides.
+    touch(QStringLiteral("lib/Odd/Game/odd.exe"));
+    mkdir(QStringLiteral("lib/Odd/Game/Data"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("odd.exe")};
+    e.targetDirs = {QStringLiteral("Data")};
+
+    EXPECT_EQ(pickRoot(path(QStringLiteral("lib/Odd/Game")), QStringLiteral("Odd"), e).root,
+              path(QStringLiteral("lib/Odd/Game")));
+}
+
+TEST_F(GameFolderRulesTest, WithNothingToWeighTheLayoutGuessStands)
+{
+    touch(QStringLiteral("lib/ELDEN RING/Game/eldenring.exe"));
+    const RootEvidence r = pickRoot(path(QStringLiteral("lib/ELDEN RING/Game")),
+                                    QStringLiteral("ELDEN RING"), Expectations{});
+    EXPECT_EQ(r.root, path(QStringLiteral("lib/ELDEN RING")));
+    EXPECT_TRUE(r.exe.isEmpty());
+}
+
+TEST_F(GameFolderRulesTest, AFolderWithNoExeClimbsToTheOneWithIt)
+{
+    // The user opened a data folder of another game entirely: the root found is
+    // that game's, so the caller can say whose it is instead of "no exe here".
+    touch(QStringLiteral("Games/Death Stranding 2/DS2.exe"));
+    mkdir(QStringLiteral("Games/Death Stranding 2/LocalCacheWinGame"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("someothergame.exe")};
+
+    EXPECT_EQ(pickRoot(path(QStringLiteral("Games/Death Stranding 2/LocalCacheWinGame")),
+                       QStringLiteral("Some Other Game"), e).root,
+              path(QStringLiteral("Games/Death Stranding 2")));
+}
+
+TEST_F(GameFolderRulesTest, NoCandidateWhenThePickHoldsOnlyOtherGames)
+{
+    touch(QStringLiteral("Oyunlar/Hades/Hades.exe"));
+    touch(QStringLiteral("Oyunlar/Celeste/Celeste.exe"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("eldenring.exe")};
+
+    const RootEvidence r = pickRoot(path(QStringLiteral("Oyunlar")), QStringLiteral("ELDEN RING"), e);
+    EXPECT_TRUE(r.root.isEmpty());
+}
+
+TEST_F(GameFolderRulesTest, AFolderInsideAFolderOfItsOwnNameIsTheGame)
+{
+    // A repack unpacked into "<Name>/<Name>": the outer folder holds a readme
+    // and an earlier patch, the game is the inner one.
+    touch(QStringLiteral("Games/Red Dead Redemption 2/Red Dead Redemption 2/RDR2.exe"));
+    touch(QStringLiteral("Games/Red Dead Redemption 2/dinput8.dll"));
+    const QString inner = path(QStringLiteral("Games/Red Dead Redemption 2/Red Dead Redemption 2"));
+
+    EXPECT_EQ(resolveGameRoot(path(QStringLiteral("Games/Red Dead Redemption 2"))), inner);
+    Expectations e;
+    e.exeNames = {QStringLiteral("rdr2.exe")};
+    EXPECT_EQ(pickRoot(path(QStringLiteral("Games/Red Dead Redemption 2")),
+                       QStringLiteral("Red Dead Redemption 2"), e).root, inner);
+}

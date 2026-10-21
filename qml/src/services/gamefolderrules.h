@@ -20,6 +20,8 @@
 #include <QStringList>
 #include <QUrl>
 
+#include "gamenamerules.h"
+
 namespace makine::folderrules {
 
 // QML hands over a URL ("file:///D:/Oyunlar/A%23B"), the process scanner a
@@ -166,6 +168,16 @@ inline QString resolveGameRoot(const QString& dir)
         && !hasExecutableAtTop(parent) && canBeGameRoot(parent))
         return parent;
 
+    // An archive unpacked into a folder of its own name: <Name>/<Name>/<game>.exe,
+    // nothing runnable in the outer one. A scan that stops at the outer folder
+    // installs the patch next to the game instead of into it (Red Dead
+    // Redemption 2 on a repack: the patch's dinput8.dll never loaded).
+    if (!hasExecutableAtTop(clean)) {
+        const QString inner = clean + QLatin1Char('/') + QFileInfo(clean).fileName();
+        if (QFileInfo(inner).isDir() && hasExecutableAtTop(inner))
+            return inner;
+    }
+
     // Microsoft Store / Game Pass: XboxGames/<Game>/Content/<game>.exe. Here the
     // game is Content, one level BELOW the folder carrying its name.
     const QString content = clean + QStringLiteral("/Content");
@@ -227,6 +239,130 @@ inline FolderVerdict judgeGameFolder(const QString& dir,
     }
     if (!canBeGameRoot(root)) return {QString(), FolderProblem::Collection};
     return {root, FolderProblem::None};
+}
+
+// ── The root a specific patch needs ──────────────────────────────────────────
+//
+// resolveGameRoot knows engine layouts; it does not know the game. When the
+// user points at a folder for a catalogue game, the patch itself says what its
+// root must look like: the executables the catalogue lists for it, the folders
+// its recipe writes into, the files it edits in place. Each folder around the
+// pick is weighed against that, so the patch lands where its paths resolve —
+// not wherever the user happened to click.
+
+// What a patch expects under its game's root. Paths are relative, "/"-separated.
+struct Expectations {
+    QStringList exeNames;     // lowercase file names from the catalogue fingerprint
+    QStringList targetDirs;   // folders the recipe or package writes into
+    QStringList targetFiles;  // game files the recipe edits in place (must exist)
+};
+
+struct RootEvidence {
+    QString root;
+    QString exe;              // an expected exe found under root, relative ("" = none)
+    int dirsFound = 0;
+    int dirsTotal = 0;
+    int filesFound = 0;
+    int filesTotal = 0;
+    int score = 0;
+};
+
+// The first of `exeNames` found at most `maxDepth` folders below `dir`,
+// relative to it. Bounded in entries visited: `dir` may be a big install.
+inline QString findExpectedExe(const QString& dir, const QStringList& exeNames, int maxDepth = 4)
+{
+    if (exeNames.isEmpty()) return {};
+    const QSet<QString> wanted(exeNames.cbegin(), exeNames.cend());
+    QStringList level{QString()};
+    int visited = 0;
+    for (int depth = 0; depth <= maxDepth && !level.isEmpty(); ++depth) {
+        QStringList next;
+        for (const QString& rel : level) {
+            const QDir d(rel.isEmpty() ? dir : dir + QLatin1Char('/') + rel);
+            for (const QString& f : d.entryList({QStringLiteral("*.exe")}, QDir::Files))
+                if (wanted.contains(f.toLower()))
+                    return rel.isEmpty() ? f : rel + QLatin1Char('/') + f;
+            for (const QString& sub : d.entryList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks)) {
+                if (++visited > 2000) return {};
+                next << (rel.isEmpty() ? sub : rel + QLatin1Char('/') + sub);
+            }
+        }
+        level = next;
+    }
+    return {};
+}
+
+// How well `root` matches what the patch expects. The weights rank the kinds
+// of proof: a file the recipe rewrites in place either is there or the patch
+// cannot run; the game's own exe says "this is the game"; folders a recipe
+// copies into are weaker, since some are created by the install itself; and
+// any exe at all only says "some game", enough to climb out of a data folder
+// the user opened ("<Game>/LocalCacheWinGame") when nothing else speaks.
+inline RootEvidence weighRoot(const QString& root, const Expectations& e)
+{
+    RootEvidence r;
+    r.root = QDir::cleanPath(root);
+    r.exe = findExpectedExe(r.root, e.exeNames);
+    r.dirsTotal = static_cast<int>(e.targetDirs.size());
+    for (const QString& d : e.targetDirs)
+        if (QFileInfo(r.root + QLatin1Char('/') + d).isDir()) ++r.dirsFound;
+    r.filesTotal = static_cast<int>(e.targetFiles.size());
+    for (const QString& f : e.targetFiles)
+        if (QFileInfo(r.root + QLatin1Char('/') + f).isFile()) ++r.filesFound;
+    r.score = (r.exe.isEmpty() ? (hasExecutableWithin(r.root, 4) ? 5 : 0) : 40)
+            + (r.dirsTotal > 0 ? 30 * r.dirsFound / r.dirsTotal : 0)
+            + (r.filesTotal > 0 ? 50 * r.filesFound / r.filesTotal : 0);
+    return r;
+}
+
+// Folders that could be the root, best guess first: the engine-layout root of
+// the pick, the pick, up to three folders above it (the user opened something
+// deep inside the game), and — when the pick is a library rather than a game —
+// the subfolders named like the game.
+inline QStringList rootCandidates(const QString& picked, const QString& gameName)
+{
+    QStringList out;
+    const auto add = [&out](const QString& p) {
+        const QString c = QDir::cleanPath(p);
+        if (!c.isEmpty() && QFileInfo(c).isDir() && !out.contains(c, Qt::CaseInsensitive)
+            && canBeGameRoot(c))
+            out << c;
+    };
+    const QString base = QFileInfo(picked).isFile() ? parentOf(picked) : QDir::cleanPath(picked);
+    if (canBeGameRoot(base)) {
+        add(resolveGameRoot(base));
+        add(base);
+        QString up = base;
+        for (int i = 0; i < 3; ++i) {
+            up = parentOf(up);
+            if (QDir(up).isRoot() || !canBeGameRoot(up)) break;
+            add(up);
+        }
+    } else if (!gameName.isEmpty()) {
+        // A library is never climbed out of: what is above it is even less a game.
+        const QDir d(base);
+        for (const QString& child : d.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (namerules::gameNamesLikelyMatch(child, gameName)) {
+                add(resolveGameRoot(d.filePath(child)));
+                add(d.filePath(child));
+            }
+        }
+    }
+    return out;
+}
+
+// The root among the candidates that the patch fits best. On a tie the earlier
+// candidate wins, so with nothing to weigh against this is resolveGameRoot's
+// answer. Empty `root` when no candidate can be a game's folder at all.
+inline RootEvidence pickRoot(const QString& picked, const QString& gameName, const Expectations& e)
+{
+    RootEvidence best;
+    for (const QString& c : rootCandidates(picked, gameName)) {
+        const RootEvidence r = weighRoot(c, e);
+        if (best.root.isEmpty() || r.score > best.score)
+            best = r;
+    }
+    return best;
 }
 
 } // namespace makine::folderrules

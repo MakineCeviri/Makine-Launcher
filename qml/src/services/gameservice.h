@@ -162,6 +162,42 @@ public:
      */
     Q_INVOKABLE bool changeGamePath(const QString& gameId, const QString& newPath);
 
+    /**
+     * @brief Look at a folder the user picked for `gameId`, off the UI thread
+     *
+     * Finds the root the game's patch needs around the pick (the folder the
+     * .exe sits in, the game folder, the library that holds it — any of them)
+     * and says what it found there; answered by gameFolderInspected.
+     * `audit`: a look at the game's current folder when its page opens —
+     * nothing written there, no engine or fingerprint work.
+     */
+    Q_INVOKABLE void inspectGameFolder(const QString& gameId, const QString& picked,
+                                       bool audit = false);
+
+    /**
+     * @brief Bind `gameId` to `root` (a root inspectGameFolder returned)
+     *
+     * A scanned game keeps the choice over later scans; a catalogue game the
+     * scan never found is added. Refused while its patch sits in another folder.
+     */
+    Q_INVOKABLE bool setGameFolder(const QString& gameId, const QString& root,
+                                   const QString& engine = {});
+
+    /**
+     * @brief Where `gameId` is: path, shown path, source, whether the user chose it
+     */
+    Q_INVOKABLE QVariantMap gameFolderInfo(const QString& gameId) const;
+
+    /**
+     * @brief Open the game's folder in Explorer
+     */
+    Q_INVOKABLE void openGameFolder(const QString& gameId) const;
+
+    /**
+     * @brief Drop a chosen folder and go back to the one the scan finds
+     */
+    Q_INVOKABLE void resetGameFolder(const QString& gameId);
+
     Q_INVOKABLE QVariantMap getGameById(const QString& id) const;
     Q_INVOKABLE void fetchSteamDetails(const QString& steamAppId);
     Q_INVOKABLE QVariantMap getSteamDetails(const QString& steamAppId);
@@ -427,6 +463,8 @@ signals:
     void steamDetailsFetchError(const QString& steamAppId, const QString& error);
     void manualGameAdded(const QString& gameId);
     void manualGameRejected(const QString& path, const QString& reason);
+    void gameFolderInspected(const QString& gameId, const QVariantMap& result);
+    void gameFolderChanged(const QString& gameId);
     void gameRemoved(const QString& gameId);
     void runtimeInstallFinished(const QString& gameId, bool success, const QString& error);
     void translationInstallStarted(const QString& gameId);
@@ -527,6 +565,13 @@ private:
     SteamDetailsService* m_steamDetails{nullptr};
     QList<GameInfo> m_games;
     QHash<QString, int> m_gameIdToIndex;       // O(1) lookup by ID
+    // Folders the user chose for scanned games; they win over later scans.
+    // data/game_folders.json, gameId → root.
+    QHash<QString, QString> m_folderOverrides;
+    void loadFolderOverrides();
+    void saveFolderOverrides() const;
+    void applyFolderOverrides();
+    int gameIndexFor(const QString& gameId) const;
     QHash<QString, int> m_steamAppIdToIndex;   // O(1) lookup by steamAppId
     mutable QHash<QString, bool> m_packageInstalledCache;  // Cached isPackageInstalled results
     bool m_isScanning{false};

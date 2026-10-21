@@ -500,6 +500,16 @@ Item {
         }
 
         // =================================================================
+        // GAME FOLDER — where the game is, or a way to point at it
+        // =================================================================
+
+        GameFolderCard {
+            vm: heroRoot.vm
+            opacity: heroRoot._actionOp
+            transform: Translate { y: heroRoot._actionTY }
+        }
+
+        // =================================================================
         // INFO TILES BAR (genre, metacritic, release — below action button)
         // =================================================================
 

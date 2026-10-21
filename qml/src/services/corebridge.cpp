@@ -1427,6 +1427,14 @@ QStringList CoreBridge::unknownRecipeActions(const QString& gameId)
     return resolved.isEmpty() ? QStringList{} : m_localPkgManager->unknownRecipeActions(resolved);
 }
 
+folderrules::Expectations CoreBridge::folderExpectations(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? folderrules::Expectations{}
+                              : m_localPkgManager->folderExpectations(resolved);
+}
+
 bool CoreBridge::recipeWritesInPlace(const QString& gameId)
 {
     if (!m_localPkgManager) return false;

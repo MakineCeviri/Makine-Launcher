@@ -101,6 +101,7 @@ void GameService::initialize()
 {
     CrashReporter::addBreadcrumb("game", "GameService::initialize");
     setupCoreBridge();
+    loadFolderOverrides();
 
     // Load caches in background thread to avoid blocking the UI
     const QString gamesCachePath = AppPaths::gamesCacheFile();
@@ -547,6 +548,7 @@ void GameService::onScanCompleted(int count)
     }
 
     rebuildCache();
+    applyFolderOverrides();
 
     // Update backup originalPaths for games that moved to a new location
     BackupManager* bm = BackupManager::instance();
@@ -887,6 +889,269 @@ bool GameService::changeGamePath(const QString& gameId, const QString& newPath)
 
     qCInfo(lcGameService) << "Game path updated:" << gameId << "→" << newPath;
     return true;
+}
+
+// ── Game folder ─────────────────────────────────────────────────────────────
+
+namespace {
+
+QString gameFoldersFile() { return AppPaths::dataDir() + QStringLiteral("/game_folders.json"); }
+
+bool sameFolder(const QString& a, const QString& b)
+{
+    return !a.isEmpty() && !b.isEmpty()
+        && QDir::cleanPath(a).compare(QDir::cleanPath(b), Qt::CaseInsensitive) == 0;
+}
+
+// What the user should see: the real location under MSIX, Windows separators.
+QString shownFolder(const QString& path)
+{
+    return path.isEmpty() ? QString() : QDir::toNativeSeparators(ElevatedOps::realPath(path));
+}
+
+} // namespace
+
+int GameService::gameIndexFor(const QString& gameId) const
+{
+    int idx = m_gameIdToIndex.value(gameId, -1);
+    if (idx < 0) idx = m_steamAppIdToIndex.value(gameId, -1);
+    return idx < m_games.count() ? idx : -1;
+}
+
+void GameService::loadFolderOverrides()
+{
+    QFile f(gameFoldersFile());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    for (auto it = o.constBegin(); it != o.constEnd(); ++it)
+        m_folderOverrides.insert(it.key(), it.value().toString());
+}
+
+void GameService::saveFolderOverrides() const
+{
+    QJsonObject o;
+    for (auto it = m_folderOverrides.cbegin(); it != m_folderOverrides.cend(); ++it)
+        o.insert(it.key(), it.value());
+    QDir().mkpath(AppPaths::dataDir());
+    QSaveFile f(gameFoldersFile());
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QJsonDocument(o).toJson(QJsonDocument::Compact));
+        f.commit();
+    }
+}
+
+// A folder the user chose wins over the one a scan finds — as long as it is
+// still there; one that is gone goes back to the scan's.
+void GameService::applyFolderOverrides()
+{
+    bool dropped = false;
+    for (auto it = m_folderOverrides.begin(); it != m_folderOverrides.end();) {
+        if (!QDir(it.value()).exists()) {
+            it = m_folderOverrides.erase(it);
+            dropped = true;
+            continue;
+        }
+        if (const int idx = gameIndexFor(it.key()); idx >= 0)
+            m_games[idx].installPath = it.value();
+        ++it;
+    }
+    if (dropped) saveFolderOverrides();
+}
+
+void GameService::inspectGameFolder(const QString& gameId, const QString& picked, bool audit)
+{
+    MAKINE_ZONE_NAMED("GameService::inspectGameFolder");
+    const QString chosen = folderrules::toLocalPath(picked);
+    if (!m_coreBridge) {
+        emit gameFolderInspected(gameId, {{QStringLiteral("verdict"), QStringLiteral("refused")},
+            {QStringLiteral("problem"), tr("Uygulama hâlâ açılıyor; birkaç saniye sonra tekrar dene.")}});
+        return;
+    }
+    const auto pkg = m_coreBridge->getPackageForGame(gameId);
+    const QString appId = pkg ? pkg->gameId : gameId;
+    const QString gameName = pkg ? pkg->gameName : QString();
+    const auto installed = m_coreBridge->getInstalledInfo(gameId);
+    const QString patchedAt = installed ? installed->gamePath : QString();
+    const int idx = gameIndexFor(gameId);
+    const QString current = idx >= 0 ? m_games[idx].installPath : QString();
+    const QStringList trees = protectedGameTrees();
+    const QStringList folders = protectedGameFolders();
+    CoreBridge* cb = m_coreBridge;
+
+    // Walks the pick, the folders around it and the package — never on the UI thread.
+    (void)QtConcurrent::run([this, cb, gameId, chosen, appId, gameName, patchedAt, current,
+                             trees, folders, audit]() {
+        MAKINE_THREAD_NAME("Worker-GameFolder");
+        QVariantMap r;
+        r[QStringLiteral("audit")] = audit;
+        r[QStringLiteral("picked")] = QDir::toNativeSeparators(chosen);
+
+        QString problem;
+        folderrules::RootEvidence ev;
+        if (chosen.isEmpty() || !QFileInfo::exists(chosen)) {
+            problem = folderProblemText(folderrules::FolderProblem::Missing);
+        } else {
+            ev = folderrules::pickRoot(chosen, gameName, cb->folderExpectations(appId));
+            if (ev.root.isEmpty()) {
+                const auto v = folderrules::judgeGameFolder(chosen, trees, folders);
+                problem = folderProblemText(v.problem != folderrules::FolderProblem::None
+                                                ? v.problem : folderrules::FolderProblem::Collection);
+            } else if (const auto p = folderrules::checkGameFolder(ev.root, trees, folders);
+                       p != folderrules::FolderProblem::None) {
+                problem = folderProblemText(p);
+            }
+        }
+        // The patch must come off the folder it is in before the game moves:
+        // its record and its backup both point there.
+        const bool patchedElsewhere = problem.isEmpty() && !patchedAt.isEmpty()
+                                      && !sameFolder(patchedAt, ev.root);
+        r[QStringLiteral("patchedElsewhere")] = patchedElsewhere;
+        if (patchedElsewhere) {
+            problem = tr("Türkçe yama şu an şu klasörde kurulu:\n%1\n"
+                         "Klasörü değiştirmeden önce yamayı kaldır; yoksa oradaki yama ve "
+                         "yedeği sahipsiz kalır.").arg(shownFolder(patchedAt));
+        }
+
+        // Another catalogue game recognises the folder more surely than this one.
+        QString otherGame;
+        if (problem.isEmpty() && !audit) {
+            const QVariantList matches = cb->findMatchingGamesFromFiles(ev.root);
+            int ours = 0;
+            for (const QVariant& m : matches) {
+                const QVariantMap mm = m.toMap();
+                if (mm.value(QStringLiteral("steamAppId")).toString() == appId)
+                    ours = mm.value(QStringLiteral("confidence")).toInt();
+            }
+            if (!matches.isEmpty()) {
+                const QVariantMap top = matches.first().toMap();
+                const QString topId = top.value(QStringLiteral("steamAppId")).toString();
+                const int conf = top.value(QStringLiteral("confidence")).toInt();
+                if (topId != appId && conf >= 70 && conf > ours + 10) {
+                    const auto other = cb->getPackageForGame(topId);
+                    otherGame = other ? other->gameName : topId;
+                }
+            }
+        }
+
+        // Another game's folder, and nothing of this one's in it: installing
+        // there would write this patch over that game. Not a "yine de" case.
+        if (!otherGame.isEmpty() && ev.exe.isEmpty() && ev.filesFound == 0) {
+            problem = tr("Bu klasör %1 oyununa ait; %2 yaması buraya kurulamaz.")
+                          .arg(otherGame, gameName.isEmpty() ? tr("bu oyunun") : gameName);
+        }
+
+        const bool missingFiles = ev.filesFound < ev.filesTotal;
+        const bool evidence = !ev.exe.isEmpty() || ev.filesFound > 0
+                              || (ev.dirsTotal > 0 && ev.dirsFound * 2 >= ev.dirsTotal);
+        r[QStringLiteral("verdict")] = !problem.isEmpty() ? QStringLiteral("refused")
+            : (evidence && otherGame.isEmpty() && !missingFiles) ? QStringLiteral("ok")
+            : QStringLiteral("unsure");
+        r[QStringLiteral("problem")] = problem;
+        r[QStringLiteral("root")] = ev.root;
+        r[QStringLiteral("rootShown")] = shownFolder(ev.root);
+        r[QStringLiteral("climbed")] = !ev.root.isEmpty()
+            && !sameFolder(ev.root, QFileInfo(chosen).isFile() ? QFileInfo(chosen).absolutePath() : chosen);
+        r[QStringLiteral("exe")] = QDir::toNativeSeparators(ev.exe);
+        r[QStringLiteral("dirsFound")] = ev.dirsFound;
+        r[QStringLiteral("dirsTotal")] = ev.dirsTotal;
+        r[QStringLiteral("filesFound")] = ev.filesFound;
+        r[QStringLiteral("filesTotal")] = ev.filesTotal;
+        r[QStringLiteral("otherGame")] = otherGame;
+        r[QStringLiteral("same")] = sameFolder(ev.root, current);
+        // canWrite leaves a probe file behind for a moment; an audit writes nothing.
+        r[QStringLiteral("writable")] = audit || ev.root.isEmpty() || ElevatedOps::canWrite(ev.root);
+        r[QStringLiteral("engine")] = audit || ev.root.isEmpty() ? QString() : cb->detectEngine(ev.root);
+
+        QMetaObject::invokeMethod(this, [this, gameId, r]() {
+            qCInfo(lcGameService) << "inspectGameFolder" << gameId << r.value(QStringLiteral("picked"))
+                                  << "->" << r.value(QStringLiteral("root"))
+                                  << r.value(QStringLiteral("verdict"));
+            emit gameFolderInspected(gameId, r);
+        }, Qt::QueuedConnection);
+    });
+}
+
+bool GameService::setGameFolder(const QString& gameId, const QString& root, const QString& engine)
+{
+    MAKINE_ZONE_NAMED("GameService::setGameFolder");
+    const QString path = folderrules::toLocalPath(root);
+    if (path.isEmpty() || !QFileInfo(path).isDir() || !m_coreBridge) return false;
+    if (const auto inst = m_coreBridge->getInstalledInfo(gameId); inst && !sameFolder(inst->gamePath, path)) {
+        qCWarning(lcGameService) << "setGameFolder: patch installed at" << inst->gamePath
+                                 << "- refusing to move" << gameId;
+        return false;
+    }
+
+    QString id = gameId;
+    if (const int idx = gameIndexFor(gameId); idx >= 0) {
+        GameInfo& g = m_games[idx];
+        id = g.id;
+        g.installPath = path;
+        g.isInstalled = true;
+        if (g.source != QLatin1String("manual")) {
+            m_folderOverrides.insert(g.id, path);
+            saveFolderOverrides();
+        }
+        if (BackupManager* bm = BackupManager::instance())
+            bm->updateOriginalPaths(g.id, path);
+    } else {
+        // A catalogue game no scan found: bound here, kept like a hand-added one.
+        const auto pkg = m_coreBridge->getPackageForGame(gameId);
+        if (!pkg) return false;
+        GameInfo g;
+        g.id = pkg->gameId;
+        g.steamAppId = pkg->gameId;
+        g.name = pkg->gameName;
+        g.installPath = path;
+        g.source = QStringLiteral("manual");
+        g.engine = engine.isEmpty() ? QStringLiteral("Unknown") : engine;
+        g.isInstalled = true;
+        g.hasTranslation = true;
+        g.isVerified = true;
+        id = g.id;
+        m_games.append(g);
+        rebuildCache();
+        emit gameDetected(g.id);
+    }
+
+    invalidateAllCaches();
+    saveCachedGames();
+    emit gameListChanged();
+    emit supportedGamesChanged();
+    emit gameFolderChanged(gameId);
+    qCInfo(lcGameService) << "Game folder set:" << id << "->" << path;
+    return true;
+}
+
+QVariantMap GameService::gameFolderInfo(const QString& gameId) const
+{
+    const int idx = gameIndexFor(gameId);
+    if (idx < 0) return {};
+    const GameInfo& g = m_games[idx];
+    return {
+        {QStringLiteral("path"), g.installPath},
+        {QStringLiteral("shown"), shownFolder(g.installPath)},
+        {QStringLiteral("source"), g.source},
+        {QStringLiteral("chosen"), m_folderOverrides.contains(g.id) || g.source == QLatin1String("manual")},
+        {QStringLiteral("resettable"), m_folderOverrides.contains(g.id)},
+        {QStringLiteral("exists"), QDir(g.installPath).exists()},
+    };
+}
+
+void GameService::openGameFolder(const QString& gameId) const
+{
+    const int idx = gameIndexFor(gameId);
+    if (idx < 0) return;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(ElevatedOps::realPath(m_games[idx].installPath)));
+}
+
+void GameService::resetGameFolder(const QString& gameId)
+{
+    const int idx = gameIndexFor(gameId);
+    const QString id = idx >= 0 ? m_games[idx].id : gameId;
+    if (!m_folderOverrides.remove(id)) return;
+    saveFolderOverrides();
+    scanAllLibraries();
 }
 
 QVariantMap GameService::getGameById(const QString& id) const
