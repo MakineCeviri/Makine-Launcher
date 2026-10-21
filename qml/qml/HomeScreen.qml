@@ -25,6 +25,9 @@ Item {
     signal settingsRequested()
     signal manualFolderRequested()
     signal libraryRequested()
+    // "Tümünü gör" on the home page, with what it was showing
+    signal allGamesRequested(string filter, string sort, string query)
+    signal helpRequested()
 
     Component.onCompleted: {
         if (typeof SceneProfiler !== "undefined")
@@ -37,14 +40,30 @@ Item {
 
     // Update check handled by UpdateService in main.cpp startup.
 
-    // Current sub-page index: 0=Home, 1=Library
+    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?
     property int currentPage: 0
 
     function showHomePage() { currentPage = 0 }
     function showLibraryPage() { currentPage = 1 }
+    // With arguments: open on that filter, order and search (see AllGames.open).
+    property var _allGamesArgs: null
+    function showAllGamesPage(filter, sort, query) {
+        currentPage = 2
+        if (filter === undefined) return
+        if (allGamesLoader.item) allGamesLoader.item.open(filter, sort, query)
+        else _allGamesArgs = [filter, sort, query]
+    }
+    function showHelpPage() {
+        currentPage = 3
+        if (helpLoader.item) helpLoader.item.scrollToTop()
+    }
 
-    // Ctrl+F → switch to Home sub-page and focus the catalog search
+    // Ctrl+F → the search of the page on show: Tüm Oyunlar, else the home page's
     function focusSearch() {
+        if (currentPage === 2) {
+            if (allGamesLoader.item) allGamesLoader.item.focusSearch()
+            return
+        }
         currentPage = 0
         if (homePageLoader.item)
             homePageLoader.item.focusSearch()
@@ -72,6 +91,7 @@ Item {
                 onManualFolderRequested: root.manualFolderRequested()
                 onSettingsRequested: root.settingsRequested()
                 onLibraryRequested: root.libraryRequested()
+                onAllGamesRequested: (filter, sort, query) => root.allGamesRequested(filter, sort, query)
             }
         }
     }
@@ -93,6 +113,44 @@ Item {
                     root.installAndShowDetail(gameId, gameName, installPath, engine)
                 }
                 onManualFolderRequested: root.manualFolderRequested()
+                onHelpRequested: root.helpRequested()
+            }
+        }
+    }
+
+    Loader {
+        id: allGamesLoader
+        anchors.fill: parent
+        active: root.currentPage === 2 || allGamesLoader.status === Loader.Ready
+        visible: root.currentPage === 2
+        asynchronous: true
+        onLoaded: {
+            if (root._allGamesArgs) {
+                item.open(root._allGamesArgs[0], root._allGamesArgs[1], root._allGamesArgs[2])
+                root._allGamesArgs = null
+            }
+        }
+        sourceComponent: Component {
+            AllGames {
+                contentMargin: root.contentMargin
+                onGameSelected: function(gameId, gameName, installPath, engine) {
+                    root.gameSelected(gameId, gameName, installPath, engine)
+                }
+            }
+        }
+    }
+
+    Loader {
+        id: helpLoader
+        anchors.fill: parent
+        active: root.currentPage === 3 || helpLoader.status === Loader.Ready
+        visible: root.currentPage === 3
+        asynchronous: true
+        sourceComponent: Component {
+            HelpScreen {
+                contentMargin: root.contentMargin
+                onAllGamesRequested: root.allGamesRequested("", "", "")
+                onLibraryRequested: root.libraryRequested()
             }
         }
     }

@@ -45,6 +45,12 @@ class CatalogProxyModel : public QAbstractListModel
     Q_PROPERTY(int rowOffset READ rowOffset WRITE setRowOffset NOTIFY rowOffsetChanged)
     Q_PROPERTY(int rowLimit READ rowLimit WRITE setRowLimit NOTIFY rowLimitChanged)
     Q_PROPERTY(bool wrapAround READ wrapAround WRITE setWrapAround NOTIFY wrapAroundChanged)
+    /// "" every game · "mine" on this PC · "installed" patch installed ·
+    /// "local" installed by the launcher · "external" on another site
+    Q_PROPERTY(QString statusFilter READ statusFilter WRITE setStatusFilter NOTIFY statusFilterChanged)
+    /// "" A–Z (the source's order) · "newest" newest package first. A search
+    /// ranks by relevance either way.
+    Q_PROPERTY(QString sortMode READ sortMode WRITE setSortMode NOTIFY sortModeChanged)
     Q_PROPERTY(int sourceCount READ sourceCount NOTIFY sourceCountChanged)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
@@ -66,6 +72,15 @@ public:
     bool wrapAround() const { return m_wrapAround; }
     void setWrapAround(bool wrap);
 
+    QString statusFilter() const { return m_statusFilter; }
+    void setStatusFilter(const QString &filter);
+
+    QString sortMode() const { return m_sortMode; }
+    void setSortMode(const QString &mode);
+
+    /// Games of the source that `statusFilter` = `status` would keep, search aside.
+    Q_INVOKABLE int countWithStatus(const QString &status) const;
+
     /// Number of items after filtering (before offset/limit/wrap).
     int sourceCount() const { return m_filteredCount; }
 
@@ -80,6 +95,8 @@ signals:
     void rowOffsetChanged();
     void rowLimitChanged();
     void wrapAroundChanged();
+    void statusFilterChanged();
+    void sortModeChanged();
     void sourceCountChanged();
     void countChanged();
 
@@ -120,6 +137,7 @@ private:
                              const QList<int> &roles);
 
     int mapToSource(int proxyRow) const;
+    bool hasStatus(int sourceRow, const QString &status) const;
 
     // --- State ---
     QAbstractItemModel *m_source{nullptr};
@@ -128,6 +146,8 @@ private:
     int m_rowOffset{0};
     int m_rowLimit{-1};
     bool m_wrapAround{false};
+    QString m_statusFilter;
+    QString m_sortMode;
 
     // Search index (built once on source model load)
     std::vector<SearchEntry> m_searchIndex;

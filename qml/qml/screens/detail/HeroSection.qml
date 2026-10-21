@@ -414,6 +414,13 @@ Item {
                     onRepairClicked: GameService.recoverTranslation(heroRoot.vm.gameId)
                 }
 
+                // What the button above is about to do
+                InstallExplainer {
+                    Layout.fillWidth: true
+                    vm: heroRoot.vm
+                    mode: actionButton._state
+                }
+
                 // Where the game is — or, not found, how to point at it
                 GameFolderBar {
                     id: folderBar

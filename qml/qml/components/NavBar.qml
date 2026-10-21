@@ -20,6 +20,8 @@ Item {
     signal homeClicked()
     signal libraryClicked()
     signal settingsClicked()
+    signal allGamesClicked()
+    signal helpClicked()
 
     readonly property color _bgColor: Theme.bgPrimary90
 
@@ -146,6 +148,12 @@ Item {
             text: qsTr("Ana Sayfa")
             selected: navBarRoot.currentIndex === 0
             onClicked: navBarRoot.homeClicked()
+        }
+
+        NavItem {
+            text: qsTr("Tüm Oyunlar")
+            selected: navBarRoot.currentIndex === 3
+            onClicked: navBarRoot.allGamesClicked()
         }
 
         NavItem {
@@ -362,6 +370,47 @@ Item {
                 id: donateMouse; anchors.fill: parent
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: Qt.openUrlExternally("https://kreosus.com/makineceviri/")
+            }
+        }
+
+        // Help — how the launcher works (F1)
+        Item {
+            id: helpItem
+            Layout.preferredWidth: 36; Layout.preferredHeight: 36
+            Layout.alignment: Qt.AlignVCenter
+
+            property bool hovered: helpMouse.containsMouse
+            property bool isSelected: navBarRoot.currentIndex === 4
+            scale: hovered ? 1.1 : 1.0
+            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("Nasıl çalışır?")
+
+            Text {
+                textFormat: Text.PlainText
+                anchors.centerIn: parent
+                text: "\uE897"
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 17
+                color: helpItem.isSelected ? Theme.primary
+                     : helpItem.hovered    ? Theme.textPrimary
+                     : Theme.textMuted
+                opacity: helpItem.isSelected ? 1.0
+                       : helpItem.hovered    ? 0.9
+                       : 0.6
+            }
+
+            StyledToolTip {
+                visible: helpItem.hovered
+                delay: 400
+                text: qsTr("Nasıl çalışır? (F1)")
+            }
+
+            MouseArea {
+                id: helpMouse; anchors.fill: parent
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: navBarRoot.helpClicked()
             }
         }
 

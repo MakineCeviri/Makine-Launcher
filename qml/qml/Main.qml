@@ -69,6 +69,21 @@ ApplicationWindow {
     }
 
     property int currentNavIndex: 0
+
+    // Shows the page behind a navigation index: 0 Ana Sayfa · 1 Kütüphanem ·
+    // 2 Ayarlar · 3 Tüm Oyunlar · 4 Nasıl çalışır?
+    function _go(index) {
+        window.currentNavIndex = index
+        if (index === 2) {
+            contentStackContainer.navigateTo(1)
+            return
+        }
+        contentStackContainer.navigateTo(0)
+        if (index === 1) homeView.showLibraryPage()
+        else if (index === 3) homeView.showAllGamesPage()
+        else if (index === 4) homeView.showHelpPage()
+        else homeView.showHomePage()
+    }
     property int previousNavIndex: 0  // Remember nav index before game detail
 
     // Force quit flag — bypasses minimize-to-tray on close
@@ -167,21 +182,16 @@ ApplicationWindow {
         sequence: "Ctrl+Q"
         onActivated: Qt.quit()
     }
+    // Back from a game's page goes where it was opened from, not always home.
     Shortcut {
         sequences: [StandardKey.Back]
         enabled: !window._onboardingActive && contentStackContainer.currentIndex !== 0
-        onActivated: {
-            window.currentNavIndex = 0
-            contentStackContainer.navigateTo(0)
-        }
+        onActivated: window._go(contentStackContainer.currentIndex === 2 ? window.previousNavIndex : 0)
     }
     Shortcut {
         sequence: "Escape"
         enabled: !window._onboardingActive && contentStackContainer.currentIndex !== 0
-        onActivated: {
-            window.currentNavIndex = 0
-            contentStackContainer.navigateTo(0)
-        }
+        onActivated: window._go(contentStackContainer.currentIndex === 2 ? window.previousNavIndex : 0)
     }
     Shortcut {
         sequence: "Ctrl+,"
@@ -219,6 +229,16 @@ ApplicationWindow {
         }
     }
     Shortcut {
+        sequence: "Ctrl+3"
+        enabled: !window._onboardingActive
+        onActivated: window._go(3)
+    }
+    Shortcut {
+        sequence: "F1"
+        enabled: !window._onboardingActive
+        onActivated: window._go(4)
+    }
+    Shortcut {
         sequence: "Ctrl+R"
         enabled: !window._onboardingActive
         onActivated: GameService.checkForUpdates()
@@ -227,7 +247,7 @@ ApplicationWindow {
         sequence: "Ctrl+F"
         enabled: !window._onboardingActive
         onActivated: {
-            window.currentNavIndex = 0
+            if (window.currentNavIndex !== 3) window.currentNavIndex = 0
             contentStackContainer.navigateTo(0)
             homeView.focusSearch()
         }
@@ -446,6 +466,8 @@ ApplicationWindow {
                 contentStackContainer.navigateTo(0)
                 homeView.showLibraryPage()
             }
+            onAllGamesClicked: window._go(3)
+            onHelpClicked: window._go(4)
         }
 
         // ===== CONTENT STACK - Simple crossfade transitions =====
@@ -592,6 +614,12 @@ ApplicationWindow {
                 }
                 onManualFolderRequested: manualFolderDialog.open()
                 onLibraryRequested: navBar.libraryClicked()
+                onHelpRequested: window._go(4)
+                onAllGamesRequested: (filter, sort, query) => {
+                    window.currentNavIndex = 3
+                    contentStackContainer.navigateTo(0)
+                    homeView.showAllGamesPage(filter, sort, query)
+                }
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
                     detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
@@ -648,18 +676,7 @@ ApplicationWindow {
                         onTranslateClicked: {
                             installFlow.startInstallFlow(detailVM.gameId, detailVM.gameName)
                         }
-                        onBackClicked: {
-                            window.currentNavIndex = window.previousNavIndex
-                            if (window.previousNavIndex === 2) {
-                                contentStackContainer.navigateTo(1)
-                            } else {
-                                contentStackContainer.navigateTo(0)
-                                if (window.previousNavIndex === 1)
-                                    homeView.showLibraryPage()
-                                else
-                                    homeView.showHomePage()
-                            }
-                        }
+                        onBackClicked: window._go(window.previousNavIndex)
                     }
                 }
             }

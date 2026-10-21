@@ -325,6 +325,52 @@ void CatalogProxyModel::setSearchFilter(const QString &filter)
     scheduleRebuild();
 }
 
+void CatalogProxyModel::setStatusFilter(const QString &filter)
+{
+    if (m_statusFilter == filter)
+        return;
+    m_statusFilter = filter;
+    emit statusFilterChanged();
+    scheduleRebuild();
+}
+
+void CatalogProxyModel::setSortMode(const QString &mode)
+{
+    if (m_sortMode == mode)
+        return;
+    m_sortMode = mode;
+    emit sortModeChanged();
+    scheduleRebuild();
+}
+
+bool CatalogProxyModel::hasStatus(int sourceRow, const QString &status) const
+{
+    if (status.isEmpty())
+        return true;
+    const QModelIndex i = m_source->index(sourceRow, 0);
+    const bool onPc = i.data(SupportedGamesModel::IsInstalledRole).toBool();
+    const bool external = !i.data(SupportedGamesModel::ExternalUrlRole).toString().isEmpty();
+    if (status == QLatin1String("mine"))
+        return onPc;
+    if (status == QLatin1String("installed"))
+        return i.data(SupportedGamesModel::PackageInstalledRole).toBool();
+    if (status == QLatin1String("local"))
+        return !external;
+    if (status == QLatin1String("external"))
+        return external;
+    return true;
+}
+
+int CatalogProxyModel::countWithStatus(const QString &status) const
+{
+    if (!m_source)
+        return 0;
+    int n = 0;
+    for (int i = 0, end = m_source->rowCount(); i < end; ++i)
+        if (hasStatus(i, status)) ++n;
+    return n;
+}
+
 void CatalogProxyModel::setRowOffset(int offset)
 {
     if (m_rowOffset == offset)
@@ -424,27 +470,43 @@ void CatalogProxyModel::rebuild()
 
     const int srcCount = static_cast<int>(m_searchIndex.size());
 
-    if (m_normalizedFilter.isEmpty()) {
-        // No filter — pass all rows in original order
-        m_filteredCount = srcCount;
+    // The rows the status filter keeps, in the source's (A–Z) order.
+    std::vector<int> candidates;
+    candidates.reserve(srcCount);
+    for (int i = 0; i < srcCount; ++i)
+        if (hasStatus(i, m_statusFilter)) candidates.push_back(i);
 
-        const int offset = qBound(0, m_rowOffset, srcCount);
+    if (m_normalizedFilter.isEmpty()) {
+        // No search — the candidates in source order, or newest package
+        // first (an undated one last; ISO dates compare as strings).
+        if (m_sortMode == QLatin1String("newest")) {
+            std::vector<QString> version(srcCount);
+            for (const int row : candidates)
+                version[row] = m_source->data(m_source->index(row, 0),
+                                              SupportedGamesModel::VersionRole).toString();
+            std::stable_sort(candidates.begin(), candidates.end(),
+                             [&version](int a, int b) { return version[a] > version[b]; });
+        }
+        const int total = static_cast<int>(candidates.size());
+        m_filteredCount = total;
+
+        const int offset = qBound(0, m_rowOffset, total);
         const int limit = (m_rowLimit < 0)
-            ? (srcCount - offset)
-            : qMin(m_rowLimit, srcCount - offset);
+            ? (total - offset)
+            : qMin(m_rowLimit, total - offset);
 
         m_slicedRows.reserve(limit);
         m_sourceToProxy.reserve(limit);
         for (int i = offset; i < offset + limit; ++i) {
-            m_sourceToProxy[i] = m_slicedRows.size();
-            m_slicedRows.append(i);
+            m_sourceToProxy[candidates[i]] = m_slicedRows.size();
+            m_slicedRows.append(candidates[i]);
         }
     } else {
         // Score all entries and collect matches
         std::vector<ScoredRow> scored;
-        scored.reserve(srcCount);
+        scored.reserve(candidates.size());
 
-        for (int i = 0; i < srcCount; ++i) {
+        for (const int i : candidates) {
             const int s = fuzzyScore(m_normalizedFilter, m_searchIndex[i]);
             if (s > 0)
                 scored.push_back({i, s});
@@ -502,6 +564,15 @@ void CatalogProxyModel::onSourceDataChanged(
     const QModelIndex &topLeft, const QModelIndex &bottomRight,
     const QList<int> &roles)
 {
+    // A game installed or patched may now belong under the status filter, or
+    // no longer: the rows themselves change, not just their data.
+    if (!m_statusFilter.isEmpty()
+        && (roles.isEmpty() || roles.contains(SupportedGamesModel::IsInstalledRole)
+            || roles.contains(SupportedGamesModel::PackageInstalledRole))) {
+        scheduleRebuild();
+        return;
+    }
+
     // O(1) per source row via m_sourceToProxy reverse map.
     // Previously O(n * m_slicedRows.size()) — ~67,600 comparisons for 260 games.
     if (m_sourceToProxy.isEmpty())

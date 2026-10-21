@@ -168,6 +168,79 @@ TEST_F(CatalogProxyTest, WrapAroundDoublesCount)
     EXPECT_EQ(proxy.rowCount(), 6); // 3 visible * 2 (wrap mirror)
 }
 
+// --- "Tüm Oyunlar": what is on this PC, what is patched, where it comes from ---
+class CatalogProxyStatusTest : public ::testing::Test
+{
+protected:
+    SupportedGamesModel source;
+    CatalogProxyModel proxy;
+
+    static QVariantMap game(const char *name, const char *id, bool onPc, bool patched,
+                            const char *externalUrl, const char *version)
+    {
+        return {{QStringLiteral("name"), QString::fromUtf8(name)},
+                {QStringLiteral("steamAppId"), QString::fromUtf8(id)},
+                {QStringLiteral("isInstalled"), onPc},
+                {QStringLiteral("packageInstalled"), patched},
+                {QStringLiteral("externalUrl"), QString::fromUtf8(externalUrl)},
+                {QStringLiteral("version"), QString::fromUtf8(version)}};
+    }
+
+    void SetUp() override
+    {
+        source.resetFromCatalog({
+            game("Gamma", "3", false, false, "https://example.org", "2025-12-01"),
+            game("Alpha", "1", true, false, "", "2026-01-01"),
+            game("Delta", "4", false, false, "", ""),
+            game("Beta", "2", true, true, "", "2026-03-01"),
+        });
+        proxy.setSourceModel(&source);
+        flushRebuild();
+    }
+
+    QStringList with(const QString &status)
+    {
+        proxy.setStatusFilter(status);
+        flushRebuild();
+        return proxyNames(proxy);
+    }
+};
+
+TEST_F(CatalogProxyStatusTest, StatusFilterKeepsTheMatchingGamesInOrder)
+{
+    EXPECT_EQ(with({}), (QStringList{"Alpha", "Beta", "Delta", "Gamma"}));
+    EXPECT_EQ(with(QStringLiteral("mine")), (QStringList{"Alpha", "Beta"}));
+    EXPECT_EQ(with(QStringLiteral("installed")), (QStringList{"Beta"}));
+    EXPECT_EQ(with(QStringLiteral("local")), (QStringList{"Alpha", "Beta", "Delta"}));
+    EXPECT_EQ(with(QStringLiteral("external")), (QStringList{"Gamma"}));
+    EXPECT_EQ(proxy.sourceCount(), 1);
+
+    EXPECT_EQ(proxy.countWithStatus(QStringLiteral("mine")), 2);
+    EXPECT_EQ(proxy.countWithStatus(QStringLiteral("local")), 3);
+    EXPECT_EQ(proxy.countWithStatus({}), 4);
+}
+
+TEST_F(CatalogProxyStatusTest, NewestFirstPutsUndatedLast)
+{
+    proxy.setSortMode(QStringLiteral("newest"));
+    flushRebuild();
+    EXPECT_EQ(proxyNames(proxy), (QStringList{"Beta", "Alpha", "Gamma", "Delta"}));
+}
+
+TEST_F(CatalogProxyStatusTest, SearchStaysInsideTheStatus)
+{
+    proxy.setSearchFilter(QStringLiteral("a"));
+    EXPECT_EQ(with(QStringLiteral("installed")), (QStringList{"Beta"}));
+}
+
+TEST_F(CatalogProxyStatusTest, AGameFoundLaterJoinsItsRows)
+{
+    EXPECT_EQ(with(QStringLiteral("mine")), (QStringList{"Alpha", "Beta"}));
+    source.updateInstallStatus(QStringLiteral("4"), true, QStringLiteral("D:/Games/Delta"));
+    flushRebuild();
+    EXPECT_EQ(proxyNames(proxy), (QStringList{"Alpha", "Beta", "Delta"}));
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);

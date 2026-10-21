@@ -15,6 +15,13 @@ Rectangle {
     id: catalog
 
     signal gameClicked(string gameId, string gameName, string installPath, string engine)
+    // "Tümünü gör": the whole catalogue as a grid, on what this section shows
+    signal seeAllRequested(string filter, string sort, string query)
+    function _seeAll() {
+        catalog.seeAllRequested(catalog.mode === "mine" && !catalog._isSearching ? "mine" : "",
+                                catalog.mode === "new" && !catalog._isSearching ? "newest" : "",
+                                catalog.searchQuery)
+    }
 
     function replayContentFade() {
         catalogContent.opacity = 0
@@ -248,6 +255,45 @@ Rectangle {
                         TapHandler { onTapped: catalog.mode = chip.modelData.mode }
                     }
                 }
+            }
+
+            // The strips scroll sideways; this is every game at once.
+            Rectangle {
+                Layout.leftMargin: Dimensions.spacingSM
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: seeAllRow.implicitWidth + 20
+                implicitHeight: 26
+                radius: 13
+                color: seeAllHover.hovered ? Theme.primary12 : "transparent"
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Tümünü gör")
+                activeFocusOnTab: true
+                Keys.onReturnPressed: catalog._seeAll()
+                Keys.onSpacePressed: catalog._seeAll()
+
+                Row {
+                    id: seeAllRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Tümünü gör")
+                        font.pixelSize: Dimensions.fontXS
+                        font.weight: Font.DemiBold
+                        color: Theme.accentLight
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        textFormat: Text.PlainText
+                        text: "\uE76C"
+                        font.family: "Segoe MDL2 Assets"
+                        font.pixelSize: 9
+                        color: Theme.accentLight
+                    }
+                }
+                HoverHandler { id: seeAllHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: catalog._seeAll() }
             }
 
             Item { Layout.fillWidth: true }

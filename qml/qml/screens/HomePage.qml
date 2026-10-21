@@ -26,6 +26,7 @@ Item {
     signal manualFolderRequested()
     signal settingsRequested()
     signal libraryRequested()
+    signal allGamesRequested(string filter, string sort, string query)
 
     onVisibleChanged: {
         if (visible && _initialComplete)
@@ -109,6 +110,7 @@ Item {
             Layout.bottomMargin: -homePage.gap
             onGameClicked: (gameId, gameName, installPath, engine) =>
                 homePage.gameSelected(gameId, gameName, installPath, engine)
+            onSeeAllRequested: (filter, sort, query) => homePage.allGamesRequested(filter, sort, query)
         }
 
         Component.onCompleted: {

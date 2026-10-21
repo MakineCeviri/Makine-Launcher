@@ -27,6 +27,8 @@ Item {
     // Install (or update) right away: the game's page opens and starts it.
     signal installRequested(string gameId, string gameName, string installPath, string engine)
     signal manualFolderRequested()
+    // "Nasıl çalışır?": what the states and buttons here mean
+    signal helpRequested()
 
     property string filter: "all"   // all | ready | update | installed
 
@@ -243,6 +245,11 @@ Item {
                         }
                     }
 
+                    LibButton {
+                        glyph: "\uE897"
+                        text: qsTr("Nasıl çalışır?")
+                        onClicked: libraryRoot.helpRequested()
+                    }
                     LibButton {
                         glyph: "\uE72C"
                         text: GameService.isScanning ? qsTr("Taranıyor…") : qsTr("Yeniden tara")

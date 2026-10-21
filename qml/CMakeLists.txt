@@ -213,6 +213,8 @@ qt_add_qml_module(MakineLauncher
         qml/screens/HomePage.qml
         qml/screens/home/HomeCover.qml
         qml/screens/Library.qml
+        qml/screens/AllGames.qml
+        qml/screens/HelpScreen.qml
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
@@ -220,6 +222,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/AboutSection.qml
         qml/screens/detail/UpdateBanner.qml
         qml/screens/detail/GameFolderBar.qml
+        qml/screens/detail/InstallExplainer.qml
         qml/screens/detail/ProgramConsole.qml
         qml/screens/detail/GameDetailOverlay.qml
         qml/screens/detail/ContributorsSection.qml

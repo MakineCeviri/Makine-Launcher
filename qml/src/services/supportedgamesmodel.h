@@ -30,6 +30,7 @@ struct CatalogEntry {
     QString imageUrl;
     QString dataUrl;
     QString externalUrl;
+    QString version;            // the package's date, "2026-05-18"
     qint64 downloadSize{0};
     bool isInstalled{false};
     bool packageInstalled{false};
@@ -53,7 +54,8 @@ public:
         ImageUrlRole,
         DataUrlRole,
         DownloadSizeRole,
-        ExternalUrlRole
+        ExternalUrlRole,
+        VersionRole
     };
     Q_ENUM(Role)
 
