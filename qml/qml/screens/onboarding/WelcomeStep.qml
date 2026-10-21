@@ -282,8 +282,8 @@ Item {
         Text {
             Layout.fillWidth: true
             textFormat: Text.PlainText
-            text: qsTr("Oyunlarını")
-            font.pixelSize: 58
+            text: qsTr("Sevdiğin oyunlar,")
+            font.pixelSize: 54
             font.weight: Font.Bold
             font.letterSpacing: -1.8
             lineHeight: 0.95
@@ -299,8 +299,8 @@ Item {
             Text {
                 id: promise
                 textFormat: Text.PlainText
-                text: qsTr("Türkçe oyna.")
-                font.pixelSize: 58
+                text: qsTr("artık Türkçe.")
+                font.pixelSize: 54
                 font.weight: Font.Bold
                 font.letterSpacing: -1.8
                 color: "white"
