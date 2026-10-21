@@ -176,7 +176,7 @@ Item {
             OnboardingButton {
                 kind: "primary"
                 text: qsTr("Devam")
-                trailingIcon: ""
+                trailingIcon: "\uE72A"
                 onClicked: step.next()
             }
         }

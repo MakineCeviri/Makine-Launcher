@@ -339,12 +339,12 @@ Item {
 
         Repeater {
             model: [
-                { icon: "",
+                { icon: "\uE8F1",
                   text: step._catalogCount > 0
                         ? qsTr("%1 oyun için Türkçe yama").arg(step._catalogCount)
                         : qsTr("Yüzlerce oyun için Türkçe yama") },
-                { icon: "", text: qsTr("Orijinal dosyalar yedeklenir, tek tıkla geri alınır") },
-                { icon: "", text: qsTr("Kâr amacı gütmeyen, gönüllü bir topluluk projesi") }
+                { icon: "\uEA18", text: qsTr("Orijinal dosyalar yedeklenir, tek tıkla geri alınır") },
+                { icon: "\uEB51", text: qsTr("Kâr amacı gütmeyen, gönüllü bir topluluk projesi") }
             ]
 
             RowLayout {
@@ -390,7 +390,7 @@ Item {
             OnboardingButton {
                 kind: "primary"
                 text: qsTr("Başlayalım")
-                trailingIcon: ""
+                trailingIcon: "\uE72A"
                 onClicked: step.next()
             }
             Text {
