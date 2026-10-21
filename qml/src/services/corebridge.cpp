@@ -678,6 +678,10 @@ void CoreBridge::doScanFilesystemReal(QList<DetectedGame>& outGames,
                 gameRoot = fullPath + QStringLiteral("/Content");
                 qCDebug(lcCoreBridge) << "Filesystem: using Content subfolder for" << folderName;
             }
+            // A repack unpacked into "<Game>/<Game>/": the game is the inner
+            // folder. GameService keeps a patch already installed in the outer
+            // one where it is (applyFolderOverrides).
+            gameRoot = folderrules::unwrapSameNameFolder(gameRoot);
 
             DetectedGame game;
             game.name = folderName;

@@ -62,21 +62,24 @@ Rectangle {
     readonly property bool _single: _isSearching || mode !== "all"
 
     // This PC's games that have a patch, the ones needing a step first.
-    readonly property var _mine: _computeMine(GameService.games, GameService.installedTranslations)
-    function _computeMine(games, installed) {
+    readonly property var _mine: _computeMine(GameService.games, GameService.installedTranslations, _external)
+    function _computeMine(games, installed, external) {
         const patched = {}
         for (const t of installed)
             patched[t.id] = t.hasUpdate === true
-        const rank = { "update": 0, "ready": 1, "installed": 2 }
+        const rank = { "update": 0, "ready": 1, "installed": 2, "external": 3 }
         const out = []
         for (const g of games) {
-            const status = (g.id in patched) ? (patched[g.id] ? "update" : "installed") : "ready"
+            const status = (g.id in patched) ? (patched[g.id] ? "update" : "installed")
+                         : (external[g.id] || external[g.steamAppId]) ? "external" : "ready"
             out.push({ id: g.id, name: g.name || "", steamAppId: g.steamAppId || "",
                        installPath: g.installPath || "", engine: g.engine || "", status: status,
                        badge: status === "update" ? qsTr("Güncelleme var")
-                            : status === "installed" ? qsTr("Kurulu") : qsTr("Yama hazır"),
+                            : status === "installed" ? qsTr("Kurulu")
+                            : status === "external" ? qsTr("Dış sitede") : qsTr("Yama hazır"),
                        badgeColor: status === "update" ? Theme.warning
-                                 : status === "installed" ? Theme.success : Theme.primary })
+                                 : status === "installed" ? Theme.success
+                                 : status === "external" ? Theme.textSecondary : Theme.primary })
         }
         out.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name))
         return out
@@ -84,15 +87,21 @@ Rectangle {
 
     // Newest packages, dated on the cover.
     property var _recent: []
+    // Games whose patch lives on another site: "Yama hazır" would promise an install.
+    property var _external: ({})
     function _refreshRecent() {
         const out = []
-        for (const e of GameService.recentlyUpdatedGames(24)) {
+        const ext = {}
+        for (const e of GameService.recentlyUpdatedGames(100000)) {
+            if (e.externalUrl) ext[e.id || e.steamAppId] = true
+            if (out.length >= 24) continue
             out.push({ id: e.id || e.steamAppId, name: e.name || "", steamAppId: e.steamAppId || "",
                        installPath: e.installPath || "", engine: e.engine || "",
                        badge: _dateText(e.version),
                        badgeColor: e.packageInstalled ? Theme.success
                                  : e.isInstalled ? Theme.primary : Theme.accentLight })
         }
+        _external = ext
         _recent = out
     }
     function _dateText(v) {

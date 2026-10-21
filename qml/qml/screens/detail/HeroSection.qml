@@ -20,6 +20,11 @@ Item {
     signal updateClicked()
     signal uninstallClicked()
 
+    // A folder dropped on the page or picked elsewhere: GameFolderBar takes it.
+    function inspectFolder(url) {
+        folderBar.inspect(url, "change")
+    }
+
     // =========================================================================
     // STAGGERED ENTRY ANIMATION STATE
     // =========================================================================
@@ -389,7 +394,7 @@ Item {
 
         Item {
             Layout.fillWidth: true
-            visible: heroRoot.vm.hasTranslation && heroRoot.vm.isGameInstalled
+            visible: heroRoot.vm.hasTranslation && (heroRoot.vm.isGameInstalled || actionButton._locate)
             implicitHeight: visible ? actionCol.implicitHeight : 0
             opacity: heroRoot._actionOp
             transform: Translate { y: heroRoot._actionTY }
@@ -400,13 +405,23 @@ Item {
                 spacing: Dimensions.spacingMD
 
                 TranslationActionButton {
+                    id: actionButton
                     vm: heroRoot.vm
+                    onLocateClicked: folderBar.pick("install")
                     onTranslateClicked: heroRoot.translateClicked()
                     onUpdateClicked: heroRoot.updateClicked()
                     onUninstallClicked: heroRoot.uninstallClicked()
                     // "lost" = patch files gone from disk; a store verify cannot
                     // bring them back, a reinstall does (same as UpdateBanner).
                     onRepairClicked: GameService.recoverTranslation(heroRoot.vm.gameId)
+                }
+
+                // Where the game is — or, not found, how to point at it
+                GameFolderBar {
+                    id: folderBar
+                    Layout.fillWidth: true
+                    vm: heroRoot.vm
+                    onInstallRequested: heroRoot.translateClicked()
                 }
 
                 // Install error message
@@ -497,16 +512,6 @@ Item {
                     }
                 }
             }
-        }
-
-        // =================================================================
-        // GAME FOLDER — where the game is, or a way to point at it
-        // =================================================================
-
-        GameFolderCard {
-            vm: heroRoot.vm
-            opacity: heroRoot._actionOp
-            transform: Translate { y: heroRoot._actionTY }
         }
 
         // =================================================================

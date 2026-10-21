@@ -672,13 +672,8 @@ void GameService::addManualGame(const QString& path)
 
         // Users open the folder the .exe sits in; recipes are written against
         // the one the store installs into ("ELDEN RING", not "ELDEN RING/Game").
-        const QString root = verdict.root;
-        if (root != chosen)
-            qCInfo(lcGameService) << "addManualGame:" << chosen << "-> game root" << root;
+        QString root = verdict.root;
         const QString folderName = QDir(root).dirName();
-
-        QString engine;
-        if (cb) engine = cb->detectEngine(root);
 
         // Step 1: Try folder-name matching (fast, backward compatible)
         QString matchedAppId;
@@ -697,6 +692,20 @@ void GameService::addManualGame(const QString& path)
                 }
             }
         }
+
+        // A catalogue game: its patch says where the root is, the same way as
+        // when the folder is picked on the game's own page.
+        if (!matchedAppId.isEmpty() && cb) {
+            const auto ev = folderrules::pickRoot(chosen, folderName, cb->folderExpectations(matchedAppId));
+            if (!ev.root.isEmpty()
+                && folderrules::checkGameFolder(ev.root, trees, folders) == folderrules::FolderProblem::None)
+                root = ev.root;
+        }
+        if (root != chosen)
+            qCInfo(lcGameService) << "addManualGame:" << chosen << "-> game root" << root;
+
+        QString engine;
+        if (cb) engine = cb->detectEngine(root);
 
         QMetaObject::invokeMethod(this, [this, root, folderName, engine, matchedAppId]() {
             finalizeManualGame(root, folderName, engine, matchedAppId);
@@ -944,6 +953,18 @@ void GameService::saveFolderOverrides() const
 // still there; one that is gone goes back to the scan's.
 void GameService::applyFolderOverrides()
 {
+    // A patch keeps the folder it went into. A scan that now finds the game a
+    // level deeper (an unpacked "<Game>/<Game>") must not move the game out
+    // from under it: uninstall and the backup's restore both follow installPath.
+    if (m_coreBridge) {
+        for (GameInfo& g : m_games) {
+            const auto inst = m_coreBridge->getInstalledInfo(g.id);
+            if (inst && QDir(inst->gamePath).exists() && !sameFolder(inst->gamePath, g.installPath)
+                && folderrules::isSameOrUnder(g.installPath, inst->gamePath))
+                g.installPath = inst->gamePath;
+        }
+    }
+
     bool dropped = false;
     for (auto it = m_folderOverrides.begin(); it != m_folderOverrides.end();) {
         if (!QDir(it.value()).exists()) {
@@ -1006,6 +1027,7 @@ void GameService::inspectGameFolder(const QString& gameId, const QString& picked
         const bool patchedElsewhere = problem.isEmpty() && !patchedAt.isEmpty()
                                       && !sameFolder(patchedAt, ev.root);
         r[QStringLiteral("patchedElsewhere")] = patchedElsewhere;
+        r[QStringLiteral("patchedAt")] = shownFolder(patchedAt);
         if (patchedElsewhere) {
             problem = tr("Türkçe yama şu an şu klasörde kurulu:\n%1\n"
                          "Klasörü değiştirmeden önce yamayı kaldır; yoksa oradaki yama ve "

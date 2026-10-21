@@ -666,6 +666,18 @@ ApplicationWindow {
         }
     }
 
+    // A game folder dropped anywhere but a game's page (which takes it itself):
+    // found out which game it is and opened, the same as "Oyun klasörünü seç".
+    FolderDropOverlay {
+        parent: contentStackContainer
+        anchors.fill: parent
+        z: 40
+        accepts: !contentStackContainer.gameDetailVisible
+        title: qsTr("Oyun klasörünü bırak")
+        subtitle: qsTr("Hangi oyun olduğunu bulup sayfasını açarız; Türkçe yaması varsa tek tıkla kurulur.")
+        onFolderDropped: (url) => GameService.addManualGame(url.toString())
+    }
+
     // ===== MANUAL GAME FOLDER DIALOG =====
     FolderDialog {
         id: manualFolderDialog

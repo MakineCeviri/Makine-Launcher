@@ -79,6 +79,8 @@ QtObject {
     property string installErrorMessage: ""
     // Output of the patch's own program (GameService.installConsole)
     property string installConsole: ""
+    // A picked game folder is being looked at (GameFolderBar)
+    property bool folderChecking: false
 
     // ===== DOWNLOAD STATE =====
     property bool isDownloading: false
@@ -126,7 +128,7 @@ QtObject {
         antiCheatName = ""; isInstallingRuntime = false
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
         installCompleted = false; installErrorMessage = ""; isDownloading = false
-        installConsole = ""
+        installConsole = ""; folderChecking = false
         updateImpact = null; descriptionExpanded = false
     }
 

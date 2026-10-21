@@ -31,7 +31,16 @@ Rectangle {
     readonly property int _count: 1 + _featured.length
 
     property var _recent: []
-    function _refreshRecent() { root._recent = GameService.recentlyUpdatedGames(8) }
+    // Games whose patch lives on another site: nothing to install from here.
+    property var _external: ({})
+    function _refreshRecent() {
+        const all = GameService.recentlyUpdatedGames(100000)
+        const ext = {}
+        for (const e of all)
+            if (e.externalUrl) ext[e.id || e.steamAppId] = true
+        root._external = ext
+        root._recent = all.slice(0, 8)
+    }
     Component.onCompleted: _refreshRecent()
     Connections {
         target: GameService.supportedGamesModel
@@ -39,8 +48,8 @@ Rectangle {
     }
 
     readonly property var _featured: _computeFeatured(GameService.games,
-                                                      GameService.installedTranslations, _recent)
-    function _computeFeatured(games, installed, recent) {
+                                                      GameService.installedTranslations, _recent, _external)
+    function _computeFeatured(games, installed, recent, external) {
         const patched = {}
         for (const t of installed)
             patched[t.id] = t.hasUpdate === true
@@ -54,6 +63,7 @@ Rectangle {
         }
         for (const g of games) {
             if (out.length >= 2) break
+            if (external[g.id] || external[g.steamAppId]) continue
             const kind = !(g.id in patched) ? "installable" : patched[g.id] ? "update" : ""
             if (kind) add({ kind: kind, gameId: g.id, name: g.name || "", steamAppId: g.steamAppId || "",
                             installPath: g.installPath || "", engine: g.engine || "", version: "" })

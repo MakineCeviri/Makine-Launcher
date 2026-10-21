@@ -28,6 +28,31 @@ namespace {
 constexpr qint64 kMaxSteamResponseBytes = 5 * 1024 * 1024; // 5 MB
 constexpr int kMaxSteamCache = 80;
 
+// Steam's short_description is HTML-escaped ("&quot;Should we have
+// connected?&quot;"); the page shows it as plain text.
+QString unescapeHtml(const QString& s)
+{
+    static const QRegularExpression kNumeric(QStringLiteral("&#(x?)([0-9a-fA-F]+);"));
+    QString out;
+    qsizetype last = 0;
+    for (auto it = kNumeric.globalMatch(s); it.hasNext();) {
+        const auto m = it.next();
+        bool ok = false;
+        const char32_t code = m.captured(2).toUInt(&ok, m.captured(1).isEmpty() ? 10 : 16);
+        out += s.mid(last, m.capturedStart() - last);
+        out += ok && code > 0 && code <= 0x10FFFF ? QString::fromUcs4(&code, 1) : m.captured(0);
+        last = m.capturedEnd();
+    }
+    out += s.mid(last);
+    out.replace(QLatin1String("&quot;"), QLatin1String("\""));
+    out.replace(QLatin1String("&apos;"), QLatin1String("'"));
+    out.replace(QLatin1String("&lt;"), QLatin1String("<"));
+    out.replace(QLatin1String("&gt;"), QLatin1String(">"));
+    out.replace(QLatin1String("&nbsp;"), QLatin1String(" "));
+    out.replace(QLatin1String("&amp;"), QLatin1String("&"));
+    return out;
+}
+
 // Pure JSON parsing — no side effects, safe for background thread
 std::optional<makine::SteamDetails> parseSteamJson(const QString& steamAppId,
                                                       const QByteArray& data)
@@ -211,7 +236,7 @@ QVariantMap SteamDetailsService::toVariantMap(const SteamDetails& details)
         screenshotList.append(url);
 
     return {
-        {"description",     details.description},
+        {"description",     unescapeHtml(details.description)},
         {"developers",      QVariant::fromValue(details.developers)},
         {"publishers",      QVariant::fromValue(details.publishers)},
         {"releaseDate",     details.releaseDate},

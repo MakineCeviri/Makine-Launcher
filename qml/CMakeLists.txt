@@ -219,7 +219,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/TranslationActionButton.qml
         qml/screens/detail/AboutSection.qml
         qml/screens/detail/UpdateBanner.qml
-        qml/screens/detail/GameFolderCard.qml
+        qml/screens/detail/GameFolderBar.qml
         qml/screens/detail/ProgramConsole.qml
         qml/screens/detail/GameDetailOverlay.qml
         qml/screens/detail/ContributorsSection.qml
@@ -246,6 +246,7 @@ qt_add_qml_module(MakineLauncher
         qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
         qml/components/GameDetectionCard.qml      # Game detection status + manual add
         qml/components/GameToast.qml               # Overlay notification for detected games
+        qml/components/FolderDropOverlay.qml       # Drop a game folder from Explorer onto a page
         #
         # Navigation: Window chrome and nav
         qml/components/TitleBar.qml               # Custom frameless title bar

@@ -443,7 +443,7 @@ folderrules::Expectations LocalPackageManager::folderExpectations(const QString&
     folderrules::Expectations e;
     if (const auto entry = m_catalog.getPackage(steamAppId.toStdString()); entry && entry->fingerprint) {
         for (const auto& name : entry->fingerprint->exeNames)
-            e.exeNames << QString::fromStdString(name).toLower();
+            e.exeNames << QString::fromStdString(name).toLower().replace(QLatin1Char('\\'), QLatin1Char('/'));
     }
     const auto pkg = getPackage(steamAppId);
     if (!pkg) return e;

@@ -120,6 +120,19 @@ inline bool canBeGameRoot(const QString& dir)
     return !looksLikeGameCollection(dir);
 }
 
+// An archive unpacked into a folder of its own name: <Name>/<Name>/<game>.exe,
+// nothing runnable in the outer one. A scan that stops at the outer folder
+// installs the patch next to the game instead of into it (Red Dead Redemption 2
+// on a repack: the patch's dinput8.dll never loaded). The inner folder, or
+// `dir` itself when it is no such wrapper.
+inline QString unwrapSameNameFolder(const QString& dir)
+{
+    const QString clean = QDir::cleanPath(dir);
+    if (hasExecutableAtTop(clean)) return clean;
+    const QString inner = clean + QLatin1Char('/') + QFileInfo(clean).fileName();
+    return QFileInfo(inner).isDir() && hasExecutableAtTop(inner) ? inner : clean;
+}
+
 // The folder patch recipes are written against — the one a store installs the
 // game into — given a folder somewhere around it. Users open the folder the
 // .exe sits in, which is often one to three levels too deep; a patch installed
@@ -168,15 +181,8 @@ inline QString resolveGameRoot(const QString& dir)
         && !hasExecutableAtTop(parent) && canBeGameRoot(parent))
         return parent;
 
-    // An archive unpacked into a folder of its own name: <Name>/<Name>/<game>.exe,
-    // nothing runnable in the outer one. A scan that stops at the outer folder
-    // installs the patch next to the game instead of into it (Red Dead
-    // Redemption 2 on a repack: the patch's dinput8.dll never loaded).
-    if (!hasExecutableAtTop(clean)) {
-        const QString inner = clean + QLatin1Char('/') + QFileInfo(clean).fileName();
-        if (QFileInfo(inner).isDir() && hasExecutableAtTop(inner))
-            return inner;
-    }
+    if (const QString inner = unwrapSameNameFolder(clean); inner != clean)
+        return inner;
 
     // Microsoft Store / Game Pass: XboxGames/<Game>/Content/<game>.exe. Here the
     // game is Content, one level BELOW the folder carrying its name.
@@ -252,7 +258,9 @@ inline FolderVerdict judgeGameFolder(const QString& dir,
 
 // What a patch expects under its game's root. Paths are relative, "/"-separated.
 struct Expectations {
-    QStringList exeNames;     // lowercase file names from the catalogue fingerprint
+    // Lowercase, from the catalogue fingerprint: file names, or paths relative
+    // to the root ("game/eldenring.exe") where the store's launch entry gives one.
+    QStringList exeNames;
     QStringList targetDirs;   // folders the recipe or package writes into
     QStringList targetFiles;  // game files the recipe edits in place (must exist)
 };
@@ -260,6 +268,7 @@ struct Expectations {
 struct RootEvidence {
     QString root;
     QString exe;              // an expected exe found under root, relative ("" = none)
+    bool exeExact = false;    // found where the catalogue says it sits, not just by name
     int dirsFound = 0;
     int dirsTotal = 0;
     int filesFound = 0;
@@ -271,8 +280,10 @@ struct RootEvidence {
 // relative to it. Bounded in entries visited: `dir` may be a big install.
 inline QString findExpectedExe(const QString& dir, const QStringList& exeNames, int maxDepth = 4)
 {
-    if (exeNames.isEmpty()) return {};
-    const QSet<QString> wanted(exeNames.cbegin(), exeNames.cend());
+    QSet<QString> wanted;
+    for (const QString& e : exeNames)
+        wanted.insert(e.mid(e.lastIndexOf(QLatin1Char('/')) + 1));
+    if (wanted.isEmpty()) return {};
     QStringList level{QString()};
     int visited = 0;
     for (int depth = 0; depth <= maxDepth && !level.isEmpty(); ++depth) {
@@ -302,14 +313,23 @@ inline RootEvidence weighRoot(const QString& root, const Expectations& e)
 {
     RootEvidence r;
     r.root = QDir::cleanPath(root);
-    r.exe = findExpectedExe(r.root, e.exeNames);
+    // A path the catalogue gives pins the root exactly: the same exe found one
+    // folder deeper or higher belongs to a folder next to the right one.
+    for (const QString& p : e.exeNames) {
+        if (p.contains(QLatin1Char('/')) && QFileInfo(r.root + QLatin1Char('/') + p).isFile()) {
+            r.exe = p;
+            r.exeExact = true;
+            break;
+        }
+    }
+    if (r.exe.isEmpty()) r.exe = findExpectedExe(r.root, e.exeNames);
     r.dirsTotal = static_cast<int>(e.targetDirs.size());
     for (const QString& d : e.targetDirs)
         if (QFileInfo(r.root + QLatin1Char('/') + d).isDir()) ++r.dirsFound;
     r.filesTotal = static_cast<int>(e.targetFiles.size());
     for (const QString& f : e.targetFiles)
         if (QFileInfo(r.root + QLatin1Char('/') + f).isFile()) ++r.filesFound;
-    r.score = (r.exe.isEmpty() ? (hasExecutableWithin(r.root, 4) ? 5 : 0) : 40)
+    r.score = (r.exeExact ? 45 : !r.exe.isEmpty() ? 40 : hasExecutableWithin(r.root, 4) ? 5 : 0)
             + (r.dirsTotal > 0 ? 30 * r.dirsFound / r.dirsTotal : 0)
             + (r.filesTotal > 0 ? 50 * r.filesFound / r.filesTotal : 0);
     return r;

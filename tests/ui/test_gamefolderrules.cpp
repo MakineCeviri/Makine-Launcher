@@ -329,3 +329,42 @@ TEST_F(GameFolderRulesTest, AFolderInsideAFolderOfItsOwnNameIsTheGame)
     EXPECT_EQ(pickRoot(path(QStringLiteral("Games/Red Dead Redemption 2")),
                        QStringLiteral("Red Dead Redemption 2"), e).root, inner);
 }
+
+TEST_F(GameFolderRulesTest, UnwrapLeavesAGameFolderAlone)
+{
+    touch(QStringLiteral("Games/Hades/Hades.exe"));
+    touch(QStringLiteral("Games/Hades/Hades/readme.txt"));
+    EXPECT_EQ(unwrapSameNameFolder(path(QStringLiteral("Games/Hades"))), path(QStringLiteral("Games/Hades")));
+    // A same-name folder with nothing runnable in it is no game either.
+    mkdir(QStringLiteral("Games/Odd/Odd"));
+    EXPECT_EQ(unwrapSameNameFolder(path(QStringLiteral("Games/Odd"))), path(QStringLiteral("Games/Odd")));
+}
+
+TEST_F(GameFolderRulesTest, TheStoresExePathPinsTheRoot)
+{
+    // A layout no rule knows: by name alone the exe is under both folders and
+    // the pick wins the tie; the store's launch path names the root.
+    touch(QStringLiteral("lib/Odd/Sub/odd.exe"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("odd.exe")};
+    EXPECT_EQ(pickRoot(path(QStringLiteral("lib/Odd/Sub")), QStringLiteral("Odd"), e).root,
+              path(QStringLiteral("lib/Odd/Sub")));
+
+    e.exeNames = {QStringLiteral("odd.exe"), QStringLiteral("sub/odd.exe")};
+    const RootEvidence r = pickRoot(path(QStringLiteral("lib/Odd/Sub")), QStringLiteral("Odd"), e);
+    EXPECT_EQ(r.root, path(QStringLiteral("lib/Odd")));
+    EXPECT_TRUE(r.exeExact);
+    EXPECT_EQ(r.exe, QStringLiteral("sub/odd.exe"));
+}
+
+TEST_F(GameFolderRulesTest, AnExePathAloneStillMatchesByName)
+{
+    // Only a path in the catalogue, and the game laid out differently (a
+    // repack flattened it): the name still counts, without the exact bonus.
+    touch(QStringLiteral("Games/Flat/odd.exe"));
+    Expectations e;
+    e.exeNames = {QStringLiteral("sub/odd.exe")};
+    const RootEvidence r = weighRoot(path(QStringLiteral("Games/Flat")), e);
+    EXPECT_EQ(r.exe, QStringLiteral("odd.exe"));
+    EXPECT_FALSE(r.exeExact);
+}

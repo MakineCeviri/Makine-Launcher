@@ -8,108 +8,121 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * GameFolderDialog.qml - What a picked folder turned out to be, before it is used
+ * GameFolderDialog.qml - A picked folder that needs a word before it is used
  *
- * The user may point at the game's folder, the folder the .exe sits in, the
- * exe itself or the library that holds the game; GameService.inspectGameFolder
- * finds the root the patch needs and checks it against the patch. This shows
- * the outcome as the user would want it explained: where they pointed, where
- * the patch will go, and the evidence for it — the game's exe, the files the
- * patch rewrites, the folders it writes into. Nothing is bound until "Bu
- * klasörü kullan".
+ * GameFolderBar binds a folder that checks out without asking; this opens for
+ * the rest: a folder we could not recognise, one that cannot hold the game,
+ * and a patch that sits in another folder than its game. It leads with the
+ * verdict, then draws the path itself — the part above the game greyed, the
+ * game's own folder marked as where the patch goes, a deeper folder the user
+ * opened struck through — and the evidence as short chips. Nothing is bound
+ * until the button says so.
  */
 BaseDialog {
     id: root
 
     property var report: ({})
     property string gameName: ""
+    // install: the user is installing · move: a patch has to change folders · change
+    property string intent: "change"
 
     signal useFolder(string root, string engine)
     signal pickAnother()
-    // The patch sits in the wrong folder: take it off, then bind the right one.
-    signal uninstallAndUse(string root, string engine)
+    // The patch sits in the wrong folder: take it off, bind the right one, reinstall.
+    signal movePatch(string root, string engine)
 
-    function _use() {
-        root.useFolder(root.report.root, root.report.engine || "")
+    readonly property string _verdict: root.report.verdict || "refused"
+    readonly property bool _moving: root.report.patchedElsewhere === true
+    readonly property bool _canUse: root._moving || (root._verdict !== "refused" && root.report.same !== true)
+    readonly property color _tone: root._moving || root._verdict === "ok" ? Theme.primary
+                                 : root._verdict === "unsure" ? Theme.warning
+                                 : Theme.error
+
+    function _primary() {
+        if (!root._canUse) return
+        if (root._moving) root.movePatch(root.report.root, root.report.engine || "")
+        else root.useFolder(root.report.root, root.report.engine || "")
         root.close()
     }
 
-    readonly property string _verdict: root.report.verdict || "refused"
-    readonly property bool _climbed: !!root.report.climbed
+    // The path as segments: above the game, the game's folder, and the part
+    // of the pick below it (or the part the launcher went down into).
+    readonly property var _trail: {
+        const bs = String.fromCharCode(92)
+        const split = s => String(s || "").split(bs).join("/").split("/").filter(t => t !== "")
+        const r = split(root.report.rootShown), p = split(root.report.picked)
+        if (r.length === 0) return p.map(t => ({ text: t, kind: "base" }))
+        let common = 0
+        while (common < r.length && common < p.length
+               && r[common].toLowerCase() === p[common].toLowerCase()) ++common
+        const out = []
+        for (let i = 0; i < r.length; ++i)
+            out.push({ text: r[i], kind: i === r.length - 1 ? "root" : (i >= common ? "inner" : "base") })
+        if (common === r.length)
+            for (let j = r.length; j < p.length; ++j) out.push({ text: p[j], kind: "below" })
+        return out
+    }
+    readonly property bool _climbed: root._trail.some(s => s.kind === "below")
+    readonly property bool _descended: root._trail.some(s => s.kind === "inner")
 
-    accentColor: _verdict === "ok" ? Theme.success
-               : _verdict === "unsure" || root.report.patchedElsewhere ? Theme.warning
-               : Theme.error
-
-    width: 560
-    title: root.report.audit ? (_verdict === "refused" ? qsTr("Yama oyunun klasörüne gitmemiş")
-                                                       : qsTr("Oyunun asıl klasörü bulundu"))
-         : _verdict === "ok" ? qsTr("Oyunun klasörü bulundu")
-         : _verdict === "unsure" ? qsTr("Bu klasörden emin olamadık")
-         : qsTr("Bu klasör kullanılamaz")
-
-    // One line of evidence: state glyph + sentence.
-    component Check: RowLayout {
-        id: check
-        property string kind: "ok"   // ok | warn | info | bad
-        property string text: ""
-        Layout.fillWidth: true
-        spacing: Dimensions.spacingMD
-
-        Label {
-            Layout.alignment: Qt.AlignTop
-            Layout.topMargin: 1
-            textFormat: Text.PlainText
-            font.family: "Segoe MDL2 Assets"
-            font.pixelSize: 13
-            text: check.kind === "ok" ? "\uE73E" : check.kind === "bad" ? "\uE711"
-                : check.kind === "warn" ? "\uE7BA" : "\uE946"
-            color: check.kind === "ok" ? Theme.success : check.kind === "bad" ? Theme.error
-                 : check.kind === "warn" ? Theme.warning : Theme.textMuted
-        }
-        Label {
-            Layout.fillWidth: true
-            textFormat: Text.PlainText
-            text: check.text
-            wrapMode: Text.WordWrap
-            lineHeight: 1.35
-            font.pixelSize: Dimensions.fontSM
-            color: Theme.textPrimary
-        }
+    readonly property var _chips: {
+        const r = root.report, out = []
+        if (!r.root) return out
+        const exe = String(r.exe || "")
+        out.push(exe !== "" ? { kind: "ok", text: exe.substring(Math.max(exe.lastIndexOf("/"), exe.lastIndexOf(String.fromCharCode(92))) + 1) }
+                            : { kind: "warn", text: qsTr("Oyunun .exe dosyası yok") })
+        if ((r.filesTotal || 0) > 0)
+            out.push(r.filesFound === r.filesTotal
+                     ? { kind: "ok", text: qsTr("Değişecek %1 dosya yerinde").arg(r.filesTotal) }
+                     : { kind: "warn", text: qsTr("%1 / %2 dosya eksik").arg(r.filesTotal - r.filesFound).arg(r.filesTotal) })
+        if ((r.dirsTotal || 0) > 0)
+            out.push({ kind: r.dirsFound * 2 >= r.dirsTotal ? "ok" : "warn",
+                       text: qsTr("Yama klasörleri %1 / %2").arg(r.dirsFound).arg(r.dirsTotal) })
+        if ((r.otherGame || "") !== "" && root._verdict !== "refused")
+            out.push({ kind: "warn", text: qsTr("%1 oyununa benziyor").arg(r.otherGame) })
+        if (root._verdict !== "refused" && r.writable === false)
+            out.push({ kind: "info", text: qsTr("Yönetici izni istenecek") })
+        return out
     }
 
+    accentColor: root._tone
+    width: Math.min(640, parent ? parent.width - 64 : 640)
+    title: root._moving ? qsTr("Yama yanlış klasörde")
+         : root._verdict === "ok" ? qsTr("Oyunun klasörü bulundu")
+         : root._verdict === "unsure" ? qsTr("Bu klasörden emin olamadık")
+         : qsTr("Bu klasöre kurulamaz")
+
     header: Item {
-        implicitHeight: 56
+        implicitHeight: 64
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
+            anchors.leftMargin: Dimensions.paddingXL
             anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingMD
+            spacing: Dimensions.spacingLG
 
             Rectangle {
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 32
-                radius: 16
-                color: Theme.withAlpha(root.accentColor, 0.10)
-                border.color: Theme.withAlpha(root.accentColor, 0.20)
-                border.width: 1
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                radius: 18
+                color: Theme.withAlpha(root._tone, 0.14)
 
-                Label {
+                Text {
                     anchors.centerIn: parent
                     textFormat: Text.PlainText
                     font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 15
-                    text: root._verdict === "ok" ? "\uE73E" : root._verdict === "unsure" ? "\uE7BA" : "\uE711"
-                    color: root.accentColor
+                    font.pixelSize: 16
+                    text: root._moving ? "\uF12B" : root._verdict === "ok" ? "\uE73E"
+                        : root._verdict === "unsure" ? "\uE7BA" : "\uE711"
+                    color: root._tone
                 }
             }
 
-            Label {
+            Text {
                 Layout.fillWidth: true
                 textFormat: Text.PlainText
                 text: root.title
-                font.pixelSize: Dimensions.fontLG
+                font.pixelSize: Dimensions.fontXL
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
                 elide: Text.ElideRight
@@ -119,237 +132,282 @@ BaseDialog {
                 onClicked: { root.cancelled(); root.close() }
             }
         }
-
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.textPrimary06
-        }
     }
 
     contentItem: ColumnLayout {
-        spacing: Dimensions.spacingLG
+        spacing: Dimensions.spacingXL
 
-        Item { Layout.preferredHeight: Dimensions.spacingXS }
+        // ── What it means, in a sentence ─────────────────────────────────────
+        Text {
+            Layout.fillWidth: true
+            Layout.leftMargin: Dimensions.paddingXL
+            Layout.rightMargin: Dimensions.paddingXL
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            lineHeight: 1.4
+            font.pixelSize: Dimensions.fontMD
+            color: Theme.textSecondary
+            text: root._moving
+                  ? qsTr("Oyun aşağıda işaretli klasörde, Türkçe yama ise başka bir klasöre kurulmuş; oyun yamayı görmüyor. Taşıdığında yama oradan kaldırılır ve oyunun klasörüne yeniden kurulur.")
+                  : root._verdict === "ok"
+                    ? qsTr("Yama aşağıda işaretli klasöre kurulacak.")
+                  : root._verdict === "unsure"
+                    ? qsTr("%1 için beklediğimiz dosyaları bu klasörde bulamadık. Oyunun klasörü olduğundan eminsen yine de kullanabilirsin; değilsen başka bir klasör seç.")
+                          .arg(root.gameName || qsTr("Bu oyun"))
+                  : (root.report.problem || qsTr("Bu klasör bir oyunun klasörü olamaz."))
+        }
 
-        // ── Where they pointed → where the patch goes ───────────────────────
+        // ── The path, drawn ──────────────────────────────────────────────────
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingLG
-            Layout.rightMargin: Dimensions.paddingLG
-            implicitHeight: paths.implicitHeight + Dimensions.paddingMD * 2
-            radius: Dimensions.radiusMD
+            Layout.leftMargin: Dimensions.paddingXL
+            Layout.rightMargin: Dimensions.paddingXL
+            visible: root._trail.length > 0
+            implicitHeight: trailCol.implicitHeight + Dimensions.paddingLG * 2
+            radius: Dimensions.radiusLG
             color: Theme.textPrimary04
             border.width: 1
             border.color: Theme.textPrimary08
-            visible: (root.report.root || "") !== "" || (root.report.picked || "") !== ""
 
             ColumnLayout {
-                id: paths
-                anchors.fill: parent
-                anchors.margins: Dimensions.paddingMD
-                spacing: Dimensions.spacingXS
+                id: trailCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Dimensions.paddingLG
+                spacing: Dimensions.spacingMD
 
-                Label {
-                    visible: root._climbed || (root.report.root || "") === ""
+                // Moving: where the patch is now, above where it goes.
+                Text {
+                    visible: root._moving
                     textFormat: Text.PlainText
-                    text: root.report.audit ? qsTr("ŞU ANKİ KLASÖR") : qsTr("SEÇTİĞİN")
+                    text: qsTr("YAMANIN ŞU ANKİ YERİ")
                     font.pixelSize: Dimensions.fontCaption
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.2
+                    color: Theme.warning
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: root._moving
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WrapAnywhere
+                    text: root.report.patchedAt || ""
+                    font.pixelSize: Dimensions.fontMD
+                    font.strikeout: true
                     color: Theme.textMuted
                 }
-                Label {
-                    Layout.fillWidth: true
-                    visible: root._climbed || (root.report.root || "") === ""
+                Text {
+                    visible: root._moving
+                    Layout.topMargin: Dimensions.spacingXS
                     textFormat: Text.PlainText
-                    text: root.report.picked || ""
-                    wrapMode: Text.WrapAnywhere
-                    font.pixelSize: Dimensions.fontSM
-                    color: Theme.textSecondary
-                }
-                Label {
-                    visible: root._climbed
-                    Layout.topMargin: 2
-                    textFormat: Text.PlainText
-                    text: "↓  " + qsTr("oyunun kök klasörü burası")
-                    font.pixelSize: Dimensions.fontCaption
-                    color: Theme.accentLight
-                }
-                Label {
-                    visible: (root.report.root || "") !== ""
-                    Layout.topMargin: root._climbed ? 2 : 0
-                    textFormat: Text.PlainText
-                    text: root.report.patchedElsewhere ? qsTr("YAMANIN GİTMESİ GEREKEN YER")
-                                                       : qsTr("YAMA BURAYA KURULACAK")
+                    text: qsTr("TAŞINACAĞI YER")
                     font.pixelSize: Dimensions.fontCaption
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.2
-                    color: root._verdict === "ok" || root.report.patchedElsewhere ? Theme.success
-                         : root._verdict === "unsure" ? Theme.warning
-                         : Theme.textMuted
+                    color: Theme.accentLight
                 }
-                Label {
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    Repeater {
+                        model: root._trail
+
+                        delegate: Row {
+                            id: seg
+                            required property var modelData
+                            required property int index
+                            spacing: 0
+                            height: 28
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: seg.index > 0
+                                textFormat: Text.PlainText
+                                text: " " + String.fromCharCode(92) + " "
+                                font.pixelSize: Dimensions.fontMD
+                                color: Theme.textMuted
+                            }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                readonly property bool isRoot: seg.modelData.kind === "root"
+                                width: segText.implicitWidth + (isRoot ? 16 : 0)
+                                height: isRoot ? 26 : segText.implicitHeight
+                                radius: Dimensions.radiusMD
+                                color: isRoot ? Theme.withAlpha(root._tone, 0.16) : "transparent"
+                                border.width: isRoot ? 1 : 0
+                                border.color: Theme.withAlpha(root._tone, 0.45)
+
+                                Text {
+                                    id: segText
+                                    anchors.centerIn: parent
+                                    textFormat: Text.PlainText
+                                    text: seg.modelData.text
+                                    font.pixelSize: Dimensions.fontMD
+                                    font.weight: seg.modelData.kind === "root" ? Font.DemiBold : Font.Normal
+                                    font.strikeout: seg.modelData.kind === "below"
+                                    color: seg.modelData.kind === "root" ? Theme.textPrimary
+                                         : seg.modelData.kind === "inner" ? Theme.textSecondary
+                                         : Theme.textMuted
+                                    opacity: seg.modelData.kind === "below" ? 0.7 : 1
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // The legend, only for what the path shows.
+                RowLayout {
                     Layout.fillWidth: true
                     visible: (root.report.root || "") !== ""
-                    textFormat: Text.PlainText
-                    text: root.report.rootShown || ""
-                    wrapMode: Text.WrapAnywhere
-                    font.pixelSize: Dimensions.fontMD
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
+                    spacing: Dimensions.spacingSM
+
+                    Rectangle {
+                        Layout.preferredWidth: 10
+                        Layout.preferredHeight: 10
+                        radius: 3
+                        color: Theme.withAlpha(root._tone, 0.16)
+                        border.width: 1
+                        border.color: Theme.withAlpha(root._tone, 0.45)
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: Dimensions.fontSM
+                        color: Theme.textMuted
+                        text: root._moving ? qsTr("Oyunun kendi klasörü: .exe dosyası burada.")
+                              : (root._verdict === "refused" ? qsTr("Bulduğumuz oyun klasörü.")
+                                                             : qsTr("Oyunun klasörü; yama buraya kurulur."))
+                                + (root._climbed ? " " + qsTr("Seçtiğin klasör oyunun içindeydi (üstü çizili).")
+                                   : root._descended ? " " + qsTr("Oyun, seçtiğin klasörün içinde bulundu.")
+                                   : "")
+                    }
                 }
             }
         }
 
         // ── The evidence ─────────────────────────────────────────────────────
-        ColumnLayout {
+        Flow {
             Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingLG
-            Layout.rightMargin: Dimensions.paddingLG
+            Layout.leftMargin: Dimensions.paddingXL
+            Layout.rightMargin: Dimensions.paddingXL
+            visible: root._chips.length > 0
             spacing: Dimensions.spacingMD
 
-            Check {
-                visible: (root.report.problem || "") !== ""
-                kind: root.report.patchedElsewhere ? "warn" : "bad"
-                text: root.report.problem || ""
-            }
-            Check {
-                visible: (root.report.root || "") !== ""
-                kind: (root.report.exe || "") !== "" ? "ok" : "warn"
-                text: (root.report.exe || "") !== ""
-                      ? qsTr("Oyunun kendi dosyası burada: %1").arg(root.report.exe)
-                      : qsTr("%1 için beklenen .exe dosyası bu klasörde yok.").arg(root.gameName || qsTr("Bu oyun"))
-            }
-            Check {
-                visible: (root.report.root || "") !== "" && (root.report.filesTotal || 0) > 0
-                kind: root.report.filesFound === root.report.filesTotal ? "ok" : "warn"
-                text: root.report.filesFound === root.report.filesTotal
-                      ? qsTr("Yamanın değiştireceği %1 oyun dosyasının hepsi yerinde.").arg(root.report.filesTotal)
-                      : qsTr("Yamanın değiştireceği %1 oyun dosyasından %2 tanesi bu klasörde yok; kurulum yarıda kalabilir.")
-                            .arg(root.report.filesTotal).arg(root.report.filesTotal - root.report.filesFound)
-            }
-            Check {
-                visible: (root.report.root || "") !== "" && (root.report.dirsTotal || 0) > 0
-                kind: root.report.dirsFound * 2 >= root.report.dirsTotal ? "ok" : "warn"
-                text: qsTr("Yamanın dosya yazacağı %1 klasörün %2 tanesi burada.")
-                          .arg(root.report.dirsTotal).arg(root.report.dirsFound)
-            }
-            Check {
-                visible: (root.report.otherGame || "") !== "" && root._verdict !== "refused"
-                kind: "warn"
-                text: qsTr("Bu klasör daha çok %1 oyununa benziyor. Doğru oyunun klasörünü seçtiğinden emin ol.")
-                          .arg(root.report.otherGame || "")
-            }
-            Check {
-                visible: root._verdict !== "refused" && root.report.writable === false
-                kind: "info"
-                text: qsTr("Bu klasöre yazmak için kurulum sırasında bir kez yönetici izni istenecek.")
-            }
-            Check {
-                visible: root._verdict !== "refused" && root.report.same === true
-                kind: "info"
-                text: qsTr("Bu zaten oyunun şu anki klasörü.")
+            Repeater {
+                model: root._chips
+
+                delegate: Rectangle {
+                    id: chip
+                    required property var modelData
+                    readonly property color tint: chip.modelData.kind === "ok" ? Theme.success
+                                                : chip.modelData.kind === "warn" ? Theme.warning
+                                                : Theme.textSecondary
+                    width: chipRow.implicitWidth + 20
+                    height: 28
+                    radius: 14
+                    color: Theme.withAlpha(chip.tint, 0.10)
+                    border.width: 1
+                    border.color: Theme.withAlpha(chip.tint, 0.28)
+
+                    Row {
+                        id: chipRow
+                        anchors.centerIn: parent
+                        spacing: Dimensions.spacingSM
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            textFormat: Text.PlainText
+                            font.family: "Segoe MDL2 Assets"
+                            font.pixelSize: 11
+                            text: chip.modelData.kind === "ok" ? "\uE73E"
+                                : chip.modelData.kind === "warn" ? "\uE7BA" : "\uE946"
+                            color: chip.tint
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            textFormat: Text.PlainText
+                            text: chip.modelData.text
+                            font.pixelSize: Dimensions.fontSM
+                            font.weight: Font.Medium
+                            color: Theme.textPrimary
+                        }
+                    }
+                }
             }
         }
 
         Item { Layout.preferredHeight: Dimensions.spacingXS }
     }
 
-    footer: Item {
-        implicitHeight: 60
+    // A footer button: filled for the action, quiet for the way out.
+    component FooterButton: Rectangle {
+        id: fb
+        property string text: ""
+        property bool filled: false
+        property color fill: Theme.primary
+        signal clicked()
 
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.textPrimary06
+        Layout.preferredWidth: fbLabel.implicitWidth + Dimensions.paddingXL * 2
+        Layout.preferredHeight: 40
+        radius: Dimensions.radiusMD
+        color: fb.filled ? (fbHover.hovered ? Qt.darker(fb.fill, 1.12) : fb.fill)
+                         : (fbHover.hovered ? Theme.textPrimary12 : Theme.textPrimary06)
+        border.width: fb.activeFocus ? 2 : 0
+        border.color: Theme.accentLight
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: fb.text
+        Keys.onReturnPressed: fb.clicked()
+        Keys.onSpacePressed: fb.clicked()
+
+        Text {
+            id: fbLabel
+            anchors.centerIn: parent
+            textFormat: Text.PlainText
+            text: fb.text
+            font.pixelSize: Dimensions.fontMD
+            font.weight: Font.DemiBold
+            color: fb.filled ? Theme.textOnColor : Theme.textPrimary
         }
+        HoverHandler { id: fbHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: fb.clicked() }
+    }
+
+    footer: Item {
+        implicitHeight: 72
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingLG
+            anchors.leftMargin: Dimensions.paddingXL
+            anchors.rightMargin: Dimensions.paddingXL
             spacing: Dimensions.spacingMD
 
             Item { Layout.fillWidth: true }
 
-            Rectangle {
-                id: another
-                Layout.preferredWidth: anotherLbl.implicitWidth + Dimensions.paddingLG * 2
-                Layout.preferredHeight: 36
-                radius: Dimensions.radiusStandard
-                color: anotherHover.hovered ? Theme.textPrimary12 : Theme.textPrimary06
-                Accessible.role: Accessible.Button
-                Accessible.name: anotherLbl.text
-
-                Label {
-                    id: anotherLbl
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: qsTr("Başka klasör seç")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-                HoverHandler { id: anotherHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler {
-                    onTapped: {
-                        root.close()
-                        root.pickAnother()
-                    }
+            FooterButton {
+                text: qsTr("Başka klasör seç")
+                onClicked: {
+                    root.close()
+                    root.pickAnother()
                 }
             }
-
-            Rectangle {
-                id: fix
-                visible: root.report.patchedElsewhere === true
-                Layout.preferredWidth: fixLbl.implicitWidth + Dimensions.paddingLG * 2
-                Layout.preferredHeight: 36
-                radius: Dimensions.radiusStandard
-                color: fixHover.hovered ? Qt.darker(Theme.primary, 1.1) : Theme.primary
-                Accessible.role: Accessible.Button
-                Accessible.name: fixLbl.text
-
-                Label {
-                    id: fixLbl
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: qsTr("Yamayı kaldır ve klasörü düzelt")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.textOnColor
-                }
-                HoverHandler { id: fixHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler {
-                    onTapped: {
-                        root.uninstallAndUse(root.report.root, root.report.engine || "")
-                        root.close()
-                    }
-                }
-            }
-
-            Rectangle {
-                id: use
-                visible: root._verdict !== "refused" && root.report.same !== true
-                Layout.preferredWidth: useLbl.implicitWidth + Dimensions.paddingLG * 2
-                Layout.preferredHeight: 36
-                radius: Dimensions.radiusStandard
-                color: useHover.hovered ? Qt.darker(root.accentColor, 1.1) : root.accentColor
-                Accessible.role: Accessible.Button
-                Accessible.name: useLbl.text
-                activeFocusOnTab: true
-                Keys.onReturnPressed: root._use()
-
-                Label {
-                    id: useLbl
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: root._verdict === "ok" ? qsTr("Bu klasörü kullan") : qsTr("Yine de bu klasörü kullan")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.textOnColor
-                }
-                HoverHandler { id: useHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: root._use() }
+            FooterButton {
+                id: primaryBtn
+                visible: root._canUse
+                filled: true
+                fill: root._verdict === "unsure" && !root._moving ? Theme.warning : Theme.primary
+                text: root._moving ? qsTr("Yamayı oyunun klasörüne taşı")
+                    : root.intent === "install"
+                      ? (root._verdict === "ok" ? qsTr("Bu klasöre kur") : qsTr("Yine de buraya kur"))
+                      : (root._verdict === "ok" ? qsTr("Bu klasörü kullan") : qsTr("Yine de kullan"))
+                onClicked: root._primary()
             }
         }
     }
+
+    onOpened: if (primaryBtn.visible) primaryBtn.forceActiveFocus()
 }

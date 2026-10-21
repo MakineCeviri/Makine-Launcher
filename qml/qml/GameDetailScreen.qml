@@ -469,6 +469,19 @@ Item {
     } // end Flickable
 
     // =========================================================================
+    // A GAME FOLDER DROPPED ON THE PAGE — same as picking it (GameFolderBar)
+    // =========================================================================
+
+    FolderDropOverlay {
+        anchors.fill: parent
+        z: 200
+        accepts: root.viewModel.hasTranslation && root.viewModel.externalUrl === ""
+        title: qsTr("%1 klasörünü bırak").arg(root.viewModel.gameName)
+        subtitle: qsTr("Oyunun klasörü, .exe dosyası ya da içindeki herhangi bir klasör olabilir; yamanın gideceği yeri biz buluruz.")
+        onFolderDropped: (url) => heroSection.inspectFolder(url)
+    }
+
+    // =========================================================================
     // LOADING / ERROR OVERLAY
     // =========================================================================
 

@@ -13,6 +13,9 @@ pragma ComponentBehavior: Bound
  * States: download, update, installing, installed, completed, broken.
  * Features: gradient border, contextual icons, shimmer progress,
  *           hover lift, smooth state transitions.
+ *
+ * A game no scan found has nowhere to install to: the button then asks for
+ * its folder ("locate") and the install follows once GameFolderBar binds it.
  */
 Rectangle {
     id: actionBtn
@@ -23,16 +26,19 @@ Rectangle {
     signal updateClicked()
     signal uninstallClicked()
     signal repairClicked()
+    signal locateClicked()
 
     Layout.fillWidth: true
     Layout.preferredHeight: 52
     radius: Dimensions.radiusLG
-    visible: actionBtn.vm.hasTranslation && actionBtn.vm.isGameInstalled
+    visible: actionBtn.vm.hasTranslation && (actionBtn.vm.isGameInstalled || actionBtn._locate)
     border.width: _state === "installed" && _hovered ? 2 : 0
     border.color: Theme.error
 
     // ── State resolution (C++ TranslationStateManager) ──
-    readonly property string _state: TranslationStateManager.state
+    readonly property string _state: _locate ? "locate" : TranslationStateManager.state
+    readonly property bool _locate: actionBtn.vm.hasTranslation && !actionBtn.vm.isGameInstalled
+                                    && actionBtn.vm.externalUrl === ""
 
     function _reevaluateState() {
         var source = actionBtn.vm.isHangar ? "hangar" : (actionBtn.vm.isApex ? "apex" : "")
@@ -61,6 +67,7 @@ Rectangle {
 
     readonly property bool _hovered: actionMouse.containsMouse
     readonly property bool _interactive: _state !== "completed" && _state !== "installing"
+                                         && !(_state === "locate" && actionBtn.vm.folderChecking)
 
     // ── Background color per state ──
     color: {
@@ -221,6 +228,20 @@ Rectangle {
                     ctx.stroke()
                     break
 
+                case "locate":
+                    // Folder
+                    ctx.beginPath()
+                    ctx.moveTo(2.5, 5)
+                    ctx.lineTo(2.5, 14.5)
+                    ctx.lineTo(15.5, 14.5)
+                    ctx.lineTo(15.5, 6.5)
+                    ctx.lineTo(8.5, 6.5)
+                    ctx.lineTo(7, 4)
+                    ctx.lineTo(3.5, 4)
+                    ctx.closePath()
+                    ctx.stroke()
+                    break
+
                 case "download":
                 case "update":
                     // Down arrow + line (same icon for both states)
@@ -332,6 +353,9 @@ Rectangle {
                     if (actionBtn.vm.isApex && !actionBtn.vm.isHangar)
                         return qsTr("ApexYama (dış site)")
                     return qsTr("Dış siteden indir")
+                case "locate":
+                    return actionBtn.vm.folderChecking ? qsTr("Klasöre bakılıyor…")
+                                                       : qsTr("Oyun Klasörünü Seç ve Kur")
                 case "download":
                 default:
                     return qsTr("Türkçe Yama İndir")
@@ -340,6 +364,7 @@ Rectangle {
             font.pixelSize: Dimensions.fontMD
             font.weight: Font.DemiBold
             font.letterSpacing: actionBtn._state === "download" || actionBtn._state === "update"
+                                || actionBtn._state === "locate"
                                 || actionBtn._state === "broken" || actionBtn._state === "external" ? 0.8 : 0.3
             color: {
                 switch (actionBtn._state) {
@@ -399,6 +424,7 @@ Rectangle {
         case "broken":     return qsTr("Repair needed")
         case "completed":  return qsTr("Installation complete")
         case "external":   return qsTr("Download from ApexYama")
+        case "locate":     return qsTr("Oyun klasörünü seç ve Türkçe yamayı kur")
         default:           return qsTr("Download Turkish Patch")
         }
     }
@@ -415,6 +441,7 @@ Rectangle {
             case "installed": actionBtn.uninstallClicked(); break
             case "broken":    actionBtn.vm.impactLevel === "lost" ? actionBtn.repairClicked() : actionBtn.updateClicked(); break
             case "external":  Qt.openUrlExternally(actionBtn.vm.externalUrl); break
+            case "locate":    actionBtn.locateClicked(); break
             default:          actionBtn.translateClicked(); break
             }
         }

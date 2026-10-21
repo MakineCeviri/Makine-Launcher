@@ -18,7 +18,8 @@ Rectangle {
     required property var vm
 
     // Derived values — computed once, referenced by tiles and visibility guard
-    readonly property string _engine:     vm.engine          ?? ""
+    // "Unknown" is the scanner's word for "no idea", not an engine name.
+    readonly property string _engine:     (vm.engine ?? "").toLowerCase() === "unknown" ? "" : (vm.engine ?? "")
     readonly property string _developer:  vm.developersText  ?? ""
     readonly property string _release:    vm.releaseDate     ?? ""
     // First genre only
