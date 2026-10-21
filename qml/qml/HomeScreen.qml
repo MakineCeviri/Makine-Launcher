@@ -24,6 +24,7 @@ Item {
     signal installAndShowDetail(string gameId, string gameName, string installPath, string engine)
     signal settingsRequested()
     signal manualFolderRequested()
+    signal libraryRequested()
 
     Component.onCompleted: {
         if (typeof SceneProfiler !== "undefined")
@@ -70,6 +71,7 @@ Item {
                 }
                 onManualFolderRequested: root.manualFolderRequested()
                 onSettingsRequested: root.settingsRequested()
+                onLibraryRequested: root.libraryRequested()
             }
         }
     }
@@ -87,6 +89,10 @@ Item {
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     root.gameSelected(gameId, gameName, installPath, engine)
                 }
+                onInstallRequested: function(gameId, gameName, installPath, engine) {
+                    root.installAndShowDetail(gameId, gameName, installPath, engine)
+                }
+                onManualFolderRequested: root.manualFolderRequested()
             }
         }
     }

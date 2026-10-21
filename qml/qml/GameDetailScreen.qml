@@ -71,6 +71,8 @@ Item {
             mainFlick.contentY = 0
             root._replayEntryAnim()
             root._verifyInstalledPatch()
+            if (root.viewModel.autoInstall)
+                autoInstallTimer.restart()
         }
     }
 
@@ -106,12 +108,12 @@ Item {
             root._verifyInstalledPatch()
             root._showPendingNotes()
         }
+        // An install, or the update of an installed patch ("Güncelle" in the
+        // library opens the page with autoInstall set). Decided when the timer
+        // fires: loadGame sets autoInstall before the update check has run.
         function onAutoInstallChanged() {
-            if (root.viewModel.autoInstall && root.viewModel.hasTranslation &&
-                root.viewModel.isGameInstalled && !root.viewModel.packageInstalled &&
-                !root.viewModel.isInstallingTranslation) {
+            if (root.viewModel.autoInstall)
                 autoInstallTimer.restart()
-            }
         }
     }
 
@@ -263,6 +265,17 @@ Item {
         }
     }
 
+    ConfirmDialog {
+        id: uninstallConfirm
+        parent: Overlay.overlay
+        width: 460
+        title: qsTr("Türkçe yama kaldırılsın mı?")
+        message: qsTr("%1 için kurulu Türkçe yama kaldırılacak; yedeklenen orijinal oyun dosyaları geri yüklenecek. İstediğin zaman yeniden kurabilirsin.")
+                     .arg(root.viewModel.gameName)
+        confirmText: qsTr("Yamayı kaldır")
+        onConfirmed: GameService.uninstallTranslation(root.viewModel.gameId)
+    }
+
     // ===== POST-INSTALL NOTES DIALOG (lazy) =====
     Loader {
         id: installNotesLoader
@@ -362,11 +375,13 @@ Item {
         interval: 200
         repeat: false
         onTriggered: {
-            if (root.viewModel.hasTranslation && root.viewModel.isGameInstalled &&
-                !root.viewModel.packageInstalled && !root.viewModel.isInstallingTranslation &&
-                !root.viewModel.externalUrl) {
+            if (!root.viewModel.hasTranslation || !root.viewModel.isGameInstalled
+                || root.viewModel.isInstallingTranslation || root.viewModel.externalUrl)
+                return
+            if (!root.viewModel.packageInstalled)
                 root.translateClicked()
-            }
+            else if (root.viewModel.hasTranslationUpdate)
+                installFlow.startUpdateFlow(root.viewModel.gameId, root.viewModel.gameName)
         }
     }
 
@@ -424,7 +439,9 @@ Item {
 
                 onTranslateClicked: root.translateClicked()
                 onUpdateClicked: installFlow.startUpdateFlow(root.viewModel.gameId, root.viewModel.gameName)
-                onUninstallClicked: GameService.uninstallTranslation(root.viewModel.gameId)
+                // The installed button turns into "Kaldır" under the pointer; a
+                // click meant for the page took the patch off without a word.
+                onUninstallClicked: uninstallConfirm.open()
             }
 
             // =================================================================
@@ -454,6 +471,8 @@ Item {
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.marginXL
                 Layout.rightMargin: Dimensions.marginXL
+                Layout.maximumWidth: Dimensions.contentMaxWidth
+                Layout.alignment: Qt.AlignHCenter
                 opacity: 0
                 transform: Translate { id: runtimeTranslate; y: 18 }
                 active: root.viewModel.isUnityGame && root.viewModel.runtimeNeeded

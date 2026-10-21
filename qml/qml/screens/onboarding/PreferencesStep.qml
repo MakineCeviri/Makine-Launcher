@@ -79,7 +79,7 @@ Item {
         color: Qt.rgba(1, 1, 1, 0.07)
     }
 
-    component Switch: Rectangle {
+    component PrefSwitch: Rectangle {
         id: sw
         property bool checked: false
         property string label: ""
@@ -190,7 +190,7 @@ Item {
                 PrefRow {
                     title: qsTr("Açık oyunu fark et")
                     description: qsTr("Oyun açıkken yama kurulmaz; tanınmayan bir oyunu da kütüphanene eklemeni sağlar.")
-                    Switch {
+                    PrefSwitch {
                         label: qsTr("Açık oyunu fark et")
                         checked: SettingsManager.autoDetectGames
                         onToggled: SettingsManager.autoDetectGames = !SettingsManager.autoDetectGames
@@ -202,7 +202,7 @@ Item {
                 PrefRow {
                     title: qsTr("Windows açılınca başlat")
                     description: qsTr("Yama güncellemelerini kaçırmazsın; küçültülmüş olarak, sessizce açılır.")
-                    Switch {
+                    PrefSwitch {
                         label: qsTr("Windows açılınca başlat")
                         checked: SettingsManager.startWithWindows
                         onToggled: SettingsManager.startWithWindows = !SettingsManager.startWithWindows
@@ -214,7 +214,7 @@ Item {
                 PrefRow {
                     title: qsTr("Çökme ve hata raporlarını gönder")
                     description: qsTr("Sorunları bunlarla bulup düzeltiyoruz. Raporlar kişisel bilgi içermez; kapatırsan hiçbiri gönderilmez.")
-                    Switch {
+                    PrefSwitch {
                         label: qsTr("Çökme ve hata raporlarını gönder")
                         checked: SettingsManager.sendCrashReports
                         onToggled: SettingsManager.sendCrashReports = !SettingsManager.sendCrashReports

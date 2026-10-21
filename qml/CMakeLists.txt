@@ -256,7 +256,6 @@ qt_add_qml_module(MakineLauncher
         #
         # Layout: Section containers
         qml/components/SectionContainer.qml       # Glassmorphic section wrapper
-        qml/components/GameSection.qml            # Section with title + game strip + empty state
         qml/components/CatalogSection.qml         # Localization library catalog (search + game strips)
         #
         # Visual: Decorative and feedback

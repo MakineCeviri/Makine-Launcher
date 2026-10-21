@@ -43,6 +43,9 @@ QtObject {
     readonly property int marginML: 20
     readonly property int marginLG: 24
     readonly property int marginXL: 32
+    // Reading width of a page's content on a wide window (the hero art stays
+    // full width): past this, lines of text get too long to follow.
+    readonly property int contentMaxWidth: 1180
     readonly property int marginXXL: 48
 
     // =========================================================================

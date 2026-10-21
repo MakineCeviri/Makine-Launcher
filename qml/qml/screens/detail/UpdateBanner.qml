@@ -19,6 +19,8 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
+    Layout.maximumWidth: Dimensions.contentMaxWidth
+    Layout.alignment: Qt.AlignHCenter
     Layout.topMargin: 56
     visible: banner.vm.impactLevel !== "" && banner.vm.impactLevel !== "safe" && banner.vm.impactLevel !== "unknown"
     implicitHeight: bannerContent.height + Dimensions.marginML * 2

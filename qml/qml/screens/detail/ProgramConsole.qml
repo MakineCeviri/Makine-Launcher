@@ -31,6 +31,8 @@ Rectangle {
 
     Layout.fillWidth: true
     Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
+    Layout.maximumWidth: Dimensions.contentMaxWidth
+    Layout.alignment: Qt.AlignHCenter
     Layout.topMargin: Dimensions.spacingXL
     visible: programConsole.vm.installConsole !== ""
     implicitHeight: consoleContent.implicitHeight + Dimensions.marginML * 2

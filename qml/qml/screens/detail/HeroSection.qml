@@ -178,10 +178,8 @@ Item {
         id: mainColumn
         anchors.top: heroBanner.bottom
         anchors.topMargin: -100
-        anchors.left: parent.left
-        anchors.leftMargin: Dimensions.marginXL
-        anchors.right: parent.right
-        anchors.rightMargin: Dimensions.marginXL
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - Dimensions.marginXL * 2, Dimensions.contentMaxWidth)
         spacing: Dimensions.spacingSection
 
         // =================================================================

@@ -95,6 +95,10 @@ GameService::GameService(QObject *parent)
     // uninstallTranslation is released in one place.
     connect(this, &GameService::translationUninstalled, this,
             [this](const QString& gameId) { m_uninstalling.remove(gameId); });
+
+    connect(this, &GameService::gameListChanged, this, &GameService::libraryChanged);
+    connect(this, &GameService::translationStatusChanged, this, &GameService::libraryChanged);
+    connect(this, &GameService::supportedGamesChanged, this, &GameService::libraryChanged);
 }
 
 void GameService::initialize()
@@ -1361,6 +1365,58 @@ QVariantList GameService::installedTranslations() const
 
     m_installedCacheValid = true;
     return m_installedTranslationsCache;
+}
+
+QVariantList GameService::library() const
+{
+    MAKINE_ZONE_NAMED("GameService::library");
+    QHash<QString, QString> external;
+    for (const QVariant& v : supportedGames()) {
+        const QVariantMap m = v.toMap();
+        const QString url = m.value(QStringLiteral("externalUrl")).toString();
+        if (!url.isEmpty())
+            external.insert(m.value(QStringLiteral("steamAppId")).toString(), url);
+    }
+    QHash<QString, QVariantMap> installed;
+    for (const QVariant& v : installedTranslations()) {
+        const QVariantMap m = v.toMap();
+        installed.insert(m.value(QStringLiteral("id")).toString(), m);
+    }
+
+    QList<QVariantMap> rows;
+    for (const QVariant& v : games()) {
+        QVariantMap m = v.toMap();
+        const QString id = m.value(QStringLiteral("id")).toString();
+        const QString steamId = m.value(QStringLiteral("steamAppId")).toString();
+        const QString appId = steamId.isEmpty() ? id : steamId;
+        QString status = QStringLiteral("ready");
+        if (const auto it = installed.constFind(id); it != installed.cend()) {
+            status = it->value(QStringLiteral("hasUpdate")).toBool() ? QStringLiteral("update")
+                                                                      : QStringLiteral("installed");
+            m[QStringLiteral("version")] = it->value(QStringLiteral("version"));
+        } else if (const auto ext = external.constFind(appId); ext != external.cend()) {
+            status = QStringLiteral("external");
+            m[QStringLiteral("externalUrl")] = *ext;
+        }
+        m[QStringLiteral("status")] = status;
+        rows << m;
+    }
+
+    const auto rank = [](const QString& s) {
+        return s == QLatin1String("update") ? 0 : s == QLatin1String("ready") ? 1
+             : s == QLatin1String("installed") ? 2 : 3;
+    };
+    std::stable_sort(rows.begin(), rows.end(), [&rank](const QVariantMap& a, const QVariantMap& b) {
+        const int ra = rank(a.value(QStringLiteral("status")).toString());
+        const int rb = rank(b.value(QStringLiteral("status")).toString());
+        if (ra != rb) return ra < rb;
+        return QString::localeAwareCompare(a.value(QStringLiteral("name")).toString(),
+                                           b.value(QStringLiteral("name")).toString()) < 0;
+    });
+    QVariantList out;
+    out.reserve(rows.size());
+    for (const QVariantMap& m : rows) out << m;
+    return out;
 }
 
 void GameService::saveCachedGames()

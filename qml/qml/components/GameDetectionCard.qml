@@ -22,7 +22,19 @@ ColumnLayout {
     property var heavyProcs: ProcessScanner.heavyProcesses
     property bool hasHeavyProcesses: detectionEnabled && heavyProcs.length > 0 && !gameDetected
 
+    // Nothing running: the card sums up this PC's games instead of reporting
+    // that no game was detected — what there is to do comes first.
+    readonly property bool _summary: !gameDetected && !hasHeavyProcesses
+    readonly property var _lib: GameService.library
+    readonly property int _ready: _lib.filter(g => g.status === "ready").length
+    readonly property int _updates: _lib.filter(g => g.status === "update").length
+    readonly property int _patched: _lib.filter(g => g.status === "installed" || g.status === "update").length
+    readonly property bool _hasWork: _ready > 0 || _updates > 0
+
     signal manualFolderRequested()
+    signal libraryRequested()
+    // Show this PC's games in the catalogue below.
+    signal showMineRequested()
 
     Layout.fillWidth: true
     Layout.horizontalStretchFactor: 1
@@ -191,24 +203,57 @@ ColumnLayout {
                 spacing: 4
 
                 Label {
+                    Layout.fillWidth: true
                     textFormat: Text.PlainText
-                    text: !root.detectionEnabled ? qsTr("Oyun Tespiti Devre D\u0131\u015F\u0131")
-                          : root.gameDetected ? root.detectedGameName + qsTr(" \u00e7al\u0131\u015f\u0131yor")
+                    text: root.gameDetected ? qsTr("%1 çalışıyor").arg(root.detectedGameName)
                           : root.hasHeavyProcesses ? qsTr("Oyun tespit ediliyor...")
-                          : qsTr("Oyun Tespit Edilemedi")
+                          : root._ready > 0 ? qsTr("%1 oyunun için Türkçe yama hazır").arg(root._ready)
+                          : root._updates > 0 ? qsTr("%1 yamanın güncellemesi var").arg(root._updates)
+                          : root._lib.length > 0 ? qsTr("Türkçe yamaların kurulu")
+                          : qsTr("Oyunlarını bulalım")
                     font.pixelSize: Dimensions.fontLG; font.weight: Font.Bold
                     color: Theme.textPrimary
+                    elide: Text.ElideRight
                 }
                 Label {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
-                    visible: !root.gameDetected && !root.hasHeavyProcesses
-                    text: !root.detectionEnabled
-                          ? qsTr("Ayarlardan otomatik oyun tespitini a\u00e7abilirsiniz.")
-                          : qsTr("Desteklenen bir oyun \u00e7al\u0131\u015ft\u0131r\u0131n veya bir oyun ekleyin.")
-                    font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
-                    wrapMode: Text.WordWrap; lineHeight: 1.4
+                    visible: root._summary
+                    text: root._lib.length > 0
+                          ? qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.")
+                                .arg(root._lib.length).arg(root._patched)
+                          : qsTr("Kütüphanelerinde Türkçe yaması olan bir oyun bulamadık. Oyunun klasörünü ekle ya da pencereye sürükleyip bırak.")
+                    font.pixelSize: Dimensions.fontSM; color: Theme.textSecondary
+                    wrapMode: Text.WordWrap; lineHeight: 1.35
                     maximumLineCount: 3; elide: Text.ElideRight
+                }
+
+                // Watching for a game being started is off: say what that
+                // costs and switch it on right here, not "in the settings".
+                Row {
+                    visible: root._summary && !root.detectionEnabled
+                    spacing: Dimensions.spacingSM
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Çalıştırdığın oyunu tanıma kapalı")
+                        font.pixelSize: Dimensions.fontXS; color: Theme.textMuted
+                    }
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Aç")
+                        font.pixelSize: Dimensions.fontXS; font.weight: Font.DemiBold
+                        font.underline: enableMa.containsMouse
+                        color: Theme.accentLight
+                        Accessible.role: Accessible.Button
+                        Accessible.name: qsTr("Oyun tanımayı aç")
+                        MouseArea {
+                            id: enableMa; anchors.fill: parent; anchors.margins: -4
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: SettingsManager.autoDetectGames = true
+                        }
+                    }
                 }
 
                 // Game running description
@@ -333,7 +378,9 @@ ColumnLayout {
 
                     Label {
                         textFormat: Text.PlainText
-                        text: root.gameDetected ? qsTr("Kütüphaneye Git") : qsTr("Oyun Ekle")
+                        text: root.gameDetected ? qsTr("Kütüphaneye Git")
+                            : root._summary && root._hasWork ? qsTr("Oyunlarımı Göster")
+                            : qsTr("Oyun Ekle")
                         font.pixelSize: Dimensions.fontSM; font.weight: Font.Bold
                         color: Theme.accentDark
                         anchors.verticalCenter: parent.verticalCenter
@@ -343,7 +390,9 @@ ColumnLayout {
                 MouseArea {
                     id: btnMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.manualFolderRequested()
+                    onClicked: root.gameDetected ? root.libraryRequested()
+                             : root._summary && root._hasWork ? root.showMineRequested()
+                             : root.manualFolderRequested()
                 }
             }
         }

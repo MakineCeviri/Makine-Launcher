@@ -15,8 +15,14 @@ Item {
     // Optional state pill on the cover ("Kurulu", "Bilgisayarında", a date…)
     property string badge: ""
     property color badgeColor: Theme.primary
+    // The name over the cover's foot on hover: much cover art carries no
+    // title, and a screen reader or a slow image has nothing else to go on.
+    property bool showName: true
 
     signal clicked()
+
+    Accessible.role: Accessible.Button
+    Accessible.name: root.gameName
 
     readonly property real _aspectRatio: 130.0 / 185.0
     readonly property int _minHeight: 100
@@ -53,11 +59,29 @@ Item {
         }
     }
 
-    // Placeholder — only for games with no image
+    // Placeholder — only for games with no image (or not yet): the name, so
+    // the card still says which game it is.
     Rectangle {
         anchors.fill: parent
+        radius: root.width * 0.07
         color: Theme.surfaceLight
-        visible: !root._src || img.status === Image.Error
+        visible: !root._src || img.status !== Image.Ready
+
+        Text {
+            anchors.fill: parent
+            anchors.margins: Dimensions.paddingMD
+            visible: root.height >= 120
+            textFormat: Text.PlainText
+            text: root.gameName
+            wrapMode: Text.WordWrap
+            maximumLineCount: 4
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            font.pixelSize: Dimensions.fontMD
+            font.weight: Font.DemiBold
+            color: Theme.textSecondary
+        }
     }
 
     Image {
@@ -98,6 +122,37 @@ Item {
                 font.weight: Font.DemiBold
                 color: "#FFFFFF"
             }
+        }
+    }
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: nameText.implicitHeight + Dimensions.paddingMD * 2
+        bottomLeftRadius: root.width * 0.07
+        bottomRightRadius: root.width * 0.07
+        color: Qt.rgba(0, 0, 0, 0.78)
+        opacity: root.showName && cardHover.hovered && img.status === Image.Ready ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+
+        Text {
+            id: nameText
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Dimensions.paddingMD
+            anchors.rightMargin: Dimensions.paddingMD
+            textFormat: Text.PlainText
+            text: root.gameName
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: Dimensions.fontBody
+            font.weight: Font.DemiBold
+            color: "#FFFFFF"
         }
     }
 

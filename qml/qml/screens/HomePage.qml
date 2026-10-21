@@ -25,6 +25,7 @@ Item {
     signal installAndShowDetail(string gameId, string gameName, string installPath, string engine)
     signal manualFolderRequested()
     signal settingsRequested()
+    signal libraryRequested()
 
     onVisibleChanged: {
         if (visible && _initialComplete)
@@ -75,6 +76,8 @@ Item {
                 layoutCardMargin: 0; layoutCardSpacing: 0
                 layoutTopRowHeight: homePage.topRowHeight
                 onManualFolderRequested: homePage.manualFolderRequested()
+                onLibraryRequested: homePage.libraryRequested()
+                onShowMineRequested: catalogSection.mode = "mine"
             }
 
             AnnouncementCard {

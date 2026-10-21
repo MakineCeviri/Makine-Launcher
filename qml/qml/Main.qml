@@ -591,6 +591,7 @@ ApplicationWindow {
                     contentStackContainer.navigateTo(2)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
+                onLibraryRequested: navBar.libraryClicked()
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
                     detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))

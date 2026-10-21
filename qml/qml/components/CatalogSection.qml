@@ -62,46 +62,27 @@ Rectangle {
     readonly property bool _single: _isSearching || mode !== "all"
 
     // This PC's games that have a patch, the ones needing a step first.
-    readonly property var _mine: _computeMine(GameService.games, GameService.installedTranslations, _external)
-    function _computeMine(games, installed, external) {
-        const patched = {}
-        for (const t of installed)
-            patched[t.id] = t.hasUpdate === true
-        const rank = { "update": 0, "ready": 1, "installed": 2, "external": 3 }
-        const out = []
-        for (const g of games) {
-            const status = (g.id in patched) ? (patched[g.id] ? "update" : "installed")
-                         : (external[g.id] || external[g.steamAppId]) ? "external" : "ready"
-            out.push({ id: g.id, name: g.name || "", steamAppId: g.steamAppId || "",
-                       installPath: g.installPath || "", engine: g.engine || "", status: status,
-                       badge: status === "update" ? qsTr("Güncelleme var")
-                            : status === "installed" ? qsTr("Kurulu")
-                            : status === "external" ? qsTr("Dış sitede") : qsTr("Yama hazır"),
-                       badgeColor: status === "update" ? Theme.warning
-                                 : status === "installed" ? Theme.success
-                                 : status === "external" ? Theme.textSecondary : Theme.primary })
-        }
-        out.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name))
-        return out
-    }
+    readonly property var _mine: GameService.library.map(g => ({
+        id: g.id, name: g.name || "", steamAppId: g.steamAppId || "",
+        installPath: g.installPath || "", engine: g.engine || "", status: g.status,
+        badge: g.status === "update" ? qsTr("Güncelleme var")
+             : g.status === "installed" ? qsTr("Kurulu")
+             : g.status === "external" ? qsTr("Dış sitede") : qsTr("Yama hazır"),
+        badgeColor: g.status === "update" ? Theme.warning
+                  : g.status === "installed" ? Theme.success
+                  : g.status === "external" ? Theme.textSecondary : Theme.primary }))
 
     // Newest packages, dated on the cover.
     property var _recent: []
-    // Games whose patch lives on another site: "Yama hazır" would promise an install.
-    property var _external: ({})
     function _refreshRecent() {
         const out = []
-        const ext = {}
-        for (const e of GameService.recentlyUpdatedGames(100000)) {
-            if (e.externalUrl) ext[e.id || e.steamAppId] = true
-            if (out.length >= 24) continue
+        for (const e of GameService.recentlyUpdatedGames(24)) {
             out.push({ id: e.id || e.steamAppId, name: e.name || "", steamAppId: e.steamAppId || "",
                        installPath: e.installPath || "", engine: e.engine || "",
                        badge: _dateText(e.version),
                        badgeColor: e.packageInstalled ? Theme.success
                                  : e.isInstalled ? Theme.primary : Theme.accentLight })
         }
-        _external = ext
         _recent = out
     }
     function _dateText(v) {
@@ -207,7 +188,7 @@ Rectangle {
 
             Label {
                 textFormat: Text.PlainText
-                text: qsTr("Yerelle\u015Ftirme K\u00FCt\u00FCphanesi")
+                text: qsTr("Türkçe Yamalar")
                 font.pixelSize: Dimensions.fontLG
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
@@ -431,9 +412,13 @@ Rectangle {
 
         Item { Layout.preferredHeight: Dimensions.cardGap }
 
-        // Row 1 (expands to full height with large cards during search)
+        // Row 1 (expands to full height with large cards during search). One
+        // row of large covers keeps its own height and hangs under the chips;
+        // stretched, it floated in the middle of the section.
         HorizontalGameStrip {
-            Layout.fillWidth: true; Layout.fillHeight: true
+            Layout.fillWidth: true
+            Layout.fillHeight: !catalog._single
+            Layout.preferredHeight: catalog._single ? Math.ceil(Dimensions.cardHeight * 1.3 * 1.03) + Dimensions.cardGap : -1
             visible: catalog.mode === "mine" && !catalog._isSearching ? catalog._mine.length > 0
                    : (row1Proxy.count > 0 || catalog._totalCount > 0)
             model: catalog._isSearching || catalog.mode === "all" ? row1Proxy
@@ -460,6 +445,9 @@ Rectangle {
                 color: Theme.textPrimary08
             }
         }
+
+        // Below a single row: the room that row no longer takes
+        Item { Layout.fillHeight: true; visible: catalog._single }
 
         // Row 2
         HorizontalGameStrip {

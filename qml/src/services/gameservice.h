@@ -88,6 +88,7 @@ class GameService : public QObject
     Q_PROPERTY(int installedTranslationCount READ installedTranslationCount NOTIFY translationStatusChanged)
     Q_PROPERTY(int outdatedPatchCount READ outdatedPatchCount NOTIFY translationStatusChanged)
     Q_PROPERTY(SupportedGamesModel* supportedGamesModel READ supportedGamesModel CONSTANT)
+    Q_PROPERTY(QVariantList library READ library NOTIFY libraryChanged)
 
 public:
     explicit GameService(QObject *parent = nullptr);
@@ -118,6 +119,10 @@ public:
     bool isScanning() const { return m_isScanning; }
     QVariantList supportedGames() const;
     QVariantList installedTranslations() const;
+    /// This PC's games that have a Turkish patch, each with `status` — what it
+    /// needs next: update | ready | installed | external (the patch is on
+    /// another site; `externalUrl`) — in that order, then by name.
+    QVariantList library() const;
     SupportedGamesModel* supportedGamesModel() const { return m_supportedGamesModel; }
     int installedTranslationCount() const;
 
@@ -456,6 +461,7 @@ signals:
     void gameListChanged();
     void translationStatusChanged();
     void supportedGamesChanged();
+    void libraryChanged();
     void isScanningChanged();
     void gameDetected(const QString& gameId);
     void scanCompleted(int count);
