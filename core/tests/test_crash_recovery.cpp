@@ -17,11 +17,48 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
 using namespace makine::recovery;
+
+#ifdef _WIN32
+// fs::remove_all never returns on a tree with a path past MAX_PATH, which the
+// long-path tests below create (and leave behind when they fail).
+void removeLongTree(const std::wstring& dir) {
+    WIN32_FIND_DATAW fd;
+    HANDLE find = FindFirstFileW((dir + L"\\*").c_str(), &fd);
+    if (find != INVALID_HANDLE_VALUE) {
+        do {
+            const std::wstring name = fd.cFileName;
+            if (name == L"." || name == L"..") continue;
+            const std::wstring child = dir + L"\\" + name;
+            if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                && !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+                removeLongTree(child);
+                continue;
+            }
+            SetFileAttributesW(child.c_str(), FILE_ATTRIBUTE_NORMAL);
+            DeleteFileW(child.c_str());
+        } while (FindNextFileW(find, &fd));
+        FindClose(find);
+    }
+    RemoveDirectoryW(dir.c_str());
+}
+
+// root/rel in the "\\?\" form, for files past MAX_PATH
+fs::path longForm(const fs::path& root, const std::string& rel) {
+    return fs::path(LR"(\\?\)" + fs::absolute(root).make_preferred().native())
+        / fs::path(rel).make_preferred();
+}
+#endif
 
 // =============================================================================
 // Test Fixture — temp directory per test
@@ -32,13 +69,26 @@ protected:
     fs::path testDir_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makine_crash_recovery_tests";
+        // A folder per run: every worktree runs this suite at once, and one
+        // run's past-MAX_PATH tree in a shared folder hung another run's
+        // cleanup (an older fixture still deletes with fs::remove_all).
+#ifdef _WIN32
+        const auto pid = static_cast<unsigned long>(GetCurrentProcessId());
+#else
+        const auto pid = static_cast<unsigned long>(getpid());
+#endif
+        testDir_ = fs::temp_directory_path()
+                   / ("makine_crash_recovery_tests_" + std::to_string(pid));
         fs::create_directories(testDir_);
     }
 
     void TearDown() override {
+#ifdef _WIN32
+        removeLongTree(LR"(\\?\)" + fs::absolute(testDir_).make_preferred().native());
+#else
         std::error_code ec;
         fs::remove_all(testDir_, ec);
+#endif
     }
 
     // Helper: create a file with given content
@@ -379,6 +429,48 @@ TEST_F(CrashRecoveryTest, RecoverInstallIgnoresRecordsOutsideGameFolder) {
     EXPECT_TRUE(fs::exists(testDir_ / "outside.txt"));
 }
 
+// The uninstall journal begins after the backup restore, so a crash while it
+// deletes finds the originals already back in place. Recovery deleted every
+// recorded file and took them out again; it now keeps what the record calls
+// replaced and what the backup holds (older recipe records list no replaced
+// files), deletes only what the patch added, and undoes renames.
+TEST_F(CrashRecoveryTest, RecoverUninstallKeepsRestoredOriginals) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const auto statePath = testDir_ / "installed_packages.json";
+
+    createFile(gamePath / "data" / "localization.pak", "original pak");   // replaced, restored
+    createFile(gamePath / "data" / "common.fat", "original fat");         // backup holds it
+    createFile(gamePath / "data" / "tr_strings.txt", "added by patch");   // added
+    createFile(gamePath / "bin" / "game.exe.bak", "original exe");        // renamed away
+    createFile(backupsRoot / "321" / "c0ffee00" / "data" / "localization.pak", "original pak");
+    createFile(backupsRoot / "321" / "c0ffee00" / "data" / "common.fat", "original fat");
+    createFile(statePath, R"({"321": {"version": "1", "gamePath": ")" + gamePath.generic_string()
+        + R"(", "files": ["data/localization.pak", "data/common.fat", "data/tr_strings.txt",
+           "_rename:bin/game.exe:bin/game.exe.bak", "_vpatch:data/main.forge"],
+           "replacedFiles": ["data/localization.pak"]}})");
+
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::Uninstall;
+        entry.gameId = "321";
+        entry.gamePath = gamePath.string();
+        writer.beginOperation(entry);
+    }
+
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.installedState = statePath, .backupsRoot = backupsRoot, .desktopDir = {}});
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(gamePath / "data" / "localization.pak"), "original pak");
+    EXPECT_EQ(readFile(gamePath / "data" / "common.fat"), "original fat");
+    EXPECT_FALSE(fs::exists(gamePath / "data" / "tr_strings.txt"));
+    EXPECT_EQ(readFile(gamePath / "bin" / "game.exe"), "original exe");
+    EXPECT_FALSE(fs::exists(gamePath / "bin" / "game.exe.bak"));
+    EXPECT_EQ(readFile(statePath).find("\"321\""), std::string::npos);
+}
+
 TEST_F(CrashRecoveryTest, RecoverInstallCrashWithModifiedFilesInJournal) {
     // Create game directory with files
     auto gamePath = testDir_ / "game_install2";
@@ -453,6 +545,124 @@ TEST_F(CrashRecoveryTest, RecoveryResultHasMeaningfulMessage) {
     EXPECT_GT(result.message.size(), 5u);
 }
 
+#ifdef _WIN32
+// A backup mirrors the game's paths under a longer root, so its deepest files
+// pass MAX_PATH. libstdc++'s fs::remove_all never returned on such a tree and
+// the launcher hung at start, cleaning up a backup a crash interrupted.
+TEST_F(CrashRecoveryTest, RecoverBackupCreateRemovesTreePastMaxPath) {
+    const auto backupDir = testDir_ / "backups" / "555" / "deadbeef";
+    const fs::path longRoot(LR"(\\?\)" + fs::absolute(backupDir).make_preferred().native());
+    const fs::path deep = longRoot / std::string(120, 'a') / std::string(120, 'b');
+    fs::create_directories(deep);
+    std::ofstream(deep / "c.pak") << "original";
+    std::error_code roEc;  // a read-only original, as games ship some
+    fs::permissions(deep / "c.pak", fs::perms::owner_write, fs::perm_options::remove, roEc);
+    ASSERT_TRUE(fs::exists(deep / "c.pak"));
+    createFile(backupDir / "short.txt", "x");
+
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::BackupCreate;
+        entry.gameId = "555";
+        entry.backupPath = backupDir.string();
+        writer.beginOperation(entry);
+    }
+
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover();
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_FALSE(fs::exists(longRoot));
+}
+
+// The backup holds the game's paths under a longer root, so an original deep
+// in the game passes MAX_PATH there. The recovery's directory walk skipped it
+// without an error and called the install rolled back, the patched file (and
+// one the patch added) left in place.
+TEST_F(CrashRecoveryTest, RecoverInstallRestoresOriginalPastMaxPath) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const std::string folder = std::string(100, 'a') + "/" + std::string(100, 'b');
+    const auto write = [](const fs::path& file, const std::string& content) {
+        fs::create_directories(file.parent_path());
+        std::ofstream(file, std::ios::binary) << content;
+    };
+    write(longForm(gamePath, folder + "/c.pak"), "patched");
+    write(longForm(gamePath, folder + "/tr.txt"), "added by patch");
+    write(longForm(backupsRoot / "888" / "b1", folder + "/c.pak"), "original");
+
+    writeCrashedInstall(testDir_, "888", gamePath, {folder + "/c.pak", folder + "/tr.txt"});
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = backupsRoot, .desktopDir = {}});
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(longForm(gamePath, folder + "/c.pak")), "original");
+    EXPECT_FALSE(fs::exists(longForm(gamePath, folder + "/tr.txt")));
+}
+
+// The same walk in the recovery of an interrupted restore, which also copied
+// again what the restore had already put back: the journal holds Qt's "a/b",
+// the walk gave "a\b".
+TEST_F(CrashRecoveryTest, RecoverBackupRestorePastMaxPathSkipsRestored) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupDir = testDir_ / "backups" / "999" / "b1";
+    const std::string deep = std::string(100, 'a') + "/" + std::string(100, 'b') + "/c.pak";
+    const auto write = [](const fs::path& file, const std::string& content) {
+        fs::create_directories(file.parent_path());
+        std::ofstream(file, std::ios::binary) << content;
+    };
+    write(longForm(gamePath, deep), "patched");
+    write(longForm(backupDir, deep), "original");
+    write(longForm(gamePath, "data/done.txt"), "restored, then changed");
+    write(longForm(backupDir, "data/done.txt"), "original");
+
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::BackupRestore;
+        entry.gameId = "999";
+        entry.gamePath = gamePath.string();
+        entry.backupPath = backupDir.string();
+        writer.beginOperation(entry);
+        writer.recordFileModified("data/done.txt");
+    }
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover();
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(longForm(gamePath, deep)), "original");
+    EXPECT_EQ(readFile(longForm(gamePath, "data/done.txt")), "restored, then changed");
+}
+
+// The profile folder of a Turkish user is not UTF-8 in the ANSI code page
+// ("Müller", "Şükrü"). The fonts directory was built from the narrow
+// USERPROFILE: fs::path threw on it, and the install recovery stopped before
+// it put a single original back.
+TEST_F(CrashRecoveryTest, RecoverInstallWithFontUnderNonAsciiProfile) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const fs::path profile = testDir_ / L"Müller";
+    createFile(gamePath / "data" / "localization.pak", "patched pak");
+    createFile(backupsRoot / "777" / "b1" / "data" / "localization.pak", "original pak");
+    createFile(profile / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts" / "tr.ttf", "font");
+
+    const wchar_t* saved = _wgetenv(L"USERPROFILE");
+    const std::wstring savedProfile = saved ? saved : L"";
+    _wputenv_s(L"USERPROFILE", profile.c_str());
+
+    writeCrashedInstall(testDir_, "777", gamePath, {"data/localization.pak", "_font:tr.ttf"});
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = backupsRoot, .desktopDir = {}});
+
+    _wputenv_s(L"USERPROFILE", savedProfile.c_str());
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(gamePath / "data" / "localization.pak"), "original pak");
+    EXPECT_FALSE(fs::exists(profile / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts" / "tr.ttf"));
+}
+#endif
+
 // =============================================================================
 // Edge Cases
 // =============================================================================
@@ -489,6 +699,44 @@ TEST_F(CrashRecoveryTest, MultipleRecordFileModifiedCalls) {
     EXPECT_TRUE(journal.isActive());
     journal.commitOperation();
     EXPECT_FALSE(journal.isActive());
+}
+
+// Records reached the disk every 20 files, so a crash left up to 19 written
+// files out of the journal and recovery never deleted them. Each record is
+// on disk as soon as it is made now.
+TEST_F(CrashRecoveryTest, EveryRecordSurvivesCrash) {
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::Install;
+        entry.gameId = "game_records";
+        entry.gamePath = (testDir_ / "game").string();
+        writer.beginOperation(entry);
+        writer.recordFileModified("data/a.pak");
+        writer.recordFileModified("data/\xC3\xBC" "cret.txt");  // "ücret.txt", UTF-8
+        writer.recordFileModified("_rename:bin/x.dll:bin/x.dll.bak");
+        // No commit: the process dies here.
+    }
+
+    CrashRecoveryJournal reader(testDir_);
+    const auto pending = reader.readPendingOperation();
+    EXPECT_EQ(pending.gameId, "game_records");
+    EXPECT_EQ(pending.modifiedFiles, (std::vector<std::string>{
+        "data/a.pak", "data/\xC3\xBC" "cret.txt", "_rename:bin/x.dll:bin/x.dll.bak"}));
+}
+
+// A journal written whole (0.1.6 and older) still reads, and a record cut
+// short by the crash is dropped, not taken for corruption of the entry.
+TEST_F(CrashRecoveryTest, ReadsWholeJournalAndTruncatedRecord) {
+    CrashRecoveryJournal journal(testDir_);
+    createFile(journal.journalPath(),
+        R"({"type":"install","gameId":"old","gamePath":"/g","modifiedFiles":["a.txt"]})" "\n"
+        R"("b.txt")" "\n"
+        R"("c.t)");
+
+    const auto pending = journal.readPendingOperation();
+    EXPECT_EQ(pending.gameId, "old");
+    EXPECT_EQ(pending.modifiedFiles, (std::vector<std::string>{"a.txt", "b.txt"}));
 }
 
 TEST_F(CrashRecoveryTest, CommitWhenNotActiveIsNoOp) {

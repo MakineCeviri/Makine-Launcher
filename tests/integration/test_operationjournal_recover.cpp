@@ -92,8 +92,7 @@ TEST_F(OperationJournalRecoverTest, AbortClearsJournal)
 
 TEST_F(OperationJournalRecoverTest, SimulatedCrashLeavesJournalForReplay)
 {
-    // First lifetime: begin operation, record enough files to cross the
-    // periodic flush threshold (kFlushInterval = 20), then "die" without
+    // First lifetime: begin operation, record files, then "die" without
     // commit/abort by destroying the journal object mid-flight.
     {
         OperationJournal journal;
@@ -120,9 +119,8 @@ TEST_F(OperationJournalRecoverTest, SimulatedCrashLeavesJournalForReplay)
     JournalEntry pending = recovered.readPendingOperation();
     EXPECT_EQ(pending.gameId, QString("1245620"));
     EXPECT_EQ(pending.type, OpType::Install);
-    // After 25 records and a kFlushInterval of 20, at least the first
-    // batch of 20 should have made it to disk.
-    EXPECT_GE(pending.modifiedFiles.size(), 20);
+    // Every record is on disk as it is made: all 25, not the first 20.
+    EXPECT_EQ(pending.modifiedFiles.size(), 25);
 }
 
 TEST_F(OperationJournalRecoverTest, RecoverHandlesMissingTargetGracefully)

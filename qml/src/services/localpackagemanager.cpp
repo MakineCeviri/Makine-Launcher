@@ -55,6 +55,7 @@
 #  include <objbase.h>
 #endif
 
+#include <algorithm>
 #include <functional>
 #include <set>
 #include <map>
@@ -3606,7 +3607,14 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     int deleted = 0;
     std::vector<std::string> remaining;  // records that could not be undone
 
-    for (const auto& relPathStd : coreState.installedFiles) {
+    // Newest first, undoing the install in reverse. In record order a file
+    // copied and then renamed ("x", "_rename:x:y") was renamed back to x after
+    // x had been checked, and stayed in the game; a file renamed away and
+    // then written in its place ("_rename:x:x.bak", "x") had its original
+    // renamed back and then deleted as the added "x".
+    for (auto recordIt = coreState.installedFiles.rbegin();
+         recordIt != coreState.installedFiles.rend(); ++recordIt) {
+        const std::string& relPathStd = *recordIt;
         const QString relPath = QString::fromStdString(relPathStd);
 
         // Handle desktop entries: "_desktop:filename" -> user Desktop
@@ -3770,6 +3778,13 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
         // Keep what is still on disk on record. Dropping the record reported
         // success and left those files behind with nothing to retry from.
         packages::InstalledPackageState left = coreState;
+        std::reverse(remaining.begin(), remaining.end());  // back to record order
+        // In-place patches stay on record with what is left: they are what
+        // tells the retry that originals were changed. Without them a retry
+        // with no backup took the patch for files-only, dropped the record
+        // and said it was removed, the patched archive left in the game.
+        for (const auto& record : coreState.installedFiles)
+            if (record.starts_with("_vpatch:")) remaining.push_back(record);
         left.installedFiles = std::move(remaining);
         m_catalog.markInstalled(steamAppId.toStdString(), left);
         saveCatalogInstalledState(m_catalog, installedStatePath());

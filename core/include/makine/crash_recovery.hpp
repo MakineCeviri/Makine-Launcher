@@ -19,6 +19,7 @@
 #include "makine/error.hpp"
 
 #include <cstdint>
+#include <fstream>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -83,8 +84,8 @@ struct RecoveryResult {
 /**
  * @brief Operation journal for crash recovery
  *
- * Thread-safe. Journal is flushed to disk periodically (every N file records)
- * and on begin/commit/abort.
+ * Thread-safe. begin writes the entry; every file record is appended to the
+ * journal file and flushed as it is made, so a crash loses none of them.
  *
  * Usage:
  * @code
@@ -116,8 +117,8 @@ public:
     bool beginOperation(const JournalEntry& entry);
 
     /**
-     * @brief Record a file modification (batched writes)
-     * Flushes to disk every kFlushInterval files.
+     * @brief Record a file modification
+     * Appended to the journal file at once: one line, not a rewrite.
      */
     void recordFileModified(const std::string& relativePath);
 
@@ -176,17 +177,15 @@ private:
     void deleteJournal();
 
     RecoveryResult recoverInstall(const JournalEntry& entry, const RecoveryPaths& paths);
-    RecoveryResult recoverUninstall(const JournalEntry& entry, const fs::path& installedStatePath);
+    RecoveryResult recoverUninstall(const JournalEntry& entry, const RecoveryPaths& paths);
     RecoveryResult recoverBackupCreate(const JournalEntry& entry);
     RecoveryResult recoverBackupRestore(const JournalEntry& entry);
 
     fs::path dataDir_;
     JournalEntry current_;
     bool active_{false};
-    int pendingCount_{0};
+    std::ofstream records_;   // the journal file, open for appends while active
     mutable std::mutex mutex_;
-
-    static constexpr int kFlushInterval = 20;
 };
 
 } // namespace makine::recovery

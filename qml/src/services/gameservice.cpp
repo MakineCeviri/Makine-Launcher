@@ -1673,6 +1673,15 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         return;
     }
 
+    // Same the other way: an uninstall, or the restore of a failed install,
+    // still has the crash journal and may be writing into this game.
+    if (const BackupManager* bm = BackupManager::instance();
+        !m_uninstalling.isEmpty() || (bm && bm->isRestoring())) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Bir yamanın kaldırılması ya da geri yüklemesi sürüyor. O bitince tekrar deneyin."));
+        return;
+    }
+
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
         emit translationInstallCompleted(gameId, false, tr("Oyun bulunamadı"));
@@ -2012,6 +2021,16 @@ void GameService::uninstallTranslation(const QString& gameId)
     // translationUninstalled is emitted (see the constructor).
     if (m_uninstalling.contains(gameId)) {
         qCInfo(lcGameService) << "Uninstall already running for" << gameId << "- ignoring repeat";
+        return;
+    }
+    // An install still writing — this game's update, or another game's — and
+    // this restore and delete would run beside it: one crash journal holds
+    // one operation, so each committed the other's away, and on the same
+    // game the two wrote over each other. "Yamayı taşı" stays clickable
+    // during an update.
+    if (!m_installingGameId.isEmpty()) {
+        emit translationUninstalled(gameId, false,
+            tr("Şu anda bir yama kuruluyor. Kurulum bitince tekrar deneyin."));
         return;
     }
     m_uninstalling.insert(gameId);
@@ -2369,11 +2388,22 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
 void GameService::performInstallRollback(const QString& gameId, const QString& originalError)
 {
     MAKINE_ZONE_NAMED("GameService::performInstallRollback");
+    auto idxIt = m_gameIdToIndex.constFind(gameId);
+    QString gamePath;
+    if (idxIt != m_gameIdToIndex.constEnd() && *idxIt >= 0 && *idxIt < m_games.count())
+        gamePath = m_games[*idxIt].installPath;
+
     BackupManager* bm = BackupManager::instance();
     if (!bm || !bm->hasBackup(gameId)) {
-        // No backup exists — nothing safe to roll back to. Surface the
-        // original error and let the user decide (often a Steam Verify is
-        // their best path forward).
+        // No backup. A record of added files only (nothing the install wrote
+        // was there before it) is undone by deleting them; one that replaced
+        // originals stays for "Kaldır" and the store's repair. Either way
+        // surface the original error and let the user decide (often a Steam
+        // Verify is their best path forward).
+        if (m_coreBridge && !gamePath.isEmpty() && m_coreBridge->isPackageInstalled(gameId)
+            && !translationReplacedOriginalFiles(gameId)
+            && m_coreBridge->uninstallPackage(gameId, gamePath))
+            markUninstalled(gameId);
         emit translationInstallCompleted(gameId, false, originalError);
         return;
     }
@@ -2384,10 +2414,6 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         return;
     }
 
-    auto idxIt = m_gameIdToIndex.constFind(gameId);
-    QString gamePath;
-    if (idxIt != m_gameIdToIndex.constEnd() && *idxIt >= 0 && *idxIt < m_games.count())
-        gamePath = m_games[*idxIt].installPath;
     if (gamePath.isEmpty()) {
         emit translationInstallCompleted(gameId, false, originalError);
         return;
@@ -2404,7 +2430,21 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
     const auto cancelWait = awaitRestore(bm, gameId,
         [this, gameId, gamePath, originalError,
          backupPath = latest.value(QStringLiteral("backupPath")).toString()]() {
-            if (m_coreBridge) m_coreBridge->uninstallPackage(gameId, gamePath, backupPath);
+            // Still on record after this means files the failed install added
+            // could not be deleted; "returned to how it was" was said anyway.
+            if (!m_coreBridge->uninstallPackage(gameId, gamePath, backupPath)
+                && m_coreBridge->isPackageInstalled(gameId)) {
+                qCWarning(lcGameService) << "Install rollback left files behind for" << gameId;
+                emit translationInstallCompleted(gameId, false,
+                    tr("Kurulum başarısız oldu. Oyunun orijinal dosyaları geri yüklendi, ama "
+                       "yamanın eklediği bazı dosyalar silinemedi. Oyunu kapatıp yamayı "
+                       "kaldırmayı deneyin.\n%1").arg(originalError));
+                return;
+            }
+            // A reinstall over an installed patch drops the old record too;
+            // the page kept showing the patch as installed.
+            markUninstalled(gameId);
+            retireBackups(gameId);
             qCInfo(lcGameService) << "Install rollback complete for" << gameId;
             emit translationInstallCompleted(gameId, false,
                 tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
@@ -2427,6 +2467,19 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         qCWarning(lcGameService) << "Install rollback could not start for" << gameId;
         emit translationInstallCompleted(gameId, false, originalError);
     }
+}
+
+// The originals are back in the game folder and the install record is gone:
+// the game's backups belong to no install any more. Kept, the newest one was
+// taken for the next install's backup — one that backs nothing up (a patch
+// that only adds files, a moved patch) — and its uninstall wrote these old
+// originals over the game, files a game update had changed since included.
+void GameService::retireBackups(const QString& gameId)
+{
+    BackupManager* bm = BackupManager::instance();
+    if (!bm || m_coreBridge->isPackageInstalled(gameId)) return;
+    for (const QVariant& backup : bm->getBackupsForGame(gameId))
+        bm->deleteBackup(backup.toMap().value(QStringLiteral("id")).toString());
 }
 
 std::function<void()> GameService::awaitRestore(BackupManager* bm, const QString& gameId,
@@ -2463,24 +2516,29 @@ std::function<void()> GameService::awaitRestore(BackupManager* bm, const QString
     return settle;
 }
 
+void GameService::markUninstalled(const QString& gameId)
+{
+    // Looked up now, not when the restore started: a scan in between
+    // rebuilds the list and the old index points at another game.
+    const int gameIndex = m_gameIdToIndex.value(gameId, -1);
+    if (gameIndex < 0 || gameIndex >= m_games.count()) return;
+    m_games[gameIndex].hasTranslation = false;
+    m_packageInstalledCache[gameId] = false;
+    // Granular model update
+    m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
+    invalidateAllCaches();
+    emit translationStatusChanged();
+}
+
 void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath,
                                     const QString& restoredFrom)
 {
     MAKINE_ZONE_NAMED("GameService::finalizeUninstall");
     bool success = m_coreBridge->uninstallPackage(gameId, gamePath, restoredFrom);
-
-    // Looked up now, not when the restore started: a scan in between
-    // rebuilds the list and the old index points at another game.
-    const int gameIndex = m_gameIdToIndex.value(gameId, -1);
-    if (success && gameIndex >= 0 && gameIndex < m_games.count()) {
-        m_games[gameIndex].hasTranslation = false;
-        m_packageInstalledCache[gameId] = false;
-        // Granular model update
-        m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
-        invalidateAllCaches();
-        emit translationStatusChanged();
-
-    }
+    if (success && !restoredFrom.isEmpty())
+        retireBackups(gameId);
+    if (success)
+        markUninstalled(gameId);
 
     // Still on record after a failed uninstall means files could not be
     // deleted — most often because the game, or something holding its
