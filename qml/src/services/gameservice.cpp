@@ -2483,6 +2483,7 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         // add-only patch (it has no backup) failed, timed out or was cancelled.
         const bool clean =
             m_coreBridge->removeAttemptFiles(gameId, gamePath, *m_installOverRecord);
+        markInstalledIfRecorded(gameId);
         emit translationInstallCompleted(gameId, false, clean
             ? tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor.\n%1").arg(originalError)
             : tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor, ama bu denemenin "
@@ -2500,17 +2501,20 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
             && !translationReplacedOriginalFiles(gameId)
             && m_coreBridge->uninstallPackage(gameId, gamePath))
             markUninstalled(gameId);
+        markInstalledIfRecorded(gameId);
         emit translationInstallCompleted(gameId, false, originalError);
         return;
     }
 
     auto latest = bm->getLatestBackup(gameId);
     if (latest.isEmpty() || !latest.contains(QStringLiteral("id"))) {
+        markInstalledIfRecorded(gameId);
         emit translationInstallCompleted(gameId, false, originalError);
         return;
     }
 
     if (gamePath.isEmpty()) {
+        markInstalledIfRecorded(gameId);
         emit translationInstallCompleted(gameId, false, originalError);
         return;
     }
@@ -2531,6 +2535,7 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
             if (!m_coreBridge->uninstallPackage(gameId, gamePath, backupPath)
                 && m_coreBridge->isPackageInstalled(gameId)) {
                 qCWarning(lcGameService) << "Install rollback left files behind for" << gameId;
+                markInstalledIfRecorded(gameId);
                 emit translationInstallCompleted(gameId, false,
                     tr("Kurulum başarısız oldu. Oyunun orijinal dosyaları geri yüklendi, ama "
                        "yamanın eklediği bazı dosyalar silinemedi. Oyunu kapatıp yamayı "
@@ -2551,6 +2556,7 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
             // critical log here filed the same failure a second time.
             qCWarning(lcGameService) << "Install rollback failed for" << gameId
                                       << "— restore reported errors:" << reason;
+            markInstalledIfRecorded(gameId);
             emit translationInstallCompleted(gameId, false,
                 tr("Kurulum başarısız oldu ve oyun tam olarak eski haline döndürülemedi.\n"
                    "Kurulum hatası: %1\n%2").arg(originalError, reason));
@@ -2561,6 +2567,7 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
     if (!bm->restoreBackup(latest[QStringLiteral("id")].toString(), gamePath)) {
         cancelWait();
         qCWarning(lcGameService) << "Install rollback could not start for" << gameId;
+        markInstalledIfRecorded(gameId);
         emit translationInstallCompleted(gameId, false, originalError);
     }
 }
@@ -2622,6 +2629,23 @@ void GameService::markUninstalled(const QString& gameId)
     m_packageInstalledCache[gameId] = false;
     // Granular model update
     m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
+    invalidateAllCaches();
+    emit translationStatusChanged();
+}
+
+void GameService::markInstalledIfRecorded(const QString& gameId)
+{
+    // A record the rollback could not undo (files it could not delete,
+    // originals left to the store's repair, the version an update went over)
+    // is an installed patch, and "Kaldır" is the way out the message points
+    // to. The page took the restore for an uninstall and offered no such
+    // button; after a restart the same record read as installed.
+    if (!m_coreBridge || !m_coreBridge->isPackageInstalled(gameId)) return;
+    const int gameIndex = m_gameIdToIndex.value(gameId, -1);
+    if (gameIndex < 0 || gameIndex >= m_games.count()) return;
+    m_games[gameIndex].hasTranslation = true;
+    m_packageInstalledCache[gameId] = true;
+    m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, true);
     invalidateAllCaches();
     emit translationStatusChanged();
 }

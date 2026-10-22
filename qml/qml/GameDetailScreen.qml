@@ -239,6 +239,10 @@ Item {
                     // seconds to read. Cleared when the next install starts.
                     installErrorTimer.stop()
                     root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
+                    // The rollback's restore already set this false (onBackupRestored),
+                    // yet a record can stay — files it could not delete, the version
+                    // an update went over — and then "Kaldır" is the way out.
+                    root.viewModel.packageInstalled = GameService.getGameById(gId).packageInstalled === true
                 }
             }
         }

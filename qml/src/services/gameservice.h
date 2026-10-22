@@ -521,6 +521,8 @@ private:
     void retireBackups(const QString& gameId);
     // The page and lists stop showing the patch once its record is dropped.
     void markUninstalled(const QString& gameId);
+    // ...and keep showing it while a failed install's rollback leaves one.
+    void markInstalledIfRecorded(const QString& gameId);
 
     // Waits for BackupManager to finish restoring `gameId`, either way, and
     // runs the matching callback once. Returns a canceller for a restore that
