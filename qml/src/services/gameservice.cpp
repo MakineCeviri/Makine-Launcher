@@ -2388,11 +2388,22 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
 void GameService::performInstallRollback(const QString& gameId, const QString& originalError)
 {
     MAKINE_ZONE_NAMED("GameService::performInstallRollback");
+    auto idxIt = m_gameIdToIndex.constFind(gameId);
+    QString gamePath;
+    if (idxIt != m_gameIdToIndex.constEnd() && *idxIt >= 0 && *idxIt < m_games.count())
+        gamePath = m_games[*idxIt].installPath;
+
     BackupManager* bm = BackupManager::instance();
     if (!bm || !bm->hasBackup(gameId)) {
-        // No backup exists — nothing safe to roll back to. Surface the
-        // original error and let the user decide (often a Steam Verify is
-        // their best path forward).
+        // No backup. A record of added files only (nothing the install wrote
+        // was there before it) is undone by deleting them; one that replaced
+        // originals stays for "Kaldır" and the store's repair. Either way
+        // surface the original error and let the user decide (often a Steam
+        // Verify is their best path forward).
+        if (m_coreBridge && !gamePath.isEmpty() && m_coreBridge->isPackageInstalled(gameId)
+            && !translationReplacedOriginalFiles(gameId)
+            && m_coreBridge->uninstallPackage(gameId, gamePath))
+            markUninstalled(gameId);
         emit translationInstallCompleted(gameId, false, originalError);
         return;
     }
@@ -2403,10 +2414,6 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         return;
     }
 
-    auto idxIt = m_gameIdToIndex.constFind(gameId);
-    QString gamePath;
-    if (idxIt != m_gameIdToIndex.constEnd() && *idxIt >= 0 && *idxIt < m_games.count())
-        gamePath = m_games[*idxIt].installPath;
     if (gamePath.isEmpty()) {
         emit translationInstallCompleted(gameId, false, originalError);
         return;
@@ -2423,7 +2430,20 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
     const auto cancelWait = awaitRestore(bm, gameId,
         [this, gameId, gamePath, originalError,
          backupPath = latest.value(QStringLiteral("backupPath")).toString()]() {
-            if (m_coreBridge) m_coreBridge->uninstallPackage(gameId, gamePath, backupPath);
+            // Still on record after this means files the failed install added
+            // could not be deleted; "returned to how it was" was said anyway.
+            if (!m_coreBridge->uninstallPackage(gameId, gamePath, backupPath)
+                && m_coreBridge->isPackageInstalled(gameId)) {
+                qCWarning(lcGameService) << "Install rollback left files behind for" << gameId;
+                emit translationInstallCompleted(gameId, false,
+                    tr("Kurulum başarısız oldu. Oyunun orijinal dosyaları geri yüklendi, ama "
+                       "yamanın eklediği bazı dosyalar silinemedi. Oyunu kapatıp yamayı "
+                       "kaldırmayı deneyin.\n%1").arg(originalError));
+                return;
+            }
+            // A reinstall over an installed patch drops the old record too;
+            // the page kept showing the patch as installed.
+            markUninstalled(gameId);
             qCInfo(lcGameService) << "Install rollback complete for" << gameId;
             emit translationInstallCompleted(gameId, false,
                 tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
@@ -2482,24 +2502,27 @@ std::function<void()> GameService::awaitRestore(BackupManager* bm, const QString
     return settle;
 }
 
+void GameService::markUninstalled(const QString& gameId)
+{
+    // Looked up now, not when the restore started: a scan in between
+    // rebuilds the list and the old index points at another game.
+    const int gameIndex = m_gameIdToIndex.value(gameId, -1);
+    if (gameIndex < 0 || gameIndex >= m_games.count()) return;
+    m_games[gameIndex].hasTranslation = false;
+    m_packageInstalledCache[gameId] = false;
+    // Granular model update
+    m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
+    invalidateAllCaches();
+    emit translationStatusChanged();
+}
+
 void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath,
                                     const QString& restoredFrom)
 {
     MAKINE_ZONE_NAMED("GameService::finalizeUninstall");
     bool success = m_coreBridge->uninstallPackage(gameId, gamePath, restoredFrom);
-
-    // Looked up now, not when the restore started: a scan in between
-    // rebuilds the list and the old index points at another game.
-    const int gameIndex = m_gameIdToIndex.value(gameId, -1);
-    if (success && gameIndex >= 0 && gameIndex < m_games.count()) {
-        m_games[gameIndex].hasTranslation = false;
-        m_packageInstalledCache[gameId] = false;
-        // Granular model update
-        m_supportedGamesModel->updatePackageStatus(m_games[gameIndex].steamAppId, false);
-        invalidateAllCaches();
-        emit translationStatusChanged();
-
-    }
+    if (success)
+        markUninstalled(gameId);
 
     // Still on record after a failed uninstall means files could not be
     // deleted — most often because the game, or something holding its
