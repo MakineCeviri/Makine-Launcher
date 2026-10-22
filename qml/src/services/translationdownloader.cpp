@@ -603,6 +603,12 @@ void TranslationDownloader::processDownloadedFile(
         m_activeDownloads.value(appId).cancelFlag;
     const QString wantChecksum = m_activeDownloads.value(appId).expectedChecksum;
 
+    // The folder is about to be emptied and refilled; until that succeeds it
+    // is no package. A stamp left from an earlier extraction of the same
+    // package made a half-written folder (failed or crashed mid-way) pass as
+    // complete, and the next install copied half a patch.
+    pkgstamp::clear(dirName);
+
     auto future = QtConcurrent::run([tempPath, destDir, cancelFlag, wantChecksum]()
         -> std::pair<int, std::string>
     {
@@ -758,6 +764,10 @@ void TranslationDownloader::processDownloadedFile(
 
             if (fileCount < 0) {
                 QFile::remove(tempPath);
+                // What did get written is part of a package. Left in place it
+                // still counted as downloaded wherever no checksum is
+                // published (pkgstamp::matches cannot tell).
+                QDir(m_dataPath + QStringLiteral("/") + dirName).removeRecursively();
                 const QString rawErr = QString::fromStdString(errorMsg);
                 qCWarning(lcDownloader) << "extraction failed for" << appId
                                          << "raw:" << rawErr;
