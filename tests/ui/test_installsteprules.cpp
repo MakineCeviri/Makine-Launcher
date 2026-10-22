@@ -431,3 +431,47 @@ TEST(InstallStepRules, RunArgsWithoutPlaceholdersAreUnchanged) {
     EXPECT_EQ(resolveRunArgs(args, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")), args);
     EXPECT_TRUE(resolveRunArgs({}, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")).isEmpty());
 }
+
+// ===== the record a failed install leaves ===================================
+//
+// The rollback after a failed install restores the backup, then removes what
+// the install added — read from the install record. Without one, a half-copied
+// overlay stayed in the game and the next attempt backed it up as "original".
+
+TEST(InstallStepRules, FailedFirstInstallRecordsWhatItWrote) {
+    // An overlay stopped by a full disk after two files.
+    const FileRecord r = mergeWrittenFiles({}, {"dinput8.dll", "lml/tr/strings.rpf"},
+                                           {"lml/tr/strings.rpf"});
+    EXPECT_EQ(r.installed, QStringList({"dinput8.dll", "lml/tr/strings.rpf"}));
+    EXPECT_EQ(r.added, QStringList({"dinput8.dll"}));           // removed by the rollback
+    EXPECT_EQ(r.replaced, QStringList({"lml/tr/strings.rpf"})); // left to the restore
+}
+
+TEST(InstallStepRules, FailedRecipeKeepsMarkersOutOfTheFileLists) {
+    // Elden Ring's option: copyDir, then patchBytes, then the Steam language.
+    const FileRecord r = mergeWrittenFiles(
+        {}, {"Game/engus/item.msgbnd.dcx", "_vpatch:Game/start_protected_game.exe",
+             "_steamlang:1245620:turkish"}, {});
+    EXPECT_EQ(r.installed.size(), 3);
+    EXPECT_EQ(r.added, QStringList({"Game/engus/item.msgbnd.dcx"}));
+    EXPECT_TRUE(r.replaced.isEmpty());
+}
+
+TEST(InstallStepRules, FailedReinstallKeepsTheEarlierClassification) {
+    // A re-install finds the first install's files on disk and would call them
+    // originals; the earlier record knows they are ours.
+    const FileRecord old{{"a.pak", "data/b.pak"}, {"a.pak"}, {"data/b.pak"}};
+    const FileRecord r = mergeWrittenFiles(old, {"a.pak", "data/b.pak", "c.pak"},
+                                           {"a.pak", "data/b.pak"});
+    EXPECT_EQ(r.installed, QStringList({"a.pak", "data/b.pak", "c.pak"}));
+    EXPECT_EQ(r.added, QStringList({"a.pak", "c.pak"}));
+    EXPECT_EQ(r.replaced, QStringList({"data/b.pak"}));
+}
+
+TEST(InstallStepRules, FailedInstallThatWroteNothingChangesNoRecord) {
+    const FileRecord old{{"a.pak"}, {"a.pak"}, {}};
+    const FileRecord r = mergeWrittenFiles(old, {}, {});
+    EXPECT_EQ(r.installed, old.installed);
+    EXPECT_EQ(r.added, old.added);
+    EXPECT_TRUE(r.replaced.isEmpty());
+}

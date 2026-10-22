@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QList>
 #include <QPair>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QStringView>
@@ -299,6 +300,39 @@ inline QStringList resolveRunArgs(const QStringList& args, const QString& gamePa
         resolved.append(arg);
     }
     return resolved;
+}
+
+// What an install that stopped part-way leaves on record.
+//
+// A failed or cancelled install has still written files. Its rollback
+// (GameService::performInstallRollback) restores the backup, then removes the
+// files the install added through uninstallPackage — which reads them from the
+// install record. A failed install wrote no record, so nothing was removed: a
+// half-copied patch stayed in the game behind "oyun kurulum öncesi haline
+// döndürüldü", and the next attempt backed those leftovers up as originals.
+//
+// The record is the one already there (a re-install's) plus every file this
+// attempt wrote that it does not list yet. A file already on record keeps its
+// classification: the earlier install knew whether it was the game's.
+struct FileRecord {
+    QStringList installed;   // everything written, "_marker:" entries included
+    QStringList added;       // files the game did not have
+    QStringList replaced;    // the game's own files written over
+};
+
+inline FileRecord mergeWrittenFiles(FileRecord record, const QStringList& written,
+                                    const QStringList& writtenReplaced)
+{
+    QSet<QString> known(record.installed.cbegin(), record.installed.cend());
+    const QSet<QString> originals(writtenReplaced.cbegin(), writtenReplaced.cend());
+    for (const QString& f : written) {
+        if (known.contains(f)) continue;
+        known.insert(f);
+        record.installed.append(f);
+        if (f.startsWith(QLatin1Char('_'))) continue;   // a marker, not a file of ours
+        (originals.contains(f) ? record.replaced : record.added).append(f);
+    }
+    return record;
 }
 
 } // namespace makine::steprules

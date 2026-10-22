@@ -1526,8 +1526,8 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
         // Cancellation check
         if (isCancelled()) {
             if (m_journal) m_journal->abortOperation();
-            emit installCompleted(false, tr("Kurulum iptal edildi"));
             // Signal early exit via sentinel: errors = -1
+            result.fatal = tr("Kurulum iptal edildi");
             result.errors = -1;
             return result;
         }
@@ -1574,9 +1574,9 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
             if (m_journal) m_journal->recordFileModified(relPath);
         } else if (copyErr == CopyError::DiskFull) {
             if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false, tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+            result.fatal = tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
                 "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
-                "yamayı tekrar kurun."));
+                "yamayı tekrar kurun.");
             result.errors = -1;
             return result;
         } else if (copyErr == CopyError::PermissionDenied) {
@@ -1589,18 +1589,18 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 elevatedOps.append({ElevatedOps::Kind::Copy, srcPath, relPath});
             } else {
                 if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                result.fatal = tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                     "1) Oyunu ve Steam'i tamamen kapatın\n"
                     "2) Antivirüs / Windows Defender'da oyun klasörünü "
                     "istisnaya ekleyin\n"
                     "3) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
-                    "Sonra yamayı tekrar kurun."));
+                    "Sonra yamayı tekrar kurun.");
                 result.errors = -1;
                 return result;
             }
         } else if (copyErr == CopyError::Quarantined) {
             if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false, quarantinedMessage(relPath));
+            result.fatal = quarantinedMessage(relPath);
             result.errors = -1;
             return result;
         } else if (copyErr == CopyError::FileLocked) {
@@ -1616,7 +1616,7 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 if (m_journal) m_journal->recordFileModified(relPath);
             } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
                 if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, err2 == CopyError::DiskFull
+                result.fatal = err2 == CopyError::DiskFull
                     ? tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
                 "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
                 "yamayı tekrar kurun.")
@@ -1626,7 +1626,7 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
                 "istisnaya ekleyin\n"
                 "4) Klasör 'salt okunur' ise özelliklerinden kaldırın\n"
-                "Sonra yamayı tekrar kurun."));
+                "Sonra yamayı tekrar kurun.");
                 result.errors = -1;
                 return result;
             } else {
@@ -1680,11 +1680,11 @@ LocalPackageManager::OverlayResult LocalPackageManager::copyOverlayFiles(
                 << "(" << elevatedOps.size() << "queued )";
             if (ElevatedOps::lastRunDeclined()) {
                 if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr(
+                result.fatal = tr(
                     "Bu oyun yönetici izni gereken bir klasörde kurulu "
                     "(%1).\n\nYama dosyalarını yazabilmek için izin penceresinde "
                     "\"Evet\" demeniz gerekiyor. Tekrar deneyip onaylayın.")
-                        .arg(gamePath));
+                        .arg(gamePath);
                 result.errors = -1;
                 return result;
             }
@@ -1718,6 +1718,49 @@ void LocalPackageManager::saveInstallState(const QString& steamAppId, const QStr
         m_catalog.markInstalled(steamAppId.toStdString(), state);
         saveCatalogInstalledState(m_catalog, installedStatePath());
         if (m_journal) m_journal->commitOperation();
+    }, Qt::QueuedConnection);
+}
+
+void LocalPackageManager::failInstall(const QString& steamAppId, const QString& gamePath,
+                                      const QString& version, const QStringList& written,
+                                      const QStringList& writtenReplaced, const QString& message)
+{
+    // One queued call for both, so the record is on disk before anything
+    // answering installCompleted (GameService's rollback) reads it.
+    QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, version, written,
+                                      writtenReplaced, message]() {
+        if (!written.isEmpty()) {
+            const auto toQt = [](const std::vector<std::string>& v) {
+                QStringList out;
+                for (const auto& s : v) out.append(QString::fromStdString(s));
+                return out;
+            };
+            const auto toStd = [](const QStringList& l) {
+                std::vector<std::string> out;
+                for (const QString& s : l) out.push_back(s.toStdString());
+                return out;
+            };
+            packages::InstalledPackageState state;
+            steprules::FileRecord record;
+            if (const auto old = m_catalog.getInstalledState(steamAppId.toStdString())) {
+                state = *old;
+                record = {toQt(old->installedFiles), toQt(old->addedFiles),
+                          toQt(old->replacedFiles)};
+            } else {
+                state.version = version.toStdString();
+                state.gamePath = gamePath.toStdString();
+                state.installedAt = QDateTime::currentSecsSinceEpoch();
+            }
+            record = steprules::mergeWrittenFiles(record, written, writtenReplaced);
+            state.installedFiles = toStd(record.installed);
+            state.addedFiles = toStd(record.added);
+            state.replacedFiles = toStd(record.replaced);
+            m_catalog.markInstalled(steamAppId.toStdString(), state);
+            saveCatalogInstalledState(m_catalog, installedStatePath());
+            qCInfo(lcPackageManager) << "Failed install of" << steamAppId << "wrote"
+                                     << written.size() << "entries; kept on record for the rollback";
+        }
+        emit installCompleted(false, message);
     }, Qt::QueuedConnection);
 }
 
@@ -1935,7 +1978,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
             for (const auto& [srcPath, relPath] : filesToCopy) {
                 if (isCancelled()) {
                     if (m_journal) m_journal->abortOperation();
-                    emit installCompleted(false, tr("Kurulum iptal edildi"));
+                    failInstall(steamAppId, targetPath, pkg.version, installedFiles, {}, tr("Kurulum iptal edildi"));
                     return;
                 }
 
@@ -1952,13 +1995,13 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     if (m_journal) m_journal->recordFileModified(relPath);
                 } else if (copyErr == CopyError::DiskFull) {
                     if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
+                    failInstall(steamAppId, targetPath, pkg.version, installedFiles, {}, tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
                 "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
                 "yamayı tekrar kurun."));
                     return;
                 } else if (copyErr == CopyError::PermissionDenied) {
                     if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
+                    failInstall(steamAppId, targetPath, pkg.version, installedFiles, {}, tr("Oyun klasörüne yazılamıyor (izin reddedildi). Çözüm:\n"
                 "1) Oyunu ve Steam'i tamamen kapatın\n"
                 "2) İzin penceresi açılırsa 'Evet' deyin\n"
                 "3) Antivirüs / Windows Defender'da oyun klasörünü "
@@ -1968,7 +2011,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     return;
                 } else if (copyErr == CopyError::Quarantined) {
                     if (m_journal) m_journal->commitOperation();
-                    emit installCompleted(false, quarantinedMessage(relPath));
+                    failInstall(steamAppId, targetPath, pkg.version, installedFiles, {}, quarantinedMessage(relPath));
                     return;
                 } else if (copyErr == CopyError::FileLocked) {
                     QThread::msleep(150);
@@ -1979,7 +2022,7 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                         if (m_journal) m_journal->recordFileModified(relPath);
                     } else if (err2 == CopyError::DiskFull || err2 == CopyError::PermissionDenied) {
                         if (m_journal) m_journal->commitOperation();
-                        emit installCompleted(false, err2 == CopyError::DiskFull
+                        failInstall(steamAppId, targetPath, pkg.version, installedFiles, {}, err2 == CopyError::DiskFull
                             ? tr("Disk alanı yetersiz, kurulum durduruldu. Çözüm: oyunun "
                 "bulunduğu diskte yer açın (birkaç GB genelde yeterli), sonra "
                 "yamayı tekrar kurun.")
@@ -2017,7 +2060,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 emit installCompleted(true, tr("%1 dosya başarıyla kuruldu").arg(copied));
             } else {
                 if (m_journal) m_journal->commitOperation();
-                emit installCompleted(false, tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun ya da "
+                failInstall(steamAppId, targetPath, pkg.version, installedFiles, {},
+                    tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun ya da "
                 "başlatıcısı açık veya antivirüs dosyaları tutuyor. Çözüm: "
                 "oyunu ve başlatıcısını (Steam, EA, Ubisoft…) kapatın, "
                 "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin.").arg(errors).arg(total));
@@ -2206,8 +2250,12 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
 
         OverlayResult result = copyOverlayFiles(filesToCopy, gamePath, tr("Kopyalanıyor"), classifier);
 
-        // errors == -1 means copyOverlayFiles already emitted installCompleted
-        if (result.errors < 0) return;
+        // errors == -1: the copy stopped part-way, result.fatal says why
+        if (result.errors < 0) {
+            failInstall(steamAppId, gamePath, pkg.version, result.installedFiles,
+                        result.replacedFiles, result.fatal);
+            return;
+        }
 
         if (result.errors == 0) {
             const QStringList missing = missingAfterInstall(gamePath, result.installedFiles);
@@ -2230,7 +2278,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                 tr("%1 dosya başarıyla kuruldu").arg(result.copied));
         } else {
             if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false,
+            failInstall(steamAppId, gamePath, pkg.version, result.installedFiles,
+                result.replacedFiles,
                 tr("%1/%2 dosya kopyalanamadı. Olası neden: oyun ya da "
                 "başlatıcısı açık veya antivirüs dosyaları tutuyor. Çözüm: "
                 "oyunu ve başlatıcısını (Steam, EA, Ubisoft…) kapatın, "
@@ -2386,8 +2435,12 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
 
         OverlayResult result = copyOverlayFiles(filesToCopy, gamePath, tr("Güncelleniyor"), classifier);
 
-        // errors == -1 means copyOverlayFiles already emitted installCompleted
-        if (result.errors < 0) return;
+        // errors == -1: the copy stopped part-way, result.fatal says why
+        if (result.errors < 0) {
+            failInstall(steamAppId, gamePath, pkg.version, result.installedFiles,
+                        result.replacedFiles, result.fatal);
+            return;
+        }
 
         if (result.errors == 0) {
             const QStringList missing = missingAfterInstall(gamePath, result.installedFiles);
@@ -2408,7 +2461,8 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
                 tr("%1 dosya başarıyla güncellendi").arg(result.copied));
         } else {
             if (m_journal) m_journal->commitOperation();
-            emit installCompleted(false,
+            failInstall(steamAppId, gamePath, pkg.version, result.installedFiles,
+                result.replacedFiles,
                 tr("%1/%2 dosya güncellenemedi").arg(result.errors).arg(filesToCopy.size()));
         }
     });
@@ -2428,10 +2482,10 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
     QSet<QString>& replacedFiles,
     QString* failDetail)
 {
-    // Helper: emit fatal error, commit journal, return FatalError
+    // Helper: commit journal, hand the message to the caller, return FatalError
     auto fatal = [&](const QString& msg) -> StepOutcome {
         if (m_journal) m_journal->commitOperation();
-        emit installCompleted(false, msg);
+        if (failDetail) *failDetail = msg;
         return StepOutcome::FatalError;
     };
 
@@ -3210,7 +3264,8 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     for (const InstallStep& step : steps) {
         if (isCancelled()) {
             if (m_journal) m_journal->abortOperation();
-            emit installCompleted(false, tr("Kurulum iptal edildi"));
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                        replacedFiles.values(), tr("Kurulum iptal edildi"));
             return;
         }
 
@@ -3222,10 +3277,15 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                                           progress, current, total,
                                           QString{}, pkg.steamAppId,
                                           installedFiles, replacedFiles, &failDetail);
-        if (outcome == StepOutcome::FatalError) return; // fatal() already emitted
+        if (outcome == StepOutcome::FatalError) {
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                        replacedFiles.values(), failDetail);
+            return;
+        }
         if (outcome == StepOutcome::Cancelled) {
             if (m_journal) m_journal->abortOperation();
-            emit installCompleted(false, tr("Kurulum iptal edildi"));
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                        replacedFiles.values(), tr("Kurulum iptal edildi"));
             return;
         }
         if (outcome == StepOutcome::SoftError) {
@@ -3262,7 +3322,8 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin. "
             "Windows yönetici izni isterse açılan pencerede 'Evet' deyin. "
             "Sorun sürerse yamayı kaldırıp yeniden indirin.");
-        emit installCompleted(false, msg);
+        failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                    replacedFiles.values(), msg);
     }
 }
 
@@ -3418,7 +3479,8 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         for (const InstallStep& step : optionSteps.value(opt.id)) {
             if (isCancelled()) {
                 if (m_journal) m_journal->abortOperation();
-                emit installCompleted(false, tr("Kurulum iptal edildi"));
+                failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                            replacedFiles.values(), tr("Kurulum iptal edildi"));
                 return;
             }
 
@@ -3430,10 +3492,15 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                                               progress, current, totalSteps,
                                               prefix, pkg.steamAppId,
                                               installedFiles, replacedFiles, &failDetail);
-            if (outcome == StepOutcome::FatalError) return;
+            if (outcome == StepOutcome::FatalError) {
+                failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                            replacedFiles.values(), failDetail);
+                return;
+            }
             if (outcome == StepOutcome::Cancelled) {
                 if (m_journal) m_journal->abortOperation();
-                emit installCompleted(false, tr("Kurulum iptal edildi"));
+                failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                            replacedFiles.values(), tr("Kurulum iptal edildi"));
                 return;
             }
             if (outcome == StepOutcome::SoftError) {
@@ -3454,10 +3521,15 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
                                               progress, current, totalSteps,
                                               QString{}, pkg.steamAppId,
                                               installedFiles, replacedFiles, &failDetail);
-            if (outcome == StepOutcome::FatalError) return;
+            if (outcome == StepOutcome::FatalError) {
+                failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                            replacedFiles.values(), failDetail);
+                return;
+            }
             if (outcome == StepOutcome::Cancelled) {
                 if (m_journal) m_journal->abortOperation();
-                emit installCompleted(false, tr("Kurulum iptal edildi"));
+                failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                            replacedFiles.values(), tr("Kurulum iptal edildi"));
                 return;
             }
             if (outcome == StepOutcome::SoftError) {
@@ -3492,7 +3564,8 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
             "Yama bir kurulum aracı çalıştırıyorsa Windows yönetici izni "
             "isteyebilir — açılan pencerede 'Evet' deyin. Sorun sürerse "
             "yamayı kaldırıp yeniden indirin.");
-        emit installCompleted(false, msg);
+        failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                    replacedFiles.values(), msg);
     }
 }
 

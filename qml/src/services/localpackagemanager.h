@@ -240,7 +240,8 @@ private:
     //                reached Sentry as the same sentence, so a 915-event bucket
     //                could not be split by cause.
     // Returns SoftError to increment errors and continue, FatalError to abort
-    // (caller should emit installCompleted and return), Cancelled to abort cleanly.
+    // (failDetail then holds the message; the caller reports it through
+    // failInstall and returns), Cancelled to abort cleanly.
     StepOutcome executeStep(const InstallStep& step,
                             const QString& gamePath,
                             const QString& packageDir,
@@ -276,12 +277,14 @@ private:
     QString resolveSourcePath(const PackageInfo& pkg, const QString& variant) const;
 
     // Result of copyOverlayFiles: per-category file lists and counters.
+    // errors == -1: the copy stopped (cancel, disk full, …) and fatal says why.
     struct OverlayResult {
         int copied{0};
         int errors{0};
         QStringList installedFiles;
         QStringList addedFiles;
         QStringList replacedFiles;
+        QString fatal;
     };
 
     // Copy all files from filesToCopy into gamePath, with path-traversal protection,
@@ -301,6 +304,14 @@ private:
                           const QStringList& installedFiles,
                           const QStringList& addedFiles,
                           const QStringList& replacedFiles);
+
+    // Report a failed or cancelled install that may have written files. What
+    // it wrote is merged into the install record first (steprules::
+    // mergeWrittenFiles), on the main thread and before installCompleted, so
+    // the rollback that answers the signal can find and remove it.
+    void failInstall(const QString& steamAppId, const QString& gamePath,
+                     const QString& version, const QStringList& written,
+                     const QStringList& writtenReplaced, const QString& message);
 
     packages::PackageCatalog m_catalog;
     static PackageInfo fromCatalogEntry(const packages::PackageCatalogEntry& entry);
