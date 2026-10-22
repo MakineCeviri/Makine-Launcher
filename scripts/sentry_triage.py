@@ -39,7 +39,9 @@ for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
-SENTRY_BASE_URL = "https://sentry.io/api/0"
+# The org's region (organization.links.regionUrl); sentry.io proxies most of
+# these, but the region host is the documented one for region endpoints.
+SENTRY_BASE_URL = "https://de.sentry.io/api/0"
 SENTRY_ORG = "makineceviri"
 SENTRY_PROJECT = "makine-launcher"
 
@@ -92,15 +94,21 @@ def api(path: str, params: str = "") -> object:
         return {"__error__": f"{type(exc).__name__}: {exc}"}
 
 
-def fetch_issues() -> list[dict]:
-    """All issues, most frequent first.
+def fetch_issues(period: str) -> list[dict]:
+    """Open production issues seen in `period`, most users first.
 
-    The issues endpoint only accepts '', '24h' or '14d' for statsPeriod — the
-    90d value used elsewhere in the Sentry API returns HTTP 400 here.
+    The org endpoint, not the project one: that only accepts '', '24h' or
+    '14d' and, with '', ranked all-time counts — issues fixed months ago and
+    dev-build self-tests sat at the top of the list.
     """
+    pid = fetch_project_id()
+    if not pid:
+        print("ERROR: project id unavailable", file=sys.stderr)
+        return []
     issues = api(
-        f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/issues/",
-        "?query=&sort=freq&limit=100&statsPeriod=",
+        f"/organizations/{SENTRY_ORG}/issues/",
+        f"?project={pid}&environment=production&query=is%3Aunresolved"
+        f"&sort=user&limit=100&statsPeriod={period}",
     )
     if isinstance(issues, dict):
         print(f"ERROR: issue list unavailable: {issues.get('__error__')}", file=sys.stderr)
@@ -171,13 +179,13 @@ def as_int(value) -> int:
         return 0
 
 
-def build_report() -> dict:
-    issues = fetch_issues()
+def build_report(period: str = "14d") -> dict:
+    issues = fetch_issues(period)
 
-    regressions = [
-        i for i in issues
-        if i.get("status") == "resolved" and as_int(i.get("count")) > 0
-    ]
+    # Sentry reopens a resolved issue that receives a newer event and marks it
+    # "regressed". (This used to test status=resolved with count > 0, which is
+    # every resolved issue there is — its old events are its count.)
+    regressions = [i for i in issues if i.get("substatus") == "regressed"]
     fatals = [i for i in issues if i.get("level") == "fatal"]
     unresolved_fatals = [i for i in fatals if i.get("status") == "unresolved"]
 
@@ -209,6 +217,7 @@ def build_report() -> dict:
     games = {v.get("value"): as_int(v.get("count")) for v in fetch_tag_values("game.name")}
 
     return {
+        "period": period,
         "issue_count": len(issues),
         "event_total": sum(as_int(i.get("count")) for i in issues),
         "operations": operations,
@@ -268,7 +277,8 @@ def print_report(report: dict) -> None:
     print(line)
     print(f"  SENTRY TRIAGE — {SENTRY_ORG}/{SENTRY_PROJECT}")
     print(line)
-    print(f"  {report['issue_count']} issue · {report['event_total']} olay")
+    print(f"  production, son {report['period']}: {report['issue_count']} açık issue · "
+          f"{report['event_total']} olay (kullanıcı sayısına göre)")
 
     sides = report["sides"]
     system, user = sides.get("system", 0), sides.get("user", 0)
@@ -320,7 +330,7 @@ def print_report(report: dict) -> None:
         for o in report["opaque_issues"]:
             print(f"    {o['events']:>4d} olay · {o['users']} kullanici · {o['title']}")
 
-    print(f"\n  En sik 15 issue:")
+    print(f"\n  En çok kullanıcıya dokunan 15 issue:")
     for i in report["top_issues"]:
         flag = "*" if i["status"] == "resolved" else " "
         print(f"  {flag} {i['events']:>4d}x {i['users']:>3d}usr {i['level']:<8s} {i['title']}")
@@ -332,6 +342,8 @@ def print_report(report: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ranked Sentry triage report")
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
+    parser.add_argument("--period", default="14d",
+                        help="Window for open production issues (24h, 14d, 30d, 90d; default 14d)")
     parser.add_argument(
         "--fail-on-regression",
         action="store_true",
@@ -348,7 +360,7 @@ def main() -> None:
         print("ERROR: SENTRY_AUTH_TOKEN not set (check .env or environment)", file=sys.stderr)
         sys.exit(1)
 
-    report = build_report()
+    report = build_report(args.period)
 
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))

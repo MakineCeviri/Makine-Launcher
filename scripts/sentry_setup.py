@@ -3,11 +3,15 @@
 # Copyright (c) 2026 Makine Çeviri
 
 """
-sentry_setup.py -- One-time Sentry project configuration via API.
+sentry_setup.py -- Sentry project configuration via API, read back from the server.
 
-Sets up:
-  1. GitHub integration (code mapping for stack traces)
-  2. Alert rules (new crash → GitHub issue, regression → reopen)
+Sets up (idempotent — repairs what drifted, creates what is missing):
+  1. GitHub integration (code mapping for stack traces; installing it is a browser step)
+  2. Project settings: fingerprint rules (one issue per operation + reason + game),
+     a server-side scrub of Windows account names, IP scrubbing
+  3. Alert workflows (workflow engine): new crash, regression, widespread and
+     spreading failures, crash spreading
+  4. The crash-free session rate detector's thresholds
 
 Prerequisites:
     SENTRY_AUTH_TOKEN env var (with org:admin, project:admin scopes)
@@ -39,7 +43,11 @@ except ImportError:
     print("ERROR: requests not installed. Run: pip install requests", file=sys.stderr)
     sys.exit(1)
 
-SENTRY_BASE_URL = "https://sentry.io/api/0"
+# The org lives in the EU region (organization.links.regionUrl). Integrations
+# are a control-silo endpoint: the region host answers 404 there, which read
+# as "not installed".
+SENTRY_BASE_URL = "https://de.sentry.io/api/0"
+SENTRY_CONTROL_URL = "https://sentry.io/api/0"
 SENTRY_ORG = "makineceviri"
 # Project slug as it exists in Sentry (see .sentryclirc). Not the repo name —
 # pointing this at "makine-launcher" silently targets a project that does not
@@ -75,10 +83,12 @@ def sentry_headers() -> dict:
 
 def check_auth() -> bool:
     """Verify Sentry auth token works."""
-    r = requests.get(f"{SENTRY_BASE_URL}/", headers=sentry_headers(), timeout=10)
+    # The region API has no root endpoint (404); reading the project proves
+    # both the token and its access.
+    r = requests.get(f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/",
+                     headers=sentry_headers(), timeout=10)
     if r.status_code == 200:
-        user = r.json().get("user", {}).get("username", "unknown")
-        print(f"  Authenticated as: {user}")
+        print(f"  Authenticated; project id {r.json().get('id')}")
         return True
     print(f"  ERROR: Auth failed (HTTP {r.status_code})")
     return False
@@ -87,7 +97,7 @@ def check_auth() -> bool:
 def list_integrations() -> list:
     """List installed organization integrations."""
     r = requests.get(
-        f"{SENTRY_BASE_URL}/organizations/{SENTRY_ORG}/integrations/",
+        f"{SENTRY_CONTROL_URL}/organizations/{SENTRY_ORG}/integrations/",
         headers=sentry_headers(), timeout=10
     )
     if r.status_code == 200:
@@ -173,217 +183,356 @@ def setup_code_mapping(integration_id: int, dry_run: bool = False) -> bool:
         return False
 
 
-# Every rule needs at least one action that actually reaches a person.
+def api(method: str, path: str, body=None) -> tuple[int, object]:
+    """One API call; returns (status, json-or-text). Never raises on HTTP errors."""
+    r = requests.request(method, f"{SENTRY_BASE_URL}{path}", headers=sentry_headers(),
+                         json=body, timeout=30)
+    try:
+        data = r.json()
+    except ValueError:
+        data = r.text[:300]
+    return r.status_code, data
+
+
+# ============================================================================
+# Project settings — grouping, scrubbing, privacy
+# ============================================================================
+
+# Launcher-reported failures carry fail.reason (failurereasons.h). Their
+# default grouping is the message, and the message quotes the folder name of
+# the user's copy: one Diablo II defect was eight issues in 30 days
+# ("Diablo II: Resurrected", "... [FitGirl Repack]", "Diablo"…), so no issue
+# ever reached the user-count alert thresholds. Keyed on operation + reason +
+# game id instead.
 #
-# The previous version used NotifyEventAction ("send a notification via legacy
-# integrations"). Sentry accepts that id, stores the rule — and then drops the
-# action, because no legacy integration is installed. The result was three
-# active rules with `actions: []`: conditions evaluated, nothing was ever sent.
-# A rule that fires into the void is worse than no rule, because the project
-# looks monitored.
-#
-# Mail is the one channel that needs no integration, so it is the baseline.
-NOTIFY_EMAIL = {
-    "id": "sentry.mail.actions.NotifyEmailAction",
-    "targetType": "IssueOwners",
-    "fallthroughType": "ActiveMembers",
-    "targetIdentifier": "",
+# game.id is trustworthy on every release only for install/uninstall: 0.1.5
+# and 0.1.6 wrote it into the session scope right before those reports, and
+# other operations could inherit an earlier game. From 0.1.7 every failure
+# carries its own (telemetryrules::failureTags), so the rest join in there.
+# "other" keeps the default: an unclassified message is its own question.
+FINGERPRINT_RULES = """\
+# Managed by scripts/sentry_setup.py — edit there, not in the UI.
+tags.fail.reason:other -> {{ default }}
+tags.operation:install tags.fail.reason:* tags.game.id:* -> launcher-failure, install, {{ tags.fail.reason }}, {{ tags.game.id }}
+tags.operation:uninstall tags.fail.reason:* tags.game.id:* -> launcher-failure, uninstall, {{ tags.fail.reason }}, {{ tags.game.id }}
+!release:makine-launcher@0.1.5* !release:makine-launcher@0.1.6* tags.fail.reason:* tags.game.id:* -> launcher-failure, {{ tags.operation }}, {{ tags.fail.reason }}, {{ tags.game.id }}
+"""
+
+# Server-side backstop for the Windows account name. The launcher redacts
+# paths itself (pathredaction.h), but two things never pass through it: the
+# module list Sentry rebuilds from a crash minidump, and events from releases
+# that predate a client fix (0.1.6 sent "C:\\Users\\<name>\\Desktop\\…" in every
+# event's module list). Only the name is replaced, and with a different marker
+# than the client's "[redacted]" — so telemetry_selftest.py still notices when
+# the client stops redacting and the server is quietly covering for it.
+# The name may not start with "[": an already-redacted path is left alone.
+USERPATH_RULE = {
+    "type": "pattern",
+    "pattern": r"(?i)\busers[\\/]+([^\\/\[\]\"'\r\n][^\\/\"'\r\n]*)",
+    "redaction": {"method": "replace", "text": "[scrubbed]"},
+    "replaceGroups": [1],
+}
+PII_CONFIG = {
+    "rules": {"0": USERPATH_RULE},
+    # $string covers messages, breadcrumbs, tags, exception values. Module
+    # paths are "maybe PII" in Relay's schema and only reached by name.
+    "applications": {
+        "$string": ["0"],
+        "debug_meta.images.*.code_file": ["0"],
+        "debug_meta.images.*.debug_file": ["0"],
+    },
+}
+
+PROJECT_SETTINGS = {
+    "fingerprintingRules": FINGERPRINT_RULES,
+    "relayPiiConfig": json.dumps(PII_CONFIG, indent=2),
+    "scrubIPAddresses": True,       # the org setting forces it too; keep both
+    "dataScrubber": True,
+    "dataScrubberDefaults": True,
 }
 
 
-# Only real users page anyone. Dev builds report as "development"; without
-# this every dev run and telemetry self-test could fire the first-seen rule.
-ALERT_ENVIRONMENT = "production"
+def _same(key: str, have, want) -> bool:
+    if key == "relayPiiConfig":
+        try:
+            return json.loads(have or "{}") == json.loads(want)
+        except ValueError:
+            return False
+    if isinstance(want, str):
+        return (have or "").strip() == want.strip()
+    return have == want
 
 
-def desired_rules() -> list[dict]:
-    """The alert rules this project is supposed to have."""
+def setup_project(dry_run: bool) -> bool:
+    print("\n  Project settings (grouping, scrubbing, privacy)...")
+    status, project = api("GET", f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/")
+    if status != 200:
+        print(f"  ERROR: project unreadable (HTTP {status})")
+        return False
+    changes = {k: v for k, v in PROJECT_SETTINGS.items() if not _same(k, project.get(k), v)}
+    for key in PROJECT_SETTINGS:
+        print(f"  {'~' if key in changes else '='} {key}")
+    if not changes or dry_run:
+        return True
+    status, data = api("PUT", f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/", changes)
+    if status != 200:
+        print(f"  ERROR: update refused (HTTP {status}): {str(data)[:300]}")
+        return False
+    return True
+
+
+def verify_project() -> bool:
+    status, project = api("GET", f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/")
+    if status != 200:
+        print(f"  ERROR: project unreadable (HTTP {status})")
+        return False
+    ok = True
+    for key, want in PROJECT_SETTINGS.items():
+        good = _same(key, project.get(key), want)
+        ok &= good
+        print(f"  {'OK  ' if good else 'DIFF'} {key}")
+    # Spike protection is on unless this option says otherwise.
+    spike_off = (project.get("options") or {}).get("quotas:spike-protection-disabled")
+    print(f"  {'OK  ' if not spike_off else 'DIFF'} spike protection on")
+    return ok and not spike_off
+
+
+# ============================================================================
+# Alerts — Sentry's workflow engine
+# ============================================================================
+#
+# The per-project /rules/ endpoint 404s since alerting moved to org-level
+# workflows fired by project detectors; this script used to POST there, fail,
+# and leave whatever the UI had. Every workflow below needs an action that
+# reaches a person: mail needs no integration. (The old NotifyEventAction was
+# accepted and silently dropped — three rules fired into the void for months.)
+
+EMAIL = {
+    "type": "email",
+    "config": {"targetType": "issue_owners", "targetIdentifier": None, "targetDisplay": None},
+    "data": {"fallthroughType": "ActiveMembers"},
+}
+
+# Only real users page anyone; dev builds and self-tests report "development".
+ENVIRONMENT = "production"
+
+SYSTEM_SIDE = {"type": "tagged_event", "comparison": {"key": "failure.side", "match": "eq",
+                                                      "value": "system"}}
+FATAL = {"type": "level", "comparison": {"level": 50, "match": "gte"}}
+
+
+def _cond(c: dict) -> dict:
+    return {"type": c["type"], "comparison": c["comparison"], "conditionResult": True}
+
+
+def desired_workflows() -> list[dict]:
     return [
-        # New system-side defect appears. Level >= error already excludes the
-        # user-actionable warnings (disk full, game running), so this fires on
-        # things we have to fix.
-        {
-            "name": "New Crash → GitHub Issue",
-            "environment": ALERT_ENVIRONMENT,
-            "actionMatch": "all",
-            "filterMatch": "all",
-            "conditions": [
-                {"id": "sentry.rules.conditions.first_seen_event.FirstSeenEventCondition"}
-            ],
-            "filters": [
-                {"id": "sentry.rules.filters.level.LevelFilter",
-                 "match": "gte", "level": "40"}  # ERROR and above
-            ],
-            "actions": [NOTIFY_EMAIL],
-            "frequency": 1440,  # Once per day per issue
-        },
-        # A resolved issue starts receiving events again. RtlpHpSegReAlloc was
-        # closed and then collected 43 events over two months with nobody
-        # informed — exactly what this is meant to catch.
-        {
-            "name": "Regression Detected",
-            "environment": ALERT_ENVIRONMENT,
-            "actionMatch": "all",
-            "filterMatch": "all",
-            "conditions": [
-                {"id": "sentry.rules.conditions.regression_event.RegressionEventCondition"}
-            ],
-            "filters": [],
-            "actions": [NOTIFY_EMAIL],
-            "frequency": 30,
-        },
-        # A defect reaching several users at once — a bad package or a broken
-        # release — rather than one user's disk being full.
-        #
-        # The threshold is 3, not 10. With the beta's actual user count the
-        # worst defect in the project (the .forge injection failure) peaked at
-        # 8 unique users, so a 10-user gate would never have fired on the single
-        # most reported problem we have.
-        {
-            "name": "Widespread Failure",
-            "environment": ALERT_ENVIRONMENT,
-            "actionMatch": "all",
-            "filterMatch": "all",
-            "conditions": [
-                {"id": "sentry.rules.conditions.event_frequency.EventUniqueUserFrequencyCondition",
-                 "interval": "1h", "value": 3}
-            ],
-            "filters": [
-                {"id": "sentry.rules.filters.tagged_event.TaggedEventFilter",
-                 "key": "failure.side", "match": "eq", "value": "system"}
-            ],
-            "actions": [NOTIFY_EMAIL],
-            "frequency": 60,
-        },
+        # Every new crash signature. Not every new error: message issues were
+        # ~4 new a day, and Sentry's own "high priority issues" workflow
+        # already mails each new error-level issue — the two together sent
+        # every new failure twice.
+        {"name": "New crash (fatal) → Email",
+         "legacy": ["New issue (error+) → Email", "New Crash → GitHub Issue"],
+         "triggers": [{"type": "first_seen_event", "comparison": True}],
+         "filters": [FATAL], "frequency": 30},
+        # A resolved issue receives events again. RtlpHpSegReAlloc was closed
+        # and collected 43 events over two months with nobody informed.
+        {"name": "Regression Detected", "legacy": [],
+         "triggers": [{"type": "regression_event", "comparison": True}],
+         "filters": [], "frequency": 30},
+        # A defect reaching several users at once — a bad package, a broken
+        # release — not one user's full disk. 3, not 10: the worst defect of
+        # the 0.1.2 beta peaked at 8 users an hour.
+        {"name": "Widespread Failure", "legacy": [],
+         "triggers": [{"type": "event_unique_user_frequency_count",
+                       "comparison": {"value": 3, "interval": "1h"}}],
+         "filters": [SYSTEM_SIDE], "frequency": 60},
+        # The slow kind the hourly gate misses: Valhalla's backup refusal
+        # reached ~30 users a day (326 in 11 days), about one an hour.
+        {"name": "Spreading Failure (24h, 10+ users)", "legacy": [],
+         "triggers": [{"type": "event_unique_user_frequency_count",
+                       "comparison": {"value": 10, "interval": "1d"}}],
+         "filters": [SYSTEM_SIDE], "frequency": 1440},
+        # One crash signature hitting several users within an hour — a new
+        # release crashing at start shows here before the 24 h crash-free
+        # rate moves.
+        {"name": "Crash Spreading (1h, 3+ users)", "legacy": [],
+         "triggers": [{"type": "event_unique_user_frequency_count",
+                       "comparison": {"value": 3, "interval": "1h"}}],
+         "filters": [FATAL], "frequency": 60},
     ]
 
 
-def _rule_needs_repair(existing: dict, wanted: dict) -> list[str]:
-    """Return the reasons `existing` diverges from `wanted` (empty = healthy)."""
-    reasons = []
-
-    if not existing.get("actions"):
-        reasons.append("no actions (fires into the void)")
-    elif not any(
-        a.get("id") == NOTIFY_EMAIL["id"] for a in existing.get("actions", [])
-    ):
-        reasons.append("no mail action")
-
-    if existing.get("status") != "active":
-        reasons.append(f"status={existing.get('status')}")
-
-    if existing.get("environment") != wanted.get("environment"):
-        reasons.append(f"environment={existing.get('environment')} "
-                       f"(want {wanted.get('environment')})")
-
-    # Compare condition thresholds — the user-frequency gate is the one we tune.
-    for want_c in wanted.get("conditions", []):
-        match = next(
-            (c for c in existing.get("conditions", []) if c.get("id") == want_c["id"]),
-            None,
-        )
-        if match is None:
-            reasons.append(f"missing condition {want_c['id'].rsplit('.', 1)[-1]}")
-            continue
-        for key in ("value", "interval"):
-            if key in want_c and str(match.get(key)) != str(want_c[key]):
-                reasons.append(f"{key}={match.get(key)} (want {want_c[key]})")
-
-    return reasons
+def _issue_stream_detector() -> str | None:
+    status, project = api("GET", f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/")
+    if status != 200:
+        return None
+    status, detectors = api("GET", f"/organizations/{SENTRY_ORG}/detectors/?project={project['id']}")
+    if status != 200:
+        return None
+    for d in detectors:
+        if d.get("type") == "issue_stream":
+            return str(d["id"])
+    return None
 
 
-def setup_alert_rules(dry_run: bool = False) -> bool:
-    """Create missing alert rules and repair existing ones that cannot notify.
-
-    Idempotent by design: "create only if the name is absent" was not enough,
-    because the rules existed and were still broken.
-    """
-    print("\n  Setting up alert rules...")
-
-    r = requests.get(
-        f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
-        headers=sentry_headers(), timeout=10
-    )
-    existing_rules = r.json() if r.status_code == 200 else []
-    by_name = {rule.get("name", ""): rule for rule in existing_rules}
-
-    success = True
-    for wanted in desired_rules():
-        name = wanted["name"]
-        existing = by_name.get(name)
-
-        if existing is None:
-            if dry_run:
-                print(f"  [DRY RUN] Would create rule: {name}")
-                continue
-            resp = requests.post(
-                f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
-                headers=sentry_headers(), json=wanted, timeout=15
-            )
-            if resp.status_code in (200, 201):
-                print(f"  + Alert rule created: {name}")
-            else:
-                print(f"  WARNING: create '{name}' failed: "
-                      f"{resp.status_code} {resp.text[:200]}")
-                success = False
-            continue
-
-        reasons = _rule_needs_repair(existing, wanted)
-        if not reasons:
-            print(f"  = Rule OK: {name}")
-            continue
-
-        print(f"  ! Rule broken: {name} -> {', '.join(reasons)}")
-        if dry_run:
-            print(f"  [DRY RUN] Would repair rule: {name}")
-            continue
-
-        payload = dict(wanted)
-        payload["id"] = existing.get("id")
-        resp = requests.put(
-            f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/"
-            f"{existing.get('id')}/",
-            headers=sentry_headers(), json=payload, timeout=15
-        )
-        if resp.status_code in (200, 201, 202):
-            print(f"  ~ Alert rule repaired: {name}")
-        else:
-            print(f"  WARNING: repair '{name}' failed: "
-                  f"{resp.status_code} {resp.text[:200]}")
-            success = False
-
-    return success
+def _payload(wanted: dict, detector_ids: list[str]) -> dict:
+    return {
+        "name": wanted["name"],
+        "enabled": True,
+        "environment": ENVIRONMENT,
+        "config": {"frequency": wanted["frequency"]},
+        "triggers": {"logicType": "all", "conditions": [_cond(c) for c in wanted["triggers"]],
+                     "actions": []},
+        "actionFilters": [{"logicType": "all",
+                           "conditions": [_cond(c) for c in wanted["filters"]],
+                           "actions": [EMAIL]}],
+        "detectorIds": detector_ids,
+    }
 
 
-def verify_alert_rules() -> bool:
-    """Re-read the rules from Sentry and confirm each one can notify someone.
+def _diverges(existing: dict, wanted: dict, detector: str) -> list[str]:
+    why = []
+    if existing.get("name") != wanted["name"]:
+        why.append("name")
+    if not existing.get("enabled"):
+        why.append("disabled")
+    if existing.get("environment") != ENVIRONMENT:
+        why.append(f"environment={existing.get('environment')}")
+    if (existing.get("config") or {}).get("frequency") != wanted["frequency"]:
+        why.append("frequency")
+    if detector not in [str(x) for x in existing.get("detectorIds") or []]:
+        why.append("not wired to this project")
+    have_t = [(c.get("type"), c.get("comparison"))
+              for c in (existing.get("triggers") or {}).get("conditions", [])]
+    if have_t != [(c["type"], c["comparison"]) for c in wanted["triggers"]]:
+        why.append("triggers")
+    filters = existing.get("actionFilters") or [{}]
+    have_f = [(c.get("type"), c.get("comparison")) for c in filters[0].get("conditions", [])]
+    if have_f != [(c["type"], c["comparison"]) for c in wanted["filters"]]:
+        why.append("filters")
+    actions = [a for af in filters for a in af.get("actions") or []]
+    if not any(a.get("type") == "email" for a in actions):
+        why.append("no mail action")
+    return why
 
-    Configuring is not the same as configured: the API accepted the old
-    actions and silently discarded them. This reads the server's own view back
-    and is the only thing that counts as proof.
-    """
-    print("\n  Verifying alert rules (server state)...")
-    r = requests.get(
-        f"{SENTRY_BASE_URL}/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/rules/",
-        headers=sentry_headers(), timeout=15
-    )
-    if r.status_code != 200:
-        print(f"  ERROR: could not read rules back (HTTP {r.status_code})")
+
+def setup_workflows(dry_run: bool) -> bool:
+    print("\n  Alert workflows...")
+    detector = _issue_stream_detector()
+    if not detector:
+        print("  ERROR: this project's issue_stream detector was not found")
+        return False
+    status, workflows = api("GET", f"/organizations/{SENTRY_ORG}/workflows/")
+    if status != 200:
+        print(f"  ERROR: workflows unreadable (HTTP {status})")
         return False
 
     ok = True
-    for rule in r.json():
-        actions = [a.get("id", "").rsplit(".", 1)[-1] for a in rule.get("actions", [])]
-        if actions:
-            print(f"  OK   {rule.get('name')}: {', '.join(actions)}")
-        else:
-            print(f"  DEAD {rule.get('name')}: no actions — nobody is notified")
+    for wanted in desired_workflows():
+        names = [wanted["name"]] + wanted["legacy"]
+        existing = next((w for n in names for w in workflows if w.get("name") == n), None)
+        if existing is None:
+            print(f"  + create {wanted['name']}")
+            if not dry_run:
+                status, data = api("POST", f"/organizations/{SENTRY_ORG}/workflows/",
+                                   _payload(wanted, [detector]))
+                if status not in (200, 201):
+                    print(f"    ERROR HTTP {status}: {str(data)[:300]}")
+                    ok = False
+            continue
+        why = _diverges(existing, wanted, detector)
+        if not why:
+            print(f"  = {wanted['name']}")
+            continue
+        print(f"  ~ {existing.get('name')}: {', '.join(why)}")
+        if dry_run:
+            continue
+        # Keep detectors of other projects (the web worker's) wired as they are.
+        ids = sorted({str(x) for x in existing.get("detectorIds") or []} | {detector})
+        status, data = api("PUT", f"/organizations/{SENTRY_ORG}/workflows/{existing['id']}/",
+                           _payload(wanted, ids))
+        if status != 200:
+            print(f"    ERROR HTTP {status}: {str(data)[:300]}")
             ok = False
     return ok
 
 
+# The crash-free session rate, production, 24 h window: base ~99.9 %,
+# < 99.5 % medium, < 99 % high. The API cannot create metric detectors (POST
+# answers 405), so a missing one is a browser step; thresholds are repaired.
+CRASH_FREE_NAME = "Crash-free oturum oranı (24 sa)"
+CRASH_FREE_AGGREGATE = "percentage(sessions_crashed, sessions) AS _crash_rate_alert_aggregate"
+CRASH_FREE_CONDITIONS = [
+    {"type": "lt", "comparison": 99, "conditionResult": 75},
+    {"type": "lt", "comparison": 99.5, "conditionResult": 50},
+    {"type": "gte", "comparison": 99.5, "conditionResult": 0},
+]
+
+
+def setup_crash_free(dry_run: bool) -> bool:
+    print("\n  Crash-free rate detector...")
+    status, project = api("GET", f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/")
+    status, detectors = api("GET", f"/organizations/{SENTRY_ORG}/detectors/?project={project['id']}")
+    if status != 200:
+        print(f"  ERROR: detectors unreadable (HTTP {status})")
+        return False
+    det = next((d for d in detectors if d.get("type") == "metric_issue"
+                and any(((s.get("queryObj") or {}).get("snubaQuery") or {}).get("aggregate")
+                        == CRASH_FREE_AGGREGATE for s in d.get("dataSources") or [])), None)
+    if det is None:
+        print("  MISSING: create it in the browser — Alerts > Create Alert > Crash Free Session")
+        print(f"           Rate, production, 24 h, warning < 99.5, critical < 99, name '{CRASH_FREE_NAME}'")
+        return False
+    query = det["dataSources"][0]["queryObj"]["snubaQuery"]
+    ok = query.get("environment") == ENVIRONMENT and query.get("timeWindow") == 86400
+    print(f"  {'=' if ok else '!'} {det['name']}: env={query.get('environment')} "
+          f"window={query.get('timeWindow')}s")
+    have = [{k: c[k] for k in ("type", "comparison", "conditionResult")}
+            for c in (det.get("conditionGroup") or {}).get("conditions", [])]
+    if have != CRASH_FREE_CONDITIONS and not dry_run:
+        print("  ~ repairing thresholds")
+        status, data = api("PUT", f"/organizations/{SENTRY_ORG}/detectors/{det['id']}/",
+                           {"name": det["name"],
+                            "conditionGroup": {"logicType": "any",
+                                               "conditions": CRASH_FREE_CONDITIONS}})
+        ok &= status == 200
+    if not det.get("workflowIds"):
+        print("  ! not wired to any workflow — connect it to a mail workflow in the browser")
+        ok = False
+    return ok
+
+
+def verify_alerts() -> bool:
+    """Re-read the alert graph from Sentry. Configured is not the same as
+    configured-and-working: this is the only thing that counts as proof."""
+    print("\n  Verifying alerts (server state)...")
+    detector = _issue_stream_detector()
+    status, workflows = api("GET", f"/organizations/{SENTRY_ORG}/workflows/")
+    if status != 200 or not detector:
+        print(f"  ERROR: could not read the alert graph back (HTTP {status})")
+        return False
+    ok = True
+    by_name = {w.get("name"): w for w in workflows}
+    for wanted in desired_workflows():
+        w = by_name.get(wanted["name"])
+        why = ["missing"] if w is None else _diverges(w, wanted, detector)
+        ok &= not why
+        print(f"  {'OK  ' if not why else 'BAD '} {wanted['name']}"
+              + (f" — {', '.join(why)}" if why else ""))
+    # Anything else wired to this project must at least be able to notify.
+    for w in workflows:
+        if w.get("name") in {d["name"] for d in desired_workflows()}:
+            continue
+        if detector in [str(x) for x in w.get("detectorIds") or []] and w.get("enabled"):
+            actions = [a for af in w.get("actionFilters") or [] for a in af.get("actions") or []]
+            print(f"  {'OK  ' if actions else 'DEAD'} {w.get('name')} (not managed here)")
+            ok &= bool(actions)
+    return ok
+
+
 def main():
-    parser = argparse.ArgumentParser(description="One-time Sentry project configuration")
+    parser = argparse.ArgumentParser(description="Sentry project configuration")
     parser.add_argument("--dry-run", action="store_true", help="Preview without changes")
     args = parser.parse_args()
 
@@ -402,44 +551,39 @@ def main():
     if args.dry_run:
         print("  MODE: DRY RUN")
 
-    # Step 1: Auth check
     print("\n  Checking authentication...")
     if not check_auth():
         sys.exit(1)
 
-    # Step 2: GitHub integration
     print("\n  Checking GitHub integration...")
     gh_integration = check_github_integration()
     if gh_integration:
         print(f"  ✓ GitHub integration found: {gh_integration.get('name', 'unknown')}")
-        integration_id = gh_integration["id"]
-
-        # Step 3: Code mapping
-        setup_code_mapping(integration_id, args.dry_run)
+        setup_code_mapping(gh_integration["id"], args.dry_run)
     else:
+        # Not a failure of this script: installing it is an OAuth step in the
+        # browser (owner).
         print("  WARNING: GitHub integration not installed")
         print("  → Install it at: https://makineceviri.sentry.io/settings/integrations/github/")
-        print("  → Then re-run this script for code mappings")
 
-    # Step 4: Alert rules
-    configured = setup_alert_rules(args.dry_run)
+    configured = setup_project(args.dry_run)
+    configured &= setup_workflows(args.dry_run)
+    configured &= setup_crash_free(args.dry_run)
 
-    # Step 5: Read the result back from Sentry. The whole reason this script
-    # needed fixing is that it reported success for rules the server had
-    # quietly stripped, so "we sent the request" is not an acceptable outcome.
+    # Read everything back. This script once reported success for rules the
+    # server had quietly stripped; "we sent the request" is not an outcome.
     verified = True
     if not args.dry_run:
-        verified = verify_alert_rules()
+        print("\n  Verifying project settings (server state)...")
+        verified = verify_project()
+        verified &= verify_alerts()
 
     print("\n" + "=" * 70)
     if configured and verified:
-        print("  Setup complete — every rule can reach someone.")
+        print("  Setup complete — read back from the server.")
     else:
-        print("  Setup INCOMPLETE — see warnings above.")
+        print("  Setup INCOMPLETE — see above.")
     print("=" * 70)
-
-    # Non-zero exit so a pipeline or scheduled run fails loudly instead of
-    # printing a warning nobody reads.
     if not (configured and verified):
         sys.exit(1)
 
