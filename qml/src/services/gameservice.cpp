@@ -1717,11 +1717,17 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     }
 
     if (mode == InstallMode::Update) {
-        // Safety: backup must exist — if not, fall back to Install mode
+        // No backup to go back to: an in-place recipe cannot be restored and
+        // re-applied, so it is installed over (its steps see the file already
+        // patched). Anything else stays an update. The Install fallback took no
+        // new backup either (the package is installed, so the backup step is
+        // skipped) and lost what the update does: files the old version added
+        // that the new one no longer ships stayed in the game, off the record.
+        // Every package that only adds files has no backup.
         BackupManager* bm = BackupManager::instance();
-        if (bm && !bm->hasBackup(gameId)) {
+        if (bm && !bm->hasBackup(gameId) && m_coreBridge->recipeWritesInPlace(gameId)) {
             qCWarning(lcGameService) << "No backup found for" << gameId
-                << "— falling back to Install mode (will create new backup)";
+                << "— in-place recipe, installing over the current version";
             mode = InstallMode::Install;
         }
     }
