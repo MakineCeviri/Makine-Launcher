@@ -19,6 +19,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 namespace makine {
@@ -67,7 +69,16 @@ protected:
     fs::path testDir_;
 
     void SetUp() override {
-        testDir_ = fs::temp_directory_path() / "makine_crash_recovery_tests";
+        // A folder per run: every worktree runs this suite at once, and one
+        // run's past-MAX_PATH tree in a shared folder hung another run's
+        // cleanup (an older fixture still deletes with fs::remove_all).
+#ifdef _WIN32
+        const auto pid = static_cast<unsigned long>(GetCurrentProcessId());
+#else
+        const auto pid = static_cast<unsigned long>(getpid());
+#endif
+        testDir_ = fs::temp_directory_path()
+                   / ("makine_crash_recovery_tests_" + std::to_string(pid));
         fs::create_directories(testDir_);
     }
 
