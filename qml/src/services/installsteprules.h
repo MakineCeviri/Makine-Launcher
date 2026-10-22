@@ -302,6 +302,18 @@ inline QStringList resolveRunArgs(const QStringList& args, const QString& gamePa
     return resolved;
 }
 
+// Does an update's copy write over a file of the game's own?
+//
+// The update takes no backup and used to answer from the first install's
+// replaced list alone. A file the new version overwrites for the first time
+// (v1 left data/b.pak alone, v2 ships it) was then recorded as ADDED: uninstall
+// restored the first backup, which does not hold it, and deleted the game's
+// original. A file that was there and that we did not add is the game's.
+inline bool updateOverwritesOriginal(bool destExisted, bool replacedBefore, bool addedBefore)
+{
+    return replacedBefore || (destExisted && !addedBefore);
+}
+
 // What an install that stopped part-way leaves on record.
 //
 // A failed or cancelled install has still written files. Its rollback

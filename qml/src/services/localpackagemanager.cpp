@@ -2428,9 +2428,13 @@ void LocalPackageManager::updatePackage(const QString& steamAppId, const QString
         if (staleDeleted > 0)
             qCDebug(lcPackageManager) << "updatePackage: removed" << staleDeleted << "stale added files";
 
-        // Update: a file is "replaced" if it was already replaced in the original install
-        auto classifier = [&oldReplacedSet](const QString& relPath, bool /*destExists*/) -> bool {
-            return oldReplacedSet.count(relPath.toStdString()) > 0;
+        // Update: "replaced" when the first install said so, or when the file
+        // was there and is not one of ours (steprules::updateOverwritesOriginal)
+        auto classifier = [&oldReplacedSet, &oldAddedSet](const QString& relPath,
+                                                          bool destExists) -> bool {
+            const std::string rel = relPath.toStdString();
+            return steprules::updateOverwritesOriginal(destExists, oldReplacedSet.count(rel) > 0,
+                                                       oldAddedSet.count(rel) > 0);
         };
 
         OverlayResult result = copyOverlayFiles(filesToCopy, gamePath, tr("Güncelleniyor"), classifier);

@@ -432,6 +432,19 @@ TEST(InstallStepRules, RunArgsWithoutPlaceholdersAreUnchanged) {
     EXPECT_TRUE(resolveRunArgs({}, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")).isEmpty());
 }
 
+// ===== what an update records as the game's own =============================
+
+TEST(InstallStepRules, UpdateCountsAFileItOverwritesForTheFirstTimeAsTheGames) {
+    // v1 replaced data/a.pak; v2 also ships data/b.pak, an original v1 never
+    // touched. Recorded as added, uninstall deleted the game's b.pak.
+    EXPECT_TRUE(updateOverwritesOriginal(/*existed*/ true, /*replaced*/ false, /*added*/ false));
+    // Still the game's: replaced at the first install.
+    EXPECT_TRUE(updateOverwritesOriginal(true, true, false));
+    // Ours from the first install, or new now: added, and uninstall removes it.
+    EXPECT_FALSE(updateOverwritesOriginal(true, false, true));
+    EXPECT_FALSE(updateOverwritesOriginal(false, false, false));
+}
+
 // ===== the record a failed install leaves ===================================
 //
 // The rollback after a failed install restores the backup, then removes what
