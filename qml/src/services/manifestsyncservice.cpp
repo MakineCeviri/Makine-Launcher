@@ -325,9 +325,25 @@ void ManifestSyncService::fetchFullCatalog()
     });
 }
 
+// Details are fetched against the index of the moment. A new index may carry a
+// corrected recipe for a package whose "v" stayed the same (the admin panel
+// moves "v" only with the package file), and invalidateChangedDetails() only
+// sees "v". CoreBridge drops the cached files when the index changes; what
+// this session already fetched stays in DetailFetcher's memory and was served
+// again — a launcher left open installed the recipe it had seen before.
+void ManifestSyncService::parseIndex(const QByteArray& data)
+{
+    const int version = m_store->catalogVersion();
+    const QString generatedAt = m_store->lastSyncTime();
+    m_store->parseIndex(data);
+    if (!m_store->isEmpty()
+        && (m_store->catalogVersion() != version || m_store->lastSyncTime() != generatedAt))
+        m_detailFetcher->invalidateAll();
+}
+
 void ManifestSyncService::handleFullCatalogResponse(const QByteArray& data)
 {
-    m_store->parseIndex(data);
+    parseIndex(data);
 
     if (!m_store->isEmpty()) {
         m_store->saveCachedIndex(data, QString());
@@ -396,7 +412,7 @@ void ManifestSyncService::fallbackToLegacySync()
         if (status >= 200 && status < 300) {
             const QByteArray data = reply->readAll();
             const QString etag = reply->rawHeader("ETag");
-            m_store->parseIndex(data);
+            parseIndex(data);
 
             if (!m_store->isEmpty()) {
                 m_store->saveCachedIndex(data, etag);

@@ -778,7 +778,14 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
         return false;
     };
 
+    // Every entry the name fits, not the first: which of several games a short
+    // name got used to depend on hash order. On the live catalogue "Assassin's
+    // Creed" went to Odyssey, "Life Is Strange" to True Colors, "Fears to
+    // Fathom" to one of five episodes. A name several games share names none
+    // of them; the weaker tiers below must not pick one either, and the
+    // executable fingerprint decides instead.
     if (normalized.size() >= 5) {
+        std::string fitting;
         for (const auto& [appId, pkg] : packages_) {
             const std::string dirLower  = toLower(pkg.dirName);
             const std::string nameLower = toLower(pkg.gameName);
@@ -789,11 +796,15 @@ std::string PackageCatalog::findMatchingAppId(const std::string& folderName) con
             bool dirContainsInput  = dirLower.size() >= 5 && dirLower.find(normalized) != std::string::npos;
             bool inputContainsDir  = dirLower.size() >= 5 && normalized.find(dirLower) != std::string::npos;
 
-            if (nameContainsInput && !isSequelMismatch(normalized, nameLower)) return appId;
-            if (inputContainsName && !isSequelMismatch(nameLower, normalized)) return appId;
-            if (dirContainsInput && !isSequelMismatch(normalized, dirLower)) return appId;
-            if (inputContainsDir && !isSequelMismatch(dirLower, normalized)) return appId;
+            const bool fits = (nameContainsInput && !isSequelMismatch(normalized, nameLower))
+                           || (inputContainsName && !isSequelMismatch(nameLower, normalized))
+                           || (dirContainsInput && !isSequelMismatch(normalized, dirLower))
+                           || (inputContainsDir && !isSequelMismatch(dirLower, normalized));
+            if (!fits) continue;
+            if (!fitting.empty()) return {};
+            fitting = appId;
         }
+        if (!fitting.empty()) return fitting;
     }
 
     // Tier 4: Token-based similarity (handles word reordering, noise words)

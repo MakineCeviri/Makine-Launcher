@@ -96,6 +96,9 @@ private:
     void fetchFullCatalog();
     void handleFullCatalogResponse(const QByteArray& data);
     void fallbackToLegacySync();
+    /// CatalogStore::parseIndex, plus dropping the in-memory details when the
+    /// index itself was replaced (its version or generatedAt moved).
+    void parseIndex(const QByteArray& data);
     void startSync(bool quiet);
     /// @p catalogChanged false = the server confirmed the cached catalog.
     void finishSync(bool catalogChanged = true);

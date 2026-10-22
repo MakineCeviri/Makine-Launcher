@@ -80,6 +80,10 @@ void DetailFetcher::fetch(const QString& appId)
     req.setRawHeader("X-Makine-Recipe", QByteArray::number(steprules::kRecipeLevel));
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::SameOriginRedirectPolicy);
+    // HTTP/1.1 like the catalogue requests (manifestsyncservice.cpp): Qt's
+    // HTTP/2 to Cloudflare drops streams, and a failed detail fetch stops the
+    // install ("Kurulum bilgileri alınamadı").
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
     security::hardenRequest(req, 10000);
 
     QNetworkReply* reply = m_nam.get(req);
@@ -135,6 +139,12 @@ void DetailFetcher::invalidate(const QString& appId)
     // Deferred deletion — cache is already invalidated in memory
     const QString path = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
     QTimer::singleShot(0, this, [path]() { QFile::remove(path); });
+}
+
+void DetailFetcher::invalidateAll()
+{
+    m_details.clear();
+    m_diskCache.clear();
 }
 
 // ========== Internal ==========

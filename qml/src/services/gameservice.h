@@ -96,6 +96,7 @@ public:
 
     /// Deferred initialization — call after construction to load caches.
     /// Separated from constructor so splash screen stays responsive.
+    /// Runs once; later calls do nothing.
     void initialize();
 
     /// Connect to ManifestSyncService for remote catalog data.
@@ -585,6 +586,7 @@ private:
     int gameIndexFor(const QString& gameId) const;
     QHash<QString, int> m_steamAppIdToIndex;   // O(1) lookup by steamAppId
     mutable QHash<QString, bool> m_packageInstalledCache;  // Cached isPackageInstalled results
+    bool m_initialized{false};
     bool m_isScanning{false};
     QString m_scanStatus;
     qreal m_scanProgress{0};

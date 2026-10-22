@@ -224,6 +224,15 @@ if(NOT MAKINE_UI_ONLY)
         Qt6::Core Qt6::Network OpenSSL::Crypto)
     add_test(NAME test_pluginregistry COMMAND test_pluginregistry)
 
+    # TLS error policy against a local man in the middle (OpenSSL makes the
+    # forged certificate; nothing leaves the machine).
+    add_executable(test_networksecurity test_networksecurity.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/networksecurity.cpp)
+    target_include_directories(test_networksecurity PRIVATE ${MAKINE_PROJECT_ROOT}/qml/src/services)
+    target_link_libraries(test_networksecurity PRIVATE GTest::gtest
+        Qt6::Core Qt6::Network OpenSSL::Crypto)
+    add_test(NAME test_networksecurity COMMAND test_networksecurity)
+
     # Staging, update, rollback and removal of plugin folders (real MKPK v2 packages).
     add_executable(test_plugininstaller test_plugininstaller.cpp
         ${MAKINE_PROJECT_ROOT}/qml/src/services/plugininstaller.cpp

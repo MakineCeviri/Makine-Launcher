@@ -567,6 +567,39 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdRejectsPartialWordAndNumeralSequels)
     EXPECT_EQ(catalog_.findMatchingAppId("Disco"), "1716740");
 }
 
+// A name several catalogue games contain names none of them. Which one a
+// folder got used to depend on hash order: on the live catalogue "Assassin's
+// Creed" went to Odyssey, "Life Is Strange" to True Colors and "Fears to
+// Fathom" to one of five episodes. The executable decides those instead.
+TEST_F(PackageCatalogTest, FindMatchingAppIdRefusesANameSeveralGamesShare) {
+    json index;
+    index["packages"] = {
+        {"812140", {{"name", "Assassin's Creed Odyssey"}, {"v", "1"}, {"dirName", "Assassin's Creed Odyssey"}}},
+        {"2208920", {{"name", "Assassin's Creed Valhalla"}, {"v", "1"}, {"dirName", "Assassin's Creed Valhalla"}}},
+        {"936790", {{"name", "Life is Strange: True Colors"}, {"v", "1"}, {"dirName", "Life is Strange True Colors"}}},
+        {"2624870", {{"name", "Life is Strange: Reunion"}, {"v", "1"}, {"dirName", "Life is Strange Reunion"}}},
+        {"1671340", {{"name", "Fears to Fathom - Home Alone"}, {"v", "1"}, {"dirName", "Fears to Fathom - Episode 1"},
+                     {"exe", json::array({"fears to fathom.exe"})}}},
+        {"2120900", {{"name", "Fears to Fathom - Carson House"}, {"v", "1"},
+                     {"dirName", "Fears to Fathom - Carson House"}}},
+        {"814380", {{"name", "Sekiro: Shadows Die Twice"}, {"v", "1"}, {"dirName", "Sekiro Shadows Die Twice"}}},
+    };
+    std::ofstream(indexPath_) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    EXPECT_EQ(catalog_.findMatchingAppId("Assassin's Creed"), "");
+    EXPECT_EQ(catalog_.findMatchingAppId("Life Is Strange"), "");
+    EXPECT_EQ(catalog_.findMatchingAppId("Fears to Fathom"), "");
+    // Still found: a short name only one game contains, and the full names.
+    EXPECT_EQ(catalog_.findMatchingAppId("Sekiro"), "814380");
+    EXPECT_EQ(catalog_.findMatchingAppId("Assassin's Creed Valhalla"), "2208920");
+    EXPECT_EQ(catalog_.findMatchingAppId("Life is Strange True Colors"), "936790");
+    // The episode a "Fears to Fathom" folder holds is known by its executable.
+    const auto byExe = catalog_.findMatchingGames({"fears to fathom.exe"}, "", {}, "Fears to Fathom");
+    ASSERT_FALSE(byExe.empty());
+    EXPECT_EQ(byExe.front().steamAppId, "1671340");
+}
+
 TEST_F(PackageCatalogTest, FindMatchingAppIdNoMatch) {
     ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_EQ(catalog_.findMatchingAppId("Cyberpunk 2077"), "");
@@ -728,6 +761,33 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdEmptyString) {
     // Empty string may match entries — just verify no crash
     (void)catalog_.findMatchingAppId("");
     SUCCEED();
+}
+
+// A reload goes back to what index.json alone says. The index lists one exe for
+// Red Dead Redemption 2 (playrdr2.exe, the Steam launcher); the detail adds the
+// game's own rdr2.exe, which is what a repack folder holds. Every library scan
+// used to reload the catalog right before matching, so the scan never saw it —
+// CoreBridge now leaves an already loaded catalog alone.
+TEST_F(PackageCatalogTest, ReloadForgetsWhatTheDetailAdded) {
+    json index;
+    index["packages"] = {
+        {"1174180", {{"name", "Red Dead Redemption 2"}, {"v", "1"}, {"dirName", "Red Dead Redemption 2"},
+                     {"exe", json::array({"playrdr2.exe"})}}},
+    };
+    std::ofstream(indexPath_) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    ASSERT_TRUE(catalog_.enrichPackage("1174180",
+        R"({"fingerprint": {"exeNames": ["playrdr2.exe", "rdr2.exe"]}})"));
+
+    const auto enriched = catalog_.findMatchingGames({"rdr2.exe"}, "", {}, "RDR2");
+    ASSERT_FALSE(enriched.empty());
+    EXPECT_EQ(enriched.front().steamAppId, "1174180");
+    EXPECT_GE(enriched.front().confidence, 60);
+
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    EXPECT_FALSE(catalog_.isDetailLoaded("1174180"));
+    const auto reloaded = catalog_.findMatchingGames({"rdr2.exe"}, "", {}, "RDR2");
+    EXPECT_TRUE(reloaded.empty() || reloaded.front().confidence < 60);
 }
 
 // The launcher matches games against the catalog on its scan worker thread
