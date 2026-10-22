@@ -437,9 +437,13 @@ bool CrashReporter::isUserActionable(const QString& message)
         QStringLiteral("salt okunur"), QStringLiteral("permission"), QStringLiteral("denied"),
         // game or store busy
         QStringLiteral("çalışıyor"), QStringLiteral("kapatın"), QStringLiteral("kilitli"),
-        // connectivity
+        // connectivity. "timed out" and "Host … not found" are how Qt words
+        // QNetworkReply errors: "Katalog indirilemedi: Operation timed out"
+        // reached 11 users in two weeks filed as our defect (system), next to
+        // the real ones. An outage of our own CDN is the uptime monitor's job.
         QStringLiteral("internet"), QStringLiteral("bağlantı"), QStringLiteral("ağ "),
         QStringLiteral("network"), QStringLiteral("timeout"), QStringLiteral("zaman aşımı"),
+        QStringLiteral("timed out"),
         // user-initiated
         QStringLiteral("iptal"), QStringLiteral("cancel"),
     };
@@ -461,6 +465,9 @@ bool CrashReporter::isUserActionable(const QString& message)
         if (cause.contains(p, Qt::CaseInsensitive))
             return true;
     }
+    // "Host cdn.makineceviri.org not found": the machine's DNS, not our package.
+    if (cause.contains(QStringLiteral("Host ")) && cause.contains(QStringLiteral(" not found")))
+        return true;
     return false;
 }
 

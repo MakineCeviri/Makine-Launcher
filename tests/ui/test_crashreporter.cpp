@@ -130,6 +130,21 @@ TEST(CrashReporterClassify, EnvironmentProblemsStayUserSide)
     EXPECT_TRUE(CrashReporter::isUserActionable(noNetwork));
 }
 
+// Qt's own words for a network failure (0.1.5, 11 users in two weeks filed as
+// our defect). An HTTP/2 stream error stays ours: that was a launcher setting.
+TEST(CrashReporterClassify, QtNetworkErrorsAreTheConnection)
+{
+    EXPECT_TRUE(CrashReporter::isUserActionable(
+        QStringLiteral("Katalog indirilemedi: Operation timed out")));
+    EXPECT_TRUE(CrashReporter::isUserActionable(
+        QStringLiteral("Katalog indirilemedi: Host cdn.makineceviri.org not found")));
+    EXPECT_FALSE(CrashReporter::isUserActionable(
+        QStringLiteral("Katalog indirilemedi: HTTP/2 protocol error")));
+    // "not found" alone is not a network word: a missing package file is ours.
+    EXPECT_FALSE(CrashReporter::isUserActionable(
+        QStringLiteral("1 adımda hata oluştu: paket dosyası not found")));
+}
+
 // A step recipe that merely *ran* something is still a real failure: only the
 // launcher's own "I cannot install this kind of patch" wording is a gap.
 TEST(CrashReporterClassify, RunStepFailureIsNotACapabilityGap)
