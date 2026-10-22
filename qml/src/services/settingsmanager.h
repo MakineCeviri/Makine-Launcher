@@ -182,7 +182,7 @@ private:
 
     // Theme
     bool m_isDarkMode{true};
-    QString m_accentPreset{"purple"};
+    QString m_accentPreset{"blue"};
     QString m_uiScale{"auto"};
 
     // Onboarding

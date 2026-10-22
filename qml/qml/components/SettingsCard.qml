@@ -7,17 +7,12 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * SettingsCard.qml - Settings card container
- *
- * Simple bordered card that wraps settings content.
- * Children are placed in a zero-spacing ColumnLayout.
+ * SettingsCard.qml - A grouped-list card; children are stacked with no gap.
+ * For new pages prefer ListSection.
  */
-Rectangle {
+Card {
     default property alias content: _cc.data
     implicitHeight: _cc.implicitHeight
-    radius: Dimensions.radiusMD
-    color: Theme.surface
-    border.color: Theme.primary06
-    border.width: 1
+    radius: Dimensions.radiusLG
     ColumnLayout { id: _cc; anchors.fill: parent; spacing: 0 }
 }

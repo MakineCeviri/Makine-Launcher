@@ -3,18 +3,19 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
 import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * BaseDialog.qml - Shared dialog base with glassmorphism, transitions, and modal overlay
+ * BaseDialog.qml - The launcher's sheet: an elevated rounded card over a
+ * dimmed page, centred, opening with a short settle.
  *
- * Provides: enter/exit transitions, glass background, modal dimming, centering, Escape key.
  * Subclass and set header/contentItem/footer as needed.
  *
  * Properties:
- *   accentColor — border accent (default: Theme.accent)
+ *   accentColor — the dialog's tone (icon, main button); default the accent
  *
  * Signals:
  *   cancelled() — emitted on Escape or close button
@@ -22,52 +23,54 @@ pragma ComponentBehavior: Bound
 Dialog {
     id: root
 
-    property color accentColor: Theme.accent
+    property color accentColor: Theme.primary
 
     signal cancelled()
 
     modal: true
     closePolicy: Popup.CloseOnEscape
+    padding: 0
+    topPadding: 0
+    bottomPadding: 0
 
-    x: parent ? (parent.width - width) / 2 : 0
-    y: parent ? (parent.height - height) / 2 : 0
+    x: parent ? Math.round((parent.width - width) / 2) : 0
+    y: parent ? Math.round((parent.height - height) / 2) : 0
 
     enter: Transition {
         ParallelAnimation {
             NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.animMedium; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: Dimensions.animMedium; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.94; to: 1; duration: Dimensions.animNormal; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
         }
     }
 
     exit: Transition {
         ParallelAnimation {
             NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animFast }
-            NumberAnimation { property: "scale"; from: 1; to: 0.95; duration: Dimensions.animFast }
+            NumberAnimation { property: "scale"; from: 1; to: 0.97; duration: Dimensions.animFast }
         }
     }
 
-    background: Rectangle {
-        radius: Dimensions.radiusMD
-        // Solid elevated surface — Theme.glassBackground is rgba(1,1,1,0.05)
-        // which, with no backdrop blur, rendered the whole dialog see-through
-        // ("transparan ekran"). An opaque surface keeps it readable and gives
-        // proper elevation over the dimmed background.
-        color: Theme.surfaceLight
-        border.color: Theme.withAlpha(root.accentColor, 0.15)
-        border.width: 1
-
+    background: Item {
+        RectangularShadow {
+            anchors.fill: sheet
+            radius: sheet.radius
+            offset.y: 12
+            blur: 40
+            spread: -4
+            color: Qt.rgba(0, 0, 0, Theme.darkMode ? 0.55 : 0.22)
+        }
         Rectangle {
+            id: sheet
             anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
-            color: "transparent"
-            border.color: Theme.glassHighlight
+            radius: Dimensions.radiusSheet
+            color: Theme.surfaceElevated
+            border.color: Theme.darkMode ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.06)
             border.width: 1
         }
     }
 
     Overlay.modal: Rectangle {
-        color: Theme.bgPrimary60
+        color: Theme.scrim
         Behavior on opacity { NumberAnimation { duration: Dimensions.animMedium } }
     }
 

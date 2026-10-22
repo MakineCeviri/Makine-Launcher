@@ -190,15 +190,19 @@ QVariantList SettingsManager::accentPresets() const
         const char* colors[5]; // lightest, light, base, dark, darkest
     };
 
+    // Apple's system accent colours (the dark-appearance shade; Theme.qml
+    // picks the light one in light mode), in System Settings' order.
     static const Preset presets[] = {
-        {"purple",   "Mor",             {"#C4B5FD", "#A78BFA", "#8B5CF6", "#7C3AED", "#6D28D9"}},
-        {"teal",     "Turkuaz",         {"#5EEAD4", "#2DD4BF", "#14B8A6", "#0D9488", "#0F766E"}},
-        {"green",    "Ye\xc5\x9fil",    {"#86EFAC", "#4ADE80", "#22C55E", "#16A34A", "#15803D"}},
-        {"rose",     "Pembe",           {"#F9A8D4", "#F472B6", "#EC4899", "#DB2777", "#BE185D"}},
-        {"red",      "K\xc4\xb1rm\xc4\xb1z\xc4\xb1",  {"#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#B91C1C"}},
-        {"sky",      "G\xc3\xb6k Mavisi",{"#7DD3FC", "#38BDF8", "#0EA5E9", "#0284C7", "#0369A1"}},
-        {"indigo",   "\xc4\xb0ndigo",   {"#C7D2FE", "#A5B4FC", "#818CF8", "#6366F1", "#4F46E5"}},
-        {"black",    "Siyah",           {"#D4D4D8", "#A1A1AA", "#71717A", "#52525B", "#3F3F46"}},
+        {"blue",     "Mavi",            {"#66B5FF", "#3D9EFF", "#0A84FF", "#0070DB", "#0058AD"}},
+        {"purple",   "Mor",             {"#D99CF7", "#CC7BF4", "#BF5AF2", "#A84DD6", "#8A3FB0"}},
+        {"rose",     "Pembe",           {"#FF87A0", "#FF5F7F", "#FF375F", "#DB2F52", "#B32643"}},
+        {"red",      "K\xc4\xb1rm\xc4\xb1z\xc4\xb1",  {"#FF8F88", "#FF6A61", "#FF453A", "#DB3B32", "#B33029"}},
+        {"amber",    "Turuncu",         {"#FFC56C", "#FFB23B", "#FF9F0A", "#DB8909", "#B37007"}},
+        {"green",    "Ye\xc5\x9fil",    {"#7FE39B", "#58DA7A", "#30D158", "#29B44C", "#22933E"}},
+        {"teal",     "Turkuaz",         {"#8ADCEC", "#65D2E6", "#40C8E0", "#37ACC1", "#2D8D9E"}},
+        {"sky",      "G\xc3\xb6k Mavisi",{"#A2E4FF", "#83DBFF", "#64D2FF", "#56B5DB", "#4794B3"}},
+        {"indigo",   "\xc4\xb0ndigo",   {"#9897F0", "#7B7AEB", "#5E5CE6", "#514FC6", "#4241A2"}},
+        {"black",    "Grafit",          {"#C1C1C4", "#ADADB1", "#98989D", "#838387", "#6B6B6F"}},
     };
 
     QVariantList result;
@@ -295,7 +299,7 @@ void SettingsManager::resetToDefaults()
     setGraphicsBackend("vulkan");
     setTranslationLanguage("tr");
     setIsDarkMode(true);
-    setAccentPreset("purple");
+    setAccentPreset("blue");
     setUiScale("auto");
     emit settingsResetCompleted();
 }
@@ -343,7 +347,16 @@ void SettingsManager::loadSettings()
     m_graphicsBackend = m_settings.value("performance/graphicsBackend", "auto").toString();
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
-    m_accentPreset = m_settings.value("appearance/accentPreset", "purple").toString();
+    m_accentPreset = m_settings.value("appearance/accentPreset", "blue").toString();
+    // 0.2 design: purple was the old default nearly everyone kept — move it
+    // once to the new default (blue); a choice made after this sticks.
+    if (m_settings.value("appearance/designVersion", 1).toInt() < 2) {
+        if (m_accentPreset == QLatin1String("purple")) {
+            m_accentPreset = QStringLiteral("blue");
+            m_settings.setValue("appearance/accentPreset", m_accentPreset);
+        }
+        m_settings.setValue("appearance/designVersion", 2);
+    }
     m_uiScale = m_settings.value("appearance/uiScale", "auto").toString();
     m_onboardingCompleted = m_settings.value("general/onboardingCompleted", false).toBool();
     m_appLanguage = m_settings.value("general/appLanguage", "tr").toString();

@@ -8,7 +8,8 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * ToggleSetting.qml - Toggle switch setting row with accessibility
+ * ToggleSetting.qml - A settings row with a switch: what it is, what it
+ * does, and the switch. For new pages prefer ListSection + ListRow.
  */
 Item {
     id: _toggleRoot
@@ -17,6 +18,7 @@ Item {
     property bool checked: false
     property bool disableAnimations: false
     signal toggled()
+
     activeFocusOnTab: true
     Keys.onReturnPressed: toggled()
     Keys.onSpacePressed: toggled()
@@ -26,83 +28,36 @@ Item {
     Accessible.checked: checked
     Accessible.onToggleAction: toggled()
     Layout.fillWidth: true
-    Layout.preferredHeight: 72
-    Rectangle {
-        anchors.fill: parent
-        color: _toggleMouse.containsMouse ? Theme.primary03 : "transparent"
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-    }
+    Layout.preferredHeight: Math.max(54, _col.implicitHeight + 22)
+
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Dimensions.marginML
-        anchors.rightMargin: Dimensions.marginML
-        spacing: Dimensions.spacingXL
+        anchors.leftMargin: 16
+        anchors.rightMargin: 14
+        spacing: 12
         ColumnLayout {
+            id: _col
             Layout.fillWidth: true
-            spacing: Dimensions.spacingXS
+            spacing: 2
             Label {
                 textFormat: Text.PlainText
-                Layout.fillWidth: true; text: title
-                font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
+                Layout.fillWidth: true; text: _toggleRoot.title
+                font.pixelSize: Dimensions.body; font.weight: Font.Medium
                 color: Theme.textPrimary; elide: Text.ElideRight
             }
             Label {
                 textFormat: Text.PlainText
-                Layout.fillWidth: true; text: description
-                font.pixelSize: Dimensions.fontBody; color: Theme.textMuted
-                elide: Text.ElideRight
+                visible: _toggleRoot.description !== ""
+                Layout.fillWidth: true; text: _toggleRoot.description
+                font.pixelSize: Dimensions.footnote; color: Theme.textMuted
+                wrapMode: Text.WordWrap
             }
         }
-        Rectangle {
-            id: _toggleTrack
-            Layout.preferredWidth: Dimensions.toggleWidth
-            Layout.preferredHeight: Dimensions.toggleHeight
-            radius: Dimensions.toggleRadius
-            color: checked ? Theme.primary : Theme.primary12
-            property bool showGlow: _toggleMouse.containsMouse || _toggleRoot.activeFocus
-            border.color: showGlow
-                ? (checked ? Theme.primary60 : Theme.primary25)
-                : "transparent"
-            border.width: 1.5
-            scale: _toggleMouse.containsMouse ? 1.05 : 1.0
-            Behavior on color {
-                ColorAnimation {
-                    duration: _toggleRoot.disableAnimations ? 0 : 200
-                    easing.type: Easing.OutCubic
-                }
-            }
-            Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-            Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutCubic } }
-            Rectangle {
-                width: Dimensions.toggleKnobSize
-                height: Dimensions.toggleKnobSize
-                radius: Dimensions.toggleKnobRadius
-                color: Theme.textOnColor
-                x: checked ? parent.width - width - 3 : 3
-                anchors.verticalCenter: parent.verticalCenter
-                Rectangle {
-                    anchors.fill: parent; anchors.margins: -1
-                    radius: Dimensions.radiusStandard
-                    color: "transparent"
-                    border.color: Theme.bgPrimary15
-                    border.width: 1; z: -1
-                }
-                Behavior on x {
-                    NumberAnimation {
-                        duration: _toggleRoot.disableAnimations ? 0 : 200
-                        easing.type: Easing.OutCubic
-                    }
-                }
-                scale: _toggleMouse.pressed ? 0.85 : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animVeryFast } }
-            }
-            MouseArea {
-                id: _toggleMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: _toggleRoot.toggled()
-            }
+        AppSwitch {
+            checked: _toggleRoot.checked
+            animate: !_toggleRoot.disableAnimations
+            accessibleName: _toggleRoot.title
+            onToggled: _toggleRoot.toggled()
         }
     }
 }

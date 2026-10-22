@@ -879,6 +879,10 @@ static void configureApplication(QGuiApplication& app)
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Medium.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-SemiBold.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Bold.ttf");
+    // Large titles (Dimensions.fontDisplay) and the icon glyphs (Icons.qml)
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/InterDisplay-SemiBold.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/InterDisplay-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/MakineIcons.ttf");
 
     QString fontFamily = interRegular >= 0 ? "Inter" : "Segoe UI";
     QFont defaultFont(fontFamily, 10);

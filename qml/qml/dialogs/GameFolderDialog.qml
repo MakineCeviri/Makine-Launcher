@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -92,60 +93,26 @@ BaseDialog {
          : root._verdict === "unsure" ? qsTr("Bu klasörden emin olamadık")
          : qsTr("Bu klasöre kurulamaz")
 
-    header: Item {
-        implicitHeight: 64
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingXL
-            anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingLG
-
-            Rectangle {
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                radius: 18
-                color: Theme.withAlpha(root._tone, 0.14)
-
-                Text {
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 16
-                    text: root._moving ? "\uF12B" : root._verdict === "ok" ? "\uE73E"
-                        : root._verdict === "unsure" ? "\uE7BA" : "\uE711"
-                    color: root._tone
-                }
-            }
-
-            Text {
-                Layout.fillWidth: true
-                textFormat: Text.PlainText
-                text: root.title
-                font.pixelSize: Dimensions.fontXL
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
-                elide: Text.ElideRight
-            }
-
-            DialogCloseButton {
-                onClicked: { root.cancelled(); root.close() }
-            }
-        }
+    header: SheetHeader {
+        glyph: root._moving ? Icons.folderInput : root._verdict === "ok" ? Icons.folderCheck
+             : root._verdict === "unsure" ? Icons.triangleAlert : Icons.folderX
+        tint: root._tone
+        title: root.title
+        onCloseClicked: { root.cancelled(); root.close() }
     }
 
     contentItem: ColumnLayout {
-        spacing: Dimensions.spacingXL
+        spacing: 16
 
         // ── What it means, in a sentence ─────────────────────────────────────
         Text {
             Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingXL
-            Layout.rightMargin: Dimensions.paddingXL
+            Layout.leftMargin: 22
+            Layout.rightMargin: 22
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
-            lineHeight: 1.4
-            font.pixelSize: Dimensions.fontMD
+            lineHeight: 1.3
+            font.pixelSize: Dimensions.body
             color: Theme.textSecondary
             text: root._moving
                   ? qsTr("Oyun aşağıda işaretli klasörde, Türkçe yama ise başka bir klasöre kurulmuş; oyun yamayı görmüyor. Taşıdığında yama oradan kaldırılır ve oyunun klasörüne yeniden kurulur.")
@@ -160,31 +127,30 @@ BaseDialog {
         // ── The path, drawn ──────────────────────────────────────────────────
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingXL
-            Layout.rightMargin: Dimensions.paddingXL
+            Layout.leftMargin: 22
+            Layout.rightMargin: 22
             visible: root._trail.length > 0
-            implicitHeight: trailCol.implicitHeight + Dimensions.paddingLG * 2
+            implicitHeight: trailCol.implicitHeight + 32
             radius: Dimensions.radiusLG
-            color: Theme.textPrimary04
-            border.width: 1
-            border.color: Theme.textPrimary08
+            color: Theme.fillQuaternary
 
             ColumnLayout {
                 id: trailCol
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: Dimensions.paddingLG
-                spacing: Dimensions.spacingMD
+                anchors.margins: 16
+                spacing: 8
 
                 // Moving: where the patch is now, above where it goes.
                 Text {
                     visible: root._moving
                     textFormat: Text.PlainText
-                    text: qsTr("YAMANIN ŞU ANKİ YERİ")
-                    font.pixelSize: Dimensions.fontCaption
+                    text: qsTr("Yamanın şu anki yeri")
+                    font.pixelSize: Dimensions.caption1
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 1.2
+                    font.letterSpacing: 0.4
+                    font.capitalization: Font.AllUppercase
                     color: Theme.warning
                 }
                 Text {
@@ -201,11 +167,12 @@ BaseDialog {
                     visible: root._moving
                     Layout.topMargin: Dimensions.spacingXS
                     textFormat: Text.PlainText
-                    text: qsTr("TAŞINACAĞI YER")
-                    font.pixelSize: Dimensions.fontCaption
+                    text: qsTr("Taşınacağı yer")
+                    font.pixelSize: Dimensions.caption1
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 1.2
-                    color: Theme.accentLight
+                    font.letterSpacing: 0.4
+                    font.capitalization: Font.AllUppercase
+                    color: Theme.primary
                 }
 
                 Flow {
@@ -292,10 +259,10 @@ BaseDialog {
         // ── The evidence ─────────────────────────────────────────────────────
         Flow {
             Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingXL
-            Layout.rightMargin: Dimensions.paddingXL
+            Layout.leftMargin: 22
+            Layout.rightMargin: 22
             visible: root._chips.length > 0
-            spacing: Dimensions.spacingMD
+            spacing: 8
 
             Repeater {
                 model: root._chips
@@ -309,22 +276,18 @@ BaseDialog {
                     width: chipRow.implicitWidth + 20
                     height: 28
                     radius: 14
-                    color: Theme.withAlpha(chip.tint, 0.10)
-                    border.width: 1
-                    border.color: Theme.withAlpha(chip.tint, 0.28)
+                    color: Theme.withAlpha(chip.tint, Theme.darkMode ? 0.16 : 0.10)
 
                     Row {
                         id: chipRow
                         anchors.centerIn: parent
                         spacing: Dimensions.spacingSM
 
-                        Text {
+                        Icon {
                             anchors.verticalCenter: parent.verticalCenter
-                            textFormat: Text.PlainText
-                            font.family: "Segoe MDL2 Assets"
-                            font.pixelSize: 11
-                            text: chip.modelData.kind === "ok" ? "\uE73E"
-                                : chip.modelData.kind === "warn" ? "\uE7BA" : "\uE946"
+                            size: 13
+                            glyph: chip.modelData.kind === "ok" ? Icons.check
+                                 : chip.modelData.kind === "warn" ? Icons.triangleAlert : Icons.info
                             color: chip.tint
                         }
                         Text {
@@ -343,63 +306,30 @@ BaseDialog {
         Item { Layout.preferredHeight: Dimensions.spacingXS }
     }
 
-    // A footer button: filled for the action, quiet for the way out.
-    component FooterButton: Rectangle {
-        id: fb
-        property string text: ""
-        property bool filled: false
-        property color fill: Theme.primary
-        signal clicked()
-
-        Layout.preferredWidth: fbLabel.implicitWidth + Dimensions.paddingXL * 2
-        Layout.preferredHeight: 40
-        radius: Dimensions.radiusMD
-        color: fb.filled ? (fbHover.hovered ? Qt.darker(fb.fill, 1.12) : fb.fill)
-                         : (fbHover.hovered ? Theme.textPrimary12 : Theme.textPrimary06)
-        border.width: fb.activeFocus ? 2 : 0
-        border.color: Theme.accentLight
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: fb.text
-        Keys.onReturnPressed: fb.clicked()
-        Keys.onSpacePressed: fb.clicked()
-
-        Text {
-            id: fbLabel
-            anchors.centerIn: parent
-            textFormat: Text.PlainText
-            text: fb.text
-            font.pixelSize: Dimensions.fontMD
-            font.weight: Font.DemiBold
-            color: fb.filled ? Theme.textOnColor : Theme.textPrimary
-        }
-        HoverHandler { id: fbHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: fb.clicked() }
-    }
-
     footer: Item {
-        implicitHeight: 72
+        implicitHeight: 80
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingXL
-            anchors.rightMargin: Dimensions.paddingXL
-            spacing: Dimensions.spacingMD
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            spacing: 10
 
             Item { Layout.fillWidth: true }
 
-            FooterButton {
+            AppButton {
+                style: "gray"
                 text: qsTr("Başka klasör seç")
                 onClicked: {
                     root.close()
                     root.pickAnother()
                 }
             }
-            FooterButton {
+            AppButton {
                 id: primaryBtn
                 visible: root._canUse
-                filled: true
-                fill: root._verdict === "unsure" && !root._moving ? Theme.warning : Theme.primary
+                style: "filled"
+                tint: root._verdict === "unsure" && !root._moving ? Theme.warning : Theme.primary
                 text: root._moving ? qsTr("Yamayı oyunun klasörüne taşı")
                     : root.intent === "install"
                       ? (root._verdict === "ok" ? qsTr("Bu klasöre kur") : qsTr("Yine de buraya kur"))

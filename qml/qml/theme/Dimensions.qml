@@ -78,28 +78,41 @@ QtObject {
     // BORDER RADIUS
     // =========================================================================
 
-    readonly property int radiusXS: 2
-    readonly property int radiusSM: 4
+    readonly property int radiusXS: 4
+    readonly property int radiusSM: 6
     readonly property int radiusMD: 8
     readonly property int radiusLG: 12
     readonly property int radiusSection: 16
     readonly property int radiusFull: 9999
 
-    // Backward compat alias (existing code uses radiusStandard = 4)
-    readonly property int radiusStandard: radiusSM
+    // Small controls (buttons in rows, fields, menus)
+    readonly property int radiusStandard: radiusMD
+    readonly property int radiusControl: radiusMD
+    // Cards, grouped list sections
+    readonly property int radiusCard: 14
+    // Sheets and alerts
+    readonly property int radiusSheet: 18
+    // Large art (hero, featured)
+    readonly property int radiusHero: 20
 
     // =========================================================================
     // NAVBAR
     // =========================================================================
 
     readonly property int navbarHeight: 56
-    readonly property int navbarIconSizeLogo: 32
+    readonly property int navbarIconSizeLogo: 28
+
+    // App sidebar (Ana Sayfa, Tüm Oyunlar, …) and a page's horizontal margin
+    readonly property int appSidebarWidth: 224
+    readonly property int pageMargin: 32
+    // Large title row at the top of a page
+    readonly property int pageHeaderTop: 28
 
     // =========================================================================
     // TITLEBAR
     // =========================================================================
 
-    readonly property int titlebarHeight: 32
+    readonly property int titlebarHeight: 40
 
     // =========================================================================
     // GAME CARD
@@ -158,6 +171,22 @@ QtObject {
     // FONT SIZES
     // =========================================================================
 
+    // Apple text styles (Inter stands in for SF Pro; Inter Display for the
+    // large sizes, where SF switches to its Display cut too)
+    readonly property string fontDisplay: "Inter Display"
+    readonly property int largeTitle: 30
+    readonly property int title1: 26
+    readonly property int title2: 21
+    readonly property int title3: 18
+    readonly property int headline: 15
+    readonly property int body: 14
+    readonly property int callout: 13
+    readonly property int footnote: 12
+    readonly property int caption1: 11
+    readonly property int caption2: 10
+    readonly property real trackingTitle: -0.4
+    readonly property real trackingHeadline: -0.2
+
     readonly property int fontMicro: 8
     readonly property int fontMini: 9
     readonly property int fontCaption: 10
@@ -201,18 +230,18 @@ QtObject {
     // TOGGLE/SWITCH DIMENSIONS
     // =========================================================================
 
-    readonly property int toggleWidth: 44
-    readonly property int toggleHeight: 24
-    readonly property int toggleRadius: radiusStandard
-    readonly property int toggleKnobSize: 18
-    readonly property int toggleKnobRadius: radiusStandard
+    readonly property int toggleWidth: 42
+    readonly property int toggleHeight: 25
+    readonly property int toggleRadius: 13
+    readonly property int toggleKnobSize: 21
+    readonly property int toggleKnobRadius: 11
 
     // =========================================================================
     // DIALOG DIMENSIONS
     // =========================================================================
 
-    readonly property int dialogRadius: radiusStandard
-    readonly property int badgeRadius: radiusStandard
+    readonly property int dialogRadius: radiusSheet
+    readonly property int badgeRadius: radiusFull
 
     // =========================================================================
     // Z-INDEX LAYERS

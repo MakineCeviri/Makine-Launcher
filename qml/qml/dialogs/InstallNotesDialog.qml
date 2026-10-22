@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -48,52 +49,12 @@ BaseDialog {
     title: _foreignSlot ? qsTr("Yama kuruldu — oyunun dilini değiştirin")
                         : qsTr("Yama kuruldu — son bir adım var")
 
-    header: Item {
-        implicitHeight: 56
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingMD
-
-            Rectangle {
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 32
-                radius: 16
-                color: Theme.withAlpha(root.accentColor, 0.10)
-                border.color: Theme.withAlpha(root.accentColor, 0.20)
-                border.width: 1
-
-                Label {
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 15
-                    text: root._foreignSlot ? "" : ""   // warning / info
-                    color: root.accentColor
-                }
-            }
-
-            Label {
-                textFormat: Text.PlainText
-                text: root.title
-                font.pixelSize: Dimensions.fontLG
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-
-            DialogCloseButton {
-                onClicked: { root.cancelled(); root.close() }
-            }
-        }
-
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.textPrimary06
-        }
+    header: SheetHeader {
+        glyph: root._foreignSlot ? Icons.languages : Icons.circleCheck
+        tint: root.accentColor
+        title: root.title
+        subtitle: qsTr("Bu bilgi oyunun sayfasındaki \"Yama notları\" bölümünde de durur.")
+        onCloseClicked: { root.cancelled(); root.close() }
     }
 
     // One scroller for everything: notes run to numbered lists (Kenshi, Skyrim,
@@ -108,16 +69,14 @@ BaseDialog {
             width: _scroller.availableWidth
             spacing: Dimensions.spacingMD
 
-            Item { Layout.preferredHeight: Dimensions.spacingXS }
-
             // ===== Derived from the installed files =====
             Rectangle {
                 Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.paddingLG
-                Layout.rightMargin: Dimensions.paddingLG
-                Layout.preferredHeight: _slotText.implicitHeight + Dimensions.paddingMD * 2
+                Layout.leftMargin: 22
+                Layout.rightMargin: 22
+                Layout.preferredHeight: _slotText.implicitHeight + 28
                 visible: root.languageSlot !== ""
-                radius: Dimensions.radiusStandard
+                radius: Dimensions.radiusLG
                 color: Theme.withAlpha(root.accentColor, 0.08)
                 border.color: Theme.withAlpha(root.accentColor, 0.20)
                 border.width: 1
@@ -125,11 +84,12 @@ BaseDialog {
                 Label {
                     id: _slotText
                     anchors.fill: parent
-                    anchors.margins: Dimensions.paddingMD
+                    anchors.margins: 14
                     textFormat: Text.PlainText
                     wrapMode: Text.WordWrap
-                    lineHeight: 1.5
-                    font.pixelSize: Dimensions.fontSM
+                    lineHeight: 1.3
+                    font.pixelSize: Dimensions.callout
+                    font.weight: Font.Medium
                     color: Theme.textPrimary
                     text: root._foreignSlot
                           ? qsTr("Çeviri oyunun %1 dil dosyalarına yazıldı. Görmek için oyunun dilini %1 yapın ve oyunu yeniden başlatın.")
@@ -141,25 +101,26 @@ BaseDialog {
             // ===== The catalogue note =====
             Label {
                 Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.paddingLG
-                Layout.rightMargin: Dimensions.paddingLG
+                Layout.leftMargin: 22
+                Layout.rightMargin: 22
                 visible: root.message !== ""
                 textFormat: Text.PlainText
                 text: root.message
-                font.pixelSize: Dimensions.fontSM
+                font.pixelSize: Dimensions.body
                 color: Theme.textSecondary
                 wrapMode: Text.WordWrap
-                lineHeight: 1.5
+                lineHeight: 1.3
             }
 
             // ===== What actually landed =====
             Label {
                 Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.paddingLG
-                Layout.rightMargin: Dimensions.paddingLG
+                Layout.leftMargin: 22
+                Layout.rightMargin: 22
                 visible: root._fileCount > 0
                 textFormat: Text.PlainText
-                font.pixelSize: Dimensions.fontMicro
+                font.family: "Consolas"
+                font.pixelSize: Dimensions.caption1
                 color: Theme.textMuted
                 wrapMode: Text.WrapAnywhere
                 lineHeight: 1.4
@@ -176,61 +137,15 @@ BaseDialog {
     }
 
     footer: Item {
-        implicitHeight: 56
+        implicitHeight: 76
 
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.textPrimary06
-        }
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingMD
-
-            Label {
-                textFormat: Text.PlainText
-                text: qsTr("Bu bilgi oyun sayfasındaki Yama Notları bölümünde kalır.")
-                font.pixelSize: Dimensions.fontMicro
-                color: Theme.textMuted
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-
-            Rectangle {
-                Layout.preferredWidth: _okLbl.width + Dimensions.paddingLG * 2
-                Layout.preferredHeight: 34
-                radius: Dimensions.radiusStandard
-                color: _okMouse.containsMouse ? root.accentColor
-                                              : Theme.withAlpha(root.accentColor, 0.85)
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                scale: _okMouse.pressed ? Dimensions.pressScale : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Anladım")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: root.close()
-
-                Label {
-                    id: _okLbl
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: qsTr("Anladım")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.textOnColor
-                }
-
-                MouseArea {
-                    id: _okMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.close()
-                }
-            }
+        AppButton {
+            anchors.right: parent.right
+            anchors.rightMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            style: "filled"
+            text: qsTr("Anladım")
+            onClicked: root.close()
         }
     }
 }

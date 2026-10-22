@@ -7,14 +7,15 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * SettingsDivider.qml - Thin horizontal separator line.
- * variant "settings" (default): 0.04 opacity — for settings panels
- * variant "section": 0.06 opacity — for section headers and screen separators
+ * SettingsDivider.qml - A hairline between rows.
+ * variant "settings" (default): inset from the left, as between list rows
+ * variant "section": full width, between a heading and its content
  */
 Rectangle {
     property string variant: "settings"
 
     Layout.fillWidth: true
+    Layout.leftMargin: variant === "section" ? 0 : 16
     Layout.preferredHeight: 1
-    color: variant === "section" ? Theme.textPrimary06 : Theme.textPrimary04
+    color: Theme.separator
 }

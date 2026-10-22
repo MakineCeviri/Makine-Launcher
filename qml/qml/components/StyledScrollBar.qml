@@ -7,27 +7,28 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * StyledScrollBar.qml - Themed scrollbar for ScrollView/Flickable
+ * StyledScrollBar — macOS overlay scroller: a thin thumb that shows while
+ * scrolling or under the pointer and widens when grabbed.
  *
- * Replaces 6+ inline scrollbar styling blocks:
  *   ScrollBar.vertical: StyledScrollBar {}
  */
 ScrollBar {
     id: root
 
     policy: ScrollBar.AsNeeded
+    padding: 2
+    minimumSize: 0.08
 
-    background: Rectangle { color: "transparent" }
+    background: Item {}
 
     contentItem: Rectangle {
-        implicitWidth: root.pressed ? 5 : 3
-        radius: implicitWidth / 2
-        color: root.pressed ? Theme.scrollbarThumbHover
-             : root.hovered ? Theme.scrollbarThumbHover
-             : Theme.scrollbarThumb
-        opacity: root.active ? 1.0 : 0.0
+        implicitWidth: root.hovered || root.pressed ? 8 : 6
+        implicitHeight: root.hovered || root.pressed ? 8 : 6
+        radius: Math.min(width, height) / 2
+        color: root.pressed || root.hovered ? Theme.scrollbarThumbHover : Theme.scrollbarThumb
+        opacity: root.active || root.hovered ? 1.0 : 0.0
 
         Behavior on implicitWidth { NumberAnimation { duration: Dimensions.animVeryFast } }
-        Behavior on opacity { NumberAnimation { duration: Dimensions.animMedium } }
+        Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
     }
 }

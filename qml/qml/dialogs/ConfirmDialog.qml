@@ -5,17 +5,19 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../components"
 pragma ComponentBehavior: Bound
 
 /**
- * ConfirmDialog.qml - Reusable confirmation dialog for destructive actions
+ * ConfirmDialog.qml - An Apple-style alert for an action worth a second
+ * thought: a symbol, the question, what will happen, "Vazgeç" and the action.
  *
  * Usage:
  *   ConfirmDialog {
- *       title: "Delete Backups"
- *       message: "All backups will be deleted."
- *       confirmText: "Delete"
- *       onConfirmed: doDestructiveAction()
+ *       title: qsTr("Türkçe yama kaldırılsın mı?")
+ *       message: qsTr("…")
+ *       confirmText: qsTr("Yamayı kaldır")
+ *       onConfirmed: doIt()
  *   }
  */
 BaseDialog {
@@ -23,185 +25,87 @@ BaseDialog {
 
     property string message: ""
     property string confirmText: qsTr("Onayla")
+    property string cancelText: qsTr("Vazgeç")
+    property string glyph: Icons.triangleAlert
     accentColor: Theme.error
 
     signal confirmed()
 
-    width: 400
+    width: 380
     contentHeight: contentColumn.implicitHeight
 
-    header: Item {
-        implicitHeight: 56
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingMD
-
-            Rectangle {
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 32
-                radius: 16
-                color: Theme.withAlpha(root.accentColor, 0.10)
-                border.color: Theme.withAlpha(root.accentColor, 0.20)
-                border.width: 1
-
-                Canvas {
-                    anchors.centerIn: parent
-                    width: 16; height: 16
-                    property color c: root.accentColor
-                    onCChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        ctx.strokeStyle = c
-                        ctx.lineWidth = 1.6
-                        ctx.lineJoin = "round"
-                        ctx.lineCap = "round"
-                        ctx.beginPath()
-                        ctx.moveTo(8, 2); ctx.lineTo(15, 14); ctx.lineTo(1, 14)
-                        ctx.closePath(); ctx.stroke()
-                        ctx.fillStyle = c
-                        ctx.beginPath(); ctx.arc(8, 11.5, 1, 0, Math.PI * 2); ctx.fill()
-                        ctx.beginPath(); ctx.moveTo(8, 5.5); ctx.lineTo(8, 9.5); ctx.stroke()
-                    }
-                }
-            }
-
-            Label {
-                textFormat: Text.PlainText
-                text: root.title
-                font.pixelSize: Dimensions.fontLG
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-
-            DialogCloseButton {
-                onClicked: { root.cancelled(); root.close() }
-            }
-        }
-
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: Theme.textPrimary06
-        }
-    }
+    header: Item { implicitHeight: 0 }
 
     contentItem: ColumnLayout {
         id: contentColumn
-        spacing: Dimensions.spacingMD
+        spacing: 0
 
-        Item { Layout.preferredHeight: Dimensions.spacingXS }
-
+        IconTile {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: 26
+            size: 48
+            glyph: root.glyph
+            tint: root.accentColor
+            solid: false
+        }
         Label {
             textFormat: Text.PlainText
             Layout.fillWidth: true
-            Layout.leftMargin: Dimensions.paddingLG
-            Layout.rightMargin: Dimensions.paddingLG
+            Layout.topMargin: 14
+            Layout.leftMargin: 24
+            Layout.rightMargin: 24
+            horizontalAlignment: Text.AlignHCenter
+            text: root.title
+            font.pixelSize: Dimensions.headline
+            font.weight: Font.Bold
+            color: Theme.textPrimary
+            wrapMode: Text.WordWrap
+        }
+        Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            Layout.leftMargin: 24
+            Layout.rightMargin: 24
+            Layout.bottomMargin: 20
+            horizontalAlignment: Text.AlignHCenter
             text: root.message
-            font.pixelSize: Dimensions.fontSM
+            font.pixelSize: Dimensions.callout
             color: Theme.textSecondary
             wrapMode: Text.WordWrap
-            lineHeight: 1.5
+            lineHeight: 1.25
+            visible: root.message !== ""
         }
-
-        Item { Layout.preferredHeight: Dimensions.spacingXS }
     }
 
     footer: Item {
-        implicitHeight: 56
-
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 1; color: Theme.textPrimary06
-        }
+        implicitHeight: buttons.implicitHeight + 40
 
         RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingMD
+            id: buttons
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            spacing: 10
 
-            Label {
-                textFormat: Text.PlainText
-                text: qsTr("Esc")
-                font.pixelSize: Dimensions.fontMicro
-                color: Theme.textMuted
-                opacity: 0.5
+            AppButton {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                fillWidth: true
+                style: "gray"
+                text: root.cancelText
+                onClicked: { root.cancelled(); root.close() }
             }
-
-            Item { Layout.fillWidth: true }
-
-            Rectangle {
-                Layout.preferredWidth: _cancelLbl.width + Dimensions.paddingLG * 2
-                Layout.preferredHeight: 34
-                radius: Dimensions.radiusStandard
-                color: _cancelMouse.containsMouse ? Theme.textPrimary08 : "transparent"
-                border.color: Theme.textPrimary12
-                border.width: 1
-                scale: _cancelMouse.pressed ? Dimensions.pressScale : 1.0
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("İptal")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: { root.cancelled(); root.close() }
-
-                Label {
-                    textFormat: Text.PlainText
-                    id: _cancelLbl
-                    anchors.centerIn: parent
-                    text: qsTr("Vazgeç")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.Medium
-                    color: _cancelMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                }
-
-                MouseArea {
-                    id: _cancelMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.cancelled(); root.close() }
-                }
-            }
-
-            Rectangle {
-                Layout.preferredWidth: _confirmLbl.width + Dimensions.paddingLG * 2
-                Layout.preferredHeight: 34
-                radius: Dimensions.radiusStandard
-                color: _confirmMouse.containsMouse ? root.accentColor : Theme.withAlpha(root.accentColor, 0.85)
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                scale: _confirmMouse.pressed ? Dimensions.pressScale : 1.0
-                Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: root.confirmText
-                activeFocusOnTab: true
-                Keys.onReturnPressed: { root.confirmed(); root.close() }
-
-                Label {
-                    textFormat: Text.PlainText
-                    id: _confirmLbl
-                    anchors.centerIn: parent
-                    text: root.confirmText
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.textOnColor
-                }
-
-                MouseArea {
-                    id: _confirmMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.confirmed(); root.close() }
-                }
+            AppButton {
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                fillWidth: true
+                style: "filled"
+                tint: root.accentColor
+                text: root.confirmText
+                onClicked: { root.confirmed(); root.close() }
             }
         }
     }
