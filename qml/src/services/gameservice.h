@@ -20,6 +20,7 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <functional>
+#include <optional>
 #include "corebridge.h"
 #include "manifestsyncservice.h"
 #include "steamdetailsservice.h"
@@ -597,6 +598,9 @@ private:
     // after a cancel or a timeout, so a worker still finishing never reports
     // into the next install's slot.
     QString m_installingGameId;
+    // Files of the record that install went over, if it went over one: its
+    // rollback without a backup removes only what the attempt added.
+    std::optional<QStringList> m_installOverRecord;
     bool m_installCancelRequested{false};
     // Output of the install's own program (installConsole) and whose it is.
     QString m_installConsole;

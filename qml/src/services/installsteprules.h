@@ -367,4 +367,22 @@ inline FileRecord mergeWrittenFiles(FileRecord record, const QStringList& writte
     return record;
 }
 
+// Which of `files` an install record does not list. A "_vpatch:" entry names
+// the game file it edited in place.
+//
+// A failed install over an earlier one fails into that one's record
+// (mergeWrittenFiles): its own files are what the earlier record lacks. With
+// no backup, the rollback removed the whole record — a failed, timed-out or
+// cancelled update of an add-only patch deleted the working earlier version.
+inline QStringList notOnRecord(const QStringList& files, const QStringList& record)
+{
+    QSet<QString> listed;
+    for (const QString& f : record)
+        listed.insert(f.startsWith(QLatin1String("_vpatch:")) ? f.mid(8) : f);
+    QStringList out;
+    for (const QString& f : files)
+        if (!listed.contains(f)) out.append(f);
+    return out;
+}
+
 } // namespace makine::steprules

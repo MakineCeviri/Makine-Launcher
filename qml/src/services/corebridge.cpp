@@ -1598,6 +1598,15 @@ bool CoreBridge::uninstallPackage(const QString& gameId, const QString& gamePath
     return m_localPkgManager->uninstallPackage(resolved, gamePath, restoredFrom);
 }
 
+bool CoreBridge::removeAttemptFiles(const QString& gameId, const QString& gamePath,
+                                    const QStringList& earlierRecord)
+{
+    if (!m_localPkgManager) return false;
+    QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return false;
+    return m_localPkgManager->removeAttemptFiles(resolved, gamePath, earlierRecord);
+}
+
 void CoreBridge::refreshPackageManifest()
 {
     MAKINE_ZONE_NAMED("CoreBridge::refreshPackageManifest");

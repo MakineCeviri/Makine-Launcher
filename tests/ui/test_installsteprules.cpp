@@ -504,3 +504,21 @@ TEST(InstallStepRules, FailedInstallThatWroteNothingChangesNoRecord) {
     EXPECT_EQ(r.added, old.added);
     EXPECT_TRUE(r.replaced.isEmpty());
 }
+
+TEST(InstallStepRules, FailedUpdateWithoutBackupRemovesOnlyItsOwnFiles) {
+    // v1 of an add-only patch (no backup) on record; its update wrote one file
+    // of v1 again and one new file before the disk filled.
+    const QStringList v1{"Content/Paks/tr_P.pak", "Binaries/dinput8.dll"};
+    const FileRecord failed = mergeWrittenFiles({v1, v1, {}},
+                                                {"Content/Paks/tr_P.pak", "new_in_v2.pak"}, {});
+    EXPECT_EQ(notOnRecord(failed.added, v1), QStringList({"new_in_v2.pak"}));
+
+    // The update never started ("Yama paketi bulunamadı"): nothing of its own.
+    EXPECT_TRUE(notOnRecord(v1, v1).isEmpty());
+}
+
+TEST(InstallStepRules, AnInPlaceMarkerListsTheFileItEdited) {
+    EXPECT_EQ(notOnRecord({"DataPC_patch_01.forge", "data/b.pak"},
+                          {"_vpatch:DataPC_patch_01.forge", "a.pak"}),
+              QStringList({"data/b.pak"}));
+}

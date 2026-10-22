@@ -137,6 +137,12 @@ public:
     // file it holds is an original and is left in place.
     bool uninstallPackage(const QString& steamAppId, const QString& gamePath,
                           const QString& restoredFrom = {});
+    // Undo a failed install that went over an earlier one, with no backup:
+    // delete the files it added that `earlierRecord` (the record it went over)
+    // does not list, and drop them from the record. The rest stays installed.
+    // False when one of them could not be deleted; it stays on record.
+    bool removeAttemptFiles(const QString& steamAppId, const QString& gamePath,
+                            const QStringList& earlierRecord);
 
     // Resolve any store ID (epic_xxx, gog_xxx, steamAppId) to canonical steamAppId
     QString resolveGameId(const QString& gameId) const;

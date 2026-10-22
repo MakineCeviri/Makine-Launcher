@@ -1770,6 +1770,10 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
 
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
+    if (const auto over = m_coreBridge->getInstalledInfo(gameId))
+        m_installOverRecord = over->installedFiles + over->addedFiles;
+    else
+        m_installOverRecord.reset();
     m_installCancelRequested = false;
     m_installConsole.clear();
     m_installConsoleGameId = gameId;
@@ -2418,6 +2422,21 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         gamePath = m_games[*idxIt].installPath;
 
     BackupManager* bm = BackupManager::instance();
+    if ((!bm || !bm->hasBackup(gameId)) && m_installOverRecord && m_coreBridge
+        && !gamePath.isEmpty()) {
+        // No backup, over an earlier install: the record is that one's plus
+        // what this attempt wrote. Only the attempt's own files go. Removing
+        // the record took the working patch with it whenever the update of an
+        // add-only patch (it has no backup) failed, timed out or was cancelled.
+        const bool clean =
+            m_coreBridge->removeAttemptFiles(gameId, gamePath, *m_installOverRecord);
+        emit translationInstallCompleted(gameId, false, clean
+            ? tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor.\n%1").arg(originalError)
+            : tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor, ama bu denemenin "
+                 "eklediği bazı dosyalar silinemedi. Oyunu kapatıp tekrar deneyin.\n%1")
+                  .arg(originalError));
+        return;
+    }
     if (!bm || !bm->hasBackup(gameId)) {
         // No backup. A record of added files only (nothing the install wrote
         // was there before it) is undone by deleting them; one that replaced

@@ -3880,4 +3880,37 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     return true;
 }
 
+bool LocalPackageManager::removeAttemptFiles(const QString& steamAppId, const QString& gamePath,
+                                             const QStringList& earlierRecord)
+{
+    auto maybeState = m_catalog.getInstalledState(steamAppId.toStdString());
+    if (!maybeState) return true;
+    packages::InstalledPackageState state = *maybeState;
+
+    QStringList added;
+    for (const auto& f : state.addedFiles) added.append(QString::fromStdString(f));
+    const QStringList own = steprules::notOnRecord(added, earlierRecord);
+
+    std::set<std::string> gone;
+    for (const QString& rel : own) {
+        const QString fullPath = QDir::cleanPath(gamePath + "/" + rel);
+        if (!security::isPathContained(gamePath, fullPath)) continue;
+        if (rawfile::exists(fullPath) && !QFile::remove(fullPath)) {
+            qCWarning(lcPackageManager) << "Failed to remove:" << fullPath;
+            continue;
+        }
+        gone.insert(rel.toStdString());
+    }
+    const auto drop = [&gone](std::vector<std::string>& files) {
+        std::erase_if(files, [&gone](const std::string& f) { return gone.count(f) > 0; });
+    };
+    drop(state.installedFiles);
+    drop(state.addedFiles);
+    m_catalog.markInstalled(steamAppId.toStdString(), state);
+    saveCatalogInstalledState(m_catalog, installedStatePath());
+    qCInfo(lcPackageManager) << "Failed install over" << steamAppId << "removed" << gone.size()
+                             << "of its" << own.size() << "files; the earlier install stays";
+    return gone.size() == static_cast<size_t>(own.size());
+}
+
 } // namespace makine

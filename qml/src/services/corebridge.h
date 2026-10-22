@@ -261,6 +261,12 @@ public:
                           const QString& restoredFrom = {});
 
     /**
+     * @brief Remove only what a failed install over an earlier one added
+     */
+    bool removeAttemptFiles(const QString& gameId, const QString& gamePath,
+                            const QStringList& earlierRecord);
+
+    /**
      * @brief Refresh package catalog from cached index.json
      */
     Q_INVOKABLE void refreshPackageManifest();
