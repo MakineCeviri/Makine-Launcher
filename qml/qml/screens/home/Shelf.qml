@@ -113,8 +113,13 @@ Card {
             clip: true
             model: shelf.model
             boundsBehavior: Flickable.StopAtBounds
-            flickDeceleration: 4000
-            maximumFlickVelocity: 6000
+            // Not a flickable to the wheel or a drag: a horizontal Flickable
+            // turns a plain wheel into a sideways scroll, so the page stopped
+            // scrolling under the pointer — even on a row with two tiles and
+            // nowhere to go. The arrows move it, and a sideways wheel or
+            // Shift + wheel when it has more than fits.
+            interactive: false
+            readonly property bool overflows: contentWidth + leftMargin + rightMargin > width + 1
             reuseItems: true
             cacheBuffer: 600
             pixelAligned: true
@@ -147,9 +152,10 @@ Card {
             }
 
             // A plain wheel belongs to the page; a sideways one, or Shift +
-            // wheel, moves the row.
+            // wheel, moves the row — when there is more of it than fits.
             WheelHandler {
                 target: null
+                enabled: view.overflows
                 acceptedModifiers: Qt.KeyboardModifierMask
                 onWheel: (event) => {
                     const sideways = event.angleDelta.x !== 0
@@ -189,7 +195,7 @@ Card {
         EdgeFade {
             edge: "right"; size: 40
             anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-            active: !view.atEnd && view.contentWidth > view.width
+            active: !view.atEnd && view.overflows
         }
 
         HoverHandler { id: rowHover }
@@ -214,7 +220,7 @@ Card {
             style: "glass"
             icon: Icons.chevronRight
             toolTip: qsTr("Sonraki")
-            opacity: rowHover.hovered && !view.atEnd && view.contentWidth > view.width ? 1 : 0
+            opacity: rowHover.hovered && !view.atEnd && view.overflows ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             onClicked: view._page(1)
