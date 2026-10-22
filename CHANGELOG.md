@@ -7,13 +7,6 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
-### Eklenen (2026-10-22, 0.1.7 sonrası)
-- **Yamanın kendi programıyla kurulum, sözleşmeyle** (`docs/patch-programs.md`, tarif seviyesi 3) — program çalışmadan önce oyun klasörü tarifin `requires` dosyalarıyla doğrulanıyor (yanlış klasörde hiçbir şey çalışmıyor; bir üst/alt klasör uyuyorsa oyun oraya bağlanıyor); program paketin geçici kopyasından çalışıyor ve kopyadaki betiklerde çevirmenin sabit oyun klasörü (`set OYUN=D:\…`, `game.path`) launcher'ın bulduğu klasörle değiştiriliyor; klasör ayrıca `MAKINE_OYUN` ortam değişkeni ve oyun klasöründeki `.makine` notuyla veriliyor; program bittiğinde oyunda ne değiştiğine bakılıyor — hiçbir şey değişmediyse "kuruldu" denmiyor; kaldırma programı saklanan kopyadan çalışıp bekleniyor, çıktısı sayfada
-- **Ubisoft Connect kütüphanesi** taranıyor (kayıt defterindeki kurulumlar; başka diskteki kütüphaneler dahil)
-
-### Değişen (2026-10-22, 0.1.7 sonrası)
-- Kendi programıyla kurulan yamalarda sayfa, kaldırma onayı ve açıklamalar yedekten değil programdan söz ediyor; yanlış klasör hatasında "Oyun dosyalarını doğrula" yerine "Klasörü değiştir"
-
 ### Eklenen (2026-03-12)
 - **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)
 - **Discord butonu** — Duyuru kartında hover animasyonlu Discord bağlantısı
@@ -136,6 +129,32 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 - Release workflow `lukka/run-vcpkg` yerine built-in vcpkg kullanılıyor
 
 ---
+
+## [0.2.0-beta] - 2026-10-23
+
+### Eklenen
+- **Yamanın kendi programıyla kurulum, sözleşmeyle** (`docs/patch-programs.md`, tarif seviyesi 3) — program çalışmadan önce oyun klasörü tarifin `requires` dosyalarıyla doğrulanıyor (yanlış klasörde hiçbir şey çalışmıyor; bir üst/alt klasör uyuyorsa oyun oraya bağlanıyor); program paketin geçici kopyasından çalışıyor ve kopyadaki betiklerde çevirmenin sabit oyun klasörü (`set OYUN=D:\…`, `game.path`) launcher'ın bulduğu klasörle değiştiriliyor; klasör ayrıca `MAKINE_OYUN` ortam değişkeni ve oyun klasöründeki `.makine` notuyla veriliyor; program bittiğinde oyunda ne değiştiğine bakılıyor — hiçbir şey değişmediyse "kuruldu" denmiyor; kaldırma programı saklanan kopyadan çalışıp bekleniyor, çıktısı sayfada
+- **Ubisoft Connect kütüphanesi** taranıyor (kayıt defterindeki kurulumlar; başka diskteki kütüphaneler dahil)
+
+### Değişen
+- Kendi programıyla kurulan yamalarda sayfa, kaldırma onayı ve açıklamalar yedekten değil programdan söz ediyor; yanlış klasör hatasında "Oyun dosyalarını doğrula" yerine "Klasörü değiştir"
+- **Görünüm: Apple yapısı, 0.1.5'in tonu** (`docs/design.md`) — neredeyse siyah zemin vurgunun iki yumuşak ışığıyla (`AppBackground`); her bölüm bir kapta: yarı saydam, ince çizgili, üst kenarı ışık alan (`Card`); kayan içerik kenarda kesilmiyor, kayboluyor (`EdgeFade`, `TopDissolve`); uçları kaybolan ayraç (`FadeLine`); 0.1.5'in vurgu paleti, varsayılan mor (0.1.7'nin mavisi bir kez mora döner); sıcak kırık beyaz yazı
+- Sayfa başlığının açıklaması tam genişlikte; filtreler kabın üst çubuğunda (Tüm Oyunlar, Kütüphanem)
+
+### Düzeltilen
+- Raflar fare tekerleğini yutmuyordu: imleç raftayken sayfa kaymıyordu
+- Başarısız kurulumdan sonra oyunda değişiklik kalmadıysa "Oyun dosyalarını doğrula" gösterilmiyor; yanlış klasörde "Klasörü değiştir"
+- Yama programı sözleşmesi sağlamlaştırıldı (yayın öncesi denetim):
+  - `start` ile asıl aracı açıp hemen biten betik: araç bitene kadar bekleniyor (iş nesnesi; paketin kendi programları ve betik yorumlayıcıları), "Durdur" bütün ağacı kapatıyor — önceden araç çalışırken kopyası siliniyor ve kurulum "değişiklik yok" diye başarısız sayılıyordu
+  - Kaldırma programı soru sorarsa yanıt sayfadan veriliyor, "Durdur" ile durduruluyor; aynı anda tek kaldırma programı
+  - Kaldırma programı iki kez başarısız olursa (bulunamadı, yeni tarifte adı değişti, hata kodu) üçüncü "Kaldır" yamayı programsız kaldırıp mağaza onarımını başlatıyor; önceden kayıt sonsuza dek kalıyordu
+  - Bir dosyası silinemeyen kaldırmayı yeniden denemek programı ikinci kez çalıştırmıyor
+  - Güncelleme eski sürümü önce kendi programıyla kaldırıyor (araç yamalı dosyaları "orijinal" diye yedeklemesin)
+  - `requires` yalnız seçilen sürümün/seçeneklerin adımlarından; kurulu yamanın klasöründe eksikse "Klasörü değiştir" yerine güncelle/doğrula söyleniyor
+  - Yedeği olan başarısız kurulumda programın değişiklikleri kayıttan düşmüyor; geri alma programı olmayan tarifte "Kaldır" programın değiştirdiklerini mağaza onarımına bırakıyor (sayfa ve onay penceresi bunu söylüyor)
+  - Betik düzeltmesi: tırnaklı değer tırnağıyla kalıyor (`set OYUN="%MAKINE_OYUN%"`); mağazanın oyun olmayan klasörleri (`Steamworks Shared`, `Epic Games\Launcher`) değiştirilmiyor
+  - Sentry: her sonuç kendi nedeniyle (`folder_mismatch`, `program_no_change`, `tool_missing`, `uninstall_tool_skipped` …); 0.1.5'in "oyun dosyası bulunamadı" adımları artık `target_missing`
+- Raf okları kenar solmasının altında soluk görünüyordu; kaydırma çubuğu sayfanın üst solmasıyla birlikte kayboluyordu; öne çıkanlar şeridi kaydırılıp görünmezken de slayt değiştiriyordu
 
 ## [0.1.7-beta] - 2026-10-22
 
