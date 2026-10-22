@@ -71,6 +71,8 @@ Item {
             "external": proxy.countWithStatus("external")
         }
     }
+    readonly property bool _narrow: allGames.width < 1000
+    readonly property var _sorts: [ { value: "", text: qsTr("A–Z") }, { value: "newest", text: qsTr("En yeni") } ]
     readonly property var _filters: {
         const all = [
             { value: "", text: qsTr("Tümü") },
@@ -103,6 +105,14 @@ Item {
                       : qsTr("%1 oyun için Türkçe yama · %2 tanesi bilgisayarında")
                             .arg(allGames._counts[""]).arg(allGames._counts["mine"])
 
+            // Narrow window: the order moves up beside the search
+            SegmentedControl {
+                visible: allGames._narrow
+                small: true
+                model: allGames._sorts
+                currentValue: allGames.sort
+                onActivated: (value) => allGames.sort = value
+            }
             SearchField {
                 id: search
                 Layout.preferredWidth: Math.min(320, allGames.width * 0.32)
@@ -122,12 +132,16 @@ Item {
             SegmentedControl {
                 model: allGames._filters
                 currentValue: allGames.filter
+                // A narrow window drops the counts and the larger type first
+                small: allGames.width < 1180
+                compact: allGames.width < 980
                 onActivated: (value) => allGames.filter = value
             }
             Item { Layout.fillWidth: true }
             SegmentedControl {
+                visible: !allGames._narrow
                 small: true
-                model: [ { value: "", text: qsTr("A–Z") }, { value: "newest", text: qsTr("En yeni") } ]
+                model: allGames._sorts
                 currentValue: allGames.sort
                 onActivated: (value) => allGames.sort = value
             }

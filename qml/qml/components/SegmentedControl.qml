@@ -18,6 +18,8 @@ Item {
     property var model: []
     property string currentValue: ""
     property bool small: false
+    // Narrow window: counts go, segments tighten
+    property bool compact: false
 
     signal activated(string value)
 
@@ -72,7 +74,7 @@ Item {
                 readonly property bool selected: segment.index === seg._index
 
                 width: label.implicitWidth + (countLabel.visible ? countLabel.implicitWidth + 6 : 0)
-                       + (seg.small ? 20 : 26)
+                       + (seg.compact ? 16 : seg.small ? 20 : 26)
                 height: seg._h - 4
 
                 activeFocusOnTab: true
@@ -113,7 +115,7 @@ Item {
                     Text {
                         id: countLabel
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: segment.modelData.count !== undefined && segment.modelData.count >= 0
+                        visible: !seg.compact && segment.modelData.count !== undefined && segment.modelData.count >= 0
                         textFormat: Text.PlainText
                         text: segment.modelData.count !== undefined ? segment.modelData.count : ""
                         font.pixelSize: seg.small ? Dimensions.caption1 : Dimensions.footnote
