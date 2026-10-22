@@ -5,21 +5,18 @@
 
 /**
  * @file networksecurity.h
- * @brief Shared network security: TLS pinning, rate limiting, request hardening
+ * @brief Shared network security: TLS error policy, rate limiting, request hardening
  * @copyright (c) 2026 MakineCeviri Team
  *
  * All QNetworkAccessManager instances MUST use these helpers.
- * Provides: SPKI certificate pinning for makineceviri.org domains,
+ * Provides: the TLS error policy for makineceviri.org domains,
  * per-machine download rate limiting, and request hardening.
  */
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QSslCertificate>
-#include <QSslKey>
 #include <QSslError>
-#include <QCryptographicHash>
 #include <QSettings>
 #include <QDateTime>
 #include <QLoggingCategory>
@@ -28,49 +25,36 @@ Q_DECLARE_LOGGING_CATEGORY(lcNetSec)
 
 namespace makine::security {
 
-// SPKI pin hashes for makineceviri.org (SHA-256, base64)
-// Primary: current Cloudflare certificate
-// Backup: next rotation certificate
-inline const QByteArray kPinnedSpkiPrimary =
-    QByteArray::fromBase64("mC/RiYlbhN0AdU/u23BPTNwoLlj5OTigvIL0IbnGppg=");
-inline const QByteArray kPinnedSpkiBackup =
-    QByteArray::fromBase64("kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=");
-
-// Trusted domains for pinning
+// Our own hosts: the catalogue, the recipes, the packages, the updates.
 inline bool isTrustedDomain(const QString& host) {
     return host.endsWith(QStringLiteral("makineceviri.org"));
 }
 
-// Verify SPKI pin against certificate chain
-inline bool verifySpkiPin(const QList<QSslCertificate>& chain) {
-    for (const auto& cert : chain) {
-        QByteArray spki = QCryptographicHash::hash(
-            cert.publicKey().toDer(), QCryptographicHash::Sha256);
-        if (spki == kPinnedSpkiPrimary || spki == kPinnedSpkiBackup)
-            return true;
-    }
-    return false;
-}
-
 /**
- * @brief Install TLS certificate pinning on a QNetworkAccessManager.
+ * @brief Install the TLS error policy on a QNetworkAccessManager.
  *
  * MUST be called on every QNAM instance that communicates with makineceviri.org.
- * Rejects connections where SPKI pins don't match (MITM protection).
+ *
+ * A certificate the system does not trust is refused, always. This used to
+ * ignore the errors whenever a certificate in the chain carried a "pinned"
+ * key — but the backup pin was the key of Google Trust Services' WE1
+ * intermediate, a public CA. Any certificate WE1 signed passed, for another
+ * host name or long expired; with the OpenSSL backend, which reports the chain
+ * as the server sent it, a self-signed certificate with the public WE1
+ * certificate appended passed too. Whoever sat on the user's network then
+ * served the catalogue, the recipes and the packages. The errors are only
+ * logged now, so a refused connection still says why.
  */
 inline void installTlsPinning(QNetworkAccessManager* nam) {
     QObject::connect(nam, &QNetworkAccessManager::sslErrors,
-        nam, [](QNetworkReply* reply, const QList<QSslError>&) {
+        nam, [](QNetworkReply* reply, const QList<QSslError>& errors) {
             const auto host = reply->url().host();
             if (!isTrustedDomain(host))
-                return; // only pin our own domains
-
-            if (verifySpkiPin(reply->sslConfiguration().peerCertificateChain())) {
-                reply->ignoreSslErrors(); // pin matched
-            } else {
-                qCWarning(lcNetSec) << "TLS pin FAILED for" << host << "— blocking (MITM?)";
-                reply->abort();
-            }
+                return;
+            QStringList reasons;
+            for (const QSslError& e : errors)
+                reasons << e.errorString();
+            qCWarning(lcNetSec) << "TLS refused for" << host << "—" << reasons.join(QStringLiteral("; "));
         });
 }
 
