@@ -100,6 +100,7 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // ---- package / catalogue / startup ----
         {QStringLiteral("installed patch files missing"),        QStringLiteral("integrity_missing")},    // 65
         {QStringLiteral("Çeviri dosyaları bulunamadı"),          QStringLiteral("package_missing")},      // 19
+        {QStringLiteral("katalogdaki sürümle eşleşmiyor"),       QStringLiteral("checksum_mismatch")},
         {QStringLiteral("Katalog indirilemedi"),                 QStringLiteral("catalog_download")},     // 24
         {QStringLiteral("Hiçbir tarayıcı oyun bulamadı"),        QStringLiteral("scan_empty")},           // 75
         {QStringLiteral("Core initialization failed"),           QStringLiteral("core_init")},            // 5

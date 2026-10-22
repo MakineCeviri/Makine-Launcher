@@ -536,6 +536,15 @@ static QString categorizeExtractError(const QString& raw)
         return TranslationDownloader::tr(
             "Paket çözümleme hatası — dosya bozuk olabilir. Tekrar indirmeyi deneyin.");
 
+    // The SHA-256 gate. Shown as "Paket açma hatası: checksum mismatch"
+    // before; what it means is a partial or stale download (a .part resumed
+    // across a republish, a CDN edge still serving the old object).
+    if (raw.contains(QLatin1String("checksum mismatch")))
+        return TranslationDownloader::tr(
+            "İndirilen paket katalogdaki sürümle eşleşmiyor (eksik ya da eski bir "
+            "indirme). Tekrar deneyin; yama yeni güncellendiyse birkaç dakika "
+            "sonra deneyin.");
+
     if (raw.contains(QLatin1String("Unsupported MKPK version")))
         return TranslationDownloader::tr(
             "Paket sürümü desteklenmiyor — uygulamayı güncellemeniz gerekiyor.");

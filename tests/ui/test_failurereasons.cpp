@@ -162,6 +162,15 @@ TEST(FailureReasons, TheRemainingLiveBuckets)
               QStringLiteral("core_init"));                                      // 5
 }
 
+TEST(FailureReasons, AStaleOrPartialDownloadIsNotOther)
+{
+    // The SHA-256 gate, worded for the user instead of "checksum mismatch".
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "İndirilen paket katalogdaki sürümle eşleşmiyor (eksik ya da eski bir indirme). "
+        "Tekrar deneyin; yama yeni güncellendiyse birkaç dakika sonra deneyin.")),
+        QStringLiteral("checksum_mismatch"));
+}
+
 // ===== The fallback =========================================================
 
 TEST(FailureReasons, AnUnknownMessageIsNamedNotBlank)
