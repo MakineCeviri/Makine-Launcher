@@ -1705,14 +1705,22 @@ void LocalPackageManager::saveInstallState(const QString& steamAppId, const QStr
 {
     QMetaObject::invokeMethod(this, [this, steamAppId, gamePath, pkg,
                                       installedFiles, addedFiles, replacedFiles]() {
+        // Over an earlier install of this patch, its files are ours, not the
+        // game's (steprules::keepEarlierAdded).
+        QStringList added = addedFiles, replaced = replacedFiles;
+        if (const auto old = m_catalog.getInstalledState(steamAppId.toStdString())) {
+            QStringList earlierAdded;
+            for (const auto& f : old->addedFiles) earlierAdded.append(QString::fromStdString(f));
+            steprules::keepEarlierAdded(added, replaced, earlierAdded);
+        }
         packages::InstalledPackageState state;
         state.version = pkg.version.toStdString();
         state.gamePath = gamePath.toStdString();
         for (const QString& f : installedFiles)
             state.installedFiles.push_back(f.toStdString());
-        for (const QString& f : addedFiles)
+        for (const QString& f : added)
             state.addedFiles.push_back(f.toStdString());
-        for (const QString& f : replacedFiles)
+        for (const QString& f : replaced)
             state.replacedFiles.push_back(f.toStdString());
         state.installedAt = QDateTime::currentSecsSinceEpoch();
         m_catalog.markInstalled(steamAppId.toStdString(), state);

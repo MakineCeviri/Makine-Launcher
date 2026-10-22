@@ -445,6 +445,22 @@ TEST(InstallStepRules, UpdateCountsAFileItOverwritesForTheFirstTimeAsTheGames) {
     EXPECT_FALSE(updateOverwritesOriginal(false, false, false));
 }
 
+TEST(InstallStepRules, ReinstallOverThePatchKeepsItsFilesOurs) {
+    // An add-only package has no backup, so its update runs as a re-install:
+    // every file of the first install is on disk and was counted as the game's.
+    QStringList added{"new_in_v2.pak"};
+    QStringList replaced{"Content/Paks/tr_P.pak", "Binaries/dinput8.dll"};
+    keepEarlierAdded(added, replaced, {"Content/Paks/tr_P.pak"});
+    EXPECT_EQ(added, QStringList({"new_in_v2.pak", "Content/Paks/tr_P.pak"}));
+    EXPECT_EQ(replaced, QStringList({"Binaries/dinput8.dll"}));   // really the game's
+
+    // No earlier record (a first install): nothing moves.
+    QStringList a2{"x"}, r2{"y"};
+    keepEarlierAdded(a2, r2, {});
+    EXPECT_EQ(a2, QStringList({"x"}));
+    EXPECT_EQ(r2, QStringList({"y"}));
+}
+
 // ===== the record a failed install leaves ===================================
 //
 // The rollback after a failed install restores the backup, then removes what

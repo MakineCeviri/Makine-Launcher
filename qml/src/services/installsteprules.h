@@ -314,6 +314,26 @@ inline bool updateOverwritesOriginal(bool destExisted, bool replacedBefore, bool
     return replacedBefore || (destExisted && !addedBefore);
 }
 
+// A re-install over the patch already in the game finds the earlier install's
+// files on disk and counts them as the game's own ("replaced"). That is the
+// path an update takes when there is no backup to go back to — every package
+// that only adds files has none. Recorded so, uninstall left the patch files
+// in place and started a store repair for "changed originals" that were ours.
+// A file the earlier record lists as added stays added.
+inline void keepEarlierAdded(QStringList& added, QStringList& replaced,
+                             const QStringList& earlierAdded)
+{
+    const QSet<QString> ours(earlierAdded.cbegin(), earlierAdded.cend());
+    for (auto it = replaced.begin(); it != replaced.end();) {
+        if (ours.contains(*it)) {
+            added.append(*it);
+            it = replaced.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 // What an install that stopped part-way leaves on record.
 //
 // A failed or cancelled install has still written files. Its rollback
