@@ -204,6 +204,17 @@ public:
     Q_INVOKABLE void openGameFolder(const QString& gameId) const;
 
     /**
+     * @brief The patch's own installer program ("" when the launcher copies it)
+     */
+    Q_INVOKABLE QString patchProgram(const QString& gameId) const;
+
+    /**
+     * @brief Whether the last install of `gameId` stopped because its folder
+     * lacks the files the patch needs (the way out is another folder)
+     */
+    Q_INVOKABLE bool installFailedOnFolder(const QString& gameId) const;
+
+    /**
      * @brief Drop a chosen folder and go back to the one the scan finds
      */
     Q_INVOKABLE void resetGameFolder(const QString& gameId);
@@ -508,6 +519,10 @@ private:
                             const QString& engine, const QString& matchedAppId);
     // uninstallTranslation once the game folder is known to be writable.
     void uninstallTranslationNow(const QString& gameId);
+    // The patch's own undo programs, waited on; then uninstallRestoreAndRemove.
+    void runUndoPrograms(const QString& gameId, const QString& gamePath);
+    // The backup's restore and the removal of what we copied.
+    void uninstallRestoreAndRemove(const QString& gameId, const QString& gamePath);
     // restoredFrom: the backup folder just restored; its files are originals.
     void finalizeUninstall(const QString& gameId, const QString& gamePath,
                            const QString& restoredFrom = {});
@@ -610,6 +625,9 @@ private:
     QSet<QString> m_uninstalling;   // games with an uninstall in flight
     QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
     QHash<QString, int> m_restoreFailures;  // failed uninstall restores per game, this session
+    QString m_undoGameId;                    // whose undo program is running
+    QSet<QString> m_folderRejected;          // last install refused for its folder
+    QHash<QString, int> m_undoNoChange;      // undo runs that changed nothing, this session
     QSet<QString> m_integrityReported;   // "<game>:<missing>/<total>" already sent
     QTimer* m_installTimeoutTimer{nullptr};  // Cancels an install the core
                                              // never reports back on

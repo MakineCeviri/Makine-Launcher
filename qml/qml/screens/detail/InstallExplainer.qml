@@ -32,6 +32,15 @@ ColumnLayout {
         target: ex.vm
         function onGameIdChanged() { ex._refresh() }
     }
+    // The recipe arrives with the game's detail, often after the page opened.
+    Connections {
+        target: CoreBridge
+        function onPackageDetailEnriched(appId) {
+            if (appId === ex.vm.gameId || appId === ex.vm.steamAppId)
+                ex.vm.patchProgram = GameService.patchProgram(ex.vm.gameId)
+        }
+    }
+    readonly property bool _ownProgram: ex.vm.patchProgram !== ""
     Component.onCompleted: _refresh()
 
     readonly property string _size: ex._downloadBytes >= 1048576
@@ -107,15 +116,21 @@ ColumnLayout {
         }
         Step {
             number: 2
-            glyph: Icons.archive
-            title: qsTr("Değişecek dosyaların yedeği alınır")
-            detail: qsTr("Yamanın üzerine yazacağı oyun dosyaları önce bir kenara kopyalanır.")
+            glyph: ex._ownProgram ? Icons.folderCheck : Icons.archive
+            title: ex._ownProgram ? qsTr("Oyunun klasörü doğrulanır")
+                                  : qsTr("Değişecek dosyaların yedeği alınır")
+            detail: ex._ownProgram
+                ? qsTr("Yamanın beklediği oyun dosyaları klasörde aranır; yanlış klasörse hiçbir şey çalıştırılmaz.")
+                : qsTr("Yamanın üzerine yazacağı oyun dosyaları önce bir kenara kopyalanır.")
         }
         Step {
             number: 3
             glyph: Icons.languages
-            title: qsTr("Türkçe dosyalar oyuna kurulur")
-            detail: qsTr("Kaldırırsan yedek geri yüklenir; kayıtlarına ve ayarlarına dokunulmaz.")
+            title: ex._ownProgram ? qsTr("Yamanın programı kurar") : qsTr("Türkçe dosyalar oyuna kurulur")
+            detail: ex._ownProgram
+                ? qsTr("%1, oyunun bulunduğu klasörle çalışır; yazdıkları bu sayfada görünür. Kaldırırsan aynı program geri alır.")
+                      .arg(ex.vm.patchProgram)
+                : qsTr("Kaldırırsan yedek geri yüklenir; kayıtlarına ve ayarlarına dokunulmaz.")
         }
     }
 
@@ -138,7 +153,9 @@ ColumnLayout {
             lineHeight: 1.2
             font.pixelSize: Dimensions.callout
             color: Theme.textMuted
-            text: ex.mode === "installed"
+            text: ex.mode === "installed" && ex._ownProgram
+                  ? qsTr("Yamayı kaldırmak için \"Kaldır\"a bas: yamanın kendi programı açılır ve oyunda yaptıklarını geri alır.")
+                : ex.mode === "installed"
                   ? qsTr("Yamayı kaldırmak için \"Kaldır\"a bas: yama silinir, yedeklenen orijinal dosyalar geri yüklenir.")
                 : ex.mode === "update"
                   ? qsTr("Yamanın yeni bir sürümü yayımlandı. \"Yamayı Güncelle\" yeni sürümü indirip eskisinin yerine kurar.")

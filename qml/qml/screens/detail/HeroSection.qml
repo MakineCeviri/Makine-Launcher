@@ -418,13 +418,27 @@ ColumnLayout {
                 // Store verification: when the patch left the game in a mixed
                 // state with no backup to restore, letting the store fetch its
                 // own files again is the recovery that always works.
+                // Only while a record says the game was changed: after a failed
+                // install that left nothing behind there is nothing to repair.
                 AppButton {
                     Layout.alignment: Qt.AlignVCenter
+                    visible: !heroRoot.vm.installErrorOnFolder && heroRoot.vm.packageInstalled
                     style: "gray"
                     icon: Icons.wrench
                     text: qsTr("Oyun dosyalarını doğrula")
                     toolTip: qsTr("Steam'de oyunun dosyalarını doğrulatır; başka mağazalar için adımları gösterir")
                     onClicked: GameService.repairGameFiles(heroRoot.vm.gameId)
+                }
+                // The folder was not the game's: nothing was touched, and the
+                // way out is the right folder, not a repair.
+                AppButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    visible: heroRoot.vm.installErrorOnFolder
+                    style: "gray"
+                    icon: Icons.folderSearch
+                    text: qsTr("Klasörü değiştir")
+                    toolTip: qsTr("Oyunun kendi klasörünü seç; yama oraya kurulur")
+                    onClicked: folderBar.pick("install")
                 }
             }
         }

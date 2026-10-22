@@ -220,6 +220,21 @@ public:
     LocalPackageManager::OwnProgram ownProgramRecipe(const QString& gameId);
 
     /**
+     * @brief Whether uninstall must first run the patch's undo programs
+     */
+    bool needsUndoPrograms(const QString& gameId);
+
+    /**
+     * @brief The file name of the patch's own installer program, if it has one
+     */
+    QString ownProgramName(const QString& gameId);
+
+    /**
+     * @brief Run them and wait (off the UI thread); see LocalPackageManager
+     */
+    LocalPackageManager::UndoResult runUndoPrograms(const QString& gameId, const QString& gamePath);
+
+    /**
      * @brief Match a folder name against the package catalog
      * @return steamAppId if matched, empty string otherwise
      */
@@ -317,6 +332,7 @@ private:
     void doScanSteamReal(QList<DetectedGame>& outGames, QStringList& notes);
     void doScanEpicReal(QList<DetectedGame>& outGames);
     void doScanGogReal(QList<DetectedGame>& outGames);
+    void doScanUbisoftReal(QList<DetectedGame>& outGames);
     void doScanFilesystemReal(QList<DetectedGame>& outGames,
                               const QSet<QString>& knownPaths,
                               const QStringList& customPaths);

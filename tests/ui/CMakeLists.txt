@@ -80,6 +80,19 @@ target_include_directories(test_installsteprules PRIVATE
 target_link_libraries(test_installsteprules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_installsteprules COMMAND test_installsteprules)
 
+# A patch's own program pointed at the launcher's game folder, and what it did there.
+add_executable(test_runstage test_runstage.cpp)
+target_include_directories(test_runstage PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_runstage PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_runstage COMMAND test_runstage)
+
+add_executable(test_changescan test_changescan.cpp)
+target_include_directories(test_changescan PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_changescan PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_changescan COMMAND test_changescan)
+
 # A run step's output on the game page: split characters, "\r", the size cap.
 add_executable(test_processconsole test_processconsole.cpp)
 target_include_directories(test_processconsole PRIVATE

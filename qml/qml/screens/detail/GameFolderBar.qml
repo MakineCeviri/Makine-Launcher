@@ -59,6 +59,7 @@ Item {
         : bar._folder.source === "epic" ? qsTr("Epic Games kütüphanesi")
         : bar._folder.source === "gog" ? qsTr("GOG kütüphanesi")
         : bar._folder.source === "xbox" ? qsTr("Xbox kütüphanesi")
+        : bar._folder.source === "ubisoft" ? qsTr("Ubisoft Connect kütüphanesi")
         : qsTr("Otomatik bulundu")
 
     // ── Entry points ─────────────────────────────────────────────────────────

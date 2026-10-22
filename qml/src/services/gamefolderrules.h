@@ -263,7 +263,22 @@ struct Expectations {
     QStringList exeNames;
     QStringList targetDirs;   // folders the recipe or package writes into
     QStringList targetFiles;  // game files the recipe edits in place (must exist)
+    // Files the recipe says every install of the game has ("requires"): a
+    // root without one of them is not this game's, whatever else it holds.
+    // Also counted in targetFiles, so pickRoot weighs them.
+    QStringList requiredFiles;
 };
+
+// Which of `e.requiredFiles` `root` lacks. Empty when it has them all (or the
+// recipe names none) — the one answer that lets an install go ahead.
+inline QStringList missingRequired(const QString& root, const Expectations& e)
+{
+    QStringList missing;
+    for (const QString& f : e.requiredFiles)
+        if (!QFileInfo::exists(root + QLatin1Char('/') + f)) missing << f;
+    return missing;
+}
+
 
 struct RootEvidence {
     QString root;
@@ -383,6 +398,17 @@ inline RootEvidence pickRoot(const QString& picked, const QString& gameName, con
             best = r;
     }
     return best;
+}
+
+// The folder around `root` that has every required file, when `root` itself
+// does not: the scan's folder one level off (a "<Game>/<Game>" repack, Game
+// Pass's Content). Empty when there is none, or nothing is required.
+inline QString rootWithRequired(const QString& root, const QString& gameName, const Expectations& e)
+{
+    if (e.requiredFiles.isEmpty() || missingRequired(root, e).isEmpty()) return {};
+    for (const QString& c : rootCandidates(root, gameName))
+        if (missingRequired(c, e).isEmpty()) return c;
+    return {};
 }
 
 } // namespace makine::folderrules

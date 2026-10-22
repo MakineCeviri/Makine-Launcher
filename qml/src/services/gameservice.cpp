@@ -372,10 +372,12 @@ void GameService::setupCoreBridge()
             });
     connect(m_coreBridge, &CoreBridge::packageProcessOutput,
             this, [this](const QString& text) {
-                if (m_installingGameId.isEmpty() || m_installingGameId != m_installConsoleGameId)
+                // An install's program, or the one undoing a patch.
+                const QString owner = !m_installingGameId.isEmpty() ? m_installingGameId : m_undoGameId;
+                if (owner.isEmpty() || owner != m_installConsoleGameId)
                     return;
                 processconsole::appendTo(m_installConsole, text, kInstallConsoleCap);
-                emit translationInstallOutput(m_installingGameId);
+                emit translationInstallOutput(owner);
             });
 
     connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
@@ -1177,6 +1179,16 @@ QVariantMap GameService::gameFolderInfo(const QString& gameId) const
     };
 }
 
+QString GameService::patchProgram(const QString& gameId) const
+{
+    return m_coreBridge && !gameId.isEmpty() ? m_coreBridge->ownProgramName(gameId) : QString();
+}
+
+bool GameService::installFailedOnFolder(const QString& gameId) const
+{
+    return m_folderRejected.contains(gameId);
+}
+
 void GameService::openGameFolder(const QString& gameId) const
 {
     const int idx = gameIndexFor(gameId);
@@ -1642,11 +1654,12 @@ QString GameService::installConsole(const QString& gameId) const
 
 void GameService::sendInstallInput(const QString& text)
 {
-    if (m_installingGameId.isEmpty() || !m_coreBridge)
+    const QString owner = !m_installingGameId.isEmpty() ? m_installingGameId : m_undoGameId;
+    if (owner.isEmpty() || !m_coreBridge)
         return;
     // A pipe does not echo; show what was typed where a console would.
     processconsole::appendTo(m_installConsole, text + QLatin1Char('\n'), kInstallConsoleCap);
-    emit translationInstallOutput(m_installingGameId);
+    emit translationInstallOutput(owner);
     m_coreBridge->sendProcessInput(text);
 }
 
@@ -1772,6 +1785,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
 
     // Reserve install slot early to prevent double-install
     m_installingGameId = gameId;
+    m_folderRejected.remove(gameId);
     if (const auto over = m_coreBridge->getInstalledInfo(gameId))
         m_installOverRecord = over->installedFiles + over->addedFiles;
     else
@@ -1809,11 +1823,19 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         }
     }
 
+    // The files the recipe says this game's folder has. A folder without one
+    // of them is some other folder — a library, the folder next to the game —
+    // and a patch's program handed it works on the wrong place.
+    const folderrules::Expectations expected = m_coreBridge->folderExpectations(gameId);
+    const QString gameName = pkg->gameName;
+
     struct Preflight {
         QString runningExe;
         bool writable = true;
         bool declined = false;   // the user said no to the write-access prompt
         QString topUpFailed;     // the original that could not go into the backup
+        QStringList missing;     // required files the game folder lacks
+        QString betterRoot;      // a folder around it that has them all
     };
     auto* watcher = new QFutureWatcher<Preflight>(this);
     connect(watcher, &QFutureWatcher<Preflight>::finished, this,
@@ -1830,6 +1852,36 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                 m_installTimeoutTimer->stop();
                 m_installingGameId.clear();
                 emit translationInstallCompleted(gameId, false, runningMsg.arg(runningExe));
+                return;
+            }
+
+            if (!pre.missing.isEmpty()) {
+                m_installTimeoutTimer->stop();
+                m_installingGameId.clear();
+                // The scan's folder is one level off and the right one is next
+                // to it: bind the game there and start again. Not while a patch
+                // sits in the old folder — its record and backup point there.
+                if (!pre.betterRoot.isEmpty() && setGameFolder(gameId, pre.betterRoot)) {
+                    qCInfo(lcGameService) << "Game folder of" << gameId << "moved to"
+                                          << pre.betterRoot << "- it has the files the patch needs";
+                    CrashReporter::addBreadcrumb("install",
+                        "game folder corrected to the one with the required files");
+                    installPackageCommon(gameId, variant, selectedOptions, mode);
+                    return;
+                }
+                qCWarning(lcGameService) << "Game folder" << installPath << "lacks" << pre.missing;
+                m_folderRejected.insert(gameId);
+                reportOperationFailure("install", gameId,
+                    QStringLiteral("game folder lacks required files: %1")
+                        .arg(pre.missing.join(QStringLiteral(", "))));
+                emit translationInstallCompleted(gameId, false,
+                    tr("Bu klasör oyunun klasörü gibi görünmüyor:\n%1\n\n"
+                       "Yamanın bulunmasını beklediği dosyalar burada yok: %2\n"
+                       "Oyun dosyalarına dokunulmadı. Sayfadaki \"Klasörü değiştir\" ile "
+                       "oyunun kendi klasörünü seçin (Steam: oyuna sağ tık > Yönet > "
+                       "Yerel dosyalara göz at).")
+                        .arg(QDir::toNativeSeparators(installPath),
+                             pre.missing.mid(0, 4).join(QStringLiteral(", "))));
                 return;
             }
 
@@ -1932,7 +1984,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             // A recipe that is only the patch's own program writes where no list
             // can see in advance. It may go in without a backup of ours when it
             // also names the program that undoes it: uninstall starts that one
-            // (startUninstallPrograms). Without it, nothing could take it back.
+            // (runUndoPrograms). Without it, nothing could take it back.
             const auto ownProgram = m_coreBridge->ownProgramRecipe(gameId);
             if (ownProgram == LocalPackageManager::OwnProgram::WithUndo && filesToOverwrite.isEmpty())
                 qCInfo(lcGameService) << "Recipe of" << gameId
@@ -2036,7 +2088,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
         });
 
-    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, topUp]() -> Preflight {
+    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, topUp, expected, gameName]() -> Preflight {
         Preflight out;
         // By image path: the root-folder *.exe names missed every game whose
         // exe sits in bin/ (Watch_Dogs copied 4 of 6 files, then failed on the
@@ -2044,6 +2096,12 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         out.runningExe = ProcessScanner::runningExeUnder(installPath);
         if (!out.runningExe.isEmpty())
             return out;
+        // Before the write-access prompt: no point asking for a wrong folder.
+        out.missing = folderrules::missingRequired(installPath, expected);
+        if (!out.missing.isEmpty()) {
+            out.betterRoot = folderrules::rootWithRequired(installPath, gameName, expected);
+            return out;
+        }
         // Here, off the GUI thread: the UAC prompt blocks until answered.
         if (ElevatedOps::available()) {
             out.writable = ElevatedOps::ensureWritable(installPath);
@@ -2184,6 +2242,56 @@ void GameService::uninstallTranslationNow(const QString& gameId)
         return;
     }
 
+    // A patch its own program installed is taken out by its own program
+    // first; what we copied ourselves, if anything, comes after.
+    if (m_coreBridge->needsUndoPrograms(gameId)) {
+        runUndoPrograms(gameId, gamePath);
+        return;
+    }
+    uninstallRestoreAndRemove(gameId, gamePath);
+}
+
+void GameService::runUndoPrograms(const QString& gameId, const QString& gamePath)
+{
+    m_installConsole.clear();
+    m_installConsoleGameId = gameId;
+    m_undoGameId = gameId;
+    emit translationInstallOutput(gameId);
+
+    using Undo = LocalPackageManager::UndoResult;
+    auto* watcher = new QFutureWatcher<Undo>(this);
+    connect(watcher, &QFutureWatcher<Undo>::finished, this, [this, watcher, gameId, gamePath]() {
+        const Undo r = watcher->result();
+        watcher->deleteLater();
+        m_undoGameId.clear();
+        if (!r.ok) {
+            emit translationUninstalled(gameId, false, r.message);
+            return;
+        }
+        // Exit 0 and the folder as it was: a "Kaldır" window closed unpressed,
+        // or a patch already gone (the store's file check took it). Said once;
+        // asked again, the record goes, since the program has nothing to undo.
+        if (r.changedNothing && ++m_undoNoChange[gameId] < 2) {
+            emit translationUninstalled(gameId, false,
+                tr("Yamayı kaldıran program çalıştı ama oyunda hiçbir dosyayı değiştirmedi; "
+                   "yama hâlâ kurulu olabilir.\n"
+                   "Program kendi penceresini açtıysa oradaki kaldırma düğmesine basıp "
+                   "bitmesini bekleyin, sonra pencereyi kapatın. Yama zaten kaldırıldıysa "
+                   "(örneğin mağazanın dosya doğrulamasıyla) \"Kaldır\"a bir kez daha "
+                   "basın; kayıt silinir."));
+            return;
+        }
+        m_undoNoChange.remove(gameId);
+        uninstallRestoreAndRemove(gameId, gamePath);
+    });
+    CoreBridge* cb = m_coreBridge;
+    watcher->setFuture(QtConcurrent::run([cb, gameId, gamePath]() {
+        return cb->runUndoPrograms(gameId, gamePath);
+    }));
+}
+
+void GameService::uninstallRestoreAndRemove(const QString& gameId, const QString& gamePath)
+{
     BackupManager* bm = BackupManager::instance();
 
     // Another restore still running, most often a failed install rolling
@@ -2326,7 +2434,8 @@ void GameService::checkPatchIntegrity(const QString& gameId)
     QStringList rels;
     rels.reserve(info->installedFiles.size());
     for (const QString& rel : info->installedFiles) {
-        if (!rel.startsWith(QLatin1Char('_'))) rels.append(rel);
+        // Markers, and the launcher's note (.makine): neither is the patch.
+        if (!rel.startsWith(QLatin1Char('_')) && rel != QLatin1String(".makine")) rels.append(rel);
     }
     if (rels.isEmpty()) {
         emit patchIntegrityChecked(gameId, true, QString());
@@ -2497,8 +2606,11 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         // originals stays for "Kaldır" and the store's repair. Either way
         // surface the original error and let the user decide (often a Steam
         // Verify is their best path forward).
+        // What the patch's own program changed before it failed is undone by
+        // its undo program, which only "Kaldır" runs: that record stays too.
         if (m_coreBridge && !gamePath.isEmpty() && m_coreBridge->isPackageInstalled(gameId)
             && !translationReplacedOriginalFiles(gameId)
+            && !m_coreBridge->needsUndoPrograms(gameId)
             && m_coreBridge->uninstallPackage(gameId, gamePath))
             markUninstalled(gameId);
         markInstalledIfRecorded(gameId);

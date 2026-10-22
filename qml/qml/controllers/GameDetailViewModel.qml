@@ -81,6 +81,10 @@ QtObject {
     property string installConsole: ""
     // A picked game folder is being looked at (GameFolderBar)
     property bool folderChecking: false
+    // The patch's own installer program, "" when the launcher copies the patch
+    property string patchProgram: ""
+    // The last install stopped because the folder is not the game's
+    property bool installErrorOnFolder: false
 
     // ===== DOWNLOAD STATE =====
     property bool isDownloading: false
@@ -128,7 +132,7 @@ QtObject {
         antiCheatName = ""; isInstallingRuntime = false
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
         installCompleted = false; installErrorMessage = ""; isDownloading = false
-        installConsole = ""; folderChecking = false
+        installConsole = ""; folderChecking = false; patchProgram = ""; installErrorOnFolder = false
         updateImpact = null; descriptionExpanded = false
     }
 
@@ -160,6 +164,7 @@ QtObject {
         if (isInstallingTranslation)
             installStatus = isDownloading ? qsTr("İndiriliyor...") : qsTr("Kuruluyor...")
         installConsole = id !== "" ? GameService.installConsole(id) : ""
+        patchProgram = id !== "" ? GameService.patchProgram(id) : ""
 
         // Set gameId after other props so listeners see complete state
         gameId = id

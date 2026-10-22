@@ -368,3 +368,32 @@ TEST_F(GameFolderRulesTest, AnExePathAloneStillMatchesByName)
     EXPECT_EQ(r.exe, QStringLiteral("odd.exe"));
     EXPECT_FALSE(r.exeExact);
 }
+
+// --- required files ("requires") -------------------------------------------
+
+TEST_F(GameFolderRulesTest, RequiredFilesDecideTheRoot)
+{
+    // Heavy Rain's patcher works on Resources/BigFile_WIN.idx under the root.
+    touch("HEAVY RAIN/HeavyRain.exe");
+    touch("HEAVY RAIN/Resources/BigFile_WIN.idx");
+    Expectations e;
+    e.requiredFiles = {"HeavyRain.exe", "Resources/BigFile_WIN.idx"};
+    EXPECT_TRUE(missingRequired(path("HEAVY RAIN"), e).isEmpty());
+    EXPECT_EQ(missingRequired(path("HEAVY RAIN/Resources"), e),
+              QStringList({"HeavyRain.exe", "Resources/BigFile_WIN.idx"}));
+    // Pointed one level too deep, the root is the folder above.
+    EXPECT_EQ(rootWithRequired(path("HEAVY RAIN/Resources"), "Heavy Rain", e), path("HEAVY RAIN"));
+    // Nothing required: nothing to say, whatever the folder.
+    EXPECT_TRUE(missingRequired(path("HEAVY RAIN/Resources"), Expectations{}).isEmpty());
+    EXPECT_TRUE(rootWithRequired(path("HEAVY RAIN/Resources"), "Heavy Rain", Expectations{}).isEmpty());
+}
+
+TEST_F(GameFolderRulesTest, NoRootWhenNoFolderAroundHasThem)
+{
+    // A folder with an .exe of the right name but none of the game's data.
+    touch("heavy rain/oyun.exe");
+    Expectations e;
+    e.requiredFiles = {"HeavyRain.exe", "Resources/BigFile_WIN.idx"};
+    EXPECT_EQ(missingRequired(path("heavy rain"), e).size(), 2);
+    EXPECT_TRUE(rootWithRequired(path("heavy rain"), "Heavy Rain", e).isEmpty());
+}

@@ -60,6 +60,7 @@ Item {
         case "epic": return "Epic Games"
         case "gog": return "GOG"
         case "xbox": return "Xbox"
+        case "ubisoft": return "Ubisoft Connect"
         case "manual": return qsTr("Elle eklendi")
         default: return qsTr("Otomatik bulundu")
         }

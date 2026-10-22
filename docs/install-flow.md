@@ -37,6 +37,7 @@ CDN (R2)
 | `_desktop:` girdisi | Masaüstü | Kısayol/okuma dosyası |
 | `_steamlang:` girdisi | `appmanifest_{appId}.acf` | Steam dil ayarı |
 | `paradox-mod` | `Belgeler\Paradox Interactive\<oyun>\mod` | **Handler yok** — kullanıcı elle kopyalar |
+| `run` adımı (yamanın kendi programı) | Programın kendisi yazar | Klasör `requires` ile doğrulanır, program paketin `%TEMP%` kopyasından oyun klasörüyle çalışır, ne değiştirdiği kaydedilir — [`patch-programs.md`](patch-programs.md) |
 
 ### Kalıcı konumlar
 

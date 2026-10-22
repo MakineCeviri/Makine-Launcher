@@ -51,6 +51,7 @@ struct InstallStep {
     std::string workDir;    // "game" (default) or "package"
     std::string uninstall;  // program that undoes a "run" step (resolved like exe)
     std::vector<std::string> uninstallArgs;
+    std::vector<std::string> requiredFiles;  // "requires": game files the root must have first
     std::string language;   // Steam language name — for "setSteamLanguage"
     std::vector<std::pair<std::string, std::string>> patches;  // find/replace — for "patchBytes"
 };

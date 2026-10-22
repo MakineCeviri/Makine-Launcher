@@ -178,6 +178,16 @@ std::vector<InstallStep> parseStepsArray(const json& stepsArr)
                     step.uninstallArgs.push_back(a.get<std::string>());
             }
         }
+        // Files the game's own folder has before anything is installed
+        // ("HeavyRain.exe", "Resources/BigFile_WIN.idx"). A program that is
+        // handed a folder without them works on the wrong one; the install
+        // stops before it starts instead.
+        if (s.contains("requires") && s["requires"].is_array()) {
+            for (const auto& f : s["requires"]) {
+                if (f.is_string())
+                    step.requiredFiles.push_back(f.get<std::string>());
+            }
+        }
         // "vpatch" names its two paths differently, because the recipes were
         // written against the VPatch tool's own vocabulary rather than the
         // step schema: "patch" is the delta file inside the package and

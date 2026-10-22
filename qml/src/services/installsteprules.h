@@ -46,7 +46,13 @@ inline const QStringList& knownActions()
 // refused for 294 users). Bump it with every action added to knownActions().
 //   1  0.1.5 and older (sent nothing)
 //   2  patchBytes, forgeReimport, xdelta; copyFile in the backup list
-inline constexpr int kRecipeLevel = 2;
+//   3  "run" as a contract (0.1.8): the program starts from a stage whose
+//      scripts read the game folder the launcher found (runstage.h), with
+//      MAKINE_OYUN and <game>/.makine; a step's "requires" files are checked
+//      before anything runs; what the program changed is recorded and its
+//      "uninstall" program is waited on. A recipe that leans on any of that —
+//      a translator's .bat with its own folder in it — is level 3.
+inline constexpr int kRecipeLevel = 3;
 
 inline bool isKnownAction(const QString& action)
 {
@@ -339,11 +345,15 @@ inline void keepEarlierAdded(QStringList& added, QStringList& replaced,
 // recipe, 289650) writes no "_vpatch:" marker. Without it, an uninstall with
 // an unusable backup took the patch for files-only, said it was removed and
 // started no store repair, the game's DataPC_patch_01.forge still missing.
-// Nothing put those files back, so their markers stay.
+// Nothing put those files back, so their markers stay. The same
+// holds for what a patch's own program changed ("_program:", changescan.h): a
+// second run that rewrites the same archives finds nothing new to list, and
+// the undo program is still owed those files.
 inline void keepEarlierInPlace(QStringList& installed, const QStringList& earlierInstalled)
 {
     for (const QString& f : earlierInstalled)
-        if (f.startsWith(QLatin1String("_vpatch:")) && !installed.contains(f))
+        if ((f.startsWith(QLatin1String("_vpatch:")) || f.startsWith(QLatin1String("_program:")))
+            && !installed.contains(f))
             installed.append(f);
 }
 

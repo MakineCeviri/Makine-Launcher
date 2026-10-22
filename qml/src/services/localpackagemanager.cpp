@@ -17,6 +17,8 @@
 #include "forgereimport.h"
 #include "installsteprules.h"
 #include "processconsole.h"
+#include "runstage.h"
+#include "changescan.h"
 #include "vpatchapply.h"
 #include "xdeltaapply.h"
 #include "elevatedops.h"
@@ -178,6 +180,9 @@ PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalog
             for (const auto& a : s.uninstallArgs) {
                 step.uninstallArgs.append(QString::fromStdString(a));
             }
+            for (const auto& f : s.requiredFiles) {
+                step.requiredFiles.append(QString::fromStdString(f));
+            }
             for (const auto& [find, replace] : s.patches) {
                 step.patches.append({QString::fromStdString(find),
                                      QString::fromStdString(replace)});
@@ -282,7 +287,8 @@ QStringList LocalPackageManager::missingInstalledFiles(const QString& steamAppId
     QStringList missing;
     for (const auto& f : state->installedFiles) {
         const QString rel = QString::fromStdString(f);
-        if (rel.startsWith(QLatin1Char('_'))) continue;
+        // Markers, and our note in the game folder: neither is the patch.
+        if (rel.startsWith(QLatin1Char('_')) || rel == QLatin1String(runstage::kNoteFile)) continue;
         if (!rawfile::exists(QDir::cleanPath(gamePath + QLatin1Char('/') + rel)))
             missing.append(rel);
     }
@@ -457,8 +463,12 @@ folderrules::Expectations LocalPackageManager::folderExpectations(const QString&
     };
 
     QSet<QString> dirs, files;
+    QStringList required;   // in the recipe's order: messages list them
     const auto collect = [&](const QList<InstallStep>& steps) {
         for (const InstallStep& st : steps) {
+            for (const QString& f : st.requiredFiles)
+                if (const QString r = relative(f); !r.isEmpty() && !required.contains(r, Qt::CaseInsensitive))
+                    required.append(r);
             if (steprules::isInPlaceAction(st.action)) {
                 const QString f = relative(st.action == QLatin1String("patchBytes") && st.dest.isEmpty()
                                                ? st.src : st.dest);
@@ -497,6 +507,8 @@ folderrules::Expectations LocalPackageManager::folderExpectations(const QString&
     }
 
     e.targetDirs = QStringList(dirs.cbegin(), dirs.cend()).mid(0, 40);
+    e.requiredFiles = required.mid(0, 40);
+    for (const QString& r : std::as_const(e.requiredFiles)) files.insert(r);
     e.targetFiles = QStringList(files.cbegin(), files.cend()).mid(0, 40);
     return e;
 }
@@ -546,7 +558,7 @@ LocalPackageManager::OwnProgram
 LocalPackageManager::ownProgramRecipe(const QString& steamAppId) const
 {
     const auto pkg = getPackage(steamAppId);
-    // Top-level steps only, like startUninstallPrograms: an option's undo is
+    // Top-level steps only, like runUndoPrograms: an option's undo is
     // not started on uninstall, so it cannot stand in for a backup.
     if (!pkg || pkg->installSteps.isEmpty() || !pkg->installOptions.isEmpty()
         || !pkg->variantInstallOptions.isEmpty())
@@ -558,6 +570,13 @@ LocalPackageManager::ownProgramRecipe(const QString& steamAppId) const
         undo = undo && !st.uninstall.isEmpty();
     }
     return undo ? OwnProgram::WithUndo : OwnProgram::WithoutUndo;
+}
+
+QString LocalPackageManager::ownProgramName(const QString& steamAppId) const
+{
+    if (ownProgramRecipe(steamAppId) == OwnProgram::No) return {};
+    const auto pkg = getPackage(steamAppId);
+    return pkg ? QFileInfo(pkg->installSteps.first().exe).fileName() : QString();
 }
 
 void LocalPackageManager::sendProcessInput(const QString& text)
@@ -846,7 +865,8 @@ ElevatedRun startElevated(const QString& exePath, const QStringList& args,
 
 LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     const QString& exePath, const QStringList& args, const QString& workDir,
-    std::function<void(int elapsedMs)> progressCallback)
+    std::function<void(int elapsedMs)> progressCallback,
+    const QHash<QString, QString>& extraEnv)
 {
     constexpr int kPollMs = 1000;        // Poll faster so cancel feels responsive
     // 2 hours hard cap. A patch's own installer is interactive: Heavy Rain's
@@ -872,6 +892,8 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert(QStringLiteral("PYTHONUNBUFFERED"), QStringLiteral("1"));
     env.insert(QStringLiteral("PYTHONIOENCODING"), QStringLiteral("utf-8"));
+    for (auto it = extraEnv.cbegin(); it != extraEnv.cend(); ++it)
+        env.insert(it.key(), it.value());
     proc.setProcessEnvironment(env);
     proc.start(exePath, args);
     // stdin stays open: the game page passes typed answers to a "set /p" or
@@ -1319,6 +1341,171 @@ static QString runProgramRejection(const QString& path, const QString& gamePath,
     if (ext != "exe" && ext != "bat" && ext != "cmd")
         return QStringLiteral("disallowed executable type: %1").arg(ext);
     return {};
+}
+
+// A copy of a package folder at `dst`. Big files are hard links where the
+// volume allows (a multi-gigabyte package costs nothing to stage), small ones
+// real copies: a program that edits a file next to itself — a settings file,
+// its log — must not edit the package the next install starts from. With
+// `gameName`, every .bat/.cmd is written through runstage::rewriteScript and a
+// file holding only a game folder through rewritePathFile; `rewritten` gets
+// their names, `oldFolders` the translator's folders they named.
+static bool mirrorTree(const QString& src, const QString& dst, const QString& gameName,
+                       const QString& gamePath, QStringList* rewritten, QStringList* oldFolders,
+                       QString* why)
+{
+    constexpr qint64 kLinkFrom = 4 * 1024 * 1024;
+    const QDir base(src);
+    QDirIterator it(src, rawfile::kFiles | QDir::Hidden | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString from = it.next();
+        const QString rel = base.relativeFilePath(from);
+        const QString to = QDir::cleanPath(dst + QLatin1Char('/') + rel);
+        if (!QDir().mkpath(QFileInfo(to).absolutePath())) {
+            if (why) *why = QStringLiteral("klasör açılamadı: %1").arg(QFileInfo(to).absolutePath());
+            return false;
+        }
+        const QString ext = QFileInfo(from).suffix().toLower();
+        if (!gameName.isEmpty() && (ext == QLatin1String("bat") || ext == QLatin1String("cmd"))) {
+            QFile in(from);
+            QFile out(to);
+            if (!in.open(QIODevice::ReadOnly) || !out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                if (why) *why = QStringLiteral("betik kopyalanamadı: %1").arg(rel);
+                return false;
+            }
+            const runstage::Rewrite r = runstage::rewriteScript(in.readAll(), gameName, gamePath);
+            out.write(r.text);
+            if (!r.folders.isEmpty()) {
+                if (rewritten) rewritten->append(rel);
+                for (const QString& f : r.folders)
+                    if (oldFolders && !oldFolders->contains(f, Qt::CaseInsensitive)) oldFolders->append(f);
+            }
+            continue;
+        }
+        // A file that only holds the game folder ("game.path") gets ours.
+        if (!gameName.isEmpty() && QFileInfo(from).size() <= 1024) {
+            QFile in(from);
+            const QByteArray folder = in.open(QIODevice::ReadOnly)
+                ? runstage::rewritePathFile(in.readAll(), gameName, gamePath) : QByteArray();
+            if (!folder.isEmpty()) {
+                QFile out(to);
+                if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate) || out.write(folder) < 0) {
+                    if (why) *why = QStringLiteral("dosya yazılamadı: %1").arg(rel);
+                    return false;
+                }
+                if (rewritten) rewritten->append(rel);
+                continue;
+            }
+        }
+#ifdef Q_OS_WIN
+        if (QFileInfo(from).size() >= kLinkFrom
+            && CreateHardLinkW(reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(to).utf16()),
+                               reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(from).utf16()),
+                               nullptr))
+            continue;
+#endif
+        if (!QFile::copy(from, to)) {
+            if (why) *why = QStringLiteral("dosya kopyalanamadı: %1").arg(rel);
+            return false;
+        }
+    }
+    return true;
+}
+
+// Where one run of a package's program happens (runstage.h). Stages a day old
+// are what a crash left behind and go first.
+static QString newStageDir(const QString& gameId)
+{
+    const QString root = AppPaths::tempRoot() + QStringLiteral("/run");
+    const QDateTime dayAgo = QDateTime::currentDateTime().addDays(-1);
+    for (const QFileInfo& old : QDir(root).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
+        if (old.lastModified() < dayAgo) QDir(old.absoluteFilePath()).removeRecursively();
+    return QStringLiteral("%1/%2-%3").arg(root, gameId)
+        .arg(QDateTime::currentMSecsSinceEpoch());
+}
+
+// The package's copy kept for uninstall: the program that undoes a run step
+// must still be there when the catalogue has moved on to a newer package and
+// the extracted one is gone.
+static QString keptProgramDir(const QString& gameId)
+{
+    return AppPaths::root() + QStringLiteral("/programs/") + gameId;
+}
+
+LocalPackageManager::ProcessResult LocalPackageManager::runPackageProgram(
+    const QString& program, const QString& fallback, const QStringList& args,
+    const QString& workDirMode, const QString& gamePath, const QString& packageDir,
+    const QString& gameId, std::function<void(int elapsedMs)> progressCallback,
+    QString* refused, QString* shownName)
+{
+    ProcessResult none;
+    // Game folder first, then the package (wrapper-tolerant: an archive that
+    // nests the exe under "<game>/Türkçe Yama/" still resolves), then the
+    // fallback.
+    QString exePath = findRunProgram(program, gamePath, packageDir);
+    if (exePath.isEmpty())
+        exePath = findRunProgram(fallback, gamePath, packageDir);
+    if (exePath.isEmpty()) {
+        qCWarning(lcPackageManager) << "Run: executable not found:" << program;
+        *refused = QStringLiteral("program bulunamadı: %1").arg(program);
+        return none;
+    }
+    if (const QString why = runProgramRejection(exePath, gamePath, packageDir); !why.isEmpty()) {
+        qCWarning(lcPackageManager) << "Run:" << why << "-" << exePath;
+        *refused = why;
+        return none;
+    }
+    *shownName = QFileInfo(exePath).fileName();
+
+    // A program of the package runs from its stage, never from the package
+    // itself: the stage's scripts set the game folder the launcher found.
+    QString stage;
+    const auto dropStage = qScopeGuard([&stage] {
+        if (!stage.isEmpty()) QDir(stage).removeRecursively();
+    });
+    if (!packageDir.isEmpty() && security::isPathContained(packageDir, exePath)) {
+        const auto pkg = getPackage(gameId);
+        QStringList rewritten, oldFolders;
+        QString why;
+        stage = newStageDir(gameId);
+        if (!mirrorTree(packageDir, stage, pkg ? pkg->gameName : gameId, gamePath,
+                        &rewritten, &oldFolders, &why)) {
+            qCWarning(lcPackageManager) << "Run: staging failed:" << why;
+            *refused = QStringLiteral("program hazırlanamadı (%1)").arg(why);
+            return none;
+        }
+        if (!rewritten.isEmpty()) {
+            QStringList shown;
+            for (const QString& f : std::as_const(oldFolders)) shown << QDir::toNativeSeparators(f);
+            emit processOutput(tr("Oyunun klasörü (%1) yamanın şu dosyalarına yazıldı: %2%3\n")
+                .arg(QDir::toNativeSeparators(gamePath), rewritten.mid(0, 6).join(QStringLiteral(", ")),
+                     shown.isEmpty() ? QString()
+                                     : tr(" (yerine geçtiği: %1)").arg(shown.mid(0, 3).join(QStringLiteral(", ")))));
+        }
+        exePath = QDir::cleanPath(stage + QLatin1Char('/') + QDir(packageDir).relativeFilePath(exePath));
+    }
+    const QString runFrom = stage.isEmpty() ? packageDir : stage;
+    const QString workDir = (workDirMode == QLatin1String("package") && !runFrom.isEmpty())
+        ? runFrom : gamePath;
+    const QStringList resolvedArgs = steprules::resolveRunArgs(args, gamePath, runFrom);
+    const QHash<QString, QString> env = {
+        {QLatin1String(runstage::kGameVar), QDir::toNativeSeparators(gamePath)},
+        {QLatin1String(runstage::kPackageVar), QDir::toNativeSeparators(runFrom)},
+        {QLatin1String(runstage::kGameIdVar), gameId},
+    };
+    qCInfo(lcPackageManager) << "Run: executing" << exePath << "args:" << resolvedArgs
+                             << "workDir:" << workDir;
+
+    // A window of its own prints nothing here; say where the work is.
+    QFile head(exePath);
+    if (head.open(QIODevice::ReadOnly) && runstage::isWindowedProgram(head.read(4096))) {
+        emit processOutput(tr("%1 kendi penceresinde açılıyor. İşlemi o pencerede yapın; "
+                              "bitince pencereyi kapatın, launcher sonra devam eder.\n")
+                               .arg(*shownName));
+    }
+    head.close();
+    return runProcess(exePath, resolvedArgs, workDir, std::move(progressCallback), env);
 }
 
 // An option's source folder as installWithOptions resolves it: the declared
@@ -2691,35 +2878,13 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
         return StepOutcome::Ok;
 
     } else if (step.action == "run") {
-        // Resolve executable: game dir first, then package dir (wrapper-
-        // tolerant), then fallback. Going through resolvePackageSource
-        // for the package side means ".makine archives that nest the exe
-        // under a wrapper (<game>/Türkçe Yama/ERING_TR.exe) still resolve
-        // — without it the step silently soft-failed.
-        QString exePath = findRunProgram(step.exe, gamePath, packageDir);
-        if (exePath.isEmpty())
-            exePath = findRunProgram(step.fallback, gamePath, packageDir);
-        if (exePath.isEmpty()) {
-            qCWarning(lcPackageManager) << "Run: executable not found:" << step.exe;
-            return StepOutcome::SoftError;
-        }
-        if (const QString why = runProgramRejection(exePath, gamePath, packageDir);
-            !why.isEmpty()) {
-            qCWarning(lcPackageManager) << "Run:" << why << "-" << exePath;
-            return StepOutcome::SoftError;
-        }
-
+        QString refused;
+        QString exeFileName;
         emit installProgress(progress,
-            tr("%1Adım %2/%3: %4").arg(progressPrefix).arg(current).arg(total).arg(QFileInfo(exePath).fileName()));
-
-        QString workDir = (step.workDir == "package") ? packageDir : gamePath;
-
-        const QStringList resolvedArgs = steprules::resolveRunArgs(step.args, gamePath, packageDir);
-        qCInfo(lcPackageManager) << "Run: executing" << exePath
-                << "args:" << resolvedArgs << "workDir:" << workDir;
-
-        QString exeFileName = QFileInfo(exePath).fileName();
-        auto result = runProcess(exePath, resolvedArgs, workDir,
+            tr("%1Adım %2/%3: %4").arg(progressPrefix).arg(current).arg(total)
+                .arg(QFileInfo(step.exe).fileName()));
+        auto result = runPackageProgram(step.exe, step.fallback, step.args, step.workDir,
+            gamePath, packageDir, steamAppId,
             [&](int elapsedMs) {
                 int mins = elapsedMs / 60000;
                 int secs = (elapsedMs % 60000) / 1000;
@@ -2728,7 +2893,12 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                         .arg(progressPrefix).arg(current).arg(total).arg(exeFileName)
                         .arg(mins, 2, 10, QChar('0'))
                         .arg(secs, 2, 10, QChar('0')));
-            });
+            }, &refused, &exeFileName);
+        if (!refused.isEmpty()) {
+            if (failDetail) *failDetail = refused;
+            return StepOutcome::SoftError;
+        }
+        const QString exePath = exeFileName;
 
         if (result.cancelled) return StepOutcome::Cancelled;
         // Name the cause. Four different problems used to leave the same trace:
@@ -3278,10 +3448,47 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
 
     emit installProgress(0.0, tr("Kurulum adımları hazırlanıyor..."));
 
+    // A program of the package changes the game where no list of ours can
+    // see. The folder is noted for it (<game>/.makine) and looked at before
+    // and after; the difference is what the program did (changescan.h) and
+    // goes on record, so uninstall knows there is something to undo.
+    const auto isRun = [](const InstallStep& st) { return st.action == QLatin1String("run"); };
+    const bool runsProgram = std::any_of(steps.cbegin(), steps.cend(), isRun);
+    const bool onlyProgram = runsProgram && std::all_of(steps.cbegin(), steps.cend(), isRun);
+    const QStringList launcherFiles{QString::fromLatin1(runstage::kNoteFile)};
+    changescan::Snapshot before;
+    if (runsProgram) {
+        QSaveFile note(QDir::cleanPath(gamePath + QLatin1Char('/') + QLatin1String(runstage::kNoteFile)));
+        if (note.open(QIODevice::WriteOnly)
+            && note.write(runstage::noteFile(gamePath, pkg.steamAppId, pkg.gameName)) >= 0
+            && note.commit())
+            installedFiles << launcherFiles;
+        else
+            qCWarning(lcPackageManager) << "Could not write the game folder note in" << gamePath;
+        emit installProgress(0.0, tr("Oyun klasörü taranıyor..."));
+        before = changescan::take(gamePath, launcherFiles);
+    }
+    // What the program did, once its steps have run: markers for the record.
+    std::optional<changescan::Diff> programDiff;
+    const auto programChanges = [&]() -> QStringList {
+        if (!runsProgram) return {};
+        if (!programDiff) {
+            changescan::Diff d = changescan::compare(before, changescan::take(gamePath, launcherFiles));
+            // Our own steps' files are on record already.
+            const auto ours = [&installedFiles](const QString& f) {
+                return installedFiles.contains(f, Qt::CaseInsensitive);
+            };
+            d.created.removeIf(ours);
+            d.modified.removeIf(ours);
+            programDiff = d;
+        }
+        return changescan::markers(*programDiff);
+    };
+
     for (const InstallStep& step : steps) {
         if (isCancelled()) {
             if (m_journal) m_journal->abortOperation();
-            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles + programChanges(),
                         replacedFiles.values(), tr("Kurulum iptal edildi"));
             return;
         }
@@ -3295,13 +3502,13 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                                           QString{}, pkg.steamAppId,
                                           installedFiles, replacedFiles, &failDetail);
         if (outcome == StepOutcome::FatalError) {
-            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles + programChanges(),
                         replacedFiles.values(), failDetail);
             return;
         }
         if (outcome == StepOutcome::Cancelled) {
             if (m_journal) m_journal->abortOperation();
-            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles + programChanges(),
                         replacedFiles.values(), tr("Kurulum iptal edildi"));
             return;
         }
@@ -3313,6 +3520,49 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
                                   step.src.isEmpty() ? step.exe : step.src);
             if (!failDetail.isEmpty()) detail += QStringLiteral(" — ") + failDetail;
             errorDetails.append(detail);
+        }
+    }
+
+    if (errors == 0 && runsProgram) {
+        const QStringList changes = programChanges();
+        const changescan::Diff& d = *programDiff;
+        // An update run over the program's own earlier work may find nothing
+        // to change; that work is on record already and stays there.
+        bool earlierWork = false;
+        if (const auto old = m_catalog.getInstalledState(pkg.steamAppId.toStdString()))
+            for (const auto& f : old->installedFiles)
+                if (f.starts_with(changescan::kMarker)) { earlierWork = true; break; }
+        if (onlyProgram && d.isEmpty() && before.complete && !earlierWork) {
+            // Exit code 0 and not a file different: a window closed before its
+            // "Kur", a tool that found nothing of the game where it looked.
+            // Recorded as installed it would be "kuruldu" over an English game.
+            qCWarning(lcPackageManager) << "Program of" << pkg.steamAppId
+                                        << "exited cleanly but changed nothing in" << gamePath;
+            failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+                        replacedFiles.values(),
+                        tr("Yamanın programı çalıştı ama oyunun klasöründe hiçbir dosyayı "
+                           "değiştirmedi, yani yama kurulmadı.\n"
+                           "Program kendi penceresini açtıysa kurulumu orada başlatıp bitmesini "
+                           "bekleyin, sonra pencereyi kapatın. Program bir hata yazdıysa "
+                           "yukarıdaki çıktıda görünür."));
+            return;
+        }
+        emit processOutput(tr("\nProgram oyunda %1 dosyayı değiştirdi, %2 dosya ekledi, %3 dosya sildi.\n")
+                               .arg(d.modified.size()).arg(d.created.size()).arg(d.removed.size()));
+        installedFiles << changes;
+        // The program that undoes this must outlive the extracted package.
+        const bool undoable = std::any_of(steps.cbegin(), steps.cend(), [](const InstallStep& st) {
+            return st.action == QLatin1String("run") && !st.uninstall.isEmpty();
+        });
+        if (undoable) {
+            const QString kept = keptProgramDir(pkg.steamAppId);
+            QDir(kept).removeRecursively();
+            QString why;
+            if (!mirrorTree(packageDir, kept, {}, {}, nullptr, nullptr, &why)) {
+                qCWarning(lcPackageManager) << "Could not keep the uninstall program of"
+                                            << pkg.steamAppId << ":" << why;
+                QDir(kept).removeRecursively();
+            }
         }
     }
 
@@ -3339,7 +3589,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin. "
             "Windows yönetici izni isterse açılan pencerede 'Evet' deyin. "
             "Sorun sürerse yamayı kaldırıp yeniden indirin.");
-        failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
+        failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles + programChanges(),
                     replacedFiles.values(), msg);
     }
 }
@@ -3589,63 +3839,83 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
 // -- Uninstall package --------------------------------------------------------
 
 // A patch installed by its own program (a "run" step) changed the game where
-// our file list cannot see: "Kaldır" deleted that list, said the patch was
-// gone, and the patch stayed in the game. A run step may name the program that
-// undoes it ("uninstall" + "uninstallArgs"); this starts it.
+// our file list cannot see. A run step may name the program that undoes it
+// ("uninstall" + "uninstallArgs"); uninstall runs it before anything else.
 //
-// Detached, never waited on: uninstall runs on the UI thread, and the program
-// is often a window the user clicks through (a "Kaldır" button of its own) or
-// a restore .bat. A program that needs administrator rights gets its UAC
-// prompt from QProcess::startDetached itself.
+// Waited on, its output on the game page. It used to be started detached and
+// the record dropped at once: a "Kaldır" window the user closed unpressed, or
+// a restore that failed, still read "Yama başarıyla kaldırıldı".
 //
 // Top-level steps only. An option's steps ran only if the user picked that
 // option, and the install record does not keep which ones were picked;
 // starting the undo of something never installed is worse than not starting
 // it. For the same reason a variant package is searched from its root.
-void LocalPackageManager::startUninstallPrograms(const QString& steamAppId,
-                                                 const QString& gamePath) const
+bool LocalPackageManager::needsUndoPrograms(const QString& steamAppId) const
 {
     const auto pkg = getPackage(steamAppId);
-    if (!pkg)
-        return;
+    const auto state = m_catalog.getInstalledState(steamAppId.toStdString());
+    if (!pkg || !state) return false;
+    const bool named = std::any_of(pkg->installSteps.cbegin(), pkg->installSteps.cend(),
+        [](const InstallStep& st) { return st.action == QLatin1String("run") && !st.uninstall.isEmpty(); });
+    if (!named) return false;
+    bool changes = false, tracked = false;
+    for (const auto& f : state->installedFiles) {
+        if (f.starts_with(changescan::kMarker)) changes = true;
+        if (f == runstage::kNoteFile) tracked = true;
+    }
+    // A record written before changes were tracked cannot say; run it then.
+    return changes || !tracked;
+}
+
+LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QString& steamAppId,
+                                                                     const QString& gamePath)
+{
+    UndoResult out;
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg || !QDir(gamePath).exists()) return out;
     QList<InstallStep> undo;
-    for (const InstallStep& step : pkg->installSteps) {
+    for (const InstallStep& step : pkg->installSteps)
         if (step.action == QLatin1String("run") && !step.uninstall.isEmpty())
             undo.append(step);
-    }
-    // No game folder, nothing to undo: the program would only fail against it.
-    if (undo.isEmpty() || !QDir(gamePath).exists())
-        return;
+    if (undo.isEmpty()) return out;
 
-    const QString packageDir = resolveSourcePath(*pkg, QString());
+    // The copy kept at install; the extracted package when there is none.
+    QString from = keptProgramDir(steamAppId);
+    if (!dirHasFiles(from)) from = resolveSourcePath(*pkg, QString());
+    m_cancelRequested.store(false, std::memory_order_relaxed);
+
+    const QStringList launcherFiles{QString::fromLatin1(runstage::kNoteFile)};
+    const changescan::Snapshot before = changescan::take(gamePath, launcherFiles);
     for (const InstallStep& step : undo) {
-        const QString program = findRunProgram(step.uninstall, gamePath, packageDir);
-        QString why = program.isEmpty()
-            ? (packageDir.isEmpty() ? QStringLiteral("not found, package folder is gone")
-                                    : QStringLiteral("not found"))
-            : runProgramRejection(program, gamePath, packageDir);
-        if (why.isEmpty()) {
-            const QString workDir = (step.workDir == "package" && !packageDir.isEmpty())
-                ? packageDir : gamePath;
-            const QStringList args =
-                steprules::resolveRunArgs(step.uninstallArgs, gamePath, packageDir);
-            qCInfo(lcPackageManager) << "Uninstall: starting" << program
-                                     << "args:" << args << "workDir:" << workDir;
-            if (QProcess::startDetached(program, args, workDir)) {
-                CrashReporter::addBreadcrumb("package",
-                    QStringLiteral("uninstall program started: %1")
-                        .arg(step.uninstall).toUtf8().constData());
-                continue;
-            }
-            why = QStringLiteral("failed to start");
-        }
-        // The rest of the uninstall still runs; this only means the patch may
-        // be left in the game, which is what the event is for.
-        qCWarning(lcPackageManager) << "Uninstall program" << step.uninstall
-                                    << "for" << steamAppId << ":" << why;
+        QString refused, name;
+        const ProcessResult r = runPackageProgram(step.uninstall, {}, step.uninstallArgs,
+            step.workDir, gamePath, from, steamAppId, nullptr, &refused, &name);
+        out.ran = out.ran || r.started;
+        QString why;
+        if (!refused.isEmpty())
+            why = from.isEmpty() ? QStringLiteral("paket klasörü yok") : refused;
+        else if (r.elevationDeclined) why = QStringLiteral("yönetici izni verilmedi");
+        else if (!r.started) why = QStringLiteral("başlatılamadı");
+        else if (r.timedOut) why = QStringLiteral("2 saatte bitmedi");
+        else if (r.cancelled) why = QStringLiteral("durduruldu");
+        else if (r.exitCode != 0) why = QStringLiteral("hata kodu %1 verdi").arg(r.exitCode);
+        if (why.isEmpty()) continue;
+        qCWarning(lcPackageManager) << "Uninstall program" << step.uninstall << "for"
+                                    << steamAppId << ":" << why;
         CrashReporter::reportFailure("uninstall", steamAppId,
             QStringLiteral("uninstall program %1: %2").arg(step.uninstall, why));
+        out.ok = false;
+        out.message = tr("Yamayı kaldıran program (%1) %2; yama kaldırılmadı, oyun dosyalarına "
+                         "launcher dokunmadı.\nProgramın yazdıkları sayfada görünüyor. Oyunu "
+                         "kapatıp tekrar deneyin.")
+                          .arg(name.isEmpty() ? QFileInfo(step.uninstall).fileName() : name, why);
+        return out;
     }
+    const changescan::Diff d = changescan::compare(before, changescan::take(gamePath, launcherFiles));
+    out.changedNothing = out.ran && d.isEmpty() && before.complete;
+    emit processOutput(tr("\nProgram oyunda %1 dosyayı geri yazdı, %2 dosya sildi, %3 dosya ekledi.\n")
+                           .arg(d.modified.size()).arg(d.removed.size()).arg(d.created.size()));
+    return out;
 }
 
 bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QString& gamePath,
@@ -3669,8 +3939,6 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
                               || (!QDir(recordedPath).exists() && QDir(gamePath).exists()))
         ? gamePath
         : recordedPath;
-
-    startUninstallPrograms(steamAppId, basePath);
 
     // Files we REPLACED at install time — BackupManager::restoreBackup
     // copies the originals back over them in the uninstall flow. Deleting
@@ -3719,6 +3987,11 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
             }
             continue;
         }
+
+        // What a patch's own program changed: its undo program has put those
+        // back already (runUndoPrograms), and some of them are its backups.
+        if (relPath.startsWith(QLatin1String(changescan::kMarker)))
+            continue;
 
         // Files a vpatch step rewrote in place. They belong to the game, not
         // to us: restoreBackup copies the originals back over them, and
@@ -3881,6 +4154,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     m_catalog.markUninstalled(steamAppId.toStdString());
     saveCatalogInstalledState(m_catalog, installedStatePath());
     if (m_journal) m_journal->commitOperation();
+    QDir(keptProgramDir(steamAppId)).removeRecursively();
     return true;
 }
 

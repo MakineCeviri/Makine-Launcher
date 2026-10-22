@@ -45,6 +45,7 @@ struct InstallStep {
     QString workDir;    // "game" (default) or "package" — for "run"
     QString uninstall;  // program that undoes this "run" step — started on uninstall
     QStringList uninstallArgs;  // its arguments, same placeholders as args
+    QStringList requiredFiles;  // "requires": game files the root must have before it runs
     QString language;   // Steam language name — for "setSteamLanguage"
     QList<QPair<QString, QString>> patches;  // find/replace byte strings — for "patchBytes"
 };
@@ -175,6 +176,26 @@ public:
     // when every step also names the program that undoes it.
     enum class OwnProgram { No, WithUndo, WithoutUndo };
     OwnProgram ownProgramRecipe(const QString& steamAppId) const;
+    // That program's file name ("HeavyRain_Turkce_Yama.exe"), empty when the
+    // recipe is not one; the page says what will run.
+    QString ownProgramName(const QString& steamAppId) const;
+
+    // What starting a patch's undo programs came to (runUndoPrograms).
+    struct UndoResult {
+        bool ran = false;            // a program was started
+        bool ok = true;              // every one exited 0
+        bool changedNothing = false; // and the game folder is as it was before
+        QString message;             // when not ok: what to tell the user
+    };
+    // Whether uninstall owes this patch its undo programs: the recipe names
+    // them and the record says the install's program changed the game (or
+    // predates the record saying so).
+    bool needsUndoPrograms(const QString& steamAppId) const;
+    // Run, waiting for each, the "uninstall" program of every top-level run
+    // step, from the copy kept at install (or the extracted package). Its
+    // output goes to processOutput like an install's. Blocks: call it off the
+    // UI thread.
+    UndoResult runUndoPrograms(const QString& steamAppId, const QString& gamePath);
 
     // An answer typed on the install page for the program a "run" step is
     // running. Called from the UI thread while the program runs on the
@@ -217,10 +238,6 @@ private:
                             const QString& basePackageDir, const QStringList& selectedOptions);
 
     QString installedStatePath() const;
-
-    // Start, detached, the "uninstall" program of every run step that names
-    // one, so a patch installed by its own program is removed by it too.
-    void startUninstallPrograms(const QString& steamAppId, const QString& gamePath) const;
 
     // Quarantined: antivirus refused or removed the file (Windows 225/226).
     enum class CopyError { None, DiskFull, PermissionDenied, FileLocked, Quarantined, Other };
@@ -272,9 +289,24 @@ private:
         int exitCode = -1;
         QByteArray output;
     };
+    // extraEnv: added to the program's environment (MAKINE_OYUN and the
+    // others, see runstage.h).
     ProcessResult runProcess(const QString& exePath, const QStringList& args,
                              const QString& workDir,
-                             std::function<void(int elapsedMs)> progressCallback = nullptr);
+                             std::function<void(int elapsedMs)> progressCallback = nullptr,
+                             const QHash<QString, QString>& extraEnv = {});
+
+    // One start of a package's program, as install and uninstall both run it:
+    // from a stage of `packageDir` whose scripts read the launcher's game
+    // folder, that folder in its arguments (${gamePath}) and environment
+    // (runstage.h). `refused` is set when it was not started at all (not
+    // found, not allowed, not staged); `shownName` is the program's file name.
+    ProcessResult runPackageProgram(const QString& program, const QString& fallback,
+                                    const QStringList& args, const QString& workDirMode,
+                                    const QString& gamePath, const QString& packageDir,
+                                    const QString& gameId,
+                                    std::function<void(int elapsedMs)> progressCallback,
+                                    QString* refused, QString* shownName);
 
     // --- Shared helpers (used by both installPackage and updatePackage) ---
 

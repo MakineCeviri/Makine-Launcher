@@ -476,6 +476,16 @@ TEST(InstallStepRules, ReinstallKeepsTheEarlierInPlaceMarkers) {
     EXPECT_EQ(again.size(), 1);
 }
 
+TEST(InstallStepRules, ProgramChangesStayOnRecordOverAReinstall) {
+    // ACS.exe run again for an update rewrites the same forge: nothing new to
+    // list, and its undo is still owed the files the first run changed.
+    QStringList installed{".makine"};
+    keepEarlierInPlace(installed, {".makine", "_program:DataPC_boot_patch_02.forge",
+                                   "_program:acs_text_yedek/DataPC_boot_patch_02.forge.tablo"});
+    EXPECT_EQ(installed, QStringList({".makine", "_program:DataPC_boot_patch_02.forge",
+                                      "_program:acs_text_yedek/DataPC_boot_patch_02.forge.tablo"}));
+}
+
 // ===== the record a failed install leaves ===================================
 //
 // The rollback after a failed install restores the backup, then removes what

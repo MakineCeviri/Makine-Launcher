@@ -7,6 +7,13 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### Eklenen (2026-10-22, 0.1.7 sonrası)
+- **Yamanın kendi programıyla kurulum, sözleşmeyle** (`docs/patch-programs.md`, tarif seviyesi 3) — program çalışmadan önce oyun klasörü tarifin `requires` dosyalarıyla doğrulanıyor (yanlış klasörde hiçbir şey çalışmıyor; bir üst/alt klasör uyuyorsa oyun oraya bağlanıyor); program paketin geçici kopyasından çalışıyor ve kopyadaki betiklerde çevirmenin sabit oyun klasörü (`set OYUN=D:\…`, `game.path`) launcher'ın bulduğu klasörle değiştiriliyor; klasör ayrıca `MAKINE_OYUN` ortam değişkeni ve oyun klasöründeki `.makine` notuyla veriliyor; program bittiğinde oyunda ne değiştiğine bakılıyor — hiçbir şey değişmediyse "kuruldu" denmiyor; kaldırma programı saklanan kopyadan çalışıp bekleniyor, çıktısı sayfada
+- **Ubisoft Connect kütüphanesi** taranıyor (kayıt defterindeki kurulumlar; başka diskteki kütüphaneler dahil)
+
+### Değişen (2026-10-22, 0.1.7 sonrası)
+- Kendi programıyla kurulan yamalarda sayfa, kaldırma onayı ve açıklamalar yedekten değil programdan söz ediyor; yanlış klasör hatasında "Oyun dosyalarını doğrula" yerine "Klasörü değiştir"
+
 ### Eklenen (2026-03-12)
 - **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)
 - **Discord butonu** — Duyuru kartında hover animasyonlu Discord bağlantısı

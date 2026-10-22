@@ -471,6 +471,28 @@ void CoreBridge::doScanGogReal(QList<DetectedGame>& outGames)
     qCDebug(lcCoreBridge) << "GOG scan: found" << gameKeys.size() << "entries";
 }
 
+// Ubisoft Connect keeps every install in the registry, wherever its library
+// is: AC Shadows on a second drive is found here and nowhere else (the
+// filesystem scan knows only the default games folder).
+void CoreBridge::doScanUbisoftReal(QList<DetectedGame>& outGames)
+{
+    QSettings reg(QStringLiteral("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs"),
+                  QSettings::NativeFormat);
+    for (const QString& id : reg.childGroups()) {
+        const QString dir = QDir::cleanPath(
+            reg.value(id + QStringLiteral("/InstallDir")).toString().trimmed());
+        if (dir.isEmpty() || dir == QLatin1String(".") || !QDir(dir).exists() || !hasExecutable(dir))
+            continue;
+        DetectedGame game;
+        game.id = QStringLiteral("ubisoft_") + id;
+        game.name = QFileInfo(dir).fileName();
+        game.installPath = dir;
+        game.source = QStringLiteral("ubisoft");
+        outGames.append(game);
+        emit gameDetected(game.id, game.name);
+    }
+}
+
 // ========== Engine Detection ==========
 
 QString CoreBridge::detectEngineReal(const QString& gamePath)
@@ -906,6 +928,7 @@ void CoreBridge::scanAllLibraries()
 
         emit scanProgress(0.60, tr("GOG Galaxy taranıyor..."));
         doScanGogReal(games);
+        doScanUbisoftReal(games);
 
         // ── Filesystem & Registry scanners ──
         // Collect known install paths from store scanners (for dedup)
@@ -934,7 +957,7 @@ void CoreBridge::scanAllLibraries()
             auto sourcePriority = [](const QString& src) -> int {
                 if (src == QLatin1String("steam")) return 0;
                 if (src == QLatin1String("epic")) return 1;
-                if (src == QLatin1String("gog")) return 2;
+                if (src == QLatin1String("gog") || src == QLatin1String("ubisoft")) return 2;
                 if (src == QLatin1String("registry")) return 3;
                 if (src == QLatin1String("filesystem")) return 4;
                 return 5;
@@ -1028,7 +1051,7 @@ void CoreBridge::scanAllLibraries()
             auto sourcePriority = [](const QString& src) -> int {
                 if (src == QLatin1String("steam")) return 0;
                 if (src == QLatin1String("epic")) return 1;
-                if (src == QLatin1String("gog")) return 2;
+                if (src == QLatin1String("gog") || src == QLatin1String("ubisoft")) return 2;
                 if (src == QLatin1String("registry")) return 3;
                 if (src == QLatin1String("filesystem")) return 4;
                 return 5;
@@ -1458,6 +1481,29 @@ LocalPackageManager::OwnProgram CoreBridge::ownProgramRecipe(const QString& game
     const QString resolved = resolveToSteamAppId(gameId);
     return resolved.isEmpty() ? LocalPackageManager::OwnProgram::No
                               : m_localPkgManager->ownProgramRecipe(resolved);
+}
+
+bool CoreBridge::needsUndoPrograms(const QString& gameId)
+{
+    if (!m_localPkgManager) return false;
+    const QString resolved = resolveToSteamAppId(gameId);
+    return !resolved.isEmpty() && m_localPkgManager->needsUndoPrograms(resolved);
+}
+
+QString CoreBridge::ownProgramName(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? QString() : m_localPkgManager->ownProgramName(resolved);
+}
+
+LocalPackageManager::UndoResult CoreBridge::runUndoPrograms(const QString& gameId,
+                                                            const QString& gamePath)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? LocalPackageManager::UndoResult{}
+                              : m_localPkgManager->runUndoPrograms(resolved, gamePath);
 }
 
 QString CoreBridge::findMatchingAppId(const QString& folderName)

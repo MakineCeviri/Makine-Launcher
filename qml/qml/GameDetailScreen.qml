@@ -238,6 +238,7 @@ Item {
                     // prompt, a folder to open) and takes longer than six
                     // seconds to read. Cleared when the next install starts.
                     installErrorTimer.stop()
+                    root.viewModel.installErrorOnFolder = GameService.installFailedOnFolder(gId)
                     root.viewModel.installErrorMessage = message || qsTr("Yama kurulumu başarısız oldu")
                     // The rollback's restore already set this false (onBackupRestored),
                     // yet a record can stay — files it could not delete, the version
@@ -275,8 +276,11 @@ Item {
         parent: Overlay.overlay
         width: 460
         title: qsTr("Türkçe yama kaldırılsın mı?")
-        message: qsTr("%1 için kurulu Türkçe yama kaldırılacak; yedeklenen orijinal oyun dosyaları geri yüklenecek. İstediğin zaman yeniden kurabilirsin.")
-                     .arg(root.viewModel.gameName)
+        message: root.viewModel.patchProgram !== ""
+            ? qsTr("%1 için kurulu Türkçe yama kaldırılacak: yamanın kendi programı açılıp oyunda yaptıklarını geri alacak. İstediğin zaman yeniden kurabilirsin.")
+                  .arg(root.viewModel.gameName)
+            : qsTr("%1 için kurulu Türkçe yama kaldırılacak; yedeklenen orijinal oyun dosyaları geri yüklenecek. İstediğin zaman yeniden kurabilirsin.")
+                  .arg(root.viewModel.gameName)
         confirmText: qsTr("Yamayı kaldır")
         glyph: Icons.trash2
         onConfirmed: GameService.uninstallTranslation(root.viewModel.gameId)
