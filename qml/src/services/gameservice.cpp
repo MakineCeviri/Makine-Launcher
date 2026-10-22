@@ -2699,9 +2699,13 @@ void GameService::recoverTranslation(const QString& gameId)
 
     // Step 1: Uninstall current (broken) translation
     // Step 2: When uninstall completes, reinstall the same package
-    auto conn = connect(this, &GameService::translationUninstalled, this,
-        [this, gameId](const QString& uninstalledId, bool success, const QString& /*msg*/) {
-            if (uninstalledId != gameId) return;
+    // Disconnected by this game's result only: a single-shot connection was
+    // used up by whichever game's uninstall finished first.
+    auto conn = std::make_shared<QMetaObject::Connection>();
+    *conn = connect(this, &GameService::translationUninstalled, this,
+        [this, gameId, conn](const QString& uninstalledId, bool success, const QString& /*msg*/) {
+            if (uninstalledId != gameId || !*conn) return;
+            QObject::disconnect(*conn);
             if (!success) {
                 emit translationInstallCompleted(gameId, false,
                     tr("Eski çeviri kaldırılamadı, onarım başarısız"));
@@ -2717,7 +2721,7 @@ void GameService::recoverTranslation(const QString& gameId)
             }
             // Reinstall with default variant/options
             installTranslation(gameId);
-        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+        }, Qt::QueuedConnection);
 
     uninstallTranslation(gameId);
 }
@@ -2727,9 +2731,12 @@ void GameService::reinstallForUpdate(const QString& gameId, const QString& varia
 {
     qCInfo(lcGameService) << "Update of" << gameId
                           << "rewrites files in place — restoring originals, then installing";
-    connect(this, &GameService::translationUninstalled, this,
-        [this, gameId, variant, selectedOptions](const QString& uninstalledId, bool success, const QString& /*msg*/) {
-            if (uninstalledId != gameId) return;
+    // Disconnected by this game's result only (see recoverTranslation).
+    auto conn = std::make_shared<QMetaObject::Connection>();
+    *conn = connect(this, &GameService::translationUninstalled, this,
+        [this, gameId, variant, selectedOptions, conn](const QString& uninstalledId, bool success, const QString& /*msg*/) {
+            if (uninstalledId != gameId || !*conn) return;
+            QObject::disconnect(*conn);
             if (!success) {
                 emit translationInstallCompleted(gameId, false,
                     tr("Güncelleme için oyunun orijinal dosyaları geri yüklenemedi; yeni sürüm kurulmadı."));
@@ -2742,7 +2749,7 @@ void GameService::reinstallForUpdate(const QString& gameId, const QString& varia
                 return;
             }
             installTranslation(gameId, variant, selectedOptions);
-        }, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+        }, Qt::QueuedConnection);
     uninstallTranslation(gameId);
 }
 
