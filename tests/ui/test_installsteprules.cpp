@@ -43,6 +43,27 @@ TEST(StepRules, InPlaceActionsAreTheOnesThatEditGameFiles)
         EXPECT_FALSE(isInPlaceAction(QString::fromLatin1(a))) << a;
 }
 
+TEST(StepRules, BackupListsEveryGameFileAStepChangesOrDeletes)
+{
+    // AC Unity (289650), verbatim: the last step deletes a game archive. It
+    // has to be in the backup or uninstall cannot bring it back.
+    EXPECT_EQ(backupTarget("delete", {}, "DataPC_patch_01.forge"), "DataPC_patch_01.forge");
+    EXPECT_EQ(backupTarget("vpatch", "patches/BigFile_PC_d01.pat", "BigFile_PC.d01"),
+              "BigFile_PC.d01");
+    EXPECT_EQ(backupTarget("forgeReimport", "DataPC_35_dlc", "dlc_35/DataPC_35_dlc.forge"),
+              "dlc_35/DataPC_35_dlc.forge");
+    EXPECT_EQ(backupTarget("xdelta", "aco156.aco", "DataPC_patch_01.forge"),
+              "DataPC_patch_01.forge");
+    // Elden Ring writes a new exe from the original; in place when dest is empty.
+    EXPECT_EQ(backupTarget("patchBytes", "Game/eldenring.exe", "Game/start_protected_game.exe"),
+              "Game/start_protected_game.exe");
+    EXPECT_EQ(backupTarget("patchBytes", "Game/eldenring.exe", {}), "Game/eldenring.exe");
+    // Copies are listed from the package itself; the rest touch no game file.
+    for (const char* a : {"copy", "copyFile", "copyDir", "installFont", "run",
+                          "copyToDesktop", "setSteamLanguage", ""})
+        EXPECT_TRUE(backupTarget(QString::fromLatin1(a), "x", "y").isEmpty()) << a;
+}
+
 TEST(StepRules, EldenRingOptionRecipeStaysExecutable)
 {
     // 1245620, option "patch" — the launcher's most-used scripted install.

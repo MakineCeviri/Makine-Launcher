@@ -403,17 +403,9 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
 
         const auto collect = [&result](const QList<InstallStep>& steps) {
             for (const InstallStep& st : steps) {
-                if ((st.action == QLatin1String("vpatch")
-                     || st.action == QLatin1String("forgeReimport")
-                     || st.action == QLatin1String("xdelta"))
-                    && !st.dest.isEmpty() && !result.contains(st.dest))
-                    result.append(st.dest);
-                // patchBytes writes dest, or src in place when dest is empty.
-                if (st.action == QLatin1String("patchBytes")) {
-                    const QString target = st.dest.isEmpty() ? st.src : st.dest;
-                    if (!target.isEmpty() && !result.contains(target))
-                        result.append(target);
-                }
+                const QString target = steprules::backupTarget(st.action, st.src, st.dest);
+                if (!target.isEmpty() && !result.contains(target))
+                    result.append(target);
             }
         };
         collect(pkg->installSteps);
@@ -2585,6 +2577,11 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
                 qCWarning(lcPackageManager) << "Delete failed:" << destPath;
                 return StepOutcome::SoftError;
             }
+            // The game's file, backed up first (getPackageFileList lists it).
+            // Recorded like an in-place edit: the restore brings it back, and
+            // uninstall must not count it as one of ours.
+            installedFiles.append(QStringLiteral("_vpatch:") + step.dest);
+            if (m_journal) m_journal->recordFileModified(QStringLiteral("_vpatch:") + step.dest);
         }
         return StepOutcome::Ok;
 

@@ -62,6 +62,23 @@ inline bool isInPlaceAction(const QString& action)
         || action == QLatin1String("xdelta") || action == QLatin1String("vpatch");
 }
 
+// The game file a step changes without copying a package file over it: one it
+// rewrites in place, or one it deletes. The package does not contain it, so the
+// pre-install backup must list it separately; empty for every other step.
+//
+// "delete" belongs here: AC Unity's recipe (289650) deletes the game's own
+// DataPC_patch_01.forge. Left out of the backup, uninstall had nothing to put
+// back and the game stayed without that archive.
+inline QString backupTarget(const QString& action, const QString& src, const QString& dest)
+{
+    if (action == QLatin1String("vpatch") || action == QLatin1String("forgeReimport")
+        || action == QLatin1String("xdelta") || action == QLatin1String("delete"))
+        return dest;
+    if (action == QLatin1String("patchBytes"))   // dest, or src in place when empty
+        return dest.isEmpty() ? src : dest;
+    return {};
+}
+
 // Which required parameter of a KNOWN action is empty, if any.
 //
 // An unknown action name is not the only way a recipe can be unrunnable. The
