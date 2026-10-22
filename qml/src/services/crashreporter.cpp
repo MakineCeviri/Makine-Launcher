@@ -159,11 +159,40 @@ sentry_value_t beforeSend(sentry_value_t event, void* /*hint*/, void* /*closure*
         }
     }
 
-    // Add app version tag
-    sentry_value_t tags = sentry_value_get_by_key(event, "tags");
-    if (sentry_value_is_null(tags)) {
-        tags = sentry_value_new_object();
-        sentry_value_set_by_key(event, "tags", tags);
+    // The SDK attaches the process's module list to every event, and a module
+    // path is a user path whenever the launcher or an injected DLL lives under
+    // the profile: 0.1.6's ZIP run from the Desktop sent
+    // "C:\Users\<name>\Desktop\...\Makine-Launcher.exe", MSIX runs sent
+    // OneDrive's shell extension from "C:\Users\<name>\AppData\...". Only the
+    // directory is redacted; symbolication matches modules by debug/code id.
+    //
+    // The SDK hands out its cached list frozen (sentry-native 0.9.1,
+    // sentry_get_modules_list), where every set_by_key fails silently, so the
+    // list is rebuilt from copies of the module finder's keys.
+    sentry_value_t debugMeta = sentry_value_get_by_key(event, "debug_meta");
+    sentry_value_t images = sentry_value_get_by_key(debugMeta, "images");
+    const auto imageLen = sentry_value_get_length(images);
+    if (imageLen > 0) {
+        sentry_value_t redacted = sentry_value_new_list();
+        for (size_t i = 0; i < imageLen; ++i) {
+            sentry_value_t image = sentry_value_get_by_index(images, i);
+            sentry_value_t copy = sentry_value_new_object();
+            for (const char* key : {"type", "image_addr", "image_size", "code_id", "debug_id"}) {
+                sentry_value_t v = sentry_value_get_by_key(image, key);
+                if (!sentry_value_is_null(v)) {
+                    sentry_value_incref(v);
+                    sentry_value_set_by_key(copy, key, v);
+                }
+            }
+            for (const char* key : {"code_file", "debug_file"}) {
+                sentry_value_t v = sentry_value_get_by_key(image, key);
+                if (sentry_value_get_type(v) == SENTRY_VALUE_TYPE_STRING)
+                    sentry_value_set_by_key(copy, key, sentry_value_new_string(
+                        sanitizePath(sentry_value_as_string(v)).c_str()));
+            }
+            sentry_value_append(redacted, copy);
+        }
+        sentry_value_set_by_key(debugMeta, "images", redacted);
     }
 
     return event;

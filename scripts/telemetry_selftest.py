@@ -29,6 +29,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -107,6 +108,21 @@ def event_text(event: dict) -> tuple[str, str]:
             for crumb in entry.get("data", {}).get("values", []):
                 crumbs.append(str(crumb.get("message") or ""))
     return str(body), "\n".join(crumbs)
+
+
+# "Users\<name>" anywhere in the event that is neither the launcher's
+# "[redacted]" nor the server-side backstop's "[scrubbed]". The body and
+# breadcrumb checks above never looked at the module list, and that is where
+# 0.1.6 leaked: every event carries the path of every loaded module, and a ZIP
+# run from the Desktop is "C:\Users\<name>\Desktop\…\Makine-Launcher.exe".
+USER_PATH = re.compile(r"(?i)users(?:\\\\|\\|/)+(?!\[redacted\]|\[scrubbed\])([^\\/\"'\s]+)")
+
+
+def unredacted_user_paths(event: dict) -> list[str]:
+    raw = json.dumps(event, ensure_ascii=False)
+    # Shown with the name masked: the report itself must not repeat the leak.
+    return [raw[max(0, m.start() - 40):m.start(1)] + m.group(1)[:2] + "***"
+            for m in USER_PATH.finditer(raw)]
 
 
 def runtime_env(exe: Path) -> dict:
@@ -227,11 +243,13 @@ def main() -> None:
         sys.exit(1)
 
     body, crumbs = event_text(event)
+    leaks = unredacted_user_paths(event)
     checks = [
         ("message body redacted", REDACTED in body),
         ("message body has no raw user name", PLANTED_NAME not in body),
         ("breadcrumbs redacted", REDACTED in crumbs),
         ("breadcrumbs have no raw user name", PLANTED_NAME not in crumbs),
+        ("no user path anywhere in the event (module list included)", not leaks),
     ]
 
     print()
@@ -242,6 +260,8 @@ def main() -> None:
             failed += 1
 
     if failed:
+        for where in leaks[:5]:
+            print(f"  leak: …{where}…")
         print("\n  --- message body ---")
         for line in body.splitlines():
             print(f"  | {line}")
