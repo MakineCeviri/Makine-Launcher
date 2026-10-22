@@ -17,11 +17,46 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace makine {
 namespace testing {
 
 namespace fs = std::filesystem;
 using namespace makine::recovery;
+
+#ifdef _WIN32
+// fs::remove_all never returns on a tree with a path past MAX_PATH, which the
+// long-path tests below create (and leave behind when they fail).
+void removeLongTree(const std::wstring& dir) {
+    WIN32_FIND_DATAW fd;
+    HANDLE find = FindFirstFileW((dir + L"\\*").c_str(), &fd);
+    if (find != INVALID_HANDLE_VALUE) {
+        do {
+            const std::wstring name = fd.cFileName;
+            if (name == L"." || name == L"..") continue;
+            const std::wstring child = dir + L"\\" + name;
+            if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                && !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+                removeLongTree(child);
+                continue;
+            }
+            SetFileAttributesW(child.c_str(), FILE_ATTRIBUTE_NORMAL);
+            DeleteFileW(child.c_str());
+        } while (FindNextFileW(find, &fd));
+        FindClose(find);
+    }
+    RemoveDirectoryW(dir.c_str());
+}
+
+// root/rel in the "\\?\" form, for files past MAX_PATH
+fs::path longForm(const fs::path& root, const std::string& rel) {
+    return fs::path(LR"(\\?\)" + fs::absolute(root).make_preferred().native())
+        / fs::path(rel).make_preferred();
+}
+#endif
 
 // =============================================================================
 // Test Fixture — temp directory per test
@@ -37,8 +72,12 @@ protected:
     }
 
     void TearDown() override {
+#ifdef _WIN32
+        removeLongTree(LR"(\\?\)" + fs::absolute(testDir_).make_preferred().native());
+#else
         std::error_code ec;
         fs::remove_all(testDir_, ec);
+#endif
     }
 
     // Helper: create a file with given content
@@ -524,13 +563,65 @@ TEST_F(CrashRecoveryTest, RecoverBackupCreateRemovesTreePastMaxPath) {
 
     EXPECT_TRUE(result.success) << result.message;
     EXPECT_FALSE(fs::exists(longRoot));
-    if (fs::exists(longRoot)) {  // keep TearDown's remove_all off the long tree
-        std::error_code ec;
-        fs::permissions(deep / "c.pak", fs::perms::owner_write, fs::perm_options::add, ec);
-        fs::remove(deep / "c.pak", ec);
-        fs::remove(deep, ec);
-        fs::remove(deep.parent_path(), ec);
+}
+
+// The backup holds the game's paths under a longer root, so an original deep
+// in the game passes MAX_PATH there. The recovery's directory walk skipped it
+// without an error and called the install rolled back, the patched file (and
+// one the patch added) left in place.
+TEST_F(CrashRecoveryTest, RecoverInstallRestoresOriginalPastMaxPath) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const std::string folder = std::string(100, 'a') + "/" + std::string(100, 'b');
+    const auto write = [](const fs::path& file, const std::string& content) {
+        fs::create_directories(file.parent_path());
+        std::ofstream(file, std::ios::binary) << content;
+    };
+    write(longForm(gamePath, folder + "/c.pak"), "patched");
+    write(longForm(gamePath, folder + "/tr.txt"), "added by patch");
+    write(longForm(backupsRoot / "888" / "b1", folder + "/c.pak"), "original");
+
+    writeCrashedInstall(testDir_, "888", gamePath, {folder + "/c.pak", folder + "/tr.txt"});
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = backupsRoot, .desktopDir = {}});
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(longForm(gamePath, folder + "/c.pak")), "original");
+    EXPECT_FALSE(fs::exists(longForm(gamePath, folder + "/tr.txt")));
+}
+
+// The same walk in the recovery of an interrupted restore, which also copied
+// again what the restore had already put back: the journal holds Qt's "a/b",
+// the walk gave "a\b".
+TEST_F(CrashRecoveryTest, RecoverBackupRestorePastMaxPathSkipsRestored) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupDir = testDir_ / "backups" / "999" / "b1";
+    const std::string deep = std::string(100, 'a') + "/" + std::string(100, 'b') + "/c.pak";
+    const auto write = [](const fs::path& file, const std::string& content) {
+        fs::create_directories(file.parent_path());
+        std::ofstream(file, std::ios::binary) << content;
+    };
+    write(longForm(gamePath, deep), "patched");
+    write(longForm(backupDir, deep), "original");
+    write(longForm(gamePath, "data/done.txt"), "restored, then changed");
+    write(longForm(backupDir, "data/done.txt"), "original");
+
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::BackupRestore;
+        entry.gameId = "999";
+        entry.gamePath = gamePath.string();
+        entry.backupPath = backupDir.string();
+        writer.beginOperation(entry);
+        writer.recordFileModified("data/done.txt");
     }
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover();
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(longForm(gamePath, deep)), "original");
+    EXPECT_EQ(readFile(longForm(gamePath, "data/done.txt")), "restored, then changed");
 }
 
 // The profile folder of a Turkish user is not UTF-8 in the ANSI code page

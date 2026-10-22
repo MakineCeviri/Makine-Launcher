@@ -109,21 +109,66 @@ bool removeTree(const std::wstring& dir, int& removed) {
     else ok = false;
     return ok;
 }
+
+// Every file under root (a "\\?\" one), relative to it. libstdc++'s directory
+// iterators cannot open a folder past MAX_PATH, and below a "\\?\" root they
+// return entries that are not in it. False when a folder could not be read.
+bool listFiles(const fs::path& root, const fs::path& rel, std::vector<fs::path>& out) {
+    // No "root\\": the "\\?\" form takes the path exactly as written
+    const std::wstring dir = rel.empty() ? root.native() : (root / rel).native();
+    WIN32_FIND_DATAW fd;
+    HANDLE find = FindFirstFileW((dir + L"\\*").c_str(), &fd);
+    if (find == INVALID_HANDLE_VALUE) return false;
+    bool ok = true;
+    do {
+        const std::wstring name = fd.cFileName;
+        if (name == L"." || name == L"..") continue;
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;  // never followed
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            ok = listFiles(root, rel / name, out) && ok;
+        else
+            out.push_back(rel / name);
+    } while (FindNextFileW(find, &fd));
+    FindClose(find);
+    return ok;
+}
 #endif
+
+// The "\\?\" form of a path on Windows: file calls past MAX_PATH need it, and
+// a backup holds the game's deepest paths under a longer root. Records join it
+// after make_preferred(), as the form takes no '/'.
+fs::path longPath(const fs::path& p) {
+#ifdef _WIN32
+    // Not again through absolute(): libstdc++ mangles a "\\?\" path there
+    if (p.native().starts_with(LR"(\\?\)")) return p;
+    std::wstring native = fs::absolute(p).lexically_normal().make_preferred().native();
+    while (native.size() > 3 && native.ends_with(L'\\')) native.pop_back();
+    if (native.starts_with(LR"(\\)")) return LR"(\\?\UNC\)" + native.substr(2);
+    return LR"(\\?\)" + native;
+#else
+    return p;
+#endif
+}
+
+// Every file under root, as paths relative to it. False when part of the tree
+// could not be read.
+bool filesUnder(const fs::path& root, std::vector<fs::path>& out) {
+#ifdef _WIN32
+    return listFiles(longPath(root), {}, out);
+#else
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec)) {
+        std::error_code fileEc;
+        if (it->is_regular_file(fileEc)) out.push_back(it->path().lexically_relative(root));
+    }
+    return !ec;
+#endif
+}
 
 // Removes a directory and everything under it. False when something stayed.
 bool removeDirectoryTree(const fs::path& dir, int& removed) {
 #ifdef _WIN32
-    std::wstring native = fs::absolute(dir).lexically_normal().make_preferred().native();
-    while (native.size() > 3 && native.ends_with(L'\\')) native.pop_back();
-    if (native.starts_with(LR"(\\?\)")) {
-        // already in the long form
-    } else if (native.starts_with(LR"(\\)")) {
-        native = LR"(\\?\UNC\)" + native.substr(2);
-    } else {
-        native = LR"(\\?\)" + native;
-    }
-    return removeTree(native, removed);
+    return removeTree(longPath(dir).native(), removed);
 #else
     std::error_code ec;
     const auto count = fs::remove_all(dir, ec);
@@ -155,8 +200,8 @@ bool reverseRename(const fs::path& gamePath, const std::string& names, std::erro
     ec.clear();
     const auto colon = names.find(':');
     if (colon == std::string::npos) return false;
-    const fs::path from(names.substr(0, colon));
-    const fs::path to(names.substr(colon + 1));
+    const fs::path from = fs::path(names.substr(0, colon)).make_preferred();
+    const fs::path to = fs::path(names.substr(colon + 1)).make_preferred();
     if (!isContainedRelative(from) || !isContainedRelative(to)) return false;
     if (!fs::exists(gamePath / to, ec)) return false;
     fs::remove(gamePath / from, ec);
@@ -369,8 +414,9 @@ RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry,
     if (entry.gamePath.empty() || !fs::exists(entry.gamePath, ec)) {
         return {false, 0, fmt::format("Game path missing: {}", entry.gamePath)};
     }
-    const fs::path gamePath(entry.gamePath);
-    const fs::path backup = newestBackupDir(paths.backupsRoot, entry.gameId);
+    const fs::path gamePath = longPath(entry.gamePath);
+    const fs::path backupDir = newestBackupDir(paths.backupsRoot, entry.gameId);
+    const fs::path backup = backupDir.empty() ? backupDir : longPath(backupDir);
 
     // The journal lists every file the install wrote, originals it replaced
     // included; deleting them all left the game without files it shipped
@@ -414,7 +460,7 @@ RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry,
         // game folder to undo.
         if (isMarker(record)) continue;
 
-        const fs::path rel(record);
+        const fs::path rel = fs::path(record).make_preferred();
         if (!isContainedRelative(rel)) continue;
         if (fs::exists(backup / rel, ec)) continue;  // an original — restored below
         if (fs::remove(gamePath / rel, ec)) ++processed;
@@ -422,20 +468,21 @@ RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry,
     }
 
     // Every original the install was about to overwrite. Copying all of them
-    // back also covers files written after the journal's last flush.
-    for (fs::recursive_directory_iterator it(backup, ec), end; !ec && it != end; it.increment(ec)) {
+    // back also covers files written after the journal's last flush. Listed
+    // and copied in the long form: an original past MAX_PATH was skipped
+    // without an error, and the recovery called the game rolled back.
+    std::vector<fs::path> originals;
+    if (!filesUnder(backup, originals)) ++failed;
+    for (const fs::path& rel : originals) {
         std::error_code fileEc;
-        if (!it->is_regular_file(fileEc)) continue;
-        const fs::path rel = fs::relative(it->path(), backup, fileEc);
-        if (fileEc || !isContainedRelative(rel)) continue;
+        if (!isContainedRelative(rel)) continue;
         const fs::path dest = gamePath / rel;
         fs::create_directories(dest.parent_path(), fileEc);
         // overwrite_existing fails on MinGW's libstdc++ when the target exists
         fs::remove(dest, fileEc);
-        fs::copy_file(it->path(), dest, fileEc);
+        fs::copy_file(backup / rel, dest, fileEc);
         count(!fileEc);
     }
-    if (ec) ++failed;
 
     if (failed > 0) {
         return {false, processed, fmt::format(
@@ -472,8 +519,11 @@ RecoveryResult CrashRecoveryJournal::recoverUninstall(
     }
 
     auto pkgObj = root[entry.gameId];
-    std::string gamePath = entry.gamePath.empty()
+    const std::string recordedPath = entry.gamePath.empty()
         ? pkgObj.value("gamePath", "") : entry.gamePath;
+    // Relative records against no folder would land in the working directory
+    if (recordedPath.empty()) return {false, 0, "Uninstall recovery: no game path"};
+    const fs::path gamePath = longPath(recordedPath);
 
     // Already-deleted files from journal
     std::set<std::string> alreadyDeleted(
@@ -489,7 +539,8 @@ RecoveryResult CrashRecoveryJournal::recoverUninstall(
         for (const auto& f : pkgObj["replacedFiles"])
             if (f.is_string()) replaced.insert(f.get<std::string>());
     }
-    const fs::path backup = newestBackupDir(paths.backupsRoot, entry.gameId);
+    const fs::path backupDir = newestBackupDir(paths.backupsRoot, entry.gameId);
+    const fs::path backup = backupDir.empty() ? backupDir : longPath(backupDir);
 
     int deleted = 0;
     int failed = 0;
@@ -531,11 +582,11 @@ RecoveryResult CrashRecoveryJournal::recoverUninstall(
         // markers name nothing in the game folder.
         if (isMarker(relPath)) continue;
 
-        const fs::path rel(relPath);
+        const fs::path rel = fs::path(relPath).make_preferred();
         if (!isContainedRelative(rel) || replaced.count(relPath)) continue;
         if (!backup.empty() && fs::exists(backup / rel, ec)) continue;
 
-        const auto fullPath = fs::path(gamePath) / rel;
+        const auto fullPath = gamePath / rel;
         if (fs::remove(fullPath, ec)) {
             deleted++;
         } else if (ec) {
@@ -593,25 +644,31 @@ RecoveryResult CrashRecoveryJournal::recoverBackupRestore(const JournalEntry& en
         entry.modifiedFiles.begin(), entry.modifiedFiles.end());
 
     int restored = 0;
-    std::error_code ec;
+    int failed = 0;
+    const fs::path backup = longPath(entry.backupPath);
+    const fs::path gamePath = longPath(entry.gamePath);
 
-    for (const auto& dirEntry : fs::recursive_directory_iterator(entry.backupPath, ec)) {
-        if (!dirEntry.is_regular_file()) continue;
+    // In the long form, as the install recovery. A copy that failed counted
+    // as nothing and the restore was called complete.
+    std::vector<fs::path> originals;
+    if (!filesUnder(backup, originals)) ++failed;
+    for (const fs::path& rel : originals) {
+        // The journal records Qt's relative paths, '/' between parts
+        if (!isContainedRelative(rel) || alreadyRestored.count(rel.generic_string())) continue;
 
-        auto relPath = fs::relative(dirEntry.path(), entry.backupPath, ec).string();
-        if (ec || alreadyRestored.count(relPath)) continue;
-
-        auto destPath = fs::path(entry.gamePath) / relPath;
+        std::error_code ec;
+        const fs::path destPath = gamePath / rel;
         fs::create_directories(destPath.parent_path(), ec);
-
-        if (fs::exists(destPath, ec)) {
-            fs::remove(destPath, ec);
-        }
-
-        fs::copy_file(dirEntry.path(), destPath, ec);
+        fs::remove(destPath, ec);
+        fs::copy_file(backup / rel, destPath, ec);
         if (!ec) restored++;
+        else ++failed;
     }
 
+    if (failed > 0) {
+        return {false, restored, fmt::format(
+            "Backup restore incomplete: {} restored, {} failed", restored, failed)};
+    }
     return {true, restored,
         fmt::format("Completed backup restore: {} files", restored)};
 }
