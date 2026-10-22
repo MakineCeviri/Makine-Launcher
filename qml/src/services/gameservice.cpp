@@ -1673,6 +1673,15 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         return;
     }
 
+    // Same the other way: an uninstall, or the restore of a failed install,
+    // still has the crash journal and may be writing into this game.
+    if (const BackupManager* bm = BackupManager::instance();
+        !m_uninstalling.isEmpty() || (bm && bm->isRestoring())) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Bir yamanın kaldırılması ya da geri yüklemesi sürüyor. O bitince tekrar deneyin."));
+        return;
+    }
+
     auto it = m_gameIdToIndex.constFind(gameId);
     if (it == m_gameIdToIndex.constEnd() || *it < 0 || *it >= m_games.count()) {
         emit translationInstallCompleted(gameId, false, tr("Oyun bulunamadı"));
@@ -2012,6 +2021,16 @@ void GameService::uninstallTranslation(const QString& gameId)
     // translationUninstalled is emitted (see the constructor).
     if (m_uninstalling.contains(gameId)) {
         qCInfo(lcGameService) << "Uninstall already running for" << gameId << "- ignoring repeat";
+        return;
+    }
+    // An install still writing — this game's update, or another game's — and
+    // this restore and delete would run beside it: one crash journal holds
+    // one operation, so each committed the other's away, and on the same
+    // game the two wrote over each other. "Yamayı taşı" stays clickable
+    // during an update.
+    if (!m_installingGameId.isEmpty()) {
+        emit translationUninstalled(gameId, false,
+            tr("Şu anda bir yama kuruluyor. Kurulum bitince tekrar deneyin."));
         return;
     }
     m_uninstalling.insert(gameId);
