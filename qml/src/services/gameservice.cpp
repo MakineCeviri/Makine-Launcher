@@ -2512,6 +2512,19 @@ void GameService::recoverTranslation(const QString& gameId)
         return;
     }
 
+    // The reinstall below picks no option and no game version. A recipe that
+    // needs one (Elden Ring, Dark Souls II) was refused there as "kurulum
+    // yöntemi: options" — after the uninstall had already taken the patch out.
+    // The record does not keep what was picked, so ask before touching it.
+    if (!getInstallOptions(gameId).isEmpty() || !getVariants(gameId).isEmpty()) {
+        emit translationInstallCompleted(gameId, false,
+            tr("Bu yama kurulurken seçim istiyor (kurulum seçeneği ya da oyun sürümü), "
+               "bu yüzden kendiliğinden onarılamıyor. Yamaya dokunulmadı.\n"
+               "Onarmak için yamayı kaldırıp yeniden kurun; seçimleri yeniden "
+               "yapabilirsiniz."));
+        return;
+    }
+
     // Step 1: Uninstall current (broken) translation
     // Step 2: When uninstall completes, reinstall the same package
     auto conn = connect(this, &GameService::translationUninstalled, this,
