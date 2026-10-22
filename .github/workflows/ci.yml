@@ -60,7 +60,8 @@ jobs:
         run: echo "commit=$(git -C "$VCPKG_ROOT" rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}\.vcpkg-cache
           key: vcpkg-mingw-${{ steps.vcpkg.outputs.commit }}-${{ env.VCPKG_PACKAGES }}
@@ -73,6 +74,16 @@ jobs:
         run: |
           mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
           ./vcpkg install $VCPKG_PACKAGES --triplet x64-mingw-dynamic
+
+      # Right after the install, not at the end of the job: the post-job save
+      # of actions/cache is skipped when a later step fails or the job times
+      # out, and from 0.1.6 on every run rebuilt openssl for 30 minutes.
+      - name: Save vcpkg binary cache
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}\.vcpkg-cache
+          key: vcpkg-mingw-${{ steps.vcpkg.outputs.commit }}-${{ env.VCPKG_PACKAGES }}
 
       - name: Generate a throwaway package key
         run: |
@@ -89,5 +100,21 @@ jobs:
       - name: Build
         run: cmake --build --preset dev
 
+      # From 0.1.6 on makine_tests printed nothing and the job ran into its
+      # 90-minute limit: a binary that cannot load (a DLL or an entry point
+      # missing) waits on a loader dialog no one can see. Say which DLLs it
+      # would take, and give a hang two minutes rather than the whole job.
+      - name: Check the test binaries load
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:VCPKG_ROOT\installed\x64-mingw-dynamic\bin;$env:PATH"
+          foreach ($dll in 'libstdc++-6.dll', 'libgcc_s_seh-1.dll', 'libwinpthread-1.dll', 'libgtest.dll', 'libfmt.dll', 'libspdlog.dll', 'libcrypto-3-x64.dll') {
+            $hits = $env:PATH -split ';' | Where-Object { $_ -and (Test-Path (Join-Path $_ $dll)) }
+            "${dll}: " + ($hits -join ' | ')
+          }
+          $p = Start-Process build\dev\makine_tests.exe -ArgumentList '--gtest_list_tests' -NoNewWindow -PassThru -RedirectStandardOutput list.txt
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'makine_tests did not start within 2 minutes (loader dialog?)' }
+          "makine_tests --gtest_list_tests: exit $($p.ExitCode), $((Get-Content list.txt).Count) lines"
+
       - name: Test
-        run: ctest --preset dev-tests --output-on-failure
+        run: ctest --preset dev-tests --output-on-failure --timeout 600
