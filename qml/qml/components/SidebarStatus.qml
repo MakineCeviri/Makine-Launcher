@@ -29,9 +29,9 @@ ColumnLayout {
         visible: status._updateCard
         implicitHeight: updateCol.implicitHeight + 24
         radius: Dimensions.radiusLG
-        color: Theme.surface
+        color: Theme.withAlpha(Theme.primary, Theme.darkMode ? 0.10 : 0.08)
         border.width: Theme.darkMode ? 1 : 0
-        border.color: Theme.separator
+        border.color: Theme.withAlpha(Theme.primaryText, 0.16)
 
         ColumnLayout {
             id: updateCol

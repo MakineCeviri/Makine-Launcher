@@ -42,7 +42,7 @@ ColumnLayout {
         }
         ListRow {
             icon: Icons.chevronsDown
-            iconTint: "#8E8E93"
+            iconTint: Theme.textMuted
             title: qsTr("Kapatınca tepside çalışsın")
             subtitle: qsTr("Pencereyi kapattığında launcher saatin yanında bir simge olarak çalışmayı sürdürür; süren indirme ve kurulumlar yarıda kalmaz.")
             AppSwitch {
@@ -188,7 +188,7 @@ ColumnLayout {
             id: cacheRow
             property bool cleared: false
             icon: Icons.hardDrive
-            iconTint: "#8E8E93"
+            iconTint: Theme.textMuted
             title: qsTr("Önbellek")
             subtitle: qsTr("Kapak resimleri ve katalogun bir kopyası: %1. Temizlersen gerektikçe yeniden indirilir; indirilen veriler etkilenmez.")
                       .arg(ImageCache.cacheSizeFormatted)

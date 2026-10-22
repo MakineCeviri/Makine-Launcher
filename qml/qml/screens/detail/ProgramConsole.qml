@@ -55,7 +55,7 @@ Card {
             Layout.fillWidth: true
             spacing: Dimensions.spacingLG
 
-            IconTile { size: 26; glyph: Icons.terminal; tint: "#8E8E93" }
+            IconTile { size: 26; glyph: Icons.terminal; tint: Theme.textMuted }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 1

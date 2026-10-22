@@ -8,15 +8,17 @@ import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
- * Shelf — a titled row of game tiles that scrolls sideways, as on the App
- * Store: title and a line under it on the left, "Tümünü gör" on the right,
- * round arrows on the row's ends under the pointer. A vertical wheel scrolls
- * the page; a sideways one (or Shift + wheel, or a drag) the row.
+ * Shelf — a titled row of game tiles that scrolls sideways, in a container
+ * of its own: title and a line under it on the left, "Tümünü gör" on the
+ * right, a fading divider, then the row, whose tiles fade out at the
+ * container's sides instead of being cut. Round arrows on the row's ends
+ * under the pointer. A vertical wheel scrolls the page; a sideways one (or
+ * Shift + wheel, or a drag) the row.
  *
  * model: a JS array of { id/gameId, name, steamAppId, installPath, engine,
  * status?, badge?, badgeColor?, subtitle? } or a CatalogProxyModel.
  */
-ColumnLayout {
+Card {
     id: shelf
 
     property string title: ""
@@ -25,18 +27,30 @@ ColumnLayout {
     property bool showSeeAll: true
     property var model: []
     property real tileWidth: 150
-    // Left/right inset of the row, so the first tile lines up with the title
-    property real inset: Dimensions.pageMargin
+    // Left/right inset of the row inside the container, so the first tile
+    // lines up with the title
+    property real inset: 22
 
     signal gameClicked(string gameId, string gameName, string installPath, string engine)
     signal seeAllClicked()
 
-    spacing: 12
+    Layout.leftMargin: Dimensions.pageMargin
+    Layout.rightMargin: Dimensions.pageMargin
+    radius: Dimensions.radiusSection
+    implicitHeight: body.implicitHeight + 18
+
+    ColumnLayout {
+        id: body
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: 18
+        spacing: 12
 
     RowLayout {
         Layout.fillWidth: true
         Layout.leftMargin: shelf.inset
-        Layout.rightMargin: shelf.inset
+        Layout.rightMargin: shelf.inset - 6
         spacing: 12
 
         ColumnLayout {
@@ -48,7 +62,7 @@ ColumnLayout {
                 text: shelf.title
                 elide: Text.ElideRight
                 font.family: Dimensions.fontDisplay
-                font.pixelSize: Dimensions.title2
+                font.pixelSize: Dimensions.title3
                 font.weight: Font.Bold
                 font.letterSpacing: Dimensions.trackingHeadline
                 color: Theme.textPrimary
@@ -61,13 +75,13 @@ ColumnLayout {
                 textFormat: Text.PlainText
                 text: shelf.subtitle
                 elide: Text.ElideRight
-                font.pixelSize: Dimensions.callout
+                font.pixelSize: Dimensions.footnote
                 color: Theme.textMuted
             }
         }
         AppButton {
             visible: shelf.showSeeAll
-            Layout.alignment: Qt.AlignBottom
+            Layout.alignment: Qt.AlignVCenter
             style: "plain"
             size: "small"
             text: shelf.seeAllText
@@ -76,9 +90,14 @@ ColumnLayout {
         }
     }
 
+    FadeLine { Layout.leftMargin: 12; Layout.rightMargin: 12 }
+
     Item {
         id: rowBox
         Layout.fillWidth: true
+        Layout.leftMargin: 1
+        Layout.rightMargin: 1
+        Layout.topMargin: -6
         Layout.preferredHeight: view.height
 
         ListView {
@@ -161,6 +180,18 @@ ColumnLayout {
             readonly property bool atEnd: contentX >= contentWidth - width + originX + rightMargin - 2
         }
 
+        // Tiles fade out at the container's sides
+        EdgeFade {
+            edge: "left"; size: 40
+            anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+            active: !view.atStart
+        }
+        EdgeFade {
+            edge: "right"; size: 40
+            anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+            active: !view.atEnd && view.contentWidth > view.width
+        }
+
         HoverHandler { id: rowHover }
 
         // Paging arrows: glass circles on the row's ends, over the art
@@ -188,5 +219,6 @@ ColumnLayout {
             Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             onClicked: view._page(1)
         }
+    }
     }
 }

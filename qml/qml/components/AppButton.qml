@@ -53,7 +53,9 @@ Item {
         case "filled": case "destructive": return Theme.textOnColor
         case "glass": return "#FFFFFF"
         case "white": return "#000000"
-        case "tinted": case "plain": return btn.tint
+        // The accent as a label is its lighter tone on the dark page
+        case "tinted": case "plain":
+            return Theme.darkMode && btn.tint === Theme.primary ? Theme.primaryText : btn.tint
         case "destructiveTinted": return Theme.error
         default: return Theme.textPrimary
         }
@@ -100,9 +102,21 @@ Item {
         anchors.fill: parent
         radius: btn.capsule ? height / 2 : Dimensions.radiusControl
         color: btn._fill
-        border.width: btn.style === "glass" ? 1 : 0
-        border.color: Qt.rgba(1, 1, 1, 0.14)
+        border.width: btn.style === "glass" || (btn.style === "gray" && Theme.darkMode) ? 1 : 0
+        border.color: btn.style === "glass" ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.05)
         Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+
+        // A filled button catches the light from above: lighter at the top
+        Rectangle {
+            visible: btn.enabled && (btn.style === "filled" || btn.style === "destructive")
+            anchors.fill: parent
+            radius: parent.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.16) }
+                GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0.0) }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.08) }
+            }
+        }
     }
 
     // macOS focus ring: accent halo just outside the shape

@@ -9,11 +9,12 @@ pragma ComponentBehavior: Bound
 /**
  * Theme.qml — colours of the launcher.
  *
- * Apple's system palette (Human Interface Guidelines, dark and light): one
- * accent the user picks, system status colours, labels in four strengths,
- * translucent fills for controls and hairline separators. docs/design.md
- * says which token goes where. Older names (textMuted, primary12, …) stay
- * as aliases so every screen reads the same palette.
+ * Makine's own night: a near-black page lit by two soft orbs of the accent
+ * (AppBackground), content on translucent containers with a hairline and a
+ * lit top edge (Card), warm off-white labels in four strengths, white-alpha
+ * fills for controls. The structure stays Apple's (docs/design.md says which
+ * token goes where); the tone is 0.1.5's, which users preferred. Older names
+ * (textMuted, primary12, …) stay as aliases so every screen reads one palette.
  */
 QtObject {
     id: theme
@@ -30,45 +31,56 @@ QtObject {
     // BACKGROUNDS
     // =========================================================================
 
-    /// Window / page background
-    readonly property color bgPrimary: _m("#141416", "#F5F5F7")
-    /// Grouped content and cards (secondarySystemBackground)
-    readonly property color bgSecondary: _m("#1C1C1E", "#FFFFFF")
-    /// Sidebar panel — a step lighter than the page in dark, a step darker in light
-    readonly property color sidebarBg: _m("#1C1C1F", "#E9E9EC")
-    readonly property color sidebarBorder: _m(Qt.rgba(1, 1, 1, 0.07), Qt.rgba(0, 0, 0, 0.06))
+    /// Window / page background (AppBackground lights it)
+    readonly property color bgPrimary: _m("#07070A", "#F4F4F6")
+    /// A step up from the page, opaque
+    readonly property color bgSecondary: _m("#0E0E13", "#FFFFFF")
+
+    /// Containers: sidebar, sections, lists, cards — see Card.qml. Translucent
+    /// in dark so the page's glow shows faintly through.
+    readonly property color container: _m(Qt.rgba(13/255, 13/255, 18/255, 0.82), "#FFFFFF")
+    /// Its hairline, and the lit top edge drawn over it
+    readonly property color containerBorder: _m(Qt.rgba(1, 1, 1, 0.065), Qt.rgba(0, 0, 0, 0.07))
+    readonly property color containerHighlight: _m(Qt.rgba(1, 1, 1, 0.16), Qt.rgba(1, 1, 1, 0.9))
+    /// What content fades into at a container's edge (EdgeFade): the
+    /// container over the page, as near as one colour gets
+    readonly property color containerSolid: _m("#0C0C11", "#FFFFFF")
+
+    readonly property color sidebarBg: container
+    readonly property color sidebarBorder: containerBorder
 
     readonly property color bgGradientStart: bgPrimary
-    readonly property color bgGradientEnd: bgPrimary
+    readonly property color bgGradientEnd: bgSecondary
 
     // =========================================================================
     // SURFACES
     // =========================================================================
 
-    /// Card / grouped list section
-    readonly property color surface: _m("#1C1C1E", "#FFFFFF")
-    /// Inset element on a card (tertiarySystemBackground)
-    readonly property color surfaceLight: _m("#2C2C2E", "#F2F2F4")
-    readonly property color surfaceHover: _m("#242427", "#F7F7F9")
-    readonly property color surfaceActive: _m("#2C2C2E", "#EDEDF0")
+    /// Opaque content surface (where translucency would not do)
+    readonly property color surface: _m("#121217", "#FFFFFF")
+    /// Inset element on a container
+    readonly property color surfaceLight: _m("#1B1B22", "#F2F2F4")
+    readonly property color surfaceHover: _m("#17171D", "#F7F7F9")
+    readonly property color surfaceActive: _m("#1E1E26", "#EDEDF0")
     /// Sheets, popovers, menus, toasts
-    readonly property color surfaceElevated: _m("#232326", "#FFFFFF")
+    readonly property color surfaceElevated: _m("#18181F", "#FFFFFF")
 
     // =========================================================================
     // FILLS (controls on any background) — systemFill family
     // =========================================================================
 
-    readonly property color fill: _m(Qt.rgba(120/255, 120/255, 128/255, 0.36), Qt.rgba(120/255, 120/255, 128/255, 0.20))
-    readonly property color fillSecondary: _m(Qt.rgba(120/255, 120/255, 128/255, 0.32), Qt.rgba(120/255, 120/255, 128/255, 0.16))
-    readonly property color fillTertiary: _m(Qt.rgba(118/255, 118/255, 128/255, 0.24), Qt.rgba(118/255, 118/255, 128/255, 0.12))
-    readonly property color fillQuaternary: _m(Qt.rgba(116/255, 116/255, 128/255, 0.18), Qt.rgba(116/255, 116/255, 128/255, 0.08))
+    // White light on near-black: grey fills read muddy there.
+    readonly property color fill: _m(Qt.rgba(1, 1, 1, 0.12), Qt.rgba(120/255, 120/255, 128/255, 0.20))
+    readonly property color fillSecondary: _m(Qt.rgba(1, 1, 1, 0.095), Qt.rgba(120/255, 120/255, 128/255, 0.16))
+    readonly property color fillTertiary: _m(Qt.rgba(1, 1, 1, 0.07), Qt.rgba(118/255, 118/255, 128/255, 0.12))
+    readonly property color fillQuaternary: _m(Qt.rgba(1, 1, 1, 0.045), Qt.rgba(116/255, 116/255, 128/255, 0.08))
 
     /// Hairline between rows and around cards
-    readonly property color separator: _m(Qt.rgba(1, 1, 1, 0.09), Qt.rgba(0, 0, 0, 0.09))
-    readonly property color separatorStrong: _m(Qt.rgba(1, 1, 1, 0.16), Qt.rgba(0, 0, 0, 0.16))
+    readonly property color separator: _m(Qt.rgba(1, 1, 1, 0.065), Qt.rgba(0, 0, 0, 0.09))
+    readonly property color separatorStrong: _m(Qt.rgba(1, 1, 1, 0.12), Qt.rgba(0, 0, 0, 0.16))
 
     /// Selected segment of a segmented control
-    readonly property color segmentSelected: _m("#5A5A5E", "#FFFFFF")
+    readonly property color segmentSelected: _m(Qt.rgba(1, 1, 1, 0.13), "#FFFFFF")
 
     /// Behind a sheet or alert
     readonly property color scrim: _m(Qt.rgba(0, 0, 0, 0.55), Qt.rgba(0, 0, 0, 0.28))
@@ -77,50 +89,52 @@ QtObject {
     // ACCENT — user-picked (SettingsManager.accentPreset), Apple system colours
     // =========================================================================
 
-    property string _accentPresetId: typeof SettingsManager !== "undefined" ? SettingsManager.accentPreset : "blue"
+    property string _accentPresetId: typeof SettingsManager !== "undefined" ? SettingsManager.accentPreset : "purple"
 
-    // [dark, light] per preset — the system colour in each appearance
+    // [fill on dark, text on dark, fill on light] per preset — Makine's
+    // presets from 0.1.5: a fill strong enough for white text, a lighter
+    // tone for labels and icons on near-black.
     readonly property var _accentPresets: ({
-        "blue":   ["#0A84FF", "#007AFF"],
-        "purple": ["#BF5AF2", "#AF52DE"],
-        "rose":   ["#FF375F", "#FF2D55"],
-        "red":    ["#FF453A", "#FF3B30"],
-        "amber":  ["#FF9F0A", "#FF9500"],
-        "green":  ["#30D158", "#28CD41"],
-        "teal":   ["#40C8E0", "#30B0C7"],
-        "sky":    ["#64D2FF", "#32ADE6"],
-        "indigo": ["#5E5CE6", "#5856D6"],
-        "black":  ["#98989D", "#8E8E93"]
+        "purple": ["#8B5CF6", "#A78BFA", "#7C3AED"],
+        "blue":   ["#3B82F6", "#60A5FA", "#2563EB"],
+        "indigo": ["#6366F1", "#818CF8", "#4F46E5"],
+        "sky":    ["#0EA5E9", "#38BDF8", "#0284C7"],
+        "teal":   ["#14B8A6", "#2DD4BF", "#0D9488"],
+        "green":  ["#22C55E", "#4ADE80", "#16A34A"],
+        "amber":  ["#F59E0B", "#FBBF24", "#D97706"],
+        "rose":   ["#EC4899", "#F472B6", "#DB2777"],
+        "red":    ["#EF4444", "#F87171", "#DC2626"],
+        "black":  ["#71717A", "#A1A1AA", "#52525B"]
     })
-    readonly property color accentBase: {
-        const p = _accentPresets[_accentPresetId] || _accentPresets["blue"]
-        return darkMode ? p[0] : p[1]
-    }
-    readonly property color accentLightest: Qt.lighter(accentBase, 1.45)
-    readonly property color accentLight: darkMode ? Qt.lighter(accentBase, 1.22) : accentBase
+    readonly property var _accent: _accentPresets[_accentPresetId] || _accentPresets["purple"]
+    readonly property color accentBase: darkMode ? _accent[0] : _accent[2]
+    readonly property color accentLightest: Qt.lighter(_accent[1], 1.2)
+    readonly property color accentLight: darkMode ? _accent[1] : _accent[2]
     readonly property color accentDark: Qt.darker(accentBase, 1.15)
     readonly property color accentDarkest: Qt.darker(accentBase, 1.4)
     readonly property var accentGradient: [accentLightest, accentLight, accentBase, accentDark, accentDarkest]
 
-    /// The accent: buttons, links, selection, progress
+    /// The accent: filled buttons, selection, progress
     readonly property color primary: accentBase
+    /// The accent as a label or icon on the page (links, selected items)
+    readonly property color primaryText: accentLight
     readonly property color primaryHover: darkMode ? Qt.lighter(accentBase, 1.1) : Qt.darker(accentBase, 1.08)
     readonly property color primaryGlow: withAlpha(accentBase, 0.25)
     readonly property color secondary: accentBase
     readonly property color secondaryHover: primaryHover
 
     /// A second, cool highlight (systemCyan) — rare: links on art, info marks
-    readonly property color accent: _m("#64D2FF", "#0091D5")
-    readonly property color accentHover: _m("#8ADDFF", "#0079B3")
+    readonly property color accent: _m("#67E8F9", "#0891B2")
+    readonly property color accentHover: _m("#A5F3FC", "#0E7490")
 
     // =========================================================================
     // STATUS — system green / orange / red / yellow
     // =========================================================================
 
-    readonly property color success: _m("#30D158", "#248A3D")
-    readonly property color warning: _m("#FF9F0A", "#CC6E00")
-    readonly property color error: _m("#FF453A", "#D70015")
-    readonly property color yellow: _m("#FFD60A", "#B25000")
+    readonly property color success: _m("#34D399", "#059669")
+    readonly property color warning: _m("#FBBF24", "#B45309")
+    readonly property color error: _m("#F87171", "#DC2626")
+    readonly property color yellow: _m("#FDE047", "#A16207")
     readonly property color info: accent
     readonly property color destructive: error
 
@@ -132,13 +146,14 @@ QtObject {
     // LABELS
     // =========================================================================
 
-    readonly property color textPrimary: _m("#F5F5F7", "#1D1D1F")
-    readonly property color textSecondary: _m("#AEAEB2", "#515154")
+    // Warm off-white on the cool page, as 0.1.5 had it
+    readonly property color textPrimary: _m("#ECE9E3", "#1D1D1F")
+    readonly property color textSecondary: _m("#AFACA6", "#515154")
     /// Descriptions, hints, metadata
-    readonly property color textMuted: _m("#8E8E93", "#6E6E73")
+    readonly property color textMuted: _m("#88857F", "#6E6E73")
     /// Placeholders, disabled
-    readonly property color textTertiary: _m("#636366", "#A1A1A6")
-    readonly property color textDisabled: _m("#48484A", "#C7C7CC")
+    readonly property color textTertiary: _m("#5F5D59", "#A1A1A6")
+    readonly property color textDisabled: _m("#46454A", "#C7C7CC")
     /// On the accent, on art, on status fills
     readonly property color textOnColor: "#FFFFFF"
 
@@ -155,20 +170,20 @@ QtObject {
     // MATERIALS — "glass" on art (hero, covers, toasts)
     // =========================================================================
 
-    readonly property color glassBackground: Qt.rgba(1, 1, 1, darkMode ? 0.08 : 0.55)
-    readonly property color glassBorder: Qt.rgba(1, 1, 1, darkMode ? 0.12 : 0.6)
+    readonly property color glassBackground: Qt.rgba(1, 1, 1, darkMode ? 0.06 : 0.55)
+    readonly property color glassBorder: Qt.rgba(1, 1, 1, darkMode ? 0.10 : 0.6)
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.18)
     /// Dark glass for controls laid over cover art (any appearance)
-    readonly property color glassOnArt: Qt.rgba(0.08, 0.08, 0.09, 0.62)
-    readonly property color glassOnArtHover: Qt.rgba(0.14, 0.14, 0.15, 0.74)
+    readonly property color glassOnArt: Qt.rgba(0.04, 0.04, 0.06, 0.66)
+    readonly property color glassOnArtHover: Qt.rgba(0.10, 0.10, 0.13, 0.78)
 
     // =========================================================================
     // SHADOWS
     // =========================================================================
 
-    readonly property color shadowSoft: Qt.rgba(0, 0, 0, darkMode ? 0.30 : 0.08)
-    readonly property color shadowMedium: Qt.rgba(0, 0, 0, darkMode ? 0.45 : 0.14)
-    readonly property color shadowHard: Qt.rgba(0, 0, 0, darkMode ? 0.60 : 0.22)
+    readonly property color shadowSoft: Qt.rgba(0, 0, 0, darkMode ? 0.35 : 0.08)
+    readonly property color shadowMedium: Qt.rgba(0, 0, 0, darkMode ? 0.50 : 0.14)
+    readonly property color shadowHard: Qt.rgba(0, 0, 0, darkMode ? 0.65 : 0.22)
 
     // =========================================================================
     // BRAND (logo, onboarding) — Makine's own palette
@@ -203,8 +218,8 @@ QtObject {
     readonly property color errorBadgeBg: errorBg
     readonly property color errorBadgeText: error
 
-    readonly property color scrollbarThumb: _m(Qt.rgba(1, 1, 1, 0.22), Qt.rgba(0, 0, 0, 0.22))
-    readonly property color scrollbarThumbHover: _m(Qt.rgba(1, 1, 1, 0.40), Qt.rgba(0, 0, 0, 0.40))
+    readonly property color scrollbarThumb: _m(Qt.rgba(1, 1, 1, 0.16), Qt.rgba(0, 0, 0, 0.22))
+    readonly property color scrollbarThumbHover: _m(Qt.rgba(1, 1, 1, 0.32), Qt.rgba(0, 0, 0, 0.40))
     readonly property color scrollbarTrack: "transparent"
 
     // =========================================================================

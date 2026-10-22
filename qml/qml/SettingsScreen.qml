@@ -116,9 +116,8 @@ Item {
         return sources
     }
 
-    Rectangle {
+    Item {
         anchors.fill: parent
-        color: Theme.bgPrimary
 
         ScrollView {
             id: settingsScrollView
@@ -388,5 +387,13 @@ Item {
         message: qsTr("Tüm ayarlar varsayılan değerlere döndürülecek. Bu işlem geri alınamaz.")
         confirmText: qsTr("Sıfırla")
         onConfirmed: SettingsManager.resetToDefaults()
+    }
+
+    // A scrolled page sinks into the background under the top strip
+    TopDissolve {
+        flick: settingsScrollView.contentItem
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
     }
 }

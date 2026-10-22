@@ -48,7 +48,7 @@ Item {
     readonly property color _statusColor: card.badge !== "" ? card.badgeColor
                                         : card.status === "installed" ? Theme.success
                                         : card.status === "update" ? Theme.warning
-                                        : card.status === "external" ? "#AEAEB2"
+                                        : card.status === "external" ? Theme.textSecondary
                                         : Theme.primary
 
     implicitHeight: coverHeight + 10 + nameLabel.implicitHeight

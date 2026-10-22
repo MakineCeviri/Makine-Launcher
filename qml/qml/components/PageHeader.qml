@@ -7,10 +7,10 @@ import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
 /**
- * PageHeader — a page's large title, the line saying what the page is for,
- * and the page's own controls on the right (search, buttons).
+ * PageHeader — a page's large title with the page's own controls on its
+ * right (search, buttons), and the line saying what the page is for.
  */
-RowLayout {
+ColumnLayout {
     id: header
 
     property string title: ""
@@ -18,15 +18,17 @@ RowLayout {
     default property alias actions: actionRow.data
 
     Layout.fillWidth: true
-    spacing: Dimensions.spacingXL
+    spacing: 6
 
-    ColumnLayout {
+    // The title and the page's controls on one line; the sentence under
+    // them gets the whole width instead of wrapping beside a search box.
+    RowLayout {
         Layout.fillWidth: true
-        Layout.alignment: Qt.AlignBottom
-        spacing: 4
+        spacing: Dimensions.spacingXL
 
         Text {
             Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
             textFormat: Text.PlainText
             text: header.title
             elide: Text.ElideRight
@@ -38,20 +40,20 @@ RowLayout {
             Accessible.role: Accessible.Heading
             Accessible.name: header.title
         }
-        Text {
-            visible: header.subtitle !== ""
-            Layout.fillWidth: true
-            textFormat: Text.PlainText
-            text: header.subtitle
-            wrapMode: Text.WordWrap
-            font.pixelSize: Dimensions.body
-            color: Theme.textMuted
+
+        RowLayout {
+            id: actionRow
+            Layout.alignment: Qt.AlignVCenter
+            spacing: Dimensions.spacingMD
         }
     }
-
-    RowLayout {
-        id: actionRow
-        Layout.alignment: Qt.AlignBottom
-        spacing: Dimensions.spacingMD
+    Text {
+        visible: header.subtitle !== ""
+        Layout.fillWidth: true
+        textFormat: Text.PlainText
+        text: header.subtitle
+        wrapMode: Text.WordWrap
+        font.pixelSize: Dimensions.body
+        color: Theme.textMuted
     }
 }

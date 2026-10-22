@@ -16,7 +16,7 @@ pragma ComponentBehavior: Bound
  * Indexes match Main.qml: 0 Ana Sayfa · 1 Kütüphanem · 2 Ayarlar ·
  * 3 Tüm Oyunlar · 4 Nasıl çalışır?
  */
-Rectangle {
+Card {
     id: sidebar
 
     property int currentIndex: 0
@@ -25,9 +25,9 @@ Rectangle {
     signal navigate(int index)
 
     radius: Dimensions.radiusSection
-    color: Theme.sidebarBg
-    border.width: 1
-    border.color: Theme.sidebarBorder
+    glow: true
+    glowCorner: "topLeft"
+    glowStrength: 0.10
 
     // Games on this PC whose patch waits for a step (install or update):
     // the count Mail would show next to an inbox.
@@ -193,8 +193,10 @@ Rectangle {
         Rectangle {
             anchors.fill: parent
             radius: Dimensions.radiusMD
-            color: item.selected ? Theme.fillTertiary
+            color: item.selected ? Theme.withAlpha(Theme.primary, Theme.darkMode ? 0.16 : 0.12)
                  : itemHover.hovered ? Theme.fillQuaternary : "transparent"
+            border.width: item.selected && Theme.darkMode ? 1 : 0
+            border.color: Theme.withAlpha(Theme.primaryText, 0.14)
             Behavior on color { ColorAnimation { duration: Dimensions.animVeryFast } }
         }
         Rectangle {
@@ -217,7 +219,8 @@ Rectangle {
                 Layout.preferredWidth: 20
                 glyph: item.glyph
                 size: 17
-                color: Theme.primary
+                color: item.selected ? Theme.primaryText
+                     : itemHover.hovered ? Theme.textSecondary : Theme.textMuted
             }
             Text {
                 Layout.fillWidth: true
@@ -226,7 +229,7 @@ Rectangle {
                 elide: Text.ElideRight
                 font.pixelSize: Dimensions.body
                 font.weight: item.selected ? Font.DemiBold : Font.Medium
-                color: Theme.textPrimary
+                color: item.selected || itemHover.hovered ? Theme.textPrimary : Theme.textSecondary
             }
             Text {
                 visible: item.count > 0

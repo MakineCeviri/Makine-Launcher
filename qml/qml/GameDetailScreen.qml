@@ -396,14 +396,7 @@ Item {
     }
 
 
-    // =========================================================================
-    // BACKGROUND — Solid color
-    // =========================================================================
-
-    Rectangle {
-        anchors.fill: parent
-        color: Theme.bgPrimary
-    }
+    // No background of its own: the lit page (AppBackground) shows through.
 
     // =========================================================================
     // MAIN CONTENT
@@ -501,5 +494,13 @@ Item {
         text: qsTr("Geri")
         toolTip: qsTr("Geldiğin sayfaya dön (Esc)")
         onClicked: root.backClicked()
+    }
+
+    // A scrolled page sinks into the background under the top strip
+    TopDissolve {
+        flick: mainFlick
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
     }
 }

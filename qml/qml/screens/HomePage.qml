@@ -64,7 +64,7 @@ Item {
                        installPath: e.installPath || "", engine: e.engine || "",
                        badge: _dateText(e.version),
                        badgeColor: e.packageInstalled ? Theme.success
-                                 : e.isInstalled ? Theme.primary : "#AEAEB2" })
+                                 : e.isInstalled ? Theme.primary : Theme.textSecondary })
         }
         _recent = out
     }
@@ -268,5 +268,13 @@ Item {
                 }
             }
         }
+    }
+
+    // A scrolled page sinks into the background under the top strip
+    TopDissolve {
+        flick: page
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
     }
 }

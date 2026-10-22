@@ -111,7 +111,7 @@ ColumnLayout {
                 maskSpreadAtMin: 1.0
             }
 
-            Rectangle { anchors.fill: parent; color: "#1C1C1E" }
+            Rectangle { anchors.fill: parent; color: Theme.surface }
 
             Image {
                 id: bannerImg
@@ -317,7 +317,7 @@ ColumnLayout {
                 Layout.topMargin: 6
                 onArt: true
                 visible: heroRoot.vm.isManualGame && !heroRoot.vm.hasTranslation
-                tint: "#AEAEB2"
+                tint: Theme.textSecondary
                 text: qsTr("Bu oyun için henüz Türkçe yama yok")
             }
         }

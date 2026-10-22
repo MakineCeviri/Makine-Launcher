@@ -16,7 +16,8 @@ pragma ComponentBehavior: Bound
  * (CatalogProxyModel: Turkish folding, "rdr" for Red Dead Redemption) and
  * filtered on top: on this PC, patch installed, installed by the launcher or
  * from another site; A–Z or newest first. A sentence under the filters says
- * what the one on show means.
+ * what the one on show means. Filters and grid share one container; rows
+ * fade out under its top bar and at its foot instead of being cut off.
  */
 Item {
     id: allGames
@@ -122,11 +123,26 @@ Item {
             }
         }
 
+    Card {
+        id: box
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.topMargin: 22
+        Layout.leftMargin: Dimensions.pageMargin
+        Layout.rightMargin: Dimensions.pageMargin
+        Layout.bottomMargin: 20
+        radius: Dimensions.radiusSection
+        glow: true
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.topMargin: 16
+        spacing: 0
+
         RowLayout {
             Layout.fillWidth: true
-            Layout.topMargin: 20
-            Layout.leftMargin: Dimensions.pageMargin
-            Layout.rightMargin: Dimensions.pageMargin
+            Layout.leftMargin: 18
+            Layout.rightMargin: 18
             spacing: 12
 
             SegmentedControl {
@@ -151,8 +167,8 @@ Item {
         Text {
             Layout.fillWidth: true
             Layout.topMargin: 12
-            Layout.leftMargin: Dimensions.pageMargin + 4
-            Layout.rightMargin: Dimensions.pageMargin
+            Layout.leftMargin: 22
+            Layout.rightMargin: 18
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
             font.pixelSize: Dimensions.footnote
@@ -168,11 +184,18 @@ Item {
                 : qsTr("Kataloğumuzdaki bütün Türkçe yamalar. Bir oyuna tıkla: sayfasında yamanın nasıl kurulduğunu ve emeği geçenleri görürsün.")
         }
 
-        GridView {
-            id: grid
+        FadeLine { Layout.topMargin: 14; Layout.leftMargin: 12; Layout.rightMargin: 12 }
+
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.topMargin: 8
+            Layout.leftMargin: 1
+            Layout.rightMargin: 1
+            Layout.bottomMargin: 1
+
+        GridView {
+            id: grid
+            anchors.fill: parent
             clip: true
             model: proxy
             activeFocusOnTab: true
@@ -181,8 +204,8 @@ Item {
             cacheBuffer: 800
             ScrollBar.vertical: StyledScrollBar {}
 
-            leftMargin: Dimensions.pageMargin - _gap / 2
-            rightMargin: Dimensions.pageMargin - _gap / 2
+            leftMargin: 18 - _gap / 2
+            rightMargin: 18 - _gap / 2
 
             readonly property int _gap: 22
             readonly property real _avail: width - leftMargin - rightMargin
@@ -199,8 +222,8 @@ Item {
             Keys.onReturnPressed: grid.openAt(grid.currentIndex)
             Keys.onSpacePressed: grid.openAt(grid.currentIndex)
 
-            header: Item { width: grid.width; height: 8 }
-            footer: Item { width: grid.width; height: 28 }
+            header: Item { width: grid.width; height: 10 }
+            footer: Item { width: grid.width; height: 24 }
 
             delegate: Item {
                 id: cell
@@ -295,5 +318,20 @@ Item {
                 }
             }
         }
+
+        // Rows fade out under the bar and at the container's foot
+        EdgeFade {
+            edge: "top"; size: 26
+            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+            active: !grid.atYBeginning
+        }
+        EdgeFade {
+            edge: "bottom"; size: 34
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            active: !grid.atYEnd
+        }
+        }
+    }
+    }
     }
 }

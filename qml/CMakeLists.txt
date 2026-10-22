@@ -281,11 +281,15 @@ qt_add_qml_module(MakineLauncher
         # Design system (docs/design.md)
         qml/components/Icon.qml
         qml/components/Spinner.qml
+        qml/components/AppBackground.qml
         qml/components/AppButton.qml
         qml/components/AppSwitch.qml
         qml/components/SegmentedControl.qml
         qml/components/SearchField.qml
         qml/components/Card.qml
+        qml/components/EdgeFade.qml
+        qml/components/FadeLine.qml
+        qml/components/TopDissolve.qml
         qml/components/ListSection.qml
         qml/components/ListRow.qml
         qml/components/IconTile.qml

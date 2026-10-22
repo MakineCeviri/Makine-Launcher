@@ -115,7 +115,7 @@ Item {
                 anchors.centerIn: parent
                 glyph: Icons.x
                 size: 11
-                color: Theme.darkMode ? "#1C1C1E" : "#FFFFFF"
+                color: Theme.darkMode ? Theme.bgSecondary : "#FFFFFF"
             }
         }
         HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }

@@ -115,24 +115,39 @@ Item {
                 }
             }
 
-            SegmentedControl {
-                visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
-                model: libraryRoot._filters
-                currentValue: libraryRoot.filter
-                onActivated: (value) => libraryRoot.filter = value
-            }
-
-            // The games
+            // The games, their filters on the container's top bar
             Card {
                 Layout.fillWidth: true
+                Layout.topMargin: 2
                 visible: libraryRoot._rows.length > 0
-                implicitHeight: rowsCol.implicitHeight
-                radius: Dimensions.radiusLG
+                implicitHeight: libCol.implicitHeight
+                radius: Dimensions.radiusSection
+                glow: true
+
+                ColumnLayout {
+                    id: libCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    spacing: 0
+
+                SegmentedControl {
+                    visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
+                    Layout.topMargin: 14
+                    Layout.leftMargin: 16
+                    Layout.bottomMargin: 12
+                    model: libraryRoot._filters
+                    currentValue: libraryRoot.filter
+                    onActivated: (value) => libraryRoot.filter = value
+                }
+                FadeLine {
+                    visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
+                    Layout.leftMargin: 12
+                    Layout.rightMargin: 12
+                }
 
                 ColumnLayout {
                     id: rowsCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+                    Layout.fillWidth: true
                     spacing: 0
 
                     Repeater {
@@ -259,6 +274,7 @@ Item {
                         }
                     }
                 }
+                }
             }
 
             // Nothing yet: what to do about it
@@ -363,5 +379,13 @@ Item {
             asynchronous: true
             mipmap: true
         }
+    }
+
+    // A scrolled page sinks into the background under the top strip
+    TopDissolve {
+        flick: flickable
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
     }
 }

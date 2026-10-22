@@ -329,6 +329,20 @@ Item {
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, Theme.darkMode ? 0.08 : 0)
     }
+    // …and the lit top edge the containers have
+    Rectangle {
+        visible: Theme.darkMode
+        x: Dimensions.radiusHero * 0.7
+        width: parent.width - Dimensions.radiusHero * 1.4
+        height: 1
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.3; color: Qt.rgba(1, 1, 1, 0.22) }
+            GradientStop { position: 0.7; color: Qt.rgba(1, 1, 1, 0.22) }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+    }
 
     // ── Controls ─────────────────────────────────────────────────────────
     AppButton {

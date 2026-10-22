@@ -460,4 +460,12 @@ Item {
             }
         }
     }
+
+    // A scrolled page sinks into the background under the top strip
+    TopDissolve {
+        flick: flick
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+    }
 }

@@ -270,6 +270,12 @@ ApplicationWindow {
         }
     }
 
+    // The lit page under the sidebar and every screen
+    AppBackground {
+        anchors.fill: parent
+        visible: !window._onboardingActive
+    }
+
     // ===== SIDEBAR =====
     Sidebar {
         id: sidebar

@@ -65,7 +65,7 @@ ColumnLayout {
                 x: 46; y: 8
                 width: parent.width - 54; height: 26
                 radius: 5
-                color: choice.dark ? "#2C2C2E" : "#FFFFFF"
+                color: choice.dark ? "#121217" : "#FFFFFF"
             }
             Row {
                 x: 46; y: 40; spacing: 5
@@ -222,7 +222,7 @@ ColumnLayout {
                 return false
             }
             icon: Icons.cpu
-            iconTint: "#8E8E93"
+            iconTint: Theme.textMuted
             title: qsTr("Grafik arabirimi")
             subtitle: backendSetting.needsRestart
                       ? qsTr("Launcher'ı yeniden başlatınca geçerli olur.")
