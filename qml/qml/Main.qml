@@ -74,6 +74,7 @@ ApplicationWindow {
     // 2 Ayarlar · 3 Tüm Oyunlar · 4 Nasıl çalışır?
     function _go(index) {
         window.currentNavIndex = index
+        GameService.noteScreen(["home", "library", "settings", "all-games", "help"][index] || "?")
         if (index === 2) {
             contentStackContainer.navigateTo(1)
             return
@@ -196,37 +197,22 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+,"
         enabled: !window._onboardingActive
-        onActivated: {
-            window.currentNavIndex = 2
-            contentStackContainer.navigateTo(1)
-        }
+        onActivated: window._go(2)
     }
     Shortcut {
         sequence: "Ctrl+H"
         enabled: !window._onboardingActive
-        onActivated: {
-            window.currentNavIndex = 0
-            contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
-        }
+        onActivated: window._go(0)
     }
     Shortcut {
         sequence: "Ctrl+1"
         enabled: !window._onboardingActive
-        onActivated: {
-            window.currentNavIndex = 0
-            contentStackContainer.navigateTo(0)
-            homeView.showHomePage()
-        }
+        onActivated: window._go(0)
     }
     Shortcut {
         sequence: "Ctrl+2"
         enabled: !window._onboardingActive
-        onActivated: {
-            window.currentNavIndex = 1
-            contentStackContainer.navigateTo(0)
-            homeView.showLibraryPage()
-        }
+        onActivated: window._go(1)
     }
     Shortcut {
         sequence: "Ctrl+3"
@@ -431,6 +417,7 @@ ApplicationWindow {
                 animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
+                    GameService.noteScreen("game", gameId)
                     detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, false))
                     detailVM.fromLibrary = (homeView.currentPage === 1)
                     window.previousNavIndex = window.currentNavIndex
@@ -446,6 +433,7 @@ ApplicationWindow {
                 }
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
+                    GameService.noteScreen("game-install", gameId)
                     detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
                     detailVM.fromLibrary = (homeView.currentPage === 1)
                     window.previousNavIndex = window.currentNavIndex
@@ -557,6 +545,24 @@ ApplicationWindow {
             tint: Theme.warning
             text: qsTr("Bütünlük doğrulaması başarısız — bu program değiştirilmiş olabilir. Launcher'ı yalnız makineceviri.org'dan indir.")
             dismissible: true
+            onDismissed: _dismissed = true
+        }
+        // An install or uninstall cut off last time (crash, power) that the
+        // start-up recovery could not fully undo
+        AppNotice {
+            readonly property string _game: typeof recoveryFailedGameId === "string" ? recoveryFailedGameId : ""
+            property bool _dismissed: false
+            visible: _game !== "" && !_dismissed && !window._onboardingActive
+            glyph: Icons.triangleAlert
+            tint: Theme.warning
+            dismissible: true
+            text: {
+                const g = _game !== "" && _game !== "?" ? GameService.getGameById(_game) : null
+                const name = (g && g.name) || ""
+                return name !== ""
+                    ? qsTr("%1 için geçen sefer yarım kalan işlem tam olarak geri alınamadı. Oyunun sayfasından yamayı kaldırıp yeniden kur ya da mağazada oyun dosyalarını doğrulat.").arg(name)
+                    : qsTr("Geçen sefer yarım kalan bir yama işlemi tam olarak geri alınamadı. O oyunun sayfasından yamayı kaldırıp yeniden kur ya da mağazada oyun dosyalarını doğrulat.")
+            }
             onDismissed: _dismissed = true
         }
         AppNotice {

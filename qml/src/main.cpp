@@ -1021,6 +1021,9 @@ static void createServices(
     splash.setStatus(L"\u0130\u015Flem g\u00FCnl\u00FC\u011F\u00FC kontrol ediliyor...");
 #endif
     auto* journal = new OperationJournal(&app);
+    // The game whose interrupted operation could not be fully undone; Main.qml
+    // tells the user, who would otherwise not know the game is half patched.
+    QString recoveryFailedGameId;
     if (journal->hasPendingOperation()) {
         qCDebug(lcApp) << "OperationJournal: recovering from interrupted operation...";
         const JournalEntry pending = journal->readPendingOperation();
@@ -1035,8 +1038,10 @@ static void createServices(
             }
             makine::CrashReporter::reportFailure(operation, pending.gameId,
                 QStringLiteral("interrupted operation could not be rolled back"));
+            recoveryFailedGameId = pending.gameId.isEmpty() ? QStringLiteral("?") : pending.gameId;
         }
     }
+    engine.rootContext()->setContextProperty("recoveryFailedGameId", recoveryFailedGameId);
     outJournal = journal;
 #ifdef Q_OS_WIN
     splash.pumpMessages();

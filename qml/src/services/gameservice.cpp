@@ -329,6 +329,12 @@ QVariantList GameService::games() const
     return m_gamesCache;
 }
 
+void GameService::noteScreen(const QString& screen, const QString& gameId)
+{
+    const QString text = gameId.isEmpty() ? screen : screen + QStringLiteral(" ") + gameId;
+    CrashReporter::addBreadcrumb("navigation", text.left(120).toUtf8().constData());
+}
+
 void GameService::scanAllLibraries()
 {
     MAKINE_ZONE_NAMED("GameService::scanAllLibraries");

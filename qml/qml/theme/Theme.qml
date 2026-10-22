@@ -118,7 +118,7 @@ QtObject {
     // =========================================================================
 
     readonly property color success: _m("#30D158", "#248A3D")
-    readonly property color warning: _m("#FF9F0A", "#C93400")
+    readonly property color warning: _m("#FF9F0A", "#CC6E00")
     readonly property color error: _m("#FF453A", "#D70015")
     readonly property color yellow: _m("#FFD60A", "#B25000")
     readonly property color info: accent

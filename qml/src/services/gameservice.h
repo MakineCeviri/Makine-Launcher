@@ -130,6 +130,9 @@ public:
     int outdatedPatchCount() const;
     // Q_INVOKABLE methods for QML
     Q_INVOKABLE void scanAllLibraries();
+    /// Breadcrumb for the crash/failure report: which screen the user went
+    /// to, and on a game's page which game (an app id, never a path).
+    Q_INVOKABLE void noteScreen(const QString& screen, const QString& gameId = {});
     /**
      * @brief Add a manually selected game folder to the library (async)
      * Takes a folder URL or a native path. The folder is judged and resolved to
