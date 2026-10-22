@@ -116,6 +116,7 @@ UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download`
 | Packaging | Python `tarfile` defaults to PAX | ustar name holds an ASCII stand-in that 0.1.5 reads — `package_pipeline.py` writes USTAR (GNU fallback) |
 | Sentry | Reads DWARF, not the COFF symbol table | A release `.sym` without `-g` symbolicates every frame of ours to `qml_register_types_MakineLauncher` (0.1.5); `qml/CMakeLists.txt` adds `-g1` in Release — check with `addr2line -f -e Makine-Launcher.exe.sym <addr>` |
 | Win32 | `HeapCompact` over `GetProcessHeaps()` | Never: other modules own those heaps and can destroy one mid-call (0.1.5 startup fatals 3C/1V) |
+| Win32 | A job object assigned after `QProcess::start` | Misses what a `.bat` `start`s in its first milliseconds — create the child inside the job (`PROC_THREAD_ATTRIBUTE_JOB_LIST` via `setCreateProcessArgumentsModifier`, `runProcess`). Read `JOBOBJECT_BASIC_PROCESS_ID_LIST` from a flat buffer: indexing its `ProcessIdList[1]` past 0 is UB and GCC -O2 drops the loop |
 
 ## Deferred features
 
