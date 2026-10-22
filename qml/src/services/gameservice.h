@@ -511,6 +511,9 @@ private:
     void uninstallWithStoreRepair(const QString& gameId, const QString& gamePath);
     // Ends an install cancelled before the core started on it.
     void endCancelledInstall(const QString& gameId);
+    // Deletes the game's backups once a restore has put the originals back
+    // and no install record is left.
+    void retireBackups(const QString& gameId);
     // The page and lists stop showing the patch once its record is dropped.
     void markUninstalled(const QString& gameId);
 

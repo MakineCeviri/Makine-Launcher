@@ -2444,6 +2444,7 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
             // A reinstall over an installed patch drops the old record too;
             // the page kept showing the patch as installed.
             markUninstalled(gameId);
+            retireBackups(gameId);
             qCInfo(lcGameService) << "Install rollback complete for" << gameId;
             emit translationInstallCompleted(gameId, false,
                 tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
@@ -2466,6 +2467,19 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         qCWarning(lcGameService) << "Install rollback could not start for" << gameId;
         emit translationInstallCompleted(gameId, false, originalError);
     }
+}
+
+// The originals are back in the game folder and the install record is gone:
+// the game's backups belong to no install any more. Kept, the newest one was
+// taken for the next install's backup — one that backs nothing up (a patch
+// that only adds files, a moved patch) — and its uninstall wrote these old
+// originals over the game, files a game update had changed since included.
+void GameService::retireBackups(const QString& gameId)
+{
+    BackupManager* bm = BackupManager::instance();
+    if (!bm || m_coreBridge->isPackageInstalled(gameId)) return;
+    for (const QVariant& backup : bm->getBackupsForGame(gameId))
+        bm->deleteBackup(backup.toMap().value(QStringLiteral("id")).toString());
 }
 
 std::function<void()> GameService::awaitRestore(BackupManager* bm, const QString& gameId,
@@ -2521,6 +2535,8 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
 {
     MAKINE_ZONE_NAMED("GameService::finalizeUninstall");
     bool success = m_coreBridge->uninstallPackage(gameId, gamePath, restoredFrom);
+    if (success && !restoredFrom.isEmpty())
+        retireBackups(gameId);
     if (success)
         markUninstalled(gameId);
 
