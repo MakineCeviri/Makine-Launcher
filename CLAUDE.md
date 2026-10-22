@@ -13,7 +13,7 @@
 
 Three layers, top to bottom:
 
-- **QML UI** — `qml/qml/` `screens/` · `components/` · `dialogs/` · `controllers/` · `theme/`. PascalCase `.qml`, pure declarative UI, no JS logic.
+- **QML UI** — `qml/qml/` `screens/` · `components/` · `dialogs/` · `controllers/` · `theme/`. PascalCase `.qml`, pure declarative UI, no JS logic. Apple-style design system (sidebar shell, `Theme`/`Dimensions`/`Icons` tokens, `AppButton`/`ListSection`/`ListRow`/`SegmentedControl`…): [`docs/design.md`](docs/design.md) — build new UI from it.
 - **C++ service layer** — `qml/src/services/` bridges Core ↔ UI (`GameService`, `CoreBridge`, `InstallFlow`, `BackupMgr`, `BatchOps`, `PackageCatalog`, `TranslationState`, `TranslationDownloader`, `ManifestSync`, `UpdateService`, `SteamDetails`, `RenderGov`).
 - **C++ core library** — `core/include/makine/` + `core/src/`: package catalog, crash-recovery journal, file integrity, path checks, error types, logging macros, plugin ABI (`plugin/abi.h` + header-only `sdk.hpp`). Game detection, VDF parsing and patching live in the service layer.
 - **Plugins** (ADR-0009, guide `docs/plugins/README.md`) — each enabled plugin runs out of process in `makine-plugin-host.exe` (`tools/plugin-host/`, Qt-free, static); launcher side `PluginManager` + `plugin{process,manifest,registry,installer}`; signed CDN registry; `scripts/plugin_registry.py` (pack/sign) and `plugin_dev.py` (run a plugin without the launcher). Still behind `MAKINE_DEV_TOOLS`.
@@ -127,7 +127,7 @@ Intentionally deferred — stub headers removed:
 ## Rules
 
 **Do NOT**
-- Touch UI animations, MultiEffect, or gradient designs
+- Invent colours, font sizes, button styles or Segoe MDL2 glyphs — use the tokens and components in `docs/design.md`; motion stays short and calm (no endless pulses)
 - Output build artifacts to the Desktop
 - Commit secrets (`.env`, `.key`, `.pfx`, `.pem`, `encryption_key.h`, `scripts/certs/**`) or build artifacts (`.exe`, `.dll`, `.obj`, `.lib`, `build/`)
 - Commit files > 5 MB — use the CDN instead

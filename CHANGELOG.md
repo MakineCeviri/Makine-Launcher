@@ -7,6 +7,17 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ## [Unreleased]
 
+### Değişen (2026-10-22)
+- **Apple tarzı arayüz** — kenar çubuklu macOS düzeni, Apple sistem renkleri (koyu ve açık görünüm), Inter Display başlıklar, yeni simgeler; Ana Sayfa App Store rafları ve öne çıkan oyunlarla, oyun sayfası Apple TV tarzı sanat kartıyla, Ayarlar macOS ayar penceresi gibi. Ayrıntı: `docs/design.md`.
+- **Kurulu yama** — "Türkçe yama kurulu" durumu ve "Kaldır" artık ayrı; üzerine gelince silme düğmesine dönüşen durum kaldırıldı. Yama notları kurulumdan önce de görünüyor.
+- **Açık görünüm** artık seçilebiliyor; vurgu rengi varsayılanı mavi.
+
+### Düzeltilen (2026-10-22)
+- **Kaldırma ve kurtarma** — yarım kalan kaldırmada geri gelen orijinaller silinmiyor; kurulum günlüğü her kaydı anında yazıyor; uzun yollu ve Türkçe karakterli klasörlerde kurtarma takılmıyor; kaldırma kayıtları sondan başa geri alınıyor; kurulum ile kaldırma aynı anda çalışmıyor; eski yedek sonraki kaldırmada geri yüklenmiyor.
+- **Kurulum** — silme adımının sildiği dosya yedekleniyor; yarıda kalan kurulumun yazdıkları kayda geçip geri alınıyor; güncelleme oyunun orijinalini "eklenen" saymıyor; sıradaki indirme başlıyor; yeniden denemede iptal çalışıyor; yarım açılan paket tam sanılmıyor; seçenekli yamaların güncellemesi ve onarımı yamayı silip reddetmiyor.
+- **Tespit ve ağ** — güvenilmeyen TLS sertifikası hiçbir koşulda kabul edilmiyor; birkaç oyunun paylaştığı klasör adı rastgele oyuna bağlanmıyor; tarama detay bilgilerini silmiyor; açık kalan launcher eski tarifi kurmuyor; "Windows ile başlat" açıkken açılış ekranı takılmıyor.
+- **Sentry** — Windows kullanıcı adı modül yollarından temizleniyor; hata etiketleri sonraki olaylara sızmıyor; QML hataları ve 5 sn'lik donmalar raporlanıyor; gruplama ve uyarılar yeniden kuruldu.
+
 ### Eklenen (2026-03-12)
 - **DPI-aware UI scaling** — 3 seçenekli ölçek ayarı (Kompakt/Otomatik/Büyük), Win32 native DPI algılama, küçük ekran adaptasyonu (#112 kısmi)
 - **Discord butonu** — Duyuru kartında hover animasyonlu Discord bağlantısı
