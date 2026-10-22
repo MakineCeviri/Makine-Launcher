@@ -3779,6 +3779,12 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
         // success and left those files behind with nothing to retry from.
         packages::InstalledPackageState left = coreState;
         std::reverse(remaining.begin(), remaining.end());  // back to record order
+        // In-place patches stay on record with what is left: they are what
+        // tells the retry that originals were changed. Without them a retry
+        // with no backup took the patch for files-only, dropped the record
+        // and said it was removed, the patched archive left in the game.
+        for (const auto& record : coreState.installedFiles)
+            if (record.starts_with("_vpatch:")) remaining.push_back(record);
         left.installedFiles = std::move(remaining);
         m_catalog.markInstalled(steamAppId.toStdString(), left);
         saveCatalogInstalledState(m_catalog, installedStatePath());
