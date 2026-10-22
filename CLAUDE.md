@@ -108,7 +108,7 @@ UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download`
 | QML | `QV4_MM_AGGRESSIVE_GC` is a V4 debug switch (a full GC on every JS allocation) | Never set it: up to 0.1.5 `main.cpp` did, and every JS-heavy binding ran 100–300× slower (2 s freezes) |
 | vcpkg | Manifest mode | Classic mode only (`VCPKG_MANIFEST_MODE=OFF`), triplet `x64-mingw-dynamic` |
 | Qt | Every `*.lnk` is read as a shell shortcut | A game data file named `.lnk` (Nioh) "does not exist", has size 0, `QDir::Files` skips it — use `rawfile.h` for game/package files |
-| MinGW libstdc++ | Paths past MAX_PATH | File I/O needs the `\\?\` form (long paths are off by default; `mkpkformat.h` `io_path`); `fs::remove_all` never returns on such a tree — delete with Qt |
+| MinGW libstdc++ | Paths past MAX_PATH | File I/O needs the `\\?\` form (long paths are off by default; `mkpkformat.h` `io_path`); `fs::remove_all` never returns on such a tree, and directory iterators list entries that are not there below a `\\?\` root — delete with Qt, or walk with `FindFirstFileW` (`crash_recovery.cpp`) |
 | Qt | `emit` is a macro | A C struct field or function named `emit` in a header Qt code includes breaks the build (`abi.h` uses `emit_event`) |
 | msvcrt | `stderr` on a pipe is fully buffered | A helper process that can be `TerminateProcess`ed loses its last lines — `setvbuf(stderr, nullptr, _IONBF, 0)` (plugin host) |
 | Plugin host | DLL search is plugin folder → host folder → System32 | Plugins link the C++ runtime statically or ship it; `PATH` is never searched. The host manifest makes the code page UTF-8 and the process per-monitor DPI aware (coordinates are physical pixels) |
