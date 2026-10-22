@@ -52,6 +52,14 @@ $EDITOR docs/release-notes/v0.1.5-beta.md
 just release-zip-dynamic 0.1.5-beta          # imzalı: just release-zip-dynamic-signed 0.1.5-beta
 # → dist/Makine-Launcher-v0.1.5-beta-win64.zip + dist/SHA256SUMS.txt
 
+# 4b. ZIP'teki exe'yi TEMİZ PROFİLLE aç: geliştirici makinesinde katalog önbellekte
+#     olduğu için ilk açılış hiç denenmiyor — 0.2.0 her yeni kurulumda ilk sayfada
+#     dondu, bizde hiç görünmedi. Profili kenara al, aç, kontrol et, geri koy:
+#       reg export "HKCU\Software\MakineCeviri\Makine-Launcher" <yedek>.reg
+#       mv "$LOCALAPPDATA/MakineCeviri/Makine-Launcher"{,.bak}; reg delete "HKCU\Software\MakineCeviri\Makine-Launcher" /f
+#       (aç: karşılama → oyunlar → tercihler → ana sayfa; günlükte qrc:/RangeError yok, pencere yanıt veriyor)
+#       rm -rf …/Makine-Launcher; mv …/Makine-Launcher{.bak,}; reg import <yedek>.reg
+
 # 5. Yayınla (etiketi sunucu tarafında oluşturur, pre-release DEĞİL)
 gh release create v0.1.5-beta   dist/Makine-Launcher-v0.1.5-beta-win64.zip dist/SHA256SUMS.txt   --target $(git rev-parse HEAD)   --title "v0.1.5-beta — <kısa tanım>"   --notes-file docs/release-notes/v0.1.5-beta.md   --latest
 
