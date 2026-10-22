@@ -18,6 +18,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <vector>
 
 namespace makine::recovery {
 
@@ -87,6 +88,21 @@ bool isContainedRelative(const fs::path& rel) {
 // so a record starting with '_' and carrying one is never a real path.
 bool isMarker(const std::string& record) {
     return record.starts_with('_') && record.find(':') != std::string::npos;
+}
+
+// Undoes "_rename:<from>:<to>" (names is "<from>:<to>"): puts <to> back under
+// its original name. False with ec clear when there is nothing to undo.
+bool reverseRename(const fs::path& gamePath, const std::string& names, std::error_code& ec) {
+    ec.clear();
+    const auto colon = names.find(':');
+    if (colon == std::string::npos) return false;
+    const fs::path from(names.substr(0, colon));
+    const fs::path to(names.substr(colon + 1));
+    if (!isContainedRelative(from) || !isContainedRelative(to)) return false;
+    if (!fs::exists(gamePath / to, ec)) return false;
+    fs::remove(gamePath / from, ec);
+    fs::rename(gamePath / to, gamePath / from, ec);
+    return !ec;
 }
 
 // The newest backup taken for the game — the one taken right before the
@@ -241,7 +257,7 @@ RecoveryResult CrashRecoveryJournal::recover(const RecoveryPaths& paths) {
                 result = recoverInstall(entry, paths);
                 break;
             case OperationType::Uninstall:
-                result = recoverUninstall(entry, paths.installedState);
+                result = recoverUninstall(entry, paths);
                 break;
             case OperationType::BackupCreate:
                 result = recoverBackupCreate(entry);
@@ -313,17 +329,8 @@ RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry,
             continue;
         }
         if (record.starts_with("_rename:")) {
-            // "_rename:<from>:<to>" — put <to> back under its original name
-            const std::string names = record.substr(8);
-            const auto colon = names.find(':');
-            if (colon == std::string::npos) continue;
-            const fs::path from(names.substr(0, colon));
-            const fs::path to(names.substr(colon + 1));
-            if (!isContainedRelative(from) || !isContainedRelative(to)) continue;
-            if (!fs::exists(gamePath / to, ec)) continue;
-            fs::remove(gamePath / from, ec);
-            fs::rename(gamePath / to, gamePath / from, ec);
-            count(!ec);
+            if (reverseRename(gamePath, record.substr(8), ec)) ++processed;
+            else if (ec) ++failed;
             continue;
         }
         // "_vpatch:" targets are originals patched in place: the backup holds
@@ -365,8 +372,9 @@ RecoveryResult CrashRecoveryJournal::recoverInstall(const JournalEntry& entry,
 }
 
 RecoveryResult CrashRecoveryJournal::recoverUninstall(
-    const JournalEntry& entry, const fs::path& installedStatePath)
+    const JournalEntry& entry, const RecoveryPaths& paths)
 {
+    const fs::path& installedStatePath = paths.installedState;
     if (installedStatePath.empty() || !fs::exists(installedStatePath)) {
         return {true, 0, "No installed state file"};
     }
@@ -395,30 +403,80 @@ RecoveryResult CrashRecoveryJournal::recoverUninstall(
     std::set<std::string> alreadyDeleted(
         entry.modifiedFiles.begin(), entry.modifiedFiles.end());
 
+    // The uninstall journal begins after the backup restore: the originals
+    // are back in the game folder, under names the record also lists.
+    // Deleting every recorded file took them out again, so the same rules as
+    // LocalPackageManager::uninstallPackage apply: a replaced file, or one
+    // the game's backup holds, stays.
+    std::set<std::string> replaced;
+    if (pkgObj.contains("replacedFiles") && pkgObj["replacedFiles"].is_array()) {
+        for (const auto& f : pkgObj["replacedFiles"])
+            if (f.is_string()) replaced.insert(f.get<std::string>());
+    }
+    const fs::path backup = newestBackupDir(paths.backupsRoot, entry.gameId);
+
     int deleted = 0;
+    int failed = 0;
     std::error_code ec;
 
+    std::vector<std::string> records;
     if (pkgObj.contains("files") && pkgObj["files"].is_array()) {
-        for (const auto& f : pkgObj["files"]) {
-            std::string relPath = f.get<std::string>();
-            if (alreadyDeleted.count(relPath)) continue;
+        for (const auto& f : pkgObj["files"])
+            if (f.is_string()) records.push_back(f.get<std::string>());
+    }
 
-            if (relPath.starts_with("_font:")) {
+    // Newest first, as the install's own undo: a later step may have written
+    // where an earlier one renamed a file away from.
+    for (auto it = records.rbegin(); it != records.rend(); ++it) {
+        const std::string& relPath = *it;
+        if (alreadyDeleted.count(relPath)) continue;
+
+        if (relPath.starts_with("_font:")) {
 #ifdef _WIN32
-                auto fontDir = windowsFontsDir();
-                if (!fontDir.empty()) {
-                    fs::remove(fontDir / relPath.substr(6), ec);
-                    deleted++;
-                }
-#endif
-                continue;
-            }
-
-            auto fullPath = fs::path(gamePath) / relPath;
-            if (fs::remove(fullPath, ec)) {
+            auto fontDir = windowsFontsDir();
+            if (!fontDir.empty()) {
+                fs::remove(fontDir / relPath.substr(6), ec);
                 deleted++;
             }
+#endif
+            continue;
         }
+        if (relPath.starts_with("_desktop:")) {
+            if (!paths.desktopDir.empty() && fs::remove(paths.desktopDir / relPath.substr(9), ec))
+                ++deleted;
+            continue;
+        }
+        if (relPath.starts_with("_rename:")) {
+            if (reverseRename(gamePath, relPath.substr(8), ec)) ++deleted;
+            else if (ec) ++failed;
+            continue;
+        }
+        // "_vpatch:" targets are originals the restore put back; the other
+        // markers name nothing in the game folder.
+        if (isMarker(relPath)) continue;
+
+        const fs::path rel(relPath);
+        if (!isContainedRelative(rel) || replaced.count(relPath)) continue;
+        if (!backup.empty() && fs::exists(backup / rel, ec)) continue;
+
+        const auto fullPath = fs::path(gamePath) / rel;
+        if (fs::remove(fullPath, ec)) {
+            deleted++;
+        } else if (ec) {
+            // A read-only attribute refuses the delete on Windows
+            std::error_code permEc;
+            fs::permissions(fullPath, fs::perms::owner_write, fs::perm_options::add, permEc);
+            if (fs::remove(fullPath, ec)) ++deleted;
+            else ++failed;
+        }
+    }
+
+    // A file that would not go stays on record, so "Kaldır" can still finish
+    // the job; dropping the record left it behind with nothing to retry from.
+    if (failed > 0) {
+        return {false, deleted, fmt::format(
+            "Uninstall recovery incomplete: {} removed, {} failed; record kept",
+            deleted, failed)};
     }
 
     // Remove from installed state

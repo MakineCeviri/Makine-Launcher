@@ -176,7 +176,7 @@ private:
     void deleteJournal();
 
     RecoveryResult recoverInstall(const JournalEntry& entry, const RecoveryPaths& paths);
-    RecoveryResult recoverUninstall(const JournalEntry& entry, const fs::path& installedStatePath);
+    RecoveryResult recoverUninstall(const JournalEntry& entry, const RecoveryPaths& paths);
     RecoveryResult recoverBackupCreate(const JournalEntry& entry);
     RecoveryResult recoverBackupRestore(const JournalEntry& entry);
 

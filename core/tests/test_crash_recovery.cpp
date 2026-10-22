@@ -379,6 +379,48 @@ TEST_F(CrashRecoveryTest, RecoverInstallIgnoresRecordsOutsideGameFolder) {
     EXPECT_TRUE(fs::exists(testDir_ / "outside.txt"));
 }
 
+// The uninstall journal begins after the backup restore, so a crash while it
+// deletes finds the originals already back in place. Recovery deleted every
+// recorded file and took them out again; it now keeps what the record calls
+// replaced and what the backup holds (older recipe records list no replaced
+// files), deletes only what the patch added, and undoes renames.
+TEST_F(CrashRecoveryTest, RecoverUninstallKeepsRestoredOriginals) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const auto statePath = testDir_ / "installed_packages.json";
+
+    createFile(gamePath / "data" / "localization.pak", "original pak");   // replaced, restored
+    createFile(gamePath / "data" / "common.fat", "original fat");         // backup holds it
+    createFile(gamePath / "data" / "tr_strings.txt", "added by patch");   // added
+    createFile(gamePath / "bin" / "game.exe.bak", "original exe");        // renamed away
+    createFile(backupsRoot / "321" / "c0ffee00" / "data" / "localization.pak", "original pak");
+    createFile(backupsRoot / "321" / "c0ffee00" / "data" / "common.fat", "original fat");
+    createFile(statePath, R"({"321": {"version": "1", "gamePath": ")" + gamePath.generic_string()
+        + R"(", "files": ["data/localization.pak", "data/common.fat", "data/tr_strings.txt",
+           "_rename:bin/game.exe:bin/game.exe.bak", "_vpatch:data/main.forge"],
+           "replacedFiles": ["data/localization.pak"]}})");
+
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::Uninstall;
+        entry.gameId = "321";
+        entry.gamePath = gamePath.string();
+        writer.beginOperation(entry);
+    }
+
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.installedState = statePath, .backupsRoot = backupsRoot, .desktopDir = {}});
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(gamePath / "data" / "localization.pak"), "original pak");
+    EXPECT_EQ(readFile(gamePath / "data" / "common.fat"), "original fat");
+    EXPECT_FALSE(fs::exists(gamePath / "data" / "tr_strings.txt"));
+    EXPECT_EQ(readFile(gamePath / "bin" / "game.exe"), "original exe");
+    EXPECT_FALSE(fs::exists(gamePath / "bin" / "game.exe.bak"));
+    EXPECT_EQ(readFile(statePath).find("\"321\""), std::string::npos);
+}
+
 TEST_F(CrashRecoveryTest, RecoverInstallCrashWithModifiedFilesInJournal) {
     // Create game directory with files
     auto gamePath = testDir_ / "game_install2";
