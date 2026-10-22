@@ -110,7 +110,13 @@ void InstallFlowService::startUpdate(const QString& gameId, const QString& gameN
     // knowing which one. Passing an empty variant sent the install searching
     // from the package root, where it finds one copy per variant and refuses
     // to guess — the user saw "Adım 1 hata" for a package that is intact.
-    continueAfterOptions(gameId, QString());
+    //
+    // And through the options gate before it, as an install goes. An options
+    // recipe (Elden Ring, Dark Souls II) updated with no option picked: the
+    // update removed the patch, then refused the install as "Bu yama otomatik
+    // kurulamıyor (kurulum yöntemi: options)". The record does not keep the
+    // options chosen at install time, so the user picks them again.
+    continueWithDetail(gameId, gameName);
 }
 
 // ===== Anti-cheat continue =====
@@ -162,11 +168,8 @@ void InstallFlowService::onPackageDetailEnriched(const QString& appId)
     m_pendingGameId.clear();
     m_pendingGameName.clear();
 
-    if (m_pendingUpdateFlow) {
-        continueAfterOptions(gId, QString());
-    } else {
-        continueWithDetail(gId, gName);
-    }
+    // Install and update both go through the options gate (see startUpdate).
+    continueWithDetail(gId, gName);
 }
 
 // ===== Install options =====
