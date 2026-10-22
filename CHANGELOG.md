@@ -130,6 +130,11 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ---
 
+## [0.2.1-beta] - 2026-10-23
+
+### Düzeltilen
+- **İlk açılışta donma** (0.2.0-beta, her yeni kurulum): katalog henüz eşitlenmemişken `GameService::supportedGames()` boş listeyle modeli her çağrıda sıfırlıyordu; ana sayfanın, öne çıkanlar şeridinin ve karşılama adımının `modelReset` işleyicileri listeyi yeniden isteyince sıfırlama yeniden tetikleniyor, JS yığını taşıyordu (Sentry: `RangeError: Maximum call stack size exceeded`). Boş üstüne boş artık sıfırlama sayılmıyor; `supportedGames()` kendi sıfırlamasının içinden ikinci kez sıfırlamıyor
+
 ## [0.2.0-beta] - 2026-10-23
 
 ### Eklenen

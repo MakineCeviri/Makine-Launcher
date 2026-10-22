@@ -33,7 +33,8 @@
 | `v0.1.5-beta` | 6 Ekim 2026 | GitHub Releases (ZIP) + Microsoft Store (MSIX 0.1.5.0) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
 | `v0.1.6-beta` | 20 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
 | `v0.1.7-beta` | 22 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
-| `v0.2.0-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) — **güncel**; Store'da henüz 0.1.5 | Var (ZIP + SHA256SUMS.txt) |
+| `v0.2.0-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
+| `v0.2.1-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) — **güncel**; Store'da henüz 0.1.5 | Var (ZIP + SHA256SUMS.txt) |
 
 0.1.2–0.1.4 etiketleri arşiv düzeni için sonradan atıldı; Store paketinin hangi commit'ten üretildiği o sırada kaydedilmemişti. Etiketler, sürüm bump commit'leri ile MSIX sahneleme zamanından geriye götürülerek en yakın duruma yerleştirildi. 0.1.3'te numara önce Store paketine verilmiş, kaynak ağacı [`492f506`](https://github.com/MakineCeviri/Makine-Launcher/commit/492f506825fffc4053b677fcf35bcbba36f3e417) ile sonradan hizalanmıştı — **bu yüzden her Store gönderiminde önce etiket atılmalı.**
 
