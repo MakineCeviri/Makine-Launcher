@@ -200,8 +200,10 @@ Card {
 
         HoverHandler { id: rowHover }
 
-        // Paging arrows: glass circles on the row's ends, over the art
+        // Paging arrows: glass circles on the row's ends, over the art and
+        // over the fades (z 5) they sit in
         AppButton {
+            z: 6
             anchors.left: parent.left
             anchors.leftMargin: shelf.inset - 16
             y: 8 + Math.round(shelf.tileWidth * 185 / 130) / 2 - height / 2
@@ -214,6 +216,7 @@ Card {
             onClicked: view._page(-1)
         }
         AppButton {
+            z: 6
             anchors.right: parent.right
             anchors.rightMargin: shelf.inset - 16
             y: 8 + Math.round(shelf.tileWidth * 185 / 130) / 2 - height / 2

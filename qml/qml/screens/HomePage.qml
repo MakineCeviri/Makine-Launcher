@@ -103,7 +103,12 @@ Item {
         contentHeight: col.implicitHeight + 48
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: StyledScrollBar {}
+        // Beside the page, not in it: TopDissolve masks the page's top while
+        // it is scrolled, and the bar would fade there with it.
+        ScrollBar.vertical: StyledScrollBar {
+            parent: page.parent
+            anchors.top: page.top; anchors.right: page.right; anchors.bottom: page.bottom
+        }
 
         ColumnLayout {
             id: col
@@ -162,6 +167,7 @@ Item {
                 Layout.topMargin: -10
                 Layout.preferredHeight: Math.round(Math.max(250, Math.min(400, (page.width - Dimensions.pageMargin * 2) * 0.36)))
                 visible: hero._count > 0
+                inView: page.contentY < hero.y + hero.height
                 onGameSelected: (gameId, gameName, installPath, engine) =>
                     homePage.gameSelected(gameId, gameName, installPath, engine)
                 onInstallRequested: (gameId, gameName, installPath, engine) =>

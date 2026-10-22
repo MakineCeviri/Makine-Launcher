@@ -23,6 +23,8 @@ Item {
     signal installRequested(string gameId, string gameName, string installPath, string engine)
 
     property int current: 0
+    // False while the page has it scrolled away: no slide change to draw
+    property bool inView: true
 
     // ── Slides ───────────────────────────────────────────────────────────
     property var _recent: []
@@ -87,7 +89,7 @@ Item {
     Timer {
         interval: 8000
         repeat: true
-        running: hero.visible && hero._count > 1 && !heroHover.hovered && hero.Window.active
+        running: hero.visible && hero.inView && hero._count > 1 && !heroHover.hovered && hero.Window.active
         onTriggered: hero.go(1)
     }
 

@@ -74,7 +74,12 @@ Item {
         contentHeight: contentColumn.implicitHeight + 48
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: StyledScrollBar {}
+        // Beside the page, not in it: TopDissolve masks the page's top while
+        // it is scrolled, and the bar would fade there with it.
+        ScrollBar.vertical: StyledScrollBar {
+            parent: flickable.parent
+            anchors.top: flickable.top; anchors.right: flickable.right; anchors.bottom: flickable.bottom
+        }
 
         ColumnLayout {
             id: contentColumn
