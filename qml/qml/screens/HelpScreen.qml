@@ -430,7 +430,7 @@ Item {
                 }
                 ListSection {
                     Layout.alignment: Qt.AlignTop
-                    KeyRow { keys: "Ctrl+R"; text: qsTr("Yama güncellemelerini denetle") }
+                    KeyRow { keys: "Ctrl+R"; text: qsTr("Kataloğu yenile, oyunları yeniden tara") }
                     KeyRow { keys: "Ctrl+,"; text: qsTr("Ayarlar") }
                     KeyRow { keys: "F1"; text: qsTr("Bu sayfa") }
                     KeyRow { keys: "Esc"; text: qsTr("Geri dön") }

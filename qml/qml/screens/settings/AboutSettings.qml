@@ -135,7 +135,7 @@ ColumnLayout {
                 { key: "Ctrl+F", desc: qsTr("Oyun ara") },
                 { key: "F1", desc: qsTr("Nasıl çalışır?") },
                 { key: "Ctrl+,", desc: qsTr("Ayarlar") },
-                { key: "Ctrl+R", desc: qsTr("Oyunları ve yamaları yeniden denetle") },
+                { key: "Ctrl+R", desc: qsTr("Kataloğu yenile, oyunları yeniden tara") },
                 { key: "Esc", desc: qsTr("Bir oyunun sayfasından geri dön") },
                 { key: "Ctrl+Q", desc: qsTr("Launcher'dan çık") }
             ]

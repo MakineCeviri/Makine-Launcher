@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Makine Çeviri
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
 import "../components"

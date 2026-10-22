@@ -78,7 +78,7 @@ ColumnLayout {
             Rectangle {
                 Layout.fillWidth: true
                 visible: status._state === UpdateService.Downloading || status._state === UpdateService.Verifying
-                height: 4
+                Layout.preferredHeight: 4
                 radius: 2
                 color: Theme.fillTertiary
                 Rectangle {

@@ -74,6 +74,20 @@ ColumnLayout {
         implicitHeight: descCol.implicitHeight + 40
         radius: Dimensions.radiusLG
 
+        // Hidden measurement — does the full text run past three lines?
+        // Outside the layout: it only has to be as wide as the text below.
+        Text {
+            id: measure
+            textFormat: Text.PlainText
+            visible: false
+            width: descCol.width
+            text: aboutRoot.vm.description
+            font.pixelSize: Dimensions.body
+            wrapMode: Text.WordWrap
+            lineHeight: 1.35
+            maximumLineCount: 3
+        }
+
         ColumnLayout {
             id: descCol
             anchors.left: parent.left
@@ -88,19 +102,6 @@ ColumnLayout {
                 font.pixelSize: Dimensions.title3
                 font.weight: Font.Bold
                 color: Theme.textPrimary
-            }
-
-            // Hidden measurement — does the full text run past three lines?
-            Text {
-                id: measure
-                textFormat: Text.PlainText
-                visible: false
-                width: descCol.width
-                text: aboutRoot.vm.description
-                font.pixelSize: Dimensions.body
-                wrapMode: Text.WordWrap
-                lineHeight: 1.35
-                maximumLineCount: 3
             }
 
             Text {
