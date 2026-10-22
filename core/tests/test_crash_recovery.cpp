@@ -533,6 +533,44 @@ TEST_F(CrashRecoveryTest, MultipleRecordFileModifiedCalls) {
     EXPECT_FALSE(journal.isActive());
 }
 
+// Records reached the disk every 20 files, so a crash left up to 19 written
+// files out of the journal and recovery never deleted them. Each record is
+// on disk as soon as it is made now.
+TEST_F(CrashRecoveryTest, EveryRecordSurvivesCrash) {
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::Install;
+        entry.gameId = "game_records";
+        entry.gamePath = (testDir_ / "game").string();
+        writer.beginOperation(entry);
+        writer.recordFileModified("data/a.pak");
+        writer.recordFileModified("data/\xC3\xBC" "cret.txt");  // "ücret.txt", UTF-8
+        writer.recordFileModified("_rename:bin/x.dll:bin/x.dll.bak");
+        // No commit: the process dies here.
+    }
+
+    CrashRecoveryJournal reader(testDir_);
+    const auto pending = reader.readPendingOperation();
+    EXPECT_EQ(pending.gameId, "game_records");
+    EXPECT_EQ(pending.modifiedFiles, (std::vector<std::string>{
+        "data/a.pak", "data/\xC3\xBC" "cret.txt", "_rename:bin/x.dll:bin/x.dll.bak"}));
+}
+
+// A journal written whole (0.1.6 and older) still reads, and a record cut
+// short by the crash is dropped, not taken for corruption of the entry.
+TEST_F(CrashRecoveryTest, ReadsWholeJournalAndTruncatedRecord) {
+    CrashRecoveryJournal journal(testDir_);
+    createFile(journal.journalPath(),
+        R"({"type":"install","gameId":"old","gamePath":"/g","modifiedFiles":["a.txt"]})" "\n"
+        R"("b.txt")" "\n"
+        R"("c.t)");
+
+    const auto pending = journal.readPendingOperation();
+    EXPECT_EQ(pending.gameId, "old");
+    EXPECT_EQ(pending.modifiedFiles, (std::vector<std::string>{"a.txt", "b.txt"}));
+}
+
 TEST_F(CrashRecoveryTest, CommitWhenNotActiveIsNoOp) {
     CrashRecoveryJournal journal(testDir_);
 

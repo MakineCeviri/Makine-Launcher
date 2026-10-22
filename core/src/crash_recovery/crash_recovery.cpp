@@ -154,10 +154,10 @@ bool CrashRecoveryJournal::beginOperation(const JournalEntry& entry) {
     current_ = entry;
     current_.startedAt = currentEpochSeconds();
     current_.modifiedFiles.clear();
-    pendingCount_ = 0;
     active_ = true;
 
     flushJournal();
+    records_.open(journalPath(), std::ios::binary | std::ios::app);
     return true;
 }
 
@@ -166,11 +166,14 @@ void CrashRecoveryJournal::recordFileModified(const std::string& relativePath) {
     if (!active_) return;
 
     current_.modifiedFiles.push_back(relativePath);
-    pendingCount_++;
 
-    if (pendingCount_ >= kFlushInterval) {
-        flushJournal();
-        pendingCount_ = 0;
+    // One line per record, flushed at once. Rewriting the whole journal every
+    // 20 records left up to 19 written files out of it after a crash, and
+    // recovery could not delete what it did not know about.
+    if (records_.is_open()) {
+        records_ << json(relativePath).dump(-1, ' ', false, json::error_handler_t::replace)
+                 << '\n';
+        records_.flush();
     }
 }
 
@@ -178,7 +181,7 @@ void CrashRecoveryJournal::commitOperation() {
     std::lock_guard lock(mutex_);
     active_ = false;
     current_ = {};
-    pendingCount_ = 0;
+    records_.close();
     deleteJournal();
 }
 
@@ -186,7 +189,7 @@ void CrashRecoveryJournal::abortOperation() {
     std::lock_guard lock(mutex_);
     active_ = false;
     current_ = {};
-    pendingCount_ = 0;
+    records_.close();
     deleteJournal();
 }
 
@@ -202,11 +205,15 @@ bool CrashRecoveryJournal::hasPendingOperation() const {
 JournalEntry CrashRecoveryJournal::readPendingOperation() const {
     JournalEntry entry;
 
-    std::ifstream file(journalPath());
+    std::ifstream file(journalPath(), std::ios::binary);
     if (!file) return entry;
 
+    // Line one is the entry as begin wrote it; every line after it is one
+    // file record, appended as it was made.
+    std::string header;
+    std::getline(file, header);
     try {
-        json doc = json::parse(file);
+        json doc = json::parse(header);
 
         entry.type = stringToOperationType(doc.value("type", ""));
         entry.gameId = doc.value("gameId", "");
@@ -226,6 +233,16 @@ JournalEntry CrashRecoveryJournal::readPendingOperation() const {
     } catch (const json::exception& e) {
         MAKINE_LOG_WARN(log::CORE, "CrashRecoveryJournal: corrupted journal: {}", e.what());
         return {};
+    }
+
+    for (std::string line; std::getline(file, line);) {
+        if (line.empty()) continue;
+        try {
+            const json record = json::parse(line);
+            if (record.is_string()) entry.modifiedFiles.push_back(record.get<std::string>());
+        } catch (const json::exception&) {
+            break;  // the record the crash cut short
+        }
     }
 
     return entry;
@@ -556,7 +573,8 @@ void CrashRecoveryJournal::flushJournal() {
     auto path = journalPath();
     std::error_code ec;
     fs::create_directories(path.parent_path(), ec);
-    atomicWriteJson(path, obj.dump());
+    // Ends its line: the file records are appended after it.
+    atomicWriteJson(path, obj.dump() + '\n');
 }
 
 void CrashRecoveryJournal::deleteJournal() {
