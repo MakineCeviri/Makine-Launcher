@@ -36,8 +36,10 @@ ColumnLayout {
     Connections {
         target: CoreBridge
         function onPackageDetailEnriched(appId) {
-            if (appId === ex.vm.gameId || appId === ex.vm.steamAppId)
+            if (appId === ex.vm.gameId || appId === ex.vm.steamAppId) {
                 ex.vm.patchProgram = GameService.patchProgram(ex.vm.gameId)
+                ex.vm.patchUndoes = GameService.patchProgramUndoes(ex.vm.gameId)
+            }
         }
     }
     readonly property bool _ownProgram: ex.vm.patchProgram !== ""
@@ -128,7 +130,9 @@ ColumnLayout {
             glyph: Icons.languages
             title: ex._ownProgram ? qsTr("Yamanın programı kurar") : qsTr("Türkçe dosyalar oyuna kurulur")
             detail: ex._ownProgram
-                ? qsTr("%1, oyunun bulunduğu klasörle çalışır; yazdıkları bu sayfada görünür. Kaldırırsan aynı program geri alır.")
+                ? (ex.vm.patchUndoes
+                   ? qsTr("%1, oyunun bulunduğu klasörle çalışır; yazdıkları bu sayfada görünür. Kaldırırsan aynı program geri alır.")
+                   : qsTr("%1, oyunun bulunduğu klasörle çalışır; yazdıkları bu sayfada görünür. Geri alma programı yok: kaldırırsan değiştirdiği dosyalar mağazanın dosya onarımıyla geri gelir."))
                       .arg(ex.vm.patchProgram)
                 : qsTr("Kaldırırsan yedek geri yüklenir; kayıtlarına ve ayarlarına dokunulmaz.")
         }

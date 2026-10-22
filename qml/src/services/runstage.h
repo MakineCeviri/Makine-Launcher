@@ -79,26 +79,35 @@ inline bool segmentNamesGame(const QString& segment, const QString& gameName)
 // Where in `path` (a Windows path on the translator's machine) the game's own
 // folder ends, as a number of leading segments; 0 when it names no game
 // folder. A store library tells it by layout (steamapps\common\<Game>, Epic
-// Games\<Game>, …), anything else by the game's name.
-inline int gameFolderDepth(const QString& path, const QString& gameName)
+// Games\<Game>, …), anything else by the game's name. The layout alone is
+// enough only with `layoutIsEnough` (a variable that says it holds the game
+// folder): steamapps\common\Steamworks Shared and Epic Games\Launcher sit
+// in the same places and are not the game.
+inline int gameFolderDepth(const QString& path, const QString& gameName,
+                           bool layoutIsEnough = false)
 {
     const QStringList segs = segmentsOf(path);
     if (segs.size() < 2 || segs.first().size() != 2 || segs.first().at(1) != QLatin1Char(':'))
         return 0;
+    // The store folder's game segment, when it names this game or need not.
+    const auto store = [&](int at) {
+        return layoutIsEnough || segmentNamesGame(segs[at], gameName) ? at + 1 : 0;
+    };
     for (int i = 1; i + 1 < segs.size(); ++i) {
         const QString s = segs[i].toLower();
         const QString next = segs[i + 1].toLower();
+        int depth = 0;
         if (s == QLatin1String("steamapps") && next == QLatin1String("common") && i + 2 < segs.size())
-            return i + 3;
-        if ((s == QLatin1String("epic games") || s == QLatin1String("gog games")
-             || s == QLatin1String("xboxgames"))
-            && !segs[i + 1].isEmpty())
-            return i + 2;
-        if (s == QLatin1String("gog galaxy") && next == QLatin1String("games") && i + 2 < segs.size())
-            return i + 3;
-        if (s == QLatin1String("ubisoft game launcher") && next == QLatin1String("games")
-            && i + 2 < segs.size())
-            return i + 3;
+            depth = store(i + 2);
+        else if (s == QLatin1String("epic games") || s == QLatin1String("gog games")
+                 || s == QLatin1String("xboxgames"))
+            depth = store(i + 1);
+        else if (s == QLatin1String("gog galaxy") && next == QLatin1String("games") && i + 2 < segs.size())
+            depth = store(i + 2);
+        else if (s == QLatin1String("ubisoft game launcher") && next == QLatin1String("games")
+                 && i + 2 < segs.size())
+            depth = store(i + 2);
+        if (depth > 0) return depth;
     }
     for (int i = segs.size() - 1; i >= 1; --i)
         if (segmentNamesGame(segs[i], gameName)) return i + 1;
@@ -190,7 +199,9 @@ inline Rewrite rewriteScript(const QByteArray& script, const QString& gameName,
             value.truncate(close);
         }
         value = value.trimmed();
-        if (value.size() >= 2 && value.startsWith(QLatin1Char('"')) && value.endsWith(QLatin1Char('"')))
+        const bool valueQuoted = value.size() >= 2 && value.startsWith(QLatin1Char('"'))
+                                 && value.endsWith(QLatin1Char('"'));
+        if (valueQuoted)
             value = value.mid(1, value.size() - 2).trimmed();
         while (value.endsWith(QLatin1Char('\\')) && value.size() > 3) value.chop(1);
         if (value.isEmpty() || value.contains(QLatin1Char('%')))
@@ -198,7 +209,7 @@ inline Rewrite rewriteScript(const QByteArray& script, const QString& gameName,
         const bool absolute = value.size() >= 3 && value[0].isLetter() && value[1] == QLatin1Char(':')
             && (value[2] == QLatin1Char('\\') || value[2] == QLatin1Char('/'));
         if (absolute) {
-            const int depth = gameFolderDepth(value, gameName);
+            const int depth = gameFolderDepth(value, gameName, isGameVarName(name));
             const bool whole = depth == segmentsOf(value).size();
             if (!(isGameVarName(name) && (depth == 0 || whole)) && !whole)
                 continue;
@@ -214,8 +225,13 @@ inline Rewrite rewriteScript(const QByteArray& script, const QString& gameName,
             continue;   // already right
         out.folders.append(value);
         out.variables.append(name);
-        line = lead + QStringLiteral("set \"") + name + QStringLiteral("=%")
-             + QLatin1String(kGameVar) + QStringLiteral("%\"");
+        // The value keeps the quotes it had: a script that wrote
+        // set OYUN="D:\…" uses %OYUN% unquoted, and the player's folder
+        // (C:\Program Files (x86)\…) must stay one argument there.
+        const QString var = QStringLiteral("%") + QLatin1String(kGameVar) + QStringLiteral("%");
+        line = lead + (valueQuoted && !quotedAll
+                           ? QStringLiteral("set ") + name + QStringLiteral("=\"") + var + QStringLiteral("\"")
+                           : QStringLiteral("set \"") + name + QLatin1Char('=') + var + QStringLiteral("\""));
     }
     text = lines.join(eol);
 

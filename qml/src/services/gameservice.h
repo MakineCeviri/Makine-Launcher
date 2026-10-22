@@ -207,6 +207,9 @@ public:
      * @brief The patch's own installer program ("" when the launcher copies it)
      */
     Q_INVOKABLE QString patchProgram(const QString& gameId) const;
+    // And whether that program also takes the patch out again ("uninstall");
+    // without one, Kaldır hands what it changed to the store's repair.
+    Q_INVOKABLE bool patchProgramUndoes(const QString& gameId) const;
 
     /**
      * @brief Whether the last install of `gameId` stopped because its folder
@@ -299,6 +302,9 @@ public:
      * detail page, which reopens on it)
      */
     Q_INVOKABLE bool isInstalling(const QString& gameId) const;
+    // Whether `gameId`'s uninstall is running the patch's own undo program
+    // (its console takes answers, and cancelInstallation stops it).
+    Q_INVOKABLE bool isUndoing(const QString& gameId) const;
 
     /**
      * @brief What the patch's own program has printed during `gameId`'s
@@ -628,6 +634,7 @@ private:
     QString m_undoGameId;                    // whose undo program is running
     QSet<QString> m_folderRejected;          // last install refused for its folder
     QHash<QString, int> m_undoNoChange;      // undo runs that changed nothing, this session
+    QHash<QString, int> m_undoFailures;      // undo programs that failed, this session
     QSet<QString> m_integrityReported;   // "<game>:<missing>/<total>" already sent
     QTimer* m_installTimeoutTimer{nullptr};  // Cancels an install the core
                                              // never reports back on

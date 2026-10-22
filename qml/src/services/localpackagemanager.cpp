@@ -58,6 +58,8 @@
 #endif
 
 #include <algorithm>
+#include <cstddef>
+#include <cstring>
 #include <functional>
 #include <set>
 #include <map>
@@ -437,6 +439,46 @@ QStringList LocalPackageManager::getPackageFileList(const QString& steamAppId,
     return result;
 }
 
+// A recipe path relative to the game root, or empty when it is not one (the
+// root itself, a placeholder, anything absolute or climbing out).
+static QString recipeRelativePath(QString p)
+{
+    p = QDir::cleanPath(QDir::fromNativeSeparators(p.trimmed()));
+    if (p.isEmpty() || p == QLatin1String(".") || p.startsWith(QLatin1String(".."))
+        || p.startsWith(QLatin1Char('/')) || p.contains(QLatin1Char(':'))
+        || p.contains(QLatin1String("${")))
+        return {};
+    return p;
+}
+
+QStringList LocalPackageManager::requiredFilesFor(const QString& steamAppId, const QString& variant,
+                                                  const QStringList& selectedOptions) const
+{
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg) return {};
+    // The options and combined steps the install picks (installPackage).
+    QList<InstallOptionQt> options = pkg->installOptions;
+    QMap<QString, QList<InstallStep>> combined = pkg->combinedSteps;
+    if (const auto vc = pkg->variantInstallOptions.constFind(variant);
+        !variant.isEmpty() && vc != pkg->variantInstallOptions.cend()) {
+        options = vc->installOptions;
+        combined = vc->combinedSteps;
+    }
+    QList<InstallStep> steps = pkg->installSteps;
+    for (const InstallOptionQt& opt : std::as_const(options))
+        if (selectedOptions.contains(opt.id)) steps += opt.steps;
+    QStringList key = selectedOptions;
+    key.sort();
+    steps += combined.value(key.join(QLatin1Char('+')));
+
+    QStringList out;
+    for (const InstallStep& st : std::as_const(steps))
+        for (const QString& f : st.requiredFiles)
+            if (const QString r = recipeRelativePath(f); !r.isEmpty() && !out.contains(r, Qt::CaseInsensitive))
+                out.append(r);
+    return out.mid(0, 40);
+}
+
 folderrules::Expectations LocalPackageManager::folderExpectations(const QString& steamAppId) const
 {
     folderrules::Expectations e;
@@ -447,16 +489,7 @@ folderrules::Expectations LocalPackageManager::folderExpectations(const QString&
     const auto pkg = getPackage(steamAppId);
     if (!pkg) return e;
 
-    // A recipe path relative to the game root, or empty when it is not one
-    // (the root itself, a placeholder, anything absolute or climbing out).
-    const auto relative = [](QString p) -> QString {
-        p = QDir::cleanPath(QDir::fromNativeSeparators(p.trimmed()));
-        if (p.isEmpty() || p == QLatin1String(".") || p.startsWith(QLatin1String(".."))
-            || p.startsWith(QLatin1Char('/')) || p.contains(QLatin1Char(':'))
-            || p.contains(QLatin1String("${")))
-            return {};
-        return p;
-    };
+    const auto relative = recipeRelativePath;
     const auto parentDir = [](const QString& rel) {
         const int cut = rel.lastIndexOf(QLatin1Char('/'));
         return cut > 0 ? rel.left(cut) : QString();
@@ -860,6 +893,45 @@ ElevatedRun startElevated(const QString& exePath, const QStringList& args,
     return out;
 }
 
+// The patch's own processes still running in `job`: a program under `ownDir`
+// (its stage), or a script host running one of its scripts. A browser or text
+// viewer it opened on the way out is not waited for.
+QStringList busyInJob(HANDLE job, const QString& ownDir)
+{
+    QStringList out;
+    // JOBOBJECT_BASIC_PROCESS_ID_LIST read from a flat buffer: indexing its
+    // one-element ProcessIdList past [0] is out of bounds, and GCC at -O2
+    // drops the loop after the first id.
+    ULONG_PTR buf[256] = {};
+    if (!QueryInformationJobObject(job, JobObjectBasicProcessIdList, buf, sizeof(buf), nullptr))
+        return out;
+    struct { DWORD assigned, listed; } counts;
+    std::memcpy(&counts, buf, sizeof(counts));
+    const ULONG_PTR* ids = buf + offsetof(JOBOBJECT_BASIC_PROCESS_ID_LIST, ProcessIdList) / sizeof(ULONG_PTR);
+    const DWORD listed = std::min<DWORD>(counts.listed, 255);
+    const QString base = QDir::toNativeSeparators(QDir::cleanPath(ownDir)) + QLatin1Char('\\');
+    static const QStringList kHosts = {
+        QStringLiteral("cmd.exe"),     QStringLiteral("powershell.exe"), QStringLiteral("pwsh.exe"),
+        QStringLiteral("wscript.exe"), QStringLiteral("cscript.exe"),    QStringLiteral("python.exe"),
+        QStringLiteral("pythonw.exe"), QStringLiteral("py.exe"),
+    };
+    for (DWORD i = 0; i < listed; ++i) {
+        HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(ids[i]));
+        if (!h) continue;
+        wchar_t image[1024];
+        DWORD len = 1024;
+        const bool named = QueryFullProcessImageNameW(h, 0, image, &len);
+        CloseHandle(h);
+        if (!named) continue;
+        const QString path = QString::fromWCharArray(image, static_cast<int>(len));
+        const QString name = QFileInfo(path).fileName();
+        if ((!ownDir.isEmpty() && path.startsWith(base, Qt::CaseInsensitive))
+            || kHosts.contains(name, Qt::CaseInsensitive))
+            out << name;
+    }
+    return out;
+}
+
 } // namespace
 #endif // Q_OS_WIN
 
@@ -895,7 +967,56 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     for (auto it = extraEnv.cbegin(); it != extraEnv.cend(); ++it)
         env.insert(it.key(), it.value());
     proc.setProcessEnvironment(env);
+
+#ifdef Q_OS_WIN
+    // The program's whole tree, not only the process started here: a script
+    // that "start"s the real tool is done long before the tool, and the
+    // stage (runstage.h) must not go nor the change scan run while the tool
+    // still works. Cancel ends the tree; killing cmd.exe left the tool going.
+    // Created inside the job rather than put in it once running: a script's
+    // first "start" comes within milliseconds, before AssignProcessToJobObject
+    // could, and its child was then outside.
+    HANDLE job = CreateJobObjectW(nullptr, nullptr);
+    const auto closeJob = qScopeGuard([&job] { if (job) CloseHandle(job); });
+    SIZE_T attrSize = 0;
+    InitializeProcThreadAttributeList(nullptr, 1, 0, &attrSize);
+    QByteArray attrBuf(static_cast<qsizetype>(attrSize), '\0');
+    auto* attrs = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrBuf.data());
+    const bool attrsInit = attrSize > 0 && InitializeProcThreadAttributeList(attrs, 1, 0, &attrSize);
+    const bool inJob = job && attrsInit
+        && UpdateProcThreadAttribute(attrs, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, &job, sizeof(job),
+                                     nullptr, nullptr);
+    STARTUPINFOEXW startup{};
+    if (inJob) {
+        proc.setCreateProcessArgumentsModifier([&startup, attrs](QProcess::CreateProcessArguments* a) {
+            startup.StartupInfo = *a->startupInfo;
+            startup.StartupInfo.cb = sizeof(startup);
+            startup.lpAttributeList = attrs;
+            a->startupInfo = &startup.StartupInfo;
+            a->flags |= EXTENDED_STARTUPINFO_PRESENT;
+        });
+    }
+    bool jobHolds = inJob;
     proc.start(exePath, args);
+    if (inJob && !proc.waitForStarted(10000)) {
+        // Not for want of a job: try once without, so the reasons below (and
+        // the elevation they lead to) are the program's own.
+        qCWarning(lcPackageManager) << "Start inside a job failed, retrying without:" << exePath;
+        jobHolds = false;
+        proc.setCreateProcessArgumentsModifier({});
+        proc.start(exePath, args);
+    }
+    if (attrsInit) DeleteProcThreadAttributeList(attrs);
+    if (!jobHolds && job) {
+        CloseHandle(job);
+        job = nullptr;
+    }
+    const auto endTree = [&job] { if (job) TerminateJobObject(job, 1); };
+    const QString ownDir = extraEnv.value(QLatin1String(runstage::kPackageVar));
+#else
+    proc.start(exePath, args);
+    const auto endTree = [] {};
+#endif
     // stdin stays open: the game page passes typed answers to a "set /p" or
     // "press a key" prompt (sendProcessInput). It used to be closed so that
     // such a prompt ended at once instead of waiting out the cap below; now
@@ -1011,6 +1132,7 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
         }
         if (isCancelled()) {
             qCInfo(lcPackageManager) << "Process cancelled by user:" << exePath;
+            endTree();
             proc.kill();
             proc.waitForFinished(2000);
             result.cancelled = true;
@@ -1019,6 +1141,7 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
         const qint64 elapsed = clock.elapsed();
         if (elapsed >= kMaxMs) {
             qCWarning(lcPackageManager) << "Process timeout:" << exePath;
+            endTree();
             proc.kill();
             proc.waitForFinished(2000);
             result.timedOut = true;
@@ -1033,6 +1156,33 @@ LocalPackageManager::ProcessResult LocalPackageManager::runProcess(
     forward(true);
     result.exitCode = proc.exitCode();
     emit processOutput(tr("\n[%1 bitti, çıkış kodu %2]\n").arg(exeName).arg(result.exitCode));
+
+#ifdef Q_OS_WIN
+    for (bool said = false; job;) {
+        const QStringList busy = busyInJob(job, ownDir);
+        if (busy.isEmpty()) break;
+        if (!said) {
+            said = true;
+            qCInfo(lcPackageManager) << "Waiting for what" << exeName << "started:" << busy;
+            emit processOutput(tr("%1 başlattığı programlar (%2) bitene kadar bekleniyor.\n")
+                                   .arg(exeName, busy.join(QStringLiteral(", "))));
+        }
+        if (isCancelled()) {
+            qCInfo(lcPackageManager) << "Process tree cancelled by user:" << exePath;
+            endTree();
+            result.cancelled = true;
+            return result;
+        }
+        if (clock.elapsed() >= kMaxMs) {
+            qCWarning(lcPackageManager) << "Process tree timeout:" << exePath;
+            endTree();
+            result.timedOut = true;
+            return result;
+        }
+        if (progressCallback) progressCallback(static_cast<int>(clock.elapsed()));
+        QThread::msleep(kPollMs);
+    }
+#endif
     return result;
 }
 
@@ -3905,6 +4055,7 @@ LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QStri
         CrashReporter::reportFailure("uninstall", steamAppId,
             QStringLiteral("uninstall program %1: %2").arg(step.uninstall, why));
         out.ok = false;
+        out.stopped = r.cancelled || r.elevationDeclined;
         out.message = tr("Yamayı kaldıran program (%1) %2; yama kaldırılmadı, oyun dosyalarına "
                          "launcher dokunmadı.\nProgramın yazdıkları sayfada görünüyor. Oyunu "
                          "kapatıp tekrar deneyin.")
@@ -4144,6 +4295,15 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
         // and said it was removed, the patched archive left in the game.
         for (const auto& record : coreState.installedFiles)
             if (record.starts_with("_vpatch:")) remaining.push_back(record);
+        // The note stays on record too, deleted or not: it tells the retry the
+        // program's work was tracked, and with its markers gone there is
+        // nothing left for the undo program to do. Without it the retry ran
+        // that program again over a game it had already restored.
+        const std::string note = runstage::kNoteFile;
+        if (std::find(coreState.installedFiles.begin(), coreState.installedFiles.end(), note)
+                != coreState.installedFiles.end()
+            && std::find(remaining.begin(), remaining.end(), note) == remaining.end())
+            remaining.push_back(note);
         left.installedFiles = std::move(remaining);
         m_catalog.markInstalled(steamAppId.toStdString(), left);
         saveCatalogInstalledState(m_catalog, installedStatePath());

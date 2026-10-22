@@ -208,6 +208,8 @@ public:
      * @brief What the package expects under its game's root (see pickRoot)
      */
     folderrules::Expectations folderExpectations(const QString& gameId);
+    QStringList requiredFilesFor(const QString& gameId, const QString& variant,
+                                 const QStringList& selectedOptions);
 
     /**
      * @brief Whether the package's recipe rewrites game files in place

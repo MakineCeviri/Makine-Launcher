@@ -84,6 +84,11 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // at extraction or at install: an exclusion fixes it, a retry does not.
         {QStringLiteral("Antivirüs (ör. Windows Defender)"),     QStringLiteral("antivirus_blocked")},
         {QStringLiteral("yönetici izni verilmedi"),              QStringLiteral("elevation_declined")},
+        // A patch's own program (docs/patch-programs.md): not in the package,
+        // its stage could not be made, it ran and changed nothing in the game.
+        {QStringLiteral("program bulunamadı"),                   QStringLiteral("tool_missing")},
+        {QStringLiteral("program hazırlanamadı"),                QStringLiteral("tool_stage_failed")},
+        {QStringLiteral("hiçbir dosyayı değiştirmedi"),          QStringLiteral("program_no_change")},
         {QStringLiteral("araç başlatılamadı"),                   QStringLiteral("tool_start_failed")},
         {QStringLiteral("araç 2 saatte bitmedi"),                QStringLiteral("tool_timeout")},
         {QStringLiteral("araç hata kodu"),                       QStringLiteral("tool_exit_code")},
@@ -93,6 +98,14 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("oyun sürümü bu yamayla eşleşmiyor"),    QStringLiteral("vpatch_nomatch")},
         {QStringLiteral("yama dosyası okunamadı"),               QStringLiteral("vpatch_corrupt")},
         {QStringLiteral("yamalanan dosya doğrulanamadı"),        QStringLiteral("vpatch_verify")},
+        // The file an in-place step patches is not in the folder: a wrong
+        // folder or another edition of the game, not a broken step (AC II,
+        // Fahrenheit — 0.1.5, all "step_failed" until now).
+        {QStringLiteral("oyun dosyası bulunamadı"),              QStringLiteral("target_missing")},
+        // The folder lacks what the patch's "requires" names (0.2.0 preflight):
+        // not the game's folder, or, under an installed patch, the game changed.
+        {QStringLiteral("installed game lacks required files"),  QStringLiteral("requires_missing_installed")},
+        {QStringLiteral("game folder lacks required files"),     QStringLiteral("folder_mismatch")},
         {QStringLiteral("adımda hata oluştu"),                   QStringLiteral("step_failed")},          // 1124
         {QStringLiteral("dosya kopyalanamadı"),                  QStringLiteral("copy_failed")},          // 6
         {QStringLiteral("yazma izni yok"),                       QStringLiteral("no_permission")},        // 59
@@ -117,6 +130,9 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("files left on disk"),                   QStringLiteral("uninstall_files_left")},
         {QStringLiteral("no install record"),                    QStringLiteral("uninstall_no_record")},
         {QStringLiteral("uninstallPackage returned false"),      QStringLiteral("uninstall_failed")},     // 17 (0.1.5)
+        // Before uninstall_tool, which their messages also match.
+        {QStringLiteral("uninstall program changed nothing"),    QStringLiteral("uninstall_tool_no_change")},
+        {QStringLiteral("uninstall program skipped"),            QStringLiteral("uninstall_tool_skipped")},
         {QStringLiteral("uninstall program"),                    QStringLiteral("uninstall_tool")},
         {QStringLiteral("restore could not start"),              QStringLiteral("restore_not_started")},  // 5
         {QStringLiteral("geri yükleme zaten devam ediyor"),      QStringLiteral("restore_busy")},         // 4

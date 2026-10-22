@@ -153,6 +153,7 @@ Item {
         }
         function onTranslationUninstalled(gId, success, message) {
             if (gId !== root.viewModel.gameId) return
+            root.viewModel.isUndoing = false
             if (success) {
                 root.viewModel.packageInstalled = false
                 root.viewModel.hasTranslationUpdate = false
@@ -203,8 +204,10 @@ Item {
             }
         }
         function onTranslationInstallOutput(gId) {
-            if (gId === root.viewModel.gameId)
+            if (gId === root.viewModel.gameId) {
                 root.viewModel.installConsole = GameService.installConsole(gId)
+                root.viewModel.isUndoing = GameService.isUndoing(gId)
+            }
         }
         function onTranslationInstallCompleted(gId, success, message) {
             // Reported from the field as "yama kurulu görünüyor ama oyun hâlâ
@@ -276,10 +279,13 @@ Item {
         parent: Overlay.overlay
         width: 460
         title: qsTr("Türkçe yama kaldırılsın mı?")
-        message: root.viewModel.patchProgram !== ""
+        message: root.viewModel.patchProgram === ""
+            ? qsTr("%1 için kurulu Türkçe yama kaldırılacak; yedeklenen orijinal oyun dosyaları geri yüklenecek. İstediğin zaman yeniden kurabilirsin.")
+                  .arg(root.viewModel.gameName)
+            : root.viewModel.patchUndoes
             ? qsTr("%1 için kurulu Türkçe yama kaldırılacak: yamanın kendi programı açılıp oyunda yaptıklarını geri alacak. İstediğin zaman yeniden kurabilirsin.")
                   .arg(root.viewModel.gameName)
-            : qsTr("%1 için kurulu Türkçe yama kaldırılacak; yedeklenen orijinal oyun dosyaları geri yüklenecek. İstediğin zaman yeniden kurabilirsin.")
+            : qsTr("%1 için kurulu Türkçe yama kaldırılacak. Yamanın programı yaptıklarını geri almıyor; değiştirdiği oyun dosyaları mağazanın dosya onarımıyla geri gelir. İstediğin zaman yeniden kurabilirsin.")
                   .arg(root.viewModel.gameName)
         confirmText: qsTr("Yamayı kaldır")
         glyph: Icons.trash2
@@ -410,7 +416,12 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
-        ScrollBar.vertical: StyledScrollBar {}
+        // Beside the page, not in it: TopDissolve masks the page's top while
+        // it is scrolled, and the bar would fade there with it.
+        ScrollBar.vertical: StyledScrollBar {
+            parent: mainFlick.parent
+            anchors.top: mainFlick.top; anchors.right: mainFlick.right; anchors.bottom: mainFlick.bottom
+        }
 
         ColumnLayout {
             id: contentCol

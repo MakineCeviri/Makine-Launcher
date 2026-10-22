@@ -21,6 +21,7 @@
 #include <QUrl>
 
 #include "gamenamerules.h"
+#include "rawfile.h"
 
 namespace makine::folderrules {
 
@@ -275,7 +276,7 @@ inline QStringList missingRequired(const QString& root, const Expectations& e)
 {
     QStringList missing;
     for (const QString& f : e.requiredFiles)
-        if (!QFileInfo::exists(root + QLatin1Char('/') + f)) missing << f;
+        if (!rawfile::exists(root + QLatin1Char('/') + f)) missing << f;
     return missing;
 }
 

@@ -215,8 +215,11 @@ RowLayout {
         size: "large"
         style: "glass"
         icon: Icons.trash2
+        // Its undo program is running (the console below it says what it does).
+        busy: actionBtn.vm.isUndoing
+        enabled: !actionBtn.vm.isUndoing
         text: qsTr("Kaldır")
-        toolTip: qsTr("Türkçe yamayı kaldır; yedeklenen orijinal dosyalar geri yüklenir")
+        toolTip: qsTr("Türkçe yamayı kaldır; oyunun orijinal dosyaları geri gelir")
         onClicked: actionBtn.uninstallClicked()
     }
 }

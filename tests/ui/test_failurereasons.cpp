@@ -332,3 +332,49 @@ TEST(FailureReasons, AStepFailureWithNoNamedCauseIsStillStepFailed)
         "1 adımda hata oluştu\nAdım 1: copyDir engus")),
         QStringLiteral("step_failed"));
 }
+
+// ===== A patch's own program (0.2.0, docs/patch-programs.md) =================
+
+TEST(FailureReasons, APatchProgramsOutcomesHaveTheirOwnCodes)
+{
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 1: run HR.exe — program bulunamadı: HR.exe")),
+        QStringLiteral("tool_missing"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1 adımda hata oluştu\nAdım 1: run ACS.exe — program hazırlanamadı (klasör açılamadı: x)")),
+        QStringLiteral("tool_stage_failed"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Yamanın programı çalıştı ama oyunun klasöründe hiçbir dosyayı değiştirmedi, yani yama kurulmadı.")),
+        QStringLiteral("program_no_change"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "game folder lacks required files: ACShadows.exe")),
+        QStringLiteral("folder_mismatch"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "installed game lacks required files: HeavyRain.exe")),
+        QStringLiteral("requires_missing_installed"));
+}
+
+TEST(FailureReasons, AnUndoProgramsOutcomesAreToldApart)
+{
+    EXPECT_EQ(failureReason(QStringLiteral("uninstall program kaldir.bat: hata kodu 5 verdi")),
+              QStringLiteral("uninstall_tool"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "uninstall program changed nothing in the game (first press)")),
+        QStringLiteral("uninstall_tool_no_change"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "uninstall program skipped after 2 failures; store repair takes the rest")),
+        QStringLiteral("uninstall_tool_skipped"));
+}
+
+TEST(FailureReasons, AnInPlaceTargetMissingIsNotGenericStepBreakage)
+{
+    // AC II on 0.1.5: four vpatch steps, the game file not in the folder.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "4/4 adımda hata oluştu\nAdım 1: vpatch tr — oyun dosyası bulunamadı")),
+        QStringLiteral("target_missing"));
+    // A version mismatch on any of them still names the version.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "4/4 adımda hata oluştu\nAdım 1: vpatch tr — oyun sürümü bu yamayla eşleşmiyor\n"
+        "Adım 2: vpatch tr — oyun dosyası bulunamadı")),
+        QStringLiteral("vpatch_nomatch"));
+}

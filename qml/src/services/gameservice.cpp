@@ -16,6 +16,7 @@
 #include "imagecachemanager.h"
 #include "steamdetailsservice.h"
 #include "backupmanager.h"
+#include "changescan.h"
 #include "apppaths.h"
 #include "profiler.h"
 #include "crashreporter.h"
@@ -1184,6 +1185,12 @@ QString GameService::patchProgram(const QString& gameId) const
     return m_coreBridge && !gameId.isEmpty() ? m_coreBridge->ownProgramName(gameId) : QString();
 }
 
+bool GameService::patchProgramUndoes(const QString& gameId) const
+{
+    return m_coreBridge && !gameId.isEmpty()
+        && m_coreBridge->ownProgramRecipe(gameId) == LocalPackageManager::OwnProgram::WithUndo;
+}
+
 bool GameService::installFailedOnFolder(const QString& gameId) const
 {
     return m_folderRejected.contains(gameId);
@@ -1629,7 +1636,13 @@ QString GameService::getVariantSpecialDialog(const QString& gameId, const QStrin
 
 void GameService::cancelInstallation()
 {
-    if (m_installingGameId.isEmpty()) return;
+    if (m_installingGameId.isEmpty()) {
+        // An uninstall's undo program holds no install slot. Stopped, it
+        // leaves the patch on record, and "Kaldır" can run it again.
+        if (!m_undoGameId.isEmpty() && m_coreBridge)
+            m_coreBridge->cancelInstall();
+        return;
+    }
     // The slot stays taken until the install reports back. Clearing it here
     // dropped the cancelled install's result — so its rollback never ran —
     // and a cancel during the backup let the install start anyway.
@@ -1641,6 +1654,11 @@ void GameService::cancelInstallation()
 bool GameService::isInstalling(const QString& gameId) const
 {
     return !gameId.isEmpty() && gameId == m_installingGameId;
+}
+
+bool GameService::isUndoing(const QString& gameId) const
+{
+    return !gameId.isEmpty() && gameId == m_undoGameId;
 }
 
 QString GameService::installConsole(const QString& gameId) const
@@ -1767,7 +1785,11 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         }
     }
 
-    if (mode == InstallMode::Update && m_coreBridge->recipeWritesInPlace(gameId)) {
+    // A patch its own program installed is the same: run again over itself, a
+    // tool that backs up "originals" would back up the patched files. Its
+    // undo program takes the old version out first.
+    if (mode == InstallMode::Update
+        && (m_coreBridge->recipeWritesInPlace(gameId) || m_coreBridge->needsUndoPrograms(gameId))) {
         // In-place steps (patchBytes, forgeReimport, xdelta, vpatch) edit files
         // the installed version already edited: a patch finds nothing left to
         // replace, and the original is only in the first install's backup, which
@@ -1826,7 +1848,8 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     // The files the recipe says this game's folder has. A folder without one
     // of them is some other folder — a library, the folder next to the game —
     // and a patch's program handed it works on the wrong place.
-    const folderrules::Expectations expected = m_coreBridge->folderExpectations(gameId);
+    folderrules::Expectations expected = m_coreBridge->folderExpectations(gameId);
+    expected.requiredFiles = m_coreBridge->requiredFilesFor(gameId, variant, selectedOptions);
     const QString gameName = pkg->gameName;
 
     struct Preflight {
@@ -1870,10 +1893,24 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                     return;
                 }
                 qCWarning(lcGameService) << "Game folder" << installPath << "lacks" << pre.missing;
-                m_folderRejected.insert(gameId);
+                // The patch is in this folder already, so it is the game's:
+                // the files went missing (a game update, a store check), and
+                // the folder cannot be changed under an installed patch.
+                const bool installedHere = m_coreBridge->isPackageInstalled(gameId);
                 reportOperationFailure("install", gameId,
-                    QStringLiteral("game folder lacks required files: %1")
-                        .arg(pre.missing.join(QStringLiteral(", "))));
+                    QStringLiteral("%1 lacks required files: %2")
+                        .arg(installedHere ? QStringLiteral("installed game") : QStringLiteral("game folder"),
+                             pre.missing.join(QStringLiteral(", "))));
+                if (installedHere) {
+                    emit translationInstallCompleted(gameId, false,
+                        tr("Yamanın bu sürümünün oyunda bulunmasını beklediği dosyalar yok: %1\n"
+                           "Oyun güncellenmiş ya da dosyaları eksik olabilir. Kurulu yamaya "
+                           "dokunulmadı. Oyunu mağazasından güncelleyip dosyalarını doğrulayın, "
+                           "sonra tekrar deneyin.")
+                            .arg(pre.missing.mid(0, 4).join(QStringLiteral(", "))));
+                    return;
+                }
+                m_folderRejected.insert(gameId);
                 emit translationInstallCompleted(gameId, false,
                     tr("Bu klasör oyunun klasörü gibi görünmüyor:\n%1\n\n"
                        "Yamanın bulunmasını beklediği dosyalar burada yok: %2\n"
@@ -2243,8 +2280,24 @@ void GameService::uninstallTranslationNow(const QString& gameId)
     }
 
     // A patch its own program installed is taken out by its own program
-    // first; what we copied ourselves, if anything, comes after.
-    if (m_coreBridge->needsUndoPrograms(gameId)) {
+    // first; what we copied ourselves, if anything, comes after. Failed twice,
+    // it is skipped (see runUndoPrograms).
+    const bool undoSkipped = m_undoFailures.value(gameId) >= 2 && m_coreBridge->needsUndoPrograms(gameId);
+    if (undoSkipped) {
+        qCWarning(lcGameService) << "Undo program of" << gameId
+                                 << "failed twice - removing without it, the store repairs the rest";
+        reportOperationFailure("uninstall", gameId,
+            QStringLiteral("uninstall program skipped after %1 failures; store repair takes the rest")
+                .arg(m_undoFailures.value(gameId)));
+    }
+    if (m_coreBridge->needsUndoPrograms(gameId) && !undoSkipped) {
+        // One undo program at a time: they share the console, its answers
+        // and the cancel flag.
+        if (!m_undoGameId.isEmpty()) {
+            emit translationUninstalled(gameId, false,
+                tr("Başka bir oyunun yamasını kaldıran program çalışıyor. O bitince tekrar deneyin."));
+            return;
+        }
         runUndoPrograms(gameId, gamePath);
         return;
     }
@@ -2265,13 +2318,35 @@ void GameService::runUndoPrograms(const QString& gameId, const QString& gamePath
         watcher->deleteLater();
         m_undoGameId.clear();
         if (!r.ok) {
-            emit translationUninstalled(gameId, false, r.message);
+            // Refusing forever was a dead end, as on the restore path: a
+            // program gone from the package or renamed by a newer recipe, or
+            // one that fails on a game it already restored, kept the patch on
+            // record for good. Asked again after a second failure, the patch
+            // comes off without it and what it changed goes to the store's
+            // repair (translationReplacedOriginalFiles). A cancel or a
+            // declined prompt was the user's, and simply runs again.
+            if (r.stopped) {
+                emit translationUninstalled(gameId, false, r.message);
+                return;
+            }
+            const int failures = ++m_undoFailures[gameId];
+            qCWarning(lcGameService) << "Undo program failed for" << gameId << "- attempt" << failures;
+            emit translationUninstalled(gameId, false, r.message + QStringLiteral("\n\n")
+                + (failures < 2
+                       ? tr("Program yine çalışmazsa \"Kaldır\"a bir kez daha basın: launcher yamayı "
+                            "programsız kaldırır, programın değiştirdiği dosyalar için mağazanın "
+                            "dosya onarımını başlatır.")
+                       : tr("\"Kaldır\"a bir kez daha basarsanız yama programsız kaldırılır; "
+                            "programın değiştirdiği dosyalar için mağazanın dosya onarımı başlatılır.")));
             return;
         }
+        m_undoFailures.remove(gameId);
         // Exit 0 and the folder as it was: a "Kaldır" window closed unpressed,
         // or a patch already gone (the store's file check took it). Said once;
         // asked again, the record goes, since the program has nothing to undo.
         if (r.changedNothing && ++m_undoNoChange[gameId] < 2) {
+            reportOperationFailure("uninstall", gameId,
+                QStringLiteral("uninstall program changed nothing in the game (first press)"));
             emit translationUninstalled(gameId, false,
                 tr("Yamayı kaldıran program çalıştı ama oyunda hiçbir dosyayı değiştirmedi; "
                    "yama hâlâ kurulu olabilir.\n"
@@ -2406,8 +2481,14 @@ bool GameService::translationReplacedOriginalFiles(const QString& gameId)
     if (!info->replacedFiles.isEmpty()) return true;
     // vpatch, xdelta, forgeReimport and patchBytes rewrite a game file in
     // place and record it under this marker, not in replacedFiles.
-    for (const QString& rel : info->installedFiles)
+    // What a patch's own program changed counts as well when no program of
+    // its own takes it back: the recipe names none, or it failed twice.
+    const bool programUndoes = m_coreBridge->needsUndoPrograms(gameId)
+                               && m_undoFailures.value(gameId) < 2;
+    for (const QString& rel : info->installedFiles) {
         if (rel.startsWith(QLatin1String("_vpatch:"))) return true;
+        if (!programUndoes && rel.startsWith(QLatin1String(changescan::kMarker))) return true;
+    }
     return false;
 }
 
@@ -2631,6 +2712,20 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         return;
     }
 
+    // What the patch's own program changed before the failure is undone by
+    // its undo program, which only "Kaldır" runs. Restoring the backup and
+    // dropping the record here left those changes in the game with nothing
+    // on record to take them back (the no-backup branch above keeps it too).
+    if (m_coreBridge->needsUndoPrograms(gameId)) {
+        qCWarning(lcGameService) << "Install failed for" << gameId
+                                 << "after its program changed the game - left for Kaldır";
+        markInstalledIfRecorded(gameId);
+        emit translationInstallCompleted(gameId, false, originalError + QStringLiteral("\n\n")
+            + tr("Yamanın programı oyunda değişiklik yaptı. Geri almak için \"Kaldır\"a basın; "
+                 "aynı program yaptıklarını geri alır."));
+        return;
+    }
+
     qCWarning(lcGameService) << "Install failed for" << gameId
                               << "— rolling back via backup:" << originalError;
 
@@ -2771,6 +2866,14 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         retireBackups(gameId);
     if (success)
         markUninstalled(gameId);
+    // Off without its failing undo program, after a restore of what we
+    // copied: what the program changed goes to the store's repair, like an
+    // original the backup lacked. (With no backup uninstallWithStoreRepair
+    // has started it already.)
+    const bool repairProgram = success && m_undoFailures.value(gameId) >= 2
+                               && !m_storeRepairStarted.contains(gameId);
+    if (success) m_undoFailures.remove(gameId);
+    if (repairProgram) m_storeRepairStarted.insert(gameId);
 
     // Still on record after a failed uninstall means files could not be
     // deleted — most often because the game, or something holding its
@@ -2787,6 +2890,8 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
         : filesLeft ? tr("Yama tamamen kaldırılamadı: bazı dosyalar silinemedi. "
                          "Oyunu kapatıp tekrar deneyin.")
                     : tr("Yama kaldırılamadı"));
+    if (repairProgram)
+        repairGameFiles(gameId);
 }
 
 void GameService::recoverTranslation(const QString& gameId)

@@ -21,8 +21,9 @@ Card {
 
     required property var vm
 
-    readonly property bool _acceptsInput: programConsole.vm.isInstallingTranslation
-                                          && !programConsole.vm.isDownloading
+    readonly property bool _acceptsInput: (programConsole.vm.isInstallingTranslation
+                                           && !programConsole.vm.isDownloading)
+                                          || programConsole.vm.isUndoing
     property bool _copied: false
 
     function _send() {
@@ -162,6 +163,17 @@ Card {
                 // Empty: the key press a "Devam etmek için bir tuşa basın" waits for.
                 text: inputField.text === "" ? qsTr("Enter") : qsTr("Gönder")
                 onClicked: programConsole._send()
+            }
+
+            // An install stops from its progress pill; the undo an uninstall
+            // runs has none, and the patch stays installed when it stops.
+            AppButton {
+                visible: programConsole.vm.isUndoing
+                style: "gray"
+                icon: Icons.x
+                text: qsTr("Durdur")
+                toolTip: qsTr("Kaldırma programını durdur; yama kurulu kalır")
+                onClicked: GameService.cancelInstallation()
             }
         }
     }

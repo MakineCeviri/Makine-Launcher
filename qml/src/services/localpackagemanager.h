@@ -167,6 +167,12 @@ public:
     // the game files it edits in place. folderrules::pickRoot weighs a
     // user-picked folder against it.
     folderrules::Expectations folderExpectations(const QString& steamAppId) const;
+    // The "requires" files of the steps an install with this variant and these
+    // options runs. folderExpectations gathers every option's and variant's
+    // to recognise the folder; as a gate that refused a recipe whose Steam and
+    // GOG variants need different files on every folder.
+    QStringList requiredFilesFor(const QString& steamAppId, const QString& variant,
+                                 const QStringList& selectedOptions) const;
 
     // Whether any of this package's recipes rewrites a game file in place.
     bool recipeWritesInPlace(const QString& steamAppId) const;
@@ -185,6 +191,7 @@ public:
         bool ran = false;            // a program was started
         bool ok = true;              // every one exited 0
         bool changedNothing = false; // and the game folder is as it was before
+        bool stopped = false;        // not ok because the user cancelled or declined the prompt
         QString message;             // when not ok: what to tell the user
     };
     // Whether uninstall owes this patch its undo programs: the recipe names

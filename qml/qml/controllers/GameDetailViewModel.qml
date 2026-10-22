@@ -83,6 +83,10 @@ QtObject {
     property bool folderChecking: false
     // The patch's own installer program, "" when the launcher copies the patch
     property string patchProgram: ""
+    // ...and whether it also takes the patch out again
+    property bool patchUndoes: false
+    // An uninstall is running that program's undo (its console takes answers)
+    property bool isUndoing: false
     // The last install stopped because the folder is not the game's
     property bool installErrorOnFolder: false
 
@@ -133,6 +137,7 @@ QtObject {
         isInstallingTranslation = false; installProgress = 0; installStatus = ""
         installCompleted = false; installErrorMessage = ""; isDownloading = false
         installConsole = ""; folderChecking = false; patchProgram = ""; installErrorOnFolder = false
+        patchUndoes = false; isUndoing = false
         updateImpact = null; descriptionExpanded = false
     }
 
@@ -165,6 +170,8 @@ QtObject {
             installStatus = isDownloading ? qsTr("İndiriliyor...") : qsTr("Kuruluyor...")
         installConsole = id !== "" ? GameService.installConsole(id) : ""
         patchProgram = id !== "" ? GameService.patchProgram(id) : ""
+        patchUndoes = id !== "" && GameService.patchProgramUndoes(id)
+        isUndoing = id !== "" && GameService.isUndoing(id)
 
         // Set gameId after other props so listeners see complete state
         gameId = id

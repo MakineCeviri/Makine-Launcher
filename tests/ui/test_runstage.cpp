@@ -39,14 +39,19 @@ TEST(RunStage, HardCodedGameFolderReadsTheLaunchersFolder)
 
 TEST(RunStage, QuotedAndSpacedFormsToo)
 {
-    // set "X=…", set X= "…" (the shape a person writes by hand), a trailing "\".
-    for (const QByteArray line : {QByteArray("set \"OYUN=D:\\Games\\HEAVY RAIN\""),
-                                  QByteArray("set OYUN= \"D:\\Games\\HEAVY RAIN\""),
-                                  QByteArray("@set GAME_DIR=D:\\Games\\HEAVY RAIN\\")}) {
+    // set "X=…", set X= "…" (the shape a person writes by hand), set X="…", a
+    // trailing "\". A value that carried quotes keeps them: the script uses
+    // %X% unquoted, and the player's folder may have spaces.
+    const QList<QPair<QByteArray, QByteArray>> forms = {
+        {"set \"OYUN=D:\\Games\\HEAVY RAIN\"", "set \"OYUN=%MAKINE_OYUN%\""},
+        {"set OYUN= \"D:\\Games\\HEAVY RAIN\"", "set OYUN=\"%MAKINE_OYUN%\""},
+        {"set OYUN=\"D:\\Games\\HEAVY RAIN\"", "set OYUN=\"%MAKINE_OYUN%\""},
+        {"@set GAME_DIR=D:\\Games\\HEAVY RAIN\\", "@set \"GAME_DIR=%MAKINE_OYUN%\""},
+    };
+    for (const auto& [line, want] : forms) {
         const Rewrite r = rewriteScript(line + "\r\n", QStringLiteral("Heavy Rain"));
         ASSERT_EQ(r.variables.size(), 1) << line.constData();
-        EXPECT_TRUE(r.text.contains("=%MAKINE_OYUN%\"")) << r.text.constData();
-        EXPECT_FALSE(r.text.contains("Games\\HEAVY")) << r.text.constData();
+        EXPECT_EQ(r.text, want + "\r\n") << line.constData();
     }
 }
 
@@ -64,9 +69,15 @@ TEST(RunStage, FolderWrittenOutElsewhereIsReplacedToo)
 
 TEST(RunStage, StoreLayoutNamesTheFolderWhateverItIsCalled)
 {
-    // The game's name does not have to match: steamapps\common\<x> is a game.
+    // For a variable that says it holds the game folder the name does not
+    // have to match: steamapps\common\<x> is a game.
     EXPECT_EQ(gameFolderDepth(QStringLiteral("D:\\SteamLibrary\\steamapps\\common\\HR\\Resources"),
-                              QStringLiteral("Heavy Rain")), 5);
+                              QStringLiteral("Heavy Rain"), true), 5);
+    // Anywhere else it does: the store keeps other things there too.
+    EXPECT_EQ(gameFolderDepth(QStringLiteral("D:\\SteamLibrary\\steamapps\\common\\HR\\Resources"),
+                              QStringLiteral("Heavy Rain")), 0);
+    EXPECT_EQ(gameFolderDepth(QStringLiteral("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Steamworks Shared\\_CommonRedist"),
+                              QStringLiteral("Heavy Rain")), 0);
     EXPECT_EQ(gameFolderDepth(QStringLiteral("C:\\Program Files\\Epic Games\\HeavyRain"),
                               QStringLiteral("Heavy Rain")), 4);
     EXPECT_EQ(gameFolderDepth(QStringLiteral("E:\\Oyunlar\\Heavy Rain\\Resources"),
@@ -85,6 +96,16 @@ TEST(RunStage, OtherFoldersStayAsTheyAre)
         "echo D:\\Games\r\n";
     const Rewrite r = rewriteScript(bat, QStringLiteral("Heavy Rain"));
     EXPECT_TRUE(r.variables.isEmpty());
+    EXPECT_TRUE(r.folders.isEmpty());
+    EXPECT_EQ(r.text, bat);
+}
+
+TEST(RunStage, StoreFoldersOfOtherThingsStayAsTheyAre)
+{
+    const QByteArray bat =
+        "set REDIST=C:\\Program Files (x86)\\Steam\\steamapps\\common\\Steamworks Shared\\_CommonRedist\r\n"
+        "\"C:\\Program Files\\Epic Games\\Launcher\\Portal\\Binaries\\x.exe\"\r\n";
+    const Rewrite r = rewriteScript(bat, QStringLiteral("Heavy Rain"));
     EXPECT_TRUE(r.folders.isEmpty());
     EXPECT_EQ(r.text, bat);
 }

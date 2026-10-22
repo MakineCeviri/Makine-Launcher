@@ -26,7 +26,7 @@ Item {
     signal allGamesRequested()
     signal libraryRequested()
 
-    function scrollToTop() { flick.contentY = 0 }
+    function scrollToTop() { helpFlick.contentY = 0 }
 
     // ── Small parts ──────────────────────────────────────────────────────────
     component SectionTitle: Text {
@@ -265,17 +265,22 @@ Item {
 
     // ── Page ─────────────────────────────────────────────────────────────────
     Flickable {
-        id: flick
+        id: helpFlick
         anchors.fill: parent
         contentHeight: page.implicitHeight + 48
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: StyledScrollBar {}
+        // Beside the page, not in it: TopDissolve masks the page's top while
+        // it is scrolled, and the bar would fade there with it.
+        ScrollBar.vertical: StyledScrollBar {
+            parent: helpFlick.parent
+            anchors.top: helpFlick.top; anchors.right: helpFlick.right; anchors.bottom: helpFlick.bottom
+        }
 
         ColumnLayout {
             id: page
-            width: Math.min(flick.width - Dimensions.pageMargin * 2, Dimensions.contentMaxWidth)
-            x: (flick.width - width) / 2
+            width: Math.min(helpFlick.width - Dimensions.pageMargin * 2, Dimensions.contentMaxWidth)
+            x: (helpFlick.width - width) / 2
             spacing: 16
 
             PageHeader {
@@ -384,6 +389,10 @@ Item {
                     answer: qsTr("Bazı oyunlarda dili oyunun kendi ayarlarından seçmek gerekir; launcher kurulum bittiğinde bunu söyler. Söylemediyse oyunun sayfasında yamanın klasörünü kontrol et: \"Yama oyunun klasörüne gitmemiş\" uyarısı görüyorsan \"Yamayı taşı\"ya bas. Oyun yakın zamanda güncellendiyse yamanın onarılması gerekebilir.")
                 }
                 Faq {
+                    question: qsTr("Yama kendi programını açtı, ne yapmalıyım?")
+                    answer: qsTr("Bazı yamaları çevirmenin kendi programı kurar. Launcher önce oyunun klasörünü doğrular, programı o klasörle çalıştırır; programın yazdıkları oyunun sayfasında görünür, bir şey sorarsa yanıtını oradan yaz. Program kendi penceresini açtıysa kurulumu orada yapıp pencereyi kapat. Kaldırırken aynı programın geri alma komutu çalışır; o da çalışmazsa \"Kaldır\"a üçüncü kez basınca yama programsız kaldırılır ve mağazanın dosya onarımı başlar.")
+                }
+                Faq {
                     question: qsTr("Neden yönetici izni istendi?")
                     answer: qsTr("Oyun C:\\Program Files gibi Windows'un koruduğu bir klasördeyse oraya dosya yazmak için izin gerekir. İzin yalnızca o oyunun klasörü için kullanılır; vermezsen kurulum yapılmaz, oyuna dokunulmaz.")
                 }
@@ -463,7 +472,7 @@ Item {
 
     // A scrolled page sinks into the background under the top strip
     TopDissolve {
-        flick: flick
+        flick: helpFlick
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
