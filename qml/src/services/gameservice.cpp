@@ -103,6 +103,11 @@ GameService::GameService(QObject *parent)
 
 void GameService::initialize()
 {
+    // A minimized start initializes without a first frame, and the first frame
+    // still calls this once the window is opened from the tray. A second pass
+    // would connect every CoreBridge signal twice.
+    if (m_initialized) return;
+    m_initialized = true;
     CrashReporter::addBreadcrumb("game", "GameService::initialize");
     setupCoreBridge();
     loadFolderOverrides();

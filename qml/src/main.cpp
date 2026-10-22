@@ -1792,6 +1792,15 @@ int main(int argc, char *argv[])
     if (startMinimized) {
         if (auto* window = qobject_cast<QQuickWindow*>(rootObject))
             window->setVisible(false);
+        // A hidden window renders no frame, so the first-frame callback that
+        // closes the splash and loads the library never ran: after sign-in the
+        // splash stayed on screen and the library stayed unloaded until the
+        // user opened the window from the tray.
+#ifdef Q_OS_WIN
+        splash.close();
+#endif
+        gameService->initialize();
+        logToFile(QStringLiteral("Started minimized: splash closed, library loading"));
     }
 
     scheduleMemoryTrim();
