@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -39,80 +40,109 @@ ColumnLayout {
 
     visible: ex.mode === "download" || ex.mode === "installed"
              || ex.mode === "update" || ex.mode === "external"
-    spacing: Dimensions.spacingMD
+    spacing: 12
 
-    component StepPill: Rectangle {
-        id: sp
+    component Step: Card {
+        id: step
+        property int number: 1
         property string glyph: ""
-        property string text: ""
-        implicitWidth: spRow.implicitWidth + 24
-        implicitHeight: 32
-        radius: 16
-        color: Theme.textPrimary04
-        border.width: 1
-        border.color: Theme.textPrimary08
-        Row {
-            id: spRow
-            anchors.centerIn: parent
-            spacing: Dimensions.spacingSM
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: sp.glyph
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 12
-                color: Theme.accentLight
+        property string title: ""
+        property string detail: ""
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        implicitHeight: stepCol.implicitHeight + 28
+        radius: Dimensions.radiusLG
+
+        ColumnLayout {
+            id: stepCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 14
+            spacing: 8
+
+            RowLayout {
+                spacing: 8
+                IconTile { size: 26; glyph: step.glyph; tint: Theme.primary; solid: false }
+                Text {
+                    textFormat: Text.PlainText
+                    text: qsTr("%1. adım").arg(step.number)
+                    font.pixelSize: Dimensions.caption1
+                    font.weight: Font.DemiBold
+                    color: Theme.textMuted
+                }
             }
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                Layout.fillWidth: true
                 textFormat: Text.PlainText
-                text: sp.text
-                font.pixelSize: Dimensions.fontSM
-                font.weight: Font.Medium
-                color: Theme.textSecondary
+                text: step.title
+                wrapMode: Text.WordWrap
+                font.pixelSize: Dimensions.callout
+                font.weight: Font.DemiBold
+                color: Theme.textPrimary
+            }
+            Text {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: step.detail
+                wrapMode: Text.WordWrap
+                font.pixelSize: Dimensions.footnote
+                color: Theme.textMuted
             }
         }
-    }
-    component Arrow: Text {
-        textFormat: Text.PlainText
-        text: "\uE76C"
-        font.family: "Segoe MDL2 Assets"
-        font.pixelSize: 9
-        color: Theme.textMuted
     }
 
     // Before an install: the three steps
-    Flow {
-        Layout.alignment: Qt.AlignHCenter
-        Layout.maximumWidth: ex.width
+    RowLayout {
+        Layout.fillWidth: true
         visible: ex.mode === "download"
-        spacing: Dimensions.spacingMD
+        spacing: 12
 
-        StepPill {
-            glyph: "\uE896"
-            text: ex._size !== "" ? qsTr("İndirilir ve doğrulanır (%1)").arg(ex._size)
-                                  : qsTr("İndirilir ve doğrulanır")
+        Step {
+            number: 1
+            glyph: Icons.cloudDownload
+            title: ex._size !== "" ? qsTr("İndirilir ve doğrulanır · %1").arg(ex._size)
+                                   : qsTr("İndirilir ve doğrulanır")
+            detail: qsTr("Paket makineceviri.org'dan gelir; bozuk ya da değiştirilmiş inerse kurulmaz.")
         }
-        Arrow { height: 32; verticalAlignment: Text.AlignVCenter }
-        StepPill { glyph: "\uE8C8"; text: qsTr("Değişecek oyun dosyalarının yedeği alınır") }
-        Arrow { height: 32; verticalAlignment: Text.AlignVCenter }
-        StepPill { glyph: "\uE73E"; text: qsTr("Türkçe dosyalar oyuna kurulur") }
+        Step {
+            number: 2
+            glyph: Icons.archive
+            title: qsTr("Değişecek dosyaların yedeği alınır")
+            detail: qsTr("Yamanın üzerine yazacağı oyun dosyaları önce bir kenara kopyalanır.")
+        }
+        Step {
+            number: 3
+            glyph: Icons.languages
+            title: qsTr("Türkçe dosyalar oyuna kurulur")
+            detail: qsTr("Kaldırırsan yedek geri yüklenir; kayıtlarına ve ayarlarına dokunulmaz.")
+        }
     }
 
-    Text {
+    RowLayout {
         Layout.fillWidth: true
-        horizontalAlignment: Text.AlignHCenter
-        textFormat: Text.PlainText
-        wrapMode: Text.WordWrap
-        lineHeight: 1.35
-        font.pixelSize: Dimensions.fontSM
-        color: Theme.textMuted
-        text: ex.mode === "download"
-              ? qsTr("Kaldırırsan yedek geri yüklenir; oyunun kayıtlarına ve ayarlarına dokunulmaz.")
-            : ex.mode === "installed"
-              ? qsTr("Yamayı kaldırmak için yukarıdaki düğmeye bas: yama silinir, yedeklenen orijinal dosyalar geri yüklenir.")
-            : ex.mode === "update"
-              ? qsTr("Yamanın yeni bir sürümü yayımlandı. Düğmeye basınca yeni sürüm indirilip kurulur.")
-              : qsTr("Bu oyunun Türkçe yaması başka bir çeviri ekibinin sitesinde yayımlanıyor. Düğme seni o sayfaya götürür; indirmeyi ve kurulumu o site anlatır.")
+        visible: ex.mode !== "download"
+        spacing: 10
+
+        Icon {
+            Layout.alignment: Qt.AlignTop
+            Layout.topMargin: 1
+            glyph: ex.mode === "external" ? Icons.externalLink : Icons.info
+            size: 16
+            color: Theme.textMuted
+        }
+        Text {
+            Layout.fillWidth: true
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            lineHeight: 1.2
+            font.pixelSize: Dimensions.callout
+            color: Theme.textMuted
+            text: ex.mode === "installed"
+                  ? qsTr("Yamayı kaldırmak için \"Kaldır\"a bas: yama silinir, yedeklenen orijinal dosyalar geri yüklenir.")
+                : ex.mode === "update"
+                  ? qsTr("Yamanın yeni bir sürümü yayımlandı. \"Yamayı Güncelle\" yeni sürümü indirip eskisinin yerine kurar.")
+                  : qsTr("Bu oyunun Türkçe yaması başka bir çeviri ekibinin sitesinde yayımlanıyor. Düğme seni o sayfaya götürür; indirmeyi ve kurulumu o site anlatır.")
+        }
     }
 }

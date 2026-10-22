@@ -7,6 +7,7 @@ import QtQuick.Layouts
 import QtQuick.Window
 import MakineLauncher 1.0
 import "screens/onboarding"
+import "components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -15,7 +16,7 @@ pragma ComponentBehavior: Bound
  * 3 steps: WelcomeStep (what this is) → GamesStep (which of your games have
  * a Turkish patch) → PreferencesStep (accent, watcher, autostart, reports).
  * Enter runs the current step's main action.
- * Background: Premium neon gradient (preserved pixel-perfect).
+ * Background: the brand colours drifting slowly behind a near-black stage.
  */
 Item {
     id: root
@@ -34,11 +35,11 @@ Item {
     property bool animationsEnabled: true
 
     // =========================================================================
-    // NEON GRADIENT BACKGROUND (from LoginScreen — DO NOT MODIFY)
+    // BACKGROUND — brand gradient strip, dimmed
     // =========================================================================
     Rectangle {
         anchors.fill: parent
-        color: "#0d1117"
+        color: "#0A0A0C"
         clip: true
     }
 
@@ -49,6 +50,8 @@ Item {
         height: root.height
         source: "qrc:/qt/qml/MakineLauncher/resources/images/onboarding_gradient.png"
         fillMode: Image.Stretch
+        // A glow of the brand colours, not a wash of them
+        opacity: 0.55
 
         SequentialAnimation on x {
             running: root.visible && root.animationsEnabled
@@ -68,7 +71,7 @@ Item {
     }
 
     // =========================================================================
-    // WINDOW DRAG AREA — stops before window buttons
+    // WINDOW DRAG AREA — stops before the window buttons (Main.qml's)
     // =========================================================================
     Item {
         anchors.left: parent.left
@@ -80,76 +83,6 @@ Item {
         DragHandler {
             target: null
             onActiveChanged: if (active) root.Window.window?.startSystemMove()
-        }
-    }
-
-    // =========================================================================
-    // WINDOW CONTROLS — tray, minimize, close
-    // =========================================================================
-    Row {
-        anchors.right: parent.right
-        anchors.top: parent.top
-        z: 10
-
-        // Tray — disabled during onboarding (system tray not yet initialized)
-        Rectangle {
-            width: 46; height: 32
-            visible: false
-            color: trayMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
-            Text {
-                anchors.centerIn: parent
-                text: "\uE70D"
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 11
-                color: Qt.rgba(1, 1, 1, trayMa.containsMouse ? 0.7 : 0.35)
-            }
-            MouseArea {
-                id: trayMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.ArrowCursor
-                onClicked: root.Window.window?.hide()
-            }
-        }
-
-        // Minimize
-        Rectangle {
-            width: 46; height: 32
-            color: minMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
-            Text {
-                anchors.centerIn: parent
-                text: "\uE921"
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 11
-                color: Qt.rgba(1, 1, 1, minMa.containsMouse ? 0.7 : 0.35)
-            }
-            MouseArea {
-                id: minMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.ArrowCursor
-                onClicked: root.Window.window?.showMinimized()
-            }
-        }
-
-        // Close
-        Rectangle {
-            width: 46; height: 32
-            color: closeMa.containsMouse ? "#E81123" : "transparent"
-            Text {
-                anchors.centerIn: parent
-                text: "\uE8BB"
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 11
-                color: closeMa.containsMouse ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.35)
-            }
-            MouseArea {
-                id: closeMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.ArrowCursor
-                onClicked: root.Window.window?.close()
-            }
         }
     }
 
@@ -267,13 +200,11 @@ Item {
                         font.weight: Font.DemiBold
                         color: stepItem.active ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.5)
                     }
-                    Text {
+                    Icon {
                         anchors.centerIn: parent
                         visible: stepItem.done
-                        textFormat: Text.PlainText
-                        text: "\uE73E"
-                        font.family: "Segoe MDL2 Assets"
-                        font.pixelSize: 10
+                        glyph: Icons.check
+                        size: 12
                         color: Theme.success
                     }
                 }

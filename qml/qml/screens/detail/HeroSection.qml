@@ -6,12 +6,19 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
-Item {
+/**
+ * HeroSection — the top of a game's page, Apple TV style: the game's art on
+ * a large rounded card with its logo, what it is and the patch's action on
+ * it; under the card what that action will do, where the game is, what went
+ * wrong (if anything), the game's facts, the patch notes and who made it.
+ */
+ColumnLayout {
     id: heroRoot
-    Layout.fillWidth: true
-    Layout.preferredHeight: mainColumn.y + mainColumn.height + Dimensions.spacingLG
+    // As wide as its card; centred on the page
+    Layout.alignment: Qt.AlignHCenter
 
     // Single ViewModel reference — all state accessed via vm
     required property var vm
@@ -25,85 +32,42 @@ Item {
         folderBar.inspect(url, "change")
     }
 
-    // =========================================================================
-    // STAGGERED ENTRY ANIMATION STATE
-    // =========================================================================
-
-    property real _heroOp: 0
-    property real _titleOp: 0;  property real _titleTY: 18
-    property real _actionOp: 0; property real _actionTY: 18
-    property real _tilesOp: 0;  property real _tilesTY: 18
-    property real _aboutOp: 0;  property real _aboutTY: 18
-    property real _contribOp: 0; property real _contribTY: 18
+    // A new game fades in rather than swapping under the pointer
+    function replayEntryAnim() {
+        entry.stop()
+        if (!Dimensions.animNormal) { heroRoot.opacity = 1; return }
+        heroRoot.opacity = 0
+        entry.start()
+    }
+    NumberAnimation {
+        id: entry
+        target: heroRoot
+        property: "opacity"
+        from: 0; to: 1
+        duration: Dimensions.animSlow
+        easing.type: Easing.OutCubic
+    }
 
     // Cached binding — vm.updateImpact.level evaluated once, not per-consumer
     readonly property string _impactLevel: vm.updateImpact ? vm.updateImpact.level : ""
-
-    function replayEntryAnim() {
-        _entrySeq.stop()
-        if (!Dimensions.animNormal) {
-            _heroOp = 1; _titleOp = 1; _titleTY = 0
-            _actionOp = 1; _actionTY = 0; _tilesOp = 1; _tilesTY = 0
-            _aboutOp = 1; _aboutTY = 0; _contribOp = 1; _contribTY = 0
-            return
-        }
-        _heroOp = 0; _titleOp = 0; _titleTY = 18
-        _actionOp = 0; _actionTY = 18; _tilesOp = 0; _tilesTY = 18
-        _aboutOp = 0; _aboutTY = 18; _contribOp = 0; _contribTY = 18
-        _entrySeq.start()
+    readonly property string _year: {
+        const m = /(\d{4})/.exec(heroRoot.vm.releaseDate || "")
+        return m ? m[1] : ""
     }
-
-    ParallelAnimation {
-        id: _entrySeq
-
-        // Hero banner: 0ms delay, 300ms fade
-        NumberAnimation { target: heroRoot; property: "_heroOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
-
-        // Title zone: 120ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 120 }
-            ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_titleOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_titleTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
-            }
-        }
-
-        // Action button: 240ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 240 }
-            ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_actionOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_actionTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
-            }
-        }
-
-        // Info tiles: 360ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 360 }
-            ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_tilesOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_tilesTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
-            }
-        }
-
-        // About: 480ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 480 }
-            ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_aboutOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_aboutTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
-            }
-        }
-
-        // Contributors: 600ms delay
-        SequentialAnimation {
-            PauseAnimation { duration: 600 }
-            ParallelAnimation {
-                NumberAnimation { target: heroRoot; property: "_contribOp"; to: 1; duration: 300; easing.type: Easing.OutCubic }
-                NumberAnimation { target: heroRoot; property: "_contribTY"; to: 0; duration: 300; easing.type: Easing.OutCubic }
-            }
-        }
+    readonly property string _genre: {
+        const g = heroRoot.vm.genresText || ""
+        const comma = g.indexOf(",")
+        return comma > 0 ? g.substring(0, comma).trim() : g
     }
+    readonly property string _meta: [heroRoot.vm.developersText, heroRoot._genre, heroRoot._year]
+                                    .filter(s => s && s !== "").join("  ·  ")
+    // From the page, not from this layout: the layout's own width follows its
+    // children's maximum, and a width derived from it shrank on every pass
+    // (a layout loop that froze the page).
+    readonly property real _pageWidth: heroRoot.parent ? heroRoot.parent.width : 0
+    readonly property real _width: Math.max(0, Math.min(_pageWidth - Dimensions.pageMargin * 2, 1240))
+
+    spacing: 26
 
     // Reset CDN fallback flags when game changes
     Connections {
@@ -116,116 +80,169 @@ Item {
     }
 
     // =========================================================================
-    // HERO BANNER (full width, 280px, multi-stop gradient fade)
+    // THE CARD — art, identity, action
     // =========================================================================
 
-    Rectangle {
-        id: heroBanner
-        width: parent.width
-        height: 280
-        color: "transparent"
-        opacity: heroRoot._heroOp
+    Item {
+        id: card
+        Layout.alignment: Qt.AlignHCenter
+        Layout.topMargin: 52
+        Layout.fillWidth: false
+        Layout.preferredWidth: heroRoot._width
+        Layout.preferredHeight: Math.round(Math.max(320, Math.min(470, heroRoot._width * 0.44)))
 
-        Image {
-            id: bannerImg
+        RectangularShadow {
+            anchors.fill: art
+            radius: Dimensions.radiusHero
+            offset.y: 10
+            blur: 34
+            spread: -8
+            color: Qt.rgba(0, 0, 0, Theme.darkMode ? 0.55 : 0.2)
+        }
+
+        Item {
+            id: art
             anchors.fill: parent
-            property bool _useCdnFallback: false
-            source: _useCdnFallback
-                ? "https://cdn.makineceviri.org/assets/banners/" + heroRoot.vm.steamAppId + ".jpg"
-                : heroRoot.vm.heroUrl
-            fillMode: Image.PreserveAspectCrop
-            verticalAlignment: Image.AlignTop
-            sourceSize: Qt.size(width, height)
-            asynchronous: true
-            mipmap: true
-            opacity: status === Image.Ready ? 1.0 : 0
-            Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-            onStatusChanged: {
-                if (status === Image.Error && !_useCdnFallback && heroRoot.vm.steamAppId !== "")
-                    _useCdnFallback = true
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: artMask
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+            }
+
+            Rectangle { anchors.fill: parent; color: "#1C1C1E" }
+
+            Image {
+                id: bannerImg
+                anchors.fill: parent
+                property bool _useCdnFallback: false
+                source: _useCdnFallback
+                    ? "https://cdn.makineceviri.org/assets/banners/" + heroRoot.vm.steamAppId + ".jpg"
+                    : heroRoot.vm.heroUrl
+                fillMode: Image.PreserveAspectCrop
+                verticalAlignment: Image.AlignTop
+                sourceSize.width: 1600
+                asynchronous: true
+                opacity: status === Image.Ready ? 1.0 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                onStatusChanged: {
+                    if (status === Image.Error && !_useCdnFallback && heroRoot.vm.steamAppId !== "")
+                        _useCdnFallback = true
+                }
+            }
+
+            // Legibility: a dark foot and a dark left side for the white text
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.25; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.82) }
+                }
+            }
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.5) }
+                    GradientStop { position: 0.6; color: "transparent" }
+                }
             }
         }
 
-        // Top vignette — subtle darkening for contrast
+        Item {
+            id: artMask
+            anchors.fill: parent
+            visible: false
+            layer.enabled: true
+            Rectangle { anchors.fill: parent; radius: Dimensions.radiusHero; color: "white" }
+        }
         Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right
+            anchors.fill: parent
+            radius: Dimensions.radiusHero
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, Theme.darkMode ? 0.08 : 0)
+        }
+
+        // Badges over the art, top left: what the user must know first
+        Row {
+            anchors.left: parent.left
             anchors.top: parent.top
-            height: 80
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.3) }
-                GradientStop { position: 1.0; color: "transparent" }
+            anchors.margins: 18
+            spacing: 8
+
+            StatusBadge {
+                onArt: true
+                visible: !heroRoot.vm.isGameInstalled && heroRoot.vm.hasTranslation
+                         && heroRoot.vm.externalUrl === ""
+                tint: "#FF9F0A"
+                text: qsTr("Bilgisayarında bulunamadı")
+            }
+            StatusBadge {
+                onArt: true
+                visible: heroRoot._impactLevel === "broken"
+                tint: "#FF453A"
+                text: qsTr("Oyun güncellendi · yama bozuldu")
+            }
+            StatusBadge {
+                onArt: true
+                visible: heroRoot._impactLevel === "lost"
+                tint: "#FF9F0A"
+                text: qsTr("Yama dosyaları eksik")
+            }
+            StatusBadge {
+                onArt: true
+                visible: heroRoot.vm.isEditorsPick
+                tint: "#FFD60A"
+                text: qsTr("Editörün seçimi")
             }
         }
 
-        // Bottom gradient fade — multi-stop for smooth transition
-        Rectangle {
-            anchors.left: parent.left; anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 220
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: Theme.withAlpha(Theme.bgPrimary, 0.6) }
-                GradientStop { position: 1.0; color: Theme.bgPrimary }
-            }
-        }
-    }
-
-    // =========================================================================
-    // MAIN CONTENT COLUMN (overlaps hero by 80px)
-    // =========================================================================
-
-    ColumnLayout {
-        id: mainColumn
-        anchors.top: heroBanner.bottom
-        anchors.topMargin: -100
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(parent.width - Dimensions.marginXL * 2, Dimensions.contentMaxWidth)
-        spacing: Dimensions.spacingSection
-
-        // =================================================================
-        // TITLE ZONE — centered, Apple TV+ style
-        // =================================================================
-
+        // Identity and action, bottom left
         ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Dimensions.spacingMD
-            opacity: heroRoot._titleOp
-            transform: Translate { y: heroRoot._titleTY }
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: 32
+            anchors.rightMargin: 32
+            anchors.bottomMargin: 28
+            spacing: 10
 
-            // Game identity — title as placeholder, logo replaces when loaded
-            // Logo sizing: 10% of window width, clamped 60–140px, proportional
+            // Logo when Steam has one, the name otherwise
             Item {
                 id: gameIdentity
                 Layout.fillWidth: true
-
-                readonly property real _clampedH: Math.max(60, Math.min(140, heroRoot.width * 0.10))
-
+                readonly property real _maxH: Math.max(64, Math.min(120, card.height * 0.26))
                 Layout.preferredHeight: gameLogo.ready
-                    ? Math.min(width * gameLogo._aspect, _clampedH)
+                    ? Math.min(_maxH, Math.min(width * 0.5, 460) * gameLogo._aspect)
                     : gameTitle.implicitHeight
 
                 Text {
                     id: gameTitle
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
                     visible: !gameLogo.ready
                     textFormat: Text.PlainText
                     text: heroRoot.vm.gameName
-                    font.pixelSize: Dimensions.fontBanner
+                    font.family: Dimensions.fontDisplay
+                    font.pixelSize: card.height > 380 ? 40 : 32
                     font.weight: Font.Bold
                     font.letterSpacing: -0.8
-                    color: Theme.textPrimary
+                    lineHeight: 1.02
+                    color: "#FFFFFF"
                     wrapMode: Text.WordWrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
-                    horizontalAlignment: Text.AlignHCenter
-                    opacity: gameLogo.ready ? 0 : 1
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
 
                 Image {
                     id: gameLogo
-                    anchors.fill: parent
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    height: parent.height
+                    width: Math.min(parent.width * 0.5, 460)
                     property real _aspect: 0
                     property bool ready: _aspect > 0
                     property bool _useCdnFallback: false
@@ -242,308 +259,186 @@ Item {
                     asynchronous: true
                     mipmap: true
                     fillMode: Image.PreserveAspectFit
-                    horizontalAlignment: Image.AlignHCenter
-                    sourceSize.width: 500
-                    opacity: ready ? 1 : 0
+                    horizontalAlignment: Image.AlignLeft
+                    verticalAlignment: Image.AlignBottom
+                    sourceSize.width: 600
                     layer.enabled: ready
-                    layer.smooth: false
                     layer.effect: MultiEffect {
                         shadowEnabled: true
-                        shadowColor: "#ffffff"
-                        shadowBlur: 0.4
-                        shadowVerticalOffset: 0
+                        shadowColor: "#000000"
+                        shadowBlur: 0.6
+                        shadowOpacity: 0.55
+                        shadowVerticalOffset: 2
                         shadowHorizontalOffset: 0
-                        shadowOpacity: 0.5
-                        brightness: 0.15
                     }
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
                 }
             }
 
-            // Developer name — centered
             Text {
-                textFormat: Text.PlainText
                 Layout.fillWidth: true
-                visible: heroRoot.vm.developersText !== ""
-                text: heroRoot.vm.developersText
-                font.pixelSize: Dimensions.fontMD
-                font.weight: Font.Medium
-                color: Theme.textMuted
+                visible: heroRoot._meta !== ""
+                textFormat: Text.PlainText
+                text: heroRoot._meta
                 elide: Text.ElideRight
-                maximumLineCount: 1
-                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: Dimensions.callout
+                font.weight: Font.Medium
+                color: Qt.rgba(1, 1, 1, 0.78)
             }
 
-            // Editor's pick badge — centered
-            Item {
-                Layout.fillWidth: true
-                Layout.preferredHeight: editorsPill.height
-                visible: heroRoot.vm.isEditorsPick
-
-                Rectangle {
-                    id: editorsPill
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: editorsPickContent.width + 20
-                    height: 24
-                    radius: Dimensions.radiusFull
-                    color: Theme.warning12
-                    border.color: Theme.warning25; border.width: 1
-
-                    Row {
-                        id: editorsPickContent
-                        anchors.centerIn: parent; spacing: Dimensions.spacingXS
-                        Text {
-                            textFormat: Text.PlainText; text: "\u2B50"
-                            font.pixelSize: Dimensions.fontCaption
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            textFormat: Text.PlainText
-                            text: qsTr("Editörün Seçimi")
-                            font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
-                            color: Theme.warning
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
-            }
-
-            // Editor's note — centered
             Text {
-                textFormat: Text.PlainText
                 Layout.fillWidth: true
+                Layout.maximumWidth: 640
                 visible: heroRoot.vm.isEditorsPick && heroRoot.vm.editorsNote !== ""
-                text: "\u201C" + heroRoot.vm.editorsNote + "\u201D"
-                font.pixelSize: Dimensions.fontSM
+                textFormat: Text.PlainText
+                text: "“" + heroRoot.vm.editorsNote + "”"
+                font.pixelSize: Dimensions.callout
                 font.italic: true
-                color: Theme.textSecondary
+                color: Qt.rgba(1, 1, 1, 0.75)
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
-                horizontalAlignment: Text.AlignHCenter
-                opacity: 0.8
+            }
+
+            TranslationActionButton {
+                id: actionButton
+                Layout.topMargin: 8
+                vm: heroRoot.vm
+                onLocateClicked: folderBar.pick("install")
+                onTranslateClicked: heroRoot.translateClicked()
+                onUpdateClicked: heroRoot.updateClicked()
+                onUninstallClicked: heroRoot.uninstallClicked()
+                // "lost" = patch files gone from disk; a store verify cannot
+                // bring them back, a reinstall does (same as UpdateBanner).
+                onRepairClicked: GameService.recoverTranslation(heroRoot.vm.gameId)
+            }
+
+            // No Turkish patch for a game added by hand
+            StatusBadge {
+                Layout.topMargin: 6
+                onArt: true
+                visible: heroRoot.vm.isManualGame && !heroRoot.vm.hasTranslation
+                tint: "#AEAEB2"
+                text: qsTr("Bu oyun için henüz Türkçe yama yok")
             }
         }
+    }
 
-        // =================================================================
-        // BADGE ROW (broken / lost warnings) — centered
-        // =================================================================
+    // =========================================================================
+    // UNDER THE CARD
+    // =========================================================================
 
-        Row {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: Dimensions.spacingMD
-            opacity: heroRoot._titleOp
-            visible: heroRoot._impactLevel === "broken" || heroRoot._impactLevel === "lost"
+    ColumnLayout {
+        Layout.alignment: Qt.AlignHCenter
+        // Its children fill it; it must not fill the page in turn.
+        Layout.fillWidth: false
+        Layout.preferredWidth: heroRoot._width
+        spacing: 18
 
-            Rectangle {
-                visible: heroRoot._impactLevel === "broken"
-                width: brokenRow.width + 20; height: 26
-                radius: Dimensions.radiusFull
-                color: Theme.error12
-                border.color: Theme.error25; border.width: 1
-
-                Row {
-                    id: brokenRow
-                    anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                    Text {
-                        textFormat: Text.PlainText; text: "\u26A0"
-                        font.pixelSize: Dimensions.fontCaption
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Güncelleme Gerekli")
-                        font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
-                        color: Theme.error
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
-
-            Rectangle {
-                visible: heroRoot._impactLevel === "lost"
-                width: lostRow.width + 20; height: 26
-                radius: Dimensions.radiusFull
-                color: Theme.warning12
-                border.color: Theme.warning25; border.width: 1
-
-                Row {
-                    id: lostRow
-                    anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                    Text {
-                        textFormat: Text.PlainText; text: "\u26A0"
-                        font.pixelSize: Dimensions.fontCaption
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        textFormat: Text.PlainText
-                        text: qsTr("Dosyalar Eksik")
-                        font.pixelSize: Dimensions.fontCaption; font.weight: Font.DemiBold
-                        color: Theme.warning
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
-        }
-
-        // =================================================================
-        // ACTION BUTTON (right under title when available)
-        // =================================================================
-
-        Item {
+        // What the button above is about to do
+        InstallExplainer {
             Layout.fillWidth: true
-            visible: heroRoot.vm.hasTranslation && (heroRoot.vm.isGameInstalled || actionButton._locate)
-            implicitHeight: visible ? actionCol.implicitHeight : 0
-            opacity: heroRoot._actionOp
-            transform: Translate { y: heroRoot._actionTY }
+            vm: heroRoot.vm
+            mode: actionButton._state
+        }
 
-            ColumnLayout {
-                id: actionCol
-                anchors.left: parent.left; anchors.right: parent.right
-                spacing: Dimensions.spacingMD
+        // A game update broke the patch, or its files are gone
+        UpdateBanner {
+            vm: heroRoot.vm
+            Layout.leftMargin: 0
+            Layout.rightMargin: 0
+            Layout.topMargin: 0
+        }
 
-                TranslationActionButton {
-                    id: actionButton
-                    vm: heroRoot.vm
-                    onLocateClicked: folderBar.pick("install")
-                    onTranslateClicked: heroRoot.translateClicked()
-                    onUpdateClicked: heroRoot.updateClicked()
-                    onUninstallClicked: heroRoot.uninstallClicked()
-                    // "lost" = patch files gone from disk; a store verify cannot
-                    // bring them back, a reinstall does (same as UpdateBanner).
-                    onRepairClicked: GameService.recoverTranslation(heroRoot.vm.gameId)
+        // What a patch's own installer prints, and the answers to it
+        ProgramConsole {
+            vm: heroRoot.vm
+            Layout.leftMargin: 0
+            Layout.rightMargin: 0
+            Layout.topMargin: 0
+        }
+
+        // Where the game is — or, not found, how to point at it
+        GameFolderBar {
+            id: folderBar
+            Layout.fillWidth: true
+            vm: heroRoot.vm
+            onInstallRequested: heroRoot.translateClicked()
+        }
+
+        // What went wrong, and the way out
+        Rectangle {
+            visible: heroRoot.vm.installErrorMessage !== ""
+            Layout.fillWidth: true
+            implicitHeight: errCol.implicitHeight + 32
+            radius: Dimensions.radiusLG
+            color: Theme.withAlpha(Theme.error, Theme.darkMode ? 0.12 : 0.07)
+            border.color: Theme.withAlpha(Theme.error, 0.3)
+            border.width: 1
+
+            RowLayout {
+                id: errCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
+                spacing: 14
+
+                IconTile {
+                    Layout.alignment: Qt.AlignTop
+                    size: 34
+                    glyph: Icons.circleAlert
+                    tint: Theme.error
                 }
-
-                // What the button above is about to do
-                InstallExplainer {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    vm: heroRoot.vm
-                    mode: actionButton._state
-                }
-
-                // Where the game is — or, not found, how to point at it
-                GameFolderBar {
-                    id: folderBar
-                    Layout.fillWidth: true
-                    vm: heroRoot.vm
-                    onInstallRequested: heroRoot.translateClicked()
-                }
-
-                // Install error message
-                Rectangle {
-                    visible: heroRoot.vm.installErrorMessage !== ""
-                    Layout.fillWidth: true
-                    implicitHeight: _errRow.height + 16
-                    radius: Dimensions.radiusMD
-                    color: Theme.error08
-                    border.color: Theme.error20; border.width: 1
-
-                    Row {
-                        id: _errRow
-                        anchors.centerIn: parent; spacing: Dimensions.spacingSM
-                        width: parent.width - 24
-                        // Selectable: the message may carry a folder path or
-                        // an error the user is asked to pass on to us.
-                        TextEdit {
-                            readOnly: true
-                            selectByMouse: true
-                            textFormat: TextEdit.PlainText
-                            text: heroRoot.vm.installErrorMessage
-                            font.pixelSize: Dimensions.fontSM
-                            color: Theme.error
-                            wrapMode: TextEdit.WordWrap
-                            width: parent.width
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-
-                    opacity: visible ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
-                }
-
-                // Store verification shortcut, shown with any install/uninstall
-                // error. When the patch left the game in a mixed state and we
-                // have no backup to restore, letting the store re-download its
-                // own files is the only recovery that always works — otherwise
-                // the user is told to hunt through store menus by hand.
-                Rectangle {
-                    visible: heroRoot.vm.installErrorMessage !== ""
-                    Layout.fillWidth: true
-                    implicitHeight: 40
-                    radius: Dimensions.radiusMD
-                    color: _repairHover.hovered ? Theme.error08 : "transparent"
-                    border.color: Theme.error20; border.width: 1
-
+                    spacing: 4
                     Text {
-                        anchors.centerIn: parent
-                        text: qsTr("Oyun dosyalarını doğrula / onar")
-                        font.pixelSize: Dimensions.fontSM
-                        color: Theme.error
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        text: qsTr("Bir sorun çıktı")
+                        font.pixelSize: Dimensions.headline
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
                     }
-
-                    HoverHandler { id: _repairHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler {
-                        onTapped: GameService.repairGameFiles(heroRoot.vm.gameId)
+                    // Selectable: the message may carry a folder path or an
+                    // error the user is asked to pass on to us.
+                    TextEdit {
+                        Layout.fillWidth: true
+                        readOnly: true
+                        selectByMouse: true
+                        textFormat: TextEdit.PlainText
+                        text: heroRoot.vm.installErrorMessage
+                        font.pixelSize: Dimensions.callout
+                        color: Theme.textSecondary
+                        selectionColor: Theme.primary40
+                        wrapMode: TextEdit.WordWrap
                     }
-
-                    opacity: visible ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animNormal } }
                 }
-
-                // No translation notice (manual games)
-                Rectangle {
-                    visible: heroRoot.vm.isManualGame && !heroRoot.vm.hasTranslation
-                    Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Dimensions.radiusMD
-                    color: Theme.textMuted08
-                    border.color: Theme.textMuted15; border.width: 1
-
-                    Row {
-                        anchors.centerIn: parent; spacing: Dimensions.spacingMD
-                        Text {
-                            textFormat: Text.PlainText
-                            text: "\u26A0"
-                            font.pixelSize: Dimensions.fontMD; color: Theme.textMuted
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            textFormat: Text.PlainText
-                            text: qsTr("Bu oyun için Türkçe yama mevcut değil")
-                            font.pixelSize: Dimensions.fontMD; font.weight: Font.Medium
-                            color: Theme.textMuted
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
+                // Store verification: when the patch left the game in a mixed
+                // state with no backup to restore, letting the store fetch its
+                // own files again is the recovery that always works.
+                AppButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    style: "gray"
+                    icon: Icons.wrench
+                    text: qsTr("Oyun dosyalarını doğrula")
+                    toolTip: qsTr("Steam'de oyunun dosyalarını doğrulatır; başka mağazalar için adımları gösterir")
+                    onClicked: GameService.repairGameFiles(heroRoot.vm.gameId)
                 }
             }
         }
-
-        // =================================================================
-        // INFO TILES BAR (genre, metacritic, release — below action button)
-        // =================================================================
 
         InfoTilesBar {
             Layout.fillWidth: true
+            Layout.topMargin: 6
             vm: heroRoot.vm
-            opacity: heroRoot._tilesOp
-            transform: Translate { y: heroRoot._tilesTY }
         }
-
-        // =================================================================
-        // ABOUT SECTION
-        // =================================================================
 
         AboutSection {
             Layout.fillWidth: true
             vm: heroRoot.vm
-            opacity: heroRoot._aboutOp
-            transform: Translate { y: heroRoot._aboutTY }
         }
-
-        // =================================================================
-        // CONTRIBUTORS SECTION
-        // =================================================================
 
         ContributorsSection {
             Layout.fillWidth: true
@@ -552,24 +447,16 @@ Item {
             isApex: heroRoot.vm.isApex
             isHangar: heroRoot.vm.isHangar
             apexTier: heroRoot.vm.apexTier
-            opacity: heroRoot._contribOp
-            transform: Translate { y: heroRoot._contribTY }
         }
-
-        // =================================================================
-        // COMMUNITY DISCLAIMER — subtle, centered
-        // =================================================================
 
         Text {
             Layout.fillWidth: true
             textFormat: Text.PlainText
             text: qsTr("Bu yerelleştirme topluluk tarafından yapılmıştır ve resmi değildir.")
-            font.pixelSize: Dimensions.fontCaption
-            font.italic: true
-            color: Theme.textMuted
+            font.pixelSize: Dimensions.footnote
+            color: Theme.textTertiary
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            opacity: heroRoot._contribOp * 0.5
         }
     }
 }

@@ -1,0 +1,192 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
+
+import QtQuick
+import QtQuick.Layouts
+import MakineLauncher 1.0
+import "../../components"
+pragma ComponentBehavior: Bound
+
+/**
+ * Shelf — a titled row of game tiles that scrolls sideways, as on the App
+ * Store: title and a line under it on the left, "Tümünü gör" on the right,
+ * round arrows on the row's ends under the pointer. A vertical wheel scrolls
+ * the page; a sideways one (or Shift + wheel, or a drag) the row.
+ *
+ * model: a JS array of { id/gameId, name, steamAppId, installPath, engine,
+ * status?, badge?, badgeColor?, subtitle? } or a CatalogProxyModel.
+ */
+ColumnLayout {
+    id: shelf
+
+    property string title: ""
+    property string subtitle: ""
+    property string seeAllText: qsTr("Tümünü gör")
+    property bool showSeeAll: true
+    property var model: []
+    property real tileWidth: 150
+    // Left/right inset of the row, so the first tile lines up with the title
+    property real inset: Dimensions.pageMargin
+
+    signal gameClicked(string gameId, string gameName, string installPath, string engine)
+    signal seeAllClicked()
+
+    spacing: 12
+
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: shelf.inset
+        Layout.rightMargin: shelf.inset
+        spacing: 12
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 2
+            Text {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: shelf.title
+                elide: Text.ElideRight
+                font.family: Dimensions.fontDisplay
+                font.pixelSize: Dimensions.title2
+                font.weight: Font.Bold
+                font.letterSpacing: Dimensions.trackingHeadline
+                color: Theme.textPrimary
+                Accessible.role: Accessible.Heading
+                Accessible.name: shelf.title
+            }
+            Text {
+                visible: shelf.subtitle !== ""
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: shelf.subtitle
+                elide: Text.ElideRight
+                font.pixelSize: Dimensions.callout
+                color: Theme.textMuted
+            }
+        }
+        AppButton {
+            visible: shelf.showSeeAll
+            Layout.alignment: Qt.AlignBottom
+            style: "plain"
+            size: "small"
+            text: shelf.seeAllText
+            trailingIcon: Icons.chevronRight
+            onClicked: shelf.seeAllClicked()
+        }
+    }
+
+    Item {
+        id: rowBox
+        Layout.fillWidth: true
+        Layout.preferredHeight: view.height
+
+        ListView {
+            id: view
+            anchors.left: parent.left
+            anchors.right: parent.right
+            // Room above for the lift on hover, below for the shadow
+            height: Math.round(shelf.tileWidth * 185 / 130) + 76
+            orientation: ListView.Horizontal
+            spacing: 18
+            leftMargin: shelf.inset
+            rightMargin: shelf.inset
+            clip: true
+            model: shelf.model
+            boundsBehavior: Flickable.StopAtBounds
+            flickDeceleration: 4000
+            maximumFlickVelocity: 6000
+            reuseItems: true
+            cacheBuffer: 600
+            pixelAligned: true
+
+            delegate: Item {
+                id: cell
+                required property var model
+                required property int index
+                width: shelf.tileWidth
+                height: view.height
+
+                readonly property string _gameKey: cell.model.gameId ?? cell.model.id ?? ""
+
+                HomeCover {
+                    y: 8
+                    width: shelf.tileWidth
+                    gameId: cell._gameKey
+                    name: cell.model.name ?? cell.model.gameName ?? ""
+                    steamAppId: cell.model.steamAppId ?? ""
+                    subtitle: cell.model.subtitle ?? ""
+                    status: cell.model.status
+                            ?? (cell.model.packageInstalled ? "installed"
+                                : cell.model.isInstalled ? "installable"
+                                : (cell.model.externalUrl ?? "") !== "" ? "external" : "")
+                    badge: cell.model.badge ?? ""
+                    badgeColor: cell.model.badgeColor ?? Theme.primary
+                    onClicked: shelf.gameClicked(cell._gameKey, cell.model.name ?? "",
+                                                 cell.model.installPath ?? "", cell.model.engine ?? "")
+                }
+            }
+
+            // A plain wheel belongs to the page; a sideways one, or Shift +
+            // wheel, moves the row.
+            WheelHandler {
+                target: null
+                acceptedModifiers: Qt.KeyboardModifierMask
+                onWheel: (event) => {
+                    const sideways = event.angleDelta.x !== 0
+                    const shifted = (event.modifiers & Qt.ShiftModifier) !== 0
+                    if (!sideways && !shifted) { event.accepted = false; return }
+                    const d = sideways ? event.angleDelta.x : event.angleDelta.y
+                    const lo = view.originX - view.leftMargin
+                    const hi = Math.max(lo, view.contentWidth - view.width + view.originX + view.rightMargin)
+                    view.contentX = Math.max(lo, Math.min(hi, view.contentX - d))
+                }
+            }
+
+            function _page(dir) {
+                const lo = view.originX - view.leftMargin
+                const hi = Math.max(lo, view.contentWidth - view.width + view.originX + view.rightMargin)
+                pageAnim.to = Math.max(lo, Math.min(hi, view.contentX + dir * (view.width - shelf.inset * 2) * 0.9))
+                pageAnim.restart()
+            }
+            NumberAnimation {
+                id: pageAnim
+                target: view
+                property: "contentX"
+                duration: Dimensions.animSlow
+                easing.type: Easing.OutCubic
+            }
+
+            readonly property bool atStart: contentX <= originX - leftMargin + 2
+            readonly property bool atEnd: contentX >= contentWidth - width + originX + rightMargin - 2
+        }
+
+        HoverHandler { id: rowHover }
+
+        // Paging arrows: glass circles on the row's ends, over the art
+        AppButton {
+            anchors.left: parent.left
+            anchors.leftMargin: shelf.inset - 16
+            y: 8 + Math.round(shelf.tileWidth * 185 / 130) / 2 - height / 2
+            style: "glass"
+            icon: Icons.chevronLeft
+            toolTip: qsTr("Önceki")
+            opacity: rowHover.hovered && !view.atStart ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+            onClicked: view._page(-1)
+        }
+        AppButton {
+            anchors.right: parent.right
+            anchors.rightMargin: shelf.inset - 16
+            y: 8 + Math.round(shelf.tileWidth * 185 / 130) / 2 - height / 2
+            style: "glass"
+            icon: Icons.chevronRight
+            toolTip: qsTr("Sonraki")
+            opacity: rowHover.hovered && !view.atEnd && view.contentWidth > view.width ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
+            onClicked: view._page(1)
+        }
+    }
+}

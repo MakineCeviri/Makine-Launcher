@@ -5,14 +5,14 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "components"
 pragma ComponentBehavior: Bound
 
 /**
- * SettingsScreen.qml
- *
- * Structure:
- * - 280px sidebar (SettingsSidebar)
- * - Content area with 5 categories loaded via Loader
+ * SettingsScreen.qml — "Ayarlar", laid out like a macOS settings window:
+ * the title, a row of toolbar tabs (Genel · Görünüm · Eklentiler · Hakkında,
+ * then enabled plugins), and the chosen page's grouped lists, each page
+ * loaded on its first visit and kept.
  */
 Item {
     id: root
@@ -30,23 +30,28 @@ Item {
     }
 
     function _playEntryAnim() {
-        settingsEntryAnim.stop()
         contentEntryAnim.stop()
-        sidebar.opacity = 0; sidebarTranslate.x = -40
-        contentArea.opacity = 0; contentAreaTranslate.y = 20
-        pageContainer.opacity = 1; contentTranslate.y = 0
-        settingsEntryAnim.start()
+        pageContainer.opacity = 0; contentTranslate.y = 8
+        contentEntryAnim.start()
     }
 
     // Static categories + dynamic plugin categories
     readonly property var _staticCategories: [
-        { name: qsTr("Genel"), description: qsTr("Uygulama genel ayarlarını yapılandırın"), isPlugin: false },
-        { name: qsTr("Ekran"), description: qsTr("Tema, animasyon ve görüntü ayarları"), isPlugin: false },
-        { name: qsTr("Eklentiler"), description: qsTr("Eklenti yönetimi ve mağaza"), isPlugin: false }
+        { name: qsTr("Genel"), description: qsTr("Başlangıç, oyun tanıma, raporlar, güncellemeler ve önbellek."), isPlugin: false, icon: "settings" },
+        { name: qsTr("Görünüm"), description: qsTr("Açık ya da koyu görünüm, vurgu rengi ve hareket."), isPlugin: false, icon: "palette" },
+        { name: qsTr("Eklentiler"), description: qsTr("Eklentileri kur, aç, kapat ve güncelle."), isPlugin: false, icon: "puzzle" }
     ]
     readonly property var _staticCategoriesEnd: [
-        { name: qsTr("Hakkında"), description: qsTr("Uygulama hakkında bilgiler"), isPlugin: false }
+        { name: qsTr("Hakkında"), description: qsTr("Sürüm, yardım, kısayollar ve açık kaynak bileşenler."), isPlugin: false, icon: "info" }
     ]
+    function _icon(cat) {
+        switch (cat && cat.icon) {
+        case "settings": return Icons.settings
+        case "palette": return Icons.palette
+        case "info": return Icons.info
+        default: return Icons.puzzle
+        }
+    }
 
     // Enabled plugins with settings or actions — delegates to PluginManager C++.
     // settingsCategories() has no change signal, so it is re-read on pluginsChanged
@@ -115,252 +120,249 @@ Item {
         anchors.fill: parent
         color: Theme.bgPrimary
 
-        Row {
+        ScrollView {
+            id: settingsScrollView
             anchors.fill: parent
-            spacing: 0
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.vertical: StyledScrollBar {}
 
-            // ===== LEFT SIDEBAR (280px) =====
-            SettingsSidebar {
-                id: sidebar
-                height: parent.height
-                opacity: 0
-                transform: Translate { id: sidebarTranslate; x: -40 }
-                selectedCategory: root.selectedCategory
-                categories: root.categories
-                onCategorySelected: function(index) {
-                    root.selectedCategory = index
+            ColumnLayout {
+                width: Math.min(settingsScrollView.availableWidth - Dimensions.pageMargin * 2, 720)
+                x: (settingsScrollView.availableWidth - width) / 2
+                spacing: 22
+
+                PageHeader {
+                    Layout.topMargin: 52
+                    title: qsTr("Ayarlar")
+                    subtitle: root._current.description
                 }
-            }
 
-            // ===== RIGHT CONTENT AREA =====
-            Item {
-                id: contentArea
-                width: parent.width - sidebar.width
-                height: parent.height
-                opacity: 0
-                transform: Translate { id: contentAreaTranslate; y: 20 }
+                // Toolbar tabs: icon over label, the chosen one raised
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
 
-                ScrollView {
-                    id: settingsScrollView
-                    anchors.fill: parent
-                    clip: true
-                    contentWidth: availableWidth
-                    ScrollBar.vertical: StyledScrollBar {}
+                    Repeater {
+                        model: root.categories
 
-                    ColumnLayout {
-                        width: settingsScrollView.availableWidth
-                        spacing: Dimensions.spacingXL
-
-                        Item { Layout.preferredHeight: 32 }
-
-                        // Category title
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.leftMargin: Dimensions.marginXL
-                            Layout.rightMargin: Dimensions.marginXL
-                            spacing: Dimensions.spacingMD
-
-                            Label {
-                                textFormat: Text.PlainText
-                                text: root._current.name
-                                font.pixelSize: Dimensions.fontHero
-                                font.weight: Font.DemiBold
-                                color: Theme.textPrimary
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                textFormat: Text.PlainText
-                                text: root._current.description
-                                font.pixelSize: Dimensions.fontMD
-                                color: Theme.textMuted
-                            }
-                        }
-
-                        Item { Layout.preferredHeight: 16 }
-
-                        // Settings content — cached pages (load once, keep alive)
                         Item {
-                            id: pageContainer
-                            Layout.fillWidth: true
-                            Layout.leftMargin: Dimensions.marginXL
-                            Layout.rightMargin: Dimensions.marginXL
-                            Layout.preferredWidth: Math.min(settingsScrollView.availableWidth - 64, 640)
+                            id: tab
+                            required property var modelData
+                            required property int index
+                            readonly property bool selected: root.selectedCategory === tab.index
 
-                            // Height tracks the active page's content.
-                            // Use a Timer to re-evaluate after layout settles (fixes
-                            // first-visit scroll — ColumnLayout needs a frame to compute).
-                            implicitHeight: _measuredHeight
-                            property real _measuredHeight: 200
+                            width: Math.max(76, tabLabel.implicitWidth + 24)
+                            height: 58
 
-                            Timer {
-                                id: heightFixTimer
-                                interval: 50
-                                onTriggered: {
-                                    var loader = pageRepeater.itemAt(root.selectedCategory)
-                                    if (loader && loader.item)
-                                        pageContainer._measuredHeight = loader.item.implicitHeight
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.PageTab
+                            Accessible.name: tab.modelData.name
+                            Accessible.checked: tab.selected
+                            Keys.onReturnPressed: root.selectedCategory = tab.index
+                            Keys.onSpacePressed: root.selectedCategory = tab.index
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: Dimensions.radiusMD
+                                color: tab.selected ? Theme.fillTertiary
+                                     : tabHover.hovered ? Theme.fillQuaternary : "transparent"
+                                Behavior on color { ColorAnimation { duration: Dimensions.animVeryFast } }
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -2
+                                radius: Dimensions.radiusMD + 2
+                                color: "transparent"
+                                border.width: 2
+                                border.color: Theme.withAlpha(Theme.primary, 0.5)
+                                visible: tab.activeFocus
+                            }
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: 5
+                                Icon {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    glyph: root._icon(tab.modelData)
+                                    size: 20
+                                    color: tab.selected ? Theme.primary : Theme.textSecondary
+                                }
+                                Text {
+                                    id: tabLabel
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    textFormat: Text.PlainText
+                                    text: tab.modelData.name
+                                    font.pixelSize: Dimensions.footnote
+                                    font.weight: tab.selected ? Font.DemiBold : Font.Medium
+                                    color: tab.selected ? Theme.textPrimary : Theme.textSecondary
                                 }
                             }
-
-                            function updateHeight() {
-                                var loader = pageRepeater.itemAt(root.selectedCategory)
-                                if (loader && loader.item) {
-                                    _measuredHeight = loader.item.implicitHeight
-                                    // Also schedule a delayed re-measure for layout settling
-                                    heightFixTimer.restart()
-                                }
+                            HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: root.selectedCategory = tab.index
                             }
-
-                            // Entry animation (same visual as before)
-                            opacity: 0
-                            transform: Translate { id: contentTranslate; y: 12 }
-                            ParallelAnimation {
-                                id: contentEntryAnim
-                                NumberAnimation {
-                                    target: pageContainer; property: "opacity"
-                                    from: 0; to: 1; duration: 220; easing.type: Easing.OutCubic
-                                }
-                                NumberAnimation {
-                                    target: contentTranslate; property: "y"
-                                    from: 12; to: 0; duration: 220; easing.type: Easing.OutCubic
-                                }
-                            }
-
-                            // Track visited categories (dynamic length)
-                            property var _visited: {
-                                var v = [true] // first page always visited
-                                for (var i = 1; i < root.panelSources.length; i++) v.push(false)
-                                return v
-                            }
-
-                            // Pages load on first visit — no eager preload needed
-
-                            // Category change handler
-                            Connections {
-                                target: root
-                                function onSelectedCategoryChanged() {
-                                    settingsScrollView.ScrollBar.vertical.position = 0
-                                    pageContainer.opacity = 0
-                                    contentTranslate.y = 12
-
-                                    // Activate page on first visit
-                                    if (!pageContainer._visited[root.selectedCategory]) {
-                                        var v = pageContainer._visited.slice()
-                                        v[root.selectedCategory] = true
-                                        pageContainer._visited = v
-                                    }
-
-                                    pageContainer.updateHeight()
-
-                                    // If already loaded — animate immediately
-                                    var loader = pageRepeater.itemAt(root.selectedCategory)
-                                    if (loader && loader.status === Loader.Ready) {
-                                        contentEntryAnim.restart()
-                                    } else if (typeof SceneProfiler !== "undefined") {
-                                        SceneProfiler.beginInteraction("settingsPageSwitch")
-                                    }
-                                }
-                            }
-
-                            // One slot per page. Plugin pages come and go at the end, and
-                            // appending or removing slots leaves the other pages alone (a
-                            // Repeater over a plain number would rebuild every page).
-                            ListModel { id: pageSlots }
-
-                            function syncPageSlots() {
-                                var n = root.panelSources.length
-                                while (pageSlots.count < n) pageSlots.append({ slot: pageSlots.count })
-                                while (pageSlots.count > n) pageSlots.remove(pageSlots.count - 1)
-                            }
-
-                            Connections {
-                                target: root
-                                function onPanelSourcesChanged() { pageContainer.syncPageSlots() }
-                            }
-
-                            Component.onCompleted: syncPageSlots()
-
-                            Repeater {
-                                id: pageRepeater
-                                model: pageSlots
-
-                                Loader {
-                                    id: pageLoader
-                                    required property int index
-
-                                    anchors.left: parent ? parent.left : undefined
-                                    anchors.right: parent ? parent.right : undefined
-                                    y: 0
-
-                                    active: !!pageContainer._visited[index]
-                                    visible: root.selectedCategory === index
-                                    asynchronous: index > 0
-                                    source: root.panelSources[index] || ""
-
-                                    // Plugin pages share one source; which plugin they show follows the category.
-                                    Binding {
-                                        target: pageLoader.item
-                                        property: "pluginId"
-                                        value: root._pluginIdAt(pageLoader.index)
-                                        when: pageLoader.item !== null && root._pluginIdAt(pageLoader.index) !== ""
-                                    }
-
-                                    onLoaded: {
-                                        // A page's height follows its content (lists load, details open).
-                                        if (item)
-                                            item.implicitHeightChanged.connect(function() {
-                                                if (root.selectedCategory === pageLoader.index)
-                                                    pageContainer.updateHeight()
-                                            })
-
-                                        // Wire GeneralSettings (page 0) signals here.
-                                        // itemAt() is not bindable, so the old
-                                        // Connections target never resolved and the
-                                        // "Ayarları Sıfırla" button was dead.
-                                        if (index === 0 && item) {
-                                            item.clearCacheRequested.connect(function() { clearCacheConfirm.open() })
-                                            item.resetSettingsRequested.connect(function() { resetSettingsConfirm.open() })
-                                        }
-
-                                        if (root.selectedCategory === index) {
-                                            pageContainer.updateHeight()
-                                            contentEntryAnim.restart()
-                                            if (typeof SceneProfiler !== "undefined")
-                                                SceneProfiler.endInteraction()
-                                        }
-                                    }
-                                }
-                            }
-
-                            // GeneralSettings (page 0) signals are connected in the
-                            // Loader's onLoaded above — itemAt() is not bindable.
                         }
-
-                        Item { Layout.preferredHeight: 32 }
                     }
                 }
+
+                // Settings content — cached pages (load once, keep alive)
+                Item {
+                    id: pageContainer
+                    Layout.fillWidth: true
+
+                    // Height tracks the active page's content.
+                    // Use a Timer to re-evaluate after layout settles (fixes
+                    // first-visit scroll — ColumnLayout needs a frame to compute).
+                    implicitHeight: _measuredHeight
+                    property real _measuredHeight: 200
+
+                    Timer {
+                        id: heightFixTimer
+                        interval: 50
+                        onTriggered: {
+                            var loader = pageRepeater.itemAt(root.selectedCategory)
+                            if (loader && loader.item)
+                                pageContainer._measuredHeight = loader.item.implicitHeight
+                        }
+                    }
+
+                    function updateHeight() {
+                        var loader = pageRepeater.itemAt(root.selectedCategory)
+                        if (loader && loader.item) {
+                            _measuredHeight = loader.item.implicitHeight
+                            // Also schedule a delayed re-measure for layout settling
+                            heightFixTimer.restart()
+                        }
+                    }
+
+                    // Entry animation (same visual as before)
+                    opacity: 0
+                    transform: Translate { id: contentTranslate; y: 8 }
+                    ParallelAnimation {
+                        id: contentEntryAnim
+                        NumberAnimation {
+                            target: pageContainer; property: "opacity"
+                            from: 0; to: 1; duration: 220; easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: contentTranslate; property: "y"
+                            from: 8; to: 0; duration: 220; easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    // Track visited categories (dynamic length)
+                    property var _visited: {
+                        var v = [true] // first page always visited
+                        for (var i = 1; i < root.panelSources.length; i++) v.push(false)
+                        return v
+                    }
+
+                    // Pages load on first visit — no eager preload needed
+
+                    // Category change handler
+                    Connections {
+                        target: root
+                        function onSelectedCategoryChanged() {
+                            settingsScrollView.ScrollBar.vertical.position = 0
+                            pageContainer.opacity = 0
+                            contentTranslate.y = 8
+
+                            // Activate page on first visit
+                            if (!pageContainer._visited[root.selectedCategory]) {
+                                var v = pageContainer._visited.slice()
+                                v[root.selectedCategory] = true
+                                pageContainer._visited = v
+                            }
+
+                            pageContainer.updateHeight()
+
+                            // If already loaded — animate immediately
+                            var loader = pageRepeater.itemAt(root.selectedCategory)
+                            if (loader && loader.status === Loader.Ready) {
+                                contentEntryAnim.restart()
+                            } else if (typeof SceneProfiler !== "undefined") {
+                                SceneProfiler.beginInteraction("settingsPageSwitch")
+                            }
+                        }
+                    }
+
+                    // One slot per page. Plugin pages come and go at the end, and
+                    // appending or removing slots leaves the other pages alone (a
+                    // Repeater over a plain number would rebuild every page).
+                    ListModel { id: pageSlots }
+
+                    function syncPageSlots() {
+                        var n = root.panelSources.length
+                        while (pageSlots.count < n) pageSlots.append({ slot: pageSlots.count })
+                        while (pageSlots.count > n) pageSlots.remove(pageSlots.count - 1)
+                    }
+
+                    Connections {
+                        target: root
+                        function onPanelSourcesChanged() { pageContainer.syncPageSlots() }
+                    }
+
+                    Component.onCompleted: syncPageSlots()
+
+                    Repeater {
+                        id: pageRepeater
+                        model: pageSlots
+
+                        Loader {
+                            id: pageLoader
+                            required property int index
+
+                            anchors.left: parent ? parent.left : undefined
+                            anchors.right: parent ? parent.right : undefined
+                            y: 0
+
+                            active: !!pageContainer._visited[index]
+                            visible: root.selectedCategory === index
+                            asynchronous: index > 0
+                            source: root.panelSources[index] || ""
+
+                            // Plugin pages share one source; which plugin they show follows the category.
+                            Binding {
+                                target: pageLoader.item
+                                property: "pluginId"
+                                value: root._pluginIdAt(pageLoader.index)
+                                when: pageLoader.item !== null && root._pluginIdAt(pageLoader.index) !== ""
+                            }
+
+                            onLoaded: {
+                                // A page's height follows its content (lists load, details open).
+                                if (item)
+                                    item.implicitHeightChanged.connect(function() {
+                                        if (root.selectedCategory === pageLoader.index)
+                                            pageContainer.updateHeight()
+                                    })
+
+                                // Wire GeneralSettings (page 0) signals here.
+                                // itemAt() is not bindable, so the old
+                                // Connections target never resolved and the
+                                // "Ayarları Sıfırla" button was dead.
+                                if (index === 0 && item) {
+                                    item.clearCacheRequested.connect(function() { clearCacheConfirm.open() })
+                                    item.resetSettingsRequested.connect(function() { resetSettingsConfirm.open() })
+                                }
+
+                                if (root.selectedCategory === index) {
+                                    pageContainer.updateHeight()
+                                    contentEntryAnim.restart()
+                                    if (typeof SceneProfiler !== "undefined")
+                                        SceneProfiler.endInteraction()
+                                }
+                            }
+                        }
+                    }
+
+                    // GeneralSettings (page 0) signals are connected in the
+                    // Loader's onLoaded above — itemAt() is not bindable.
+                }
+
+                Item { Layout.preferredHeight: 40 }
             }
-        }
-    }
-
-    // ===== ENTRY ANIMATION =====
-    ParallelAnimation {
-        id: settingsEntryAnim
-
-        // Sidebar — slide from left
-        NumberAnimation { target: sidebar; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        NumberAnimation { target: sidebarTranslate; property: "x"; from: -40; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-
-        // Content area — delay 100ms, fade + slide up
-        SequentialAnimation {
-            PauseAnimation { duration: 100 }
-            NumberAnimation { target: contentArea; property: "opacity"; from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
-        }
-        SequentialAnimation {
-            PauseAnimation { duration: 100 }
-            NumberAnimation { target: contentAreaTranslate; property: "y"; from: 20; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic }
         }
     }
 

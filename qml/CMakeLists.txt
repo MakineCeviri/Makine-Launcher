@@ -213,6 +213,9 @@ qt_add_qml_module(MakineLauncher
         # Screens - Home Pages
         qml/screens/HomePage.qml
         qml/screens/home/HomeCover.qml
+        qml/screens/home/Shelf.qml
+        qml/screens/home/FeaturedHero.qml
+        qml/screens/home/RunningGameCard.qml
         qml/screens/Library.qml
         qml/screens/AllGames.qml
         qml/screens/HelpScreen.qml
@@ -225,7 +228,6 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/GameFolderBar.qml
         qml/screens/detail/InstallExplainer.qml
         qml/screens/detail/ProgramConsole.qml
-        qml/screens/detail/GameDetailOverlay.qml
         qml/screens/detail/ContributorsSection.qml
         qml/screens/detail/RuntimeSection.qml
         qml/screens/detail/InfoTilesBar.qml
@@ -247,25 +249,20 @@ qt_add_qml_module(MakineLauncher
         # ── Reusable Components (public API — used across multiple screens) ──
         #
         # Cards: Data display containers
-        qml/components/GameCard.qml              # Game item in grid/list
-        qml/components/AnnouncementCard.qml       # RE Requiem hero / announcement display
-        qml/components/GameDetectionCard.qml      # Game detection status + manual add
         qml/components/GameToast.qml               # Overlay notification for detected games
         qml/components/FolderDropOverlay.qml       # Drop a game folder from Explorer onto a page
         #
         # Navigation: Window chrome and nav
-        qml/components/TitleBar.qml               # Custom frameless title bar
-        qml/components/NavBar.qml                 # Bottom navigation bar
-        qml/components/NavItem.qml                # Navigation tab item
+        qml/components/Sidebar.qml                # App navigation (macOS source list)
+        qml/components/SidebarStatus.qml          # Sidebar foot: launcher update, scan
+        qml/components/WindowControls.qml         # Tray / minimise / close
+        qml/components/AppNotice.qml              # Floating app-wide notice
         qml/components/StyledToolTip.qml          # Modern minimal tooltip
         #
         # Layout: Section containers
         qml/components/SectionContainer.qml       # Glassmorphic section wrapper
-        qml/components/CatalogSection.qml         # Localization library catalog (search + game strips)
         #
         # Visual: Decorative and feedback
-        qml/components/AmbientGlow.qml            # Radial glow with rounded-rect clip
-        qml/components/AppBackground.qml          # Premium accent-aware ambient background
         qml/components/TurkishFlagBadge.qml       # TR flag indicator
         qml/components/RegionSelector.qml         # Full-screen rubber-band OCR region selector
         qml/components/TranslationOverlay.qml     # Frameless overlay window for OCR results
@@ -274,7 +271,6 @@ qt_add_qml_module(MakineLauncher
         # ── Internal Components (settings/detail screens only) ──
         #
         qml/components/SettingsCard.qml           # Settings group container
-        qml/components/SettingsSidebar.qml        # Settings nav sidebar
         qml/components/SettingsDivider.qml        # Settings section divider
         qml/components/ToggleSetting.qml          # Toggle switch setting
         qml/components/ClickableRow.qml           # Clickable list row
@@ -282,8 +278,6 @@ qt_add_qml_module(MakineLauncher
         qml/components/PerformanceMonitor.qml     # Dev-only perf overlay
         qml/components/FocusRing.qml              # Keyboard focus indicator
         qml/components/StyledScrollBar.qml        # Themed scrollbar
-        qml/components/GradientBorder.qml         # Apple-style gradient border
-        qml/components/HorizontalGameStrip.qml  # Horizontal scrolling game card strip
         # Design system (docs/design.md)
         qml/components/Icon.qml
         qml/components/Spinner.qml
@@ -297,7 +291,6 @@ qt_add_qml_module(MakineLauncher
         qml/components/IconTile.qml
         qml/components/StatusBadge.qml
         qml/components/PageHeader.qml
-        qml/components/AppNotice.qml              # Floating app-wide notice
 
         # Controllers (Main.qml decomposition)
         qml/controllers/GameDataResolver.qml

@@ -3,6 +3,7 @@
 
 import QtQuick
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -16,21 +17,21 @@ Rectangle {
     id: btn
 
     property string text: ""
-    property string trailingIcon: ""   // Segoe MDL2 Assets glyph
+    property string trailingIcon: ""   // Icons.* glyph
     property string kind: "primary"    // primary | quiet
 
     signal clicked()
 
     readonly property bool _primary: btn.kind === "primary"
 
-    implicitWidth: row.implicitWidth + (btn._primary ? 48 : 28)
+    implicitWidth: row.implicitWidth + (btn._primary ? 52 : 28)
     implicitHeight: btn._primary ? 48 : 40
-    radius: 12
+    radius: height / 2
     color: btn._primary ? (hover.hovered ? Qt.lighter(Theme.accentBase, 1.12) : Theme.accentBase)
                         : (hover.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
-    border.width: btn.activeFocus ? 2 : 0
-    border.color: "#FFFFFF"
-    scale: tap.pressed ? Dimensions.pressScale : 1.0
+    border.width: btn.activeFocus ? 3 : 0
+    border.color: Qt.rgba(1, 1, 1, 0.6)
+    opacity: tap.pressed ? 0.75 : 1.0
     Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
 
     activeFocusOnTab: true
@@ -52,13 +53,11 @@ Rectangle {
             font.weight: btn._primary ? Font.DemiBold : Font.Medium
             color: btn._primary || hover.hovered ? "#FFFFFF" : Qt.rgba(1, 1, 1, 0.6)
         }
-        Text {
+        Icon {
             anchors.verticalCenter: parent.verticalCenter
             visible: btn.trailingIcon !== ""
-            textFormat: Text.PlainText
-            text: btn.trailingIcon
-            font.family: "Segoe MDL2 Assets"
-            font.pixelSize: 12
+            glyph: btn.trailingIcon
+            size: 16
             color: "#FFFFFF"
         }
     }

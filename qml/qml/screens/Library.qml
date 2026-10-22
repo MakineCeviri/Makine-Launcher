@@ -11,11 +11,10 @@ pragma ComponentBehavior: Bound
 /**
  * Library.qml - This PC's games with a Turkish patch, and what each needs next
  *
- * One list instead of two shelves of covers ("Kurulu Oyunlar", "Kurulu
- * Yamalar") that showed the same game twice and said nothing about it. Each
- * row carries the game's state and its one action — install, update, the
- * patch's own site — and opens the game's page. The counts on top are the
- * filters. GameService.library orders the rows: what needs a step first.
+ * One grouped list, the way the App Store lists updates: each row carries
+ * the game's state and its one action — install, update, the patch's own
+ * site — and opens the game's page. The segmented control on top filters;
+ * GameService.library orders the rows: what needs a step first.
  */
 Item {
     id: libraryRoot
@@ -44,6 +43,14 @@ Item {
     // A filter whose rows are gone (the last update installed) falls back.
     on_RowsChanged: if (_rows.length === 0 && filter !== "all") filter = "all"
 
+    readonly property var _filters: {
+        const out = [ { value: "all", text: qsTr("Tümü"), count: _lib.length } ]
+        if (_ready > 0 || filter === "ready") out.push({ value: "ready", text: qsTr("Kurulmayı bekliyor"), count: _ready })
+        if (_updates > 0 || filter === "update") out.push({ value: "update", text: qsTr("Güncelleme var"), count: _updates })
+        if (_patched > 0 || filter === "installed") out.push({ value: "installed", text: qsTr("Yama kurulu"), count: _patched })
+        return out
+    }
+
     function _shownPath(p) {
         return String(p || "").split("/").join(String.fromCharCode(92))
     }
@@ -58,392 +65,246 @@ Item {
         }
     }
 
-    // ── Small parts ──────────────────────────────────────────────────────────
-    component LibButton: Rectangle {
-        id: lb
-        property string glyph: ""
-        property string text: ""
-        property bool filled: false
-        property color fill: Theme.primary
-        signal clicked()
+    onVisibleChanged: if (visible) flickable.contentY = 0
 
-        implicitWidth: lbRow.implicitWidth + Dimensions.paddingXL
-        implicitHeight: 38
-        radius: Dimensions.radiusMD
-        opacity: lb.enabled ? 1 : 0.5
-        color: lb.filled ? (lbMouse.containsMouse ? Qt.darker(lb.fill, 1.12) : lb.fill)
-                         : (lbMouse.containsMouse ? Theme.textPrimary12 : Theme.textPrimary06)
-        border.width: lb.activeFocus ? 2 : 0
-        border.color: Theme.accentLight
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: lb.text
-        Keys.onReturnPressed: lb.clicked()
-        Keys.onSpacePressed: lb.clicked()
-
-        Row {
-            id: lbRow
-            anchors.centerIn: parent
-            spacing: Dimensions.spacingMD
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: lb.glyph !== ""
-                textFormat: Text.PlainText
-                text: lb.glyph
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 13
-                color: lb.filled ? Theme.textOnColor : Theme.textSecondary
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: lb.text
-                font.pixelSize: Dimensions.fontBody
-                font.weight: Font.DemiBold
-                color: lb.filled ? Theme.textOnColor : Theme.textPrimary
-            }
-        }
-        // A MouseArea, not a TapHandler: it takes the press, so the row
-        // under the button does not open the page as well.
-        MouseArea {
-            id: lbMouse
-            anchors.fill: parent
-            enabled: lb.enabled
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: lb.clicked()
-        }
-    }
-
-    // A count that is also the filter for its rows.
-    component StatTile: Rectangle {
-        id: tile
-        property int value: 0
-        property string label: ""
-        property string key: "all"
-        property color tint: Theme.textPrimary
-        readonly property bool selected: libraryRoot.filter === tile.key
-
-        Layout.fillWidth: true
-        implicitHeight: 76
-        radius: Dimensions.radiusLG
-        enabled: tile.key === "all" || tile.value > 0
-        color: tile.selected ? Theme.withAlpha(tile.tint, 0.10)
-             : tileHover.hovered && tile.enabled ? Theme.textPrimary06 : Theme.textPrimary03
-        border.width: 1
-        border.color: tile.selected ? Theme.withAlpha(tile.tint, 0.45) : Theme.textPrimary06
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-        activeFocusOnTab: tile.enabled
-        Accessible.role: Accessible.RadioButton
-        Accessible.checked: tile.selected
-        Accessible.name: tile.label + ": " + tile.value
-        Keys.onReturnPressed: libraryRoot.filter = tile.key
-        Keys.onSpacePressed: libraryRoot.filter = tile.key
-
-        Column {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: Dimensions.paddingLG
-            spacing: 2
-            Text {
-                textFormat: Text.PlainText
-                text: String(tile.value)
-                font.pixelSize: Dimensions.fontHero
-                font.weight: Font.Bold
-                color: tile.value > 0 || tile.key === "all" ? tile.tint : Theme.textMuted
-            }
-            Text {
-                textFormat: Text.PlainText
-                text: tile.label
-                font.pixelSize: Dimensions.fontSM
-                font.weight: Font.Medium
-                color: tile.selected ? Theme.textPrimary : Theme.textSecondary
-            }
-        }
-        Rectangle {
-            visible: tile.activeFocus
-            anchors.fill: parent
-            radius: parent.radius
-            color: "transparent"
-            border.width: 2
-            border.color: Theme.accentLight
-        }
-        HoverHandler { id: tileHover; cursorShape: tile.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-        TapHandler { onTapped: libraryRoot.filter = tile.key }
-    }
-
-    // ── Page ─────────────────────────────────────────────────────────────────
     Flickable {
         id: flickable
         anchors.fill: parent
-        anchors.margins: libraryRoot.contentMargin
-        contentHeight: contentColumn.implicitHeight + Dimensions.spacingXL
+        contentHeight: contentColumn.implicitHeight + 48
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: StyledScrollBar {}
 
         ColumnLayout {
             id: contentColumn
-            width: Math.min(flickable.width, Dimensions.contentMaxWidth)
+            width: Math.min(flickable.width - Dimensions.pageMargin * 2, Dimensions.contentMaxWidth)
             x: (flickable.width - width) / 2
-            spacing: Dimensions.spacingXL
+            spacing: 20
 
-            opacity: 0
-            transform: Translate { id: panelsTranslate; y: 18 }
-            Component.onCompleted: panelsEntryAnim.start()
+            PageHeader {
+                Layout.topMargin: 52
+                title: qsTr("Kütüphanem")
+                subtitle: GameService.isScanning && libraryRoot._lib.length === 0
+                          ? qsTr("Oyunların taranıyor…")
+                          : libraryRoot._lib.length === 0
+                            ? qsTr("Bilgisayarında Türkçe yaması olan bir oyun bulamadık.")
+                            : qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.")
+                                  .arg(libraryRoot._lib.length).arg(libraryRoot._patched)
 
-            SequentialAnimation {
-                id: panelsEntryAnim
-                PauseAnimation { duration: 80 }
-                ParallelAnimation {
-                    NumberAnimation {
-                        target: contentColumn; property: "opacity"
-                        from: 0; to: 1; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
-                    }
-                    NumberAnimation {
-                        target: panelsTranslate; property: "y"
-                        from: 18; to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutCubic
+                AppButton {
+                    style: "gray"
+                    icon: Icons.circleHelp
+                    toolTip: qsTr("Nasıl çalışır? Buradaki durumlar ve düğmeler ne demek")
+                    onClicked: libraryRoot.helpRequested()
+                }
+                AppButton {
+                    style: "gray"
+                    icon: Icons.refreshCw
+                    busy: GameService.isScanning
+                    text: GameService.isScanning ? qsTr("Taranıyor…") : qsTr("Yeniden tara")
+                    toolTip: qsTr("Steam, Epic, GOG ve Xbox kütüphanelerine yeniden bak")
+                    onClicked: GameService.scanAllLibraries()
+                }
+                AppButton {
+                    style: "gray"
+                    icon: Icons.plus
+                    text: qsTr("Oyun ekle")
+                    toolTip: qsTr("Listede olmayan bir oyunun klasörünü seç")
+                    onClicked: libraryRoot.manualFolderRequested()
+                }
+            }
+
+            SegmentedControl {
+                visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
+                model: libraryRoot._filters
+                currentValue: libraryRoot.filter
+                onActivated: (value) => libraryRoot.filter = value
+            }
+
+            // The games
+            Card {
+                Layout.fillWidth: true
+                visible: libraryRoot._rows.length > 0
+                implicitHeight: rowsCol.implicitHeight
+                radius: Dimensions.radiusLG
+
+                ColumnLayout {
+                    id: rowsCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    spacing: 0
+
+                    Repeater {
+                        model: libraryRoot._rows
+
+                        delegate: Item {
+                            id: row
+                            required property var modelData
+                            required property int index
+
+                            readonly property string status: row.modelData.status || "ready"
+                            readonly property color tone: row.status === "update" ? Theme.warning
+                                                        : row.status === "installed" ? Theme.success
+                                                        : row.status === "external" ? Theme.textMuted
+                                                        : Theme.primary
+                            readonly property bool _first: row.index === 0
+                            readonly property bool _last: row.index === libraryRoot._rows.length - 1
+                            function open() {
+                                libraryRoot.gameSelected(row.modelData.id, row.modelData.name || "",
+                                                         row.modelData.installPath || "", row.modelData.engine || "")
+                            }
+                            function act() {
+                                if (row.status === "external")
+                                    Qt.openUrlExternally(row.modelData.externalUrl)
+                                else if (row.status === "installed")
+                                    row.open()
+                                else
+                                    libraryRoot.installRequested(row.modelData.id, row.modelData.name || "",
+                                                                 row.modelData.installPath || "", row.modelData.engine || "")
+                            }
+
+                            Layout.fillWidth: true
+                            implicitHeight: 92
+
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: row.modelData.name || ""
+                            Keys.onReturnPressed: row.open()
+                            Keys.onSpacePressed: row.open()
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 1
+                                visible: rowHover.hovered || row.activeFocus
+                                color: rowTap.pressed ? Theme.fillTertiary : Theme.fillQuaternary
+                                topLeftRadius: row._first ? Dimensions.radiusLG - 1 : 0
+                                topRightRadius: row._first ? Dimensions.radiusLG - 1 : 0
+                                bottomLeftRadius: row._last ? Dimensions.radiusLG - 1 : 0
+                                bottomRightRadius: row._last ? Dimensions.radiusLG - 1 : 0
+                            }
+                            Rectangle {
+                                visible: !row._first
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.leftMargin: 16 + 48 + 16
+                                height: 1
+                                color: Theme.separator
+                            }
+
+                            HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { id: rowTap; onTapped: row.open() }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                spacing: 16
+
+                                Thumb {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    gameId: row.modelData.id || ""
+                                    steamAppId: row.modelData.steamAppId || ""
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 3
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        textFormat: Text.PlainText
+                                        text: row.modelData.name || ""
+                                        elide: Text.ElideRight
+                                        font.pixelSize: Dimensions.headline
+                                        font.weight: Font.DemiBold
+                                        color: Theme.textPrimary
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        textFormat: Text.PlainText
+                                        text: libraryRoot._source(row.modelData) + "  ·  "
+                                              + libraryRoot._shownPath(row.modelData.installPath)
+                                        elide: Text.ElideMiddle
+                                        font.pixelSize: Dimensions.footnote
+                                        color: Theme.textMuted
+                                    }
+                                    StatusBadge {
+                                        Layout.topMargin: 3
+                                        tint: row.tone
+                                        text: row.status === "update" ? qsTr("Güncelleme var")
+                                            : row.status === "installed" ? qsTr("Yama kurulu")
+                                            : row.status === "external" ? qsTr("Yaması başka sitede")
+                                            : qsTr("Yama hazır, kurulmadı")
+                                    }
+                                }
+
+                                AppButton {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    style: row.status === "ready" ? "filled"
+                                         : row.status === "update" ? "filled" : "gray"
+                                    tint: row.status === "update" ? Theme.warning : Theme.primary
+                                    icon: row.status === "ready" ? Icons.download
+                                        : row.status === "update" ? Icons.refreshCw
+                                        : row.status === "external" ? Icons.arrowUpRight : ""
+                                    trailingIcon: row.status === "installed" ? Icons.chevronRight : ""
+                                    text: row.status === "ready" ? qsTr("Türkçe Yamayı Kur")
+                                        : row.status === "update" ? qsTr("Güncelle")
+                                        : row.status === "external" ? qsTr("Sitesine git")
+                                        : qsTr("Sayfasını aç")
+                                    onClicked: row.act()
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            SectionContainer {
-                glowPosition: "top-right"
-                contentSpacing: Dimensions.spacingXL
+            // Nothing yet: what to do about it
+            Card {
+                Layout.fillWidth: true
+                visible: libraryRoot._lib.length === 0 && !GameService.isScanning
+                implicitHeight: emptyCol.implicitHeight + 64
 
-                // Title, what is here, and the two ways to change it
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Dimensions.spacingLG
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Dimensions.spacingXS
-
-                        Text {
-                            textFormat: Text.PlainText
-                            text: qsTr("Kütüphanem")
-                            font.pixelSize: Dimensions.fontHero
-                            font.weight: Font.Bold
-                            color: Theme.textPrimary
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            textFormat: Text.PlainText
-                            elide: Text.ElideRight
-                            font.pixelSize: Dimensions.fontMD
-                            color: Theme.textSecondary
-                            text: GameService.isScanning && libraryRoot._lib.length === 0
-                                  ? qsTr("Oyunların aranıyor…")
-                                  : libraryRoot._lib.length === 0
-                                    ? qsTr("Bilgisayarında Türkçe yaması olan bir oyun bulamadık.")
-                                    : qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.")
-                                          .arg(libraryRoot._lib.length).arg(libraryRoot._patched)
-                        }
-                    }
-
-                    LibButton {
-                        glyph: "\uE897"
-                        text: qsTr("Nasıl çalışır?")
-                        onClicked: libraryRoot.helpRequested()
-                    }
-                    LibButton {
-                        glyph: "\uE72C"
-                        text: GameService.isScanning ? qsTr("Taranıyor…") : qsTr("Yeniden tara")
-                        enabled: !GameService.isScanning
-                        onClicked: GameService.scanAllLibraries()
-                    }
-                    LibButton {
-                        glyph: "\uE710"
-                        text: qsTr("Oyun ekle")
-                        onClicked: libraryRoot.manualFolderRequested()
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: libraryRoot._lib.length > 0
-                    spacing: Dimensions.spacingLG
-
-                    StatTile { key: "all"; value: libraryRoot._lib.length; label: qsTr("Bilgisayarında") }
-                    StatTile { key: "ready"; value: libraryRoot._ready; label: qsTr("Kurulmayı bekliyor"); tint: Theme.accentLight }
-                    StatTile { key: "update"; value: libraryRoot._updates; label: qsTr("Güncelleme var"); tint: Theme.warning }
-                    StatTile { key: "installed"; value: libraryRoot._patched; label: qsTr("Yama kurulu"); tint: Theme.success }
-                }
-
-                // The games
-                Repeater {
-                    model: libraryRoot._rows
-
-                    delegate: Rectangle {
-                        id: row
-                        required property var modelData
-
-                        readonly property string status: row.modelData.status || "ready"
-                        readonly property color tone: row.status === "update" ? Theme.warning
-                                                    : row.status === "installed" ? Theme.success
-                                                    : row.status === "external" ? Theme.textSecondary
-                                                    : Theme.accentLight
-                        function open() {
-                            libraryRoot.gameSelected(row.modelData.id, row.modelData.name || "",
-                                                     row.modelData.installPath || "", row.modelData.engine || "")
-                        }
-                        function act() {
-                            if (row.status === "external")
-                                Qt.openUrlExternally(row.modelData.externalUrl)
-                            else if (row.status === "installed")
-                                row.open()
-                            else
-                                libraryRoot.installRequested(row.modelData.id, row.modelData.name || "",
-                                                             row.modelData.installPath || "", row.modelData.engine || "")
-                        }
-
-                        Layout.fillWidth: true
-                        implicitHeight: 96
-                        radius: Dimensions.radiusLG
-                        color: rowHover.hovered ? Theme.textPrimary06 : Theme.textPrimary03
-                        border.width: row.activeFocus ? 2 : 1
-                        border.color: row.activeFocus ? Theme.accentLight : Theme.textPrimary06
-                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                        activeFocusOnTab: true
-                        Accessible.role: Accessible.Button
-                        Accessible.name: row.modelData.name || ""
-                        Keys.onReturnPressed: row.open()
-                        Keys.onSpacePressed: row.open()
-
-                        HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: row.open()
-                        }
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: Dimensions.paddingMD
-                            anchors.rightMargin: Dimensions.paddingLG
-                            spacing: Dimensions.spacingXL
-
-                            GameCard {
-                                Layout.alignment: Qt.AlignVCenter
-                                Layout.preferredWidth: 53
-                                Layout.preferredHeight: 76
-                                showName: false
-                                gameId: row.modelData.id || ""
-                                gameName: row.modelData.name || ""
-                                steamAppId: row.modelData.steamAppId || ""
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: Dimensions.spacingXS
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    textFormat: Text.PlainText
-                                    text: row.modelData.name || ""
-                                    elide: Text.ElideRight
-                                    font.pixelSize: Dimensions.fontLG
-                                    font.weight: Font.DemiBold
-                                    color: Theme.textPrimary
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    textFormat: Text.PlainText
-                                    text: libraryRoot._source(row.modelData) + "  ·  "
-                                          + libraryRoot._shownPath(row.modelData.installPath)
-                                    elide: Text.ElideMiddle
-                                    font.pixelSize: Dimensions.fontSM
-                                    color: Theme.textMuted
-                                }
-                            }
-
-                            // State: a word, never colour alone
-                            Rectangle {
-                                Layout.alignment: Qt.AlignVCenter
-                                implicitWidth: pillRow.implicitWidth + 20
-                                implicitHeight: 26
-                                radius: 13
-                                color: Theme.withAlpha(row.tone, 0.12)
-
-                                Row {
-                                    id: pillRow
-                                    anchors.centerIn: parent
-                                    spacing: 6
-                                    Rectangle {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: 7; height: 7; radius: 3.5
-                                        color: row.tone
-                                    }
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        textFormat: Text.PlainText
-                                        font.pixelSize: Dimensions.fontSM
-                                        font.weight: Font.DemiBold
-                                        color: Theme.textPrimary
-                                        text: row.status === "update" ? qsTr("Güncelleme var")
-                                            : row.status === "installed" ? qsTr("Yama kurulu")
-                                            : row.status === "external" ? qsTr("Dış sitede")
-                                            : qsTr("Yama hazır")
-                                    }
-                                }
-                            }
-
-                            LibButton {
-                                Layout.alignment: Qt.AlignVCenter
-                                Layout.preferredWidth: 184
-                                filled: row.status === "ready" || row.status === "update"
-                                fill: row.status === "update" ? Theme.warning : Theme.primary
-                                glyph: row.status === "ready" ? "\uE896"
-                                     : row.status === "update" ? "\uE777"
-                                     : row.status === "external" ? "\uE8A7" : "\uE76C"
-                                text: row.status === "ready" ? qsTr("Türkçe Yamayı Kur")
-                                    : row.status === "update" ? qsTr("Güncelle")
-                                    : row.status === "external" ? qsTr("Sitesine git")
-                                    : qsTr("Sayfasını aç")
-                                onClicked: row.act()
-                            }
-                        }
-                    }
-                }
-
-                // Nothing yet: what to do about it
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: Dimensions.spacingXL
-                    Layout.bottomMargin: Dimensions.spacingXL
-                    visible: libraryRoot._lib.length === 0
-                    spacing: Dimensions.spacingLG
+                    id: emptyCol
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 64, 520)
+                    spacing: 12
 
-                    Rectangle {
+                    IconTile {
                         Layout.alignment: Qt.AlignHCenter
-                        implicitWidth: 72
-                        implicitHeight: 72
-                        radius: 36
-                        color: Theme.primary12
-                        Text {
-                            anchors.centerIn: parent
-                            textFormat: Text.PlainText
-                            text: "\uED25"
-                            font.family: "Segoe MDL2 Assets"
-                            font.pixelSize: 28
-                            color: Theme.accentLight
-                        }
+                        size: 56
+                        glyph: Icons.gamepad2
+                        tint: Theme.primary
                     }
                     Text {
                         Layout.fillWidth: true
-                        Layout.maximumWidth: 560
-                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: 4
+                        horizontalAlignment: Text.AlignHCenter
+                        textFormat: Text.PlainText
+                        text: qsTr("Kütüphanende henüz oyun yok")
+                        font.pixelSize: Dimensions.title3
+                        font.weight: Font.Bold
+                        color: Theme.textPrimary
+                    }
+                    Text {
+                        Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         textFormat: Text.PlainText
                         wrapMode: Text.WordWrap
-                        lineHeight: 1.4
-                        font.pixelSize: Dimensions.fontMD
-                        color: Theme.textSecondary
+                        lineHeight: 1.2
+                        font.pixelSize: Dimensions.callout
+                        color: Theme.textMuted
                         text: qsTr("Steam, Epic, GOG ve Xbox kütüphanelerine baktık. Oyunun başka bir yerdeyse klasörünü ekle ya da pencereye sürükleyip bırak; hangi oyun olduğunu biz buluruz.")
+                    }
+                    AppButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: 6
+                        style: "filled"
+                        icon: Icons.folderOpen
+                        text: qsTr("Oyun klasörünü seç")
+                        onClicked: libraryRoot.manualFolderRequested()
                     }
                 }
             }
@@ -453,10 +314,53 @@ Item {
                 visible: libraryRoot._lib.length > 0
                 horizontalAlignment: Text.AlignHCenter
                 textFormat: Text.PlainText
-                font.pixelSize: Dimensions.fontSM
+                wrapMode: Text.WordWrap
+                font.pixelSize: Dimensions.footnote
                 color: Theme.textMuted
                 text: qsTr("Bir oyunun listede yok mu? Klasörünü pencereye sürükleyip bırak ya da \"Oyun ekle\"yi kullan.")
             }
+        }
+    }
+
+    // A small cover for a list row (pre-rounded art from the image cache)
+    component Thumb: Item {
+        id: thumb
+        property string gameId: ""
+        property string steamAppId: ""
+        property string _src: ""
+        function _resolve() {
+            const id = thumb.steamAppId || thumb.gameId
+            thumb._src = id ? ImageCache.resolve(id) : ""
+        }
+        onSteamAppIdChanged: _resolve()
+        onGameIdChanged: _resolve()
+        Component.onCompleted: _resolve()
+
+        implicitWidth: 48
+        implicitHeight: 68
+
+        // Fixed target, gated by `enabled` (NATIVE-74).
+        Connections {
+            target: ImageCache
+            enabled: thumb._src === ""
+            function onImageReady(readyId) {
+                if (readyId === (thumb.steamAppId || thumb.gameId)) thumb._resolve()
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: width * 0.118
+            color: Theme.surfaceLight
+            visible: img.status !== Image.Ready
+        }
+        Image {
+            id: img
+            anchors.fill: parent
+            source: thumb._src
+            fillMode: Image.PreserveAspectCrop
+            sourceSize: Qt.size(96, 136)
+            asynchronous: true
+            mipmap: true
         }
     }
 }

@@ -236,7 +236,7 @@ Item {
             OnboardingButton {
                 kind: "primary"
                 text: qsTr("Makine Launcher'ı aç")
-                trailingIcon: "\uE72A"
+                trailingIcon: Icons.arrowRight
                 onClicked: step.finish()
             }
         }

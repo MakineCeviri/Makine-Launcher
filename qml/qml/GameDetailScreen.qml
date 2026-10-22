@@ -6,6 +6,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
 import "screens/detail"
+import "components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -273,6 +274,7 @@ Item {
         message: qsTr("%1 için kurulu Türkçe yama kaldırılacak; yedeklenen orijinal oyun dosyaları geri yüklenecek. İstediğin zaman yeniden kurabilirsin.")
                      .arg(root.viewModel.gameName)
         confirmText: qsTr("Yamayı kaldır")
+        glyph: Icons.trash2
         onConfirmed: GameService.uninstallTranslation(root.viewModel.gameId)
     }
 
@@ -395,20 +397,6 @@ Item {
         color: Theme.bgPrimary
     }
 
-    // Navbar-to-content gradient overlay — smooth transition from navbar color
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        height: Dimensions.radiusSection * 3
-        z: 10
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.bgPrimary90 }
-            GradientStop { position: 0.6; color: Qt.rgba(Theme.bgPrimary90.r, Theme.bgPrimary90.g, Theme.bgPrimary90.b, 0.4) }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-    }
-
     // =========================================================================
     // MAIN CONTENT
     // =========================================================================
@@ -445,22 +433,6 @@ Item {
             }
 
             // =================================================================
-            // UPDATE PROTECTION BANNER
-            // =================================================================
-
-            UpdateBanner {
-                vm: root.viewModel
-            }
-
-            // =================================================================
-            // OUTPUT OF THE PATCH'S OWN PROGRAM ("run" steps)
-            // =================================================================
-
-            ProgramConsole {
-                vm: root.viewModel
-            }
-
-            // =================================================================
             // RUNTIME (Unity BepInEx) — lazy loaded, conditional
             // =================================================================
 
@@ -482,7 +454,7 @@ Item {
             }
 
             // Bottom spacer
-            Item { Layout.preferredHeight: Dimensions.marginLG; Layout.fillWidth: true }
+            Item { Layout.preferredHeight: 40; Layout.fillWidth: true }
 
         } // end contentCol
     } // end Flickable
@@ -501,16 +473,6 @@ Item {
     }
 
     // =========================================================================
-    // LOADING / ERROR OVERLAY
-    // =========================================================================
-
-    GameDetailOverlay {
-        anchors.fill: parent
-        vm: root.viewModel
-        z: 5
-    }
-
-    // =========================================================================
     // FOCUS INDICATOR
     // =========================================================================
 
@@ -518,126 +480,18 @@ Item {
     Accessible.name: root.viewModel.gameName
 
     // =========================================================================
-    // BACK BUTTON — premium glassmorphic pill, top-left corner
+    // BACK — a toolbar button over the page's top strip
     // =========================================================================
 
-    Rectangle {
-        x: Dimensions.marginML
-        y: Dimensions.marginML
+    AppButton {
+        x: Dimensions.pageMargin - 6
+        y: 10
         z: 100
-        implicitWidth: _backRow.implicitWidth + 28
-        implicitHeight: 36
-        radius: implicitHeight / 2
-        color: _backMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.08)
-        border.color: _backMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.25) : Qt.rgba(1, 1, 1, 0.12)
-        border.width: 1
-        scale: _backMouse.pressed ? 0.93 : (_backMouse.containsMouse ? 1.04 : 1.0)
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-        Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
-        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-
-        // Subtle top-lit gradient border
-        GradientBorder {
-            cornerRadius: parent.radius
-            topColor: Qt.rgba(1, 1, 1, 0.18)
-            midColor: Qt.rgba(1, 1, 1, 0.04)
-            bottomColor: Qt.rgba(1, 1, 1, 0.01)
-        }
-
-        Row {
-            id: _backRow
-            anchors.centerIn: parent
-            spacing: Dimensions.spacingMD
-
-            // Chevron arrow
-            Canvas {
-                width: 14; height: 14
-                anchors.verticalCenter: parent.verticalCenter
-                renderStrategy: Canvas.Cooperative
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.clearRect(0, 0, width, height)
-                    ctx.strokeStyle = "#ffffff"
-                    ctx.lineWidth = 1.8
-                    ctx.lineCap = "round"
-                    ctx.lineJoin = "round"
-                    ctx.beginPath()
-                    ctx.moveTo(9, 2)
-                    ctx.lineTo(4, 7)
-                    ctx.lineTo(9, 12)
-                    ctx.stroke()
-                }
-            }
-
-            Text {
-                text: qsTr("Geri")
-                font.pixelSize: Dimensions.fontBody
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.3
-                color: "#ffffff"
-                textFormat: Text.PlainText
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-
-        MouseArea {
-            id: _backMouse
-            anchors.fill: parent
-            anchors.margins: -4
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.backClicked()
-        }
-    }
-
-    // =========================================================================
-    // "NOT DETECTED" BADGE — same pill as the back button but darker, so it
-    // reads as a notification over the hero art. Centered at the top of the
-    // nav bar. Shown only when the game is not found on the user's PC — the
-    // state that silently blocks install/repair and confuses users.
-    // =========================================================================
-
-    Rectangle {
-        visible: !root.viewModel.isGameInstalled
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: Dimensions.marginML
-        z: 100
-        implicitWidth: _notDetectedRow.implicitWidth + 28
-        implicitHeight: 36
-        radius: implicitHeight / 2
-        color: Qt.rgba(0, 0, 0, 0.55)
-        border.color: Qt.rgba(1, 1, 1, 0.15)
-        border.width: 1
-
-        // Same top-lit gradient edge as the back button, kept subtle
-        GradientBorder {
-            cornerRadius: parent.radius
-            topColor: Qt.rgba(1, 1, 1, 0.16)
-            midColor: Qt.rgba(1, 1, 1, 0.03)
-            bottomColor: Qt.rgba(1, 1, 1, 0.01)
-        }
-
-        Row {
-            id: _notDetectedRow
-            anchors.centerIn: parent
-            spacing: Dimensions.spacingMD
-
-            // Amber attention dot — "heads up" cue without pulling in an icon font
-            Rectangle {
-                width: 8; height: 8; radius: 4
-                color: "#f5a623"
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Text {
-                text: qsTr("Bu oyun bilgisayarınızda tespit edilemedi")
-                font.pixelSize: Dimensions.fontBody
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.3
-                color: "#ffffff"
-                textFormat: Text.PlainText
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
+        size: "small"
+        style: "gray"
+        icon: Icons.chevronLeft
+        text: qsTr("Geri")
+        toolTip: qsTr("Geldiğin sayfaya dön (Esc)")
+        onClicked: root.backClicked()
     }
 }

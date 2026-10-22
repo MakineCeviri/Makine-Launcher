@@ -29,22 +29,20 @@ Item {
     // scan reports, "nothing found" would be a guess.
     property bool _scanDone: false
     readonly property bool _scanning: GameService.isScanning || !step._scanDone
-    readonly property var _games: step._sorted(GameService.games, GameService.installedTranslations)
+    // GameService.library: this PC's games with a patch and each one's state
+    // (ready, update, installed, external — a patch on another team's site).
+    readonly property var _games: step._sorted(GameService.library)
     readonly property int _catalogCount: GameService.supportedGamesModel
                                          ? GameService.supportedGamesModel.count : 0
     readonly property int _shown: Math.min(step._games.length, 6)
 
-    function _sorted(games, installed) {
-        const patched = {}
-        for (const t of installed)
-            patched[t.id] = t.hasUpdate === true
+    function _sorted(library) {
         const out = []
-        for (const g of games) {
-            const status = (g.id in patched) ? (patched[g.id] ? "update" : "installed") : "ready"
-            out.push({ gameId: g.id, steamAppId: g.steamAppId || "", name: g.name || "", status: status })
-        }
-        const rank = { "ready": 0, "update": 1, "installed": 2 }
-        out.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name))
+        for (const g of library)
+            out.push({ gameId: g.id, steamAppId: g.steamAppId || "", name: g.name || "",
+                       status: g.status || "ready" })
+        const rank = { "ready": 0, "update": 1, "installed": 2, "external": 3 }
+        out.sort((a, b) => (rank[a.status] ?? 4) - (rank[b.status] ?? 4) || a.name.localeCompare(b.name))
         return out
     }
 
@@ -176,7 +174,7 @@ Item {
             OnboardingButton {
                 kind: "primary"
                 text: qsTr("Devam")
-                trailingIcon: "\uE72A"
+                trailingIcon: Icons.arrowRight
                 onClicked: step.next()
             }
         }

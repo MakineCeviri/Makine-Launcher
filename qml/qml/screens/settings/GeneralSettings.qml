@@ -5,532 +5,243 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
- * GeneralSettings.qml - General application settings panel
+ * GeneralSettings.qml - "Genel": start-up, games, privacy, updates, storage.
+ *
+ * Controls bind DIRECTLY to SettingsManager — no mirror properties. An
+ * imperative write to a `property: SettingsManager.x` intermediate breaks
+ * that binding, so resetToDefaults()/external changes never showed up.
  */
 ColumnLayout {
     id: generalRoot
-    spacing: Dimensions.spacingXL
+    spacing: 28
 
     signal clearCacheRequested()
     signal resetSettingsRequested()
 
-    // Controls bind DIRECTLY to SettingsManager — no mirror properties.
-    // An imperative write to a `property: SettingsManager.x` intermediate
-    // breaks that binding, so resetToDefaults()/external changes never
-    // showed up ("ayarlar aynı kalıyor"). Direct bindings always reflect.
+    readonly property int _state: UpdateService.state
+    readonly property bool _downloading: _state === UpdateService.Downloading || _state === UpdateService.Verifying
 
-    SettingsCard {
-        Layout.fillWidth: true
+    ListSection {
+        title: qsTr("Başlangıç")
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 0
-
-            ToggleSetting {
-                title: qsTr("Otomatik Oyun Tespiti")
-                description: qsTr("Oyunları otomatik olarak tespit et")
-                checked: SettingsManager.autoDetectGames
-                disableAnimations: !SettingsManager.enableAnimations
-                onToggled: SettingsManager.autoDetectGames = !SettingsManager.autoDetectGames
-            }
-
-            SettingsDivider {}
-
-            ToggleSetting {
-                title: qsTr("Windows ile Başlat")
-                description: qsTr("Bilgisayar açıldığında otomatik başlat")
+        ListRow {
+            icon: Icons.power
+            iconTint: "#30D158"
+            title: qsTr("Windows ile başlat")
+            subtitle: qsTr("Bilgisayar açıldığında launcher kendiliğinden açılır.")
+            AppSwitch {
                 checked: SettingsManager.startWithWindows
-                disableAnimations: !SettingsManager.enableAnimations
+                animate: SettingsManager.enableAnimations
+                accessibleName: qsTr("Windows ile başlat")
                 onToggled: SettingsManager.startWithWindows = !SettingsManager.startWithWindows
             }
-
-            SettingsDivider {}
-
-            ToggleSetting {
-                title: qsTr("Sistem Tepsisine Küçült")
-                description: qsTr("Kapatıldığında arka planda çalışır")
+        }
+        ListRow {
+            icon: Icons.chevronsDown
+            iconTint: "#8E8E93"
+            title: qsTr("Kapatınca tepside çalışsın")
+            subtitle: qsTr("Pencereyi kapattığında launcher saatin yanında bir simge olarak çalışmayı sürdürür; süren indirme ve kurulumlar yarıda kalmaz.")
+            AppSwitch {
                 checked: SettingsManager.minimizeToTray
-                disableAnimations: !SettingsManager.enableAnimations
+                animate: SettingsManager.enableAnimations
+                accessibleName: qsTr("Kapatınca tepside çalışsın")
                 onToggled: SettingsManager.minimizeToTray = !SettingsManager.minimizeToTray
             }
+        }
+    }
 
-            SettingsDivider {}
+    ListSection {
+        title: qsTr("Oyunlar")
 
-            ToggleSetting {
-                title: qsTr("Çökme ve Hata Raporlarını Gönder")
-                description: qsTr("Raporlar (Sentry) kişisel bilgi içermez; kapatırsanız hiçbiri gönderilmez.")
+        ListRow {
+            icon: Icons.scanSearch
+            iconTint: Theme.primary
+            title: qsTr("Çalıştırdığın oyunu tanı")
+            subtitle: qsTr("Açıkken bir oyun başlattığında launcher onu fark eder; Türkçe yaması varsa kütüphanene ekler ve haber verir.")
+            AppSwitch {
+                checked: SettingsManager.autoDetectGames
+                animate: SettingsManager.enableAnimations
+                accessibleName: qsTr("Çalıştırdığın oyunu tanı")
+                onToggled: SettingsManager.autoDetectGames = !SettingsManager.autoDetectGames
+            }
+        }
+    }
+
+    ListSection {
+        title: qsTr("Gizlilik")
+        footer: qsTr("Raporda yalnızca neyin bozulduğu yazar: hangi işlem, hangi hata, hangi oyunda. Bilgisayarındaki klasör yolları ve kullanıcı adın rapora girmeden silinir.")
+
+        ListRow {
+            icon: Icons.shieldCheck
+            iconTint: "#5E5CE6"
+            title: qsTr("Çökme ve hata raporlarını gönder")
+            subtitle: qsTr("Bir şey ters giderse bize kişisel bilgi içermeyen bir rapor (Sentry) gider, sorunu bulup düzeltiriz. Kapatırsan hiçbiri gönderilmez.")
+            AppSwitch {
                 checked: SettingsManager.sendCrashReports
-                disableAnimations: !SettingsManager.enableAnimations
+                animate: SettingsManager.enableAnimations
+                accessibleName: qsTr("Çökme ve hata raporlarını gönder")
                 onToggled: SettingsManager.sendCrashReports = !SettingsManager.sendCrashReports
             }
-
         }
     }
 
-    SettingsCard {
-        Layout.fillWidth: true
+    ListSection {
+        title: qsTr("Güncellemeler")
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 0
-
-            // Update check — single State enum drives all UI
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 72
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Dimensions.marginML
-                        anchors.rightMargin: Dimensions.marginML
-                        spacing: Dimensions.spacingXL
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: Dimensions.spacingXS
-
-                            Label {
-                                textFormat: Text.PlainText
-                                text: qsTr("Güncelleme Kontrolü")
-                                font.pixelSize: Dimensions.fontMD
-                                font.weight: Font.Medium
-                                color: Theme.textPrimary
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-
-                            Label {
-                                textFormat: Text.PlainText
-                                text: {
-                                    switch (UpdateService.state) {
-                                    case UpdateService.Checking:
-                                        return qsTr("Kontrol ediliyor...")
-                                    case UpdateService.Available:
-                                        return qsTr("Yeni sürüm mevcut: %1").arg(UpdateService.version)
-                                    case UpdateService.Downloading:
-                                        return qsTr("İndiriliyor... %1%").arg(Math.round(UpdateService.progress * 100))
-                                    case UpdateService.Verifying:
-                                        return qsTr("Doğrulanıyor...")
-                                    case UpdateService.Ready:
-                                        return qsTr("Güncelleme kurulmaya hazır")
-                                    case UpdateService.Installing:
-                                        return qsTr("Güncelleme kuruluyor...")
-                                    case UpdateService.Idle:
-                                        return UpdateService.error ? qsTr("Kontrol başarısız oldu")
-                                                                   : qsTr("Güncel sürümdesiniz")
-                                    default:
-                                        return qsTr("Son kontrol yapılmadı")
-                                    }
-                                }
-                                font.pixelSize: Dimensions.fontBody
-                                color: {
-                                    switch (UpdateService.state) {
-                                    case UpdateService.Available: return Theme.success
-                                    case UpdateService.Downloading:
-                                    case UpdateService.Verifying: return Theme.primary
-                                    case UpdateService.Ready: return Theme.success
-                                    case UpdateService.Idle:
-                                        return UpdateService.error ? Theme.error : Theme.textMuted
-                                    default: return Theme.textMuted
-                                    }
-                                }
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        // Check button — visible in Idle state
-                        Rectangle {
-                            Layout.preferredWidth: _updateBtnLbl.width + 24
-                            Layout.preferredHeight: 28
-                            radius: Dimensions.radiusMD
-                            visible: UpdateService.state === UpdateService.Idle
-                            color: _updateBtnMouse.containsMouse
-                                ? Theme.primary20
-                                : Theme.primary10
-                            scale: _updateBtnMouse.pressed ? 0.94 : 1.0
-                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                            Label {
-                                textFormat: Text.PlainText
-                                id: _updateBtnLbl
-                                anchors.centerIn: parent
-                                text: qsTr("Kontrol Et")
-                                font.pixelSize: Dimensions.fontSM
-                                font.weight: Font.DemiBold
-                                color: Theme.primary
-                            }
-
-                            MouseArea {
-                                id: _updateBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateService.check()
-                            }
-                        }
-
-                        // Download button — visible in Available state
-                        Rectangle {
-                            Layout.preferredWidth: _dlBtnLbl.width + 24
-                            Layout.preferredHeight: 28
-                            radius: Dimensions.radiusMD
-                            visible: UpdateService.state === UpdateService.Available
-                            color: _dlBtnMouse.containsMouse ? Theme.success : Theme.success85
-                            scale: _dlBtnMouse.pressed ? 0.94 : 1.0
-                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                            Label {
-                                textFormat: Text.PlainText
-                                id: _dlBtnLbl
-                                anchors.centerIn: parent
-                                text: qsTr("İndir ve Kur")
-                                font.pixelSize: Dimensions.fontSM
-                                font.weight: Font.DemiBold
-                                color: Theme.textOnColor
-                            }
-
-                            MouseArea {
-                                id: _dlBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateService.download()
-                            }
-                        }
-
-                        // Cancel button — visible while downloading/verifying
-                        Rectangle {
-                            Layout.preferredWidth: _cancelBtnLbl.width + 24
-                            Layout.preferredHeight: 28
-                            radius: Dimensions.radiusMD
-                            visible: UpdateService.state === UpdateService.Downloading
-                                     || UpdateService.state === UpdateService.Verifying
-                            color: _cancelBtnMouse.containsMouse
-                                ? Theme.error20
-                                : Theme.error10
-                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-                            Label {
-                                textFormat: Text.PlainText
-                                id: _cancelBtnLbl
-                                anchors.centerIn: parent
-                                text: qsTr("İptal")
-                                font.pixelSize: Dimensions.fontSM
-                                font.weight: Font.DemiBold
-                                color: Theme.error
-                            }
-
-                            MouseArea {
-                                id: _cancelBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateService.cancel()
-                            }
-                        }
-
-                        // Install button — visible when Ready
-                        Rectangle {
-                            Layout.preferredWidth: _installBtnLbl.width + 24
-                            Layout.preferredHeight: 28
-                            radius: Dimensions.radiusMD
-                            visible: UpdateService.state === UpdateService.Ready
-                            color: _installBtnMouse.containsMouse ? Theme.success : Theme.success85
-                            scale: _installBtnMouse.pressed ? 0.94 : 1.0
-                            Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                            Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                            Label {
-                                textFormat: Text.PlainText
-                                id: _installBtnLbl
-                                anchors.centerIn: parent
-                                text: qsTr("Şimdi Kur")
-                                font.pixelSize: Dimensions.fontSM
-                                font.weight: Font.DemiBold
-                                color: Theme.textOnColor
-                            }
-
-                            MouseArea {
-                                id: _installBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateService.install()
-                            }
-                        }
-
-                        // Spinner when checking
-                        BusyIndicator {
-                            Layout.preferredWidth: 24
-                            Layout.preferredHeight: 24
-                            running: UpdateService.state === UpdateService.Checking
-                            visible: running
-                            palette.dark: Theme.primary
-                        }
-                    }
-                }
-
-                // Download progress bar
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: (UpdateService.state === UpdateService.Downloading
-                                            || UpdateService.state === UpdateService.Verifying) ? 28 : 0
-                    Layout.leftMargin: Dimensions.marginML
-                    Layout.rightMargin: Dimensions.marginML
-                    visible: UpdateService.state === UpdateService.Downloading
-                             || UpdateService.state === UpdateService.Verifying
-
-                    Behavior on Layout.preferredHeight {
-                        NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: Dimensions.spacingMD
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 6
-                            radius: 3
-                            color: Theme.primary15
-
-                            Rectangle {
-                                width: parent.width * UpdateService.progress
-                                height: parent.height
-                                radius: 3
-                                color: Theme.primary
-
-                                Behavior on width {
-                                    NumberAnimation { duration: Dimensions.animMedium; easing.type: Easing.OutCubic }
-                                }
-                            }
-                        }
-
-                        Label {
-                            textFormat: Text.PlainText
-                            text: {
-                                var sizeMB = UpdateService.totalBytes / (1024 * 1024)
-                                var downloadedMB = sizeMB * UpdateService.progress
-                                return qsTr("%1 / %2 MB").arg(downloadedMB.toFixed(1)).arg(sizeMB.toFixed(1))
-                            }
-                            font.pixelSize: Dimensions.fontXS
-                            color: Theme.textMuted
-                            Layout.preferredWidth: 100
-                            horizontalAlignment: Text.AlignRight
-                        }
-                    }
-                }
-
-                // Error message
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: UpdateService.error ? 32 : 0
-                    Layout.leftMargin: Dimensions.marginML
-                    Layout.rightMargin: Dimensions.marginML
-                    visible: UpdateService.error !== ""
-
-                    Behavior on Layout.preferredHeight {
-                        NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: Dimensions.spacingSM
-
-                        Label {
-                            textFormat: Text.PlainText
-                            text: UpdateService.error
-                            font.pixelSize: Dimensions.fontSM
-                            color: Theme.error
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-
-                        Rectangle {
-                            Layout.preferredWidth: _retryLbl.width + 16
-                            Layout.preferredHeight: 24
-                            radius: Dimensions.radiusSM
-                            color: _retryMouse.containsMouse
-                                ? Theme.primary20
-                                : Theme.primary10
-
-                            Label {
-                                textFormat: Text.PlainText
-                                id: _retryLbl
-                                anchors.centerIn: parent
-                                text: qsTr("Tekrar Dene")
-                                font.pixelSize: Dimensions.fontXS
-                                font.weight: Font.DemiBold
-                                color: Theme.primary
-                            }
-
-                            MouseArea {
-                                id: _retryMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: UpdateService.download()
-                            }
-                        }
-                    }
+        ListRow {
+            icon: Icons.circleArrowDown
+            iconTint: Theme.primary
+            title: qsTr("Makine Launcher %1").arg(Dimensions.appVersion)
+            subtitle: {
+                switch (generalRoot._state) {
+                case UpdateService.Checking:    return qsTr("Yeni sürüm var mı diye bakılıyor…")
+                case UpdateService.Available:   return qsTr("Yeni sürüm hazır: %1. İndirince launcher kendini yeniler; kurulu yamalarına dokunulmaz.").arg(UpdateService.version)
+                case UpdateService.Downloading: return qsTr("İndiriliyor… %%1").arg(Math.round(UpdateService.progress * 100))
+                case UpdateService.Verifying:   return qsTr("İndirilen dosya doğrulanıyor…")
+                case UpdateService.Ready:       return qsTr("Güncelleme hazır. Launcher kapanıp yeni sürümle açılır.")
+                case UpdateService.Installing:  return qsTr("Güncelleme kuruluyor…")
+                default:
+                    return UpdateService.error ? qsTr("Denetlenemedi: %1").arg(UpdateService.error)
+                                               : qsTr("En yeni sürümü kullanıyorsun.")
                 }
             }
 
-            SettingsDivider {}
+            Spinner { visible: generalRoot._state === UpdateService.Checking || generalRoot._state === UpdateService.Installing }
+            AppButton {
+                visible: generalRoot._state === UpdateService.Idle
+                size: "small"
+                style: "gray"
+                text: UpdateService.error ? qsTr("Tekrar dene") : qsTr("Denetle")
+                onClicked: UpdateService.check()
+            }
+            AppButton {
+                visible: generalRoot._state === UpdateService.Available
+                size: "small"
+                style: "filled"
+                text: qsTr("İndir ve kur")
+                onClicked: UpdateService.download()
+            }
+            AppButton {
+                visible: generalRoot._downloading
+                size: "small"
+                style: "gray"
+                text: qsTr("Vazgeç")
+                onClicked: UpdateService.cancel()
+            }
+            AppButton {
+                visible: generalRoot._state === UpdateService.Ready
+                size: "small"
+                style: "filled"
+                text: qsTr("Şimdi kur")
+                onClicked: UpdateService.install()
+            }
+        }
 
-            // Cache management
-            Item {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 72
+        // Download progress
+        Item {
+            Layout.fillWidth: true
+            visible: generalRoot._downloading
+            implicitHeight: 40
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Dimensions.marginML
-                    anchors.rightMargin: Dimensions.marginML
-                    spacing: Dimensions.spacingXL
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 16 + 28 + 12
+                anchors.rightMargin: 16
+                spacing: 12
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Dimensions.spacingXS
-
-                        Label {
-                            textFormat: Text.PlainText
-                            text: qsTr("Önbellek Yönetimi")
-                            font.pixelSize: Dimensions.fontMD
-                            font.weight: Font.Medium
-                            color: Theme.textPrimary
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-
-                        Label {
-                            textFormat: Text.PlainText
-                            text: qsTr("Uygulama önbellek dosyalarını temizle (%1)").arg(ImageCache.cacheSizeFormatted)
-                            font.pixelSize: Dimensions.fontBody
-                            color: Theme.textMuted
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-                    }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 6
+                    radius: 3
+                    color: Theme.fillTertiary
 
                     Rectangle {
-                        id: _clearCacheBtn
-                        property bool cleared: false
-                        Layout.preferredWidth: _clearCacheLbl.width + 24
-                        Layout.preferredHeight: 28
-                        radius: Dimensions.radiusMD
-                        color: _clearCacheBtn.cleared
-                            ? Theme.success10
-                            : (_clearCacheMouse.containsMouse ? Theme.warning20 : Theme.warning10)
-                        scale: _clearCacheMouse.pressed ? 0.94 : 1.0
-                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                        Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+                        width: parent.width * Math.max(0, Math.min(1, UpdateService.progress))
+                        height: parent.height
+                        radius: 3
+                        color: Theme.primary
+                        Behavior on width { NumberAnimation { duration: Dimensions.animMedium; easing.type: Easing.OutCubic } }
+                    }
+                }
+                Text {
+                    textFormat: Text.PlainText
+                    text: {
+                        const total = UpdateService.totalBytes / (1024 * 1024)
+                        return qsTr("%1 / %2 MB").arg((total * UpdateService.progress).toFixed(1)).arg(total.toFixed(1))
+                    }
+                    font.pixelSize: Dimensions.footnote
+                    font.features: { "tnum": 1 }
+                    color: Theme.textMuted
+                }
+            }
+        }
+    }
 
-                        Label {
-                            textFormat: Text.PlainText
-                            id: _clearCacheLbl
-                            anchors.centerIn: parent
-                            text: _clearCacheBtn.cleared ? qsTr("Temizlendi") : qsTr("Temizle")
-                            font.pixelSize: Dimensions.fontSM
-                            font.weight: Font.DemiBold
-                            color: _clearCacheBtn.cleared ? Theme.success : Theme.warning
-                        }
+    ListSection {
+        title: qsTr("Depolama")
 
-                        Timer {
-                            id: _clearCacheResetTimer
-                            interval: 2500
-                            onTriggered: _clearCacheBtn.cleared = false
-                        }
-
-                        MouseArea {
-                            id: _clearCacheMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: _clearCacheBtn.cleared ? Qt.ArrowCursor : Qt.PointingHandCursor
-                            enabled: !_clearCacheBtn.cleared
-                            onClicked: {
-                                SettingsManager.clearCache()
-                                ManifestSync.syncCatalog()
-                            }
-                        }
-
-                        Connections {
-                            target: SettingsManager
-                            function onCacheClearCompleted(success, message) {
-                                if (success) {
-                                    _clearCacheBtn.cleared = true
-                                    _clearCacheResetTimer.restart()
-                                }
-                            }
-                        }
+        ListRow {
+            id: cacheRow
+            property bool cleared: false
+            icon: Icons.hardDrive
+            iconTint: "#8E8E93"
+            title: qsTr("Önbellek")
+            subtitle: qsTr("Kapak resimleri ve katalogun bir kopyası: %1. Temizlersen gerektikçe yeniden indirilir; indirilen veriler etkilenmez.")
+                      .arg(ImageCache.cacheSizeFormatted)
+            AppButton {
+                size: "small"
+                style: cacheRow.cleared ? "plain" : "gray"
+                icon: cacheRow.cleared ? Icons.check : ""
+                tint: Theme.success
+                enabled: !cacheRow.cleared
+                text: cacheRow.cleared ? qsTr("Temizlendi") : qsTr("Temizle")
+                onClicked: {
+                    SettingsManager.clearCache()
+                    ManifestSync.syncCatalog()
+                }
+            }
+            Timer {
+                id: clearedTimer
+                interval: 2500
+                onTriggered: cacheRow.cleared = false
+            }
+            Connections {
+                target: SettingsManager
+                function onCacheClearCompleted(success, message) {
+                    if (success) {
+                        cacheRow.cleared = true
+                        clearedTimer.restart()
                     }
                 }
             }
-
         }
     }
 
-    // Reset to defaults
-    Item {
+    ColumnLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 48
-        Layout.topMargin: Dimensions.spacingSM
+        Layout.topMargin: 4
+        spacing: 6
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Dimensions.marginML
-            anchors.rightMargin: 0
-
-            Item { Layout.fillWidth: true }
-
-            Rectangle {
-                Layout.preferredWidth: _resetLbl.width + 32
-                Layout.preferredHeight: 34
-                radius: Dimensions.radiusMD
-                color: _resetMouse.containsMouse
-                    ? Theme.error12
-                    : "transparent"
-                border.color: Theme.error25
-                border.width: 1
-                scale: _resetMouse.pressed ? 0.94 : 1.0
-                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Ayarları Sıfırla")
-                activeFocusOnTab: true
-                Keys.onReturnPressed: generalRoot.resetSettingsRequested()
-
-                Label {
-                    textFormat: Text.PlainText
-                    id: _resetLbl
-                    anchors.centerIn: parent
-                    text: qsTr("Ayarları Sıfırla")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.Medium
-                    color: _resetMouse.containsMouse ? Theme.error : Theme.textMuted
-                    Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-                }
-
-                MouseArea {
-                    id: _resetMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: generalRoot.resetSettingsRequested()
-                }
-            }
+        AppButton {
+            Layout.alignment: Qt.AlignHCenter
+            style: "destructiveTinted"
+            size: "small"
+            icon: Icons.rotateCcw
+            text: qsTr("Ayarları sıfırla")
+            onClicked: generalRoot.resetSettingsRequested()
+        }
+        Text {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            text: qsTr("Seçimlerin ilk günkü haline döner; rapor gönderme tercihin olduğu gibi kalır. Kurulu yamalara ve kütüphanene dokunulmaz.")
+            font.pixelSize: Dimensions.footnote
+            color: Theme.textMuted
         }
     }
-
 }

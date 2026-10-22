@@ -35,36 +35,26 @@ DropArea {
     Rectangle {
         anchors.fill: parent
         visible: drop.containsDrag
-        color: Theme.withAlpha(Theme.bgPrimary, 0.95)
+        color: Theme.withAlpha(Theme.bgPrimary, 0.92)
 
         Rectangle {
             anchors.fill: parent
-            anchors.margins: Dimensions.spacingSection
-            radius: Dimensions.radiusSection
-            color: Theme.primary08
+            anchors.margins: 20
+            radius: Dimensions.radiusHero
+            color: Theme.withAlpha(Theme.primary, 0.08)
             border.width: 2
-            border.color: Theme.primary50
+            border.color: Theme.withAlpha(Theme.primary, 0.6)
 
             Column {
                 anchors.centerIn: parent
-                width: Math.min(parent.width - Dimensions.paddingXXL * 2, 520)
-                spacing: Dimensions.spacingLG
+                width: Math.min(parent.width - 64, 520)
+                spacing: 14
 
-                Rectangle {
+                IconTile {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: 72
-                    height: 72
-                    radius: 36
-                    color: Theme.primary15
-
-                    Text {
-                        anchors.centerIn: parent
-                        textFormat: Text.PlainText
-                        text: "\uED25"
-                        font.family: "Segoe MDL2 Assets"
-                        font.pixelSize: 30
-                        color: Theme.accentLight
-                    }
+                    size: 64
+                    glyph: Icons.folderInput
+                    tint: Theme.primary
                 }
                 Text {
                     width: parent.width
@@ -72,8 +62,9 @@ DropArea {
                     textFormat: Text.PlainText
                     wrapMode: Text.WordWrap
                     text: drop.title
-                    font.pixelSize: Dimensions.fontHeadline
-                    font.weight: Font.DemiBold
+                    font.family: Dimensions.fontDisplay
+                    font.pixelSize: Dimensions.title2
+                    font.weight: Font.Bold
                     color: Theme.textPrimary
                 }
                 Text {
@@ -81,9 +72,9 @@ DropArea {
                     horizontalAlignment: Text.AlignHCenter
                     textFormat: Text.PlainText
                     wrapMode: Text.WordWrap
-                    lineHeight: 1.35
+                    lineHeight: 1.25
                     text: drop.subtitle
-                    font.pixelSize: Dimensions.fontMD
+                    font.pixelSize: Dimensions.body
                     color: Theme.textSecondary
                 }
             }

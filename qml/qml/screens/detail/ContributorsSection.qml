@@ -4,12 +4,16 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
-Rectangle {
+/**
+ * ContributorsSection — who made the Turkish patch, grouped by role, and
+ * where a patch published by another team lives.
+ */
+Card {
     id: contribRoot
 
-    // Required properties from parent
     required property var contributors  // [{name, role}]
     property string externalUrl: ""
     property bool isApex: false
@@ -17,9 +21,8 @@ Rectangle {
     property string apexTier: ""  // "pro" or "both"
 
     Layout.fillWidth: true
-    implicitHeight: contentLayout.implicitHeight + 2 * _padding
-
-    readonly property int _padding: Dimensions.paddingXL
+    implicitHeight: contentLayout.implicitHeight + 40
+    radius: Dimensions.radiusLG
 
     // Group contributors by role for display (filter out placeholder)
     readonly property var _grouped: {
@@ -29,7 +32,7 @@ Rectangle {
         for (let i = 0; i < contribRoot.contributors.length; ++i) {
             const c = contribRoot.contributors[i]
             if (!c || !c.name) continue
-            // Skip the static community placeholder — already shown above
+            // The community credit has its own line below
             if (c.name === "Türkiye Oyuncu Topluluğu") continue
             const role = c.role || "Çevirmen"
             if (!(role in map)) {
@@ -41,156 +44,97 @@ Rectangle {
         return groups
     }
 
-    radius: Dimensions.radiusSection
-    color: Theme.textPrimary03
-    border.color: Theme.textPrimary06
-    border.width: 1
-
     ColumnLayout {
         id: contentLayout
-        anchors.fill: parent
-        anchors.margins: contribRoot._padding
-        spacing: Dimensions.spacingLG
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 20
+        spacing: 14
 
-        Text {
-            textFormat: Text.PlainText
-            text: qsTr("Özel Teşekkür")
-            font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
-            color: Theme.textPrimary
-        }
-
-        SettingsDivider { variant: "section" }
-
-        // Community credit — clean, minimal
         RowLayout {
             Layout.fillWidth: true
-            spacing: Dimensions.spacingLG
-
+            spacing: 10
+            IconTile { size: 26; glyph: Icons.heartHandshake; tint: Theme.turkishRed }
             Text {
-                textFormat: Text.PlainText
                 Layout.fillWidth: true
-                text: qsTr("Türkiye Oyuncu Topluluğu")
-                font.pixelSize: Dimensions.fontBody
-                color: Theme.textMuted
+                textFormat: Text.PlainText
+                text: qsTr("Emeği geçenler")
+                font.pixelSize: Dimensions.title3
+                font.weight: Font.Bold
+                color: Theme.textPrimary
             }
-
             TurkishFlagBadge {
                 Layout.alignment: Qt.AlignVCenter
-                flagWidth: 26; flagHeight: 17
+                flagWidth: 24; flagHeight: 16
             }
         }
 
-        // Contributors by role — minimal list
-        Repeater {
-            model: contribRoot._grouped
-
-            ColumnLayout {
-                required property var modelData
-                Layout.fillWidth: true
-                spacing: 4
-
-                Text {
-                    textFormat: Text.PlainText
-                    text: modelData.role
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.DemiBold
-                    color: Theme.textSecondary
-                    opacity: 0.7
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    textFormat: Text.PlainText
-                    text: modelData.names.join("  ·  ")
-                    font.pixelSize: Dimensions.fontCaption
-                    color: Theme.textMuted
-                    wrapMode: Text.WordWrap
-                }
-            }
-        }
-
-        // ApexYama credit
-        Rectangle {
+        // Contributors by role
+        Flow {
             Layout.fillWidth: true
-            visible: contribRoot.isApex
-            implicitHeight: apexRow.implicitHeight + 16
-            radius: Dimensions.radiusMD
-            color: "#15907575"
-            border.color: "#30907575"; border.width: 1
+            spacing: 28
+            visible: contribRoot._grouped.length > 0
 
-            RowLayout {
-                id: apexRow
-                anchors.left: parent.left; anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.margins: 12
-                spacing: Dimensions.spacingSM
+            Repeater {
+                model: contribRoot._grouped
 
-                Text {
-                    textFormat: Text.PlainText
-                    Layout.fillWidth: true
-                    text: contribRoot.apexTier === "pro"
-                        ? qsTr("Bu çeviri Apex Yama'da profesyonel olarak bulunmaktadır.")
-                        : qsTr("Bu çeviri Apex Yama'da profesyonel ve ücretsiz olarak bulunmaktadır.")
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.Medium
-                    color: Theme.textSecondary
-                }
+                ColumnLayout {
+                    required property var modelData
+                    width: Math.min(contentLayout.width, Math.max(160, namesText.implicitWidth))
+                    spacing: 3
 
-                Text {
-                    textFormat: Text.PlainText
-                    text: "apexyama.com \u2192"
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.DemiBold
-                    color: "#d4a843"
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Qt.openUrlExternally("https://apexyama.com")
+                    Text {
+                        textFormat: Text.PlainText
+                        text: modelData.role
+                        font.pixelSize: Dimensions.caption1
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.4
+                        font.capitalization: Font.AllUppercase
+                        color: Theme.textMuted
+                    }
+                    Text {
+                        id: namesText
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        text: modelData.names.join(", ")
+                        font.pixelSize: Dimensions.body
+                        font.weight: Font.Medium
+                        color: Theme.textPrimary
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
         }
 
-        // HangarCeviri credit
-        Rectangle {
+        Text {
             Layout.fillWidth: true
-            visible: contribRoot.isHangar
-            implicitHeight: hangarRow.implicitHeight + 16
-            radius: Dimensions.radiusMD
-            color: "#158B5CF6"
-            border.color: "#308B5CF6"; border.width: 1
+            textFormat: Text.PlainText
+            text: qsTr("Özel teşekkür: Türkiye Oyuncu Topluluğu")
+            font.pixelSize: Dimensions.footnote
+            color: Theme.textMuted
+            wrapMode: Text.WordWrap
+        }
 
-            RowLayout {
-                id: hangarRow
-                anchors.left: parent.left; anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.margins: 12
-                spacing: Dimensions.spacingSM
-
-                Text {
-                    textFormat: Text.PlainText
-                    Layout.fillWidth: true
-                    text: qsTr("Bu çeviri Hangar Çeviri'de bulunmaktadır.")
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.Medium
-                    color: Theme.textSecondary
-                }
-
-                Text {
-                    textFormat: Text.PlainText
-                    text: "hangarceviri.com \u2192"
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.DemiBold
-                    color: "#8B5CF6"
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Qt.openUrlExternally("https://www.hangarceviri.com")
-                    }
-                }
-            }
+        // Where the patch is published, when another team publishes it
+        ListRow {
+            visible: contribRoot.isApex || contribRoot.isHangar
+            Layout.leftMargin: -16
+            Layout.rightMargin: -14
+            icon: Icons.globe
+            iconTint: contribRoot.isHangar && !contribRoot.isApex ? "#8B5CF6" : "#D4A843"
+            clickable: true
+            showChevron: false
+            title: contribRoot.isHangar && !contribRoot.isApex ? qsTr("Hangar Çeviri")
+                 : qsTr("Apex Yama")
+            subtitle: contribRoot.isHangar && !contribRoot.isApex
+                      ? qsTr("Bu çeviri Hangar Çeviri'de yayımlanıyor.")
+                      : contribRoot.apexTier === "pro"
+                        ? qsTr("Bu çeviri Apex Yama'da profesyonel olarak bulunuyor.")
+                        : qsTr("Bu çeviri Apex Yama'da profesyonel ve ücretsiz olarak bulunuyor.")
+            onClicked: Qt.openUrlExternally(contribRoot.isHangar && !contribRoot.isApex
+                                            ? "https://www.hangarceviri.com" : "https://apexyama.com")
+            Icon { glyph: Icons.arrowUpRight; size: 15; color: Theme.textMuted }
         }
     }
 }

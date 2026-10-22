@@ -4,100 +4,125 @@
 import QtQuick
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
-Rectangle {
+/**
+ * AboutSection — the patch's notes and the game's description.
+ *
+ * The notes come first and always show when the catalogue has any: they
+ * hold what the patch needs before it is installed (an online mode to turn
+ * off, a redistributable) as much as after. The description folds to three
+ * lines with "devamını oku".
+ */
+ColumnLayout {
     id: aboutRoot
 
-    // Single ViewModel reference — all state accessed via vm
     required property var vm
 
-    Layout.fillWidth: true
-    implicitHeight: contentLayout.implicitHeight + 2 * _padding
-    // Show patch notes from manifest when available, otherwise Steam description.
-    //
-    // The gate used to be vm.fromLibrary — whether the user arrived from the
-    // Library page. That made a game's install instructions depend on which
-    // page it was opened from: install from Home and the note the patch does
-    // not work without was never rendered anywhere. Installed state is what
-    // actually decides which text is useful here.
-    readonly property bool _showPatchNotes: vm.packageInstalled && vm.translationNotes !== ""
-    readonly property string _displayText: _showPatchNotes ? vm.translationNotes : vm.description
+    spacing: 18
+    // Not notesCard.visible: a child's visible follows its parent's, so the
+    // section could never turn itself on.
+    readonly property bool _hasNotes: aboutRoot.vm.translationNotes !== ""
+    readonly property bool _hasDesc: aboutRoot.vm.description !== ""
+    visible: _hasNotes || _hasDesc
 
-    visible: _displayText !== ""
+    // ── Patch notes ──────────────────────────────────────────────────────
+    Card {
+        id: notesCard
+        Layout.fillWidth: true
+        visible: aboutRoot._hasNotes
+        implicitHeight: notesCol.implicitHeight + 40
+        radius: Dimensions.radiusLG
 
-    readonly property int _padding: Dimensions.paddingXL
+        ColumnLayout {
+            id: notesCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 20
+            spacing: 10
 
-    // Truncate text to ~2 lines with inline "daha fazla göster" link
-    function _truncatedText(w) {
-        var desc = _displayText
-        var avgCharW = Dimensions.fontBody * 0.52
-        var charsPerLine = Math.floor(w / avgCharW)
-        var cutAt = Math.max(20, charsPerLine * 2 - 24)
-        if (cutAt >= desc.length) return desc
-        var cut = desc.substring(0, cutAt)
-        var sp = cut.lastIndexOf(' ')
-        if (sp > cutAt * 0.5) cut = cut.substring(0, sp)
-        // Rendered as StyledText: the description is catalogue/Steam text and
-        // must not be read as markup (a stray "<" cut it off; <img> loaded).
-        cut = cut.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        return cut + "<font color=\"" + Theme.primary + "\">... " + qsTr("daha fazla göster") + "</font>"
+            RowLayout {
+                spacing: 10
+                IconTile { size: 26; glyph: Icons.scrollText; tint: Theme.warning }
+                Text {
+                    textFormat: Text.PlainText
+                    text: qsTr("Yama notları")
+                    font.pixelSize: Dimensions.title3
+                    font.weight: Font.Bold
+                    color: Theme.textPrimary
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: aboutRoot.vm.translationNotes
+                font.pixelSize: Dimensions.body
+                color: Theme.textSecondary
+                wrapMode: Text.WordWrap
+                lineHeight: 1.35
+            }
+        }
     }
 
-    radius: Dimensions.radiusSection
-    color: Theme.textPrimary03
-    border.color: Theme.textPrimary06
-    border.width: 1
+    // ── About the game ───────────────────────────────────────────────────
+    Card {
+        id: descCard
+        Layout.fillWidth: true
+        visible: aboutRoot._hasDesc
+        implicitHeight: descCol.implicitHeight + 40
+        radius: Dimensions.radiusLG
 
-    ColumnLayout {
-        id: contentLayout
-        anchors.fill: parent
-        anchors.margins: aboutRoot._padding
-        spacing: Dimensions.spacingLG
+        ColumnLayout {
+            id: descCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 20
+            spacing: 10
 
-        Text {
-            textFormat: Text.PlainText
-            text: aboutRoot._showPatchNotes ? qsTr("Yama Notları") : qsTr("Hakkında")
-            font.pixelSize: Dimensions.fontTitle; font.weight: Font.DemiBold
-            color: Theme.textPrimary
-        }
+            Text {
+                textFormat: Text.PlainText
+                text: qsTr("Hakkında")
+                font.pixelSize: Dimensions.title3
+                font.weight: Font.Bold
+                color: Theme.textPrimary
+            }
 
-        SettingsDivider { variant: "section" }
+            // Hidden measurement — does the full text run past three lines?
+            Text {
+                id: measure
+                textFormat: Text.PlainText
+                visible: false
+                width: descCol.width
+                text: aboutRoot.vm.description
+                font.pixelSize: Dimensions.body
+                wrapMode: Text.WordWrap
+                lineHeight: 1.35
+                maximumLineCount: 3
+            }
 
-        // Hidden measurement — detects if full text overflows 2 lines
-        Text {
-            id: _measure
-            textFormat: Text.PlainText
-            visible: false
-            width: contentLayout.width
-            text: aboutRoot._displayText
-            font.pixelSize: Dimensions.fontBody
-            wrapMode: Text.WordWrap; lineHeight: 1.6
-            maximumLineCount: 2
-        }
+            Text {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: aboutRoot.vm.description
+                font.pixelSize: Dimensions.body
+                color: Theme.textSecondary
+                wrapMode: Text.WordWrap
+                lineHeight: 1.35
+                maximumLineCount: aboutRoot.vm.descriptionExpanded ? 9999 : 3
+                elide: Text.ElideRight
+            }
 
-        // Description with inline "daha fazla göster" at end of line 2
-        Text {
-            id: descText
-            textFormat: _measure.truncated && !aboutRoot.vm.descriptionExpanded
-                ? Text.StyledText : Text.PlainText
-            Layout.fillWidth: true
-            visible: aboutRoot._displayText !== ""
-            text: aboutRoot.vm.descriptionExpanded || !_measure.truncated
-                ? aboutRoot._displayText
-                : aboutRoot._truncatedText(descText.width)
-            font.pixelSize: Dimensions.fontBody
-            color: Theme.textSecondary
-            wrapMode: Text.WordWrap; lineHeight: 1.6
-            maximumLineCount: aboutRoot.vm.descriptionExpanded ? 9999 : 2
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: _measure.truncated && !aboutRoot.vm.descriptionExpanded
-                    ? Qt.PointingHandCursor : Qt.ArrowCursor
-                enabled: _measure.truncated && !aboutRoot.vm.descriptionExpanded
-                onClicked: aboutRoot.vm.descriptionExpanded = true
+            AppButton {
+                visible: measure.truncated
+                size: "small"
+                style: "plain"
+                Layout.leftMargin: -12
+                text: aboutRoot.vm.descriptionExpanded ? qsTr("Daha az göster") : qsTr("Devamını oku")
+                trailingIcon: aboutRoot.vm.descriptionExpanded ? Icons.chevronUp : Icons.chevronDown
+                onClicked: aboutRoot.vm.descriptionExpanded = !aboutRoot.vm.descriptionExpanded
             }
         }
     }

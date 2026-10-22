@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -15,7 +16,7 @@ pragma ComponentBehavior: Bound
  * typed answers to its prompts ("set /p", "press a key"); an empty line is the
  * key press.
  */
-Rectangle {
+Card {
     id: programConsole
 
     required property var vm
@@ -30,16 +31,13 @@ Rectangle {
     }
 
     Layout.fillWidth: true
-    Layout.leftMargin: Dimensions.marginXL; Layout.rightMargin: Dimensions.marginXL
-    Layout.maximumWidth: Dimensions.contentMaxWidth
+    Layout.leftMargin: Dimensions.pageMargin; Layout.rightMargin: Dimensions.pageMargin
+    Layout.maximumWidth: 1240
     Layout.alignment: Qt.AlignHCenter
-    Layout.topMargin: Dimensions.spacingXL
+    Layout.topMargin: 18
     visible: programConsole.vm.installConsole !== ""
-    implicitHeight: consoleContent.implicitHeight + Dimensions.marginML * 2
+    implicitHeight: consoleContent.implicitHeight + 40
     radius: Dimensions.radiusLG
-    color: Theme.surface
-    border.color: Theme.border
-    border.width: 1
 
     Timer {
         id: copiedTimer
@@ -50,41 +48,45 @@ Rectangle {
     ColumnLayout {
         id: consoleContent
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.top: parent.top; anchors.margins: Dimensions.marginML
-        spacing: Dimensions.spacingLG
+        anchors.top: parent.top; anchors.margins: 20
+        spacing: 12
 
         RowLayout {
             Layout.fillWidth: true
             spacing: Dimensions.spacingLG
 
-            Text {
-                textFormat: Text.PlainText
-                text: qsTr("Program çıktısı")
-                font.pixelSize: Dimensions.fontBody
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
+            IconTile { size: 26; glyph: Icons.terminal; tint: "#8E8E93" }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 1
+                Text {
+                    textFormat: Text.PlainText
+                    text: qsTr("Yamanın kendi programı")
+                    font.pixelSize: Dimensions.headline
+                    font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                }
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    text: qsTr("Bu yama kurulumu kendi programıyla yapıyor; yazdıkları burada. Bir şey sorarsa yanıtı aşağıya yaz.")
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: Dimensions.footnote
+                    color: Theme.textMuted
+                }
             }
 
-            Item { Layout.fillWidth: true }
-
-            Text {
-                textFormat: Text.PlainText
+            AppButton {
+                size: "small"
+                style: "gray"
+                icon: programConsole._copied ? Icons.check : Icons.copy
                 text: programConsole._copied ? qsTr("Kopyalandı") : qsTr("Tümünü kopyala")
-                font.pixelSize: Dimensions.fontSM
-                color: copyMouse.containsMouse ? Theme.textPrimary : Theme.textMuted
-
-                MouseArea {
-                    id: copyMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        outputArea.selectAll()
-                        outputArea.copy()
-                        outputArea.deselect()
-                        programConsole._copied = true
-                        copiedTimer.restart()
-                    }
+                onClicked: {
+                    outputArea.selectAll()
+                    outputArea.copy()
+                    outputArea.deselect()
+                    programConsole._copied = true
+                    copiedTimer.restart()
                 }
             }
         }
@@ -93,8 +95,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 220
             radius: Dimensions.radiusMD
-            color: Theme.bgPrimary
-            border.color: Theme.primary08
+            color: Theme.darkMode ? "#0E0E10" : "#F2F2F4"
+            border.color: Theme.separator
             border.width: 1
 
             // Reading old lines: do not jump to the newest one under the cursor.
@@ -142,42 +144,24 @@ Rectangle {
                 font.family: "Consolas"
                 font.pixelSize: Dimensions.fontSM
                 color: Theme.textPrimary
-                placeholderText: qsTr("Program bir şey sorarsa yanıtı yazıp Enter'a basın")
+                placeholderText: qsTr("Program bir şey sorarsa yanıtı yazıp Enter'a bas")
                 placeholderTextColor: Theme.textMuted
                 selectByMouse: true
                 onAccepted: programConsole._send()
                 background: Rectangle {
                     radius: Dimensions.radiusMD
-                    color: Theme.primary06
-                    border.color: inputField.activeFocus ? Theme.primary : Theme.primary12
-                    border.width: 1
+                    color: Theme.fillTertiary
+                    border.color: inputField.activeFocus ? Theme.withAlpha(Theme.primary, 0.6) : "transparent"
+                    border.width: 2
                 }
             }
 
-            Rectangle {
-                implicitWidth: sendLabel.implicitWidth + 28
-                implicitHeight: 34
-                radius: Dimensions.radiusMD
-                color: sendMouse.containsMouse ? Theme.primary12 : Theme.primary08
-
-                Text {
-                    id: sendLabel
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    // Empty: the key press a "Devam etmek için bir tuşa basın" waits for.
-                    text: inputField.text === "" ? qsTr("Enter") : qsTr("Gönder")
-                    font.pixelSize: Dimensions.fontSM
-                    font.weight: Font.DemiBold
-                    color: Theme.textPrimary
-                }
-
-                MouseArea {
-                    id: sendMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: programConsole._send()
-                }
+            AppButton {
+                style: "filled"
+                icon: Icons.send
+                // Empty: the key press a "Devam etmek için bir tuşa basın" waits for.
+                text: inputField.text === "" ? qsTr("Enter") : qsTr("Gönder")
+                onClicked: programConsole._send()
             }
         }
     }

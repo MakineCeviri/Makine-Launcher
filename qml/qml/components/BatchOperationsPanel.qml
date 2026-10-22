@@ -11,7 +11,7 @@ pragma ComponentBehavior: Bound
  * BatchOperationsPanel.qml - Inline panel for batch translation operations
  * Shows progress when running, results summary when completed.
  */
-Rectangle {
+Card {
     id: root
 
     property bool animationsEnabled: true
@@ -25,15 +25,7 @@ Rectangle {
     Layout.topMargin: 0
     visible: shouldShow
 
-    radius: Dimensions.radiusStandard
-    color: Theme.textPrimary03
-
-    GradientBorder {
-        cornerRadius: parent.radius
-        topColor: BatchOperationService.isRunning ? Theme.primary30 : Qt.rgba(1, 1, 1, 0.12)
-        bottomColor: BatchOperationService.isRunning ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.02)
-        Behavior on topColor { ColorAnimation { duration: Dimensions.transitionDuration } }
-    }
+    radius: Dimensions.radiusLG
 
     Behavior on Layout.preferredHeight {
         NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic }

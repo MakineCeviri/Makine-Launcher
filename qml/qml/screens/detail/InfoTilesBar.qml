@@ -5,24 +5,24 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 
 /**
- * InfoTilesBar.qml - Apple App Store-style horizontal metadata bar
+ * InfoTilesBar.qml - the App Store's information strip: a few facts side by
+ * side, each a small label over its value, hairlines between them.
  *
- * Displays key game metadata in a subtle container with equally-spaced
- * tiles separated by thin vertical dividers. Auto-hides when empty.
+ * While Steam's store data loads it says so; when there is none (a game not
+ * on Steam) it says that this does not affect the patch, with a retry.
  */
-Rectangle {
+Card {
     id: root
 
     required property var vm
 
-    // Derived values — computed once, referenced by tiles and visibility guard
     // "Unknown" is the scanner's word for "no idea", not an engine name.
     readonly property string _engine:     (vm.engine ?? "").toLowerCase() === "unknown" ? "" : (vm.engine ?? "")
     readonly property string _developer:  vm.developersText  ?? ""
     readonly property string _release:    vm.releaseDate     ?? ""
-    // First genre only
     readonly property string _genre: {
         var g = vm.genresText ?? ""
         var comma = g.indexOf(",")
@@ -31,53 +31,46 @@ Rectangle {
     readonly property string _metacritic: (typeof vm.metacriticScore === "number" && vm.metacriticScore > 0)
                                           ? String(vm.metacriticScore) : ""
 
-    readonly property bool _hasAnyValue: _engine     !== ""
-                                      || _developer  !== ""
-                                      || _release    !== ""
-                                      || _genre      !== ""
-                                      || _metacritic !== ""
+    readonly property bool _hasAnyValue: _engine !== "" || _developer !== "" || _release !== ""
+                                      || _genre !== "" || _metacritic !== ""
+    readonly property bool _loading: vm.isLoadingSteamDetails && !vm.hasSteamDetails
+    readonly property bool _failed: vm.steamFetchFailed && !vm.hasSteamDetails
 
     Layout.fillWidth: true
-    implicitHeight: 64
-    visible: _hasAnyValue
-    radius: Dimensions.radiusSection
-    color: Theme.textPrimary03
-    border.color: Theme.textPrimary06
-    border.width: 1
+    implicitHeight: _hasAnyValue ? 78 : 52
+    visible: _hasAnyValue || _loading || _failed
+    radius: Dimensions.radiusLG
 
-    // -------------------------------------------------------------------------
-    // Inline tile component
-    // -------------------------------------------------------------------------
     component InfoTile: Item {
         id: tile
         property string label: ""
         property string value: ""
         visible: value !== ""
         Layout.fillWidth: true
-        implicitHeight: 64
+        Layout.fillHeight: true
 
         ColumnLayout {
             anchors.centerIn: parent
-            width: parent.width - Dimensions.spacingLG * 2
-            spacing: Dimensions.spacingSM
+            width: parent.width - 24
+            spacing: 5
 
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: tile.label
-                font.pixelSize: Dimensions.fontMini
-                font.letterSpacing: 1.0
+                font.pixelSize: Dimensions.caption2
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.6
                 font.capitalization: Font.AllUppercase
                 color: Theme.textMuted
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
             }
-
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: tile.value
-                font.pixelSize: Dimensions.fontSM
+                font.pixelSize: Dimensions.headline
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
                 elide: Text.ElideRight
@@ -86,31 +79,58 @@ Rectangle {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Vertical separator
-    // -------------------------------------------------------------------------
     component TileSeparator: Rectangle {
         Layout.alignment: Qt.AlignVCenter
-        width: 1
-        height: 32
-        color: Theme.textPrimary08
+        Layout.preferredWidth: 1
+        Layout.preferredHeight: 34
+        color: Theme.separator
     }
 
-    // -------------------------------------------------------------------------
-    // Tile row
-    // -------------------------------------------------------------------------
     RowLayout {
         anchors.fill: parent
+        visible: root._hasAnyValue
         spacing: 0
 
-        InfoTile { label: qsTr("MOTOR");         value: root._engine    }
-        TileSeparator { visible: root._engine !== "" && root._developer !== "" }
-        InfoTile { label: qsTr("GELİŞTİRİCİ");  value: root._developer }
-        TileSeparator { visible: root._developer !== "" && root._release !== "" }
-        InfoTile { label: qsTr("ÇIKIŞ TARİHİ"); value: root._release   }
-        TileSeparator { visible: root._release !== "" && root._genre !== "" }
-        InfoTile { label: qsTr("TÜR");           value: root._genre     }
-        TileSeparator { visible: root._genre !== "" && root._metacritic !== "" }
-        InfoTile { label: qsTr("METACRITIC");    value: root._metacritic }
+        InfoTile { label: qsTr("Geliştirici");  value: root._developer }
+        TileSeparator { visible: root._developer !== "" && (root._release !== "" || root._genre !== "" || root._metacritic !== "" || root._engine !== "") }
+        InfoTile { label: qsTr("Çıkış tarihi"); value: root._release }
+        TileSeparator { visible: root._release !== "" && (root._genre !== "" || root._metacritic !== "" || root._engine !== "") }
+        InfoTile { label: qsTr("Tür");          value: root._genre }
+        TileSeparator { visible: root._genre !== "" && (root._metacritic !== "" || root._engine !== "") }
+        InfoTile { label: qsTr("Metacritic");   value: root._metacritic }
+        TileSeparator { visible: root._metacritic !== "" && root._engine !== "" }
+        InfoTile { label: qsTr("Motor");        value: root._engine }
+    }
+
+    // Steam's data: on its way, or not there
+    RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 16
+        anchors.rightMargin: 10
+        visible: !root._hasAnyValue
+        spacing: 10
+
+        Spinner { visible: root._loading; size: 15 }
+        Icon { visible: !root._loading; glyph: Icons.info; size: 16; color: Theme.textMuted }
+        Text {
+            Layout.fillWidth: true
+            textFormat: Text.PlainText
+            text: root._loading ? qsTr("Oyun bilgileri yükleniyor…")
+                                : qsTr("Steam mağaza bilgileri yok (Epic ya da başka mağaza). Yamayı kurmayı etkilemez.")
+            elide: Text.ElideRight
+            font.pixelSize: Dimensions.callout
+            color: Theme.textMuted
+        }
+        AppButton {
+            visible: !root._loading
+            size: "small"
+            style: "plain"
+            text: qsTr("Tekrar dene")
+            onClicked: {
+                root.vm.steamFetchFailed = false
+                root.vm.isLoadingSteamDetails = true
+                GameService.fetchSteamDetails(root.vm.steamAppId)
+            }
+        }
     }
 }

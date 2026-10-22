@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -339,12 +340,12 @@ Item {
 
         Repeater {
             model: [
-                { icon: "\uE8F1",
+                { icon: Icons.library,
                   text: step._catalogCount > 0
                         ? qsTr("%1 oyun için Türkçe yama").arg(step._catalogCount)
                         : qsTr("Yüzlerce oyun için Türkçe yama") },
-                { icon: "\uEA18", text: qsTr("Orijinal dosyalar yedeklenir, tek tıkla geri alınır") },
-                { icon: "\uEB51", text: qsTr("Kâr amacı gütmeyen, gönüllü bir topluluk projesi") }
+                { icon: Icons.shieldCheck, text: qsTr("Orijinal dosyalar yedeklenir, tek tıkla geri alınır") },
+                { icon: Icons.heartHandshake, text: qsTr("Kâr amacı gütmeyen, gönüllü bir topluluk projesi") }
             ]
 
             RowLayout {
@@ -354,22 +355,10 @@ Item {
                 Layout.bottomMargin: 14
                 spacing: 14
 
-                Rectangle {
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 36
-                    radius: 11
-                    color: Qt.rgba(1, 1, 1, 0.06)
-                    border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.1)
-
-                    Text {
-                        anchors.centerIn: parent
-                        textFormat: Text.PlainText
-                        text: point.modelData.icon
-                        font.family: "Segoe MDL2 Assets"
-                        font.pixelSize: 15
-                        color: Theme.accentLight
-                    }
+                IconTile {
+                    size: 34
+                    glyph: point.modelData.icon
+                    tint: Theme.accentBase
                 }
                 Text {
                     Layout.fillWidth: true
@@ -390,7 +379,7 @@ Item {
             OnboardingButton {
                 kind: "primary"
                 text: qsTr("Başlayalım")
-                trailingIcon: "\uE72A"
+                trailingIcon: Icons.arrowRight
                 onClicked: step.next()
             }
             Text {

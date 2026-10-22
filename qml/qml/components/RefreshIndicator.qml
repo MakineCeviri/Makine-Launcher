@@ -1,18 +1,21 @@
-// SPDX-License-Identifier: AGPL-3.0-WITH-Commons-Clause
-//
-// Stale-While-Revalidate refresh badge — corner toast that auto-fades
-// after 3 sn whenever ManifestSync.catalogRefreshed reports new content.
-// See docs/specs/swr-cache.md.
-import QtQuick
-import QtQuick.Layouts
-import "../theme"
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 Makine Çeviri
 
+import QtQuick
+import QtQuick.Effects
+import QtQuick.Layouts
+import MakineLauncher 1.0
+
+/**
+ * RefreshIndicator — a short-lived capsule when a background catalogue
+ * refresh brought new patches (ManifestSync.catalogRefreshed). The caller
+ * anchors it; it fades in, stays three seconds, fades out.
+ */
 Item {
     id: root
 
-    // Anchored bottomRight by parent — caller positions us via anchors.
-    width: badge.implicitWidth + 24
-    height: badge.implicitHeight + 16
+    width: badge.implicitWidth
+    height: badge.implicitHeight
     visible: opacity > 0
     opacity: 0
 
@@ -23,40 +26,48 @@ Item {
         fadeAnim.restart()
     }
 
+    RectangularShadow {
+        anchors.fill: badge
+        radius: badge.radius
+        offset.y: 4
+        blur: 16
+        color: Theme.shadowMedium
+    }
+
     Rectangle {
         id: badge
-        anchors.fill: parent
-        anchors.margins: 0
-        radius: 10
-        color: Theme.bgSecondary
-        border.color: Theme.border
-        border.width: 1
+        implicitWidth: row.implicitWidth + 28
+        implicitHeight: 40
+        radius: height / 2
+        color: Theme.surfaceElevated
+        border.width: Theme.darkMode ? 1 : 0
+        border.color: Theme.separator
 
         RowLayout {
-            anchors.fill: parent
-            anchors.margins: 12
+            id: row
+            anchors.centerIn: parent
             spacing: 8
 
-            Text {
-                text: "✨"
-                font.pixelSize: 16
-                Layout.alignment: Qt.AlignVCenter
+            Icon {
+                glyph: Icons.sparkles
+                size: 16
+                color: Theme.primary
             }
-
             Text {
-                text: qsTr("Yeni içerik mevcut: %1 yama").arg(root.changedCount)
+                textFormat: Text.PlainText
+                text: qsTr("Katalog güncellendi: %1 yama yeni ya da değişti").arg(root.changedCount)
                 color: Theme.textPrimary
-                font.pixelSize: 13
-                Layout.alignment: Qt.AlignVCenter
+                font.pixelSize: Dimensions.callout
+                font.weight: Font.Medium
             }
         }
     }
 
     SequentialAnimation {
         id: fadeAnim
-        NumberAnimation { target: root; property: "opacity"; to: 1.0; duration: 200 }
-        PauseAnimation { duration: 2600 }
-        NumberAnimation { target: root; property: "opacity"; to: 0.0; duration: 200 }
+        NumberAnimation { target: root; property: "opacity"; to: 1.0; duration: Dimensions.animMedium }
+        PauseAnimation { duration: 3000 }
+        NumberAnimation { target: root; property: "opacity"; to: 0.0; duration: Dimensions.animMedium }
     }
 
     Connections {

@@ -26,7 +26,7 @@ ApplicationWindow {
     y: Math.round((Screen.height - height) / 2)
 
     title: "Makine \u00C7eviri - Makine Launcher"
-    color: !window._onboardingActive ? Theme.bgPrimary : "#0d1117"
+    color: !window._onboardingActive ? Theme.bgPrimary : "#0A0A0C"
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
@@ -284,208 +284,32 @@ ApplicationWindow {
         }
     }
 
-    // Premium accent-aware ambient background
-    AppBackground {
-        anchors.fill: parent
-        z: -1
+    // ===== SIDEBAR =====
+    Sidebar {
+        id: sidebar
         visible: !window._onboardingActive
+        x: 8
+        y: 8
+        width: Dimensions.appSidebarWidth
+        height: parent.height - 16
+        windowRef: window
+        currentIndex: window.currentNavIndex
+        onNavigate: (index) => window._go(index)
     }
 
-    ColumnLayout {
+    Item {
         id: mainContent
-        anchors.fill: parent
-        spacing: 0
         visible: !window._onboardingActive
+        anchors.left: sidebar.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
 
-        // ===== TITLE BAR (32px) =====
-        TitleBar {
-            id: titleBar
-            Layout.fillWidth: true
-            Layout.preferredHeight: Dimensions.titlebarHeight
-            windowRef: window
-            libraryMode: window.currentNavIndex === 1
-
-            onMinimizeClicked: window.showMinimized()
-            onCloseClicked: window.close()
-            onTrayClicked: window.minimizeToTray()
-        }
-
-        // ===== INTEGRITY WARNING BANNER =====
-        Rectangle {
-            id: integrityBanner
-            Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 32 : 0
-            visible: IntegrityService.status === "failed"
-            color: Theme.warningBg
-
-            Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Dimensions.marginMD
-                anchors.rightMargin: Dimensions.marginMD
-                spacing: Dimensions.spacingMD
-
-                Image {
-                    source: "qrc:/qt/qml/MakineLauncher/resources/icons/shield-check.svg"
-                    sourceSize: Qt.size(14, 14)
-                    Layout.preferredWidth: 14
-                    Layout.preferredHeight: 14
-                    asynchronous: true
-                    opacity: 0.8
-                }
-
-                Label {
-                    textFormat: Text.PlainText
-                    text: qsTr("Bütünlük doğrulaması başarısız — bu çalıştırılabilir dosya değiştirilmiş olabilir.")
-                    font.pixelSize: Dimensions.fontXS
-                    font.weight: Font.Medium
-                    color: Theme.warning
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-
-                Item {
-                    Layout.preferredWidth: 20
-                    Layout.preferredHeight: 20
-                    Accessible.role: Accessible.Button
-                    Accessible.name: qsTr("Uyarıyı kapat")
-                    activeFocusOnTab: true
-                    Keys.onReturnPressed: integrityBanner.visible = false
-                    Keys.onSpacePressed: integrityBanner.visible = false
-
-                    Label {
-                        textFormat: Text.PlainText
-                        anchors.centerIn: parent
-                        text: "\uE8BB"
-                        font.pixelSize: Dimensions.fontCaption
-                        font.family: "Segoe MDL2 Assets"
-                        color: Theme.textSecondary
-                        opacity: dismissMouse.containsMouse ? 1.0 : 0.6
-                    }
-
-                    MouseArea {
-                        id: dismissMouse
-                        anchors.fill: parent
-                        anchors.margins: -4
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: integrityBanner.visible = false
-                    }
-
-                    StyledToolTip {
-                        visible: dismissMouse.containsMouse
-                        text: qsTr("Kapat")
-                        delay: 500
-                    }
-                }
-            }
-
-            Accessible.role: Accessible.AlertMessage
-            Accessible.name: qsTr("Güvenlik uyarısı: bütünlük doğrulaması başarısız")
-        }
-
-
-        // ===== CONNECTION BANNER =====
-        Rectangle {
-            id: connectionBanner
-            Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 36 : 0
-            visible: ManifestSync.isOffline
-            color: Theme.error08
-
-            Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: Dimensions.transitionDuration; easing.type: Easing.OutCubic }
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Dimensions.marginMD
-                anchors.rightMargin: Dimensions.marginMD
-                spacing: Dimensions.spacingMD
-
-                Label {
-                    textFormat: Text.PlainText
-                    text: ""
-                    font.pixelSize: 14
-                    font.family: "Segoe MDL2 Assets"
-                    color: Theme.error
-                    opacity: 0.8
-                    Layout.preferredWidth: 14
-                    Layout.preferredHeight: 14
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                Label {
-                    textFormat: Text.PlainText
-                    text: qsTr("İnternet bağlantısı bulunamadı — bağlanmaya çalışılıyor...")
-                    font.pixelSize: Dimensions.fontXS
-                    font.weight: Font.Medium
-                    color: Theme.error
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-
-                Label {
-                    textFormat: Text.PlainText
-                    text: qsTr("Tekrar deneniyor...")
-                    font.pixelSize: Dimensions.fontXS
-                    color: Theme.textMuted
-                    visible: ManifestSync.isSyncing
-                }
-            }
-
-            Accessible.role: Accessible.AlertMessage
-            Accessible.name: qsTr("Bağlantı uyarısı: internet bağlantısı yok")
-        }
-
-        // ===== NAV BAR =====
-        NavBar {
-            id: navBar
-            z: 1
-            Layout.fillWidth: true
-            Layout.preferredHeight: Dimensions.navbarHeight
-            currentIndex: window.currentNavIndex
-            showBottomLine: false
-            animationsEnabled: window.animationsEnabled
-
-            onHomeClicked: {
-                window.currentNavIndex = 0
-                contentStackContainer.navigateTo(0)
-                homeView.showHomePage()
-            }
-            onSettingsClicked: {
-                window.currentNavIndex = 2
-                contentStackContainer.navigateTo(1)
-            }
-            onLibraryClicked: {
-                window.currentNavIndex = 1
-                contentStackContainer.navigateTo(0)
-                homeView.showLibraryPage()
-            }
-            onAllGamesClicked: window._go(3)
-            onHelpClicked: window._go(4)
-        }
-
-        // ===== CONTENT STACK - Simple crossfade transitions =====
-        Rectangle {
+        // ===== CONTENT STACK - crossfade between pages =====
+        Item {
             id: contentStackContainer
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: Dimensions.radiusSection
-            color: Theme.bgPrimary
+            anchors.fill: parent
             clip: true
-
-            // Apple-style subtle edge border around content area
-            GradientBorder {
-                cornerRadius: Dimensions.radiusSection
-                topColor: Qt.rgba(1, 1, 1, 0.08)
-                midColor: Qt.rgba(1, 1, 1, 0.04)
-                bottomColor: Qt.rgba(1, 1, 1, 0.015)
-            }
 
             property int currentIndex: 0
             property int previousIndex: 0
@@ -511,7 +335,7 @@ ApplicationWindow {
                 if (outgoingPage && incomingPage) {
                     setPageVisible(index, true)
                     incomingPage.opacity = 0
-                    incomingPage.y = 16
+                    incomingPage.y = 8
 
                     fadeOutAnimation.target = outgoingPage
                     fadeInAnimation.target = incomingPage
@@ -574,7 +398,7 @@ ApplicationWindow {
                 NumberAnimation {
                     target: fadeOutAnimation.target
                     property: "y"
-                    from: 0; to: -12
+                    from: 0; to: -6
                     duration: Dimensions.animPageOut
                     easing.type: Easing.InCubic
                 }
@@ -594,7 +418,7 @@ ApplicationWindow {
                 NumberAnimation {
                     target: fadeInAnimation.target
                     property: "y"
-                    from: 16; to: 0
+                    from: 8; to: 0
                     duration: Dimensions.animPageIn
                     easing.type: Easing.OutCubic
                 }
@@ -613,7 +437,7 @@ ApplicationWindow {
                     contentStackContainer.navigateTo(2)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
-                onLibraryRequested: navBar.libraryClicked()
+                onLibraryRequested: window._go(1)
                 onHelpRequested: window._go(4)
                 onAllGamesRequested: (filter, sort, query) => {
                     window.currentNavIndex = 3
@@ -681,6 +505,67 @@ ApplicationWindow {
                 }
             }
 
+        }
+    }
+
+    // ===== WINDOW CHROME =====
+    // No title bar: the top strip of the page drags the window (a press that
+    // a control under it takes stays that control's), the window's buttons
+    // float top right, over the art on a game's page.
+    Item {
+        id: dragStrip
+        visible: !window._onboardingActive
+        anchors.left: mainContent.left
+        anchors.right: windowControls.left
+        anchors.top: parent.top
+        height: 44
+        z: Dimensions.zWindowControls - 1
+        DragHandler {
+            target: null
+            onActiveChanged: if (active) window.startSystemMove()
+        }
+    }
+
+    WindowControls {
+        id: windowControls
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 8
+        anchors.rightMargin: 8
+        z: Dimensions.zWindowControls
+        showTray: !window._onboardingActive
+        onArt: window._onboardingActive
+        onTrayClicked: window.minimizeToTray()
+        onMinimizeClicked: window.showMinimized()
+        onCloseClicked: window.close()
+    }
+
+    // ===== NOTICES =====
+    // States of the whole app, floated over the top of the page: the build
+    // failing its integrity check, and no internet.
+    Column {
+        anchors.horizontalCenter: mainContent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: 10
+        spacing: 8
+        z: Dimensions.zToast
+
+        AppNotice {
+            visible: IntegrityService.status === "failed" && !_dismissed
+            property bool _dismissed: false
+            glyph: Icons.shieldAlert
+            tint: Theme.warning
+            text: qsTr("Bütünlük doğrulaması başarısız — bu program değiştirilmiş olabilir. Launcher'ı yalnız makineceviri.org'dan indir.")
+            dismissible: true
+            onDismissed: _dismissed = true
+        }
+        AppNotice {
+            visible: ManifestSync.isOffline
+            glyph: Icons.wifiOff
+            tint: Theme.error
+            busy: ManifestSync.isSyncing
+            text: ManifestSync.isSyncing ? qsTr("İnternete bağlanılamıyor — yeniden deneniyor…")
+                                         : qsTr("İnternete bağlanılamıyor. Kurulu yamaların çalışır; yeni yama için bağlantı gerekir.")
         }
     }
 
@@ -887,55 +772,6 @@ ApplicationWindow {
         }
     }
 
-    // ===== GLOBAL LOADING INDICATOR =====
-    Rectangle {
-        id: globalLoadingBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 2
-        z: Dimensions.zOverlay + 10
-        color: "transparent"
-        visible: GameService.isScanning
-
-        Rectangle {
-            id: loadingSlider
-            height: parent.height
-            width: parent.width * 0.3
-            radius: 1
-            color: Theme.primary
-
-            SequentialAnimation on x {
-                id: loadingShimmerAnim
-                running: globalLoadingBar.visible && window.animationsEnabled
-                loops: Animation.Infinite
-                NumberAnimation {
-                    from: -globalLoadingBar.width * 0.3
-                    to: globalLoadingBar.width
-                    duration: Dimensions.animLoadingCycle
-                    easing.type: Easing.InOutQuad
-                }
-                onRunningChanged: {
-                    if (typeof SceneProfiler !== "undefined")
-                        SceneProfiler.registerAnimation("loadingBarShimmer", running)
-                }
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: parent.radius
-                color: Theme.primary
-                opacity: 0.3
-                anchors.leftMargin: -parent.width * 0.2
-                width: parent.width * 1.4
-            }
-        }
-
-        Behavior on visible {
-            enabled: false
-        }
-    }
-
     // ===== PERFORMANCE MONITOR (F3 to toggle, dev builds only) =====
     property bool showPerformanceMonitor: false
 
@@ -954,54 +790,6 @@ ApplicationWindow {
     // ===== GAME DETECTION TOAST =====
     GameToast {
         id: gameToast
-    }
-
-    // ===== UPDATE CHECK TOAST =====
-    // While UpdateService is in the Checking state we surface progress in
-    // a translucent bottom-right toast instead of colouring the top-bar
-    // badge. Auto-shows on state entry, fades out when the check resolves.
-    // 50% opacity per UX request — visible but never blocks content.
-    // bottomMargin: 72 keeps clear of the SWR RefreshIndicator below.
-    Rectangle {
-        id: updateCheckToast
-        readonly property bool _checking: UpdateService.state === UpdateService.Checking
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: 24
-        anchors.bottomMargin: 72
-        width: _toastRow.implicitWidth + 28
-        height: 38
-        radius: 19
-        color: Qt.rgba(0.06, 0.06, 0.06, 0.85)
-        border.color: Theme.primary20
-        border.width: 1
-        opacity: _checking ? 0.5 : 0
-        visible: opacity > 0
-        z: Dimensions.zToast
-        Behavior on opacity {
-            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-        }
-
-        Row {
-            id: _toastRow
-            anchors.centerIn: parent
-            spacing: 10
-
-            BusyIndicator {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 16; height: 16
-                running: updateCheckToast.visible
-                palette.dark: Theme.primary
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: qsTr("Güncellemeler denetleniyor...")
-                font.pixelSize: Dimensions.fontXS
-                color: Theme.textPrimary
-            }
-        }
     }
 
     // ===== SWR CATALOG REFRESH BADGE =====
@@ -1140,55 +928,11 @@ ApplicationWindow {
 
     // ===== PLUGIN ATTACH CONSENT =====
     // Attaching to a game process can trip anti-cheat, so it is never silent.
-    component AttachDialogButton: Rectangle {
-        id: attachBtn
-        property string text: ""
-        property bool filled: false
-        signal clicked()
-
-        Layout.preferredWidth: _attachLbl.implicitWidth + Dimensions.paddingLG * 2
-        Layout.preferredHeight: 34
-        radius: Dimensions.radiusStandard
-        color: attachBtn.filled
-               ? (_attachMouse.containsMouse ? Theme.warning : Theme.withAlpha(Theme.warning, 0.85))
-               : (_attachMouse.containsMouse ? Theme.textPrimary08 : "transparent")
-        border.color: attachBtn.filled ? "transparent" : Theme.textPrimary12
-        border.width: 1
-        scale: _attachMouse.pressed ? Dimensions.pressScale : 1.0
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-        Behavior on scale { NumberAnimation { duration: Dimensions.animInstant } }
-
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: attachBtn.text
-        Keys.onReturnPressed: attachBtn.clicked()
-        Keys.onSpacePressed: attachBtn.clicked()
-
-        Label {
-            id: _attachLbl
-            anchors.centerIn: parent
-            textFormat: Text.PlainText
-            text: attachBtn.text
-            font.pixelSize: Dimensions.fontSM
-            font.weight: attachBtn.filled ? Font.DemiBold : Font.Medium
-            color: attachBtn.filled ? Theme.textOnColor
-                 : (_attachMouse.containsMouse ? Theme.textPrimary : Theme.textSecondary)
-        }
-
-        MouseArea {
-            id: _attachMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: attachBtn.clicked()
-        }
-    }
-
     ConfirmDialog {
         id: attachDialog
         parent: Overlay.overlay
         accentColor: Theme.warning
-        width: 520
+        width: 420
         title: qsTr("Oyuna bağlanma isteği")
         message: qsTr("%1 eklentisi %2 oyununa bağlanmak istiyor.")
                      .arg(window._attachPluginName).arg(window._attachGameName)
@@ -1198,36 +942,40 @@ ApplicationWindow {
         onCancelled: window._answerAttach(false, false)
         onClosed: window._showNextAttach()
 
+        glyph: Icons.shieldAlert
         footer: Item {
-            implicitHeight: 56
+            implicitHeight: attachButtons.implicitHeight + 40
 
-            Rectangle {
-                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                height: 1; color: Theme.textPrimary06
-            }
+            ColumnLayout {
+                id: attachButtons
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 8
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Dimensions.paddingLG
-                anchors.rightMargin: Dimensions.paddingLG
-                spacing: Dimensions.spacingMD
-
-                AttachDialogButton {
-                    text: qsTr("Reddet")
-                    onClicked: { window._answerAttach(false, false); attachDialog.close() }
+                AppButton {
+                    Layout.fillWidth: true
+                    fillWidth: true
+                    style: "filled"
+                    tint: Theme.warning
+                    text: qsTr("Bağlan")
+                    onClicked: { window._answerAttach(true, false); attachDialog.close() }
                 }
-
-                Item { Layout.fillWidth: true }
-
-                AttachDialogButton {
+                AppButton {
+                    Layout.fillWidth: true
+                    fillWidth: true
+                    style: "gray"
                     text: qsTr("Bu oyun için hep izin ver")
                     onClicked: { window._answerAttach(true, true); attachDialog.close() }
                 }
-
-                AttachDialogButton {
-                    filled: true
-                    text: qsTr("Bağlan")
-                    onClicked: { window._answerAttach(true, false); attachDialog.close() }
+                AppButton {
+                    Layout.fillWidth: true
+                    fillWidth: true
+                    style: "plain"
+                    text: qsTr("Reddet")
+                    onClicked: { window._answerAttach(false, false); attachDialog.close() }
                 }
             }
         }

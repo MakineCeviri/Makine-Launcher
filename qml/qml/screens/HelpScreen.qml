@@ -11,7 +11,7 @@ pragma ComponentBehavior: Bound
 /**
  * HelpScreen.qml - "Nasıl çalışır?": what the launcher does, step by step
  *
- * The page a user reaches from the "?" in the navigation bar (or F1) when
+ * The page a user reaches from the sidebar's "Nasıl çalışır?" (or F1) when
  * something is not obvious: the four steps from finding a game to taking the
  * patch off again, what every word on a cover or a button means, the
  * questions people actually ask us, the shortcuts, and where to ask the rest.
@@ -31,23 +31,27 @@ Item {
     // ── Small parts ──────────────────────────────────────────────────────────
     component SectionTitle: Text {
         Layout.fillWidth: true
-        Layout.topMargin: Dimensions.spacingXL
+        Layout.topMargin: 12
         textFormat: Text.PlainText
-        font.pixelSize: Dimensions.fontXL
+        font.family: Dimensions.fontDisplay
+        font.pixelSize: Dimensions.title2
         font.weight: Font.Bold
+        font.letterSpacing: Dimensions.trackingHeadline
         color: Theme.textPrimary
+        Accessible.role: Accessible.Heading
+        Accessible.name: text
     }
 
     component Body: Text {
         Layout.fillWidth: true
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
-        lineHeight: 1.45
-        font.pixelSize: Dimensions.fontMD
+        lineHeight: 1.3
+        font.pixelSize: Dimensions.body
         color: Theme.textSecondary
     }
 
-    component Step: Rectangle {
+    component Step: Card {
         id: step
         property int number: 1
         property string glyph: ""
@@ -57,42 +61,25 @@ Item {
         Layout.fillWidth: true
         Layout.preferredWidth: 1
         Layout.fillHeight: true
-        implicitHeight: stepCol.implicitHeight + Dimensions.paddingXL * 2
+        implicitHeight: stepCol.implicitHeight + 40
         radius: Dimensions.radiusLG
-        color: Theme.textPrimary03
-        border.width: 1
-        border.color: Theme.textPrimary06
 
         ColumnLayout {
             id: stepCol
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: Dimensions.paddingXL
-            spacing: Dimensions.spacingLG
+            anchors.margins: 20
+            spacing: 10
 
             RowLayout {
-                spacing: Dimensions.spacingLG
-                Rectangle {
-                    Layout.preferredWidth: 44
-                    Layout.preferredHeight: 44
-                    radius: 22
-                    color: Theme.primary15
-                    Text {
-                        anchors.centerIn: parent
-                        textFormat: Text.PlainText
-                        text: step.glyph
-                        font.family: "Segoe MDL2 Assets"
-                        font.pixelSize: 18
-                        color: Theme.accentLight
-                    }
-                }
+                spacing: 10
+                IconTile { size: 34; glyph: step.glyph; tint: Theme.primary }
                 Text {
                     textFormat: Text.PlainText
-                    text: qsTr("ADIM %1").arg(step.number)
-                    font.pixelSize: Dimensions.fontCaption
+                    text: qsTr("%1. adım").arg(step.number)
+                    font.pixelSize: Dimensions.footnote
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 1.4
                     color: Theme.textMuted
                 }
             }
@@ -101,7 +88,7 @@ Item {
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 text: step.title
-                font.pixelSize: Dimensions.fontLG
+                font.pixelSize: Dimensions.headline
                 font.weight: Font.DemiBold
                 color: Theme.textPrimary
             }
@@ -109,82 +96,79 @@ Item {
                 Layout.fillWidth: true
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
-                lineHeight: 1.45
+                lineHeight: 1.3
                 text: step.text
-                font.pixelSize: Dimensions.fontBody
+                font.pixelSize: Dimensions.callout
                 color: Theme.textSecondary
             }
         }
     }
 
     // A word the launcher shows, and what it means
-    component Term: RowLayout {
+    component Term: Item {
         id: term
         property string label: ""
         property color tone: Theme.textSecondary
         property string text: ""
 
+        readonly property bool _isListRow: true
+        property bool _isFirst: true
+        property bool _isLast: true
+        property bool _watched: false
+
         Layout.fillWidth: true
-        spacing: Dimensions.spacingXL
+        implicitHeight: termRow.implicitHeight + 24
 
-        Item {
-            Layout.preferredWidth: 220
-            Layout.alignment: Qt.AlignTop
-            implicitHeight: pill.height
-
-            Rectangle {
-                id: pill
-                width: pillRow.implicitWidth + 20
-                height: 28
-                radius: 14
-                color: Theme.withAlpha(term.tone, 0.12)
-                Row {
-                    id: pillRow
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 7; height: 7; radius: 3.5
-                        color: term.tone
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        textFormat: Text.PlainText
-                        text: term.label
-                        font.pixelSize: Dimensions.fontSM
-                        font.weight: Font.DemiBold
-                        color: Theme.textPrimary
-                    }
-                }
-            }
+        Rectangle {
+            visible: !term._isFirst
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: 16
+            height: 1
+            color: Theme.separator
         }
-        Text {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignTop
-            Layout.topMargin: 4
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-            lineHeight: 1.4
-            text: term.text
-            font.pixelSize: Dimensions.fontMD
-            color: Theme.textSecondary
+        RowLayout {
+            id: termRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            spacing: 16
+            Item {
+                Layout.preferredWidth: 200
+                Layout.alignment: Qt.AlignTop
+                implicitHeight: badge.implicitHeight
+                StatusBadge { id: badge; text: term.label; tint: term.tone }
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
+                lineHeight: 1.25
+                text: term.text
+                font.pixelSize: Dimensions.callout
+                color: Theme.textSecondary
+            }
         }
     }
 
     // A question that opens to its answer
-    component Faq: Rectangle {
+    component Faq: Item {
         id: faq
         property string question: ""
         property string answer: ""
         property bool open: false
 
+        readonly property bool _isListRow: true
+        property bool _isFirst: true
+        property bool _isLast: true
+        property bool _watched: false
+
         Layout.fillWidth: true
-        implicitHeight: faqCol.implicitHeight + Dimensions.paddingLG * 2
-        radius: Dimensions.radiusLG
-        color: faqHover.hovered || faq.open ? Theme.textPrimary06 : Theme.textPrimary03
-        border.width: faq.activeFocus ? 2 : 1
-        border.color: faq.activeFocus ? Theme.accentLight : Theme.textPrimary06
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        implicitHeight: faqCol.implicitHeight + 28
 
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
@@ -192,33 +176,53 @@ Item {
         Keys.onReturnPressed: faq.open = !faq.open
         Keys.onSpacePressed: faq.open = !faq.open
 
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            visible: faqHover.hovered || faq.activeFocus
+            color: Theme.fillQuaternary
+            topLeftRadius: faq._isFirst ? Dimensions.radiusLG - 1 : 0
+            topRightRadius: faq._isFirst ? Dimensions.radiusLG - 1 : 0
+            bottomLeftRadius: faq._isLast ? Dimensions.radiusLG - 1 : 0
+            bottomRightRadius: faq._isLast ? Dimensions.radiusLG - 1 : 0
+        }
+        Rectangle {
+            visible: !faq._isFirst
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: 16
+            height: 1
+            color: Theme.separator
+        }
+
         ColumnLayout {
             id: faqCol
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Dimensions.paddingLG
-            anchors.leftMargin: Dimensions.paddingXL
-            spacing: Dimensions.spacingMD
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 16
+            anchors.rightMargin: 14
+            spacing: 8
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: Dimensions.spacingLG
+                spacing: 12
                 Text {
                     Layout.fillWidth: true
                     textFormat: Text.PlainText
                     wrapMode: Text.WordWrap
                     text: faq.question
-                    font.pixelSize: Dimensions.fontMD
+                    font.pixelSize: Dimensions.body
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
                 }
-                Text {
-                    textFormat: Text.PlainText
-                    text: faq.open ? "\uE70E" : "\uE70D"
-                    font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 12
-                    color: Theme.textMuted
+                Icon {
+                    glyph: Icons.chevronDown
+                    size: 15
+                    color: Theme.textTertiary
+                    rotation: faq.open ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
                 }
             }
             Text {
@@ -226,9 +230,9 @@ Item {
                 visible: faq.open
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
-                lineHeight: 1.45
+                lineHeight: 1.3
                 text: faq.answer
-                font.pixelSize: Dimensions.fontMD
+                font.pixelSize: Dimensions.callout
                 color: Theme.textSecondary
             }
         }
@@ -236,86 +240,26 @@ Item {
         TapHandler { onTapped: faq.open = !faq.open }
     }
 
-    component KeyRow: RowLayout {
+    component KeyRow: ListRow {
         id: key
         property string keys: ""
         property string text: ""
-        Layout.fillWidth: true
-        spacing: Dimensions.spacingLG
+        minHeight: 40
+        title: key.text
         Rectangle {
-            Layout.preferredWidth: Math.max(64, keyLabel.implicitWidth + 20)
-            implicitHeight: 28
-            radius: Dimensions.radiusMD
-            color: Theme.textPrimary06
-            border.width: 1
-            border.color: Theme.textPrimary12
+            implicitWidth: Math.max(48, keyLabel.implicitWidth + 16)
+            implicitHeight: 24
+            radius: 6
+            color: Theme.fillTertiary
             Text {
                 id: keyLabel
                 anchors.centerIn: parent
                 textFormat: Text.PlainText
                 text: key.keys
-                font.pixelSize: Dimensions.fontSM
+                font.pixelSize: Dimensions.caption1
                 font.weight: Font.DemiBold
-                color: Theme.textPrimary
+                color: Theme.textSecondary
             }
-        }
-        Text {
-            Layout.fillWidth: true
-            textFormat: Text.PlainText
-            text: key.text
-            font.pixelSize: Dimensions.fontMD
-            color: Theme.textSecondary
-        }
-    }
-
-    component LinkButton: Rectangle {
-        id: lb
-        property string glyph: ""
-        property string text: ""
-        property bool filled: false
-        signal clicked()
-
-        implicitWidth: lbRow.implicitWidth + Dimensions.paddingXL * 1.5
-        implicitHeight: 40
-        radius: Dimensions.radiusMD
-        color: lb.filled ? (lbMouse.containsMouse ? Theme.primaryHover : Theme.primary)
-                         : (lbMouse.containsMouse ? Theme.textPrimary12 : Theme.textPrimary06)
-        border.width: lb.activeFocus ? 2 : 0
-        border.color: Theme.accentLight
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: lb.text
-        Keys.onReturnPressed: lb.clicked()
-        Keys.onSpacePressed: lb.clicked()
-
-        Row {
-            id: lbRow
-            anchors.centerIn: parent
-            spacing: Dimensions.spacingMD
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: lb.glyph !== ""
-                textFormat: Text.PlainText
-                text: lb.glyph
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 13
-                color: lb.filled ? Theme.textOnColor : Theme.textSecondary
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: lb.text
-                font.pixelSize: Dimensions.fontBody
-                font.weight: Font.DemiBold
-                color: lb.filled ? Theme.textOnColor : Theme.textPrimary
-            }
-        }
-        MouseArea {
-            id: lbMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: lb.clicked()
         }
     }
 
@@ -323,76 +267,69 @@ Item {
     Flickable {
         id: flick
         anchors.fill: parent
-        anchors.margins: help.contentMargin
-        contentHeight: page.implicitHeight + Dimensions.spacingPage
+        contentHeight: page.implicitHeight + 48
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: StyledScrollBar {}
 
-        SectionContainer {
+        ColumnLayout {
             id: page
-            width: Math.min(flick.width, Dimensions.contentMaxWidth)
+            width: Math.min(flick.width - Dimensions.pageMargin * 2, Dimensions.contentMaxWidth)
             x: (flick.width - width) / 2
-            glowPosition: "top-right"
-            contentSpacing: Dimensions.spacingLG
+            spacing: 16
 
-            Text {
-                Layout.fillWidth: true
-                textFormat: Text.PlainText
-                text: qsTr("Makine Launcher nasıl çalışır?")
-                font.pixelSize: Dimensions.fontHero
-                font.weight: Font.Bold
-                color: Theme.textPrimary
-            }
-            Body {
-                text: qsTr("Bilgisayarındaki oyunları bulur, Türkçe yamalarını tek tıkla kurar ve istediğin an geri alır. Aşağıda her adımda ne olduğunu, ekranda gördüğün her sözcüğün ne anlama geldiğini ve en çok sorulanları anlattık.")
+            PageHeader {
+                Layout.topMargin: 52
+                title: qsTr("Nasıl çalışır?")
+                subtitle: qsTr("Bilgisayarındaki oyunları bulur, Türkçe yamalarını tek tıkla kurar ve istediğin an geri alır. Aşağıda her adımda ne olduğunu, ekranda gördüğün her sözcüğün ne anlama geldiğini ve en çok sorulanları anlattık.")
             }
 
             // ── The four steps ──
             SectionTitle { text: qsTr("Dört adımda Türkçe oyna") }
             GridLayout {
                 Layout.fillWidth: true
-                columns: help.width > 1000 ? 4 : 2
-                columnSpacing: Dimensions.spacingLG
-                rowSpacing: Dimensions.spacingLG
+                columns: page.width > 900 ? 4 : 2
+                columnSpacing: 14
+                rowSpacing: 14
 
                 Step {
                     number: 1
-                    glyph: "\uE721"
+                    glyph: Icons.scanSearch
                     title: qsTr("Oyunun bulunur")
                     text: qsTr("Launcher açılınca Steam, Epic, GOG ve Xbox kütüphanelerine ve oyun klasörlerine bakar. Bulamadığı bir oyunun sayfasında \"Oyun Klasörünü Seç ve Kur\"a bas ya da klasörü pencereye sürükle: oyunun klasörü, .exe dosyasının durduğu klasör ya da içindeki herhangi bir klasör olabilir; yamanın gideceği doğru yeri launcher bulur.")
                 }
                 Step {
                     number: 2
-                    glyph: "\uE896"
+                    glyph: Icons.download
                     title: qsTr("Türkçe yamayı kurarsın")
-                    text: qsTr("Oyunun sayfasındaki mor düğmeye bas. Launcher yamayı makineceviri.org'dan indirir ve bozulmadığını doğrular, değiştireceği oyun dosyalarının yedeğini alır, sonra Türkçe dosyaları oyunun klasörüne koyar. Bazı yamalarda önce seçenek ya da oyunun sürümü sorulur.")
+                    text: qsTr("Oyunun sayfasında \"Türkçe Yamayı Kur\"a bas. Launcher yamayı makineceviri.org'dan indirir ve bozulmadığını doğrular, değiştireceği oyun dosyalarının yedeğini alır, sonra Türkçe dosyaları oyunun klasörüne koyar. Bazı yamalarda önce seçenek ya da oyunun sürümü sorulur.")
                 }
                 Step {
                     number: 3
-                    glyph: "\uE7FC"
+                    glyph: Icons.gamepad2
                     title: qsTr("Oyunu Türkçe oynarsın")
                     text: qsTr("Çoğu oyun hemen Türkçe açılır. Bazılarında dili oyunun ayarlarından seçmen ya da oyunu başka bir şekilde başlatman gerekir; böyle bir oyunsa launcher kurulumun sonunda ne yapman gerektiğini söyler.")
                 }
                 Step {
                     number: 4
-                    glyph: "\uE7A7"
+                    glyph: Icons.undo2
                     title: qsTr("İstediğin an geri alırsın")
-                    text: qsTr("Oyunun sayfasında \"Türkçe Yama Kurulu\" düğmesinin üzerine gelince \"Yamayı Kaldır\" olur. Onaylarsan yama kaldırılır ve yedeklenen orijinal dosyalar geri yüklenir. Oyun güncellenip yama bozulursa launcher bunu fark eder ve onarmayı önerir.")
+                    text: qsTr("Oyunun sayfasında \"Türkçe yama kurulu\" yazısının yanındaki \"Kaldır\"a bas. Onaylarsan yama kaldırılır ve yedeklenen orijinal dosyalar geri yüklenir. Oyun güncellenip yama bozulursa launcher bunu fark eder ve onarmayı önerir.")
                 }
             }
 
             RowLayout {
-                Layout.topMargin: Dimensions.spacingSM
-                spacing: Dimensions.spacingMD
-                LinkButton {
-                    filled: true
-                    glyph: "\uE8F1"
+                Layout.topMargin: 4
+                spacing: 10
+                AppButton {
+                    style: "filled"
+                    icon: Icons.layoutGrid
                     text: qsTr("Tüm oyunlara göz at")
                     onClicked: help.allGamesRequested()
                 }
-                LinkButton {
-                    glyph: "\uF12B"
+                AppButton {
+                    style: "gray"
+                    icon: Icons.gamepad2
                     text: qsTr("Kütüphanemi aç")
                     onClicked: help.libraryRequested()
                 }
@@ -400,17 +337,14 @@ Item {
 
             // ── Words on screen ──
             SectionTitle { text: qsTr("Ekranda gördüklerin ne anlama geliyor?") }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Dimensions.spacingLG
-
+            ListSection {
                 Term {
-                    label: qsTr("Yama hazır"); tone: Theme.accentLight
+                    label: qsTr("Yama hazır"); tone: Theme.primary
                     text: qsTr("Oyun bilgisayarında ve Türkçe yaması launcher'dan kurulabilir. Oyunun sayfasında ya da Kütüphanem'de \"Türkçe Yamayı Kur\"a basman yeter.")
                 }
                 Term {
                     label: qsTr("Kurulu"); tone: Theme.success
-                    text: qsTr("Türkçe yama bu oyunda kurulu. Kaldırmak istersen oyunun sayfasındaki düğmeyi kullan; orijinal dosyalar geri gelir.")
+                    text: qsTr("Türkçe yama bu oyunda kurulu. Kaldırmak istersen oyunun sayfasındaki \"Kaldır\"ı kullan; orijinal dosyalar geri gelir.")
                 }
                 Term {
                     label: qsTr("Güncelleme var"); tone: Theme.warning
@@ -421,29 +355,26 @@ Item {
                     text: qsTr("Oyun bu bilgisayarda bulundu ama Türkçe yaması henüz kurulmadı.")
                 }
                 Term {
-                    label: qsTr("Dış sitede"); tone: Theme.textSecondary
+                    label: qsTr("Dış sitede"); tone: Theme.textMuted
                     text: qsTr("Bu oyunun Türkçe yaması başka bir çeviri ekibinin sitesinde yayımlanıyor. Düğme seni o sayfaya götürür; kurulumu o site anlatır, launcher bu yamayı kendisi kurmaz.")
                 }
                 Term {
-                    label: qsTr("Tespit edilemedi"); tone: Theme.warning
+                    label: qsTr("Bilgisayarında bulunamadı"); tone: Theme.warning
                     text: qsTr("Launcher oyunu bu bilgisayarda bulamadı. Oyunun sayfasında klasörünü göster; bir kez gösterdiğin klasör hatırlanır.")
                 }
                 Term {
-                    label: qsTr("Yanlış klasörde"); tone: Theme.warning
+                    label: qsTr("Yama oyunun klasörüne gitmemiş"); tone: Theme.warning
                     text: qsTr("Yama, oyunun kendi klasörüne değil başka bir klasöre kurulmuş; oyun onu göremez. Sayfadaki \"Yamayı taşı\" yamayı kaldırıp doğru klasöre yeniden kurar.")
                 }
                 Term {
-                    label: qsTr("Onarım gerekli"); tone: Theme.warning
-                    text: qsTr("Kurulu yamanın dosyaları eksik: oyun güncellenmiş, mağaza dosyaları doğrulamış ya da antivirüs bir dosyayı silmiş olabilir. Düğmeye basınca yama yeniden kurulur.")
+                    label: qsTr("Yama dosyaları eksik"); tone: Theme.warning
+                    text: qsTr("Kurulu yamanın dosyaları eksik: oyun güncellenmiş, mağaza dosyaları doğrulamış ya da antivirüs bir dosyayı silmiş olabilir. \"Yamayı Onar\"a basınca yama yeniden kurulur.")
                 }
             }
 
             // ── Questions ──
             SectionTitle { text: qsTr("Sık sorulanlar") }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Dimensions.spacingMD
-
+            ListSection {
                 Faq {
                     question: qsTr("Oyunum listede yok, ne yapmalıyım?")
                     answer: qsTr("Önce Kütüphanem'deki \"Yeniden tara\"ya bas. Yine çıkmazsa oyunun klasörünü pencerenin herhangi bir yerine sürükleyip bırak ya da \"Oyun ekle\" ile seç: launcher hangi oyun olduğunu bulur ve sayfasını açar. Oyun kataloğumuzda yoksa Tüm Oyunlar'da aratıp yaması olup olmadığına bakabilirsin.")
@@ -462,11 +393,11 @@ Item {
                 }
                 Faq {
                     question: qsTr("Oyun güncellendi, yama çalışmıyor.")
-                    answer: qsTr("Oyun güncellemesi yamanın dosyalarının üzerine yazmış olabilir. Oyunun sayfasını aç: launcher eksik dosyaları fark ederse \"Onarım gerekli\" der, düğmeye basınca yama yeniden kurulur. Güncelleme yamayı tamamen bozduysa yeni yama sürümü çıkınca \"Güncelleme var\" görürsün.")
+                    answer: qsTr("Oyun güncellemesi yamanın dosyalarının üzerine yazmış olabilir. Oyunun sayfasını aç: launcher eksik dosyaları fark ederse \"Yama dosyaları eksik\" der, \"Yamayı Onar\"a basınca yama yeniden kurulur. Güncelleme yamayı tamamen bozduysa yeni yama sürümü çıkınca \"Güncelleme var\" görürsün.")
                 }
                 Faq {
                     question: qsTr("Steam'de \"dosyaları doğrula\" yaparsam ne olur?")
-                    answer: qsTr("Steam oyunu orijinal hâline getirir ve Türkçe dosyaları siler. Bir dahaki sefere oyunun sayfasında launcher bunu görür ve yamayı yeniden kurmayı önerir. Yama kurulurken bir sorun çıkarsa da sayfadaki \"Oyun dosyalarını doğrula / onar\" oyunu temiz hâline döndürmenin en kolay yoludur.")
+                    answer: qsTr("Steam oyunu orijinal hâline getirir ve Türkçe dosyaları siler. Bir dahaki sefere oyunun sayfasında launcher bunu görür ve yamayı yeniden kurmayı önerir. Yama kurulurken bir sorun çıkarsa da sayfadaki \"Oyun dosyalarını doğrula\" oyunu temiz hâline döndürmenin en kolay yoludur.")
                 }
                 Faq {
                     question: qsTr("Online oyunlarda kullanmak güvenli mi?")
@@ -486,18 +417,24 @@ Item {
             SectionTitle { text: qsTr("Kısayollar") }
             GridLayout {
                 Layout.fillWidth: true
-                columns: help.width > 900 ? 2 : 1
-                columnSpacing: Dimensions.spacingXXL
-                rowSpacing: Dimensions.spacingMD
+                columns: page.width > 760 ? 2 : 1
+                columnSpacing: 14
+                rowSpacing: 14
 
-                KeyRow { keys: "Ctrl+1"; text: qsTr("Ana Sayfa") }
-                KeyRow { keys: "Ctrl+2"; text: qsTr("Kütüphanem") }
-                KeyRow { keys: "Ctrl+3"; text: qsTr("Tüm Oyunlar") }
-                KeyRow { keys: "Ctrl+F"; text: qsTr("Oyun ara") }
-                KeyRow { keys: "Ctrl+R"; text: qsTr("Yama güncellemelerini denetle") }
-                KeyRow { keys: "Ctrl+,"; text: qsTr("Ayarlar") }
-                KeyRow { keys: "F1"; text: qsTr("Bu sayfa") }
-                KeyRow { keys: "Esc"; text: qsTr("Geri dön") }
+                ListSection {
+                    Layout.alignment: Qt.AlignTop
+                    KeyRow { keys: "Ctrl+1"; text: qsTr("Ana Sayfa") }
+                    KeyRow { keys: "Ctrl+2"; text: qsTr("Kütüphanem") }
+                    KeyRow { keys: "Ctrl+3"; text: qsTr("Tüm Oyunlar") }
+                    KeyRow { keys: "Ctrl+F"; text: qsTr("Oyun ara") }
+                }
+                ListSection {
+                    Layout.alignment: Qt.AlignTop
+                    KeyRow { keys: "Ctrl+R"; text: qsTr("Yama güncellemelerini denetle") }
+                    KeyRow { keys: "Ctrl+,"; text: qsTr("Ayarlar") }
+                    KeyRow { keys: "F1"; text: qsTr("Bu sayfa") }
+                    KeyRow { keys: "Esc"; text: qsTr("Geri dön") }
+                }
             }
 
             // ── Still stuck ──
@@ -506,16 +443,17 @@ Item {
                 text: qsTr("Topluluğumuz ve çevirmenlerimiz Discord'da. Sorununu yazarken oyunun adını ve gördüğün hata mesajını eklersen daha hızlı yardım alırsın.")
             }
             RowLayout {
-                Layout.bottomMargin: Dimensions.spacingMD
-                spacing: Dimensions.spacingMD
-                LinkButton {
-                    filled: true
-                    glyph: "\uE8BD"
+                Layout.bottomMargin: 8
+                spacing: 10
+                AppButton {
+                    style: "filled"
+                    icon: Icons.messagesSquare
                     text: qsTr("Discord'a katıl")
                     onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
                 }
-                LinkButton {
-                    glyph: "\uE774"
+                AppButton {
+                    style: "gray"
+                    icon: Icons.globe
                     text: qsTr("makineceviri.org")
                     onClicked: Qt.openUrlExternally("https://makineceviri.org/iletisim/")
                 }

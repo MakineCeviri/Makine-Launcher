@@ -2,15 +2,18 @@
 // Copyright (c) 2026 Makine Çeviri
 
 import QtQuick
+import QtQuick.Effects
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
- * HomeCover — one game on the home page: cover, name, an optional line below.
+ * HomeCover — one game as a tile: cover art, its name, an optional line
+ * under it. Used by the home shelves, "Tüm Oyunlar" and the welcome flow.
  *
- * Covers come from the image cache as pre-rounded PNGs (the same source as
- * GameCard). The badge carries the patch's state on this PC, so a shelf says
- * what a click leads to before it is made.
+ * Covers come from the image cache as pre-rounded PNGs (corner ≈ 11.8 % of
+ * the width), so no mask is needed. The badge carries the patch's state on
+ * this PC, so a tile says what a click leads to before it is made.
  */
 Item {
     id: card
@@ -22,23 +25,33 @@ Item {
     // false: a picture of the game, not a control (the welcome flow)
     property bool interactive: true
     // "" | "ready" (on this PC, patch not installed) | "installable" (same,
-    // where "on this PC" is the news) | "installed" | "update"
+    // where "on this PC" is the news) | "installed" | "update" | "external"
     property string status: ""
+    // Overrides the status wording (a date on "Yeni güncellenen")
+    property string badge: ""
+    property color badgeColor: Theme.primary
+    // Keyboard position in a grid that keeps focus itself
+    property bool highlighted: false
 
     signal clicked()
 
     readonly property real coverHeight: Math.round(width * 185 / 130)
+    readonly property real _corner: width * 0.118
     readonly property bool _lifted: card.interactive && (hover.hovered || card.activeFocus)
-    readonly property string _statusText: card.status === "installed" ? qsTr("Kurulu")
+    readonly property string _statusText: card.badge !== "" ? card.badge
+                                        : card.status === "installed" ? qsTr("Kurulu")
                                         : card.status === "update" ? qsTr("Güncelleme var")
                                         : card.status === "ready" ? qsTr("Yama hazır")
                                         : card.status === "installable" ? qsTr("Bilgisayarında")
+                                        : card.status === "external" ? qsTr("Dış sitede")
                                         : ""
-    readonly property color _statusColor: card.status === "installed" ? Theme.success
+    readonly property color _statusColor: card.badge !== "" ? card.badgeColor
+                                        : card.status === "installed" ? Theme.success
                                         : card.status === "update" ? Theme.warning
+                                        : card.status === "external" ? "#AEAEB2"
                                         : Theme.primary
 
-    implicitHeight: coverHeight + Dimensions.spacingMD + nameLabel.implicitHeight
+    implicitHeight: coverHeight + 10 + nameLabel.implicitHeight
                     + (subtitleLabel.visible ? subtitleLabel.implicitHeight + 2 : 0)
 
     activeFocusOnTab: card.interactive
@@ -56,8 +69,13 @@ Item {
     onSteamAppIdChanged: _resolve()
     onGameIdChanged: _resolve()
     Component.onCompleted: _resolve()
+    ListView.onPooled: card._src = ""
+    ListView.onReused: card._resolve()
+    GridView.onPooled: card._src = ""
+    GridView.onReused: card._resolve()
 
-    // Fixed target, gated by `enabled`: see GameCard (NATIVE-74).
+    // Fixed target, gated by `enabled`: changing `target` from inside the
+    // handler is a use-after-free in delegates (NATIVE-74).
     Connections {
         target: ImageCache
         enabled: card._src === ""
@@ -71,27 +89,38 @@ Item {
         id: coverBox
         width: card.width
         height: card.coverHeight
-        scale: card._lifted ? 1.04 : 1.0
-        Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Dimensions.easeStandard } }
+        scale: card._lifted ? 1.035 : 1.0
+        transformOrigin: Item.Bottom
+        Behavior on scale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+
+        RectangularShadow {
+            anchors.fill: parent
+            radius: card._corner
+            offset.y: card._lifted ? 10 : 4
+            blur: card._lifted ? 26 : 12
+            spread: -2
+            color: Qt.rgba(0, 0, 0, Theme.darkMode ? (card._lifted ? 0.55 : 0.35) : (card._lifted ? 0.22 : 0.12))
+            Behavior on offset.y { NumberAnimation { duration: Dimensions.animNormal } }
+        }
 
         // Until the cover arrives: the name on a plain tile, never an empty hole.
         Rectangle {
             anchors.fill: parent
-            radius: Dimensions.radiusLG
+            radius: card._corner
             color: Theme.surfaceLight
             visible: cover.status !== Image.Ready
 
             Text {
                 anchors.centerIn: parent
-                width: parent.width - Dimensions.paddingLG * 2
+                width: parent.width - 24
                 textFormat: Text.PlainText
                 text: card.name
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 maximumLineCount: 4
                 elide: Text.ElideRight
-                font.pixelSize: Dimensions.fontSM
-                font.weight: Font.Medium
+                font.pixelSize: Dimensions.callout
+                font.weight: Font.DemiBold
                 color: Theme.textMuted
             }
         }
@@ -106,54 +135,31 @@ Item {
             mipmap: true
         }
 
-        // Hover and keyboard focus share one ring; focus is the stronger one.
+        // Keyboard focus: the macOS accent ring around the art
         Rectangle {
             anchors.fill: parent
-            anchors.margins: -3
-            radius: Dimensions.radiusLG + 3
+            anchors.margins: -4
+            radius: card._corner + 4
             color: "transparent"
-            border.width: 2
-            border.color: card.activeFocus ? Theme.primary : Theme.textPrimary25
-            visible: card._lifted
+            border.width: 3
+            border.color: Theme.withAlpha(Theme.primary, 0.6)
+            visible: card.activeFocus || card.highlighted
         }
 
-        // State on this PC: dark pill + coloured dot + word, readable on any art.
-        Rectangle {
-            visible: card._statusText !== ""
+        StatusBadge {
             anchors.left: parent.left
             anchors.top: parent.top
-            anchors.margins: Dimensions.spacingMD
-            height: 22
-            width: badgeRow.implicitWidth + Dimensions.paddingLG
-            radius: height / 2
-            color: Qt.rgba(0, 0, 0, 0.72)
-
-            Row {
-                id: badgeRow
-                anchors.centerIn: parent
-                spacing: 5
-
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 6; height: 6; radius: 3
-                    color: card._statusColor
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    textFormat: Text.PlainText
-                    text: card._statusText
-                    font.pixelSize: Dimensions.fontCaption
-                    font.weight: Font.DemiBold
-                    color: "#FFFFFF"
-                }
-            }
+            anchors.margins: 8
+            onArt: true
+            text: card._statusText
+            tint: card._statusColor
         }
     }
 
     Text {
         id: nameLabel
         anchors.top: coverBox.bottom
-        anchors.topMargin: Dimensions.spacingMD
+        anchors.topMargin: 10
         width: card.width
         textFormat: Text.PlainText
         text: card.name
@@ -162,7 +168,8 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 2
         elide: Text.ElideRight
-        font.pixelSize: Dimensions.fontBody
+        lineHeight: 1.08
+        font.pixelSize: Dimensions.callout
         font.weight: Font.Medium
         color: Theme.textPrimary
     }
@@ -176,7 +183,7 @@ Item {
         textFormat: Text.PlainText
         text: card.subtitle
         elide: Text.ElideRight
-        font.pixelSize: Dimensions.fontSM
+        font.pixelSize: Dimensions.footnote
         color: Theme.textMuted
     }
 

@@ -6,6 +6,7 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
@@ -197,165 +198,113 @@ Item {
         onAccepted: bar.inspect(selectedFolder, bar._intent)
     }
 
-    // A text button with a glyph, for the quiet row and the notice.
-    component BarButton: Rectangle {
-        id: bb
-        property string glyph: ""
-        property string text: ""
-        property bool primary: false
-        property color fill: Theme.primary
-        signal clicked()
-
-        implicitWidth: bbRow.implicitWidth + (bb.primary ? Dimensions.paddingXL : Dimensions.paddingLG)
-        implicitHeight: bb.primary ? 36 : 32
-        radius: Dimensions.radiusMD
-        color: bb.primary ? (bbHover.hovered ? Qt.darker(bb.fill, 1.12) : bb.fill)
-                          : (bbHover.hovered ? Theme.textPrimary10 : "transparent")
-        border.width: bb.activeFocus ? 2 : 0
-        border.color: Theme.accentLight
-        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
-
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: bb.text
-        Keys.onReturnPressed: bb.clicked()
-        Keys.onSpacePressed: bb.clicked()
-
-        Row {
-            id: bbRow
-            anchors.centerIn: parent
-            spacing: Dimensions.spacingSM
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: bb.glyph !== ""
-                textFormat: Text.PlainText
-                text: bb.glyph
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 12
-                color: bb.primary ? Theme.textOnColor : Theme.textSecondary
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: bb.text
-                font.pixelSize: Dimensions.fontBody
-                font.weight: bb.primary ? Font.DemiBold : Font.Medium
-                color: bb.primary ? Theme.textOnColor : (bbHover.hovered ? Theme.textPrimary : Theme.textSecondary)
-            }
-        }
-        HoverHandler { id: bbHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: bb.clicked() }
-    }
-
-    // ── Not found: what the button under which this sits will do ────────────
-    Text {
+    // ── Not found: what the button above will do ────────────────────────────
+    RowLayout {
         id: hint
         visible: bar._notFound
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: Dimensions.paddingXL
-        anchors.rightMargin: Dimensions.paddingXL
-        textFormat: Text.PlainText
-        wrapMode: Text.WordWrap
-        horizontalAlignment: Text.AlignHCenter
-        lineHeight: 1.35
-        font.pixelSize: Dimensions.fontBody
-        color: Theme.textMuted
-        text: qsTr("Steam, Epic, GOG ve Xbox kütüphanelerinde bulamadık. Oyunun klasörünü ya da .exe dosyasının durduğu klasörü göster; yamanın gideceği doğru yeri biz buluruz. Klasörü bu sayfaya sürükleyip bırakabilirsin de.")
+        spacing: 10
+
+        Icon {
+            Layout.alignment: Qt.AlignTop
+            Layout.topMargin: 1
+            glyph: Icons.folderSearch
+            size: 16
+            color: Theme.textMuted
+        }
+        Text {
+            Layout.fillWidth: true
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            lineHeight: 1.2
+            font.pixelSize: Dimensions.callout
+            color: Theme.textMuted
+            text: qsTr("Steam, Epic, GOG ve Xbox kütüphanelerinde bulamadık. Oyunun klasörünü ya da .exe dosyasının durduğu klasörü göster; yamanın gideceği doğru yeri biz buluruz. Klasörü bu sayfaya sürükleyip bırakabilirsin de.")
+        }
     }
 
     // ── Located: the folder, quietly ────────────────────────────────────────
-    Rectangle {
+    Card {
         id: row
         visible: bar._located && !bar._notice
         anchors.left: parent.left
         anchors.right: parent.right
-        implicitHeight: 48
+        implicitHeight: 60
         radius: Dimensions.radiusLG
-        color: Theme.textPrimary04
-        border.width: 1
-        border.color: Theme.textPrimary06
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingSM
-            spacing: Dimensions.spacingLG
+            anchors.leftMargin: 14
+            anchors.rightMargin: 10
+            spacing: 12
 
-            Text {
-                textFormat: Text.PlainText
-                text: "\uF12B"
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 15
-                color: Theme.textMuted
-            }
+            IconTile { size: 32; glyph: Icons.folder; tint: Theme.primary; solid: false }
 
-            Text {
-                id: pathText
+            ColumnLayout {
                 Layout.fillWidth: true
-                textFormat: Text.PlainText
-                text: bar._folder.shown || ""
-                elide: Text.ElideMiddle
-                font.pixelSize: Dimensions.fontMD
-                font.weight: Font.Medium
-                color: Theme.textPrimary
+                spacing: 1
 
-                HoverHandler { id: pathHover }
-                ToolTip.visible: pathHover.hovered && pathText.truncated
-                ToolTip.text: bar._folder.shown || ""
-                ToolTip.delay: 400
-            }
-
-            // Who found it — or what just happened to it.
-            Row {
-                spacing: Dimensions.spacingSM
                 Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: bar._note !== "" && !bar._checking && bar._moveAfterUninstall === null
+                    id: pathText
+                    Layout.fillWidth: true
                     textFormat: Text.PlainText
-                    text: "\uE73E"
-                    font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 12
-                    color: Theme.success
+                    text: bar._folder.shown || ""
+                    elide: Text.ElideMiddle
+                    font.pixelSize: Dimensions.body
+                    font.weight: Font.Medium
+                    color: Theme.textPrimary
+
+                    HoverHandler { id: pathHover }
+                    StyledToolTip {
+                        visible: pathHover.hovered && pathText.truncated
+                        text: bar._folder.shown || ""
+                    }
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    textFormat: Text.PlainText
-                    text: bar._checking ? qsTr("Klasöre bakılıyor…")
-                        : bar._note !== "" ? bar._note
-                        : bar._source
-                    font.pixelSize: Dimensions.fontSM
-                    color: bar._note !== "" && !bar._checking && bar._moveAfterUninstall === null
-                           ? Theme.success : Theme.textMuted
+                // Who found it — or what just happened to it.
+                RowLayout {
+                    spacing: 5
+                    readonly property bool _done: bar._note !== "" && !bar._checking && bar._moveAfterUninstall === null
+                    Icon {
+                        visible: parent._done
+                        glyph: Icons.check
+                        size: 12
+                        color: Theme.success
+                    }
+                    Spinner { visible: bar._checking; size: 12 }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: bar._checking ? qsTr("Klasöre bakılıyor…")
+                            : bar._note !== "" ? bar._note
+                            : qsTr("Oyunun klasörü · %1").arg(bar._source)
+                        font.pixelSize: Dimensions.footnote
+                        color: parent._done ? Theme.success : Theme.textMuted
+                    }
                 }
             }
 
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 20
-                color: Theme.textPrimary08
+            AppButton {
+                size: "small"
+                style: "gray"
+                icon: Icons.folderOpen
+                text: qsTr("Aç")
+                toolTip: qsTr("Klasörü Dosya Gezgini'nde aç")
+                onClicked: GameService.openGameFolder(bar.vm.gameId)
             }
-
-            Row {
-                spacing: Dimensions.spacingXS
-
-                BarButton {
-                    glyph: "\uED25"
-                    text: qsTr("Aç")
-                    onClicked: GameService.openGameFolder(bar.vm.gameId)
-                }
-                BarButton {
-                    visible: bar._folder.resettable === true
-                    glyph: "\uE777"
-                    text: qsTr("Otomatik bulunana dön")
-                    onClicked: GameService.resetGameFolder(bar.vm.gameId)
-                }
-                BarButton {
-                    glyph: "\uE70F"
-                    text: qsTr("Değiştir")
-                    onClicked: bar.pick("change")
-                }
+            AppButton {
+                visible: bar._folder.resettable === true
+                size: "small"
+                style: "gray"
+                icon: Icons.rotateCcw
+                text: qsTr("Otomatik bulunana dön")
+                onClicked: GameService.resetGameFolder(bar.vm.gameId)
+            }
+            AppButton {
+                size: "small"
+                style: "gray"
+                text: qsTr("Değiştir")
+                toolTip: qsTr("Oyun başka bir klasördeyse onu seç")
+                onClicked: bar.pick("change")
             }
         }
     }
@@ -366,47 +315,37 @@ Item {
         visible: bar._located && bar._notice
         anchors.left: parent.left
         anchors.right: parent.right
-        implicitHeight: noticeRow.implicitHeight + Dimensions.paddingLG * 2
+        implicitHeight: noticeRow.implicitHeight + 32
         radius: Dimensions.radiusLG
-        color: Theme.warning08
+        color: Theme.withAlpha(Theme.warning, Theme.darkMode ? 0.12 : 0.08)
         border.width: 1
-        border.color: Theme.withAlpha(Theme.warning, 0.30)
+        border.color: Theme.withAlpha(Theme.warning, 0.32)
 
         RowLayout {
             id: noticeRow
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: Dimensions.paddingLG
-            anchors.rightMargin: Dimensions.paddingLG
-            spacing: Dimensions.spacingLG
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            spacing: 14
 
-            Rectangle {
+            IconTile {
                 Layout.alignment: Qt.AlignTop
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                radius: 18
-                color: Theme.withAlpha(Theme.warning, 0.14)
-
-                Text {
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: "\uE7BA"
-                    font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 16
-                    color: Theme.warning
-                }
+                size: 34
+                glyph: Icons.triangleAlert
+                tint: Theme.warning
             }
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: Dimensions.spacingXS
+                spacing: 3
 
                 Text {
                     Layout.fillWidth: true
                     textFormat: Text.PlainText
                     wrapMode: Text.WordWrap
-                    font.pixelSize: Dimensions.fontLG
+                    font.pixelSize: Dimensions.headline
                     font.weight: Font.DemiBold
                     color: Theme.textPrimary
                     text: bar._missing ? qsTr("Oyun klasörü yerinde değil")
@@ -417,8 +356,8 @@ Item {
                     Layout.fillWidth: true
                     textFormat: Text.PlainText
                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    lineHeight: 1.3
-                    font.pixelSize: Dimensions.fontBody
+                    lineHeight: 1.2
+                    font.pixelSize: Dimensions.callout
                     color: Theme.textSecondary
                     text: bar._missing
                           ? qsTr("%1 artık yok; oyun taşınmış ya da kaldırılmış olabilir. Yeni yerini göster, yama oraya kurulsun.")
@@ -434,22 +373,25 @@ Item {
 
             ColumnLayout {
                 Layout.alignment: Qt.AlignVCenter
-                spacing: Dimensions.spacingXS
+                spacing: 4
 
-                BarButton {
+                AppButton {
                     Layout.alignment: Qt.AlignRight
-                    primary: true
-                    fill: Theme.warning
+                    style: "filled"
+                    tint: Theme.warning
                     enabled: bar._moveAfterUninstall === null
+                    busy: bar._moveAfterUninstall !== null
                     text: bar._missing ? qsTr("Yeni yerini göster")
                         : bar._moveAfterUninstall !== null ? qsTr("Taşınıyor…")
                         : bar.vm.packageInstalled ? qsTr("Yamayı taşı")
                         : qsTr("Düzelt")
                     onClicked: bar._missing ? bar.pick("change") : bar._fix()
                 }
-                BarButton {
+                AppButton {
                     Layout.alignment: Qt.AlignRight
                     visible: !bar._missing
+                    size: "small"
+                    style: "plain"
                     text: qsTr("Başka klasör seç")
                     onClicked: bar.pick("change")
                 }
