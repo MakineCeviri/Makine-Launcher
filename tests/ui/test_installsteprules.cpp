@@ -517,6 +517,15 @@ TEST(InstallStepRules, FailedUpdateWithoutBackupRemovesOnlyItsOwnFiles) {
     EXPECT_TRUE(notOnRecord(v1, v1).isEmpty());
 }
 
+TEST(InstallStepRules, UpdateTopsUpTheBackupWithItsFirstOverwritesOnly) {
+    // v1 added tr.pak and replaced ui.pak (in the backup); v2 also ships
+    // data/b.pak, which v1 left alone. Only that original is missing from the
+    // backup — tr.pak on disk is ours, ui.pak on disk is already patched.
+    const QStringList v2Writes{"tr.pak", "ui.pak", "data/b.pak"};
+    const QStringList record{"tr.pak", "ui.pak", /*added*/ "tr.pak", /*replaced*/ "ui.pak"};
+    EXPECT_EQ(notOnRecord(v2Writes, record), QStringList({"data/b.pak"}));
+}
+
 TEST(InstallStepRules, AnInPlaceMarkerListsTheFileItEdited) {
     EXPECT_EQ(notOnRecord({"DataPC_patch_01.forge", "data/b.pak"},
                           {"_vpatch:DataPC_patch_01.forge", "a.pak"}),

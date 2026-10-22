@@ -20,6 +20,8 @@
 #include "profiler.h"
 #include "crashreporter.h"
 #include "elevatedops.h"
+#include "installsteprules.h"
+#include "pathsecurity.h"
 #include "rawfile.h"
 #include "packagestamp.h"
 #include "processscanner.h"
@@ -1787,10 +1789,31 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         ? tr("Bu oyun şu anda çalışıyor (%1). Çeviriyi kurmak için oyunu kapatın.")
         : tr("Bu oyun şu anda çalışıyor (%1). Güncelleme için oyunu kapatın.");
 
+    // An update that writes over a game file for the first time (v1 left
+    // data/b.pak alone, v2 ships it) records it as replaced, and uninstall and
+    // a failed update's rollback leave it to the restore — of the backup the
+    // first install took, which does not hold it: "Yama başarıyla kaldırıldı"
+    // with the Turkish b.pak still in the game. Its original goes into that
+    // backup first, in the preflight below.
+    QString topUpDir;
+    QStringList topUp;
+    if (mode == InstallMode::Update) {
+        BackupManager* bm = BackupManager::instance();
+        const auto record = m_coreBridge->getInstalledInfo(gameId);
+        if (bm && record)
+            topUpDir = bm->getLatestBackup(gameId).value(QStringLiteral("backupPath")).toString();
+        if (!topUpDir.isEmpty()) {
+            topUp = steprules::notOnRecord(
+                m_coreBridge->getPackageFileList(gameId, variant, installPath),
+                record->installedFiles + record->addedFiles + record->replacedFiles);
+        }
+    }
+
     struct Preflight {
         QString runningExe;
         bool writable = true;
         bool declined = false;   // the user said no to the write-access prompt
+        QString topUpFailed;     // the original that could not go into the backup
     };
     auto* watcher = new QFutureWatcher<Preflight>(this);
     connect(watcher, &QFutureWatcher<Preflight>::finished, this,
@@ -1852,6 +1875,18 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
 
             if (mode == InstallMode::Update) {
+                if (!pre.topUpFailed.isEmpty()) {
+                    qCWarning(lcGameService) << "Could not add" << pre.topUpFailed
+                                             << "to the backup of" << gameId << "- update not started";
+                    m_installTimeoutTimer->stop();
+                    m_installingGameId.clear();
+                    emit translationInstallCompleted(gameId, false,
+                        tr("Güncelleme başlamadı: yeni sürümün ilk kez değiştireceği oyun "
+                           "dosyası yedeğe eklenemedi (%1). Oyun dosyalarına dokunulmadı.\n"
+                           "Oyunu ve mağaza uygulamasını kapatıp, diskte yer olduğundan "
+                           "emin olup tekrar deneyin.").arg(pre.topUpFailed));
+                    return;
+                }
                 // No backup step for updates — go straight to update
                 qCDebug(lcGameService) << "Updating translation for" << gameId
                          << "variant:" << (variant.isEmpty() ? "(none)" : variant)
@@ -2001,7 +2036,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
         });
 
-    watcher->setFuture(QtConcurrent::run([installPath]() -> Preflight {
+    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, topUp]() -> Preflight {
         Preflight out;
         // By image path: the root-folder *.exe names missed every game whose
         // exe sits in bin/ (Watch_Dogs copied 4 of 6 files, then failed on the
@@ -2015,6 +2050,24 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             out.declined = !out.writable && ElevatedOps::lastRunDeclined();
         } else {
             out.writable = ElevatedOps::canWrite(installPath);
+        }
+        // The update's first overwrites into the backup (topUp above). Through
+        // a file beside the backup folder, renamed in when complete: a copy cut
+        // short by a crash must not sit in the backup as the original.
+        const QString part = topUpDir + QStringLiteral(".part");
+        for (const QString& rel : topUp) {
+            const QString src = QDir::cleanPath(installPath + QLatin1Char('/') + rel);
+            const QString dst = QDir::cleanPath(topUpDir + QLatin1Char('/') + rel);
+            if (!security::isPathContained(installPath, src) || !rawfile::exists(src)
+                || rawfile::exists(dst))
+                continue;
+            QFile::remove(part);
+            if (!QDir().mkpath(QFileInfo(dst).absolutePath()) || !QFile::copy(src, part)
+                || !QFile::rename(part, dst)) {
+                QFile::remove(part);
+                out.topUpFailed = rel;
+                break;
+            }
         }
         return out;
     }));
