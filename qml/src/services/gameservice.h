@@ -647,6 +647,7 @@ private:
     mutable QVariantList m_installedTranslationsCache;
     mutable bool m_cacheValid{false};
     mutable bool m_supportedCacheValid{false};
+    mutable bool m_supportedResetting{false};  // supportedGames() is resetting the model
     mutable bool m_translationCacheValid{false};
     mutable bool m_installedCacheValid{false};
     mutable int m_outdatedPatchCount{0};

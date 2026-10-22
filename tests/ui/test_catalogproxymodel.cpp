@@ -241,6 +241,24 @@ TEST_F(CatalogProxyStatusTest, AGameFoundLaterJoinsItsRows)
     EXPECT_EQ(proxyNames(proxy), (QStringList{"Alpha", "Beta", "Delta"}));
 }
 
+// The first start of 0.2.0 hung: before the first catalogue sync each reset
+// of the empty list ran QML handlers that asked for the list again, and that
+// reset it again. An empty list over an empty one must announce nothing.
+TEST(SupportedGamesModel, EmptyOverEmptyIsNoReset)
+{
+    SupportedGamesModel model;
+    int resets = 0;
+    QObject::connect(&model, &QAbstractItemModel::modelReset, [&resets] { ++resets; });
+    model.resetFromCatalog({});
+    model.resetFromCatalog({});
+    EXPECT_EQ(resets, 0);
+    model.resetFromCatalog(makeCatalog({"Alpha"}));
+    EXPECT_EQ(resets, 1);
+    model.resetFromCatalog({});   // the list emptied: that is a change
+    EXPECT_EQ(resets, 2);
+    EXPECT_EQ(model.rowCount(), 0);
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);

@@ -1343,8 +1343,14 @@ QVariantList GameService::supportedGames() const
 
     m_supportedCacheValid = true;
 
-    // Populate the QAbstractListModel from the enriched cache
-    m_supportedGamesModel->resetFromCatalog(m_supportedGamesCache);
+    // Populate the QAbstractListModel from the enriched cache. Its modelReset
+    // handlers in QML ask for this list again; they get it as built, never a
+    // second reset from inside the first (see resetFromCatalog).
+    if (!m_supportedResetting) {
+        m_supportedResetting = true;
+        m_supportedGamesModel->resetFromCatalog(m_supportedGamesCache);
+        m_supportedResetting = false;
+    }
 
     return m_supportedGamesCache;
 }

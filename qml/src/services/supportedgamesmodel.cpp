@@ -71,6 +71,13 @@ QHash<int, QByteArray> SupportedGamesModel::roleNames() const
 
 void SupportedGamesModel::resetFromCatalog(const QVariantList &catalogData)
 {
+    // Empty over empty changes nothing, and announcing it did hung the first
+    // start: before the first catalogue sync every modelReset handler that
+    // asks for the list again (home page, featured row, welcome step)
+    // re-entered GameService::supportedGames, which reset again, until the
+    // JS stack ran out (0.2.0, every fresh install).
+    if (catalogData.isEmpty() && m_entries.isEmpty())
+        return;
     beginResetModel();
     m_entries.clear();
     m_appIdToIndex.clear();
