@@ -163,6 +163,65 @@ TEST(TelemetryRules, FailureSubjectKeepsTheGameId)
     EXPECT_TRUE(appFromSubject(QString()).isEmpty());
 }
 
+// ===== QML script errors =====================================================
+
+TEST(TelemetryRules, QmlScriptErrorIsKeyedByFileLineAndKind)
+{
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/components/GameCard.qml:88: TypeError: "
+        "Cannot read property 'name' of null")),
+        QStringLiteral("qml|components/GameCard.qml:88|TypeError"));
+    // The column and the error's own text do not split the key.
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/components/GameCard.qml:88:5: TypeError: "
+        "Cannot read property 'cover' of undefined")),
+        QStringLiteral("qml|components/GameCard.qml:88|TypeError"));
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/screens/HomeScreen.qml:12: ReferenceError: "
+        "gameService is not defined")),
+        QStringLiteral("qml|screens/HomeScreen.qml:12|ReferenceError"));
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/theme/Theme.js:3: SyntaxError: Unexpected token")),
+        QStringLiteral("qml|theme/Theme.js:3|SyntaxError"));
+}
+
+TEST(TelemetryRules, OnlyScriptErrorsInOurQmlAreReported)
+{
+    // The live breadcrumb that must stay a breadcrumb: a missing cover image.
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/screens/detail/HeroSection.qml:124:9: QML QQuickImage*: "
+        "Error transferring https://cdn.makineceviri.org/assets/banners/2536520.jpg - server "
+        "replied with status code 404")).isEmpty());
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/X.qml:5:3: QML Item: Binding loop detected for "
+        "property \"width\"")).isEmpty());
+    // Not a QML location at all, even with an error word in it.
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral("TypeError in plugin host")).isEmpty());
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral("qrc:/x/Main.qml: TypeError: no line")).isEmpty());
+}
+
+TEST(TelemetryRules, QmlKeysWaitAWeekOtherKeysADay)
+{
+    const QString qml = QStringLiteral("qml|components/GameCard.qml:88|TypeError");
+    const QString install = sentryKey(QStringLiteral("install"), QStringLiteral("step_failed"),
+                                      QStringLiteral("1245620"));
+    EXPECT_EQ(sentryRepeatWindowFor(qml), kSentryQmlRepeatWindowMs);
+    EXPECT_EQ(sentryRepeatWindowFor(install), kSentryRepeatWindowMs);
+
+    const qint64 now = 1727000000000;
+    const qint64 twoDaysAgo = now - 2 * kSentryRepeatWindowMs;
+    EXPECT_FALSE(sentryMaySend(twoDaysAgo, now, sentryRepeatWindowFor(qml)));
+    EXPECT_TRUE(sentryMaySend(twoDaysAgo, now, sentryRepeatWindowFor(install)));
+
+    // Pruning keeps the QML key for its whole week.
+    QVariantMap sent;
+    sent.insert(qml, twoDaysAgo);
+    sent.insert(install, twoDaysAgo);
+    pruneSent(sent, now);
+    EXPECT_TRUE(sent.contains(qml));
+    EXPECT_FALSE(sent.contains(install));
+}
+
 // ===== Failure event tags ====================================================
 
 TEST(TelemetryRules, GameIdOnlyForSubjectsThatNameAGame)

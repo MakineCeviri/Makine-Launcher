@@ -208,6 +208,13 @@ TEST(FailureReasons, TheOtherBucketOfOctober)
         QStringLiteral("download_failed"));
 }
 
+TEST(FailureReasons, AStartupQmlFailureIsNamed)
+{
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "QML root failed to load (compile): qrc:/qt/qml/MakineLauncher/qml/Main.qml:5:1: "
+        "module \"QtQuick.Effects\" is not installed")), QStringLiteral("qml_load"));
+}
+
 TEST(FailureReasons, NewCodesDoNotSwallowTheWrappersOrSteps)
 {
     // The own-program refusal also says "uninstall program": it stays run_no_undo.

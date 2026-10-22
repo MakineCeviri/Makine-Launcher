@@ -167,24 +167,96 @@ inline QString sentryKey(const QString& operation, const QString& reason,
     return operation + QLatin1Char('|') + reason + QLatin1Char('|') + subject;
 }
 
+// QML script errors repeat on every binding evaluation and on every machine
+// that opens the screen, so their key waits a week, not a day: a broken home
+// screen then costs about one event per active install per week (~3K a month
+// at 0.1.5's 2.9K monthly users, of a 50K budget) instead of one per install
+// per day. The per-session cap keeps one bad delegate from using the
+// session's whole allowance.
+inline constexpr qint64 kSentryQmlRepeatWindowMs = 7LL * 24 * 60 * 60 * 1000;
+inline constexpr int    kSentryQmlErrorsPerSession = 3;
+inline constexpr QLatin1StringView kQmlKeyPrefix{"qml|"};
+
+inline qint64 sentryRepeatWindowFor(const QString& key)
+{
+    return key.startsWith(kQmlKeyPrefix) ? kSentryQmlRepeatWindowMs : kSentryRepeatWindowMs;
+}
+
 /// True when an event whose key was last sent at `lastSentMs` may go out at
 /// `nowMs`. A clock that moved backwards opens the gate rather than closing it
 /// for however long the skew is.
-inline bool sentryMaySend(qint64 lastSentMs, qint64 nowMs)
+inline bool sentryMaySend(qint64 lastSentMs, qint64 nowMs,
+                          qint64 windowMs = kSentryRepeatWindowMs)
 {
     return lastSentMs <= 0 || nowMs < lastSentMs
-        || nowMs - lastSentMs >= kSentryRepeatWindowMs;
+        || nowMs - lastSentMs >= windowMs;
 }
 
-/// Forgets keys whose window has passed so the persisted map stays small.
+/// Forgets keys whose window has passed so the persisted map stays small —
+/// each by its own window: a week-long QML key pruned after a day would
+/// reopen daily.
 inline void pruneSent(QVariantMap& sent, qint64 nowMs)
 {
     for (auto it = sent.begin(); it != sent.end();) {
-        if (sentryMaySend(it.value().toLongLong(), nowMs))
+        if (sentryMaySend(it.value().toLongLong(), nowMs, sentryRepeatWindowFor(it.key())))
             it = sent.erase(it);
         else
             ++it;
     }
+}
+
+/// The gate key for a QML/JS script error, or empty when `message` is not one.
+///
+/// Script errors in shipped QML ("qrc:/…/GameCard.qml:88: TypeError: Cannot
+/// read property 'name' of null") are UI defects that only ever reached a
+/// breadcrumb: the screen half-works and nobody hears about it. Only errors
+/// in our own QML count — a URL, a line, then a JS error or a failed
+/// assignment. Image and network warnings ("Error transferring …") and
+/// binding loops (common, rarely visible) are left to the breadcrumbs. The key is file:line plus the error kind;
+/// the column and the error's own text are not, since both vary per object.
+inline QString qmlErrorKey(const QString& message)
+{
+    if (!message.startsWith(QLatin1String("qrc:/")) && !message.startsWith(QLatin1String("file:///")))
+        return {};
+    static const QLatin1StringView kKinds[] = {
+        QLatin1StringView("TypeError"),      QLatin1StringView("ReferenceError"),
+        QLatin1StringView("RangeError"),     QLatin1StringView("SyntaxError"),
+        QLatin1StringView("URIError"),       QLatin1StringView("Unable to assign"),
+        QLatin1StringView("Cannot assign"),  QLatin1StringView("is not a type"),
+        QLatin1StringView("Cannot call method"),
+    };
+    QLatin1StringView kind;
+    for (const QLatin1StringView k : kKinds) {
+        if (message.contains(k)) {
+            kind = k;
+            break;
+        }
+    }
+    if (kind.isEmpty())
+        return {};
+
+    // "<url>.qml:<line>[:<col>]: …" — keep "<path>.qml:<line>".
+    qsizetype ext = message.indexOf(QLatin1String(".qml:"));
+    qsizetype extLen = 5;
+    if (ext < 0) {
+        ext = message.indexOf(QLatin1String(".js:"));
+        extLen = 4;
+    }
+    if (ext < 0)
+        return {};
+    qsizetype end = ext + extLen;
+    while (end < message.size() && message.at(end).isDigit())
+        ++end;
+    if (end == ext + extLen)
+        return {};                                   // no line number: not a location
+    const qsizetype schemeEnd = message.indexOf(QLatin1String(":/")) + 2;
+    QString location = message.mid(schemeEnd, end - schemeEnd);
+    // Long qrc prefixes ("qt/qml/MakineLauncher/qml/") carry nothing.
+    if (const qsizetype slash = location.lastIndexOf(QLatin1Char('/'),
+                                                     location.lastIndexOf(QLatin1Char('/')) - 1);
+        slash >= 0)
+        location = location.mid(slash + 1);
+    return QString(kQmlKeyPrefix) + location + QLatin1Char('|') + QString(kind);
 }
 
 /// The game a failure subject names, or empty. Subjects are "1245620 (Elden

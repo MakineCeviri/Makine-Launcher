@@ -123,6 +123,7 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // Xbox folder the package cannot see).
         {QStringLiteral("Hedef klasör bulunamadı"),              QStringLiteral("game_dir_missing")},     // 3
         {QStringLiteral("could not be rolled back"),             QStringLiteral("journal_rollback")},     // 2
+        {QStringLiteral("QML root failed to load"),              QStringLiteral("qml_load")},
         {QStringLiteral("Yetersiz disk alanı"),                 QStringLiteral("disk_full")},            // 2
         {QStringLiteral("Disk alanı yetersiz"),                  QStringLiteral("disk_full")},
         {QStringLiteral("Dosya kilitli"),                        QStringLiteral("file_locked")},          // 4

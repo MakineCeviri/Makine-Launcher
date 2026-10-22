@@ -24,6 +24,7 @@ Usage:
     python scripts/telemetry_selftest.py
     python scripts/telemetry_selftest.py --exe build/dev/Makine-Launcher.exe
     python scripts/telemetry_selftest.py --skip-run   # only verify last event
+    python scripts/telemetry_selftest.py --qml        # also the QML error path
 """
 
 import argparse
@@ -34,6 +35,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -82,18 +84,35 @@ def api(path: str, params: str = "") -> object:
         return {"__error__": f"{type(exc).__name__}: {exc}"}
 
 
-def find_selftest_issue() -> dict | None:
-    """Most recent issue produced by the self-test path."""
+def find_selftest_issue(query: str = "selftest", marker: str = "selftest failed") -> dict | None:
+    """Most recent issue whose title carries `marker` (the self-test path's)."""
     issues = api(
         f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/issues/",
-        "?query=selftest&sort=date&limit=10&statsPeriod=",
+        "?query=" + urllib.parse.quote(query) + "&sort=date&limit=10&statsPeriod=",
     )
     if isinstance(issues, dict):
         print(f"  ERROR: issue lookup failed: {issues.get('__error__')}")
         return None
     for issue in issues:
-        if "selftest" in (issue.get("title") or "").lower():
+        if marker in (issue.get("title") or "").lower():
             return issue
+    return None
+
+
+# Optional paths (--qml): search words, the title marker of the event
+# each one produces, and the environment variable that makes the dev exe do it.
+EXTRA_PATHS = {
+    "qml": ("qml error", "telemetry self-test qml error", "MAKINE_SELFTEST_QML"),
+}
+
+
+def wait_for_update(query: str, marker: str, before: str | None, timeout: int) -> dict | None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        candidate = find_selftest_issue(query, marker)
+        if candidate and candidate.get("lastSeen") != before:
+            return candidate
+        time.sleep(10)
     return None
 
 
@@ -154,13 +173,14 @@ def runtime_env(exe: Path) -> dict:
     return env
 
 
-def run_selftest(exe: Path) -> bool:
+def run_selftest(exe: Path, extra_env: dict | None = None) -> bool:
     if not exe.exists():
         print(f"  ERROR: executable not found: {exe}")
         print("         Build a dev build first: just dev")
         return False
     print(f"  Running: {exe.name} --selftest-telemetry")
     env = runtime_env(exe)
+    env.update(extra_env or {})
     env["QT_FORCE_STDERR_LOGGING"] = "1"   # the exe is a GUI-subsystem binary
     result = subprocess.run(
         [str(exe), "--selftest-telemetry"],
@@ -191,7 +211,10 @@ def main() -> None:
                         help="Verify the last self-test event without sending a new one")
     parser.add_argument("--timeout", type=int, default=180,
                         help="Seconds to wait for the event to appear (default 180)")
+    parser.add_argument("--qml", action="store_true",
+                        help="Also prove the QML script-error path (planted TypeError)")
     args = parser.parse_args()
+    extras = [name for name in EXTRA_PATHS if getattr(args, name)]
 
     if not TOKEN:
         print("ERROR: SENTRY_AUTH_TOKEN not set (check .env or environment)", file=sys.stderr)
@@ -202,10 +225,15 @@ def main() -> None:
     print("=" * 78)
 
     before = None
+    extra_before = {}
     if not args.skip_run:
         existing = find_selftest_issue()
         before = existing.get("lastSeen") if existing else None
-        if not run_selftest(Path(args.exe)):
+        for name in extras:
+            query, marker, _ = EXTRA_PATHS[name]
+            seen = find_selftest_issue(query, marker)
+            extra_before[name] = seen.get("lastSeen") if seen else None
+        if not run_selftest(Path(args.exe), {EXTRA_PATHS[n][2]: "1" for n in extras}):
             sys.exit(1)
 
     print(f"\n  Waiting for the event to reach Sentry (max {args.timeout}s)...")
@@ -251,6 +279,23 @@ def main() -> None:
         ("breadcrumbs have no raw user name", PLANTED_NAME not in crumbs),
         ("no user path anywhere in the event (module list included)", not leaks),
     ]
+    for name in extras:
+        query, marker, _ = EXTRA_PATHS[name]
+        if args.skip_run:
+            arrived = find_selftest_issue(query, marker)
+        else:
+            print(f"  Waiting for the {name} event (max {args.timeout}s)...")
+            arrived = wait_for_update(query, marker, extra_before.get(name), args.timeout)
+        checks.append((f"{name} event arrived", arrived is not None))
+        if arrived is not None:
+            extra = api(f"/organizations/{SENTRY_ORG}/issues/{arrived.get('id')}/events/latest/")
+            tags = {t.get("key"): t.get("value") for t in extra.get("tags", [])} \
+                if isinstance(extra, dict) else {}
+            checks.append((f"{name} event filed under development, operation={name}",
+                           tags.get("environment") == "development"
+                           and tags.get("operation") == name))
+            checks.append((f"{name} event has no user path",
+                           not unredacted_user_paths(extra if isinstance(extra, dict) else {})))
 
     print()
     failed = 0

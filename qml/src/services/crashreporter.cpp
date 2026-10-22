@@ -58,7 +58,8 @@ static bool admitToSentry(const QString& key)
     QSettings settings;
     QVariantMap sent = settings.value(QStringLiteral("telemetry/sentrySent")).toMap();
     makine::telemetryrules::pruneSent(sent, now);
-    if (!makine::telemetryrules::sentryMaySend(sent.value(key).toLongLong(), now))
+    if (!makine::telemetryrules::sentryMaySend(sent.value(key).toLongLong(), now,
+                                               makine::telemetryrules::sentryRepeatWindowFor(key)))
         return false;
 
     sent.insert(key, now);
@@ -74,6 +75,7 @@ static bool admitToSentry(const QString& key)
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <QSet>
 #include <algorithm>   // std::min — not pulled in implicitly on MinGW
 #include <string>
 
@@ -84,6 +86,40 @@ static QtMessageHandler s_previousHandler = nullptr;
 
 // sentry_init() has succeeded in this process. GUI thread only.
 static bool s_initialized = false;
+
+// QML script error keys this session has already seen (sent or not), and how
+// many it sent. Guarded by s_gateMutex. The set spares a settings read for
+// every repeat of the same warning, which a broken delegate emits per frame.
+static QSet<QString> s_qmlSeen;
+static int s_qmlSent = 0;
+
+void reportQmlError(const QString& msg)
+{
+    const QString key = makine::telemetryrules::qmlErrorKey(msg);
+    if (key.isEmpty())
+        return;
+    {
+        QMutexLocker lock(&s_gateMutex);
+        if (s_qmlSeen.contains(key)
+            || s_qmlSent >= makine::telemetryrules::kSentryQmlErrorsPerSession)
+            return;
+        s_qmlSeen.insert(key);
+    }
+    // Not through reportFailure: its sink would count every repeat, and a
+    // binding that fails per frame would flood the counting queue.
+    if (!admitToSentry(key))
+        return;
+    {
+        QMutexLocker lock(&s_gateMutex);
+        ++s_qmlSent;
+    }
+    QHash<QString, QString> tags;
+    tags.insert(QStringLiteral("operation"), QStringLiteral("qml"));
+    tags.insert(QStringLiteral("failure.side"), QStringLiteral("system"));
+    tags.insert(QStringLiteral("fail.reason"), QStringLiteral("qml_script"));
+    const QByteArray payload = (QStringLiteral("qml error: ") + msg.left(400)).toUtf8();
+    makine::CrashReporter::captureMessage(payload.constData(), "error", tags);
+}
 
 // Qt message handler that routes to Sentry
 void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg)
@@ -104,6 +140,7 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
         break;
     case QtWarningMsg:
         makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "warning");
+        reportQmlError(msg);
         break;
     case QtCriticalMsg:
         makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "error");

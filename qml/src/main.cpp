@@ -1582,6 +1582,14 @@ int main(int argc, char *argv[])
                 "selftest", QStringLiteral("telemetry"),
                 QStringLiteral("telemetry self-test toggle: made after reports are ON again"));
         }
+        // MAKINE_SELFTEST_QML proves the QML script-error path through the
+        // real message handler. The line number changes per run because the
+        // gate keys QML errors by file:line for a week.
+        if (qEnvironmentVariableIsSet("MAKINE_SELFTEST_QML")) {
+            qWarning("qrc:/qt/qml/MakineLauncher/qml/selftest/SelfTest.qml:%lld: TypeError: "
+                     "telemetry self-test QML error",
+                     static_cast<long long>(QDateTime::currentSecsSinceEpoch() % 100000));
+        }
         makine::CrashReporter::shutdown();   // flushes queued envelopes
         qInfo("telemetry self-test event dispatched");
 
@@ -1737,9 +1745,22 @@ int main(int argc, char *argv[])
 #endif
     }
 
+    // A launcher whose QML does not load closes before its first frame, and
+    // until now said so only in the local log: no crash, no event, nothing
+    // in either channel. Reported once per day per install; shutdown() flushes.
+    const auto reportQmlLoadFailure = [&mainComponent](const QString& what) {
+        QStringList errors;
+        for (const auto& error : mainComponent.errors())
+            errors << error.toString();
+        makine::CrashReporter::reportFailure("startup", QStringLiteral("qml"),
+            QStringLiteral("QML root failed to load (%1): %2")
+                .arg(what, errors.join(QStringLiteral(" | ")).left(1500)));
+    };
+
     if (mainComponent.isError()) {
         for (const auto& error : mainComponent.errors())
             logToFile(QString("QML Error: %1").arg(error.toString()));
+        reportQmlLoadFailure(QStringLiteral("compile"));
 #ifdef Q_OS_WIN
         splash.close();
 #endif
@@ -1765,6 +1786,7 @@ int main(int argc, char *argv[])
     }
     if (!rootObject) {
         logToFile("ERROR: Failed to create root object!");
+        reportQmlLoadFailure(QStringLiteral("create"));
 #ifdef Q_OS_WIN
         splash.close();
 #endif
