@@ -1,7 +1,7 @@
 # Telemetri — Sentry ile Uzaktan Teşhis
 
 > **Amaç:** Kullanıcı geri bildirimi beklemeden sorunları görmek.
-> **Proje:** `makineceviri / makine-launcher` (0.1.5+; 0.1.4 ve öncesi eski `makine-ceviri / native`'e gönderir) · **Durum:** 2026-09-23 — iki kanal: sayım (kendi ucumuz) + teşhis (Sentry), körlük bekçisi
+> **Proje:** `makineceviri / makine-launcher` (0.1.5+; 0.1.4 ve öncesi eski `makine-ceviri / native`'e gönderir) · AB bölgesi, API `https://de.sentry.io/api/0` (entegrasyon listesi kontrol silosunda: `sentry.io`) · **Durum:** 2026-10-22 — iki kanal: sayım (kendi ucumuz) + teşhis (Sentry), körlük bekçisi; QML hatası ve UI donması da raporlanıyor, sunucu tarafı gruplama ve yol temizliği `sentry_setup.py`'de
 
 ## Komutlar
 
@@ -9,9 +9,9 @@
 |---|---|
 | `just telemetry-check` | Tümü: kapsam denetimi + canlı öz-test + ölü alarm kontrolü |
 | `just telemetry-coverage` | Hangi hata sinyali Sentry'ye ulaşmıyor (kapsam varsa çıkış kodu ≠ 0) |
-| `just telemetry-selftest` | Gerçek yoldan bir olay gönderir, Sentry'de varlığını **ve** yol temizliğini doğrular |
-| `just triage` | Sıralı iş listesi: en çok başarısız operasyon, en çok istenen handler, regresyon |
-| `just sentry-setup` | Alarm kurallarını kurar/onarır, sonucu sunucudan geri okuyup doğrular |
+| `just telemetry-selftest` | Gerçek yoldan hata + QML betik hatası + UI donması (`--qml --hang`) gönderir, üçünün Sentry'de varlığını **ve** olayın hiçbir yerinde (modül listesi dahil) kullanıcı adı kalmadığını doğrular |
+| `just triage` | Sıralı iş listesi: production, son 14 gün (`--period`), kullanıcı sayısına göre; açık fatal, regresyon (`substatus=regressed`), ölü alarm |
+| `just sentry-setup` | İş akışı alarmlarını, gruplama kurallarını, sunucu tarafı yol temizliğini ve crash-free dedektör eşiklerini kurar/onarır, sunucudan geri okuyup doğrular |
 | `just telemetry-watch` | Şu an kör müyüz: Sentry kota yüzünden olay düşürüyor mu, sayım kanalı sustu mu (CI'da her gün) |
 | `python scripts/set_sentry_token.py` | Token iptal/yenilendiğinde: panodaki token'ı doğrular, `.env` + GitHub secret'ı değiştirir (sahibi çalıştırır) |
 
@@ -40,6 +40,11 @@ gidiyor, oradaki işleyici launcher'ın göndermediği alanları okuyup yazmayı
 - Aynı `(operation, reason, subject)` kurulum başına **24 saatte bir** gider; `qCritical` için aynı kural.
 - Oturum başına en fazla 30 olay. Çökmeler (crashpad) ve `selftest` kapıdan geçmez.
 - Her hata, kapının kararından **önce** sayım kanalına gider (`CrashReporter::setFailureSink`) — sayılar eksiksiz.
+- QML betik hataları: anahtar (`qml|dosya:satır|tür`) kurulum başına **7 günde bir**, oturumda en fazla 3;
+  UI donması oturumda bir, kurulum başına günde bir. İkisi de sayım kanalına gitmez.
+- Bütçe (2026-10-22): Ekim'de 1.242 kabul edilen hata olayı (50K'nın %2,5'i), kota yüzünden düşen 0.
+  Kapı kör bırakmıyor (her farklı hata ilk gün gelir, sayılar sayım kanalında tam); yeni sinyallerin
+  en kötü hali (her ekranda bozuk bir QML satırı) ayda ~3K olay.
 
 **Sayım kanalı ayrıntıları:** anonim kurulum kimliği Sentry'nin kullanıcı kimliğiyle aynı
 (makine kimliğinin SHA-256'sı, ilk 16 hane) — iki kanal kurulum bazında birleştirilebilir.
@@ -60,7 +65,8 @@ Yani 0.1.4'ün gürültüsü sahadan çekilene kadar kotayı yer; 0.1.5+ kapıyl
 **Bekçi:** `scripts/telemetry_watchdog.py` üç sayıya bakar ve körlükte sıfır dışı çıkar:
 Sentry'nin son 24 saatteki `rate_limited` sayısı, sayım kanalının son 24 saatteki kayıt
 sayısı (dev kanalı hariç) ve sürüm başına **çökmesiz oturum oranı** (Sentry release health,
-7 gün, ≥100 oturum, eşik %98). Oturumlar hata kotasından düşmez: 2026-09-23'te hata olaylarının
+7 gün, ≥100 oturum, eşik %99,5 — 2026-10-22'ye kadar %98'di, taban %99,9 iken bir sürüm
+20 kat sık çökebiliyordu). Oturumlar hata kotasından düşmez: 2026-09-23'te hata olaylarının
 tamamı düşürülürken 0.1.4'ün oranı yine okunabiliyordu (%98,69, 2.972 oturum). `.github/workflows/telemetry-watchdog.yml` her gün 09:00'da (TR) çalıştırır —
 zamanlanmış iş yalnız varsayılan daldan (`main`) koşar. Sürümler `dev`'den çıkıyor ve
 `main` ile ortak geçmişi yok; bu yüzden dosya `main`'de de duruyor (PR #7) ve `dev`'i
@@ -100,6 +106,9 @@ kapsanır, güncelliğini yitiremez.
 | `sync` | `ManifestSyncService::syncError` | Katalog senkronu |
 | `scan` | `CoreBridge::scanError` + tarama özeti | Kütüphane taraması; katalog boş veya hiç oyun bulunamadı |
 | `integrity` | `GameService::checkPatchIntegrity` | **Kurulu yamanın dosyaları kaybolmuş** — mağaza doğrulaması, oyun güncellemesi veya antivirüs karantinası |
+| `startup` | `main.cpp` — QML kökü derlenemez/oluşturulamaz (`qml_load`) | İlk kareden önce kapanan launcher; önceden yalnız yerel günlükteydi |
+| `qml` | Qt mesaj işleyicisi — gönderilen QML'de `TypeError`/`ReferenceError`/… (`qml_script`) | Yarım çalışan ekran. Anahtar dosya:satır + tür, kurulum başına **haftada bir**, oturumda en fazla 3; sayım kanalına gitmez (her karede tekrarlanır). Görsel/ağ uyarıları ve binding loop breadcrumb'da kalır |
+| `hang` | Bekçi iş parçacığı — GUI nabzı ≥ 5 sn eskidi (`ui_hang`) | Donan pencere; donma sürerken, oturumda bir kez gider. Başlık son kendi breadcrumb'ını adlandırır (`after package: installPackage`); uyku/hata ayıklayıcı donma sayılmaz |
 
 **Özellikle değerli:** `install` yolu, dürüstlük kapısına takılan paketleri de yakalar.
 Yani *"hangi oyunun handler'ı ne sıklıkla isteniyor"* sorusu artık veriyle cevaplanabilir —
@@ -123,6 +132,11 @@ yüzeye çıkabiliyor, ve "diskiniz dolu" ile "paketimiz bozuk" ayrımını yapa
 kendisi.
 
 Sentry'de filtre: `failure.side:system` → yalnızca bizim sorunlarımız.
+
+Qt'nin ağ hata metinleri (`Operation timed out`, `Host … not found`) 2026-10-22'den beri
+kullanıcı tarafı: 0.1.5'te katalog zaman aşımı iki haftada 11 kullanıcıya `system` olarak
+düştü. `HTTP/2 protocol error` bizim (0.1.6'da HTTP/1.1) olduğu için `system` kalıyor; kendi
+CDN/Worker kesintimizi Sentry uptime izleyicisi (`catalog/meta`) yakalıyor.
 
 ### Çözüm metni sınıflandırmayı bozuyordu (2026-07-23 düzeltildi)
 
@@ -151,12 +165,22 @@ Her olay şu etiketlerle gelir:
 
 | Etiket | İçerik |
 |---|---|
-| `operation` | `download` · `install` · `uninstall` · `backup` · `restore` · `sync` · `scan` |
+| `operation` | `download` · `install` · `uninstall` · `backup` · `restore` · `sync` · `scan` · `integrity` · `package` · `startup` · `qml` · `hang` |
 | `subject` | appId / gameId (kurulum-kaldırmada oyun adı da eklenir) |
 | `failure.side` | `user` · `system` |
-| `game.id`, `game.name` | Oyun bağlamı (kurulum/kaldırma yollarında) |
-| `os.name`, `os.version`, `arch` | Ortam (başlangıçta ayarlanır) |
-| `release` | `makine-launcher@<sürüm>` |
+| `fail.reason`, `fail.step` | Neden kodu (`failurereasons.h`), başarısız tarif adımı |
+| `game.id` | Konudaki çıplak kimlik — sunucu tarafı gruplama buna bakar (klasör adı değil) |
+| `game.name`, `game.store`, `install.method` | Kurulum/kaldırma: oyun adı, kaynak (`steam`/`epic`/`gog`/`manual`/`filesystem`/`registry`), kurulum yöntemi |
+| `hang.context` | Donmadan önceki son kendi breadcrumb'ı |
+| `os.name`, `os.version`, `os.build`, `arch`, `app.packaged` | Ortam, oturum boyunca (`msix` / `plain`) |
+| `release`, `environment` | `makine-launcher@<sürüm>`; dağıtım `production`, `MAKINE_DEV_TOOLS` yapıları `development` |
+
+**Hata etiketleri olaya özel (2026-10-22).** 0.1.6'ya kadar `operation`/`subject`/
+`failure.side` ve `game.id`/`game.name` oturum kapsamına yazılıyor, sonraki her olayda
+kalıyordu: bir kaldırma reddi `operation=integrity` ile geldi, başarısız kurulumdan
+dakikalar sonraki bir çökme `operation=install, failure.side=system` ve oyunla geldi
+(Widespread Failure alarmını da besliyordu). Artık `telemetryrules::failureTags` ile
+yalnız kendi olayında; oturum kapsamında yalnız ortam etiketleri var.
 
 Böylece iki soru doğrudan sorulabilir:
 - **Hangi operasyon en çok başarısız?** → `operation` bazlı gruplama
@@ -179,6 +203,26 @@ telemetriyi açmak Windows kullanıcı adını sızdırma riski taşıyordu.
 | **Karışık ayraçlı yol** (`C:\Users\Ad/AppData`) | **2026-07-23** |
 | Anonim kullanıcı kimliği (makine ID'sinin SHA-256'sı, ilk 16 hane) | Önceden vardı |
 | Debug/info mesajları gönderilmiyor | Önceden vardı |
+| **Modül listesinde yol temizliği** (`debug_meta.images` code_file/debug_file) | **2026-10-22 — sızıntı canlı veride görüldü** (0.1.6 ZIP Masaüstü'nden, MSIX'te OneDrive DLL'i) |
+| **Sunucu tarafı yedek** (`relayPiiConfig`, `Users\<ad>` → `[scrubbed]`) | **2026-10-22** — istemcinin göremediği minidump modül listesi ve eski sürümler için |
+| IP saklanmıyor (org + proje `scrubIPAddresses`) | 2026-10-22 doğrulandı |
+
+**Modül listesi (2026-10-22).** SDK her olaya yüklü modüllerin yollarını ekliyor;
+`beforeSend` yalnız yığın çerçevelerine bakıyordu. Launcher ya da enjekte bir DLL profil
+altındaysa (`C:\Users\<ad>\Desktop\…\Makine-Launcher.exe`) kullanıcı adı her olayla
+gidiyordu. SDK listeyi dondurulmuş veriyor (`set_by_key` sessizce başarısız), bu yüzden
+liste kopyadan yeniden kuruluyor. Öz-test artık olayın tamamında maskesiz
+`Users\<ad>` arıyor; profil altına kopyalanan exe ile kanıtlandı.
+
+**Sunucu tarafı yedek.** `sentry_setup.py` bir Relay kuralı kuruyor: `$string` ve
+`debug_meta.images.*.code_file|debug_file` üzerinde `Users\` sonrasındaki adı
+`[scrubbed]` yapıyor (`[` ile başlayan, yani zaten maskeli ad dokunulmaz). İşaret
+istemcininkinden farklı: istemci maskelemeyi bırakırsa öz-test `[redacted]`'ı bulamaz ve
+düşer, sunucunun sessizce örtmesi gerilemeyi gizlemez. Kanıt (geliştirme ortamı,
+sentetik olaylar): mesaj, breadcrumb, modül yolu ve gerçek bir minidump'ın 16 modül yolu
+temizlendi (minidump'ta Relay ikiliyi yerinde, uzunluğu koruyarak temizliyor:
+`[scrubbed]***`). Minidump'lar işlendikten sonra saklanmıyor (`storeCrashReports=0`,
+ek kotasındaki "filtered: crash-report-limit" bu).
 
 Kullanıcı adı, e-posta, oyun kütüphanesi listesi veya dosya içeriği **gönderilmez**.
 
@@ -268,7 +312,53 @@ Ortam değişkeni **tanımsızken** temiz yapılandırma da doğrulandı:
 | Release takibi (`deploy.py` → `sentry-cli releases`) | ✅ mevcut |
 | Debug sembolleri yükleme | ✅ `just release-zip-dynamic` / `msix-dynamic` içinde (`upload_symbols.py`: Debug ID eşleşmesi + geri okuma). Önceden yalnız `deploy.py`'deydi, yayın akışı çalıştırmıyordu. |
 | Ortam | ✅ dağıtım yapıları `production`, `MAKINE_DEV_TOOLS`'lu yapılar (dev preset'leri, selftest) `development`. Dev preset'i Release (NDEBUG) derlendiği için önceden her dev çalıştırması `production`'a düşüyordu. |
-| Uyarı kuralları | ✅ 4 kural, **dördü de bildirim gönderiyor** (2026-07-23 onarıldı), **dördü de yalnız `production`** (2026-09-23) |
+| Uyarı kuralları | ✅ iş akışı motorunda 6 iş akışı + crash-free dedektörü, hepsi e-posta, hepsi `production` (2026-10-22, aşağıda) |
+| Gruplama kuralları | ✅ kurulum/kaldırma: `operation + fail.reason + game.id` (2026-10-22, aşağıda) |
+| Sunucu tarafı yol temizliği, IP | ✅ `relayPiiConfig`, `scrubIPAddresses` (2026-10-22, Gizlilik) |
+| Spike koruması | ✅ açık (`quotas:spike-protection-disabled=false`, `sentry-setup` doğruluyor) |
+| Gelen filtreler | Yerel (native) proje: tarayıcı filtreleri anlamsız, mesaj filtresi gerekmedi — üçüncü taraf gürültüsü görülmedi |
+
+### İş akışları ve gruplama (2026-10-22)
+
+`sentry_setup.py` hâlâ eski `/projects/.../rules/` ucuna yazıyordu; o uç 404 verdiği için
+`just sentry-setup` 2026-09'dan beri hiçbir şey kurmuyordu (kurallar arayüzden/elden
+taşınmıştı). Artık `/organizations/makineceviri/workflows/` ve `/detectors/` üzerinden
+kuruyor, onarıyor, geri okuyor:
+
+| İş akışı | Tetik | Süzgeç | Sıklık |
+|---|---|---|---|
+| New crash (fatal) → Email | yeni issue | seviye ≥ fatal | 30 dk |
+| Regression Detected | çözülmüş issue olay alır | — | 30 dk |
+| Widespread Failure | 1 saatte 3+ kullanıcı | `failure.side:system` | 60 dk |
+| Spreading Failure (24h, 10+ users) | 1 günde 10+ kullanıcı | `failure.side:system` | günde 1 |
+| Crash Spreading (1h, 3+ users) | 1 saatte 3+ kullanıcı | seviye ≥ fatal | 60 dk |
+| Send a notification for high priority issues | Sentry'nin kendi önceliği (yeni + tırmanan) | — | — (yönetilmiyor, yalnız bildirim gönderebildiği doğrulanıyor) |
+| Crash-free oturum oranı (24 sa) | metrik dedektör, production | < %99,5 orta, < %99 yüksek | "Monitors" iş akışı → takım e-postası |
+
+- "New issue (error+)" fatal'a indirildi: Sentry'nin high priority iş akışı her yeni hata
+  issue'sunu zaten bildiriyordu, her yeni hata iki e-posta oluyordu (günde ~4 yeni issue).
+- "Spreading Failure" saatlik eşiğin kaçırdığını yakalar: Valhalla'nın yedek reddi günde
+  ~30 kullanıcıya (11 günde 326) — saatte bir — ulaşıyordu.
+- API metrik dedektör **oluşturamıyor** (POST 405); crash-free dedektörü yoksa script
+  tarayıcı adımını yazdırır, varsa eşiklerini onarır.
+
+**Gruplama.** Hata olaylarının varsayılan gruplaması mesaj (sayılar parametreleşir),
+mesaj da kullanıcının klasör adını taşıyor: tek Diablo II kusuru 30 günde 8 issue
+("Diablo II: Resurrected", "… [FitGirl Repack]", "Diablo"…) ve hiçbiri kullanıcı
+eşiklerine ulaşmıyordu. Kurallar (`FINGERPRINT_RULES`):
+
+```
+tags.fail.reason:other -> {{ default }}
+tags.operation:install tags.fail.reason:* tags.game.id:* -> launcher-failure, install, {{ tags.fail.reason }}, {{ tags.game.id }}
+tags.operation:uninstall … -> launcher-failure, uninstall, …
+!release:makine-launcher@0.1.5* !release:makine-launcher@0.1.6* tags.fail.reason:* tags.game.id:* -> launcher-failure, {{ tags.operation }}, …
+```
+
+0.1.5/0.1.6'da `game.id` yalnız kurulum/kaldırmada güvenilir (raporun hemen öncesinde
+yazılıyordu); diğer işlemler 0.1.7'den itibaren katılıyor. Kanıt (sentetik geliştirme
+olayları): iki farklı oyun adı tek gruba düştü; 0.1.5 sürümlü `restore` olayları iki
+gruba (varsayılan), 0.1.7 sürümlüler tek gruba. Kural değişince açık kurulum/kaldırma
+issue'ları yeni olay almaz, yeni gruplar açılır (bir kerelik).
 
 ### Alarm kuralları sessizce ölüydü (2026-07-23)
 
@@ -290,7 +380,7 @@ hiçbir şey çalışmıyor. Alınan önlemler:
 | Sunucudan geri okuma | `verify_alert_rules()` kuralları tekrar çeker, aksiyonsuz kalan varsa çıkış kodu ≠ 0 |
 | Sürekli denetim | `just telemetry-check` ölü kural bulursa hata verir |
 
-Aktif kurallar:
+O günkü kurallar (güncel hali: yukarıda "İş akışları ve gruplama"):
 
 | Kural | Koşul | Eşik |
 |---|---|---|
@@ -302,7 +392,8 @@ Aktif kurallar:
 > "High priority issues" Sentry'nin varsayılan kuralı ve yeni iş akışı motorunda duruyor:
 > eski `/projects/.../rules/<id>/` ucu `PUT`'a 404 veriyor. Değişiklik
 > `/organizations/makineceviri/workflows/<id>/` üzerinden yapılır (GET → yalnız
-> `environment`'ı değiştir → PUT → geri oku). Diğer üçü `sentry_setup.py` ile yönetiliyor.
+> `environment`'ı değiştir → PUT → geri oku). 2026-10-22'den beri diğerlerinin hepsi
+> `sentry_setup.py` ile bu uçtan yönetiliyor (PUT kimliksiz koşul/aksiyon kabul ediyor).
 
 > Eşik 10'dan **3'e** indirildi: projedeki en yaygın kusur (`.forge` enjeksiyonu) en
 > yüksek noktada 8 kullanıcıya ulaştı — 10'luk kapı en büyük sorunumuzda hiç açılmazdı.
