@@ -137,6 +137,12 @@ void DetailFetcher::invalidate(const QString& appId)
     QTimer::singleShot(0, this, [path]() { QFile::remove(path); });
 }
 
+void DetailFetcher::invalidateAll()
+{
+    m_details.clear();
+    m_diskCache.clear();
+}
+
 // ========== Internal ==========
 
 void DetailFetcher::onFetched(const QString& appId, const QByteArray& data)

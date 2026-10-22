@@ -36,6 +36,8 @@ public:
     QVariantMap get(const QString& appId) const;
     bool has(const QString& appId) const;
     void invalidate(const QString& appId);
+    /// Forget every detail held in memory; the files are CoreBridge's to drop.
+    void invalidateAll();
 
 signals:
     void detailReady(const QString& appId);
