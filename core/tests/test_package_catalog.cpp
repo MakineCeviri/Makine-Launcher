@@ -763,6 +763,33 @@ TEST_F(PackageCatalogTest, FindMatchingAppIdEmptyString) {
     SUCCEED();
 }
 
+// A reload goes back to what index.json alone says. The index lists one exe for
+// Red Dead Redemption 2 (playrdr2.exe, the Steam launcher); the detail adds the
+// game's own rdr2.exe, which is what a repack folder holds. Every library scan
+// used to reload the catalog right before matching, so the scan never saw it —
+// CoreBridge now leaves an already loaded catalog alone.
+TEST_F(PackageCatalogTest, ReloadForgetsWhatTheDetailAdded) {
+    json index;
+    index["packages"] = {
+        {"1174180", {{"name", "Red Dead Redemption 2"}, {"v", "1"}, {"dirName", "Red Dead Redemption 2"},
+                     {"exe", json::array({"playrdr2.exe"})}}},
+    };
+    std::ofstream(indexPath_) << index.dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    ASSERT_TRUE(catalog_.enrichPackage("1174180",
+        R"({"fingerprint": {"exeNames": ["playrdr2.exe", "rdr2.exe"]}})"));
+
+    const auto enriched = catalog_.findMatchingGames({"rdr2.exe"}, "", {}, "RDR2");
+    ASSERT_FALSE(enriched.empty());
+    EXPECT_EQ(enriched.front().steamAppId, "1174180");
+    EXPECT_GE(enriched.front().confidence, 60);
+
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    EXPECT_FALSE(catalog_.isDetailLoaded("1174180"));
+    const auto reloaded = catalog_.findMatchingGames({"rdr2.exe"}, "", {}, "RDR2");
+    EXPECT_TRUE(reloaded.empty() || reloaded.front().confidence < 60);
+}
+
 // The launcher matches games against the catalog on its scan worker thread
 // while the main thread reloads the catalog when a sync lands. loadFromIndex
 // clears packages_ first, and two 0.1.4 field crashes (NATIVE-7N, NATIVE-8A)

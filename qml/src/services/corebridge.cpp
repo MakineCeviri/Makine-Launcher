@@ -878,11 +878,17 @@ void CoreBridge::scanAllLibraries()
         startCoreLogging();
 #endif
 
-        // Load translation packages from index (lightweight catalog)
+        // Load translation packages from index (lightweight catalog) — only
+        // when nothing has yet. refreshPackageManifest() loads it on every
+        // catalogReady together with the cached per-game details; reloading
+        // here threw those details away right before matching (Red Dead
+        // Redemption 2's rdr2.exe is only in its detail) and read the catalog
+        // a second time at every start.
         emit scanProgress(0.0, tr("Çeviri paketleri yükleniyor..."));
         const bool hadCachedIndex = QFile::exists(indexPath);
         if (hadCachedIndex) {
-            pkgMgr->loadFromIndex(indexPath, packageCache);
+            if (pkgMgr->packageCount() == 0)
+                pkgMgr->loadFromIndex(indexPath, packageCache);
         } else {
             qCDebug(lcCoreBridge) << "CoreBridge: No cached index yet, waiting for sync...";
         }
