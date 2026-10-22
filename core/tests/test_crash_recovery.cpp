@@ -495,6 +495,45 @@ TEST_F(CrashRecoveryTest, RecoveryResultHasMeaningfulMessage) {
     EXPECT_GT(result.message.size(), 5u);
 }
 
+#ifdef _WIN32
+// A backup mirrors the game's paths under a longer root, so its deepest files
+// pass MAX_PATH. libstdc++'s fs::remove_all never returned on such a tree and
+// the launcher hung at start, cleaning up a backup a crash interrupted.
+TEST_F(CrashRecoveryTest, RecoverBackupCreateRemovesTreePastMaxPath) {
+    const auto backupDir = testDir_ / "backups" / "555" / "deadbeef";
+    const fs::path longRoot(LR"(\\?\)" + fs::absolute(backupDir).make_preferred().native());
+    const fs::path deep = longRoot / std::string(120, 'a') / std::string(120, 'b');
+    fs::create_directories(deep);
+    std::ofstream(deep / "c.pak") << "original";
+    std::error_code roEc;  // a read-only original, as games ship some
+    fs::permissions(deep / "c.pak", fs::perms::owner_write, fs::perm_options::remove, roEc);
+    ASSERT_TRUE(fs::exists(deep / "c.pak"));
+    createFile(backupDir / "short.txt", "x");
+
+    {
+        CrashRecoveryJournal writer(testDir_);
+        JournalEntry entry;
+        entry.type = OperationType::BackupCreate;
+        entry.gameId = "555";
+        entry.backupPath = backupDir.string();
+        writer.beginOperation(entry);
+    }
+
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover();
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_FALSE(fs::exists(longRoot));
+    if (fs::exists(longRoot)) {  // keep TearDown's remove_all off the long tree
+        std::error_code ec;
+        fs::permissions(deep / "c.pak", fs::perms::owner_write, fs::perm_options::add, ec);
+        fs::remove(deep / "c.pak", ec);
+        fs::remove(deep, ec);
+        fs::remove(deep.parent_path(), ec);
+    }
+}
+#endif
+
 // =============================================================================
 // Edge Cases
 // =============================================================================

@@ -12,6 +12,10 @@
 
 #include <nlohmann/json.hpp>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <chrono>
 #include <exception>
 #include <fstream>
@@ -71,7 +75,58 @@ fs::path windowsFontsDir() {
     if (!home) return {};
     return fs::path(home) / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts";
 }
+
+// Deletes a directory tree bottom up through the Win32 calls, in the "\\?\"
+// form. libstdc++'s fs::remove_all never returns on a tree that holds a path
+// past MAX_PATH, and a backup mirrors the game's deepest paths under a longer
+// root. A link inside the tree is removed, never followed.
+bool removeTree(const std::wstring& dir, int& removed) {
+    bool ok = true;
+    WIN32_FIND_DATAW fd;
+    HANDLE find = FindFirstFileW((dir + L"\\*").c_str(), &fd);
+    if (find != INVALID_HANDLE_VALUE) {
+        do {
+            const std::wstring name = fd.cFileName;
+            if (name == L"." || name == L"..") continue;
+            const std::wstring child = dir + L"\\" + name;
+            const bool isDir = fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+            if (isDir && !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+                ok = removeTree(child, removed) && ok;
+                continue;
+            }
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
+                SetFileAttributesW(child.c_str(), FILE_ATTRIBUTE_NORMAL);
+            if (isDir ? RemoveDirectoryW(child.c_str()) : DeleteFileW(child.c_str())) ++removed;
+            else ok = false;
+        } while (FindNextFileW(find, &fd));
+        FindClose(find);
+    }
+    if (RemoveDirectoryW(dir.c_str())) ++removed;
+    else ok = false;
+    return ok;
+}
 #endif
+
+// Removes a directory and everything under it. False when something stayed.
+bool removeDirectoryTree(const fs::path& dir, int& removed) {
+#ifdef _WIN32
+    std::wstring native = fs::absolute(dir).lexically_normal().make_preferred().native();
+    while (native.size() > 3 && native.ends_with(L'\\')) native.pop_back();
+    if (native.starts_with(LR"(\\?\)")) {
+        // already in the long form
+    } else if (native.starts_with(LR"(\\)")) {
+        native = LR"(\\?\UNC\)" + native.substr(2);
+    } else {
+        native = LR"(\\?\)" + native;
+    }
+    return removeTree(native, removed);
+#else
+    std::error_code ec;
+    const auto count = fs::remove_all(dir, ec);
+    if (!ec) removed += static_cast<int>(count);
+    return !ec;
+#endif
+}
 
 // A journal record that names a file inside the game folder, not one that
 // climbs out of it.
@@ -513,9 +568,10 @@ RecoveryResult CrashRecoveryJournal::recoverBackupCreate(const JournalEntry& ent
 
     std::error_code ec;
     if (fs::exists(entry.backupPath, ec)) {
-        auto count = fs::remove_all(entry.backupPath, ec);
-        return {!ec, static_cast<int>(count),
-            fmt::format("Removed orphan backup dir: {}", entry.backupPath)};
+        int count = 0;
+        const bool ok = removeDirectoryTree(entry.backupPath, count);
+        return {ok, count, fmt::format("{} orphan backup dir: {}",
+            ok ? "Removed" : "Could not fully remove", entry.backupPath)};
     }
     return {true, 0, "Backup dir already gone"};
 }
