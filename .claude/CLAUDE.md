@@ -2,7 +2,7 @@
 
 <!-- Build, mimari, kurallar, tuzaklar → proje kökündeki CLAUDE.md (o da her oturum yüklenir; burada tekrarlama). -->
 
-> **Durum (2026-10-20):** v0.1.6-beta yayında (GitHub Releases ZIP; `dev` ucundan) · Store hâlâ 0.1.5 — MSIX gönderimi sahibinde · veri tarafı (D1, R2, Assets) yayında; 0.1.5'e eski tarifler `install_methods_compat` ile gidiyor · eklenti sistemi v2 hâlâ `MAKINE_DEV_TOOLS` arkasında (ADR-0009, `docs/plugins/`; imza anahtarı → auto-memory)
+> **Durum (2026-10-22):** v0.1.7-beta yayında (GitHub Releases ZIP; `dev` ucundan; Apple tarzı arayüz — `docs/design.md`) · Store hâlâ 0.1.5 — MSIX gönderimi sahibinde · veri tarafı (D1, R2, Assets) yayında; 0.1.5'e eski tarifler `install_methods_compat` ile gidiyor · eklenti sistemi v2 hâlâ `MAKINE_DEV_TOOLS` arkasında (ADR-0009, `docs/plugins/`; imza anahtarı → auto-memory)
 > **Devralan oturum önce oku: [`docs/handoff-2026-09-23.md`](../docs/handoff-2026-09-23.md)** (en üstteki 2026-10-06 güncellemesi dahil) — durum, kalan yayın adımları, tuzaklar.
 > **Sahibinde:** Store gönderimi (Partner Center — MSIX yükleme + mağaza girişi CSV'si).
 > **Eski depo:** Makine-Launcher-Dev arşivli (read-only yedek, 2026-05-20).
