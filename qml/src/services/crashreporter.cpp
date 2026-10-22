@@ -76,8 +76,13 @@ static bool admitToSentry(const QString& key)
 #include <QDir>
 #include <QFile>
 #include <QSet>
+#include <QTimer>
 #include <algorithm>   // std::min — not pulled in implicitly on MinGW
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -119,6 +124,102 @@ void reportQmlError(const QString& msg)
     tags.insert(QStringLiteral("fail.reason"), QStringLiteral("qml_script"));
     const QByteArray payload = (QStringLiteral("qml error: ") + msg.left(400)).toUtf8();
     makine::CrashReporter::captureMessage(payload.constData(), "error", tags);
+}
+
+// ---- UI hang watchdog (see telemetryrules.h) ----
+
+// The launcher's last own breadcrumb, as hangContext() names it.
+static QMutex s_markerMutex;
+static QString s_lastMarker;
+
+static std::atomic<qint64> s_uiBeatMs{0};
+static std::atomic<bool> s_hangStop{false};
+static std::mutex s_hangWakeMutex;
+static std::condition_variable s_hangWake;
+// Heap-held and never destroyed: a process that exits without aboutToQuit
+// (an updater restart) must not run ~thread() on a joinable thread, which
+// would std::terminate at static destruction.
+static std::thread* s_hangThread = nullptr;
+
+qint64 steadyMs()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+QString lastMarker()
+{
+    QMutexLocker lock(&s_markerMutex);
+    return s_lastMarker.isEmpty() ? QStringLiteral("app: unknown") : s_lastMarker;
+}
+
+void reportHang(qint64 blockedMs)
+{
+    static std::atomic<bool> reported{false};
+    if (reported.exchange(true))
+        return;                                  // once per session
+    if (!admitToSentry(QStringLiteral("hang|ui")))
+        return;
+    const QString context = lastMarker();
+    QHash<QString, QString> tags;
+    tags.insert(QStringLiteral("operation"), QStringLiteral("hang"));
+    tags.insert(QStringLiteral("failure.side"), QStringLiteral("system"));
+    tags.insert(QStringLiteral("fail.reason"), QStringLiteral("ui_hang"));
+    tags.insert(QStringLiteral("hang.context"), context);
+    const QByteArray payload =
+        QStringLiteral("app hang: UI thread unresponsive for %1 s (after %2)")
+            .arg(blockedMs / 1000).arg(context).toUtf8();
+    makine::CrashReporter::captureMessage(payload.constData(), "error", tags);
+}
+
+void hangWatchdogLoop()
+{
+    using makine::telemetryrules::HangCheck;
+    qint64 lastPoll = steadyMs();
+    qint64 frozenSince = 0;
+    std::unique_lock<std::mutex> lock(s_hangWakeMutex);
+    while (!s_hangWake.wait_for(lock, std::chrono::milliseconds(makine::telemetryrules::kHangPollMs),
+                                [] { return s_hangStop.load(); })) {
+        const qint64 now = steadyMs();
+        const qint64 beat = s_uiBeatMs;
+        // Teardown runs without an event loop and is not a hang.
+        if (QCoreApplication::closingDown())
+            break;
+        switch (makine::telemetryrules::checkHang(now, beat, lastPoll)) {
+        case HangCheck::Suspended:
+            s_uiBeatMs = now;                   // give the UI a fresh window
+            break;
+        case HangCheck::Hung:
+            if (frozenSince == 0) {
+                frozenSince = beat;
+                reportHang(now - beat);
+            }
+            break;
+        case HangCheck::Responsive:
+            if (frozenSince != 0) {
+                const QByteArray msg = QStringLiteral("UI thread responsive again after %1 ms")
+                                           .arg(beat - frozenSince).toUtf8();
+                makine::CrashReporter::addBreadcrumb("hang", msg.constData(), "warning");
+                frozenSince = 0;
+            }
+            break;
+        }
+        lastPoll = now;
+    }
+}
+
+void stopHangWatchdog()
+{
+    if (!s_hangThread)
+        return;
+    {
+        std::lock_guard<std::mutex> guard(s_hangWakeMutex);
+        s_hangStop = true;
+    }
+    s_hangWake.notify_all();
+    s_hangThread->join();
+    delete s_hangThread;
+    s_hangThread = nullptr;
 }
 
 // Qt message handler that routes to Sentry
@@ -369,8 +470,25 @@ void CrashReporter::setEnabled(bool enabled)
 void CrashReporter::shutdown()
 {
 #ifdef MAKINE_HAS_SENTRY
+    stopHangWatchdog();
     addBreadcrumb("app", "Application shutting down", "info");
     sentry_close();
+#endif
+}
+
+void CrashReporter::startHangWatchdog()
+{
+#ifdef MAKINE_HAS_SENTRY
+    auto* app = QCoreApplication::instance();
+    if (!s_initialized || s_hangThread || !app)
+        return;
+    s_uiBeatMs = steadyMs();
+    auto* beat = new QTimer(app);
+    QObject::connect(beat, &QTimer::timeout, app, [] { s_uiBeatMs = steadyMs(); });
+    beat->start(static_cast<int>(telemetryrules::kHangPollMs / 2));
+    QObject::connect(app, &QCoreApplication::aboutToQuit, app, [] { stopHangWatchdog(); });
+    s_hangStop = false;
+    s_hangThread = new std::thread(hangWatchdogLoop);
 #endif
 }
 
@@ -386,6 +504,14 @@ void CrashReporter::addBreadcrumb(const char* category, const char* message,
     // redacted. beforeSend only walks exception stack frames and never sees
     // breadcrumbs, so this is the only place the redaction can happen.
     const std::string safe = sanitizePath(message);
+    // The launcher's own markers are info level (startup phases, installPackage,
+    // downloadPackage…); Qt warnings arrive as warning. A hang names the last marker.
+    if (qstrcmp(level, "info") == 0) {
+        const QString marker = telemetryrules::hangContext(QString::fromUtf8(category),
+                                                           QString::fromUtf8(safe.c_str()));
+        QMutexLocker lock(&s_markerMutex);
+        s_lastMarker = marker;
+    }
     sentry_value_t crumb = sentry_value_new_breadcrumb("default", safe.c_str());
     sentry_value_set_by_key(crumb, "category", sentry_value_new_string(category));
     sentry_value_set_by_key(crumb, "level", sentry_value_new_string(level));

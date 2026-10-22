@@ -259,6 +259,45 @@ inline QString qmlErrorKey(const QString& message)
     return QString(kQmlKeyPrefix) + location + QLatin1Char('|') + QString(kind);
 }
 
+// ---- UI hang watchdog -------------------------------------------------------
+//
+// A frozen window was invisible to both channels: nothing crashes, the user
+// waits or kills the process, and the only trace is a breadcrumb nobody sends.
+// The GUI thread beats every half poll; a watchdog thread reports once per
+// session when the beat is older than the threshold — Windows' own point for
+// "Yanıt vermiyor". Reported while still frozen, so a user who kills the
+// process does not take the report with them.
+
+inline constexpr qint64 kHangThresholdMs = 5000;
+inline constexpr qint64 kHangPollMs = 1000;
+
+enum class HangCheck { Responsive, Suspended, Hung };
+
+/// `lastPollMs` is the watchdog's own previous wake-up. When the watchdog
+/// itself slept far past its period the machine was suspended (sleep, lid,
+/// debugger) and the UI has simply not run yet: that is not a hang.
+inline HangCheck checkHang(qint64 nowMs, qint64 lastBeatMs, qint64 lastPollMs)
+{
+    if (nowMs - lastPollMs > 3 * kHangPollMs)
+        return HangCheck::Suspended;
+    return nowMs - lastBeatMs >= kHangThresholdMs ? HangCheck::Hung : HangCheck::Responsive;
+}
+
+/// What the launcher was doing, from its last own breadcrumb: "package:
+/// installPackage", "startup: Phase 10". Cut before the ids and counts
+/// ("installPackage: 1174180", "Game context: Mad Max (234140)") so one kind
+/// of hang is one issue, not one per game.
+inline QString hangContext(const QString& category, const QString& message)
+{
+    qsizetype cut = message.size();
+    for (const QChar c : {QLatin1Char(':'), QLatin1Char('='), QLatin1Char('(')}) {
+        const qsizetype at = message.indexOf(c);
+        if (at >= 0 && at < cut)
+            cut = at;
+    }
+    return category + QLatin1String(": ") + message.left(qMin<qsizetype>(cut, 40)).trimmed();
+}
+
 /// The game a failure subject names, or empty. Subjects are "1245620 (Elden
 /// Ring)", a bare id, or a category word ("empty", "catalog", "telemetry");
 /// a game id always carries a digit (Steam/GOG ids, Epic ids, manual_<hash>),

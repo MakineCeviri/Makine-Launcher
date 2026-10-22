@@ -161,17 +161,17 @@ triage:
 telemetry-coverage:
     python scripts/telemetry_coverage.py --strict
 
-# Send events through the real paths (failure, QML script error) and
+# Send events through the real paths (failure, QML script error, UI hang) and
 # prove each arrived, paths redacted
 telemetry-selftest:
-    python scripts/telemetry_selftest.py --qml
+    python scripts/telemetry_selftest.py --qml --hang
 
 # Everything that can go silently wrong with telemetry, in one command:
 # uncovered signals, alert rules that notify nobody, resolved-but-active issues.
 # Run after any change that touches reporting — "it builds" proves nothing here.
 telemetry-check:
     python scripts/telemetry_coverage.py --strict
-    python scripts/telemetry_selftest.py --qml
+    python scripts/telemetry_selftest.py --qml --hang
     python scripts/sentry_triage.py --fail-on-dead-alert
 
 # Is either channel blind right now? Sentry dropping events to quota, or the

@@ -24,7 +24,7 @@ Usage:
     python scripts/telemetry_selftest.py
     python scripts/telemetry_selftest.py --exe build/dev/Makine-Launcher.exe
     python scripts/telemetry_selftest.py --skip-run   # only verify last event
-    python scripts/telemetry_selftest.py --qml        # also the QML error path
+    python scripts/telemetry_selftest.py --qml --hang # also the QML error and hang paths
 """
 
 import argparse
@@ -99,10 +99,11 @@ def find_selftest_issue(query: str = "selftest", marker: str = "selftest failed"
     return None
 
 
-# Optional paths (--qml): search words, the title marker of the event
+# Optional paths (--qml, --hang): search words, the title marker of the event
 # each one produces, and the environment variable that makes the dev exe do it.
 EXTRA_PATHS = {
     "qml": ("qml error", "telemetry self-test qml error", "MAKINE_SELFTEST_QML"),
+    "hang": ("app hang", "(after selftest: hang check)", "MAKINE_SELFTEST_HANG"),
 }
 
 
@@ -213,6 +214,8 @@ def main() -> None:
                         help="Seconds to wait for the event to appear (default 180)")
     parser.add_argument("--qml", action="store_true",
                         help="Also prove the QML script-error path (planted TypeError)")
+    parser.add_argument("--hang", action="store_true",
+                        help="Also prove the UI hang watchdog (blocks the UI thread ~7.5 s)")
     args = parser.parse_args()
     extras = [name for name in EXTRA_PATHS if getattr(args, name)]
 

@@ -39,6 +39,7 @@
 #include "services/profiler.h"
 #include "services/rendergovernor.h"
 #include "services/crashreporter.h"
+#include "services/telemetryrules.h"
 #include <QLoggingCategory>
 #include <cstdlib>
 
@@ -1590,6 +1591,19 @@ int main(int argc, char *argv[])
                      "telemetry self-test QML error",
                      static_cast<long long>(QDateTime::currentSecsSinceEpoch() % 100000));
         }
+        // MAKINE_SELFTEST_HANG proves the hang watchdog: the UI thread blocks
+        // past the threshold inside a running event loop.
+        if (qEnvironmentVariableIsSet("MAKINE_SELFTEST_HANG")) {
+            makine::CrashReporter::addBreadcrumb("selftest", "hang check: blocking the UI thread");
+            makine::CrashReporter::startHangWatchdog();
+            QTimer::singleShot(200, &app, [] {
+                QThread::msleep(static_cast<unsigned long>(
+                    makine::telemetryrules::kHangThresholdMs + 2500));
+            });
+            QTimer::singleShot(makine::telemetryrules::kHangThresholdMs + 4500, &app,
+                               &QCoreApplication::quit);
+            app.exec();
+        }
         makine::CrashReporter::shutdown();   // flushes queued envelopes
         qInfo("telemetry self-test event dispatched");
 
@@ -1827,6 +1841,8 @@ int main(int argc, char *argv[])
 
     // Anti-RE: periodic re-checks once event loop is running
     makine::protection::schedulePeriodicChecks();
+
+    makine::CrashReporter::startHangWatchdog();
 
     int exitCode = app.exec();
     makine::CrashReporter::shutdown();

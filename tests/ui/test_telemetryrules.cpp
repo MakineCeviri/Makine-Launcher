@@ -222,6 +222,41 @@ TEST(TelemetryRules, QmlKeysWaitAWeekOtherKeysADay)
     EXPECT_FALSE(sent.contains(install));
 }
 
+// ===== UI hang watchdog ======================================================
+
+TEST(TelemetryRules, AStaleBeatPastTheThresholdIsAHang)
+{
+    const qint64 now = 1'000'000;
+    const qint64 lastPoll = now - kHangPollMs;
+    EXPECT_EQ(checkHang(now, now - 400, lastPoll), HangCheck::Responsive);
+    EXPECT_EQ(checkHang(now, now - kHangThresholdMs + 1, lastPoll), HangCheck::Responsive);
+    EXPECT_EQ(checkHang(now, now - kHangThresholdMs, lastPoll), HangCheck::Hung);
+    EXPECT_EQ(checkHang(now, now - 60'000, lastPoll), HangCheck::Hung);
+}
+
+TEST(TelemetryRules, AMachineWakingFromSleepIsNotAHang)
+{
+    // The watchdog itself slept for an hour: the UI had no chance to beat.
+    const qint64 now = 10'000'000;
+    EXPECT_EQ(checkHang(now, now - 3'600'000, now - 3'600'000), HangCheck::Suspended);
+    // A slightly late wake-up is still an ordinary poll.
+    EXPECT_EQ(checkHang(now, now - kHangThresholdMs, now - 2 * kHangPollMs), HangCheck::Hung);
+}
+
+TEST(TelemetryRules, HangContextDropsIdsSoOneKindIsOneIssue)
+{
+    EXPECT_EQ(hangContext(QStringLiteral("package"), QStringLiteral("installPackage: 1174180")),
+              QStringLiteral("package: installPackage"));
+    EXPECT_EQ(hangContext(QStringLiteral("game"), QStringLiteral("Game context: Mad Max (234140)")),
+              QStringLiteral("game: Game context"));
+    EXPECT_EQ(hangContext(QStringLiteral("scan"),
+                          QStringLiteral("games=17 matched=9 catalog=238 [steam=9]")),
+              QStringLiteral("scan: games"));
+    EXPECT_EQ(hangContext(QStringLiteral("startup"),
+                          QStringLiteral("Phase 10: Pre-render + finalize")),
+              QStringLiteral("startup: Phase 10"));
+}
+
 // ===== Failure event tags ====================================================
 
 TEST(TelemetryRules, GameIdOnlyForSubjectsThatNameAGame)
