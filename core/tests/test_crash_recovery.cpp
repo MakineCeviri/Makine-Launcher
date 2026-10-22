@@ -532,6 +532,33 @@ TEST_F(CrashRecoveryTest, RecoverBackupCreateRemovesTreePastMaxPath) {
         fs::remove(deep.parent_path(), ec);
     }
 }
+
+// The profile folder of a Turkish user is not UTF-8 in the ANSI code page
+// ("Müller", "Şükrü"). The fonts directory was built from the narrow
+// USERPROFILE: fs::path threw on it, and the install recovery stopped before
+// it put a single original back.
+TEST_F(CrashRecoveryTest, RecoverInstallWithFontUnderNonAsciiProfile) {
+    const auto gamePath = testDir_ / "game";
+    const auto backupsRoot = testDir_ / "backups";
+    const fs::path profile = testDir_ / L"Müller";
+    createFile(gamePath / "data" / "localization.pak", "patched pak");
+    createFile(backupsRoot / "777" / "b1" / "data" / "localization.pak", "original pak");
+    createFile(profile / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts" / "tr.ttf", "font");
+
+    const wchar_t* saved = _wgetenv(L"USERPROFILE");
+    const std::wstring savedProfile = saved ? saved : L"";
+    _wputenv_s(L"USERPROFILE", profile.c_str());
+
+    writeCrashedInstall(testDir_, "777", gamePath, {"data/localization.pak", "_font:tr.ttf"});
+    CrashRecoveryJournal journal(testDir_);
+    const auto result = journal.recover({.installedState = {}, .backupsRoot = backupsRoot, .desktopDir = {}});
+
+    _wputenv_s(L"USERPROFILE", savedProfile.c_str());
+
+    EXPECT_TRUE(result.success) << result.message;
+    EXPECT_EQ(readFile(gamePath / "data" / "localization.pak"), "original pak");
+    EXPECT_FALSE(fs::exists(profile / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts" / "tr.ttf"));
+}
 #endif
 
 // =============================================================================

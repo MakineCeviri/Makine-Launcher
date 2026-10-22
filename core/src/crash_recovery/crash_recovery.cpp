@@ -17,6 +17,7 @@
 #endif
 
 #include <chrono>
+#include <cstdlib>
 #include <exception>
 #include <fstream>
 #include <mutex>
@@ -71,7 +72,10 @@ bool atomicWriteJson(const fs::path& path, const std::string& data) {
 #ifdef _WIN32
 // Windows user fonts directory
 fs::path windowsFontsDir() {
-    const char* home = std::getenv("USERPROFILE");
+    // The wide variable: the narrow one is in the ANSI code page, and a
+    // profile folder like "Şükrü" is not UTF-8 there — fs::path threw, and
+    // the whole recovery stopped half way.
+    const wchar_t* home = _wgetenv(L"USERPROFILE");
     if (!home) return {};
     return fs::path(home) / "AppData" / "Local" / "Microsoft" / "Windows" / "Fonts";
 }
