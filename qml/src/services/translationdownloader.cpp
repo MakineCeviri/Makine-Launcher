@@ -214,6 +214,17 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     if (it == m_activeDownloads.end()) return;
     auto& state = it.value();
 
+    // Cancelled while no request was open (the wait before a retry, or the
+    // restart after an ignored Range): there was no reply to abort, and going
+    // on fetched the whole package before the cancel took effect.
+    if (state.cancelled) {
+        QFile::remove(state.partPath);
+        m_activeDownloads.remove(appId);
+        emit activeDownloadsChanged();
+        emit downloadCancelled(appId);
+        return;
+    }
+
     QFileInfo partInfo(state.partPath);
     if (partInfo.exists() && partInfo.size() > 0) {
         // Cross-session resume is risky: if the CDN updated the package

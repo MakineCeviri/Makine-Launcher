@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Makine Çeviri
 //
 // TranslationDownloader against a local HTTP server (QTcpServer on 127.0.0.1):
-// the download queue. No CDN, no network.
+// the download queue and a cancel that lands between two attempts. No CDN, no
+// network.
 
 #include <gtest/gtest.h>
 
@@ -98,6 +99,35 @@ TEST(TranslationDownloader, QueuedDownloadStartsWhenTheActiveOneEnds)
         << failed.join(',').toStdString();
     EXPECT_EQ(failed, QStringList({"q1", "q2"}));
     EXPECT_EQ(server.hits.value("/q2.makine"), 1);
+}
+
+TEST(TranslationDownloader, CancelDuringRetryWaitStopsWithoutAnotherAttempt)
+{
+    // A 503 is retried after 2 s. Cancelled in that wait there is no reply to
+    // abort, and the retry used to download the whole package before the
+    // cancel took effect.
+    TinyServer server;
+    server.replies["/r.makine"] = {503, {}};
+    QTemporaryDir data;
+    TranslationDownloader dl;
+    dl.setDataPath(data.path());
+    bool retrying = false, cancelled = false, failed = false;
+    QObject::connect(&dl, &TranslationDownloader::downloadRetrying,
+                     [&](const QString&, int, int) { retrying = true; });
+    QObject::connect(&dl, &TranslationDownloader::downloadCancelled,
+                     [&](const QString&) { cancelled = true; });
+    QObject::connect(&dl, &TranslationDownloader::downloadError,
+                     [&](const QString&, const QString&) { failed = true; });
+
+    dl.downloadPackage("r", server.url("/r.makine"), "R");
+    ASSERT_TRUE(waitFor([&] { return retrying; }, 15000));
+    dl.cancelDownload("r");
+
+    ASSERT_TRUE(waitFor([&] { return cancelled || failed; }, 20000));
+    EXPECT_TRUE(cancelled);
+    EXPECT_FALSE(failed);
+    EXPECT_EQ(server.hits.value("/r.makine"), 1);
+    EXPECT_FALSE(dl.isDownloading("r"));
 }
 
 int main(int argc, char** argv)
