@@ -334,6 +334,19 @@ inline void keepEarlierAdded(QStringList& added, QStringList& replaced,
     }
 }
 
+// The same re-install loses the earlier install's in-place edits: a delete
+// step that finds its target already gone (an update re-running AC Unity's
+// recipe, 289650) writes no "_vpatch:" marker. Without it, an uninstall with
+// an unusable backup took the patch for files-only, said it was removed and
+// started no store repair, the game's DataPC_patch_01.forge still missing.
+// Nothing put those files back, so their markers stay.
+inline void keepEarlierInPlace(QStringList& installed, const QStringList& earlierInstalled)
+{
+    for (const QString& f : earlierInstalled)
+        if (f.startsWith(QLatin1String("_vpatch:")) && !installed.contains(f))
+            installed.append(f);
+}
+
 // What an install that stopped part-way leaves on record.
 //
 // A failed or cancelled install has still written files. Its rollback

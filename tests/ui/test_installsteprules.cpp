@@ -461,6 +461,21 @@ TEST(InstallStepRules, ReinstallOverThePatchKeepsItsFilesOurs) {
     EXPECT_EQ(r2, QStringList({"y"}));
 }
 
+TEST(InstallStepRules, ReinstallKeepsTheEarlierInPlaceMarkers) {
+    // AC Unity (289650): copy, then delete the game's DataPC_patch_01.forge.
+    // Run again, the delete finds nothing and writes no marker.
+    QStringList installed{"DataPC_patch_01_tr.forge"};
+    keepEarlierInPlace(installed, {"DataPC_patch_01_tr.forge", "_vpatch:DataPC_patch_01.forge",
+                                   "_steamlang:289650:english"});
+    EXPECT_EQ(installed, QStringList({"DataPC_patch_01_tr.forge",
+                                      "_vpatch:DataPC_patch_01.forge"}));
+
+    // The step wrote its marker again: not doubled.
+    QStringList again{"_vpatch:DataPC_patch_01.forge"};
+    keepEarlierInPlace(again, {"_vpatch:DataPC_patch_01.forge"});
+    EXPECT_EQ(again.size(), 1);
+}
+
 // ===== the record a failed install leaves ===================================
 //
 // The rollback after a failed install restores the backup, then removes what
