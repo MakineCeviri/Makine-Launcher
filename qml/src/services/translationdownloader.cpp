@@ -54,6 +54,12 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
                 CrashReporter::reportFailure("download", appId, error);
             });
 
+    // A queued download starts once the active one ends, however it ends.
+    // Only a .part file that could not be opened used to move the queue, so a
+    // second game's install waited behind a finished first one until restart.
+    connect(this, &TranslationDownloader::activeDownloadsChanged, this,
+            &TranslationDownloader::startNextQueuedDownload, Qt::QueuedConnection);
+
     // Clean stale temp files older than 7 days. Both .part (interrupted
     // download) and final .makine (extraction crashed before QFile::remove
     // ran) get orphaned; otherwise they accumulate forever and chew through
@@ -207,6 +213,17 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
     auto it = m_activeDownloads.find(appId);
     if (it == m_activeDownloads.end()) return;
     auto& state = it.value();
+
+    // Cancelled while no request was open (the wait before a retry, or the
+    // restart after an ignored Range): there was no reply to abort, and going
+    // on fetched the whole package before the cancel took effect.
+    if (state.cancelled) {
+        QFile::remove(state.partPath);
+        m_activeDownloads.remove(appId);
+        emit activeDownloadsChanged();
+        emit downloadCancelled(appId);
+        return;
+    }
 
     QFileInfo partInfo(state.partPath);
     if (partInfo.exists() && partInfo.size() > 0) {
@@ -454,16 +471,16 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
 void TranslationDownloader::startNextQueuedDownload()
 {
-    if (m_pendingDownloads.isEmpty())
-        return;
-    if (m_activeDownloads.size() >= kMaxConcurrentDownloads)
-        return;
-
-    const QueuedDownload next = m_pendingDownloads.dequeue();
-    qCDebug(lcDownloader) << "promoting queued download" << next.appId
-                          << "— remaining queue:" << m_pendingDownloads.size();
-    downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize,
-                    next.expectedChecksum);
+    // A loop: one refused before it became active (disk space) frees no slot
+    // and sends no change signal, and must not strand the ones behind it.
+    while (!m_pendingDownloads.isEmpty()
+           && m_activeDownloads.size() < kMaxConcurrentDownloads) {
+        const QueuedDownload next = m_pendingDownloads.dequeue();
+        qCDebug(lcDownloader) << "promoting queued download" << next.appId
+                              << "— remaining queue:" << m_pendingDownloads.size();
+        downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize,
+                        next.expectedChecksum);
+    }
 }
 
 void TranslationDownloader::cancelDownload(const QString& appId)
@@ -518,6 +535,15 @@ static QString categorizeExtractError(const QString& raw)
         raw.contains(QLatin1String("Not valid zstd")))
         return TranslationDownloader::tr(
             "Paket çözümleme hatası — dosya bozuk olabilir. Tekrar indirmeyi deneyin.");
+
+    // The SHA-256 gate. Shown as "Paket açma hatası: checksum mismatch"
+    // before; what it means is a partial or stale download (a .part resumed
+    // across a republish, a CDN edge still serving the old object).
+    if (raw.contains(QLatin1String("checksum mismatch")))
+        return TranslationDownloader::tr(
+            "İndirilen paket katalogdaki sürümle eşleşmiyor (eksik ya da eski bir "
+            "indirme). Tekrar deneyin; yama yeni güncellendiyse birkaç dakika "
+            "sonra deneyin.");
 
     if (raw.contains(QLatin1String("Unsupported MKPK version")))
         return TranslationDownloader::tr(
@@ -585,6 +611,12 @@ void TranslationDownloader::processDownloadedFile(
     std::shared_ptr<std::atomic_bool> cancelFlag =
         m_activeDownloads.value(appId).cancelFlag;
     const QString wantChecksum = m_activeDownloads.value(appId).expectedChecksum;
+
+    // The folder is about to be emptied and refilled; until that succeeds it
+    // is no package. A stamp left from an earlier extraction of the same
+    // package made a half-written folder (failed or crashed mid-way) pass as
+    // complete, and the next install copied half a patch.
+    pkgstamp::clear(dirName);
 
     auto future = QtConcurrent::run([tempPath, destDir, cancelFlag, wantChecksum]()
         -> std::pair<int, std::string>
@@ -741,6 +773,10 @@ void TranslationDownloader::processDownloadedFile(
 
             if (fileCount < 0) {
                 QFile::remove(tempPath);
+                // What did get written is part of a package. Left in place it
+                // still counted as downloaded wherever no checksum is
+                // published (pkgstamp::matches cannot tell).
+                QDir(m_dataPath + QStringLiteral("/") + dirName).removeRecursively();
                 const QString rawErr = QString::fromStdString(errorMsg);
                 qCWarning(lcDownloader) << "extraction failed for" << appId
                                          << "raw:" << rawErr;

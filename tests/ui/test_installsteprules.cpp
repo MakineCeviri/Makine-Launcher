@@ -43,6 +43,27 @@ TEST(StepRules, InPlaceActionsAreTheOnesThatEditGameFiles)
         EXPECT_FALSE(isInPlaceAction(QString::fromLatin1(a))) << a;
 }
 
+TEST(StepRules, BackupListsEveryGameFileAStepChangesOrDeletes)
+{
+    // AC Unity (289650), verbatim: the last step deletes a game archive. It
+    // has to be in the backup or uninstall cannot bring it back.
+    EXPECT_EQ(backupTarget("delete", {}, "DataPC_patch_01.forge"), "DataPC_patch_01.forge");
+    EXPECT_EQ(backupTarget("vpatch", "patches/BigFile_PC_d01.pat", "BigFile_PC.d01"),
+              "BigFile_PC.d01");
+    EXPECT_EQ(backupTarget("forgeReimport", "DataPC_35_dlc", "dlc_35/DataPC_35_dlc.forge"),
+              "dlc_35/DataPC_35_dlc.forge");
+    EXPECT_EQ(backupTarget("xdelta", "aco156.aco", "DataPC_patch_01.forge"),
+              "DataPC_patch_01.forge");
+    // Elden Ring writes a new exe from the original; in place when dest is empty.
+    EXPECT_EQ(backupTarget("patchBytes", "Game/eldenring.exe", "Game/start_protected_game.exe"),
+              "Game/start_protected_game.exe");
+    EXPECT_EQ(backupTarget("patchBytes", "Game/eldenring.exe", {}), "Game/eldenring.exe");
+    // Copies are listed from the package itself; the rest touch no game file.
+    for (const char* a : {"copy", "copyFile", "copyDir", "installFont", "run",
+                          "copyToDesktop", "setSteamLanguage", ""})
+        EXPECT_TRUE(backupTarget(QString::fromLatin1(a), "x", "y").isEmpty()) << a;
+}
+
 TEST(StepRules, EldenRingOptionRecipeStaysExecutable)
 {
     // 1245620, option "patch" — the launcher's most-used scripted install.
@@ -409,4 +430,77 @@ TEST(InstallStepRules, RunArgsWithoutPlaceholdersAreUnchanged) {
     const QStringList args = {QStringLiteral("kapat"), QStringLiteral("hotchunk.arch06")};
     EXPECT_EQ(resolveRunArgs(args, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")), args);
     EXPECT_TRUE(resolveRunArgs({}, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")).isEmpty());
+}
+
+// ===== what an update records as the game's own =============================
+
+TEST(InstallStepRules, UpdateCountsAFileItOverwritesForTheFirstTimeAsTheGames) {
+    // v1 replaced data/a.pak; v2 also ships data/b.pak, an original v1 never
+    // touched. Recorded as added, uninstall deleted the game's b.pak.
+    EXPECT_TRUE(updateOverwritesOriginal(/*existed*/ true, /*replaced*/ false, /*added*/ false));
+    // Still the game's: replaced at the first install.
+    EXPECT_TRUE(updateOverwritesOriginal(true, true, false));
+    // Ours from the first install, or new now: added, and uninstall removes it.
+    EXPECT_FALSE(updateOverwritesOriginal(true, false, true));
+    EXPECT_FALSE(updateOverwritesOriginal(false, false, false));
+}
+
+TEST(InstallStepRules, ReinstallOverThePatchKeepsItsFilesOurs) {
+    // An add-only package has no backup, so its update runs as a re-install:
+    // every file of the first install is on disk and was counted as the game's.
+    QStringList added{"new_in_v2.pak"};
+    QStringList replaced{"Content/Paks/tr_P.pak", "Binaries/dinput8.dll"};
+    keepEarlierAdded(added, replaced, {"Content/Paks/tr_P.pak"});
+    EXPECT_EQ(added, QStringList({"new_in_v2.pak", "Content/Paks/tr_P.pak"}));
+    EXPECT_EQ(replaced, QStringList({"Binaries/dinput8.dll"}));   // really the game's
+
+    // No earlier record (a first install): nothing moves.
+    QStringList a2{"x"}, r2{"y"};
+    keepEarlierAdded(a2, r2, {});
+    EXPECT_EQ(a2, QStringList({"x"}));
+    EXPECT_EQ(r2, QStringList({"y"}));
+}
+
+// ===== the record a failed install leaves ===================================
+//
+// The rollback after a failed install restores the backup, then removes what
+// the install added — read from the install record. Without one, a half-copied
+// overlay stayed in the game and the next attempt backed it up as "original".
+
+TEST(InstallStepRules, FailedFirstInstallRecordsWhatItWrote) {
+    // An overlay stopped by a full disk after two files.
+    const FileRecord r = mergeWrittenFiles({}, {"dinput8.dll", "lml/tr/strings.rpf"},
+                                           {"lml/tr/strings.rpf"});
+    EXPECT_EQ(r.installed, QStringList({"dinput8.dll", "lml/tr/strings.rpf"}));
+    EXPECT_EQ(r.added, QStringList({"dinput8.dll"}));           // removed by the rollback
+    EXPECT_EQ(r.replaced, QStringList({"lml/tr/strings.rpf"})); // left to the restore
+}
+
+TEST(InstallStepRules, FailedRecipeKeepsMarkersOutOfTheFileLists) {
+    // Elden Ring's option: copyDir, then patchBytes, then the Steam language.
+    const FileRecord r = mergeWrittenFiles(
+        {}, {"Game/engus/item.msgbnd.dcx", "_vpatch:Game/start_protected_game.exe",
+             "_steamlang:1245620:turkish"}, {});
+    EXPECT_EQ(r.installed.size(), 3);
+    EXPECT_EQ(r.added, QStringList({"Game/engus/item.msgbnd.dcx"}));
+    EXPECT_TRUE(r.replaced.isEmpty());
+}
+
+TEST(InstallStepRules, FailedReinstallKeepsTheEarlierClassification) {
+    // A re-install finds the first install's files on disk and would call them
+    // originals; the earlier record knows they are ours.
+    const FileRecord old{{"a.pak", "data/b.pak"}, {"a.pak"}, {"data/b.pak"}};
+    const FileRecord r = mergeWrittenFiles(old, {"a.pak", "data/b.pak", "c.pak"},
+                                           {"a.pak", "data/b.pak"});
+    EXPECT_EQ(r.installed, QStringList({"a.pak", "data/b.pak", "c.pak"}));
+    EXPECT_EQ(r.added, QStringList({"a.pak", "c.pak"}));
+    EXPECT_EQ(r.replaced, QStringList({"data/b.pak"}));
+}
+
+TEST(InstallStepRules, FailedInstallThatWroteNothingChangesNoRecord) {
+    const FileRecord old{{"a.pak"}, {"a.pak"}, {}};
+    const FileRecord r = mergeWrittenFiles(old, {}, {});
+    EXPECT_EQ(r.installed, old.installed);
+    EXPECT_EQ(r.added, old.added);
+    EXPECT_TRUE(r.replaced.isEmpty());
 }
