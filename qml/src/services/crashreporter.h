@@ -62,7 +62,8 @@ public:
     static void captureMessage(const char* message, const char* level = "info",
                                const QHash<QString, QString>& eventTags = {});
 
-    /// Set game context for current operation (breadcrumb + tags)
+    /// Breadcrumb naming the game the next operation is about (no tags:
+    /// failure events carry game.id/game.name themselves)
     static void setGameContext(const QString& gameId, const QString& gameName);
 
     /**

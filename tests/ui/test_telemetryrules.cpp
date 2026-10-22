@@ -162,3 +162,65 @@ TEST(TelemetryRules, FailureSubjectKeepsTheGameId)
     EXPECT_TRUE(appFromSubject(QString(33, QLatin1Char('1'))).isEmpty());
     EXPECT_TRUE(appFromSubject(QString()).isEmpty());
 }
+
+// ===== Failure event tags ====================================================
+
+TEST(TelemetryRules, GameIdOnlyForSubjectsThatNameAGame)
+{
+    EXPECT_EQ(gameIdFromSubject(QStringLiteral("2536520 (Diablo II: Resurrected)")),
+              QStringLiteral("2536520"));
+    EXPECT_EQ(gameIdFromSubject(QStringLiteral("manual_3f9a01")), QStringLiteral("manual_3f9a01"));
+    // Category words used as subjects by scan/sync/selftest are not games.
+    EXPECT_TRUE(gameIdFromSubject(QStringLiteral("empty")).isEmpty());
+    EXPECT_TRUE(gameIdFromSubject(QStringLiteral("catalog")).isEmpty());
+    EXPECT_TRUE(gameIdFromSubject(QStringLiteral("telemetry")).isEmpty());
+    EXPECT_TRUE(gameIdFromSubject(QString()).isEmpty());
+}
+
+TEST(TelemetryRules, OneDefectAcrossFolderNamesSharesTheGameTag)
+{
+    // Eight Diablo II issues in 30 days, one per folder name the users' copies
+    // had. The game tag is what server-side grouping keys on, so it must not
+    // depend on the name.
+    const auto a = failureTags(QStringLiteral("install"),
+                               QStringLiteral("2536520 (Diablo II: Resurrected)"),
+                               QStringLiteral("system"), QStringLiteral("backup_unknowable"), {});
+    const auto b = failureTags(QStringLiteral("install"),
+                               QStringLiteral("2536520 (Diablo II Resurrected [FitGirl Repack])"),
+                               QStringLiteral("system"), QStringLiteral("backup_unknowable"), {});
+    EXPECT_EQ(a.value(QStringLiteral("game.id")), QStringLiteral("2536520"));
+    EXPECT_EQ(a.value(QStringLiteral("game.id")), b.value(QStringLiteral("game.id")));
+    EXPECT_EQ(a.value(QStringLiteral("fail.reason")), QStringLiteral("backup_unknowable"));
+    EXPECT_EQ(a.value(QStringLiteral("operation")), QStringLiteral("install"));
+    EXPECT_EQ(a.value(QStringLiteral("failure.side")), QStringLiteral("system"));
+}
+
+TEST(TelemetryRules, FailureTagsCarryEverythingTheEventNeeds)
+{
+    QHash<QString, QString> extra;
+    extra.insert(QStringLiteral("install.method"), QStringLiteral("script"));
+    extra.insert(QStringLiteral("game.name"), QStringLiteral("Mad Max"));
+    const auto t = failureTags(QStringLiteral("install"), QStringLiteral("234140 (Mad Max)"),
+                               QStringLiteral("system"), QStringLiteral("step_failed"),
+                               QStringLiteral("setSteamLanguage"), extra);
+    EXPECT_EQ(t.value(QStringLiteral("subject")), QStringLiteral("234140 (Mad Max)"));
+    EXPECT_EQ(t.value(QStringLiteral("fail.step")), QStringLiteral("setSteamLanguage"));
+    EXPECT_EQ(t.value(QStringLiteral("install.method")), QStringLiteral("script"));
+    EXPECT_EQ(t.value(QStringLiteral("game.name")), QStringLiteral("Mad Max"));
+    EXPECT_EQ(t.value(QStringLiteral("game.id")), QStringLiteral("234140"));
+}
+
+TEST(TelemetryRules, FailuresWithoutAGameCarryNoGameTag)
+{
+    // A sync or scan failure must not inherit a game: the scope-wide tag it
+    // used to get from the previous install report named the wrong one.
+    const auto sync = failureTags(QStringLiteral("sync"), QString(), QStringLiteral("system"),
+                                  QStringLiteral("catalog_download"), {});
+    EXPECT_FALSE(sync.contains(QStringLiteral("game.id")));
+    EXPECT_FALSE(sync.contains(QStringLiteral("subject")));
+    EXPECT_FALSE(sync.contains(QStringLiteral("fail.step")));
+    const auto scan = failureTags(QStringLiteral("scan"), QStringLiteral("empty"),
+                                  QStringLiteral("system"), QStringLiteral("scan_empty"), {});
+    EXPECT_FALSE(scan.contains(QStringLiteral("game.id")));
+    EXPECT_EQ(scan.value(QStringLiteral("subject")), QStringLiteral("empty"));
+}

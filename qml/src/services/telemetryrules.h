@@ -20,6 +20,7 @@
 
 #include <QByteArray>
 #include <QCryptographicHash>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
@@ -184,6 +185,53 @@ inline void pruneSent(QVariantMap& sent, qint64 nowMs)
         else
             ++it;
     }
+}
+
+/// The game a failure subject names, or empty. Subjects are "1245620 (Elden
+/// Ring)", a bare id, or a category word ("empty", "catalog", "telemetry");
+/// a game id always carries a digit (Steam/GOG ids, Epic ids, manual_<hash>),
+/// a category word never does.
+inline QString gameIdFromSubject(const QString& subject)
+{
+    const QString id = appFromSubject(subject);
+    for (const QChar c : id) {
+        if (c.isDigit())
+            return id;
+    }
+    return {};
+}
+
+/// The tags one failure event carries — on THAT event only.
+///
+/// They used to be written into the global Sentry scope, where they stayed
+/// for the rest of the session: an uninstall refusal logged later arrived
+/// tagged operation=integrity (the previous report), and a crash minutes
+/// after a failed install arrived tagged operation=install,
+/// failure.side=system and the game — which also fed it to the "Widespread
+/// Failure" alert. `extra` (install.method, game.name, …) wins over the
+/// derived values.
+inline QHash<QString, QString> failureTags(const QString& operation, const QString& subject,
+                                           const QString& side, const QString& reason,
+                                           const QString& stepAction,
+                                           const QHash<QString, QString>& extra = {})
+{
+    QHash<QString, QString> tags;
+    tags.insert(QStringLiteral("operation"), operation);
+    if (!subject.isEmpty())
+        tags.insert(QStringLiteral("subject"), subject);
+    tags.insert(QStringLiteral("failure.side"), side);
+    tags.insert(QStringLiteral("fail.reason"), reason);
+    if (!stepAction.isEmpty())
+        tags.insert(QStringLiteral("fail.step"), stepAction);
+    // The bare id, separate from the subject: the subject quotes the folder
+    // name the user's copy has, which split one Diablo II defect into eight
+    // issues ("Diablo II: Resurrected", "... [FitGirl Repack]", "Diablo"…).
+    // Server-side grouping keys on this tag instead.
+    if (const QString game = gameIdFromSubject(subject); !game.isEmpty())
+        tags.insert(QStringLiteral("game.id"), game);
+    for (auto it = extra.cbegin(); it != extra.cend(); ++it)
+        tags.insert(it.key(), it.value());
+    return tags;
 }
 
 } // namespace makine::telemetryrules

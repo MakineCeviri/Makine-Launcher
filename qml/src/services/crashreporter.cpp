@@ -499,22 +499,14 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
                                                     reason, subject)))
         return;
 
-    // Tag before capturing so the event carries them: "which operation fails
-    // most" and "which game fails most" are the two questions this exists to
-    // answer without asking users for logs.
-    setContext("operation", QString::fromLatin1(operation));
-    if (!subject.isEmpty())
-        setContext("subject", subject);
-    setContext("failure.side", side);
-
-    // The dimension the five existing tags never carried: WHY. Without it a
-    // single defect spread over 67 games reads as 67 unrelated issues — see
-    // failurereasons.h for the one that actually happened.
-    QHash<QString, QString> tags = eventTags;
-    tags.insert(QStringLiteral("fail.reason"), reason);
-    const QString action = failurereasons::failedStepAction(message);
-    if (!action.isEmpty())
-        tags.insert(QStringLiteral("fail.step"), action);
+    // "Which operation fails most", "which game fails most" and — the
+    // dimension the first tags never carried — WHY: without fail.reason a
+    // single defect spread over 67 games read as 67 unrelated issues (see
+    // failurereasons.h). All of them ride on this event only; see
+    // telemetryrules::failureTags for what the session-wide version broke.
+    const QHash<QString, QString> tags = telemetryrules::failureTags(
+        QString::fromLatin1(operation), subject, side, reason,
+        failurereasons::failedStepAction(message), eventTags);
 
     const QByteArray payload =
         QStringLiteral("%1 failed [%2]: %3")
@@ -528,9 +520,9 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
 void CrashReporter::setGameContext(const QString& gameId, const QString& gameName)
 {
 #ifdef MAKINE_HAS_SENTRY
-    setContext("game.id", gameId);
-    setContext("game.name", gameName);
-
+    // A breadcrumb only. As session tags game.id/game.name stayed on every
+    // later event — a crash an hour later on another screen still named the
+    // last game that failed. Failure events carry their game themselves.
     QByteArray msg = QStringLiteral("Game context: %1 (%2)").arg(gameName, gameId).toUtf8();
     addBreadcrumb("game", msg.constData(), "info");
 #else
