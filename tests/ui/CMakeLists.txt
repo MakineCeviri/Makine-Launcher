@@ -184,6 +184,21 @@ if(NOT MAKINE_UI_ONLY)
         OpenSSL::Crypto spdlog::spdlog
         $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>)
     add_test(NAME test_mkpktar COMMAND test_mkpktar)
+
+    # Download queue, cancel between attempts and failed extraction, against a
+    # local HTTP server (no network).
+    find_package(Qt6 REQUIRED COMPONENTS Network Concurrent)
+    add_executable(test_translationdownloader test_translationdownloader.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/translationdownloader.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/networksecurity.cpp
+        ${MAKINE_PROJECT_ROOT}/qml/src/services/crashreporter.cpp)
+    set_target_properties(test_translationdownloader PROPERTIES AUTOMOC ON)
+    target_include_directories(test_translationdownloader PRIVATE
+        ${MAKINE_PROJECT_ROOT}/qml/src/services)
+    target_link_libraries(test_translationdownloader PRIVATE GTest::gtest
+        Qt6::Core Qt6::Network Qt6::Concurrent OpenSSL::Crypto spdlog::spdlog
+        $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>)
+    add_test(NAME test_translationdownloader COMMAND test_translationdownloader)
 endif()
 
 # Plugin system v2 (docs/adr/0009-plugin-system-v2.md): manifest rules, wire

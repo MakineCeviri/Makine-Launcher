@@ -54,6 +54,12 @@ TranslationDownloader::TranslationDownloader(QObject* parent)
                 CrashReporter::reportFailure("download", appId, error);
             });
 
+    // A queued download starts once the active one ends, however it ends.
+    // Only a .part file that could not be opened used to move the queue, so a
+    // second game's install waited behind a finished first one until restart.
+    connect(this, &TranslationDownloader::activeDownloadsChanged, this,
+            &TranslationDownloader::startNextQueuedDownload, Qt::QueuedConnection);
+
     // Clean stale temp files older than 7 days. Both .part (interrupted
     // download) and final .makine (extraction crashed before QFile::remove
     // ran) get orphaned; otherwise they accumulate forever and chew through
@@ -454,16 +460,16 @@ void TranslationDownloader::startHttpRequest(const QString& appId)
 
 void TranslationDownloader::startNextQueuedDownload()
 {
-    if (m_pendingDownloads.isEmpty())
-        return;
-    if (m_activeDownloads.size() >= kMaxConcurrentDownloads)
-        return;
-
-    const QueuedDownload next = m_pendingDownloads.dequeue();
-    qCDebug(lcDownloader) << "promoting queued download" << next.appId
-                          << "— remaining queue:" << m_pendingDownloads.size();
-    downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize,
-                    next.expectedChecksum);
+    // A loop: one refused before it became active (disk space) frees no slot
+    // and sends no change signal, and must not strand the ones behind it.
+    while (!m_pendingDownloads.isEmpty()
+           && m_activeDownloads.size() < kMaxConcurrentDownloads) {
+        const QueuedDownload next = m_pendingDownloads.dequeue();
+        qCDebug(lcDownloader) << "promoting queued download" << next.appId
+                              << "— remaining queue:" << m_pendingDownloads.size();
+        downloadPackage(next.appId, next.dataUrl, next.dirName, next.expectedSize,
+                        next.expectedChecksum);
+    }
 }
 
 void TranslationDownloader::cancelDownload(const QString& appId)
