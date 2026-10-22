@@ -83,9 +83,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Fail when a telemetry channel goes blind")
     parser.add_argument("--min-24h", type=int, default=10,
                         help="Minimum counting-channel records expected in 24 h (default 10)")
-    parser.add_argument("--min-crash-free", type=float, default=98.0,
+    # 99.5, the crash-free detector's warning line: 0.1.5 runs at ~99.9 %
+    # (6.8K sessions, 30 days to 2026-10-22), so 98 % meant a release could
+    # crash 20 times as often before this noticed.
+    parser.add_argument("--min-crash-free", type=float, default=99.5,
                         help="Minimum crash-free session %% for a release with ≥ 100 sessions "
-                             "in 7 days (default 98.0)")
+                             "in 7 days (default 99.5)")
     args = parser.parse_args()
 
     failures = []

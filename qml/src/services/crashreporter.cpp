@@ -58,7 +58,8 @@ static bool admitToSentry(const QString& key)
     QSettings settings;
     QVariantMap sent = settings.value(QStringLiteral("telemetry/sentrySent")).toMap();
     makine::telemetryrules::pruneSent(sent, now);
-    if (!makine::telemetryrules::sentryMaySend(sent.value(key).toLongLong(), now))
+    if (!makine::telemetryrules::sentryMaySend(sent.value(key).toLongLong(), now,
+                                               makine::telemetryrules::sentryRepeatWindowFor(key)))
         return false;
 
     sent.insert(key, now);
@@ -74,8 +75,14 @@ static bool admitToSentry(const QString& key)
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <QSet>
+#include <QTimer>
 #include <algorithm>   // std::min — not pulled in implicitly on MinGW
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -84,6 +91,136 @@ static QtMessageHandler s_previousHandler = nullptr;
 
 // sentry_init() has succeeded in this process. GUI thread only.
 static bool s_initialized = false;
+
+// QML script error keys this session has already seen (sent or not), and how
+// many it sent. Guarded by s_gateMutex. The set spares a settings read for
+// every repeat of the same warning, which a broken delegate emits per frame.
+static QSet<QString> s_qmlSeen;
+static int s_qmlSent = 0;
+
+void reportQmlError(const QString& msg)
+{
+    const QString key = makine::telemetryrules::qmlErrorKey(msg);
+    if (key.isEmpty())
+        return;
+    {
+        QMutexLocker lock(&s_gateMutex);
+        if (s_qmlSeen.contains(key)
+            || s_qmlSent >= makine::telemetryrules::kSentryQmlErrorsPerSession)
+            return;
+        s_qmlSeen.insert(key);
+    }
+    // Not through reportFailure: its sink would count every repeat, and a
+    // binding that fails per frame would flood the counting queue.
+    if (!admitToSentry(key))
+        return;
+    {
+        QMutexLocker lock(&s_gateMutex);
+        ++s_qmlSent;
+    }
+    QHash<QString, QString> tags;
+    tags.insert(QStringLiteral("operation"), QStringLiteral("qml"));
+    tags.insert(QStringLiteral("failure.side"), QStringLiteral("system"));
+    tags.insert(QStringLiteral("fail.reason"), QStringLiteral("qml_script"));
+    const QByteArray payload = (QStringLiteral("qml error: ") + msg.left(400)).toUtf8();
+    makine::CrashReporter::captureMessage(payload.constData(), "error", tags);
+}
+
+// ---- UI hang watchdog (see telemetryrules.h) ----
+
+// The launcher's last own breadcrumb, as hangContext() names it.
+static QMutex s_markerMutex;
+static QString s_lastMarker;
+
+static std::atomic<qint64> s_uiBeatMs{0};
+static std::atomic<bool> s_hangStop{false};
+static std::mutex s_hangWakeMutex;
+static std::condition_variable s_hangWake;
+// Heap-held and never destroyed: a process that exits without aboutToQuit
+// (an updater restart) must not run ~thread() on a joinable thread, which
+// would std::terminate at static destruction.
+static std::thread* s_hangThread = nullptr;
+
+qint64 steadyMs()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+QString lastMarker()
+{
+    QMutexLocker lock(&s_markerMutex);
+    return s_lastMarker.isEmpty() ? QStringLiteral("app: unknown") : s_lastMarker;
+}
+
+void reportHang(qint64 blockedMs)
+{
+    static std::atomic<bool> reported{false};
+    if (reported.exchange(true))
+        return;                                  // once per session
+    if (!admitToSentry(QStringLiteral("hang|ui")))
+        return;
+    const QString context = lastMarker();
+    QHash<QString, QString> tags;
+    tags.insert(QStringLiteral("operation"), QStringLiteral("hang"));
+    tags.insert(QStringLiteral("failure.side"), QStringLiteral("system"));
+    tags.insert(QStringLiteral("fail.reason"), QStringLiteral("ui_hang"));
+    tags.insert(QStringLiteral("hang.context"), context);
+    const QByteArray payload =
+        QStringLiteral("app hang: UI thread unresponsive for %1 s (after %2)")
+            .arg(blockedMs / 1000).arg(context).toUtf8();
+    makine::CrashReporter::captureMessage(payload.constData(), "error", tags);
+}
+
+void hangWatchdogLoop()
+{
+    using makine::telemetryrules::HangCheck;
+    qint64 lastPoll = steadyMs();
+    qint64 frozenSince = 0;
+    std::unique_lock<std::mutex> lock(s_hangWakeMutex);
+    while (!s_hangWake.wait_for(lock, std::chrono::milliseconds(makine::telemetryrules::kHangPollMs),
+                                [] { return s_hangStop.load(); })) {
+        const qint64 now = steadyMs();
+        const qint64 beat = s_uiBeatMs;
+        // Teardown runs without an event loop and is not a hang.
+        if (QCoreApplication::closingDown())
+            break;
+        switch (makine::telemetryrules::checkHang(now, beat, lastPoll)) {
+        case HangCheck::Suspended:
+            s_uiBeatMs = now;                   // give the UI a fresh window
+            break;
+        case HangCheck::Hung:
+            if (frozenSince == 0) {
+                frozenSince = beat;
+                reportHang(now - beat);
+            }
+            break;
+        case HangCheck::Responsive:
+            if (frozenSince != 0) {
+                const QByteArray msg = QStringLiteral("UI thread responsive again after %1 ms")
+                                           .arg(beat - frozenSince).toUtf8();
+                makine::CrashReporter::addBreadcrumb("hang", msg.constData(), "warning");
+                frozenSince = 0;
+            }
+            break;
+        }
+        lastPoll = now;
+    }
+}
+
+void stopHangWatchdog()
+{
+    if (!s_hangThread)
+        return;
+    {
+        std::lock_guard<std::mutex> guard(s_hangWakeMutex);
+        s_hangStop = true;
+    }
+    s_hangWake.notify_all();
+    s_hangThread->join();
+    delete s_hangThread;
+    s_hangThread = nullptr;
+}
 
 // Qt message handler that routes to Sentry
 void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg)
@@ -104,6 +241,7 @@ void sentryMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const Q
         break;
     case QtWarningMsg:
         makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "warning");
+        reportQmlError(msg);
         break;
     case QtCriticalMsg:
         makine::CrashReporter::addBreadcrumb(category, utf8.constData(), "error");
@@ -159,11 +297,40 @@ sentry_value_t beforeSend(sentry_value_t event, void* /*hint*/, void* /*closure*
         }
     }
 
-    // Add app version tag
-    sentry_value_t tags = sentry_value_get_by_key(event, "tags");
-    if (sentry_value_is_null(tags)) {
-        tags = sentry_value_new_object();
-        sentry_value_set_by_key(event, "tags", tags);
+    // The SDK attaches the process's module list to every event, and a module
+    // path is a user path whenever the launcher or an injected DLL lives under
+    // the profile: 0.1.6's ZIP run from the Desktop sent
+    // "C:\Users\<name>\Desktop\...\Makine-Launcher.exe", MSIX runs sent
+    // OneDrive's shell extension from "C:\Users\<name>\AppData\...". Only the
+    // directory is redacted; symbolication matches modules by debug/code id.
+    //
+    // The SDK hands out its cached list frozen (sentry-native 0.9.1,
+    // sentry_get_modules_list), where every set_by_key fails silently, so the
+    // list is rebuilt from copies of the module finder's keys.
+    sentry_value_t debugMeta = sentry_value_get_by_key(event, "debug_meta");
+    sentry_value_t images = sentry_value_get_by_key(debugMeta, "images");
+    const auto imageLen = sentry_value_get_length(images);
+    if (imageLen > 0) {
+        sentry_value_t redacted = sentry_value_new_list();
+        for (size_t i = 0; i < imageLen; ++i) {
+            sentry_value_t image = sentry_value_get_by_index(images, i);
+            sentry_value_t copy = sentry_value_new_object();
+            for (const char* key : {"type", "image_addr", "image_size", "code_id", "debug_id"}) {
+                sentry_value_t v = sentry_value_get_by_key(image, key);
+                if (!sentry_value_is_null(v)) {
+                    sentry_value_incref(v);
+                    sentry_value_set_by_key(copy, key, v);
+                }
+            }
+            for (const char* key : {"code_file", "debug_file"}) {
+                sentry_value_t v = sentry_value_get_by_key(image, key);
+                if (sentry_value_get_type(v) == SENTRY_VALUE_TYPE_STRING)
+                    sentry_value_set_by_key(copy, key, sentry_value_new_string(
+                        sanitizePath(sentry_value_as_string(v)).c_str()));
+            }
+            sentry_value_append(redacted, copy);
+        }
+        sentry_value_set_by_key(debugMeta, "images", redacted);
     }
 
     return event;
@@ -303,8 +470,25 @@ void CrashReporter::setEnabled(bool enabled)
 void CrashReporter::shutdown()
 {
 #ifdef MAKINE_HAS_SENTRY
+    stopHangWatchdog();
     addBreadcrumb("app", "Application shutting down", "info");
     sentry_close();
+#endif
+}
+
+void CrashReporter::startHangWatchdog()
+{
+#ifdef MAKINE_HAS_SENTRY
+    auto* app = QCoreApplication::instance();
+    if (!s_initialized || s_hangThread || !app)
+        return;
+    s_uiBeatMs = steadyMs();
+    auto* beat = new QTimer(app);
+    QObject::connect(beat, &QTimer::timeout, app, [] { s_uiBeatMs = steadyMs(); });
+    beat->start(static_cast<int>(telemetryrules::kHangPollMs / 2));
+    QObject::connect(app, &QCoreApplication::aboutToQuit, app, [] { stopHangWatchdog(); });
+    s_hangStop = false;
+    s_hangThread = new std::thread(hangWatchdogLoop);
 #endif
 }
 
@@ -320,6 +504,14 @@ void CrashReporter::addBreadcrumb(const char* category, const char* message,
     // redacted. beforeSend only walks exception stack frames and never sees
     // breadcrumbs, so this is the only place the redaction can happen.
     const std::string safe = sanitizePath(message);
+    // The launcher's own markers are info level (startup phases, installPackage,
+    // downloadPackage…); Qt warnings arrive as warning. A hang names the last marker.
+    if (qstrcmp(level, "info") == 0) {
+        const QString marker = telemetryrules::hangContext(QString::fromUtf8(category),
+                                                           QString::fromUtf8(safe.c_str()));
+        QMutexLocker lock(&s_markerMutex);
+        s_lastMarker = marker;
+    }
     sentry_value_t crumb = sentry_value_new_breadcrumb("default", safe.c_str());
     sentry_value_set_by_key(crumb, "category", sentry_value_new_string(category));
     sentry_value_set_by_key(crumb, "level", sentry_value_new_string(level));
@@ -408,9 +600,13 @@ bool CrashReporter::isUserActionable(const QString& message)
         QStringLiteral("salt okunur"), QStringLiteral("permission"), QStringLiteral("denied"),
         // game or store busy
         QStringLiteral("çalışıyor"), QStringLiteral("kapatın"), QStringLiteral("kilitli"),
-        // connectivity
+        // connectivity. "timed out" and "Host … not found" are how Qt words
+        // QNetworkReply errors: "Katalog indirilemedi: Operation timed out"
+        // reached 11 users in two weeks filed as our defect (system), next to
+        // the real ones. An outage of our own CDN is the uptime monitor's job.
         QStringLiteral("internet"), QStringLiteral("bağlantı"), QStringLiteral("ağ "),
         QStringLiteral("network"), QStringLiteral("timeout"), QStringLiteral("zaman aşımı"),
+        QStringLiteral("timed out"),
         // user-initiated
         QStringLiteral("iptal"), QStringLiteral("cancel"),
     };
@@ -432,6 +628,9 @@ bool CrashReporter::isUserActionable(const QString& message)
         if (cause.contains(p, Qt::CaseInsensitive))
             return true;
     }
+    // "Host cdn.makineceviri.org not found": the machine's DNS, not our package.
+    if (cause.contains(QStringLiteral("Host ")) && cause.contains(QStringLiteral(" not found")))
+        return true;
     return false;
 }
 
@@ -499,22 +698,14 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
                                                     reason, subject)))
         return;
 
-    // Tag before capturing so the event carries them: "which operation fails
-    // most" and "which game fails most" are the two questions this exists to
-    // answer without asking users for logs.
-    setContext("operation", QString::fromLatin1(operation));
-    if (!subject.isEmpty())
-        setContext("subject", subject);
-    setContext("failure.side", side);
-
-    // The dimension the five existing tags never carried: WHY. Without it a
-    // single defect spread over 67 games reads as 67 unrelated issues — see
-    // failurereasons.h for the one that actually happened.
-    QHash<QString, QString> tags = eventTags;
-    tags.insert(QStringLiteral("fail.reason"), reason);
-    const QString action = failurereasons::failedStepAction(message);
-    if (!action.isEmpty())
-        tags.insert(QStringLiteral("fail.step"), action);
+    // "Which operation fails most", "which game fails most" and — the
+    // dimension the first tags never carried — WHY: without fail.reason a
+    // single defect spread over 67 games read as 67 unrelated issues (see
+    // failurereasons.h). All of them ride on this event only; see
+    // telemetryrules::failureTags for what the session-wide version broke.
+    const QHash<QString, QString> tags = telemetryrules::failureTags(
+        QString::fromLatin1(operation), subject, side, reason,
+        failurereasons::failedStepAction(message), eventTags);
 
     const QByteArray payload =
         QStringLiteral("%1 failed [%2]: %3")
@@ -528,9 +719,9 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
 void CrashReporter::setGameContext(const QString& gameId, const QString& gameName)
 {
 #ifdef MAKINE_HAS_SENTRY
-    setContext("game.id", gameId);
-    setContext("game.name", gameName);
-
+    // A breadcrumb only. As session tags game.id/game.name stayed on every
+    // later event — a crash an hour later on another screen still named the
+    // last game that failed. Failure events carry their game themselves.
     QByteArray msg = QStringLiteral("Game context: %1 (%2)").arg(gameName, gameId).toUtf8();
     addBreadcrumb("game", msg.constData(), "info");
 #else

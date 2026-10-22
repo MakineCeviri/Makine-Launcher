@@ -171,6 +171,75 @@ TEST(FailureReasons, AStaleOrPartialDownloadIsNotOther)
         QStringLiteral("checksum_mismatch"));
 }
 
+// What was still "other" on 2026-10-22: 38 of 128 issues in 30 days. Live
+// titles (0.1.5) and the wording dev emits now.
+TEST(FailureReasons, TheOtherBucketOfOctober)
+{
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "package extracts to zero files after a re-download; the archive itself "
+        "carries no usable content")), QStringLiteral("package_empty"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Nioh: Complete Edition yama paketi boş çıktı. Bu bizim tarafımızdaki bir "
+        "paketleme hatası — tekrar indirmek çözmez. Sorun bize bildirildi.")),
+        QStringLiteral("package_empty"));
+    EXPECT_EQ(failureReason(QStringLiteral("userPath recipe carries no target path")),
+              QStringLiteral("recipe_no_target"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Firewatch için kurulum hedefi katalogda eksik. Bu bizim tarafımızdaki bir veri "
+        "hatası — sorun bize bildirildi.")), QStringLiteral("recipe_no_target"));
+    EXPECT_EQ(failureReason(QStringLiteral("uninstallPackage returned false")),
+              QStringLiteral("uninstall_failed"));                               // 0.1.5
+    EXPECT_EQ(failureReason(QStringLiteral("uninstallPackage returned false: files left on disk")),
+              QStringLiteral("uninstall_files_left"));
+    EXPECT_EQ(failureReason(QStringLiteral("uninstallPackage returned false: no install record")),
+              QStringLiteral("uninstall_no_record"));
+    EXPECT_EQ(failureReason(QStringLiteral("uninstall program geri_al.bat: failed to start")),
+              QStringLiteral("uninstall_tool"));
+    EXPECT_EQ(failureReason(QStringLiteral("restore could not start; originals would stay patched")),
+              QStringLiteral("restore_not_started"));
+    EXPECT_EQ(failureReason(QStringLiteral("Yedek geri yükleme zaten devam ediyor")),
+              QStringLiteral("restore_busy"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Hedef klasör bulunamadı: C:/XboxGames/Wartales/Content")),
+        QStringLiteral("game_dir_missing"));
+    EXPECT_EQ(failureReason(QStringLiteral("interrupted operation could not be rolled back")),
+              QStringLiteral("journal_rollback"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Yetersiz disk alanı — yaklaşık 500 MB boş alan gerekli (91 MB mevcut)")),
+        QStringLiteral("disk_full"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Disk alanı yetersiz — boş alanı kontrol edip tekrar deneyin.")),
+        QStringLiteral("disk_full"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "Dosya kilitli — oyun açıksa kapatıp tekrar deneyin.")), QStringLiteral("file_locked"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "İndirme başarısız oldu. İnternet bağlantınızı kontrol edin.")),
+        QStringLiteral("download_failed"));
+}
+
+TEST(FailureReasons, AStartupQmlFailureIsNamed)
+{
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "QML root failed to load (compile): qrc:/qt/qml/MakineLauncher/qml/Main.qml:5:1: "
+        "module \"QtQuick.Effects\" is not installed")), QStringLiteral("qml_load"));
+}
+
+TEST(FailureReasons, NewCodesDoNotSwallowTheWrappersOrSteps)
+{
+    // The own-program refusal also says "uninstall program": it stays run_no_undo.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "own-program recipe names no uninstall program; refusing to run it without a way back")),
+        QStringLiteral("run_no_undo"));
+    // A restore failure that aborted an uninstall is still the abort.
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "restore failed, uninstall aborted to avoid mixed state: restore could not start")),
+        QStringLiteral("uninstall_aborted"));
+    // "no backup available … backup records" is no_backup, not "no install record".
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "no backup available; originals would stay patched (backup records for game: 0)")),
+        QStringLiteral("no_backup"));
+}
+
 // ===== The fallback =========================================================
 
 TEST(FailureReasons, AnUnknownMessageIsNamedNotBlank)

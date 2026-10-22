@@ -104,6 +104,31 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("Katalog indirilemedi"),                 QStringLiteral("catalog_download")},     // 24
         {QStringLiteral("Hiçbir tarayıcı oyun bulamadı"),        QStringLiteral("scan_empty")},           // 75
         {QStringLiteral("Core initialization failed"),           QStringLiteral("core_init")},            // 5
+
+        // ---- what was still "other" (Sentry, 30 days to 2026-10-22: 38 of
+        // 128 issues). Each one is a different job, and "other" hid that ----
+        // A package that extracts to nothing (Nioh's .lnk data file): ours to
+        // repack, never a retry. Both the event and the user-facing wording.
+        {QStringLiteral("zero files after a re-download"),       QStringLiteral("package_empty")},        // 5
+        {QStringLiteral("yama paketi boş çıktı"),                QStringLiteral("package_empty")},        // 8
+        // A recipe without its target (Firewatch, The Sims 4): a D1 fix.
+        {QStringLiteral("recipe carries no target"),             QStringLiteral("recipe_no_target")},     // 5
+        {QStringLiteral("kurulum hedefi katalogda eksik"),       QStringLiteral("recipe_no_target")},     // 5
+        {QStringLiteral("files left on disk"),                   QStringLiteral("uninstall_files_left")},
+        {QStringLiteral("no install record"),                    QStringLiteral("uninstall_no_record")},
+        {QStringLiteral("uninstallPackage returned false"),      QStringLiteral("uninstall_failed")},     // 17 (0.1.5)
+        {QStringLiteral("uninstall program"),                    QStringLiteral("uninstall_tool")},
+        {QStringLiteral("restore could not start"),              QStringLiteral("restore_not_started")},  // 5
+        {QStringLiteral("geri yükleme zaten devam ediyor"),      QStringLiteral("restore_busy")},         // 4
+        // The game folder a backup was asked for is gone (moved, deleted, an
+        // Xbox folder the package cannot see).
+        {QStringLiteral("Hedef klasör bulunamadı"),              QStringLiteral("game_dir_missing")},     // 3
+        {QStringLiteral("could not be rolled back"),             QStringLiteral("journal_rollback")},     // 2
+        {QStringLiteral("QML root failed to load"),              QStringLiteral("qml_load")},
+        {QStringLiteral("Yetersiz disk alanı"),                 QStringLiteral("disk_full")},            // 2
+        {QStringLiteral("Disk alanı yetersiz"),                  QStringLiteral("disk_full")},
+        {QStringLiteral("Dosya kilitli"),                        QStringLiteral("file_locked")},          // 4
+        {QStringLiteral("İndirme başarısız oldu"),               QStringLiteral("download_failed")},      // 3
     };
     return kRules;
 }

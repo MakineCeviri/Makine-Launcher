@@ -62,7 +62,8 @@ public:
     static void captureMessage(const char* message, const char* level = "info",
                                const QHash<QString, QString>& eventTags = {});
 
-    /// Set game context for current operation (breadcrumb + tags)
+    /// Breadcrumb naming the game the next operation is about (no tags:
+    /// failure events carry game.id/game.name themselves)
     static void setGameContext(const QString& gameId, const QString& gameName);
 
     /**
@@ -117,6 +118,15 @@ public:
 
     /// Install Qt message handler that routes qWarning/qCritical/qFatal to Sentry
     static void installQtMessageHandler();
+
+    /**
+     * @brief Report a frozen UI thread (≥ telemetryrules::kHangThresholdMs)
+     * once per session, from a watchdog thread, while it is still frozen.
+     *
+     * Call on the GUI thread right before the event loop starts; stops itself
+     * on aboutToQuit and in shutdown(). No-op when Sentry is not running.
+     */
+    static void startHangWatchdog();
 };
 
 } // namespace makine

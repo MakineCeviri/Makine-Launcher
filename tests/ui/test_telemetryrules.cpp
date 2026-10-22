@@ -162,3 +162,159 @@ TEST(TelemetryRules, FailureSubjectKeepsTheGameId)
     EXPECT_TRUE(appFromSubject(QString(33, QLatin1Char('1'))).isEmpty());
     EXPECT_TRUE(appFromSubject(QString()).isEmpty());
 }
+
+// ===== QML script errors =====================================================
+
+TEST(TelemetryRules, QmlScriptErrorIsKeyedByFileLineAndKind)
+{
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/components/GameCard.qml:88: TypeError: "
+        "Cannot read property 'name' of null")),
+        QStringLiteral("qml|components/GameCard.qml:88|TypeError"));
+    // The column and the error's own text do not split the key.
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/components/GameCard.qml:88:5: TypeError: "
+        "Cannot read property 'cover' of undefined")),
+        QStringLiteral("qml|components/GameCard.qml:88|TypeError"));
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/screens/HomeScreen.qml:12: ReferenceError: "
+        "gameService is not defined")),
+        QStringLiteral("qml|screens/HomeScreen.qml:12|ReferenceError"));
+    EXPECT_EQ(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/theme/Theme.js:3: SyntaxError: Unexpected token")),
+        QStringLiteral("qml|theme/Theme.js:3|SyntaxError"));
+}
+
+TEST(TelemetryRules, OnlyScriptErrorsInOurQmlAreReported)
+{
+    // The live breadcrumb that must stay a breadcrumb: a missing cover image.
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/screens/detail/HeroSection.qml:124:9: QML QQuickImage*: "
+        "Error transferring https://cdn.makineceviri.org/assets/banners/2536520.jpg - server "
+        "replied with status code 404")).isEmpty());
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral(
+        "qrc:/qt/qml/MakineLauncher/qml/X.qml:5:3: QML Item: Binding loop detected for "
+        "property \"width\"")).isEmpty());
+    // Not a QML location at all, even with an error word in it.
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral("TypeError in plugin host")).isEmpty());
+    EXPECT_TRUE(qmlErrorKey(QStringLiteral("qrc:/x/Main.qml: TypeError: no line")).isEmpty());
+}
+
+TEST(TelemetryRules, QmlKeysWaitAWeekOtherKeysADay)
+{
+    const QString qml = QStringLiteral("qml|components/GameCard.qml:88|TypeError");
+    const QString install = sentryKey(QStringLiteral("install"), QStringLiteral("step_failed"),
+                                      QStringLiteral("1245620"));
+    EXPECT_EQ(sentryRepeatWindowFor(qml), kSentryQmlRepeatWindowMs);
+    EXPECT_EQ(sentryRepeatWindowFor(install), kSentryRepeatWindowMs);
+
+    const qint64 now = 1727000000000;
+    const qint64 twoDaysAgo = now - 2 * kSentryRepeatWindowMs;
+    EXPECT_FALSE(sentryMaySend(twoDaysAgo, now, sentryRepeatWindowFor(qml)));
+    EXPECT_TRUE(sentryMaySend(twoDaysAgo, now, sentryRepeatWindowFor(install)));
+
+    // Pruning keeps the QML key for its whole week.
+    QVariantMap sent;
+    sent.insert(qml, twoDaysAgo);
+    sent.insert(install, twoDaysAgo);
+    pruneSent(sent, now);
+    EXPECT_TRUE(sent.contains(qml));
+    EXPECT_FALSE(sent.contains(install));
+}
+
+// ===== UI hang watchdog ======================================================
+
+TEST(TelemetryRules, AStaleBeatPastTheThresholdIsAHang)
+{
+    const qint64 now = 1'000'000;
+    const qint64 lastPoll = now - kHangPollMs;
+    EXPECT_EQ(checkHang(now, now - 400, lastPoll), HangCheck::Responsive);
+    EXPECT_EQ(checkHang(now, now - kHangThresholdMs + 1, lastPoll), HangCheck::Responsive);
+    EXPECT_EQ(checkHang(now, now - kHangThresholdMs, lastPoll), HangCheck::Hung);
+    EXPECT_EQ(checkHang(now, now - 60'000, lastPoll), HangCheck::Hung);
+}
+
+TEST(TelemetryRules, AMachineWakingFromSleepIsNotAHang)
+{
+    // The watchdog itself slept for an hour: the UI had no chance to beat.
+    const qint64 now = 10'000'000;
+    EXPECT_EQ(checkHang(now, now - 3'600'000, now - 3'600'000), HangCheck::Suspended);
+    // A slightly late wake-up is still an ordinary poll.
+    EXPECT_EQ(checkHang(now, now - kHangThresholdMs, now - 2 * kHangPollMs), HangCheck::Hung);
+}
+
+TEST(TelemetryRules, HangContextDropsIdsSoOneKindIsOneIssue)
+{
+    EXPECT_EQ(hangContext(QStringLiteral("package"), QStringLiteral("installPackage: 1174180")),
+              QStringLiteral("package: installPackage"));
+    EXPECT_EQ(hangContext(QStringLiteral("game"), QStringLiteral("Game context: Mad Max (234140)")),
+              QStringLiteral("game: Game context"));
+    EXPECT_EQ(hangContext(QStringLiteral("scan"),
+                          QStringLiteral("games=17 matched=9 catalog=238 [steam=9]")),
+              QStringLiteral("scan: games"));
+    EXPECT_EQ(hangContext(QStringLiteral("startup"),
+                          QStringLiteral("Phase 10: Pre-render + finalize")),
+              QStringLiteral("startup: Phase 10"));
+}
+
+// ===== Failure event tags ====================================================
+
+TEST(TelemetryRules, GameIdOnlyForSubjectsThatNameAGame)
+{
+    EXPECT_EQ(gameIdFromSubject(QStringLiteral("2536520 (Diablo II: Resurrected)")),
+              QStringLiteral("2536520"));
+    EXPECT_EQ(gameIdFromSubject(QStringLiteral("manual_3f9a01")), QStringLiteral("manual_3f9a01"));
+    // Category words used as subjects by scan/sync/selftest are not games.
+    EXPECT_TRUE(gameIdFromSubject(QStringLiteral("empty")).isEmpty());
+    EXPECT_TRUE(gameIdFromSubject(QStringLiteral("catalog")).isEmpty());
+    EXPECT_TRUE(gameIdFromSubject(QStringLiteral("telemetry")).isEmpty());
+    EXPECT_TRUE(gameIdFromSubject(QString()).isEmpty());
+}
+
+TEST(TelemetryRules, OneDefectAcrossFolderNamesSharesTheGameTag)
+{
+    // Eight Diablo II issues in 30 days, one per folder name the users' copies
+    // had. The game tag is what server-side grouping keys on, so it must not
+    // depend on the name.
+    const auto a = failureTags(QStringLiteral("install"),
+                               QStringLiteral("2536520 (Diablo II: Resurrected)"),
+                               QStringLiteral("system"), QStringLiteral("backup_unknowable"), {});
+    const auto b = failureTags(QStringLiteral("install"),
+                               QStringLiteral("2536520 (Diablo II Resurrected [FitGirl Repack])"),
+                               QStringLiteral("system"), QStringLiteral("backup_unknowable"), {});
+    EXPECT_EQ(a.value(QStringLiteral("game.id")), QStringLiteral("2536520"));
+    EXPECT_EQ(a.value(QStringLiteral("game.id")), b.value(QStringLiteral("game.id")));
+    EXPECT_EQ(a.value(QStringLiteral("fail.reason")), QStringLiteral("backup_unknowable"));
+    EXPECT_EQ(a.value(QStringLiteral("operation")), QStringLiteral("install"));
+    EXPECT_EQ(a.value(QStringLiteral("failure.side")), QStringLiteral("system"));
+}
+
+TEST(TelemetryRules, FailureTagsCarryEverythingTheEventNeeds)
+{
+    QHash<QString, QString> extra;
+    extra.insert(QStringLiteral("install.method"), QStringLiteral("script"));
+    extra.insert(QStringLiteral("game.name"), QStringLiteral("Mad Max"));
+    const auto t = failureTags(QStringLiteral("install"), QStringLiteral("234140 (Mad Max)"),
+                               QStringLiteral("system"), QStringLiteral("step_failed"),
+                               QStringLiteral("setSteamLanguage"), extra);
+    EXPECT_EQ(t.value(QStringLiteral("subject")), QStringLiteral("234140 (Mad Max)"));
+    EXPECT_EQ(t.value(QStringLiteral("fail.step")), QStringLiteral("setSteamLanguage"));
+    EXPECT_EQ(t.value(QStringLiteral("install.method")), QStringLiteral("script"));
+    EXPECT_EQ(t.value(QStringLiteral("game.name")), QStringLiteral("Mad Max"));
+    EXPECT_EQ(t.value(QStringLiteral("game.id")), QStringLiteral("234140"));
+}
+
+TEST(TelemetryRules, FailuresWithoutAGameCarryNoGameTag)
+{
+    // A sync or scan failure must not inherit a game: the scope-wide tag it
+    // used to get from the previous install report named the wrong one.
+    const auto sync = failureTags(QStringLiteral("sync"), QString(), QStringLiteral("system"),
+                                  QStringLiteral("catalog_download"), {});
+    EXPECT_FALSE(sync.contains(QStringLiteral("game.id")));
+    EXPECT_FALSE(sync.contains(QStringLiteral("subject")));
+    EXPECT_FALSE(sync.contains(QStringLiteral("fail.step")));
+    const auto scan = failureTags(QStringLiteral("scan"), QStringLiteral("empty"),
+                                  QStringLiteral("system"), QStringLiteral("scan_empty"), {});
+    EXPECT_FALSE(scan.contains(QStringLiteral("game.id")));
+    EXPECT_EQ(scan.value(QStringLiteral("subject")), QStringLiteral("empty"));
+}

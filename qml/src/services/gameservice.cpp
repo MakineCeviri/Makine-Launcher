@@ -2366,11 +2366,13 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
                                           const QString& message)
 {
     QString gameName;
+    QString store;
     auto it = m_gameIdToIndex.constFind(gameId);
-    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.count())
+    if (it != m_gameIdToIndex.constEnd() && *it >= 0 && *it < m_games.count()) {
         gameName = m_games[*it].name;
+        store = m_games[*it].source;
+    }
 
-    // Tag with the game so failures group per title in Sentry.
     CrashReporter::setGameContext(gameId, gameName);
 
     // The install method travels WITH the event. This comment used to say the
@@ -2379,6 +2381,11 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
     // months: nobody opens the catalogue per issue, and Sentry cannot group by
     // a field its events do not carry.
     QHash<QString, QString> tags;
+    tags.insert(QStringLiteral("game.name"), gameName);
+    // Where the copy came from (steam, epic, gog, manual, filesystem…): a
+    // failure that only hits folder-detected copies is a different problem
+    // from one that hits store installs.
+    tags.insert(QStringLiteral("game.store"), store);
     if (m_coreBridge) {
         const QString method = m_coreBridge->getInstallMethodForGame(gameId);
         // An empty type is the catalogue's way of saying "plain overlay"; name

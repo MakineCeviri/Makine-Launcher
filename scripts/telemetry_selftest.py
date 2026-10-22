@@ -24,15 +24,18 @@ Usage:
     python scripts/telemetry_selftest.py
     python scripts/telemetry_selftest.py --exe build/dev/Makine-Launcher.exe
     python scripts/telemetry_selftest.py --skip-run   # only verify last event
+    python scripts/telemetry_selftest.py --qml --hang # also the QML error and hang paths
 """
 
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -81,18 +84,36 @@ def api(path: str, params: str = "") -> object:
         return {"__error__": f"{type(exc).__name__}: {exc}"}
 
 
-def find_selftest_issue() -> dict | None:
-    """Most recent issue produced by the self-test path."""
+def find_selftest_issue(query: str = "selftest", marker: str = "selftest failed") -> dict | None:
+    """Most recent issue whose title carries `marker` (the self-test path's)."""
     issues = api(
         f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/issues/",
-        "?query=selftest&sort=date&limit=10&statsPeriod=",
+        "?query=" + urllib.parse.quote(query) + "&sort=date&limit=10&statsPeriod=",
     )
     if isinstance(issues, dict):
         print(f"  ERROR: issue lookup failed: {issues.get('__error__')}")
         return None
     for issue in issues:
-        if "selftest" in (issue.get("title") or "").lower():
+        if marker in (issue.get("title") or "").lower():
             return issue
+    return None
+
+
+# Optional paths (--qml, --hang): search words, the title marker of the event
+# each one produces, and the environment variable that makes the dev exe do it.
+EXTRA_PATHS = {
+    "qml": ("qml error", "telemetry self-test qml error", "MAKINE_SELFTEST_QML"),
+    "hang": ("app hang", "(after selftest: hang check)", "MAKINE_SELFTEST_HANG"),
+}
+
+
+def wait_for_update(query: str, marker: str, before: str | None, timeout: int) -> dict | None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        candidate = find_selftest_issue(query, marker)
+        if candidate and candidate.get("lastSeen") != before:
+            return candidate
+        time.sleep(10)
     return None
 
 
@@ -107,6 +128,21 @@ def event_text(event: dict) -> tuple[str, str]:
             for crumb in entry.get("data", {}).get("values", []):
                 crumbs.append(str(crumb.get("message") or ""))
     return str(body), "\n".join(crumbs)
+
+
+# "Users\<name>" anywhere in the event that is neither the launcher's
+# "[redacted]" nor the server-side backstop's "[scrubbed]". The body and
+# breadcrumb checks above never looked at the module list, and that is where
+# 0.1.6 leaked: every event carries the path of every loaded module, and a ZIP
+# run from the Desktop is "C:\Users\<name>\Desktop\…\Makine-Launcher.exe".
+USER_PATH = re.compile(r"(?i)users(?:\\\\|\\|/)+(?!\[redacted\]|\[scrubbed\])([^\\/\"'\s]+)")
+
+
+def unredacted_user_paths(event: dict) -> list[str]:
+    raw = json.dumps(event, ensure_ascii=False)
+    # Shown with the name masked: the report itself must not repeat the leak.
+    return [raw[max(0, m.start() - 40):m.start(1)] + m.group(1)[:2] + "***"
+            for m in USER_PATH.finditer(raw)]
 
 
 def runtime_env(exe: Path) -> dict:
@@ -138,13 +174,14 @@ def runtime_env(exe: Path) -> dict:
     return env
 
 
-def run_selftest(exe: Path) -> bool:
+def run_selftest(exe: Path, extra_env: dict | None = None) -> bool:
     if not exe.exists():
         print(f"  ERROR: executable not found: {exe}")
         print("         Build a dev build first: just dev")
         return False
     print(f"  Running: {exe.name} --selftest-telemetry")
     env = runtime_env(exe)
+    env.update(extra_env or {})
     env["QT_FORCE_STDERR_LOGGING"] = "1"   # the exe is a GUI-subsystem binary
     result = subprocess.run(
         [str(exe), "--selftest-telemetry"],
@@ -175,7 +212,12 @@ def main() -> None:
                         help="Verify the last self-test event without sending a new one")
     parser.add_argument("--timeout", type=int, default=180,
                         help="Seconds to wait for the event to appear (default 180)")
+    parser.add_argument("--qml", action="store_true",
+                        help="Also prove the QML script-error path (planted TypeError)")
+    parser.add_argument("--hang", action="store_true",
+                        help="Also prove the UI hang watchdog (blocks the UI thread ~7.5 s)")
     args = parser.parse_args()
+    extras = [name for name in EXTRA_PATHS if getattr(args, name)]
 
     if not TOKEN:
         print("ERROR: SENTRY_AUTH_TOKEN not set (check .env or environment)", file=sys.stderr)
@@ -186,10 +228,15 @@ def main() -> None:
     print("=" * 78)
 
     before = None
+    extra_before = {}
     if not args.skip_run:
         existing = find_selftest_issue()
         before = existing.get("lastSeen") if existing else None
-        if not run_selftest(Path(args.exe)):
+        for name in extras:
+            query, marker, _ = EXTRA_PATHS[name]
+            seen = find_selftest_issue(query, marker)
+            extra_before[name] = seen.get("lastSeen") if seen else None
+        if not run_selftest(Path(args.exe), {EXTRA_PATHS[n][2]: "1" for n in extras}):
             sys.exit(1)
 
     print(f"\n  Waiting for the event to reach Sentry (max {args.timeout}s)...")
@@ -227,12 +274,31 @@ def main() -> None:
         sys.exit(1)
 
     body, crumbs = event_text(event)
+    leaks = unredacted_user_paths(event)
     checks = [
         ("message body redacted", REDACTED in body),
         ("message body has no raw user name", PLANTED_NAME not in body),
         ("breadcrumbs redacted", REDACTED in crumbs),
         ("breadcrumbs have no raw user name", PLANTED_NAME not in crumbs),
+        ("no user path anywhere in the event (module list included)", not leaks),
     ]
+    for name in extras:
+        query, marker, _ = EXTRA_PATHS[name]
+        if args.skip_run:
+            arrived = find_selftest_issue(query, marker)
+        else:
+            print(f"  Waiting for the {name} event (max {args.timeout}s)...")
+            arrived = wait_for_update(query, marker, extra_before.get(name), args.timeout)
+        checks.append((f"{name} event arrived", arrived is not None))
+        if arrived is not None:
+            extra = api(f"/organizations/{SENTRY_ORG}/issues/{arrived.get('id')}/events/latest/")
+            tags = {t.get("key"): t.get("value") for t in extra.get("tags", [])} \
+                if isinstance(extra, dict) else {}
+            checks.append((f"{name} event filed under development, operation={name}",
+                           tags.get("environment") == "development"
+                           and tags.get("operation") == name))
+            checks.append((f"{name} event has no user path",
+                           not unredacted_user_paths(extra if isinstance(extra, dict) else {})))
 
     print()
     failed = 0
@@ -242,6 +308,8 @@ def main() -> None:
             failed += 1
 
     if failed:
+        for where in leaks[:5]:
+            print(f"  leak: …{where}…")
         print("\n  --- message body ---")
         for line in body.splitlines():
             print(f"  | {line}")
