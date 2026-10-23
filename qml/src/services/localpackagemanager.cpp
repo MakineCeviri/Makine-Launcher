@@ -1563,6 +1563,37 @@ static bool mirrorTree(const QString& src, const QString& dst, const QString& ga
     return true;
 }
 
+// What a program wrote beside itself in its stage, the text files of it: its
+// log (Heavy Rain's tool keeps HR_yama_gunluk.txt next to the exe and asks for
+// it when something goes wrong). The stage is deleted when the program ends,
+// so they are copied to <logs>/programs/<game>/<time>/; the folder, or "".
+static QString keepProgramNotes(const QString& stage, const QString& packageDir, const QString& gameId)
+{
+    if (stage.isEmpty()) return {};
+    const QString to = QStringLiteral("%1/programs/%2/%3").arg(AppPaths::logsDir(), gameId,
+        QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
+    const QDir base(stage);
+    int kept = 0, seen = 0;
+    QDirIterator it(stage, rawfile::kFiles, QDirIterator::Subdirectories);
+    while (it.hasNext() && kept < 20 && ++seen < 5000) {
+        const QFileInfo f(it.next());
+        const QString rel = base.relativeFilePath(f.filePath());
+        const QString ext = f.suffix().toLower();
+        if ((ext != QLatin1String("txt") && ext != QLatin1String("log")) || f.size() > 4 * 1024 * 1024
+            || rawfile::exists(QDir::cleanPath(packageDir + QLatin1Char('/') + rel)))
+            continue;
+        const QString dst = QDir::cleanPath(to + QLatin1Char('/') + rel);
+        if (QDir().mkpath(QFileInfo(dst).absolutePath()) && QFile::copy(f.filePath(), dst)) ++kept;
+    }
+    if (!kept) return {};
+    // The ten newest runs of a game are enough to send to its translator.
+    QDir runs(AppPaths::logsDir() + QStringLiteral("/programs/") + gameId);
+    const QStringList old = runs.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed);
+    for (int i = 10; i < old.size(); ++i) QDir(runs.filePath(old[i])).removeRecursively();
+    qCInfo(lcPackageManager) << "Kept" << kept << "file(s) the program wrote beside itself in" << to;
+    return to;
+}
+
 // Where one run of a package's program happens (runstage.h). Stages a day old
 // are what a crash left behind and go first.
 static QString newStageDir(const QString& gameId)
@@ -1655,7 +1686,10 @@ LocalPackageManager::ProcessResult LocalPackageManager::runPackageProgram(
                                .arg(*shownName));
     }
     head.close();
-    return runProcess(exePath, resolvedArgs, workDir, std::move(progressCallback), env);
+    const ProcessResult result = runProcess(exePath, resolvedArgs, workDir, std::move(progressCallback), env);
+    if (const QString kept = keepProgramNotes(stage, packageDir, gameId); !kept.isEmpty())
+        emit processOutput(tr("Programın yanına yazdığı günlük saklandı: %1\n").arg(QDir::toNativeSeparators(kept)));
+    return result;
 }
 
 // An option's source folder as installWithOptions resolves it: the declared

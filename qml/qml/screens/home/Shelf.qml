@@ -153,19 +153,30 @@ Card {
 
             // A plain wheel belongs to the page; a sideways one, or Shift +
             // wheel, moves the row — when there is more of it than fits.
+            // Sideways only: Shift + wheel, or a tilting wheel / touchpad. A
+            // plain wheel is the page's, and these handlers must not take it
+            // at all: one that receives a wheel event blocks the page behind
+            // it even when it ignores the event (0.2.1: the page would not
+            // scroll with the pointer over a row that overflows).
             WheelHandler {
                 target: null
                 enabled: view.overflows
-                acceptedModifiers: Qt.KeyboardModifierMask
-                onWheel: (event) => {
-                    const sideways = event.angleDelta.x !== 0
-                    const shifted = (event.modifiers & Qt.ShiftModifier) !== 0
-                    if (!sideways && !shifted) { event.accepted = false; return }
-                    const d = sideways ? event.angleDelta.x : event.angleDelta.y
-                    const lo = view.originX - view.leftMargin
-                    const hi = Math.max(lo, view.contentWidth - view.width + view.originX + view.rightMargin)
-                    view.contentX = Math.max(lo, Math.min(hi, view.contentX - d))
-                }
+                acceptedModifiers: Qt.ShiftModifier
+                onWheel: (event) => view._scrollBy(event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y)
+            }
+            WheelHandler {
+                target: null
+                enabled: view.overflows
+                orientation: Qt.Horizontal
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                acceptedModifiers: Qt.NoModifier
+                onWheel: (event) => view._scrollBy(event.angleDelta.x)
+            }
+
+            function _scrollBy(d) {
+                const lo = view.originX - view.leftMargin
+                const hi = Math.max(lo, view.contentWidth - view.width + view.originX + view.rightMargin)
+                view.contentX = Math.max(lo, Math.min(hi, view.contentX - d))
             }
 
             function _page(dir) {

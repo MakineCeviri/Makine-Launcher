@@ -132,7 +132,7 @@ ColumnLayout {
             detail: ex._ownProgram
                 ? (ex.vm.patchUndoes
                    ? qsTr("%1, oyunun bulunduğu klasörle çalışır; yazdıkları bu sayfada görünür. Kaldırırsan aynı program geri alır.")
-                   : qsTr("%1, oyunun bulunduğu klasörle çalışır; yazdıkları bu sayfada görünür. Geri alma programı yok: kaldırırsan değiştirdiği dosyalar mağazanın dosya onarımıyla geri gelir."))
+                   : qsTr("%1, oyunun bulunduğu klasörle çalışır. Bu yamanın katalog kaydında programın kaldırma komutu yazılı değil; launcher onu bu hâliyle kurmaz."))
                       .arg(ex.vm.patchProgram)
                 : qsTr("Kaldırırsan yedek geri yüklenir; kayıtlarına ve ayarlarına dokunulmaz.")
         }

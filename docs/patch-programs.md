@@ -70,6 +70,18 @@ yazar, 0.1.7 ve öncesi kendi kurmak yerine "launcher'ı güncelle" notunu gör�
    geri almayı araca bırakır.
 7. **Kaldırma programı saklanır**: paketin kopyası `<AppData>\programs\<appId>`'ye; katalog yeni bir paket
    yayımlayıp eski açılmış paket silinse de kaldırma yapılabilir.
+8. **Programın yanına yazdıkları saklanır**: geçici kopya program bitince silinir; programın kendi yanına yazdığı
+   metin dosyaları (Heavy Rain'in `HR_yama_gunluk.txt`'si gibi günlükler) önce
+   `<AppData>\logs\programs\<appId>\<zaman>\`'a kopyalanır ve yolu sayfada yazılır (oyunun son on çalışması).
+
+**Yedek yok, ve gerekmez.** Yalnız kendi programıyla kurulan yamada (bütün adımlar `run`) launcher kendi
+yedeğini almaz: programın oyunda ne yazacağını önceden hiçbir liste bilemez, yedeği ve geri almayı program
+kendisi yapar (Heavy Rain'in aracı orijinalleri arşivlerin yanına `.hryedek` olarak alır, "Yamayı Kaldır"
+ile geri koyar; ACS.exe `restore`). Launcher'ın istediği tek şey programın **nasıl geri alınacağı**dır
+(`uninstall`): o yoksa yama hiç kurulmaz ("katalog hatası", Sentry `run_no_undo`), çünkü kurulsa launcher'dan
+kaldırılamazdı. Panel bu tarifi yayınlatmaz; programın kendi "Kaldır"ı varsa kaldırma = aynı program.
+Dosya kopyalayan adımlar da olan karışık tarifte launcher kopyaladıklarını yedekler, programınkileri yine
+programa bırakır.
 
 ## Kaldırma sırası
 

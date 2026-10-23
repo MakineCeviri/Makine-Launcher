@@ -2001,11 +2001,42 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
 
             BackupManager* bm = BackupManager::instance();
+
+            // A patch only its own program installs (Heavy Rain's, AC Shadows')
+            // keeps its own backup of what that program rewrites (Heavy Rain:
+            // <archive>.hryedek beside the game's archives) and takes it back
+            // with the program's own "Kaldır" / restore. A backup of ours would
+            // hold nothing — no list says in advance what the program writes —
+            // so none is taken or asked for; uninstall starts that program
+            // (runUndoPrograms). What the recipe must give is how to undo it.
+            const auto ownProgram = m_coreBridge->ownProgramRecipe(gameId);
+            if (ownProgram == LocalPackageManager::OwnProgram::WithoutUndo && !alreadyInstalled) {
+                // Not "download it again": the recipe itself is incomplete, and
+                // every retry would end here (Heavy Rain: 56 attempts in eight
+                // minutes on 2026-10-20, 11 in one on 2026-10-23).
+                m_installTimeoutTimer->stop();
+                m_installingGameId.clear();
+                reportOperationFailure("install", gameId,
+                    QStringLiteral("own-program recipe names no uninstall program"));
+                emit translationInstallCompleted(gameId, false,
+                    tr("Bu yama kendi programıyla kuruluyor. Böyle yamalarda launcher yedek "
+                       "almaz: yedeği yamanın programı kendisi alır, kaldırırken de launcher o "
+                       "programın kaldırma komutunu çalıştırır. Bu yamanın katalog kaydında o "
+                       "komut yazılı değil; kurulsaydı buradan kaldırılamazdı. Oyun dosyalarına "
+                       "dokunulmadı.\n"
+                       "Bu bir katalog hatası ve bildirildi; düzeltildiğinde yama kurulabilecek."));
+                return;
+            }
+            if (ownProgram == LocalPackageManager::OwnProgram::WithUndo)
+                qCInfo(lcGameService) << "Recipe of" << gameId
+                                      << "is its own program with an undo - it keeps its own backup";
+
             // installPath matters: it lets the wrapper-stripping check verify a
             // package's top-level folder against the real game install, so the
             // backup list matches the files the install will actually overwrite.
-            QStringList filesToOverwrite =
-                m_coreBridge->getPackageFileList(gameId, variant, installPath);
+            QStringList filesToOverwrite = ownProgram == LocalPackageManager::OwnProgram::WithUndo
+                ? QStringList()
+                : m_coreBridge->getPackageFileList(gameId, variant, installPath);
 
             // An empty list means "could not look", never "nothing to back up".
             // getPackageFileList enumerates what the install will WRITE, and a
@@ -2024,14 +2055,8 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             // and the install resolved the package differently). This closes
             // the shape itself: whatever the reason, a patch never goes on top
             // of originals we did not manage to record.
-            // A recipe that is only the patch's own program writes where no list
-            // can see in advance. It may go in without a backup of ours when it
-            // also names the program that undoes it: uninstall starts that one
-            // (runUndoPrograms). Without it, nothing could take it back.
-            const auto ownProgram = m_coreBridge->ownProgramRecipe(gameId);
-            if (ownProgram == LocalPackageManager::OwnProgram::WithUndo && filesToOverwrite.isEmpty())
-                qCInfo(lcGameService) << "Recipe of" << gameId
-                                      << "is its own program with an undo - no backup of ours";
+            // A recipe that is only the patch's own program goes in without a
+            // backup of ours (above).
             if (bm && !alreadyInstalled && filesToOverwrite.isEmpty()
                 && ownProgram != LocalPackageManager::OwnProgram::WithUndo) {
                 // Warning, not critical: a critical log is a Sentry event of
@@ -2055,21 +2080,6 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                                             .arg(unknown.join(QStringLiteral(", ")));
                     reportOperationFailure("install", gameId, msg);
                     emit translationInstallCompleted(gameId, false, msg);
-                    return;
-                }
-
-                // Not "download it again": the recipe itself is incomplete, and
-                // every retry would end here. 56 attempts in eight minutes on
-                // Heavy Rain (2026-10-20) were this.
-                if (ownProgram == LocalPackageManager::OwnProgram::WithoutUndo) {
-                    reportOperationFailure("install", gameId,
-                        QStringLiteral("own-program recipe names no uninstall program; "
-                                       "refusing without a backup"));
-                    emit translationInstallCompleted(gameId, false,
-                        tr("Bu yama kendi programıyla kuruluyor, ama onu geri alacak "
-                           "kaldırma programı tanımlanmamış. Oyun dosyalarına dokunulmadı: "
-                           "değişiklikler yedeklenemez ve geri alınamazdı.\n"
-                           "Bu bir katalog hatası ve bildirildi; düzeltildiğinde yama kurulabilecek."));
                     return;
                 }
 
