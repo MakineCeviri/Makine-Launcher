@@ -130,6 +130,13 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ---
 
+## [0.2.2-beta] - 2026-10-23
+
+### Düzeltilen
+- **Dolu rafın üstünde sayfa kaymıyordu** (0.2.0): rafın `WheelHandler`'ı tekerlek olayını yok saysa da arkasındaki sayfayı engelliyordu. Artık yalnız Shift + tekerlek ve yatay tekerlek rafın (iki ayrı işleyici, `acceptedModifiers` / `orientation`), düz tekerlek sayfanın
+- **Kendi programıyla kurulan yamada yedek istenmiyor**: launcher yedek listesi çıkarmıyor (yedeği ve geri almayı program yapar: Heavy Rain `.hryedek`, ACS `restore`). Kaldırma komutu tanımsız tarif yine kurulmuyor, ama mesaj yedekten değil eksik komuttan söz ediyor; açıklama kartı da aynı şeyi söylüyor
+- **Programın günlüğü saklanıyor**: programın geçici kopyada kendi yanına yazdığı metin dosyaları (`HR_yama_gunluk.txt`) kopya silinmeden `logs/programs/<oyun>/<zaman>/`'a alınıyor, yolu oyunun sayfasında
+
 ## [0.2.1-beta] - 2026-10-23
 
 ### Düzeltilen
