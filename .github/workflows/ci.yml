@@ -100,21 +100,13 @@ jobs:
       - name: Build
         run: cmake --build --preset dev
 
-      # From 0.1.6 on makine_tests printed nothing and the job ran into its
-      # 90-minute limit: a binary that cannot load (a DLL or an entry point
-      # missing) waits on a loader dialog no one can see. Say which DLLs it
-      # would take, and give a hang two minutes rather than the whole job.
-      - name: Check the test binaries load
-        shell: pwsh
-        run: |
-          $env:PATH = "$env:VCPKG_ROOT\installed\x64-mingw-dynamic\bin;$env:PATH"
-          foreach ($dll in 'libstdc++-6.dll', 'libgcc_s_seh-1.dll', 'libwinpthread-1.dll', 'libgtest.dll', 'libfmt.dll', 'libspdlog.dll', 'libcrypto-3-x64.dll') {
-            $hits = $env:PATH -split ';' | Where-Object { $_ -and (Test-Path (Join-Path $_ $dll)) }
-            "${dll}: " + ($hits -join ' | ')
-          }
-          $p = Start-Process build\dev\makine_tests.exe -ArgumentList '--gtest_list_tests' -NoNewWindow -PassThru -RedirectStandardOutput list.txt
-          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'makine_tests did not start within 2 minutes (loader dialog?)' }
-          "makine_tests --gtest_list_tests: exit $($p.ExitCode), $((Get-Content list.txt).Count) lines"
-
+      # Not from bash: Git Bash puts Git's own ucrt64\bin ahead of MinGW 13.1,
+      # so the tests took Git's libstdc++/libgcc/winpthread. The suites that
+      # link spdlog (makine_tests, test_mkpktar, test_translationdownloader,
+      # test_plugininstaller, the journal integration test) then failed to
+      # bind an import and sat on a loader error dialog no one sees — from
+      # 0.1.6 on every run printed nothing and hit the 90-minute limit.
+      # pwsh keeps the runner's PATH, where MinGW and Qt come first.
       - name: Test
-        run: ctest --preset dev-tests --output-on-failure --timeout 600
+        shell: pwsh
+        run: ctest --preset dev-tests --output-on-failure --timeout 300
