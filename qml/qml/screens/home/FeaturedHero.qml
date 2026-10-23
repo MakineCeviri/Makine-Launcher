@@ -69,7 +69,7 @@ Item {
         if (f.kind === "installable") return qsTr("Bilgisayarında · Türkçe yama hazır")
         if (f.kind === "update") return qsTr("Yama güncellemesi hazır")
         if (f.kind === "installed") return qsTr("Türkçe yaman kurulu")
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f.version)
+        const m = /^(\d{4})-(\d{2})-(\d{2})(\.\d+)?$/.exec(f.version)
         if (!m) return qsTr("Yeni güncellenen yama")
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
         return qsTr("Yeni güncellendi · %1").arg(d.toLocaleDateString(Qt.locale("tr_TR"), "d MMMM"))

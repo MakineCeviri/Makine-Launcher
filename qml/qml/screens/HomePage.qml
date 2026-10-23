@@ -69,7 +69,7 @@ Item {
         _recent = out
     }
     function _dateText(v) {
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || "")
+        const m = /^(\d{4})-(\d{2})-(\d{2})(\.\d+)?$/.exec(v || "")  // same-day republish: "2026-10-23.2"
         if (!m) return ""
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
         const today = new Date()
