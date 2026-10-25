@@ -4,7 +4,7 @@
 
 > **Durum (2026-10-23):** v0.2.2-beta yayında (raf tekerleği, kendi programıyla kurulan yamada yedek istenmemesi, programın günlüğü; 0.2.1: ilk açılış donması; GitHub Releases ZIP; `dev` ucundan; görünüm Apple yapısı + 0.1.5 tonu — `docs/design.md`; yamanın kendi programı sözleşmeyle — `docs/patch-programs.md`) · Store hâlâ 0.1.5 — MSIX gönderimi sahibinde · veri tarafı (D1, R2, Assets) yayında; 0.1.5'e eski tarifler `install_methods_compat` ile gidiyor · eklenti sistemi v2 hâlâ `MAKINE_DEV_TOOLS` arkasında (ADR-0009, `docs/plugins/`; imza anahtarı → auto-memory)
 > **Devralan oturum/ekip önce oku: [`docs/handoff-2026-10-22.md`](../docs/handoff-2026-10-22.md)** — 0.2.0 durumu, nasıl çalışılır, gizli bilgilerin yeri, açık işler, tuzaklar (önceki: `docs/handoff-2026-09-23.md`).
-> **dev (2026-10-25):** 0.2.3-beta hazır, yayınlanmadı — Yenilikler sayfası + yeni sürüm bildirimi (Store'da da; `assets/launcher.json`), OyunBul parmak izi. Notlar `docs/release-notes/v0.2.3-beta.md`, Store metni `packaging/msix/store-whats-new.txt`; yayın adımları `docs/RELEASING.md` (6b, 8, 8b).
+> **0.2.3-beta (2026-10-25):** MSIX 0.2.3.0 Store sertifikasyonunda (Submission 7; etiket `v0.2.3-beta` → `47253d3`); GitHub ZIP'i henüz yok. Yenilikler sayfası + yeni sürüm bildirimi (Store'da da; `assets/launcher.json`), OyunBul parmak izi. Store metinleri ve sertifikasyon notu `packaging/msix/`, ekran görüntüleri `dist/store-screenshots-0.2.3/`. Store yayımlayınca: `just launcher-json <latest> 0.2.3-beta` (`docs/RELEASING.md` 8b). Partner Center oturumu uzunsezer123 Chrome profilinde.
 > **Sahibinde:** Store gönderimi (Partner Center — MSIX yükleme + mağaza girişi CSV'si).
 > **Eski depo:** Makine-Launcher-Dev arşivli (read-only yedek, 2026-05-20).
 

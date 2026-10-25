@@ -1,0 +1,55 @@
+Makine Launcher 0.2.3.0 (0.2.3-beta) - Notes for Certification
+--------------------------------------------------------------
+
+WHAT IT IS
+A Win32 desktop utility that installs community-made Turkish translation patches into PC games the user already owns (Steam, Epic Games, GOG, Ubisoft Connect). It is not a game. No account, login or purchase is needed. The UI is in Turkish only.
+
+WHAT CHANGED SINCE 0.1.5.0
+- New layout with a sidebar: "Ana Sayfa" (Home), "Tüm Oyunlar" (All games), "Kütüphanem" (My library), "Nasıl çalışır?" (How it works), "Yenilikler" (What's new), "Ayarlar" (Settings).
+- "Yenilikler" page: release notes and the roadmap. Built in, refreshed from https://cdn.makineceviri.org/assets/launcher.json.
+- Update notice: the Store build compares its own version with the "store" field of that file. Only when a newer version is live in the Store does the sidebar show a notice; its button opens this app's Store page (ms-windows-store://pdp/?ProductId=9NQMT44PRWHG). The Store build never downloads or installs updates itself.
+- Before installing some patches the launcher compares a fingerprint of the game files (sizes and partial hashes) with the one the patch was made on, and asks the user if the game version differs. Nothing is written before the user answers.
+
+FIRST RUN (about 1 minute)
+1. Launch "Makine Launcher" from Start. A 3-step welcome opens: "Başlayalım" (Let's start) -> "Devam" (Continue; the PC's game libraries are scanned in the background) -> preferences -> "Makine Launcher'ı aç" (Open Makine Launcher). "Atla, ayarları sonra yaparım" skips the setup.
+2. "Ana Sayfa" (Home) shows featured patches and shelves of covers. On a PC without supported games, "Kütüphanem" (My library) is empty. This is expected.
+
+QUICK TEST (no game needed)
+1. Click "Tüm Oyunlar" (All games) in the sidebar: the whole catalogue (about 240 games, https://cdn.makineceviri.org/assets/index.json).
+2. Click a cover. The game page shows the description (Steam store API), what the install will do step by step, patch notes and translation credits.
+3. If the game is not installed, the page says "Bilgisayarında bulunamadı" (not found on this PC) and the button reads "Oyun Klasörünü Seç ve Kur" (Pick the game folder and install). Nothing is written to disk unless a matching game folder is chosen.
+4. "Yenilikler" (What's new) shows this version's notes and "Güncelsin" (You are up to date).
+5. "Ayarlar" (Settings): "Genel" (General), "Görünüm" (Appearance: light or dark), "Hakkında" (About). About shows version 0.2.3.0-beta and links the privacy policy.
+
+OPTIONAL FULL TEST (needs a catalogue game installed through Steam, Epic, GOG or Ubisoft Connect)
+1. The launcher finds the game on its own (Steam libraryfolders.vdf, Epic manifests, GOG and Ubisoft registry entries, common game folders), or the user adds it with "Oyun ekle" (Add game) or by dropping the game folder on the window.
+2. Open the game's page and click "Türkçe Yamayı Kur" (Install Turkish patch). The launcher downloads the package from cdn.makineceviri.org/data/, verifies it against the catalogue, backs up every file it will overwrite, then writes the translated files into the game folder.
+3. "Kaldır" (Remove), next to "Türkçe yama kurulu" (Turkish patch installed), puts the original files back from the backup.
+4. If the game folder is not writable by the user (for example under C:\Program Files), a small helper included in the package, makine-elevate.exe, asks for approval through the standard UAC prompt and copies the files. Only this helper elevates, only for that step; Makine-Launcher.exe always runs as the user (asInvoker).
+
+WHY runFullTrust IS NEEDED
+The app reads and writes game files outside its package (the user's own game folders), reads Steam/Epic/GOG/Ubisoft install records, lists running processes only to ask the user to close a game before patching it, and starts makine-elevate.exe for protected folders. A few patches ship the translator's own installer; it is run with the user's rights from a temporary copy, without a console window, and its output is shown on the game page. The app installs no drivers or services, does not inject into game processes, and does not modify anti-cheat software.
+
+NETWORK
+- cdn.makineceviri.org: catalogue, cover images, translation packages, launcher.json (public, read-only)
+- makineceviri.org: catalogue updates and anonymous usage counts
+- store.steampowered.com, cdn.akamai.steamstatic.com: game descriptions and images
+- ingest.de.sentry.io: crash reports
+No inbound connections, no listening ports. Without internet the app still opens and shows a "no internet connection" banner.
+
+DATA AND PRIVACY
+The app sends anonymous operation results (for example: install succeeded or failed, app version) and crash/error reports (stack trace, app and Windows version, the failing step). User names are removed from file paths. No account, e-mail address or personal files are collected. Crash reports can be turned off in Settings > General. The privacy policy (https://makineceviri.org/gizlilik-politikasi/) is linked in Settings > About ("Gizlilik politikası").
+
+OTHER BEHAVIOUR
+- "Windows ile başlat" (Start with Windows) and "Kapatınca tepside çalışsın" (Keep running in the tray) are off by default.
+- Some catalogue entries are hosted by partner translation sites (Hangar Çeviri, ApexYama). Their covers say "Dış sitede" (On an external site); the button opens the partner website in the browser instead of installing.
+- Translations are made by the community and are not official; the app says so on each game page.
+
+DISTRIBUTION
+The source code is public at https://github.com/MakineCeviri/Makine-Launcher (tag v0.2.3-beta).
+
+CONTACT
+Developer: Sezer UZUN (Makine Çeviri)
+Email: sezeruzun@makineceviri.org
+Website: https://makineceviri.org
+If anything is unclear, please email us before failing the submission.
