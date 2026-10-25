@@ -1,6 +1,6 @@
 # Yamanın kendi programı — launcher ile sözleşme
 
-> **Tarih:** 2026-10-22 · **Launcher:** 0.2.0 (tarif seviyesi 3) · **Kod:** `qml/src/services/runstage.h`, `changescan.h`, `localpackagemanager.cpp` (`runPackageProgram`, `executeInstallSteps`, `runUndoPrograms`), `gamefolderrules.h` (`missingRequired`)
+> **Tarih:** 2026-10-22, parmak izi ve `${exeDir}` 2026-10-25 · **Launcher:** 0.2.0 (tarif seviyesi 3), 0.2.3 (seviye 4) · **Kod:** `qml/src/services/runstage.h`, `changescan.h`, `gameprint.h`, `localpackagemanager.cpp` (`runPackageProgram`, `executeInstallSteps`, `runUndoPrograms`, `gamePrints`), `gamefolderrules.h` (`missingRequired`), `gameservice.cpp` (`installPackageCommon`, `holdInstallForPrint`)
 
 Bazı yamalar dosya kopyalayarak kurulmaz: çevirmenin aracı oyunun arşivlerini yerinde yeniden yazar
 (Heavy Rain'in `HeavyRain_Turkce_Yama.exe`'si, AC Shadows'un `ACS.exe pack`'i). Bu araçlar çevirmenin
@@ -24,13 +24,67 @@ başka bir şeydir. Bu belge, böyle bir aracın launcher'la nasıl kusursuz ça
 
 | Alan | Anlamı |
 |---|---|
-| `exe` / `args` | Paketteki program ve argümanları. `${gamePath}` launcher'ın bulduğu oyun klasörü, `${packageDir}` paketin (geçici) kopyası |
+| `exe` / `args` | Paketteki program ve argümanları. `${gamePath}` (ya da `${gameRoot}`) launcher'ın bulduğu oyunun kök klasörü, `${exeDir}` oyunun exe'sinin klasörü (Elden Ring'de `<kök>\Game`; bilinmiyorsa kök), `${packageDir}` paketin (geçici) kopyası |
 | `workDir` | `package`: program paketin kopyasında çalışır (yanındaki dosyaları bulur); `game`: oyun klasöründe |
 | `uninstall` / `uninstallArgs` | Kaldırırken çalışacak program; argüman yoksa kurulumunkiler kullanılır |
 | `requires` | Oyun klasöründe **programdan önce** bulunması gereken dosyalar (oyun klasörüne göre). Kurulumda yalnız seçilen sürümün/seçeneklerin adımlarındakiler aranır |
 
 `requires` içeren bir `run` adımı seviye 3'tür: panel yayınlarken `install_methods_compat`'a seviye 3 satırı
-yazar, 0.1.7 ve öncesi kendi kurmak yerine "launcher'ı güncelle" notunu görür.
+yazar, 0.1.7 ve öncesi kendi kurmak yerine "launcher'ı güncelle" notunu görür. Argümanlarında `${gameRoot}` ya da
+`${exeDir}` olan adım seviye 4'tür (0.2.3): eski launcher programa yer tutucunun kendisini verirdi.
+
+`${exeDir}` şuradan bulunur: paketin parmak izi (aşağıda) klasörü tutuyorsa onun exe'si, yoksa katalogdaki exe
+adlarından oyun klasöründe ilk bulunan. Elden Ring'in `ER.exe`'si `Data0.bhd`'nin olduğu `Game\` klasörünü ister:
+`["pack", "metinler_Turkish_tam.tsv", "--game", "${exeDir}"]`.
+
+## Oyunun parmak izi (OyunBul)
+
+Çevirmenlerin yamalarla dağıttığı **OyunBul**, yamanın hazırlandığı oyun kopyasının parmak izini `game.bin`'e
+yazar: ana exe, yanındaki öteki exe'ler (başka mağazanın sürümü exe'sine başka ad verir) ve oyunun ağacına yayılmış
+~10 örnek dosya; her biri göreli yol + boyut + baştaki ve sondaki 64 KB'ın özeti. Launcher aynı kurallarla
+(`gameprint.h`, OyunBul'un yazdığı bir `game.bin` ile birebir sınanır: `tests/ui/test_gameprint.cpp`) bir klasöre
+bakar:
+
+| Sonuç | Koşul |
+|---|---|
+| TAM | exe (ya da yedek exe) ve örneklerin en az %80'i birebir |
+| sürüm farklı | exe yerinde, örneklerin en az %60'ı aynı göreli yolda |
+| exe tahmini | bilinen exe'lerin hiçbiri yok ama örneklerin en az %80'i yerinde (sürüm farklı sayılır) |
+| eşleşmedi | geri kalanı |
+
+**Nereden gelir** (`LocalPackageManager::gamePrints`, ikisi birden olabilir):
+- katalogdaki `fingerprint`: `exe` + `altExes` + nesne olarak `keyFiles` (aşağıda). Ad olarak `keyFiles`
+  (`"Game"`) eski anlamını korur; 0.2.2 ve öncesi nesneleri atlar.
+- paketin içindeki `game.bin` (kökte ya da en çok 3 klasör aşağıda; sürüm klasörü başına bir tane olabilir,
+  en iyi tutan sayılır). D1'e hiçbir şey eklemeden çalışır: çevirmen `game.bin`'i paketin içine koyar.
+
+```json
+"fingerprint": {
+  "exeNames": ["heavyrain.exe"],
+  "rootName": "HEAVY RAIN",
+  "exe":      {"rel": "HeavyRain.exe", "size": 26214400, "hash": "<32 hex>", "version": "1.0.0.0"},
+  "altExes":  [{"rel": "...", "size": 0, "hash": "<32 hex>"}],
+  "keyFiles": ["Resources", {"rel": "Resources/BigFile_WIN.d01", "size": 1058013184, "hash": "<32 hex>"}],
+  "match": 0.6, "exact": 0.8
+}
+```
+
+`hash`: SHA-256(uzunluk 8 bayt LE + ilk `min(64 KB, uzunluk)` bayt + uzunluk 64 KB'tan büyükse
+`max(64 KB, uzunluk − 64 KB)` ofsetinden sona kadar), ilk 16 bayt. `game.bin` düzeni `gameprint.h`'nin başında.
+
+**Ne zaman bakılır:**
+- **Kurulum ön kontrolünde** (`requires`'tan sonra, yazma izninden önce). Yama o klasörde zaten kuruluysa
+  bakılmaz: yama örneklenen dosyaların bir kısmını değiştirmiştir.
+  - TAM → kurulum sürer.
+  - eşleşmedi ama bir üst/alt klasör tutuyor (repack'in `<Oyun>\<Oyun>`'u, oyunun içinden bir klasör) → oyun
+    oraya bağlanır, kurulum yeniden başlar.
+  - sürüm farklı / eşleşmedi → **oyuna dokunulmadan durur**, sayfada bir soru açılır: "Oyunun sürümü yamanınkinden
+    farklı" ya da "Bu klasör yamanın oyununa benzemiyor" (+ sayfadaki "Klasörü değiştir"). "Yine de kur" aynı
+    sürüm/seçeneklerle devam eder (`GameService::installAnyway`). Sayım kanalına `game_version_differs` /
+    `fingerprint_mismatch` (taraf `user`) gider, Sentry'ye gitmez.
+- **Klasör seçilince / sayfa açılınca** (`inspectGameFolder`): parmak izinin tuttuğu klasör, düzen kurallarının
+  bulduğundan önce gelir; parmak izi varken hiçbir klasör tutmuyorsa karar "emin değil"dir.
+- **Program çalışırken**: `${exeDir}`, `MAKINE_EXE_KLASORU` ve kopyadaki `game.path` (aşağıda).
 
 ## Kurulum sırası
 
@@ -41,7 +95,7 @@ yazar, 0.1.7 ve öncesi kendi kurmak yerine "launcher'ı güncelle" notunu gör�
    o klasörde zaten kuruluysa (güncelleme) klasör değiştirilemez: mesaj oyunu güncelleyip dosyalarını
    doğrulamayı söyler. Yazma izni (UAC) bu kontrolden sonra istenir.
 2. **`<oyun>\.makine` yazılır**: launcher'ın klasör notu; `.bat`'ın okuyabileceği biçimde
-   (`set "OYUN=…"`, `set "MAKINE_OYUN=…"`, `set "MAKINE_OYUN_ID=…"`). Kaldırınca silinir.
+   (`set "OYUN=…"`, `set "MAKINE_OYUN=…"`, `set "MAKINE_OYUN_ID=…"`, `set "MAKINE_EXE_KLASORU=…"`). Kaldırınca silinir.
 3. **Oyun klasörünün dökümü alınır** (dosya başına boyut + değişme zamanı, `changescan::take`).
 4. **Paket geçici klasöre kopyalanır** (`%TEMP%\MakineLauncher\run\<appId>-<zaman>`; 4 MB üstü dosyalar hard
    link). Kopyada:
@@ -55,9 +109,13 @@ yazar, 0.1.7 ve öncesi kendi kurmak yerine "launcher'ı güncelle" notunu gör�
      (`steamapps\common\Steamworks Shared`, `Epic Games\Launcher`) olduğu gibi kalır. Doğru klasörü zaten
      yazan satıra dokunulmaz.
    - yalnız bir oyun klasörü tutan küçük dosya (`game.path`) launcher'ın klasörünü tutar.
+   - her `game.bin`'in (OyunBul) yanına OyunBul'un üç satırlık `game.path`'i yazılır: exe'nin klasörü, oyunun
+     kökü, exe'nin tam yolu. Yamanın `.bat`'ı `OyunBul.exe bul` derse kayıtlı yolu geçerli bulup hemen biter;
+     bütün diskleri taramaz, oyunun başka bir kopyasını da seçemez. `set /p` ile okuyan betik de doğru yolu alır.
 
    Paketin kendisi değişmez; bir sonraki kurulum yine çevirmenin dosyalarından başlar.
-5. **Program çalışır**: argümanlarda `${gamePath}`, ortamda `MAKINE_OYUN` / `MAKINE_PAKET` / `MAKINE_OYUN_ID`
+5. **Program çalışır**: argümanlarda `${gamePath}` / `${gameRoot}` / `${exeDir}`, ortamda `MAKINE_OYUN` /
+   `MAKINE_PAKET` / `MAKINE_OYUN_ID` / `MAKINE_EXE_KLASORU`
    (ortam değeri UTF-16'dır, Türkçe harfli klasörler `.bat`'ın kod sayfasından etkilenmez). Çıktısı oyunun
    sayfasında görünür, sorduğu soruya oradan yanıt verilir. Kendi penceresi olan program (PE alt sistemi GUI)
    için sayfa "işlemi o pencerede yapın, bitince kapatın" der; launcher pencere kapanana kadar bekler (en fazla 2 saat).
@@ -120,6 +178,7 @@ kanalında hepsi sayılır:
 | `tool_missing` · `tool_stage_failed` | Program pakette yok · geçici kopya hazırlanamadı |
 | `tool_start_failed` · `tool_exit_code` · `tool_timeout` · `elevation_declined` | Başlamadı · 0 dışı kod · 2 saat · UAC'ye "Hayır" |
 | `program_no_change` | Program 0 ile çıktı ama oyunda hiçbir şey değişmedi (kurulum olmamış sayıldı) |
+| `game_version_differs` · `fingerprint_mismatch` | Parmak izi: oyun başka sürüm · klasör yamanın oyununa benzemiyor; kurulum oyuncuya soruldu (yalnız sayım, Sentry'ye gitmez) |
 | `uninstall_tool` | Kaldırma programı başarısız (mesajda neden: bulunamadı, kod …) |
 | `uninstall_tool_no_change` | Kaldırma programı oyunda hiçbir şey değiştirmedi |
 | `uninstall_tool_skipped` | İki hatadan sonra programsız kaldırıldı, mağaza onarımı başladı |
@@ -128,6 +187,9 @@ kanalında hepsi sayılır:
 
 ## Çevirmen için kısa kural
 
+- Paketin içine **`game.bin`** koy (OyunBul: `OyunBul.exe ornekle <oyun_klasörü>`): **temiz** kurulumdan al,
+  yamanın değiştireceği dosyaları `--haric` ile dışarıda bırak (`--haric "*.forge;update_4.rpf"`). Launcher
+  kurmadan önce oyuncunun oyununu onunla karşılaştırır, başka sürümse sorar, `${exeDir}`'i ondan bulur.
 - Oyun klasörünü **argümanla** al (`--oyun <klasör>`, `--game <klasör>`, `%1`) ya da `MAKINE_OYUN` ortam
   değişkeninden / oyun klasöründeki `.makine`'den oku. Betikte sabit yazdıysan launcher düzeltir.
 - Kaldırma komutu olsun (`restore <klasör>`, `--kaldir`); yoksa "Kaldır" yamayı geri alamaz.
