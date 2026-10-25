@@ -318,6 +318,23 @@ void parseStoreIds(PackageCatalogEntry& entry, const json& obj,
     }
 }
 
+// One {rel, size, hash} entry of an OyunBul print; false when it is not a
+// usable one (a hash that is not 32 hex characters cannot match anything).
+bool parsePrintFile(const json& j, GameFingerprint::File& out)
+{
+    if (!j.is_object()) return false;
+    const auto text = [&j](const char* key) {
+        return j.contains(key) && j[key].is_string() ? j[key].get<std::string>() : std::string();
+    };
+    out.rel = text("rel");
+    out.hash = text("hash");
+    if (!j.contains("size") || !j["size"].is_number_integer()) return false;
+    out.size = j["size"].get<int64_t>();
+    return !out.rel.empty() && out.size >= 0 && out.hash.size() == 32
+        && std::all_of(out.hash.begin(), out.hash.end(),
+                       [](unsigned char c) { return std::isxdigit(c) != 0; });
+}
+
 void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
 {
     if (!obj.contains("fingerprint") || !obj["fingerprint"].is_object()) return;
@@ -329,12 +346,39 @@ void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
             if (e.is_string()) gfp.exeNames.push_back(e.get<std::string>());
         }
     }
+    // keyFiles: names for the scan ("Game", "data.win"), or — as objects —
+    // the samples of the copy the patch was made on. Launchers before 0.2.3
+    // skip the objects.
     if (fp.contains("keyFiles") && fp["keyFiles"].is_array()) {
         for (const auto& k : fp["keyFiles"]) {
+            GameFingerprint::File f;
             if (k.is_string()) gfp.keyFiles.push_back(k.get<std::string>());
+            else if (parsePrintFile(k, f)) gfp.samples.push_back(std::move(f));
         }
     }
     gfp.engineHint = fp.value("engineHint", "");
+    if (fp.contains("exe") && parsePrintFile(fp["exe"], gfp.printExe)) {
+        if (fp["exe"].contains("version") && fp["exe"]["version"].is_string())
+            gfp.exeVersion = fp["exe"]["version"].get<std::string>();
+        if (fp.contains("altExes") && fp["altExes"].is_array()) {
+            for (const auto& a : fp["altExes"]) {
+                GameFingerprint::File f;
+                if (parsePrintFile(a, f)) gfp.altExes.push_back(std::move(f));
+            }
+        }
+        if (fp.contains("rootName") && fp["rootName"].is_string())
+            gfp.rootName = fp["rootName"].get<std::string>();
+        const auto ratio = [&fp](const char* key, double fallback) {
+            if (!fp.contains(key) || !fp[key].is_number()) return fallback;
+            const double r = fp[key].get<double>();
+            return r > 0.0 && r <= 1.0 ? r : fallback;
+        };
+        gfp.matchRatio = ratio("match", 0.6);
+        gfp.exactRatio = ratio("exact", 0.8);
+    } else {
+        gfp.printExe = {};
+        gfp.samples.clear();   // samples without their exe judge nothing
+    }
 
     // Merge, do not replace. Detail files often carry a partial fingerprint —
     // keyFiles and an engine hint but no exeNames — while the index always ships
@@ -351,6 +395,15 @@ void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
                 gfp.exeNames.push_back(e);
         if (gfp.keyFiles.empty())   gfp.keyFiles   = prev.keyFiles;
         if (gfp.engineHint.empty()) gfp.engineHint = prev.engineHint;
+        if (gfp.printExe.rel.empty() && !prev.printExe.rel.empty()) {
+            gfp.rootName = prev.rootName;
+            gfp.exeVersion = prev.exeVersion;
+            gfp.printExe = prev.printExe;
+            gfp.altExes = prev.altExes;
+            gfp.samples = prev.samples;
+            gfp.matchRatio = prev.matchRatio;
+            gfp.exactRatio = prev.exactRatio;
+        }
     }
 
     entry.fingerprint = std::move(gfp);

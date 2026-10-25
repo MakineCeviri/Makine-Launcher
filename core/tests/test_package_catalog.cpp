@@ -243,6 +243,52 @@ TEST_F(PackageCatalogTest, EnrichPoolsExeNamesAndMatchesPathsByFileName) {
     EXPECT_EQ(catalog_.getAllExeMap().at("start_er.exe"), "1245620");
 }
 
+// The OyunBul print of the copy a patch was made on rides in the same object:
+// "exe", "altExes" and keyFiles given as {rel, size, hash}. Name keyFiles keep
+// their meaning, a broken entry is dropped, and a later detail without a print
+// (an old API answer) does not wipe the one already known.
+TEST_F(PackageCatalogTest, EnrichReadsOyunBulPrint) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    const std::string h(32, 'a');
+    json detail;
+    detail["fingerprint"] = {
+        {"rootName", "ELDEN RING"},
+        {"exe", {{"rel", "Game/eldenring.exe"}, {"size", 84000000}, {"hash", h}, {"version", "2.6.1"}}},
+        {"altExes", json::array({{{"rel", "Game/start_protected_game.exe"}, {"size", 1000}, {"hash", h}},
+                                 {{"rel", "bad.exe"}, {"size", 1}, {"hash", "xyz"}}})},
+        {"keyFiles", json::array({"Game",
+                                  {{"rel", "Game/Data0.bdt"}, {"size", 5000000000LL}, {"hash", h}},
+                                  {{"rel", "Game/oo2core_6_win64.dll"}, {"size", "12"}, {"hash", h}}})},
+        {"match", 0.5},
+        {"exact", 7},
+    };
+    EXPECT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+
+    auto pkg = catalog_.getPackage("1245620");
+    ASSERT_TRUE(pkg.has_value() && pkg->fingerprint.has_value());
+    const packages::GameFingerprint& fp = *pkg->fingerprint;
+    EXPECT_EQ(fp.rootName, "ELDEN RING");
+    EXPECT_EQ(fp.printExe.rel, "Game/eldenring.exe");
+    EXPECT_EQ(fp.printExe.size, 84000000);
+    EXPECT_EQ(fp.exeVersion, "2.6.1");
+    ASSERT_EQ(fp.altExes.size(), 1u);
+    ASSERT_EQ(fp.keyFiles.size(), 1u);
+    EXPECT_EQ(fp.keyFiles[0], "Game");
+    ASSERT_EQ(fp.samples.size(), 1u);
+    EXPECT_EQ(fp.samples[0].size, 5000000000LL);
+    EXPECT_DOUBLE_EQ(fp.matchRatio, 0.5);
+    EXPECT_DOUBLE_EQ(fp.exactRatio, 0.8);   // out of range: the default
+
+    json old;
+    old["fingerprint"] = {{"exeNames", json::array({"eldenring.exe"})}};
+    EXPECT_TRUE(catalog_.enrichPackage("1245620", old.dump()));
+    pkg = catalog_.getPackage("1245620");
+    ASSERT_TRUE(pkg.has_value() && pkg->fingerprint.has_value());
+    EXPECT_EQ(pkg->fingerprint->printExe.rel, "Game/eldenring.exe");
+    EXPECT_EQ(pkg->fingerprint->samples.size(), 1u);
+}
+
 TEST_F(PackageCatalogTest, EnrichPackageNonexistentAppId) {
     ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
     EXPECT_FALSE(catalog_.enrichPackage("999999", makeEnrichmentJson()));

@@ -141,6 +141,27 @@ struct GameFingerprint {
     std::vector<std::string> exeNames;   // Expected executable names (lowercase)
     std::vector<std::string> keyFiles;   // Paths/files unique to this game
     std::string engineHint;              // Normalized engine type for cross-check
+
+    /**
+     * @brief One file of the copy a patch was made on (OyunBul's game.bin)
+     *
+     * `hash` is 32 hex characters: SHA-256 of the length and the first and
+     * last 64 KB, cut to 16 bytes (qml/src/services/gameprint.h).
+     */
+    struct File {
+        std::string rel;      // relative to the game root, "/" or "\\" separated
+        int64_t size{0};
+        std::string hash;
+    };
+    // The copy itself: "exe", "altExes", and "keyFiles" given as objects.
+    // Empty printExe.rel: the catalogue carries no such print.
+    std::string rootName;
+    std::string exeVersion;
+    File printExe;
+    std::vector<File> altExes;
+    std::vector<File> samples;
+    double matchRatio{0.6};
+    double exactRatio{0.8};
 };
 
 /**
