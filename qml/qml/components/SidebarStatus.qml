@@ -16,6 +16,7 @@ ColumnLayout {
     id: status
 
     signal openSettings()
+    signal openWhatsNew()
 
     spacing: 8
 
@@ -97,9 +98,8 @@ ColumnLayout {
                 style: status._state === UpdateService.Available || status._state === UpdateService.Ready
                        ? "filled" : "gray"
                 fillWidth: true
-                text: status._state === UpdateService.Available ? qsTr("İndir")
-                    : status._state === UpdateService.Ready ? qsTr("Yeniden başlat ve kur")
-                    : qsTr("Vazgeç")
+                text: UpdateService.actionText
+                trailingIcon: UpdateService.opensPage ? Icons.arrowUpRight : ""
                 onClicked: {
                     switch (status._state) {
                     case UpdateService.Available: UpdateService.download(); break
@@ -109,14 +109,26 @@ ColumnLayout {
                     }
                 }
             }
-            AppButton {
+            RowLayout {
                 Layout.fillWidth: true
                 visible: status._state === UpdateService.Available
-                size: "small"
-                style: "plain"
-                fillWidth: true
-                text: qsTr("Sonra")
-                onClicked: UpdateService.dismiss()
+                spacing: 4
+                AppButton {
+                    Layout.fillWidth: true
+                    size: "small"
+                    style: "plain"
+                    fillWidth: true
+                    text: qsTr("Neler yeni?")
+                    onClicked: status.openWhatsNew()
+                }
+                AppButton {
+                    Layout.fillWidth: true
+                    size: "small"
+                    style: "plain"
+                    fillWidth: true
+                    text: qsTr("Sonra")
+                    onClicked: UpdateService.dismiss()
+                }
             }
         }
     }

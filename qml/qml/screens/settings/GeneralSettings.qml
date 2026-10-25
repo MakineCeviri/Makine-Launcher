@@ -99,7 +99,7 @@ ColumnLayout {
             subtitle: {
                 switch (generalRoot._state) {
                 case UpdateService.Checking:    return qsTr("Yeni sürüm var mı diye bakılıyor…")
-                case UpdateService.Available:   return qsTr("Yeni sürüm hazır: %1. İndirince launcher kendini yeniler; kurulu yamalarına dokunulmaz.").arg(UpdateService.version)
+                case UpdateService.Available:   return qsTr("Yeni sürüm çıktı: %1. %2").arg(UpdateService.version).arg(UpdateService.actionHint)
                 case UpdateService.Downloading: return qsTr("İndiriliyor… %%1").arg(Math.round(UpdateService.progress * 100))
                 case UpdateService.Verifying:   return qsTr("İndirilen dosya doğrulanıyor…")
                 case UpdateService.Ready:       return qsTr("Güncelleme hazır. Launcher kapanıp yeni sürümle açılır.")
@@ -122,7 +122,8 @@ ColumnLayout {
                 visible: generalRoot._state === UpdateService.Available
                 size: "small"
                 style: "filled"
-                text: qsTr("İndir ve kur")
+                text: UpdateService.actionText
+                trailingIcon: UpdateService.opensPage ? Icons.arrowUpRight : ""
                 onClicked: UpdateService.download()
             }
             AppButton {

@@ -15,7 +15,8 @@
  *   assets/packages/{id}.json   - Per-game detail
  *   assets/images/{id}.png      - Game cover images (260x370)
  *   assets/banners/{name}.png   - Announcement banners
- *   assets/update.json          - Self-update metadata
+ *   assets/launcher.json        - Launcher versions, notes, plan (0.2.3+)
+ *   assets/update.json          - Self-update metadata (0.2.2 and older)
  *   data/{id}.makine            - Encrypted translation packages
  */
 
@@ -31,7 +32,9 @@ inline constexpr auto kBaseUrl    = "https://cdn.makineceviri.org";
 // Asset endpoints
 inline constexpr auto kAssetsBase = "https://cdn.makineceviri.org/assets/";
 inline constexpr auto kImagesBase = "https://cdn.makineceviri.org/assets/images/";
-inline constexpr auto kUpdateJson = "https://cdn.makineceviri.org/assets/update.json";
+// The launcher's own versions, notes and plan (releasenotes.h). 0.2.2 and
+// older read assets/update.json, which stays as it is for them.
+inline constexpr auto kUpdateJson = "https://cdn.makineceviri.org/assets/launcher.json";
 inline constexpr auto kBannersBase= "https://cdn.makineceviri.org/assets/banners/";
 
 // Data endpoint (encrypted .makine packages)

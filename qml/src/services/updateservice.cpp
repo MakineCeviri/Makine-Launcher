@@ -25,6 +25,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QCryptographicHash>
+#include <QDesktopServices>
+#include <QUrl>
 #include <memory>
 
 #ifdef Q_OS_WIN
@@ -69,10 +71,25 @@ static constexpr const char* kUpdateJsonUrl = cdn::kUpdateJson;
 // Only check once per 24 hours to avoid unnecessary requests
 static constexpr qint64 kCheckIntervalSecs = 24 * 60 * 60;
 
+// Where a new version is taken when there is no installer to swap in: the
+// Store's page of the app (its "Güncelle"), or the GitHub release of the ZIP.
+static constexpr const char* kStorePage = "ms-windows-store://pdp/?ProductId=9NQMT44PRWHG";
+static constexpr const char* kReleasesPage = "https://github.com/MakineCeviri/Makine-Launcher/releases/latest";
+
 UpdateService::UpdateService(QObject *parent)
     : QObject(parent)
 {
     security::installTlsPinning(&m_nam);
+
+    QFile bundled(QStringLiteral(":/qt/qml/MakineLauncher/resources/whatsnew.json"));
+    if (bundled.open(QIODevice::ReadOnly)) {
+        const releasenotes::Manifest m = releasenotes::parse(bundled.readAll());
+        m_bundledReleases = m.releases;
+        m_bundledRoadmap = m.roadmap;
+    }
+    m_notesSeenVersion = QSettings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"))
+                             .value(QStringLiteral("update/notesSeenVersion")).toString();
+    applyNotes({});
 }
 
 UpdateService::~UpdateService()
@@ -121,35 +138,28 @@ void UpdateService::check()
     if (m_state == Checking || m_state == Downloading)
         return;
 
-    // Store builds: Windows owns the update. Checking would find a version we
-    // cannot install anyway — see runningInsideMsixPackage().
-    if (runningInsideMsixPackage()) {
-        qCInfo(lcUpdateService)
-            << "UpdateService: packaged (MSIX) build — updates are delivered by"
-            << "the Microsoft Store, skipping self-update check";
-        setState(Idle);
-        return;
-    }
-
+    // Store builds read the manifest too, but compare against the version
+    // the Store serves and send the player there: Windows owns the install
+    // (see runningInsideMsixPackage()).
     setState(Checking);
     setError({});
+    m_lastCheck = QDateTime::currentDateTimeUtc();
 
-#ifdef MAKINE_DEV_TOOLS
-    // Dev builds: prefer GitHub Releases API (private repo, token from gh CLI)
-    m_githubToken = readGitHubToken();
-    if (!m_githubToken.isEmpty()) {
-        checkGitHub();
-        return;
-    }
-    qCDebug(lcUpdateService) << "UpdateService: No GitHub token, falling back to CDN";
-
-    QString urlStr = qEnvironmentVariable("MAKINE_UPDATE_URL");
-    if (urlStr.isEmpty())
-        urlStr = QString::fromLatin1(kUpdateJsonUrl);
-    else
-        qCDebug(lcUpdateService) << "UpdateService: Using override URL:" << urlStr;
-#else
     QString urlStr = QString::fromLatin1(kUpdateJsonUrl);
+#ifdef MAKINE_DEV_TOOLS
+    // Dev builds: an explicit manifest first, then GitHub Releases (private
+    // repo, token from gh CLI), then the CDN's.
+    if (const QString overrideUrl = qEnvironmentVariable("MAKINE_UPDATE_URL"); !overrideUrl.isEmpty()) {
+        urlStr = overrideUrl;
+        qCDebug(lcUpdateService) << "UpdateService: Using override URL:" << urlStr;
+    } else if (!runningInsideMsixPackage()) {
+        m_githubToken = readGitHubToken();
+        if (!m_githubToken.isEmpty()) {
+            checkGitHub();
+            return;
+        }
+        qCDebug(lcUpdateService) << "UpdateService: No GitHub token, falling back to CDN";
+    }
 #endif
 
     qCDebug(lcUpdateService) << "UpdateService: Checking for updates at" << urlStr;
@@ -186,93 +196,69 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
 
     const QByteArray data = reply->readAll();
     qCDebug(lcUpdateService) << "UpdateService: Received" << data.size() << "bytes";
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-
-    if (parseError.error != QJsonParseError::NoError) {
-        setError(QStringLiteral("Güncelleme bilgisi okunamadı: %1").arg(parseError.errorString()));
+    QString parseError;
+    const releasenotes::Manifest manifest = releasenotes::parse(data, &parseError);
+    if (!parseError.isEmpty()) {
+        setError(QStringLiteral("Güncelleme bilgisi okunamadı: %1").arg(parseError));
         setState(Idle);
         return;
     }
 
-    const QJsonObject obj = doc.object();
-    const QString version = obj.value(QStringLiteral("version")).toString();
-    const QString url = obj.value(QStringLiteral("url")).toString();
-    const QString checksum = obj.value(QStringLiteral("checksum")).toString();
-    const qint64 size = obj.value(QStringLiteral("size")).toInteger();
-    const QString notes = obj.value(QStringLiteral("notes")).toString();
-    const QString channel = obj.value(QStringLiteral("channel")).toString();
+    // The Store build goes by what the Store serves: a release still in
+    // certification there is out on GitHub already, but not installable.
+    const bool store = runningInsideMsixPackage();
+    m_available = store ? manifest.store : manifest.latest;
+    applyNotes(manifest);
 
-    if (version.isEmpty()) {
-        setError(QStringLiteral("Güncelleme verisi eksik veya hatalı"));
-        setState(Idle);
-        return;
-    }
-
-    // Channel filtering: dev updates only visible to dev builds
-    if (channel == QStringLiteral("dev")) {
-#ifndef MAKINE_DEV_TOOLS
-        qCDebug(lcUpdateService) << "UpdateService: Ignoring dev channel update (production build)";
-        setState(Idle);
-        return;
-#endif
-    }
-
-    // Store metadata
-    m_downloadUrl = url;
-    m_totalBytes = size;
-
-    // Strip "sha256:" prefix if present
-    m_expectedChecksum = checksum;
+    // An installer EXE to swap in (url + checksum) is used where there is
+    // one; otherwise the action opens the Store or the release page.
+    const QJsonObject obj = QJsonDocument::fromJson(data).object();
+    m_githubAssetId = 0;
+    m_downloadUrl = store ? QString() : obj.value(QStringLiteral("url")).toString();
+    m_totalBytes = obj.value(QStringLiteral("size")).toInteger();
+    m_expectedChecksum = obj.value(QStringLiteral("checksum")).toString();
     if (m_expectedChecksum.startsWith(QStringLiteral("sha256:"), Qt::CaseInsensitive))
         m_expectedChecksum = m_expectedChecksum.mid(7);
     m_expectedChecksum = m_expectedChecksum.toLower();
-
-    m_releaseNotes = notes;
-
-    // Parse version: strip "v" prefix, separate pre-release suffix
-    QString remoteRaw = version;
-    if (remoteRaw.startsWith(QLatin1Char('v')) || remoteRaw.startsWith(QLatin1Char('V')))
-        remoteRaw = remoteRaw.mid(1);
-    QString currentRaw = QCoreApplication::applicationVersion();
-
-    auto splitPreRelease = [](const QString& raw) -> std::pair<QString, QString> {
-        int dashIdx = raw.indexOf(QLatin1Char('-'));
-        if (dashIdx > 0)
-            return {raw.left(dashIdx), raw.mid(dashIdx + 1)};
-        return {raw, {}};
-    };
-
-    auto [remoteVer, remotePre] = splitPreRelease(remoteRaw);
-    auto [currentVer, currentPre] = splitPreRelease(currentRaw);
-
-    int cmp = compareVersions(remoteVer, currentVer);
-    bool hasUpdate = (cmp > 0) || (cmp == 0 && currentPre.size() > 0 && remotePre.isEmpty());
-
-    // Only a newer version needs a download URL; an older entry means up to date.
-    if (hasUpdate && url.isEmpty()) {
-        setError(QStringLiteral("Güncelleme verisi eksik veya hatalı"));
-        setState(Idle);
-        return;
+    m_pageUrl = store ? QString::fromLatin1(kStorePage)
+              : QUrl(manifest.page).scheme() == QLatin1String("https") ? manifest.page
+                                                                       : QString::fromLatin1(kReleasesPage);
+    m_releaseNotes.clear();
+    for (const QVariant& r : std::as_const(m_releases)) {
+        const QVariantMap release = r.toMap();
+        if (releasenotes::sameVersion(release.value(QStringLiteral("version")).toString(), m_available))
+            m_releaseNotes = release.value(QStringLiteral("summary")).toString();
     }
+
+    const QString currentRaw = QCoreApplication::applicationVersion();
+    const bool hasUpdate = releasenotes::isNewer(m_available, currentRaw);
 
     // Cache result with timestamp
     QSettings settings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"));
     settings.setValue(QStringLiteral("update/lastCheckTime"), QDateTime::currentDateTime());
     settings.setValue(QStringLiteral("update/cachedHasUpdate"), hasUpdate);
-    settings.setValue(QStringLiteral("update/cachedVersion"), version);
-    settings.setValue(QStringLiteral("update/cachedUrl"), url);
+    settings.setValue(QStringLiteral("update/cachedVersion"), m_available);
+    settings.setValue(QStringLiteral("update/cachedUrl"), m_downloadUrl);
 
-    qCDebug(lcUpdateService) << "UpdateService: Remote" << remoteRaw << "vs Current" << currentRaw
-             << "-> hasUpdate:" << hasUpdate;
+    qCDebug(lcUpdateService) << "UpdateService:" << (store ? "Store" : "GitHub") << m_available
+             << "vs Current" << currentRaw << "-> hasUpdate:" << hasUpdate;
 
     if (hasUpdate) {
-        m_version = version;
+        m_version = m_available;
         emit versionChanged();
         setState(Available);
     } else {
         setState(Idle);
     }
+}
+
+void UpdateService::applyNotes(const releasenotes::Manifest& fresh)
+{
+    m_releases = releasenotes::forDisplay(
+        releasenotes::mergeReleases(fresh.releases, m_bundledReleases),
+        QCoreApplication::applicationVersion(), m_available);
+    m_roadmap = (fresh.roadmap.isEmpty() ? m_bundledRoadmap : fresh.roadmap).toVariantList();
+    emit notesChanged();
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +269,7 @@ void UpdateService::download()
 {
     MAKINE_ZONE_NAMED("UpdateService::download");
     CrashReporter::addBreadcrumb("update", "UpdateService::download");
-    if (m_state != Available || m_downloadUrl.isEmpty())
+    if (m_state != Available)
         return;
 
     // GitHub asset download (private repo): use API with auth + redirect
@@ -293,6 +279,13 @@ void UpdateService::download()
         return;
     }
 #endif
+
+    // Nothing to swap in: the Store's page, or the release page of the ZIP
+    if (m_downloadUrl.isEmpty()) {
+        if (!m_pageUrl.isEmpty())
+            QDesktopServices::openUrl(QUrl(m_pageUrl));
+        return;
+    }
 
     // Validate download URL domain against allowlist
     static const QStringList allowedHosts = {
@@ -507,6 +500,30 @@ void UpdateService::dismiss()
     }
 }
 
+void UpdateService::checkIfStale(int maxAgeMs)
+{
+    if (m_state != Idle)
+        return;
+    if (m_lastCheck.isValid() && m_lastCheck.msecsTo(QDateTime::currentDateTimeUtc()) < maxAgeMs)
+        return;
+    check();
+}
+
+bool UpdateService::notesSeen() const
+{
+    return m_notesSeenVersion == QCoreApplication::applicationVersion();
+}
+
+void UpdateService::markNotesSeen()
+{
+    if (notesSeen())
+        return;
+    m_notesSeenVersion = QCoreApplication::applicationVersion();
+    QSettings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"))
+        .setValue(QStringLiteral("update/notesSeenVersion"), m_notesSeenVersion);
+    emit notesSeenChanged();
+}
+
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
@@ -572,26 +589,48 @@ bool UpdateService::busy() const
         || m_state == Verifying || m_state == Installing;
 }
 
+QString UpdateService::actionText() const
+{
+    switch (m_state) {
+    case Available:
+        if (storeBuild())
+            return tr("Store'da güncelle");
+        return opensPage() ? tr("İndir") : tr("İndir ve kur");
+    case Downloading:
+    case Verifying:   return tr("Vazgeç");
+    case Ready:       return tr("Yeniden başlat ve kur");
+    default:          return {};
+    }
+}
+
+QString UpdateService::actionHint() const
+{
+    if (m_state != Available)
+        return {};
+    if (storeBuild())
+        return tr("Microsoft Store açılır; orada \"Güncelle\"ye bas. Ayarların ve kurulu yamaların olduğu gibi kalır.");
+    if (opensPage())
+        return tr("İndirme sayfası tarayıcıda açılır. Yeni arşivi launcher'ın klasörüne, eskisinin üzerine çıkar; ayarların ve kurulu yamaların olduğu gibi kalır.");
+    return tr("İndirince launcher kendini yeniler; kurulu yamalarına dokunulmaz.");
+}
+
+bool UpdateService::opensPage() const
+{
+    return m_state == Available && m_downloadUrl.isEmpty() && m_githubAssetId == 0;
+}
+
+bool UpdateService::storeBuild() const
+{
+    return runningInsideMsixPackage();
+}
+
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
 
 int UpdateService::compareVersions(const QString& v1, const QString& v2)
 {
-    if (v1.isEmpty() || v2.isEmpty())
-        return 0;
-
-    const QStringList parts1 = v1.split(QLatin1Char('.'));
-    const QStringList parts2 = v2.split(QLatin1Char('.'));
-
-    const int maxLen = qMax(parts1.size(), parts2.size());
-    for (int i = 0; i < maxLen; ++i) {
-        const int p1 = (i < parts1.size()) ? parts1[i].toInt() : 0;
-        const int p2 = (i < parts2.size()) ? parts2[i].toInt() : 0;
-        if (p1 > p2) return 1;
-        if (p1 < p2) return -1;
-    }
-    return 0;
+    return releasenotes::compareNumbers(v1, v2);
 }
 
 void UpdateService::setState(State s)

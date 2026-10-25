@@ -14,7 +14,7 @@ pragma ComponentBehavior: Bound
  * update, a scan) at the foot.
  *
  * Indexes match Main.qml: 0 Ana Sayfa · 1 Kütüphanem · 2 Ayarlar ·
- * 3 Tüm Oyunlar · 4 Nasıl çalışır?
+ * 3 Tüm Oyunlar · 4 Nasıl çalışır? · 5 Yenilikler
  */
 Card {
     id: sidebar
@@ -127,6 +127,14 @@ Card {
             onClicked: sidebar.navigate(4)
         }
         SidebarItem {
+            glyph: Icons.sparkles
+            text: qsTr("Yenilikler")
+            // A newer launcher is out, or this one's notes are not read yet
+            dot: UpdateService.state === UpdateService.Available || !UpdateService.notesSeen
+            selected: sidebar.currentIndex === 5
+            onClicked: sidebar.navigate(5)
+        }
+        SidebarItem {
             glyph: Icons.settings
             text: qsTr("Ayarlar")
             shortcutHint: "Ctrl+,"
@@ -154,6 +162,7 @@ Card {
         SidebarStatus {
             Layout.fillWidth: true
             onOpenSettings: sidebar.navigate(2)
+            onOpenWhatsNew: sidebar.navigate(5)
         }
     }
 
@@ -178,6 +187,7 @@ Card {
         property bool selected: false
         property bool external: false
         property int count: 0
+        property bool dot: false
         signal clicked()
 
         Layout.fillWidth: true
@@ -230,6 +240,13 @@ Card {
                 font.pixelSize: Dimensions.body
                 font.weight: item.selected ? Font.DemiBold : Font.Medium
                 color: item.selected || itemHover.hovered ? Theme.textPrimary : Theme.textSecondary
+            }
+            Rectangle {
+                visible: item.dot
+                implicitWidth: 7
+                implicitHeight: 7
+                radius: 3.5
+                color: Theme.primary
             }
             Text {
                 visible: item.count > 0

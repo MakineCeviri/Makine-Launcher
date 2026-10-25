@@ -417,6 +417,10 @@ Item {
                     answer: qsTr("Hayır. Yamalar gönüllü çevirmenlerin emeğidir ve ücretsizdir; her oyunun sayfasında emeği geçenler yazar. Güvenliğin için yamaları yalnızca makineceviri.org'dan ve bu launcher'dan indir.")
                 }
                 Faq {
+                    question: qsTr("Launcher'ın yeni sürümünü nasıl alırım?")
+                    answer: qsTr("Yeni sürüm çıkınca kenar çubuğunun altında haber verilir; neyin değiştiğini kenar çubuğundaki Yenilikler'de okuyabilirsin. Launcher'ı Microsoft Store'dan kurduysan \"Store'da güncelle\" Store'u açar, güncelleme oradan gelir. Arşivden (ZIP) kurduysan \"İndir\" indirme sayfasını açar: yeni arşivi eskisinin üzerine çıkar. İki yolda da ayarların ve kurulu yamaların olduğu gibi kalır.")
+                }
+                Faq {
                     question: qsTr("Bir yamayı kaldırınca oyunuma ne olur?")
                     answer: qsTr("Kurulumda değişen oyun dosyalarının yedeği alınmıştı; kaldırınca bu yedek geri yüklenir ve yamanın eklediği dosyalar silinir. Oyunun kayıtlarına ve ayarlarına dokunulmaz.")
                 }

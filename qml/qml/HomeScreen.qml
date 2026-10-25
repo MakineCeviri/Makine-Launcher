@@ -40,7 +40,7 @@ Item {
 
     // Update check handled by UpdateService in main.cpp startup.
 
-    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?
+    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?, 4=Yenilikler
     property int currentPage: 0
 
     function showHomePage() { currentPage = 0 }
@@ -56,6 +56,10 @@ Item {
     function showHelpPage() {
         currentPage = 3
         if (helpLoader.item) helpLoader.item.scrollToTop()
+    }
+    function showWhatsNewPage() {
+        currentPage = 4
+        if (whatsNewLoader.item) whatsNewLoader.item.scrollToTop()
     }
 
     // Ctrl+F → the search of the page on show: Tüm Oyunlar, else the home page's
@@ -151,6 +155,19 @@ Item {
                 contentMargin: root.contentMargin
                 onAllGamesRequested: root.allGamesRequested("", "", "")
                 onLibraryRequested: root.libraryRequested()
+            }
+        }
+    }
+
+    Loader {
+        id: whatsNewLoader
+        anchors.fill: parent
+        active: root.currentPage === 4 || whatsNewLoader.status === Loader.Ready
+        visible: root.currentPage === 4
+        asynchronous: true
+        sourceComponent: Component {
+            WhatsNewScreen {
+                contentMargin: root.contentMargin
             }
         }
     }

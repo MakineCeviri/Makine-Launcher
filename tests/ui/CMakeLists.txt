@@ -87,6 +87,19 @@ target_include_directories(test_installsteprules PRIVATE
 target_link_libraries(test_installsteprules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_installsteprules COMMAND test_installsteprules)
 
+# The launcher's own versions, notes and plan ("Yenilikler"); in the project
+# build also the built-in notes against the version being built.
+add_executable(test_releasenotes test_releasenotes.cpp)
+target_include_directories(test_releasenotes PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_releasenotes PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+if(DEFINED MAKINE_VERSION_FULL)
+    target_compile_definitions(test_releasenotes PRIVATE
+        MAKINE_WHATSNEW_JSON="${MAKINE_PROJECT_ROOT}/qml/resources/whatsnew.json"
+        MAKINE_VERSION_FULL="${MAKINE_VERSION_FULL}")
+endif()
+add_test(NAME test_releasenotes COMMAND test_releasenotes)
+
 # A patch's own program pointed at the launcher's game folder, and what it did there.
 add_executable(test_runstage test_runstage.cpp)
 target_include_directories(test_runstage PRIVATE

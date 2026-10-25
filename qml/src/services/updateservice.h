@@ -18,7 +18,12 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QFile>
+#include <QDateTime>
+#include <QJsonArray>
+#include <QVariantList>
 #include <memory>
+
+#include "releasenotes.h"
 
 namespace makine {
 
@@ -41,6 +46,18 @@ class UpdateService : public QObject
     Q_PROPERTY(bool indicatorVisible READ indicatorVisible NOTIFY displayChanged)
     Q_PROPERTY(bool actionable READ actionable NOTIFY displayChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY displayChanged)
+    // The one action of the state (Store page, download page, install…), the
+    // sentence saying what it will do, and whether it leaves the launcher
+    Q_PROPERTY(QString actionText READ actionText NOTIFY displayChanged)
+    Q_PROPERTY(QString actionHint READ actionHint NOTIFY displayChanged)
+    Q_PROPERTY(bool opensPage READ opensPage NOTIFY displayChanged)
+    // Installed from the Microsoft Store: updates come from there
+    Q_PROPERTY(bool storeBuild READ storeBuild CONSTANT)
+
+    // ── "Yenilikler": release notes and the plan (releasenotes.h) ──
+    Q_PROPERTY(QVariantList releases READ releases NOTIFY notesChanged)
+    Q_PROPERTY(QVariantList roadmap READ roadmap NOTIFY notesChanged)
+    Q_PROPERTY(bool notesSeen READ notesSeen NOTIFY notesSeenChanged)
 
 public:
     enum State {
@@ -74,6 +91,14 @@ public:
     bool indicatorVisible() const;
     bool actionable() const;
     bool busy() const;
+    QString actionText() const;
+    QString actionHint() const;
+    bool opensPage() const;
+    bool storeBuild() const;
+
+    QVariantList releases() const { return m_releases; }
+    QVariantList roadmap() const { return m_roadmap; }
+    bool notesSeen() const;
 
     // ── QML-invokable actions ──
     Q_INVOKABLE void check();
@@ -81,6 +106,10 @@ public:
     Q_INVOKABLE void install();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void dismiss();
+    /// check() when the last one is older than `maxAgeMs` and nothing is under way
+    Q_INVOKABLE void checkIfStale(int maxAgeMs);
+    /// The running version's notes were shown
+    Q_INVOKABLE void markNotesSeen();
 
     /// Called from main.cpp on --post-update launch (static)
     static void handlePostUpdate();
@@ -94,12 +123,15 @@ signals:
     void versionChanged();
     void errorChanged();
     void displayChanged();   // statusText, indicatorVisible, busy
+    void notesChanged();
+    void notesSeenChanged();
 
 private:
     void setState(State s);
     void setError(const QString& msg);
     void onCheckFinished(QNetworkReply* reply);
     void verifyAndFinalize(const QString& filePath);
+    void applyNotes(const releasenotes::Manifest& fresh);
 
     // GitHub dev channel (private repo, token from gh CLI)
     void checkGitHub();
@@ -119,6 +151,16 @@ private:
     QString m_downloadUrl;
     QString m_expectedChecksum;
     QString m_installerPath;
+    QString m_pageUrl;          // no installer: the Store or the release page
+    QDateTime m_lastCheck;
+
+    // Notes: built-in copy, what the CDN copy added, the channel's newest
+    QJsonArray m_bundledReleases;
+    QJsonArray m_bundledRoadmap;
+    QString m_available;
+    QVariantList m_releases;
+    QVariantList m_roadmap;
+    QString m_notesSeenVersion;
     QNetworkReply* m_downloadReply{nullptr};
     std::unique_ptr<QFile> m_downloadFile;
 

@@ -329,6 +329,13 @@ msix-dynamic version identity publisher: release-mingw
     powershell -ExecutionPolicy Bypass -File scripts/make_msix.ps1 -Version "{{version}}" -IdentityName "{{identity}}" -Publisher "{{publisher}}" -ExePath "build/release-mingw/Makine-Launcher.exe" -QtBinDir "C:/Qt/6.11.1/mingw_64/bin"
     python scripts/upload_symbols.py --deploy-dir "packaging/msix/_stage"
 
+# The launcher's update manifest (versions, notes, plan) into the Assets repo;
+# pushing that repo's main publishes it to cdn.makineceviri.org/assets/launcher.json.
+# store = what the Microsoft Store serves NOW (bump it only after Partner Center publishes).
+# Usage: just launcher-json 0.2.3-beta 0.1.5-beta
+launcher-json latest store:
+    python scripts/launcher_json.py --latest "{{latest}}" --store "{{store}}" --out ../Makine-Launcher-Assets/assets/launcher.json
+
 # ============================================================================
 # PROFILING (Tracy)
 # ============================================================================

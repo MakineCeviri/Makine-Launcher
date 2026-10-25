@@ -1,0 +1,87 @@
+{
+  "releases": [
+    {
+      "version": "0.2.3-beta",
+      "date": "2026-10-25",
+      "title": "Yenilikler sayfası ve oyun sürümü kontrolü",
+      "summary": "Launcher yeni sürümünü artık kendisi haber veriyor ve neyin değiştiğini bu sayfada anlatıyor. Bazı yamalarda kurulumdan önce oyununun yamanın hazırlandığı sürüm olup olmadığına bakılıyor.",
+      "changes": [
+        { "type": "new", "text": "Yenilikler sayfası: her sürümde neyin değiştiği ve sırada ne olduğu kenar çubuğundaki Yenilikler'de. Launcher güncellendikten sonraki ilk açılışta kendiliğinden açılır." },
+        { "type": "new", "text": "Yeni sürüm bildirimi: launcher'ın yeni sürümü çıkınca kenar çubuğunun altında haber verilir. Microsoft Store'dan kurduysan \"Store'da güncelle\" Store'u açar; arşivden (ZIP) kurduysan \"İndir\" indirme sayfasını açar." },
+        { "type": "new", "text": "Oyun sürümü kontrolü: yamanın hazırlandığı oyunun parmak izi yamanın içindeyse, launcher kurmadan önce oyununun aynı sürüm olduğunu doğrular. Sürüm farklıysa ya da klasör başka bir oyunsa oyuna dokunmadan sorar; istersen \"Yine de kur\" diyebilirsin." },
+        { "type": "improved", "text": "Oyun bir üst ya da alt klasördeyse launcher parmak izinden doğru klasörü bulur ve oraya geçer." },
+        { "type": "improved", "text": "Kendi programıyla kurulan yamalara oyunun .exe dosyasının bulunduğu klasör de veriliyor (Elden Ring'in Game klasörü gibi); oyunu kendisi arayan yama programları diski taramadan hemen başlıyor." }
+      ]
+    },
+    {
+      "version": "0.2.2-beta",
+      "date": "2026-10-23",
+      "title": "Raflar ve programla kurulan yamalar",
+      "summary": "0.2.1'in düzeltmeleri: ana sayfa raflarının üstünde sayfa yine kayıyor, kendi programıyla kurulan yamalar baştan sona düzgün çalışıyor.",
+      "changes": [
+        { "type": "fixed", "text": "İmleç dolu bir rafın üstündeyken fare tekerleği sayfayı kaydırmıyordu. Artık kaydırıyor; raflar oklarla, Shift + tekerlekle ya da yatay tekerlekle kayıyor." },
+        { "type": "fixed", "text": "Kendi programıyla kurulan yamalarda (Heavy Rain gibi) yedeği ve kaldırmayı yamanın programı yapıyor; launcher artık yedek istemiyor." },
+        { "type": "improved", "text": "Yamanın programı kendi yanına günlük yazıyorsa bu dosya saklanıyor ve yeri oyunun sayfasında yazıyor; çevirmen sorunu bu dosyayla çözebilir." },
+        { "type": "fixed", "text": "Aynı gün ikinci kez güncellenen yamanın tarihi \"Yeni güncellenen yamalar\" rafında görünüyor." }
+      ]
+    },
+    {
+      "version": "0.2.1-beta",
+      "date": "2026-10-23",
+      "title": "İlk açılış düzeltmesi",
+      "summary": "Launcher'ı ilk kez açanlar için acil düzeltme.",
+      "changes": [
+        { "type": "fixed", "text": "Launcher'ı ilk kez açanlarda ilk sayfa donuyordu. Oyun kataloğu internetten gelene kadar sayfa artık sakin bekliyor, katalog gelince doluyor." }
+      ]
+    },
+    {
+      "version": "0.2.0-beta",
+      "date": "2026-10-23",
+      "title": "Yeni görünüm ve programla kurulan yamalar",
+      "summary": "0.2 serisinin ilk sürümü: gece tonunda yeni bir görünüm ve kendi programıyla kurulan yamaların launcher'la uyumlu çalışması.",
+      "changes": [
+        { "type": "new", "text": "Yeni görünüm: vurgu renginin hafif ışığıyla aydınlanan koyu bir zemin, her bölüm kendi kabında; kayan içerik kenarda kesilmeden yumuşakça kayboluyor." },
+        { "type": "new", "text": "Kendi programıyla kurulan yamalar: program çalışmadan önce oyunun klasörü doğrulanıyor, programa doğru klasör veriliyor; program oyunda hiçbir şeyi değiştirmediyse \"kuruldu\" denmiyor." },
+        { "type": "improved", "text": "\"Kaldır\" yamanın kendi geri alma programını çalıştırıp bitmesini bekliyor; programın sorduğuna oyunun sayfasından yanıt verilebiliyor." },
+        { "type": "new", "text": "Ubisoft Connect kütüphanesindeki oyunlar, kütüphane başka bir diskte olsa da bulunuyor." }
+      ]
+    },
+    {
+      "version": "0.1.7-beta",
+      "date": "2026-10-22",
+      "title": "Kenar çubuklu yeni arayüz",
+      "summary": "Launcher baştan, sade bir düzenle tasarlandı; kurulum, güncelleme ve kaldırma bir kez daha baştan sona denetlendi.",
+      "changes": [
+        { "type": "new", "text": "Soldaki kenar çubuğundan Ana Sayfa, Tüm Oyunlar ve Kütüphanem'e geçiliyor; Ana Sayfa'da öne çıkan oyunlar ve raflar var." },
+        { "type": "new", "text": "Ayarlar → Görünüm'den açık ya da koyu görünüm ve vurgu rengi seçilebiliyor." },
+        { "type": "new", "text": "Nasıl çalışır? (F1): adım adım ne olduğu, ekranda gördüğün her sözcüğün anlamı ve sık sorulanlar." },
+        { "type": "improved", "text": "Bulunamayan oyunun klasörü seçilebiliyor ya da pencereye sürüklenebiliyor; yamanın gideceği doğru klasörü launcher buluyor." },
+        { "type": "improved", "text": "Güncelleme yarıda kalırsa çalışan önceki yama yerinde kalıyor; çökmeden sonraki kurtarma geri gelen orijinal dosyaları silmiyor." }
+      ]
+    },
+    {
+      "version": "0.1.6-beta",
+      "date": "2026-10-20",
+      "title": "Daha güvenli kurulum ve kaldırma",
+      "summary": "Kurulum ve kaldırmanın doğruluğu üzerine bir sürüm; arayüzdeki donmalar giderildi.",
+      "changes": [
+        { "type": "new", "text": "Elden Ring ve Assassin's Creed (Valhalla, Odyssey, Mirage) yamaları dışarıdan bir araç çalıştırmadan, launcher'ın içinde kuruluyor." },
+        { "type": "improved", "text": "Kaldırma orijinal dosyaları koruyor; yedeği olmayan kaldırma oyunu mağazanın dosya onarımına yönlendiriyor." },
+        { "type": "fixed", "text": "Bazı ekranlarda 2 saniyeye varan donmalar giderildi." },
+        { "type": "new", "text": "Hata raporları Ayarlar → Genel'den kapatılabiliyor; açıkken de kişisel bilgi içermiyor." },
+        { "type": "improved", "text": "Katalog launcher açıkken de yenileniyor: yarım saatte bir ve pencereye dönünce." }
+      ]
+    }
+  ],
+  "roadmap": [
+    { "status": "doing", "title": "Her yamada oyun sürümü kontrolü", "text": "Sürüm kontrolü şimdilik parmak izini içinde taşıyan yamalarda. Parmak izleri kataloğa taşınınca her yamada, daha indirmeden oyununun yamayla uyumlu olup olmadığını göreceksin." },
+    { "status": "doing", "title": "Oyun güncellenince yamayı onarmak", "text": "Oyun güncellendiğinde kendi programıyla kurulan yamaların gidip gitmediğini fark edip tek tıkla yeniden kurmayı önereceğiz." },
+    { "status": "next", "title": "Bilgisayarımda ara", "text": "Launcher'ın bulamadığı oyunu bütün disklerinde oyunun parmak iziyle aramak; klasör seçmene gerek kalmayacak." },
+    { "status": "next", "title": "Xbox (Game Pass) ve EA app", "text": "Bu iki mağazanın kütüphanelerindeki oyunları da kendiliğinden bulmak." },
+    { "status": "next", "title": "Kurmadan önce boş alan", "text": "Yamanın ihtiyaç duyduğu boş alanı kurulumdan önce denetlemek; yer yetmiyorsa oyuna dokunmadan söylemek." },
+    { "status": "next", "title": "Oyunu yamayla başlatmak", "text": "Mod yükleyiciyle açılması gereken oyunlarda (Elden Ring gibi) oyunun sayfasından tek tıkla başlatmak." },
+    { "status": "later", "title": "Yama istekleri", "text": "Hangi oyunun Türkçe yamasını beklediğini launcher'dan bildirmek ve isteklerin durumunu görmek." },
+    { "status": "later", "title": "Daha küçük yama güncellemeleri", "text": "Bir yama güncellenince yalnız değişen dosyaları indirmek." },
+    { "status": "later", "title": "Arşivden kuranlara tek tıkla güncelleme", "text": "ZIP ile kuranlar için launcher'ın yeni sürümünü kendisinin indirip kurması." }
+  ]
+}

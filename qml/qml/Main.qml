@@ -36,7 +36,12 @@ ApplicationWindow {
     // Coming back to the launcher re-checks the catalog (at most every
     // 10 minutes; quiet when nothing changed), so a newly published game or
     // package update appears without a restart.
-    onActiveChanged: if (active && !window._onboardingActive) ManifestSync.syncIfStale(10 * 60 * 1000)
+    // The same for a new launcher version, at most every 6 hours.
+    onActiveChanged: {
+        if (!active || window._onboardingActive) return
+        ManifestSync.syncIfStale(10 * 60 * 1000)
+        UpdateService.checkIfStale(6 * 60 * 60 * 1000)
+    }
 
     Component.onCompleted: {
         // Freeze geometry — assigning the current value back breaks the
@@ -53,6 +58,10 @@ ApplicationWindow {
         if (typeof SettingsManager !== "undefined")
             window._onboardingActive = !SettingsManager.onboardingCompleted
                                        || Qt.application.arguments.indexOf("--onboarding") >= 0
+
+        // First start after the launcher updated: what changed, once
+        if (!window._onboardingActive && !UpdateService.notesSeen)
+            Qt.callLater(window._go, 5)
     }
 
     // Cross-monitor refresh — when the window crosses to a screen with a
@@ -71,10 +80,10 @@ ApplicationWindow {
     property int currentNavIndex: 0
 
     // Shows the page behind a navigation index: 0 Ana Sayfa · 1 Kütüphanem ·
-    // 2 Ayarlar · 3 Tüm Oyunlar · 4 Nasıl çalışır?
+    // 2 Ayarlar · 3 Tüm Oyunlar · 4 Nasıl çalışır? · 5 Yenilikler
     function _go(index) {
         window.currentNavIndex = index
-        GameService.noteScreen(["home", "library", "settings", "all-games", "help"][index] || "?")
+        GameService.noteScreen(["home", "library", "settings", "all-games", "help", "whats-new"][index] || "?")
         if (index === 2) {
             contentStackContainer.navigateTo(1)
             return
@@ -83,6 +92,7 @@ ApplicationWindow {
         if (index === 1) homeView.showLibraryPage()
         else if (index === 3) homeView.showAllGamesPage()
         else if (index === 4) homeView.showHelpPage()
+        else if (index === 5) homeView.showWhatsNewPage()
         else homeView.showHomePage()
     }
     property int previousNavIndex: 0  // Remember nav index before game detail
@@ -777,6 +787,8 @@ ApplicationWindow {
                         if (typeof SettingsManager !== "undefined") {
                             SettingsManager.onboardingCompleted = true
                         }
+                        // A new player has nothing to catch up on
+                        UpdateService.markNotesSeen()
                     }
                     window._onboardingActive = false
                 }

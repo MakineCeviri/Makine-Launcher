@@ -219,6 +219,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/Library.qml
         qml/screens/AllGames.qml
         qml/screens/HelpScreen.qml
+        qml/screens/WhatsNewScreen.qml
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
@@ -335,6 +336,8 @@ qt_add_qml_module(MakineLauncher
         resources/fonts/InterDisplay-Bold.ttf
         # Icons (Lucide subset, scripts/build_ui_fonts.py)
         resources/fonts/MakineIcons.ttf
+        # The launcher's release notes and plan (releasenotes.h)
+        resources/whatsnew.json
 )
 
 # ===== Binary Size Optimization =====
