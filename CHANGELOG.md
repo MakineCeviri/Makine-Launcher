@@ -130,6 +130,20 @@ sürümleme [Semantic Versioning](https://semver.org/lang/tr/) standardına uygu
 
 ---
 
+## [0.2.3-beta] - Yayınlanmadı
+
+### Eklenen
+- **Yenilikler sayfası** (`WhatsNewScreen.qml`, kenar çubuğu → Yenilikler): sürüm notları, "Sırada ne var?" planı ve launcher'ın güncel olup olmadığı. Güncellemeden sonraki ilk açılışta kendiliğinden açılır (`update/notesSeenVersion`); ilk kurulumda karşılama akışı bitince "okundu" sayılır. Notlar ve plan uygulamanın içinde (`qml/resources/whatsnew.json`), CDN'deki kopya (`assets/launcher.json`) ile tazelenir (`releasenotes.h`: sürüme göre birleştirme, CDN'deki önce; yayımlanmamış sürümün notu gösterilmez)
+- **Yeni sürüm bildirimi Store'da da**: `UpdateService` MSIX'te artık susmuyor; `launcher.json`'daki `store` sürümüyle karşılaştırıp Store'un uygulama sayfasını açıyor (`ms-windows-store://pdp/?ProductId=9NQMT44PRWHG`). ZIP kurulumu `latest` ile karşılaştırıp indirme sayfasını açıyor; kurulum EXE'si (`url` + `checksum`) verilirse eski kendini güncelleme yolu duruyor. Pencereye dönünce en çok 6 saatte bir yeniden bakılıyor (`checkIfStale`)
+- `actionText` / `actionHint` / `opensPage` / `storeBuild`: kenar çubuğu, Yenilikler ve Ayarlar → Genel aynı düğmeyi ve açıklamayı gösteriyor
+- **Oyunun parmak izi** (OyunBul `game.bin`): kurulum ön kontrolünde TAM değilse oyuna dokunmadan sorulur ("Yine de kur"); bir üst/alt klasör tutuyorsa oraya bağlanır; `${gameRoot}` / `${exeDir}` (tarif seviyesi 4), `MAKINE_EXE_KLASORU`, stage'de OyunBul'un `game.path`'i. Ayrıntı `docs/yama-araclari.md`
+- `just launcher-json <latest> <store>` → Assets deposuna `assets/launcher.json`
+- `test_releasenotes`: sürüm karşılaştırması, birleştirme, gösterim; uygulamanın notlarının ilk girdisi derlenen sürüm olmalı
+
+### Değişen
+- Güncelleme bildirimi `assets/update.json` yerine `assets/launcher.json`'ı okuyor; `update.json` 0.2.2 ve öncesi için olduğu gibi kalıyor
+- Geliştirici yapısında `MAKINE_UPDATE_URL` GitHub kanalından önce geliyor
+
 ## [0.2.2-beta] - 2026-10-23
 
 ### Düzeltilen

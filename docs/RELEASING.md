@@ -46,6 +46,9 @@
 # 2. CHANGELOG.md: [Unreleased] içeriğini "## [X.Y.Z] - YYYY-MM-DD" bölümüne taşı
 # 3. Notları yaz — yayımlanacak gövdenin kendisi
 $EDITOR docs/release-notes/v0.1.5-beta.md
+# 3b. Uygulamanın içindeki notlar (Yenilikler sayfası): qml/resources/whatsnew.json'ın
+#     başına sürümün girdisi (oyuncunun diliyle, 3-6 madde), "roadmap"ı da gözden geçir.
+#     test_releasenotes ilk girdinin derlenen sürüm olmasını ister.
 
 # 4. Paketi üret (dinamik Qt — DLL'ler ZIP içinde; statik kit yok)
 #    Önce sembolleri Sentry'ye yükler ve Sentry'den geri okur (scripts/upload_symbols.py);
@@ -68,10 +71,18 @@ gh release create v0.1.5-beta   dist/Makine-Launcher-v0.1.5-beta-win64.zip dist/
 gh release view v0.1.5-beta
 curl -sI https://github.com/MakineCeviri/Makine-Launcher/releases/latest | head -1   # 302 + /tag/v0.1.5-beta
 
+# 6b. Launcher'lara yeni sürümü duyur: CDN'deki manifest (store = Store'da ŞU AN olan sürüm)
+just launcher-json 0.1.5-beta <store'daki sürüm>
+cd ../Makine-Launcher-Assets && git add assets/launcher.json && git commit -m "data(launcher): 0.1.5-beta" && git push
+curl -s https://cdn.makineceviri.org/assets/launcher.json | head -4                  # R2'ye eşitlendi mi
+
 # 7. Bir önceki sürümün başlığına "(Arşiv)" ekle, gövdesine güncel sürüm bandını koy
 # 7b. Birkaç gün sonra: just telemetry-watch — yeni sürümün çökmesiz oturum oranı
 #     bir öncekiyle karşılaştırılır (oturumlar hata kotasına takılmaz)
 # 8. Store paketi ayrı akış: just msix-dynamic <4 parçalı sürüm> <identity> <publisher>
+#    Partner Center'daki "Bu sürümdeki yenilikler" metni: packaging/msix/store-whats-new.txt
+# 8b. Store paketi YAYIMLANINCA (sertifika bitip mağazada görünce): just launcher-json <latest> <yeni store sürümü>
+#     ve Assets'e push. Önce yapılırsa Store'dan kuranlar boş bir Store sayfasına gönderilir.
 ```
 
 ## Arşiv politikası
@@ -84,8 +95,8 @@ curl -sI https://github.com/MakineCeviri/Makine-Launcher/releases/latest | head 
 
 ## Bilinen sınırlar
 
-- **İçeriden güncelleme GitHub'ı kullanamaz.** `UpdateService` indirme host'u olarak yalnızca `cdn.makineceviri.org` ve `makineceviri.org` adreslerine izin verir (`qml/src/services/updateservice.cpp`), ve `SelfUpdater` indirilen dosyayı çalıştırılabilir gibi takas eder — ZIP ile çalışmaz. Store dışı kurulumda güncelleme şimdilik elle yapılır.
-- **`assets/update.json` güncel değil** (R2'de `0.1.0-pre-alpha`, `url` boş). Store dışı otomatik güncelleme açılacaksa hem bu dosya hem de bir kurulum EXE'si gerekir. 0.1.5'e kadar ZIP kullanıcısı bu yüzden Ayarlar → Genel'de "Kontrol başarısız oldu" görüyordu; 0.1.6'dan beri eski sürümlü bir kayıt "güncel" sayılır, `url` yalnız daha yeni sürümde aranır.
+- **İçeriden güncelleme GitHub'ı kullanamaz.** `UpdateService` indirme host'u olarak yalnızca `cdn.makineceviri.org` ve `makineceviri.org` adreslerine izin verir (`qml/src/services/updateservice.cpp`), ve `SelfUpdater` indirilen dosyayı çalıştırılabilir gibi takas eder — ZIP ile çalışmaz. 0.2.3'ten beri launcher yeni sürümü **haber verir**: ZIP'te "İndir" sürüm sayfasını açar (kurulumu oyuncu yapar), Store'da "Store'da güncelle" Store'u açar.
+- **İki güncelleme dosyası.** 0.2.3+ `assets/launcher.json`'ı okur (`releasenotes.h`; `just launcher-json`). 0.2.2 ve öncesi `assets/update.json`'ı okur; o dosya `0.1.0-pre-alpha` kaydıyla bilerek eski bırakıldı. Yeni bir sürüm yazılırsa `url`'süz kayıt o launcher'larda Ayarlar'da "Denetlenemedi" gösterir. 0.1.6'dan beri eski sürümlü kayıt "güncel" sayılır.
 - **Dev kanalı gövdeden `SHA256:` satırını okur.** `MAKINE_DEV_TOOLS` yapıları `releases/latest` çağırıp gövdedeki `SHA256: <hash>` satırını ve `.exe` uzantılı varlığı arar; ZIP-only bir sürümde sessizce boşta kalır (çökmez).
 - **Statik Qt kiti kurulu değil** — tek dosya EXE üretilemiyor. Yayın paketi Qt DLL'lerini taşıyan ZIP'tir (~50 MB).
 

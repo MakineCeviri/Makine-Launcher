@@ -1,0 +1,11 @@
+Sürüm 0.2.3 — yeni görünüm, daha güvenli kurulum ve Yenilikler sayfası
+
+• Yenilikler sayfası: her sürümde neyin değiştiği ve sırada ne olduğu artık launcher'ın içinde. Yeni bir sürüm çıkınca kenar çubuğunda haber verilir; "Store'da güncelle" seni doğrudan buraya getirir.
+• Yeni görünüm: kenar çubuğuyla Ana Sayfa, Tüm Oyunlar ve Kütüphanem; koyu ya da açık görünüm ve vurgu rengi seçimi.
+• Oyun sürümü kontrolü: bazı yamalarda launcher, kurmadan önce oyununun yamanın hazırlandığı sürüm olup olmadığına bakar; uymazsa oyuna dokunmadan sorar.
+• Oyun klasörü seçimi: bulunamayan oyunun klasörü seçilebilir ya da pencereye sürüklenebilir; yamanın gideceği doğru klasörü launcher bulur.
+• Kendi programıyla kurulan yamalar (Heavy Rain gibi) ve Elden Ring, Assassin's Creed Valhalla, Odyssey, Mirage yamaları launcher'ın içinden kurulur.
+• Daha güvenli kaldırma: orijinal dosyalar korunur; yarıda kalan işlem bir sonraki açılışta geri alınır.
+• Ubisoft Connect kütüphanesindeki oyunlar da bulunur.
+• Nasıl çalışır? (F1): adım adım ne olduğu ve sık sorulanlar.
+• Bazı ekranlardaki donmalar giderildi; hata raporları Ayarlar'dan kapatılabilir.
