@@ -412,6 +412,15 @@ public:
     Q_INVOKABLE void acknowledgeAntiCheat(const QString& gameId);
 
     /**
+     * @brief Go on with an install held for the game's fingerprint
+     *
+     * The folder is another version of the game than the patch was made on,
+     * or does not look like the game at all (installNeedsConfirmation); the
+     * player says to install anyway. Same variant and options as held.
+     */
+    Q_INVOKABLE void installAnyway(const QString& gameId);
+
+    /**
      * @brief Check if a local translation package exists for a game
      * Used by InstallFlowController to decide whether to download from R2
      */
@@ -500,6 +509,10 @@ signals:
     void translationInstallOutput(const QString& gameId);
     void translationInstallCompleted(const QString& gameId, bool success, const QString& message);
     void translationUninstalled(const QString& gameId, bool success, const QString& message);
+    // An install stopped before touching the game, because the folder is not
+    // the copy the patch was made on: {kind: "version"|"folder", title,
+    // message}. installAnyway() goes on.
+    void installNeedsConfirmation(const QString& gameId, const QVariantMap& info);
 
     // Result of repairGameFiles(): whether the store's verification was handed
     // off successfully, plus a message to show the user.
@@ -597,6 +610,11 @@ private:
 
     void installPackageCommon(const QString& gameId, const QString& variant,
                               const QStringList& selectedOptions, InstallMode mode);
+    // Stop an install whose folder is not the copy the patch was made on and
+    // ask the player (installNeedsConfirmation); installAnyway() goes on.
+    void holdInstallForPrint(const QString& gameId, const QString& variant,
+                             const QStringList& selectedOptions, InstallMode mode,
+                             const QString& installPath, const gameprint::Verdict& v);
 
     CoreBridge* m_coreBridge{nullptr};  // Non-owning. Singleton, set by setupCoreBridge().
     ManifestSyncService* m_manifestSync{nullptr};  // Non-owning. Set by setManifestSync().
@@ -652,6 +670,16 @@ private:
     mutable bool m_installedCacheValid{false};
     mutable int m_outdatedPatchCount{0};
     QSet<QString> m_antiCheatAcknowledged;
+    // The install held for its fingerprint, and the games whose next install
+    // goes on without asking again (installAnyway).
+    struct HeldInstall {
+        QString gameId;
+        QString variant;
+        QStringList options;
+        InstallMode mode = InstallMode::Install;
+    };
+    std::optional<HeldInstall> m_heldInstall;
+    QSet<QString> m_printAcknowledged;
     SupportedGamesModel* m_supportedGamesModel{nullptr};
 };
 

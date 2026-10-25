@@ -104,6 +104,11 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("oyun dosyası bulunamadı"),              QStringLiteral("target_missing")},
         // The folder lacks what the patch's "requires" names (0.2.0 preflight):
         // not the game's folder, or, under an installed patch, the game changed.
+        // The folder against the OyunBul fingerprint of the copy the patch was
+        // made on (gameprint.h): another version, or not the game at all.
+        // The install waited for the player; counted, not a fault.
+        {QStringLiteral("game fingerprint: version differs"),    QStringLiteral("game_version_differs")},
+        {QStringLiteral("game fingerprint: folder does not match"), QStringLiteral("fingerprint_mismatch")},
         {QStringLiteral("installed game lacks required files"),  QStringLiteral("requires_missing_installed")},
         {QStringLiteral("game folder lacks required files"),     QStringLiteral("folder_mismatch")},
         {QStringLiteral("adımda hata oluştu"),                   QStringLiteral("step_failed")},          // 1124

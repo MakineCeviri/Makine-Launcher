@@ -209,6 +209,16 @@ Item {
                 root.viewModel.isUndoing = GameService.isUndoing(gId)
             }
         }
+        // The folder is another version of the game than the patch was made
+        // on, or not the game at all (OyunBul's fingerprint): nothing was
+        // touched, and the player decides. The banner keeps the same text.
+        function onInstallNeedsConfirmation(gId, info) {
+            if (gId !== root.viewModel.gameId) return
+            printConfirm.kind = info.kind || ""
+            printConfirm.title = info.title || ""
+            printConfirm.message = info.message || ""
+            printConfirm.open()
+        }
         function onTranslationInstallCompleted(gId, success, message) {
             // Reported from the field as "yama kurulu görünüyor ama oyun hâlâ
             // İngilizce". The last install step is often the user's: switch
@@ -290,6 +300,17 @@ Item {
         confirmText: qsTr("Yamayı kaldır")
         glyph: Icons.trash2
         onConfirmed: GameService.uninstallTranslation(root.viewModel.gameId)
+    }
+
+    ConfirmDialog {
+        id: printConfirm
+        property string kind: ""
+        parent: Overlay.overlay
+        width: 480
+        accentColor: Theme.warning
+        glyph: printConfirm.kind === "folder" ? Icons.folder : Icons.triangleAlert
+        confirmText: qsTr("Yine de kur")
+        onConfirmed: GameService.installAnyway(root.viewModel.gameId)
     }
 
     // ===== POST-INSTALL NOTES DIALOG (lazy) =====

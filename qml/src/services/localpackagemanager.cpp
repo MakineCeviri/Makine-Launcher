@@ -479,6 +479,50 @@ QStringList LocalPackageManager::requiredFilesFor(const QString& steamAppId, con
     return out.mid(0, 40);
 }
 
+QList<gameprint::Print> LocalPackageManager::gamePrints(const QString& steamAppId) const
+{
+    QList<gameprint::Print> out;
+    const auto entry = m_catalog.getPackage(steamAppId.toStdString());
+    if (!entry) return out;
+    if (entry->fingerprint && !entry->fingerprint->printExe.rel.empty()) {
+        const packages::GameFingerprint& fp = *entry->fingerprint;
+        const auto file = [](const packages::GameFingerprint::File& f) {
+            return gameprint::Entry{
+                QString::fromStdString(f.rel).replace(QLatin1Char('\\'), QLatin1Char('/')), f.size,
+                QByteArray::fromHex(QByteArray::fromStdString(f.hash))};
+        };
+        gameprint::Print p;
+        p.name = QString::fromStdString(entry->gameName);
+        p.rootName = QString::fromStdString(fp.rootName);
+        p.exeVersion = QString::fromStdString(fp.exeVersion);
+        p.exe = file(fp.printExe);
+        for (const auto& f : fp.altExes) p.altExes.append(file(f));
+        for (const auto& f : fp.samples) p.samples.append(file(f));
+        p.matchRatio = fp.matchRatio;
+        p.exactRatio = fp.exactRatio;
+        if (p.isValid()) out.append(p);
+    }
+    // The translator's own game.bin, shipped with the patch as OyunBul wants it.
+    if (!entry->dirName.empty() && !m_dataPath.isEmpty()) {
+        const QString dir = m_dataPath + QLatin1Char('/') + QString::fromStdString(entry->dirName);
+        for (const QString& bin : gameprint::findGameBins(dir)) {
+            if (const auto p = gameprint::fromGameBinFile(bin)) out.append(*p);
+            else qCWarning(lcPackageManager) << "Not a usable game.bin:" << bin;
+        }
+    }
+    return out;
+}
+
+QString LocalPackageManager::gameExeRel(const QString& steamAppId, const QString& gamePath) const
+{
+    if (gamePath.isEmpty() || !QFileInfo(gamePath).isDir()) return {};
+    if (const QList<gameprint::Print> prints = gamePrints(steamAppId); !prints.isEmpty()) {
+        const gameprint::Verdict v = gameprint::best(prints, gamePath);
+        if (v.match) return v.exeRel;
+    }
+    return folderrules::findExpectedExe(gamePath, folderExpectations(steamAppId).exeNames);
+}
+
 folderrules::Expectations LocalPackageManager::folderExpectations(const QString& steamAppId) const
 {
     folderrules::Expectations e;
@@ -1606,6 +1650,14 @@ static QString newStageDir(const QString& gameId)
         .arg(QDateTime::currentMSecsSinceEpoch());
 }
 
+// ${exeDir}: the folder of `exeRel` under the game; the game's own folder when
+// the exe is unknown or sits at its top.
+static QString exeDirOf(const QString& gamePath, const QString& exeRel)
+{
+    const int cut = exeRel.lastIndexOf(QLatin1Char('/'));
+    return cut < 0 ? gamePath : QDir::cleanPath(gamePath + QLatin1Char('/') + exeRel.left(cut));
+}
+
 // The package's copy kept for uninstall: the program that undoes a run step
 // must still be there when the catalogue has moved on to a newer package and
 // the extracted one is gone.
@@ -1638,6 +1690,8 @@ LocalPackageManager::ProcessResult LocalPackageManager::runPackageProgram(
         return none;
     }
     *shownName = QFileInfo(exePath).fileName();
+    const QString gameExe = gameExeRel(gameId, gamePath);
+    const QString exeDir = exeDirOf(gamePath, gameExe);
 
     // A program of the package runs from its stage, never from the package
     // itself: the stage's scripts set the game folder the launcher found.
@@ -1664,16 +1718,32 @@ LocalPackageManager::ProcessResult LocalPackageManager::runPackageProgram(
                      shown.isEmpty() ? QString()
                                      : tr(" (yerine geçtiği: %1)").arg(shown.mid(0, 3).join(QStringLiteral(", ")))));
         }
+        // OyunBul, when the package carries it: game.path beside each game.bin
+        // names this folder, so "OyunBul.exe bul" in the patch's .bat takes it
+        // at once instead of searching every drive, and cannot settle on
+        // another copy of the game.
+        for (const QString& bin : gameprint::findGameBins(stage)) {
+            const auto print = gameprint::fromGameBinFile(bin);
+            if (!print) continue;
+            const QString to = QFileInfo(bin).absolutePath() + QStringLiteral("/game.path");
+            QFile::remove(to);
+            QFile out(to);
+            if (out.open(QIODevice::WriteOnly)
+                && out.write(gameprint::pathFile(gamePath, gameExe.isEmpty() ? print->exe.rel : gameExe)) > 0)
+                emit processOutput(tr("OyunBul'un game.path dosyasına oyunun klasörü yazıldı: %1\n")
+                                       .arg(QDir::toNativeSeparators(gamePath)));
+        }
         exePath = QDir::cleanPath(stage + QLatin1Char('/') + QDir(packageDir).relativeFilePath(exePath));
     }
     const QString runFrom = stage.isEmpty() ? packageDir : stage;
     const QString workDir = (workDirMode == QLatin1String("package") && !runFrom.isEmpty())
         ? runFrom : gamePath;
-    const QStringList resolvedArgs = steprules::resolveRunArgs(args, gamePath, runFrom);
+    const QStringList resolvedArgs = steprules::resolveRunArgs(args, gamePath, runFrom, exeDir);
     const QHash<QString, QString> env = {
         {QLatin1String(runstage::kGameVar), QDir::toNativeSeparators(gamePath)},
         {QLatin1String(runstage::kPackageVar), QDir::toNativeSeparators(runFrom)},
         {QLatin1String(runstage::kGameIdVar), gameId},
+        {QLatin1String(runstage::kExeDirVar), QDir::toNativeSeparators(exeDir)},
     };
     qCInfo(lcPackageManager) << "Run: executing" << exePath << "args:" << resolvedArgs
                              << "workDir:" << workDir;
@@ -3644,7 +3714,8 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     if (runsProgram) {
         QSaveFile note(QDir::cleanPath(gamePath + QLatin1Char('/') + QLatin1String(runstage::kNoteFile)));
         if (note.open(QIODevice::WriteOnly)
-            && note.write(runstage::noteFile(gamePath, pkg.steamAppId, pkg.gameName)) >= 0
+            && note.write(runstage::noteFile(gamePath, pkg.steamAppId, pkg.gameName,
+                                             exeDirOf(gamePath, gameExeRel(pkg.steamAppId, gamePath)))) >= 0
             && note.commit())
             installedFiles << launcherFiles;
         else

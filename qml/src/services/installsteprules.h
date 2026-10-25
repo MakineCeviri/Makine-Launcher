@@ -52,7 +52,11 @@ inline const QStringList& knownActions()
 //      before anything runs; what the program changed is recorded and its
 //      "uninstall" program is waited on. A recipe that leans on any of that —
 //      a translator's .bat with its own folder in it — is level 3.
-inline constexpr int kRecipeLevel = 3;
+//   4  ${gameRoot} and ${exeDir} in a run step's arguments (0.2.3): the
+//      folder the game's exe sits in, which Elden Ring's ER.exe wants
+//      (<root>/Game) where ${gamePath} gives the root. An older launcher
+//      would hand the program the placeholder itself.
+inline constexpr int kRecipeLevel = 4;
 
 inline bool isKnownAction(const QString& action)
 {
@@ -288,20 +292,26 @@ inline bool runStepIsUserLaunchedTool(QStringView exe,
     return false;
 }
 
-// A run step's arguments with ${gamePath} and ${packageDir} filled in. The two
-// paths go in with native separators: Qt holds them as "D:/SteamLibrary/…",
-// and a patch's own .bat that hands that to xcopy or copy fails, because cmd
-// reads "/SteamLibrary" as a switch. The rest of each argument is the recipe
-// author's and stays as written.
+// A run step's arguments with the placeholders filled in: ${gamePath} and its
+// other name ${gameRoot} (the game's root, where the fingerprint's paths
+// start), ${exeDir} (the folder its exe sits in: <root>/Game for Elden Ring;
+// the root when unknown) and ${packageDir}. The paths go in with native
+// separators: Qt holds them as "D:/SteamLibrary/…", and a patch's own .bat
+// that hands that to xcopy or copy fails, because cmd reads "/SteamLibrary"
+// as a switch. The rest of each argument is the recipe author's and stays as
+// written.
 inline QStringList resolveRunArgs(const QStringList& args, const QString& gamePath,
-                                  const QString& packageDir)
+                                  const QString& packageDir, const QString& exeDir = {})
 {
     const QString game = QDir::toNativeSeparators(gamePath);
     const QString pkg  = QDir::toNativeSeparators(packageDir);
+    const QString exe  = exeDir.isEmpty() ? game : QDir::toNativeSeparators(exeDir);
     QStringList resolved;
     resolved.reserve(args.size());
     for (QString arg : args) {
         arg.replace(QLatin1String("${gamePath}"), game);
+        arg.replace(QLatin1String("${gameRoot}"), game);
+        arg.replace(QLatin1String("${exeDir}"), exe);
         arg.replace(QLatin1String("${packageDir}"), pkg);
         resolved.append(arg);
     }

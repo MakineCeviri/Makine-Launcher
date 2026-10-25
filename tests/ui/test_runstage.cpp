@@ -159,6 +159,15 @@ TEST(RunStage, NoteFileSetsTheFolderForABatch)
     const QString text = QString::fromUtf8(note);
     EXPECT_TRUE(text.contains(QStringLiteral("set \"OYUN=C:\\Users\\Şükrü\\Desktop\\heavy rain\"\r\n")));
     EXPECT_TRUE(text.contains(QStringLiteral("set \"MAKINE_OYUN_ID=960910\"\r\n")));
+    // No exe folder known: the root stands for it.
+    EXPECT_TRUE(text.contains(
+        QStringLiteral("set \"MAKINE_EXE_KLASORU=C:\\Users\\Şükrü\\Desktop\\heavy rain\"\r\n")));
+
+    const QString er = QString::fromUtf8(noteFile(
+        QStringLiteral("D:/Oyunlar/ELDEN RING"), QStringLiteral("1245620"), QStringLiteral("ELDEN RING"),
+        QStringLiteral("D:/Oyunlar/ELDEN RING/Game")));
+    EXPECT_TRUE(er.contains(QStringLiteral("set \"OYUN=D:\\Oyunlar\\ELDEN RING\"\r\n")));
+    EXPECT_TRUE(er.contains(QStringLiteral("set \"MAKINE_EXE_KLASORU=D:\\Oyunlar\\ELDEN RING\\Game\"\r\n")));
 }
 
 TEST(RunStage, WindowedProgramFromItsHeader)

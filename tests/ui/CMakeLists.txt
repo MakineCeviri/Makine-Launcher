@@ -74,6 +74,13 @@ target_include_directories(test_gamefolderrules PRIVATE
 target_link_libraries(test_gamefolderrules PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_gamefolderrules COMMAND test_gamefolderrules)
 
+# The OyunBul fingerprint: a game.bin OyunBul wrote, judged against real trees
+add_executable(test_gameprint test_gameprint.cpp)
+target_include_directories(test_gameprint PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_gameprint PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_gameprint COMMAND test_gameprint)
+
 add_executable(test_installsteprules test_installsteprules.cpp)
 target_include_directories(test_installsteprules PRIVATE
     ${MAKINE_PROJECT_ROOT}/qml/src/services)

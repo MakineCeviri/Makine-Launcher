@@ -1477,6 +1477,13 @@ QStringList CoreBridge::requiredFilesFor(const QString& gameId, const QString& v
                               : m_localPkgManager->requiredFilesFor(resolved, variant, selectedOptions);
 }
 
+QList<gameprint::Print> CoreBridge::gamePrints(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? QList<gameprint::Print>{} : m_localPkgManager->gamePrints(resolved);
+}
+
 bool CoreBridge::recipeWritesInPlace(const QString& gameId)
 {
     if (!m_localPkgManager) return false;

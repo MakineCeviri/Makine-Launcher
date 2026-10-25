@@ -426,6 +426,20 @@ TEST(InstallStepRules, RunArgsGetTheGameAndPackagePathsWithNativeSeparators) {
 #endif
 }
 
+// Elden Ring's ER.exe wants the folder Data0.bhd sits in (<root>/Game), the
+// forge tools the root. ${gameRoot} is the root under its other name; with
+// no exe folder known, ${exeDir} is the root too.
+TEST(InstallStepRules, RunArgsGetTheRootAndTheExeFolder) {
+    const QStringList args = {QStringLiteral("pack"), QStringLiteral("--game"), QStringLiteral("${exeDir}"),
+                              QStringLiteral("--root=${gameRoot}")};
+    const QStringList er = resolveRunArgs(args, QStringLiteral("D:/Oyunlar/ELDEN RING"), QStringLiteral("C:/pkg"),
+                                          QStringLiteral("D:/Oyunlar/ELDEN RING/Game"));
+    EXPECT_EQ(er.at(2), QDir::toNativeSeparators(QStringLiteral("D:/Oyunlar/ELDEN RING/Game")));
+    EXPECT_EQ(er.at(3), QStringLiteral("--root=") + QDir::toNativeSeparators(QStringLiteral("D:/Oyunlar/ELDEN RING")));
+    const QStringList flat = resolveRunArgs(args, QStringLiteral("D:/Games/ACS"), QStringLiteral("C:/pkg"));
+    EXPECT_EQ(flat.at(2), QDir::toNativeSeparators(QStringLiteral("D:/Games/ACS")));
+}
+
 TEST(InstallStepRules, RunArgsWithoutPlaceholdersAreUnchanged) {
     const QStringList args = {QStringLiteral("kapat"), QStringLiteral("hotchunk.arch06")};
     EXPECT_EQ(resolveRunArgs(args, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")), args);

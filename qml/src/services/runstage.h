@@ -38,6 +38,8 @@ namespace makine::runstage {
 inline constexpr char kGameVar[]    = "MAKINE_OYUN";     // the game folder
 inline constexpr char kPackageVar[] = "MAKINE_PAKET";    // the staged package
 inline constexpr char kGameIdVar[]  = "MAKINE_OYUN_ID";  // the catalogue id
+// The folder the game's exe sits in (${exeDir}): <root>/Game for Elden Ring.
+inline constexpr char kExeDirVar[]  = "MAKINE_EXE_KLASORU";
 // The launcher's note in the game folder.
 inline constexpr char kNoteFile[]   = ".makine";
 
@@ -300,9 +302,11 @@ inline QByteArray rewritePathFile(const QByteArray& content, const QString& game
 // <game>/.makine: what the launcher knows about the folder, in the form a .bat
 // can take in (`for /f "usebackq delims=" %%L in ("%OYUN%\.makine") do %%L`)
 // and a person can read. UTF-8 — paths may hold any letter.
-inline QByteArray noteFile(const QString& gamePath, const QString& gameId, const QString& gameName)
+inline QByteArray noteFile(const QString& gamePath, const QString& gameId, const QString& gameName,
+                           const QString& exeDir = {})
 {
     const QString game = QDir::toNativeSeparators(QDir::cleanPath(gamePath));
+    const QString exe = exeDir.isEmpty() ? game : QDir::toNativeSeparators(QDir::cleanPath(exeDir));
     QString s;
     s += QStringLiteral("@rem Makine Launcher: bu klas\u00f6r %1 oyununun klas\u00f6r\u00fc.\r\n")
              .arg(gameName.isEmpty() ? gameId : gameName);
@@ -311,6 +315,7 @@ inline QByteArray noteFile(const QString& gamePath, const QString& gameId, const
     s += QStringLiteral("set \"OYUN=%1\"\r\n").arg(game);
     s += QStringLiteral("set \"%1=%2\"\r\n").arg(QLatin1String(kGameVar), game);
     s += QStringLiteral("set \"%1=%2\"\r\n").arg(QLatin1String(kGameIdVar), gameId);
+    s += QStringLiteral("set \"%1=%2\"\r\n").arg(QLatin1String(kExeDirVar), exe);
     return s.toUtf8();
 }
 

@@ -210,6 +210,10 @@ public:
     folderrules::Expectations folderExpectations(const QString& gameId);
     QStringList requiredFilesFor(const QString& gameId, const QString& variant,
                                  const QStringList& selectedOptions);
+    /**
+     * @brief The fingerprints of the copy the patch was made on (gameprint.h)
+     */
+    QList<gameprint::Print> gamePrints(const QString& gameId);
 
     /**
      * @brief Whether the package's recipe rewrites game files in place

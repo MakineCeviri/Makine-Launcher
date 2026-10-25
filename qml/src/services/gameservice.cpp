@@ -20,6 +20,8 @@
 #include "apppaths.h"
 #include "profiler.h"
 #include "crashreporter.h"
+#include "failurereasons.h"
+#include "telemetryservice.h"
 #include "elevatedops.h"
 #include "installsteprules.h"
 #include "pathsecurity.h"
@@ -1029,10 +1031,28 @@ void GameService::inspectGameFolder(const QString& gameId, const QString& picked
 
         QString problem;
         folderrules::RootEvidence ev;
+        // The copy the patch was made on (gameprint.h), when the patch says:
+        // "none" when there is a print and no folder around the pick matches.
+        QString print;
         if (chosen.isEmpty() || !QFileInfo::exists(chosen)) {
             problem = folderProblemText(folderrules::FolderProblem::Missing);
         } else {
-            ev = folderrules::pickRoot(chosen, gameName, cb->folderExpectations(appId));
+            const folderrules::Expectations expected = cb->folderExpectations(appId);
+            ev = folderrules::pickRoot(chosen, gameName, expected);
+            // It outranks every other hint: the folder around the pick it
+            // matches is the root, even one the layout rules would not climb to.
+            if (const QList<gameprint::Print> prints = cb->gamePrints(appId); !prints.isEmpty()) {
+                const QString base = QFileInfo(chosen).isFile() ? QFileInfo(chosen).absolutePath() : chosen;
+                gameprint::Verdict pv = gameprint::best(prints, ev.root.isEmpty() ? base : ev.root);
+                if (!pv.match) {
+                    if (const QString root = gameprint::findRoot(prints, base); !root.isEmpty()) {
+                        pv = gameprint::best(prints, root);
+                        ev = folderrules::weighRoot(root, expected);
+                    }
+                }
+                print = pv.exact ? QStringLiteral("exact") : pv.match ? QStringLiteral("differs")
+                                                                      : QStringLiteral("none");
+            }
             if (ev.root.isEmpty()) {
                 const auto v = folderrules::judgeGameFolder(chosen, trees, folders);
                 problem = folderProblemText(v.problem != folderrules::FolderProblem::None
@@ -1083,11 +1103,13 @@ void GameService::inspectGameFolder(const QString& gameId, const QString& picked
         }
 
         const bool missingFiles = ev.filesFound < ev.filesTotal;
-        const bool evidence = !ev.exe.isEmpty() || ev.filesFound > 0
-                              || (ev.dirsTotal > 0 && ev.dirsFound * 2 >= ev.dirsTotal);
+        const bool evidence = print == QLatin1String("exact") || print == QLatin1String("differs")
+            || (print.isEmpty() && (!ev.exe.isEmpty() || ev.filesFound > 0
+                                    || (ev.dirsTotal > 0 && ev.dirsFound * 2 >= ev.dirsTotal)));
         r[QStringLiteral("verdict")] = !problem.isEmpty() ? QStringLiteral("refused")
             : (evidence && otherGame.isEmpty() && !missingFiles) ? QStringLiteral("ok")
             : QStringLiteral("unsure");
+        r[QStringLiteral("print")] = print;
         r[QStringLiteral("problem")] = problem;
         r[QStringLiteral("root")] = ev.root;
         r[QStringLiteral("rootShown")] = shownFolder(ev.root);
@@ -1695,6 +1717,63 @@ void GameService::endCancelledInstall(const QString& gameId)
     emit translationInstallCompleted(gameId, false, tr("Kurulum iptal edildi"));
 }
 
+void GameService::holdInstallForPrint(const QString& gameId, const QString& variant,
+                                      const QStringList& selectedOptions, InstallMode mode,
+                                      const QString& installPath, const gameprint::Verdict& v)
+{
+    m_heldInstall = HeldInstall{gameId, variant, selectedOptions, mode};
+    QVariantMap info;
+    QString message;
+    if (v.match) {
+        info[QStringLiteral("kind")] = QStringLiteral("version");
+        info[QStringLiteral("title")] = tr("Oyunun sürümü yamanınkinden farklı");
+        message = tr("Bu yama oyunun başka bir sürümü için hazırlanmış: yamanın hazırlandığı kopyadaki "
+                     "%1 örnek dosyadan %2 tanesi bu oyunda birebir aynı%3. Yama bu sürümde "
+                     "çalışmayabilir ya da oyunda sorun çıkarabilir. Oyun dosyalarına dokunulmadı.\n\n"
+                     "Oyunu mağazasından güncellemek çoğu zaman yeter. Yine de kurmak için "
+                     "\"Yine de kur\"a basın.")
+                      .arg(QString::number(v.n), QString::number(v.hashHits),
+                           v.exeSame ? QString() : tr(", oyunun programı (%1) farklı").arg(v.exeRel));
+    } else {
+        // "Klasörü değiştir" on the page, as for a folder without "requires".
+        m_folderRejected.insert(gameId);
+        info[QStringLiteral("kind")] = QStringLiteral("folder");
+        info[QStringLiteral("title")] = tr("Bu klasör yamanın oyununa benzemiyor");
+        message = tr("Yamanın hazırlandığı oyunun dosyaları bu klasörde yok:\n%1\n\n"
+                     "%2 örnek dosyadan %3 tanesi yerinde%4. Oyun dosyalarına dokunulmadı. "
+                     "Sayfadaki \"Klasörü değiştir\" ile oyunun kendi klasörünü seçin (Steam: oyuna "
+                     "sağ tık > Yönet > Yerel dosyalara göz at). Klasör doğruysa \"Yine de kur\"a basın.")
+                      .arg(QDir::toNativeSeparators(installPath), QString::number(v.n),
+                           QString::number(v.pathHits),
+                           v.exeFound || v.exeGuessed ? QString()
+                                                      : tr("; oyunun programı (%1) yok").arg(v.exeRel));
+    }
+    info[QStringLiteral("message")] = message;
+    // Counted, not sent to Sentry: the launcher did its job and the player
+    // decides. How often players hold another version than the patch's is
+    // the number worth having.
+    const QString why = QStringLiteral("game fingerprint: %1 - %2")
+        .arg(v.match ? QStringLiteral("version differs") : QStringLiteral("folder does not match"),
+             gameprint::describe(v));
+    qCWarning(lcGameService) << "Install of" << gameId << "held:" << why;
+    CrashReporter::addBreadcrumb("install", why.toUtf8().constData());
+    TelemetryService::recordFailure(QStringLiteral("install"), gameId, QStringLiteral("user"),
+                                    failurereasons::failureReason(why));
+    emit installNeedsConfirmation(gameId, info);
+    emit translationInstallCompleted(gameId, false, message);
+}
+
+void GameService::installAnyway(const QString& gameId)
+{
+    if (!m_heldInstall || m_heldInstall->gameId != gameId) return;
+    const HeldInstall held = *m_heldInstall;
+    m_heldInstall.reset();
+    m_printAcknowledged.insert(gameId);
+    m_folderRejected.remove(gameId);
+    CrashReporter::addBreadcrumb("install", "installing over the fingerprint's warning");
+    installPackageCommon(held.gameId, held.variant, held.options, held.mode);
+}
+
 void GameService::installTranslation(const QString& gameId, const QString& variant,
                                       const QStringList& selectedOptions)
 {
@@ -1858,6 +1937,13 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     expected.requiredFiles = m_coreBridge->requiredFilesFor(gameId, variant, selectedOptions);
     const QString gameName = pkg->gameName;
 
+    // The copy the patch was made on (gameprint.h): is this folder that game,
+    // and that version of it? Not over the patch itself, which changed some of
+    // the very files the print samples.
+    const bool checkPrint = !m_coreBridge->isPackageInstalled(gameId);
+    const bool printAcknowledged = m_printAcknowledged.remove(gameId);
+    CoreBridge* cb = m_coreBridge;
+
     struct Preflight {
         QString runningExe;
         bool writable = true;
@@ -1865,10 +1951,14 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         QString topUpFailed;     // the original that could not go into the backup
         QStringList missing;     // required files the game folder lacks
         QString betterRoot;      // a folder around it that has them all
+        bool printChecked = false;
+        gameprint::Verdict print;  // the folder against the patch's fingerprint
+        QString printRoot;         // a folder around it that is the game, when it is not
     };
     auto* watcher = new QFutureWatcher<Preflight>(this);
     connect(watcher, &QFutureWatcher<Preflight>::finished, this,
-        [this, watcher, gameId, installPath, variant, selectedOptions, pkg, mode, runningMsg]() {
+        [this, watcher, gameId, installPath, variant, selectedOptions, pkg, mode, runningMsg,
+         printAcknowledged]() {
             const Preflight pre = watcher->result();
             const QString runningExe = pre.runningExe;
             watcher->deleteLater();
@@ -1926,6 +2016,31 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
                         .arg(QDir::toNativeSeparators(installPath),
                              pre.missing.mid(0, 4).join(QStringLiteral(", "))));
                 return;
+            }
+
+            if (pre.printChecked) {
+                qCInfo(lcGameService) << "Fingerprint of" << gameId << "at" << installPath << "-"
+                                      << gameprint::describe(pre.print);
+                // The game is one level off (a "<Game>/<Game>" repack, a folder
+                // inside it): bind it there and start again, as for "requires".
+                if (!pre.print.match && !pre.printRoot.isEmpty()) {
+                    m_installTimeoutTimer->stop();
+                    m_installingGameId.clear();
+                    if (setGameFolder(gameId, pre.printRoot)) {
+                        qCInfo(lcGameService) << "Game folder of" << gameId << "moved to"
+                                              << pre.printRoot << "- it matches the patch's fingerprint";
+                        CrashReporter::addBreadcrumb("install",
+                            "game folder corrected to the one matching the patch's fingerprint");
+                        installPackageCommon(gameId, variant, selectedOptions, mode);
+                        return;
+                    }
+                }
+                if (!pre.print.exact && !printAcknowledged) {
+                    m_installTimeoutTimer->stop();
+                    m_installingGameId.clear();
+                    holdInstallForPrint(gameId, variant, selectedOptions, mode, installPath, pre.print);
+                    return;
+                }
             }
 
             // A game under C:\Program Files (EA, Ubisoft, repacks) was asked for
@@ -2141,7 +2256,8 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
         });
 
-    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, topUp, expected, gameName]() -> Preflight {
+    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, topUp, expected, gameName, cb, gameId,
+                                          checkPrint, printAcknowledged]() -> Preflight {
         Preflight out;
         // By image path: the root-folder *.exe names missed every game whose
         // exe sits in bin/ (Watch_Dogs copied 4 of 6 files, then failed on the
@@ -2154,6 +2270,18 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         if (!out.missing.isEmpty()) {
             out.betterRoot = folderrules::rootWithRequired(installPath, gameName, expected);
             return out;
+        }
+        // Before the prompt too: the player is asked about the version first.
+        const QList<gameprint::Print> prints = checkPrint ? cb->gamePrints(gameId) : QList<gameprint::Print>{};
+        if (!prints.isEmpty()) {
+            out.printChecked = true;
+            out.print = gameprint::best(prints, installPath);
+            // Said "install anyway": this folder, then, not one around it.
+            if (!out.print.match && !printAcknowledged) {
+                out.printRoot = gameprint::findRoot(prints, installPath);
+                if (!out.printRoot.isEmpty()) return out;
+            }
+            if (!out.print.exact && !printAcknowledged) return out;
         }
         // Here, off the GUI thread: the UAC prompt blocks until answered.
         if (ElevatedOps::available()) {

@@ -352,6 +352,12 @@ TEST(FailureReasons, APatchProgramsOutcomesHaveTheirOwnCodes)
     EXPECT_EQ(failureReason(QStringLiteral(
         "installed game lacks required files: HeavyRain.exe")),
         QStringLiteral("requires_missing_installed"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "game fingerprint: version differs - SURUM FARKLI (10/10 ornek yerinde, 9/10 birebir, exe farkli: RDR2.exe)")),
+        QStringLiteral("game_version_differs"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "game fingerprint: folder does not match - ESLESMEDI (1/10 ornek yerinde, 0/10 birebir, exe yok: RDR2.exe)")),
+        QStringLiteral("fingerprint_mismatch"));
 }
 
 TEST(FailureReasons, AnUndoProgramsOutcomesAreToldApart)

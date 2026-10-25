@@ -30,6 +30,7 @@
 #include <makine/package_catalog.hpp>
 
 #include "gamefolderrules.h"
+#include "gameprint.h"
 
 namespace makine {
 
@@ -173,6 +174,14 @@ public:
     // GOG variants need different files on every folder.
     QStringList requiredFilesFor(const QString& steamAppId, const QString& variant,
                                  const QStringList& selectedOptions) const;
+    // The fingerprints of the copy this patch was made on (gameprint.h): the
+    // catalogue's, then every game.bin the extracted package carries (OyunBul's,
+    // one per variant at most). Empty when there is none.
+    QList<gameprint::Print> gamePrints(const QString& steamAppId) const;
+    // Where the game's exe sits under `gamePath`, relative ("Game/eldenring.exe"):
+    // the fingerprint's when it matches the folder, else the first of the
+    // catalogue's exe names found there; empty when neither finds one.
+    QString gameExeRel(const QString& steamAppId, const QString& gamePath) const;
 
     // Whether any of this package's recipes rewrites a game file in place.
     bool recipeWritesInPlace(const QString& steamAppId) const;
