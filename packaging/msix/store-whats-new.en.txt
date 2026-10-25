@@ -1,0 +1,11 @@
+Version 0.2.3 — new look, safer installs and a What's New page
+
+• What's New page: what changed in each version and what comes next, right inside the launcher. When a new version is out the sidebar says so, and "Update in the Store" brings you straight here.
+• New look: a sidebar with Home, All Games and My Library; dark or light appearance and an accent colour of your choice.
+• Game version check: for some patches the launcher checks, before installing, that your game is the version the patch was made for; if it is not, it asks without touching the game.
+• Game folder picking: for a game it cannot find, pick its folder or drop it on the window; the launcher works out the right folder for the patch.
+• Patches that come with their own installer (such as Heavy Rain) and the Elden Ring and Assassin's Creed Valhalla, Odyssey and Mirage patches install from inside the launcher.
+• Safer uninstall: original files are kept, and an operation cut short is undone on the next start.
+• Games in your Ubisoft Connect library are found too.
+• How it works (F1): what happens at each step, and common questions.
+• Some screens no longer freeze; crash reports can be turned off in Settings.
